@@ -13,7 +13,13 @@ type ErrorBody = {
   detail?: string;
 };
 
-const send = (res: Response, status: number, message: string, errors: unknown[] = [], detail?: string) => {
+const send = (
+  res: Response,
+  status: number,
+  message: string,
+  errors: unknown[] = [],
+  detail?: string
+) => {
   const body: ErrorBody = { success: false, message, errors };
   if (!isProduction && detail) body.detail = detail;
   res.status(status).json(body);
@@ -39,18 +45,39 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
   }
 
   if (err instanceof ZodError) {
-    const errors = err.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message }));
+    const errors = err.issues.map((issue) => ({
+      path: issue.path.join("."),
+      message: issue.message,
+    }));
     return send(res, 400, "Validation failed", errors);
   }
 
   // Bad ids, out-of-range numbers, malformed input that reached Prisma or BigInt().
-  if (err instanceof Prisma.PrismaClientValidationError || err instanceof RangeError || err instanceof SyntaxError) {
-    console.warn("[Invalid request]", req.method, req.originalUrl, (err as Error).message.split("\n")[0]);
+  const errName = (err as { name?: string })?.name;
+  if (
+    err instanceof Prisma.PrismaClientValidationError ||
+    errName === "PrismaClientValidationError" ||
+    err instanceof RangeError ||
+    err instanceof SyntaxError ||
+    // Values that pass the client but the database rejects (e.g. BigInt out of range).
+    (errName === "PrismaClientUnknownRequestError" &&
+      /out of range|Could not convert|invalid input syntax/i.test((err as Error).message))
+  ) {
+    console.warn(
+      "[Invalid request]",
+      req.method,
+      req.originalUrl,
+      (err as Error).message.split("\n")[0]
+    );
     return send(res, 400, "Invalid request data.", [], (err as Error).message);
   }
 
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (err.code) {
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError ||
+    errName === "PrismaClientKnownRequestError"
+  ) {
+    const known = err as Prisma.PrismaClientKnownRequestError;
+    switch (known.code) {
       case "P2002":
         return send(res, 409, "A record with this value already exists.");
       case "P2003":
@@ -58,11 +85,17 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
       case "P2025":
         return send(res, 404, "Record not found.");
       default:
-        console.error("[Prisma ERROR]", err.code, req.method, req.originalUrl, err.message);
-        return send(res, 500, "Internal server error", [], `${err.code}: ${err.message}`);
+        console.error("[Prisma ERROR]", known.code, req.method, req.originalUrl, known.message);
+        return send(res, 500, "Internal server error", [], `${known.code}: ${known.message}`);
     }
   }
 
   console.error("[UNHANDLED ERROR]", req.method, req.originalUrl, err);
-  return send(res, 500, "Internal server error", [], err instanceof Error ? err.message : undefined);
+  return send(
+    res,
+    500,
+    "Internal server error",
+    [],
+    err instanceof Error ? err.message : undefined
+  );
 };

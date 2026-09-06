@@ -6,6 +6,7 @@ gate that every later package inherits.
 **Data model.** None.
 
 **Packages.**
+
 - `@shiftline/shared` (`packages/shared`): `PERMISSION_REGISTRY`, `generatePermissions`,
   `ALL_PERMISSION_KEYS`, `isKnownPermission`, `API_PATHS`. Built to `dist/esm` and
   `dist/cjs` on `npm install` (`prepare`). The API imports the CJS build, Vite the ESM build.

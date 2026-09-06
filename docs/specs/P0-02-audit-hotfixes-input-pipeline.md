@@ -4,6 +4,7 @@
 input pipeline, and stop trusting the client for `companyId`.
 
 **Changes.**
+
 - SEC-01 admin login failures are recorded (rate limiter now sees them).
 - SEC-02 error handler returns fixed messages; detail only outside production; JSON
   parse → 400, oversize body → 413, Prisma validation / bad ids → 400.

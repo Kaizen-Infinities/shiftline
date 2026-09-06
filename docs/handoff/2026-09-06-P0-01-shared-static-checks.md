@@ -1,6 +1,7 @@
 # P0-01 — Shared package and static checks
 
 ## Shipped
+
 - `packages/shared` (`@shiftline/shared`): permission registry moved out of the API,
   API path table moved out of the web app; dual CJS/ESM build on install.
 - `packages/config`: `tsconfig.base.json`, `eslint.base.js`.
@@ -13,8 +14,10 @@
   all legacy-style; they shrink as screens are touched).
 
 ## Half-done
+
 - Nothing.
 
 ## Next
+
 - P0-02: audit hotfixes (SEC-01..06, REL-01..03, PERF-01, TRUST-01, LOW-02), input
   pipeline (F6), auth on the 7 unguarded route groups, `DATA_ENCRYPTION_KEY`, rate limits.
