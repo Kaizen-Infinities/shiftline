@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  PUPPETEER_SKIP_DOWNLOAD: "1"
+  NPM_CONFIG_UPDATE_NOTIFIER: "false"
+
+jobs:
+  static:
+    name: Typecheck, lint, format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Format check (new code only; legacy screens are formatted as they are touched)
+        run: npx prettier --check "packages/**/*.{ts,js,json}" "apps/api/test/**/*.ts" "apps/api/prisma/seed.ts" "*.{js,mjs,mts,json,yml}" ".github/**/*.yml"
+
+  migrations:
+    name: Schema and migration gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: shiftline
+          POSTGRES_PASSWORD: shiftline
+          POSTGRES_DB: shiftline
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shiftline -d shiftline"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://shiftline:shiftline@localhost:5432/shiftline
+      SHADOW_DATABASE_URL: postgresql://shiftline:shiftline@localhost:5432/shiftline_shadow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Prisma schema is valid
+        run: npx -w @shiftline/api prisma validate
+      - name: Migrations apply to an empty database and match the schema
+        run: |
+          cd apps/api
+          if ls prisma/migrations/*/migration.sql >/dev/null 2>&1; then
+            npx prisma migrate deploy
+            # Fail if schema.prisma drifted from the migration history.
+            npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+          else
+            echo "::warning::No migrations yet (P0-06 adds the initial migration); applying schema with db push for now"
+            npx prisma db push --skip-generate --accept-data-loss
+          fi
+      - name: No db push in package scripts or the Makefile
+        run: |
+          if grep -n "db push" package.json apps/*/package.json packages/*/package.json Makefile; then
+            echo "::error::use prisma migrate dev / migrate deploy, never db push"; exit 1
+          fi
+      - name: No PrismaClient constructed outside the shared client
+        run: |
+          hits=$(grep -rln "new PrismaClient" apps/api/src --include=*.ts | grep -v -E "apps/api/src/(config|lib)/prisma.ts" || true)
+          if [ -n "$hits" ]; then echo "::error::new PrismaClient outside the shared client:"; echo "$hits"; exit 1; fi
+      - name: No session-scoped SET app.* variables
+        run: |
+          if grep -rEn "SET (SESSION )?app\." apps/api/src --include=*.ts; then echo "::error::use set_config(..., true) inside a transaction"; exit 1; fi
+
+  test-api:
+    name: API tests
+    runs-on: ubuntu-latest
+    needs: static
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: shiftline_migrator
+          POSTGRES_PASSWORD: shiftline_migrator
+          POSTGRES_DB: shiftline_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shiftline_migrator -d shiftline_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@localhost:5432/shiftline_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx -w @shiftline/api prisma generate
+      - run: npm run test -w @shiftline/api
+      - run: npm run test -w @shiftline/shared
+
+  test-web:
+    name: Web tests and build
+    runs-on: ubuntu-latest
+    needs: static
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test -w @shiftline/web
+      - run: npm run build -w @shiftline/web
+        env:
+          VITE_API_URL: /api
+
+  e2e:
+    name: Browser smoke (arrives in P0-12)
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+    steps:
+      - run: echo "Playwright smoke suite is added in P0-12"
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

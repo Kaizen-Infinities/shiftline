@@ -1,0 +1,15 @@
+# Paths that file, pay, or control access need the named human approver.
+# Replace the placeholder with the approver's GitHub handle (see docs/runbooks/repo-setup.md).
+
+apps/api/src/modules/auth/            @THeK1DUNBXR
+apps/api/src/middleware/              @THeK1DUNBXR
+apps/api/src/lib/                     @THeK1DUNBXR
+apps/api/src/config/                  @THeK1DUNBXR
+apps/api/prisma/                      @THeK1DUNBXR
+apps/api/src/modules/accounts/        @THeK1DUNBXR
+apps/api/src/modules/vouchers/        @THeK1DUNBXR
+apps/api/src/modules/payroll/         @THeK1DUNBXR
+apps/api/src/modules/gst/             @THeK1DUNBXR
+apps/api/src/modules/tds/             @THeK1DUNBXR
+apps/api/src/modules/payments/        @THeK1DUNBXR
+.github/                              @THeK1DUNBXR
