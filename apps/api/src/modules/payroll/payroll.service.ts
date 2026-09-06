@@ -1,7 +1,7 @@
 import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 /** Convert a period string (YYYY-MM or YYYY-Www) to a date range { start, end } in YYYY-MM-DD */
 function periodToDateRange(period: string): { start: string; end: string } {
@@ -533,7 +533,7 @@ class PayrollService {
       update: data,
       create: { companyId, ...data },
     });
-    getIO().emit("payroll:config:updated", config);
+    emitToTenant("payroll:config:updated", config);
     return config;
   }
 
@@ -590,7 +590,7 @@ class PayrollService {
         .catch(() => {});
     }
 
-    getIO().emit("payroll:employee:updated", cfg);
+    emitToTenant("payroll:employee:updated", cfg);
     return cfg;
   }
 
@@ -826,8 +826,6 @@ class PayrollService {
     createdById: string;
     companyId: string;
   }) {
-    const io = getIO();
-
     // 0. Check for duplicate payroll run in same period
     const existingRun = await prisma.payrollRun.findFirst({
       where: {
@@ -1005,7 +1003,7 @@ class PayrollService {
 
     // 4. Emit start
     const runCode = `PR-${opts.period}-${Date.now().toString().slice(-5)}`;
-    io.emit("payroll:computing", { runCode, period: opts.period, total: employees.length });
+    emitToTenant("payroll:computing", { runCode, period: opts.period, total: employees.length });
 
     // 5. Compute per employee with progress
     const results: ReturnType<typeof computeResult>[] = [];
@@ -1032,7 +1030,7 @@ class PayrollService {
       if (result) results.push(result);
 
       // Emit per-employee progress
-      io.emit("payroll:progress", {
+      emitToTenant("payroll:progress", {
         runCode,
         current: i + 1,
         total: employees.length,
@@ -1143,7 +1141,7 @@ class PayrollService {
     });
 
     // 7. Emit completed
-    io.emit("payroll:completed", {
+    emitToTenant("payroll:completed", {
       runCode,
       runId: run!.id,
       period: opts.period,
@@ -1197,7 +1195,7 @@ class PayrollService {
       }
     }
 
-    getIO().emit("payroll:approved", { runId: id, period: run.period, approvedById: userId });
+    emitToTenant("payroll:approved", { runId: id, period: run.period, approvedById: userId });
     return updated;
   }
 
@@ -1244,7 +1242,7 @@ class PayrollService {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    getIO().emit("payroll:locked", { runId: id, period: run.period, lockedById: userId });
+    emitToTenant("payroll:locked", { runId: id, period: run.period, lockedById: userId });
     return updated;
   }
 
@@ -1254,7 +1252,7 @@ class PayrollService {
     if (run.status !== "DRAFT")
       throw new ApiError(400, "Cannot delete an approved or locked payroll run");
     await prisma.payrollRun.delete({ where: { id } });
-    getIO().emit("payroll:deleted", { runId: id });
+    emitToTenant("payroll:deleted", { runId: id });
   }
 
   // ── Salary Advance ─────────────────────────────────────────────────────────────

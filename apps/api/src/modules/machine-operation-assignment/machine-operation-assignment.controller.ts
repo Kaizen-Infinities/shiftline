@@ -6,7 +6,7 @@ import {
   createMachineAssignmentSchema,
   updateMachineAssignmentSchema,
 } from "./machine-operation-assignment.validation";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 export class MachineOperationAssignmentController {
   static getRoles = asyncHandler(async (_req: Request, res: Response) => {
@@ -49,10 +49,12 @@ export class MachineOperationAssignmentController {
       userId
     );
 
-    const safeAssignment = JSON.parse(JSON.stringify(assignment, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("machineOperationAssignment:created", safeAssignment);
+    const safeAssignment = JSON.parse(
+      JSON.stringify(assignment, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
+    );
+    emitToTenant("machineOperationAssignment:created", safeAssignment);
 
     res.status(201).json({
       success: true,
@@ -72,10 +74,12 @@ export class MachineOperationAssignmentController {
       userId
     );
 
-    const safeAssignment = JSON.parse(JSON.stringify(assignment, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("machineOperationAssignment:updated", safeAssignment);
+    const safeAssignment = JSON.parse(
+      JSON.stringify(assignment, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
+    );
+    emitToTenant("machineOperationAssignment:updated", safeAssignment);
 
     res.json({
       success: true,
@@ -95,10 +99,12 @@ export class MachineOperationAssignmentController {
       userId
     );
 
-    const safeAssignment = JSON.parse(JSON.stringify(assignment, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("machineOperationAssignment:updated", safeAssignment);
+    const safeAssignment = JSON.parse(
+      JSON.stringify(assignment, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
+    );
+    emitToTenant("machineOperationAssignment:updated", safeAssignment);
 
     res.json({
       success: true,
@@ -108,7 +114,9 @@ export class MachineOperationAssignmentController {
   });
 
   static getHistoryByMachine = asyncHandler(async (req: Request, res: Response) => {
-    const machineId = Array.isArray(req.params.machineId) ? req.params.machineId[0] : String(req.params.machineId);
+    const machineId = Array.isArray(req.params.machineId)
+      ? req.params.machineId[0]
+      : String(req.params.machineId);
     const history = await MachineOperationAssignmentService.getHistoryByMachine(machineId);
     res.json({
       success: true,
@@ -117,13 +125,12 @@ export class MachineOperationAssignmentController {
   });
 
   static getCurrentByMachine = asyncHandler(async (req: Request, res: Response) => {
-    const machineId = Array.isArray(req.params.machineId) ? req.params.machineId[0] : String(req.params.machineId);
+    const machineId = Array.isArray(req.params.machineId)
+      ? req.params.machineId[0]
+      : String(req.params.machineId);
     const date = typeof req.query.date === "string" ? req.query.date : undefined;
 
-    const current = await MachineOperationAssignmentService.getCurrentByMachine(
-      machineId,
-      date
-    );
+    const current = await MachineOperationAssignmentService.getCurrentByMachine(machineId, date);
 
     res.json({
       success: true,

@@ -33,3 +33,6 @@ Thumbs.db
 # agent scratch
 .claude/
 CLAUDE.local.md
+
+# retention archives written by the worker
+archives/

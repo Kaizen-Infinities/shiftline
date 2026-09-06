@@ -2,14 +2,12 @@ import { Request, Response } from "express";
 import { GoodsDispatchService } from "./goods-dispatch.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 class GoodsDispatchController {
   getNextNumber = asyncHandler(async (_req: Request, res: Response) => {
     const nextNumber = await GoodsDispatchService.getNextDispatchNumber();
-    return res.status(200).json(
-      new ApiResponse("Next dispatch number generated", { nextNumber })
-    );
+    return res.status(200).json(new ApiResponse("Next dispatch number generated", { nextNumber }));
   });
 
   getEligibleOrders = asyncHandler(async (req: Request, res: Response) => {
@@ -21,23 +19,23 @@ class GoodsDispatchController {
       dateFrom: req.query.dateFrom as string,
       dateTo: req.query.dateTo as string,
     });
-    return res.status(200).json(
-      new ApiResponse("Eligible production orders fetched successfully", orders)
-    );
+    return res
+      .status(200)
+      .json(new ApiResponse("Eligible production orders fetched successfully", orders));
   });
 
   create = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     const dispatch = await GoodsDispatchService.create(req.body, userId!);
-    
-    const safeDispatch = JSON.parse(JSON.stringify(dispatch, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("goodsDispatch:created", safeDispatch);
 
-    return res.status(201).json(
-      new ApiResponse("Goods Dispatch created successfully", dispatch)
+    const safeDispatch = JSON.parse(
+      JSON.stringify(dispatch, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
     );
+    emitToTenant("goodsDispatch:created", safeDispatch);
+
+    return res.status(201).json(new ApiResponse("Goods Dispatch created successfully", dispatch));
   });
 
   findAll = asyncHandler(async (req: Request, res: Response) => {
@@ -49,16 +47,12 @@ class GoodsDispatchController {
       page: req.query.page ? Number(req.query.page) : 1,
       limit: req.query.limit ? Number(req.query.limit) : 10,
     });
-    return res.status(200).json(
-      new ApiResponse("Goods Dispatches fetched successfully", result)
-    );
+    return res.status(200).json(new ApiResponse("Goods Dispatches fetched successfully", result));
   });
 
   findById = asyncHandler(async (req: Request, res: Response) => {
     const dispatch = await GoodsDispatchService.findById(Number(req.params.id));
-    return res.status(200).json(
-      new ApiResponse("Goods Dispatch fetched successfully", dispatch)
-    );
+    return res.status(200).json(new ApiResponse("Goods Dispatch fetched successfully", dispatch));
   });
 
   gateApprove = asyncHandler(async (req: Request, res: Response) => {
@@ -68,15 +62,15 @@ class GoodsDispatchController {
       req.body,
       userId!
     );
-    
-    const safeDispatch = JSON.parse(JSON.stringify(dispatch, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("goodsDispatch:updated", safeDispatch);
 
-    return res.status(200).json(
-      new ApiResponse("Gate approval processed successfully", dispatch)
+    const safeDispatch = JSON.parse(
+      JSON.stringify(dispatch, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
     );
+    emitToTenant("goodsDispatch:updated", safeDispatch);
+
+    return res.status(200).json(new ApiResponse("Gate approval processed successfully", dispatch));
   });
 
   storeReceive = asyncHandler(async (req: Request, res: Response) => {
@@ -87,14 +81,14 @@ class GoodsDispatchController {
       userId!
     );
 
-    const safeDispatch = JSON.parse(JSON.stringify(dispatch, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("goodsDispatch:updated", safeDispatch);
-
-    return res.status(200).json(
-      new ApiResponse("Store receipt processed successfully", dispatch)
+    const safeDispatch = JSON.parse(
+      JSON.stringify(dispatch, (key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
     );
+    emitToTenant("goodsDispatch:updated", safeDispatch);
+
+    return res.status(200).json(new ApiResponse("Store receipt processed successfully", dispatch));
   });
 }
 

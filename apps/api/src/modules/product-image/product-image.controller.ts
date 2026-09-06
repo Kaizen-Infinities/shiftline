@@ -1,32 +1,18 @@
 import { Request, Response } from "express";
 
 import productImageService from "./product-image.service";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
-const serializeBigInt = (
-  data: any
-) =>
+const serializeBigInt = (data: any) =>
   JSON.parse(
-    JSON.stringify(
-      data,
-      (_, value) =>
-        typeof value === "bigint"
-          ? value.toString()
-          : value
-    )
+    JSON.stringify(data, (_, value) => (typeof value === "bigint" ? value.toString() : value))
   );
 
 class ProductImageController {
-  async create(
-    req: Request,
-    res: Response
-  ) {
-    const result =
-      await productImageService.create(
-        req.body
-      );
+  async create(req: Request, res: Response) {
+    const result = await productImageService.create(req.body);
 
-    getIO().emit("productImage:created", serializeBigInt(result));
+    emitToTenant("productImage:created", serializeBigInt(result));
 
     return res.status(201).json({
       success: true,
@@ -34,12 +20,8 @@ class ProductImageController {
     });
   }
 
-  async findAll(
-    req: Request,
-    res: Response
-  ) {
-    const result =
-      await productImageService.findAll();
+  async findAll(req: Request, res: Response) {
+    const result = await productImageService.findAll();
 
     return res.status(200).json({
       success: true,
@@ -47,16 +29,8 @@ class ProductImageController {
     });
   }
 
-  async findById(
-    req: Request,
-    res: Response
-  ) {
-    const result =
-      await productImageService.findById(
-        BigInt(
-          String(req.params.id)
-        )
-      );
+  async findById(req: Request, res: Response) {
+    const result = await productImageService.findById(BigInt(String(req.params.id)));
 
     return res.status(200).json({
       success: true,
@@ -64,19 +38,10 @@ class ProductImageController {
     });
   }
 
-  async update(
-    req: Request,
-    res: Response
-  ) {
-    const result =
-      await productImageService.update(
-        BigInt(
-          String(req.params.id)
-        ),
-        req.body
-      );
+  async update(req: Request, res: Response) {
+    const result = await productImageService.update(BigInt(String(req.params.id)), req.body);
 
-    getIO().emit("productImage:updated", serializeBigInt(result));
+    emitToTenant("productImage:updated", serializeBigInt(result));
 
     return res.status(200).json({
       success: true,
@@ -84,22 +49,14 @@ class ProductImageController {
     });
   }
 
-  async delete(
-    req: Request,
-    res: Response
-  ) {
-    await productImageService.delete(
-      BigInt(
-        String(req.params.id)
-      )
-    );
+  async delete(req: Request, res: Response) {
+    await productImageService.delete(BigInt(String(req.params.id)));
 
-    getIO().emit("productImage:deleted", { id: String(req.params.id) });
+    emitToTenant("productImage:deleted", { id: String(req.params.id) });
 
     return res.status(200).json({
       success: true,
-      message:
-        "Product Image deleted successfully",
+      message: "Product Image deleted successfully",
     });
   }
 }

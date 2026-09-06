@@ -3,7 +3,7 @@ SHELL := /bin/bash
 API := npm run --workspace @shiftline/api
 WEB := npm run --workspace @shiftline/web
 
-.PHONY: help install db db-down dev api web seed reset typecheck lint test format
+.PHONY: help install db db-down dev api worker web seed reset typecheck lint test format
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -19,11 +19,14 @@ db: ## start PostgreSQL (docker) and wait for it
 db-down: ## stop PostgreSQL
 	docker compose down
 
-dev: ## run api and web on the host (needs `make db`)
-	npx concurrently -k -n api,web -c blue,green "$(API) dev" "$(WEB) dev"
+dev: ## run api (with embedded worker) and web on the host (needs `make db`)
+	npx concurrently -k -n api,web -c blue,green "EMBED_WORKER=true $(API) dev" "$(WEB) dev"
 
 api: ## run only the api
 	$(API) dev
+
+worker: ## run only the background worker (pg-boss)
+	$(API) worker
 
 web: ## run only the web app
 	$(WEB) dev

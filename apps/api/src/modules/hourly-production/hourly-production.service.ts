@@ -1,10 +1,13 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateHourlyProductionInput, UpdateHourlyProductionInput } from "./hourly-production.validation";
+import {
+  CreateHourlyProductionInput,
+  UpdateHourlyProductionInput,
+} from "./hourly-production.validation";
 import weeklyProgramService from "../weekly-machine-program/weekly-program.service";
 import oeeService from "../oee/oee.service";
 import { MachineOperationAssignmentService } from "../machine-operation-assignment/machine-operation-assignment.service";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 /** Normalize UOM aliases to canonical short form (mirrors frontend normalizeUom) */
 function normalizeUom(uom: string): string {
@@ -13,10 +16,19 @@ function normalizeUom(uom: string): string {
   if (u === "gram" || u === "grams") return "g";
   if (u === "ton" || u === "tonne" || u === "tonnes" || u === "tons") return "t";
   if (u === "liter" || u === "litre" || u === "liters" || u === "litres" || u === "ltr") return "l";
-  if (u === "milliliter" || u === "millilitre" || u === "milliliters" || u === "millilitres" || u === "ml") return "ml";
+  if (
+    u === "milliliter" ||
+    u === "millilitre" ||
+    u === "milliliters" ||
+    u === "millilitres" ||
+    u === "ml"
+  )
+    return "ml";
   if (u === "meter" || u === "meters" || u === "metre" || u === "metres") return "m";
-  if (u === "centimeter" || u === "centimetre" || u === "centimeters" || u === "centimetres") return "cm";
-  if (u === "millimeter" || u === "millimetre" || u === "millimeters" || u === "millimetres") return "mm";
+  if (u === "centimeter" || u === "centimetre" || u === "centimeters" || u === "centimetres")
+    return "cm";
+  if (u === "millimeter" || u === "millimetre" || u === "millimeters" || u === "millimetres")
+    return "mm";
   if (u === "pcs" || u === "piece" || u === "pieces" || u === "ea" || u === "each") return "pcs";
   if (u === "box" || u === "boxes") return "box";
   if (u === "dozen" || u === "dz") return "dz";
@@ -65,7 +77,9 @@ function getMondayAndDayOfWeek(dateInput: Date | string) {
     const [yyyy, mm, dd] = dateInput.split("-").map(Number);
     date = new Date(Date.UTC(yyyy, mm - 1, dd));
   } else {
-    date = new Date(Date.UTC(dateInput.getUTCFullYear(), dateInput.getUTCMonth(), dateInput.getUTCDate()));
+    date = new Date(
+      Date.UTC(dateInput.getUTCFullYear(), dateInput.getUTCMonth(), dateInput.getUTCDate())
+    );
   }
 
   const day = date.getUTCDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
@@ -85,19 +99,32 @@ async function syncProductionOrderQuantities(tx: any, productionOrderId: string)
       qtyProduced: true,
       rejectQty: true,
       scrapQty: true,
-    }
+    },
   });
 
   const order = await tx.productionOrder.findUnique({ where: { productionOrderId } });
   let newStatus = order?.status || "IN_PROGRESS";
 
-  if (aggregates._sum.qtyProduced && order?.targetQty && Number(aggregates._sum.qtyProduced) >= Number(order.targetQty)) {
+  if (
+    aggregates._sum.qtyProduced &&
+    order?.targetQty &&
+    Number(aggregates._sum.qtyProduced) >= Number(order.targetQty)
+  ) {
     if (newStatus === "IN_PROGRESS" || newStatus === "IN_PRODUCTION") {
       newStatus = "POST_PRODUCTION";
     } else if (newStatus === "PARTIAL_COMPLETED") {
       newStatus = "READY_FOR_DISPATCH";
     }
-  } else if (!["COMPLETED", "POST_PRODUCTION", "PARTIAL_COMPLETED", "READY_FOR_DISPATCH", "DISPATCHED", "FG_RECEIVED"].includes(newStatus)) {
+  } else if (
+    ![
+      "COMPLETED",
+      "POST_PRODUCTION",
+      "PARTIAL_COMPLETED",
+      "READY_FOR_DISPATCH",
+      "DISPATCHED",
+      "FG_RECEIVED",
+    ].includes(newStatus)
+  ) {
     newStatus = "IN_PROGRESS";
   }
 
@@ -108,7 +135,7 @@ async function syncProductionOrderQuantities(tx: any, productionOrderId: string)
       rejectedQty: aggregates._sum.rejectQty || 0,
       scrapQty: aggregates._sum.scrapQty || 0,
       status: newStatus,
-    }
+    },
   });
 }
 
@@ -131,7 +158,7 @@ class HourlyProductionService {
     let dailyPlan = null;
     if (data.dailyPlanId) {
       dailyPlan = await prisma.dailyProductionPlan.findUnique({
-        where: { dailyPlanId: data.dailyPlanId }
+        where: { dailyPlanId: data.dailyPlanId },
       });
       if (!dailyPlan) {
         throw new ApiError(404, `Daily Production Plan with ID ${data.dailyPlanId} not found`);
@@ -144,7 +171,7 @@ class HourlyProductionService {
           machineId: data.machineId,
           shiftId: data.shiftId,
           productionOrderId: data.productionOrderId,
-        }
+        },
       });
     }
 
@@ -152,7 +179,10 @@ class HourlyProductionService {
       // Rule: Hourly Production can only be entered against an approved or in-progress Daily Plan
       const allowedStatuses = ["APPROVED", "IN_PROGRESS"];
       if (!allowedStatuses.includes(dailyPlan.status.toUpperCase())) {
-        throw new ApiError(400, `Hourly Production can only be entered against an approved Daily Plan. Current status: ${dailyPlan.status}`);
+        throw new ApiError(
+          400,
+          `Hourly Production can only be entered against an approved Daily Plan. Current status: ${dailyPlan.status}`
+        );
       }
 
       // Resolve assignment and validate Operator
@@ -162,22 +192,28 @@ class HourlyProductionService {
         dailyPlan.productionDate
       );
       if (!assignment || !assignment.operators || assignment.operators.length === 0) {
-        throw new ApiError(400, "The selected Daily Production Plan does not have an assigned operator.");
+        throw new ApiError(
+          400,
+          "The selected Daily Production Plan does not have an assigned operator."
+        );
       }
 
       // Resolve selected operator IDs from the daily plan
       const selectedOperatorIds = dailyPlan.selectedOperatorIds
-        ? dailyPlan.selectedOperatorIds.split(",").map((id: string) => id.trim()).filter(Boolean)
+        ? dailyPlan.selectedOperatorIds
+            .split(",")
+            .map((id: string) => id.trim())
+            .filter(Boolean)
         : [];
 
       const assignmentOperatorIds = assignment.operators.map((op: any) => op.id.toString());
 
       // Check if the provided operatorId is valid (either in the selected daily plan operators, or if none selected, in the weekly assignment)
-      const isValidOperator = data.operatorId && (
-        selectedOperatorIds.length > 0
+      const isValidOperator =
+        data.operatorId &&
+        (selectedOperatorIds.length > 0
           ? selectedOperatorIds.includes(data.operatorId.toString())
-          : assignmentOperatorIds.includes(data.operatorId.toString())
-      );
+          : assignmentOperatorIds.includes(data.operatorId.toString()));
 
       // Auto-assign operatorId if not provided or invalid
       if (!isValidOperator) {
@@ -195,7 +231,7 @@ class HourlyProductionService {
     let weeklyProgram = null;
     if (dailyPlan && dailyPlan.weeklyProgramId) {
       weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
-        where: { weeklyProgramId: dailyPlan.weeklyProgramId }
+        where: { weeklyProgramId: dailyPlan.weeklyProgramId },
       });
     }
 
@@ -207,22 +243,31 @@ class HourlyProductionService {
           weekStartDate: monday,
           dayOfWeek: dayOfWeek,
           productionOrderId: data.productionOrderId,
-        }
+        },
       });
     }
 
     if (!weeklyProgram) {
-      throw new ApiError(400, "Entry without Daily Plan: No weekly machine schedule (Daily Plan) exists for this machine, date, and shift");
+      throw new ApiError(
+        400,
+        "Entry without Daily Plan: No weekly machine schedule (Daily Plan) exists for this machine, date, and shift"
+      );
     }
 
     // 3. Entry after Shift Closed
     if (dailyPlan) {
       if (["COMPLETED", "CLOSED", "CANCELLED"].includes(dailyPlan.status.toUpperCase())) {
-        throw new ApiError(400, "Entry after Shift Closed: The daily plan schedule has already been closed");
+        throw new ApiError(
+          400,
+          "Entry after Shift Closed: The daily plan schedule has already been closed"
+        );
       }
     } else if (weeklyProgram) {
       if (["COMPLETED", "CLOSED"].includes(weeklyProgram.status.toUpperCase())) {
-        throw new ApiError(400, "Entry after Shift Closed: The shift schedule has already been closed");
+        throw new ApiError(
+          400,
+          "Entry after Shift Closed: The shift schedule has already been closed"
+        );
       }
     }
 
@@ -234,12 +279,15 @@ class HourlyProductionService {
           machineId: data.machineId,
           shiftId: data.shiftId,
           hourIndex: Number(data.hourIndex),
-          ...(excludeId ? { hourlyProductionId: { not: excludeId } } : {})
-        }
+          ...(excludeId ? { hourlyProductionId: { not: excludeId } } : {}),
+        },
       });
 
       if (duplicate) {
-        throw new ApiError(409, `Duplicate Hour Entry: An hourly production log already exists for this machine, date, shift, and hour index ${data.hourIndex}`);
+        throw new ApiError(
+          409,
+          `Duplicate Hour Entry: An hourly production log already exists for this machine, date, shift, and hour index ${data.hourIndex}`
+        );
       }
     }
 
@@ -263,7 +311,12 @@ class HourlyProductionService {
     */
 
     // 6. Negative Quantity (handled by Zod but let's be double sure)
-    if (data.qtyProduced < 0 || (data.rejectQty && data.rejectQty < 0) || (data.scrapQty && data.scrapQty < 0) || (data.downtime && data.downtime < 0)) {
+    if (
+      data.qtyProduced < 0 ||
+      (data.rejectQty && data.rejectQty < 0) ||
+      (data.scrapQty && data.scrapQty < 0) ||
+      (data.downtime && data.downtime < 0)
+    ) {
       throw new ApiError(400, "Quantities and downtime cannot be negative");
     }
 
@@ -278,11 +331,11 @@ class HourlyProductionService {
         machineId: data.machineId,
         shiftId: data.shiftId,
         productionOrderId: data.productionOrderId,
-        ...(excludeId ? { hourlyProductionId: { not: excludeId } } : {})
+        ...(excludeId ? { hourlyProductionId: { not: excludeId } } : {}),
       },
       _sum: {
-        qtyProduced: true
-      }
+        qtyProduced: true,
+      },
     });
 
     const alreadyProduced = Number(aggregates._sum.qtyProduced || 0);
@@ -302,7 +355,7 @@ class HourlyProductionService {
   async checkForNewCapacityHigh(tx: any, data: any, prodDate: Date, dailyPlan: any) {
     const order = await tx.productionOrder.findUnique({
       where: { productionOrderId: data.productionOrderId },
-      include: { productItem: true }
+      include: { productItem: true },
     });
     if (!order) return { newHighReached: false };
 
@@ -320,7 +373,7 @@ class HourlyProductionService {
         qtyProduced: true,
         rejectQty: true,
         scrapQty: true,
-      }
+      },
     });
 
     const totalQty = Number(aggregate._sum.qtyProduced || 0);
@@ -363,10 +416,13 @@ class HourlyProductionService {
       let operatorNames = "";
       if (dailyPlan?.selectedOperatorIds) {
         try {
-          const opIds = dailyPlan.selectedOperatorIds.split(",").map((id: string) => id.trim()).filter(Boolean);
+          const opIds = dailyPlan.selectedOperatorIds
+            .split(",")
+            .map((id: string) => id.trim())
+            .filter(Boolean);
           const emps = await tx.employee.findMany({
             where: { id: { in: opIds.map((id: string) => BigInt(id)) } },
-            select: { fullName: true }
+            select: { fullName: true },
           });
           operatorNames = emps.map((e: any) => e.fullName).join(", ");
         } catch (err) {
@@ -424,14 +480,12 @@ class HourlyProductionService {
           operators: operatorNames || "N/A",
           newCapacity: shiftTotalProduced,
           previousCapacity: currentCapacity,
-        }
+        },
       };
     }
 
     return { newHighReached: false };
   }
-
-
 
   async create(data: any, userId: string = "SYSTEM") {
     const [yyyy, mm, dd] = data.productionDate.split("-").map(Number);
@@ -439,283 +493,310 @@ class HourlyProductionService {
 
     const { weeklyProgram, dailyPlan } = await this.validateHourlyEntry(data);
 
-    return prisma.$transaction(async (tx) => {
-      const created = await tx.hourlyProduction.create({
-        data: {
-          dailyPlanId: dailyPlan?.dailyPlanId ?? null,
-          productionOrderId: data.productionOrderId,
-          productionDate: prodDate,
-          shiftId: data.shiftId,
-          machineId: data.machineId,
-          hourIndex: data.hourIndex,
-          qtyProduced: data.qtyProduced,
-          rejectQty: data.rejectQty ?? 0,
-          scrapQty: data.scrapQty ?? 0,
-          downtime: data.downtime ?? 0,
-          remarks: data.remarks ?? null,
-          downtimeReason: data.downtimeReason ?? null,
-          rejectReason: data.rejectReason ?? null,
-          scrapReason: data.scrapReason ?? null,
-          operatorId: data.operatorId ?? null,
-        },
-        include: {
-          productionOrder: true,
-        },
-      });
-
-      // Calculate if this is the last hour of the shift
-      const shift = await tx.shift.findUnique({
-        where: { shiftCode: data.shiftId }
-      });
-
-      let totalHours = 8;
-      if (shift && shift.startTime && shift.endTime) {
-        const [startH, startM] = shift.startTime.split(":").map(Number);
-        const [endH, endM] = shift.endTime.split(":").map(Number);
-        let startMinutes = startH * 60 + startM;
-        let endMinutes = endH * 60 + endM;
-        if (endMinutes <= startMinutes) {
-          endMinutes += 24 * 60;
-        }
-        totalHours = Math.floor((endMinutes - startMinutes) / 60);
-      }
-
-      const isLastHour = Number(data.hourIndex) === totalHours;
-
-      if (isLastHour) {
-        // Aggregate total qty produced for this machine, date, and shift
-        // Stop current run and carry forward pending qty to next shift if under-produced
-        await weeklyProgramService.stopProgramAndCarryForwardInternal(tx, weeklyProgram.weeklyProgramId, data.operatorId ?? undefined);
-
-        const wpNum = parseInt(weeklyProgram.weeklyProgramId.replace(/\D/g, ""), 10) || 1;
-        // Automatically log a SYSTEM_STOP
-        await tx.hourlyProduction.create({
-          data: {
-            dailyPlanId: dailyPlan?.dailyPlanId ?? null,
-            productionOrderId: data.productionOrderId,
-            productionDate: prodDate,
-            shiftId: data.shiftId,
-            machineId: data.machineId,
-            hourIndex: -(10000 + wpNum),
-            qtyProduced: 0,
-            rejectQty: 0,
-            scrapQty: 0,
-            downtime: 0,
-            remarks: "Shift Hours Completed",
-            downtimeReason: "Shift Completed",
-            operatorId: "SYSTEM"
-          }
-        });
-
-        if (dailyPlan?.dailyPlanId && dailyPlan.status !== "COMPLETED") {
-          await tx.dailyProductionPlan.update({
-            where: { dailyPlanId: dailyPlan.dailyPlanId },
-            data: { status: "POST_PRODUCTION" },
-          });
-        }
-      } else {
-        // Ensure status is IN_PROGRESS if not the last hour
-        if (weeklyProgram.status !== "COMPLETED" && weeklyProgram.status !== "IN_PROGRESS") {
-          await tx.weeklyMachineProgram.update({
-            where: { weeklyProgramId: weeklyProgram.weeklyProgramId },
-            data: { status: "IN_PROGRESS" },
-          });
-        }
-      }
-
-      await syncProductionOrderQuantities(tx, data.productionOrderId);
-
-      // Process inline wastages & raw material returns into a single StockAdjustment record
-      const validWastages = (data.wastages && Array.isArray(data.wastages))
-        ? data.wastages.filter((w: any) => w.targetWastageProductId && w.quantity)
-        : [];
-      const validRmReturns = (data.rawMaterialsUsed && Array.isArray(data.rawMaterialsUsed))
-        ? data.rawMaterialsUsed.filter((r: any) => r.rawMaterialId && r.quantity)
-        : [];
-
-      if (validWastages.length > 0 || validRmReturns.length > 0) {
-        const latestSA = await tx.stockAdjustment.findFirst({ orderBy: { id: 'desc' } });
-        const saNextId = latestSA ? Number(latestSA.id) + 1 : 1;
-        const adjustmentNumber = `SA${String(saNextId).padStart(4, "0")}`;
-
-        const saRecord = await tx.stockAdjustment.create({
-          data: {
-            adjustmentNumber,
-            adjustmentDate: new Date(),
-            adjustmentType: "STOCK_INCREASE",
-            type: "SYSTEM",
-            autoGenerated: true,
-            sourceDocument: "HOURLY_PRODUCTION",
-            sourceDocId: String(created.hourlyProductionId),
-            productionOrderId: data.productionOrderId,
-            reason: `Hourly Production Log (Wastages & Returns) for PO: ${data.productionOrderId}`,
-            status: "APPROVED",
-            approvedBy: userId,
-            approvedAt: new Date(),
-            createdBy: userId,
-          }
-        });
-
-        // 1. Process Wastage Items under single saRecord
-        for (const wastage of validWastages) {
-          const latestWastage = await tx.productionWastage.findFirst({
-            orderBy: { id: 'desc' }
-          });
-          const nextId = latestWastage ? Number(latestWastage.id) + 1 : 1;
-          const wastageNo = `PW${String(nextId).padStart(4, "0")}`;
-
-          await tx.productionWastage.create({
+    return prisma
+      .$transaction(
+        async (tx) => {
+          const created = await tx.hourlyProduction.create({
             data: {
-              wastageNo,
-              wastageDate: prodDate,
+              dailyPlanId: dailyPlan?.dailyPlanId ?? null,
               productionOrderId: data.productionOrderId,
-              hourlyProductionId: created.hourlyProductionId,
-              machineId: data.machineId,
+              productionDate: prodDate,
               shiftId: data.shiftId,
-              productId: created.productionOrder?.productItemId ?? BigInt(1),
-              targetWastageProductId: wastage.targetWastageProductId,
-              storeId: wastage.storeId,
-              wastageType: "SCRAP",
-              quantity: wastage.quantity,
-              uom: wastage.selectedUom || wastage.uom || "kg",
-              status: "APPROVED",
-              createdBy: userId,
-              approvedBy: userId,
-              approvedAt: new Date(),
-              remarks: "Auto-logged from Hourly Production"
+              machineId: data.machineId,
+              hourIndex: data.hourIndex,
+              qtyProduced: data.qtyProduced,
+              rejectQty: data.rejectQty ?? 0,
+              scrapQty: data.scrapQty ?? 0,
+              downtime: data.downtime ?? 0,
+              remarks: data.remarks ?? null,
+              downtimeReason: data.downtimeReason ?? null,
+              rejectReason: data.rejectReason ?? null,
+              scrapReason: data.scrapReason ?? null,
+              operatorId: data.operatorId ?? null,
+            },
+            include: {
+              productionOrder: true,
+            },
+          });
+
+          // Calculate if this is the last hour of the shift
+          const shift = await tx.shift.findUnique({
+            where: { shiftCode: data.shiftId },
+          });
+
+          let totalHours = 8;
+          if (shift && shift.startTime && shift.endTime) {
+            const [startH, startM] = shift.startTime.split(":").map(Number);
+            const [endH, endM] = shift.endTime.split(":").map(Number);
+            const startMinutes = startH * 60 + startM;
+            let endMinutes = endH * 60 + endM;
+            if (endMinutes <= startMinutes) {
+              endMinutes += 24 * 60;
             }
-          });
-
-          const targetProduct = await tx.rawMaterial.findUnique({
-            where: { rawMaterialId: wastage.targetWastageProductId }
-          });
-
-          if (targetProduct) {
-            // Convert wastage quantity to the raw material's base UOM before adding to stock.
-            // Frontend also does this conversion, but we re-do it server-side as a safety net
-            // in case selectedUom/baseUom are provided explicitly in the payload.
-            const rmBaseUom = String(targetProduct.baseUom || "kg");
-            const selectedUom = wastage.selectedUom || wastage.baseUom || rmBaseUom;
-            const convertedQty = convertToBaseUom(Number(wastage.quantity), selectedUom, rmBaseUom);
-
-            const currentQty = Number(targetProduct.onHandQty ?? 0);
-            const newOnHand = currentQty + convertedQty;
-
-            await tx.rawMaterial.update({
-              where: { rawMaterialId: wastage.targetWastageProductId },
-              data: {
-                onHandQty: { increment: convertedQty },
-                lastMovementAt: new Date()
-              }
-            });
-
-            await tx.rawMaterialTransaction.create({
-              data: {
-                storeId: wastage.storeId || targetProduct.storeId || "STORE-001",
-                rawMaterialId: wastage.targetWastageProductId,
-                txnType: "WASTAGE_RECEIPT",
-                qty: convertedQty,
-                remarks: `Received from Hourly Production Auto-log #${wastageNo}`,
-                productionOrderId: data.productionOrderId,
-              }
-            });
-
-            await tx.stockAdjustmentItem.create({
-              data: {
-                stockAdjustmentId: saRecord.id,
-                itemType: "WASTAGE",
-                rawMaterialId: wastage.targetWastageProductId,
-                storeId: wastage.storeId || targetProduct.storeId,
-                currentQty,
-                adjustedQty: newOnHand,
-                difference: convertedQty,
-                unitCost: Number((targetProduct as any).rate ?? 0),
-                remarks: `Wastage entry #${wastageNo}`,
-              }
-            });
+            totalHours = Math.floor((endMinutes - startMinutes) / 60);
           }
-        }
 
-        // 2. Process Raw Material Returns under single saRecord
-        for (const rm of validRmReturns) {
-          const targetProduct = await tx.rawMaterial.findUnique({
-            where: { rawMaterialId: rm.rawMaterialId }
-          });
+          const isLastHour = Number(data.hourIndex) === totalHours;
 
-          if (targetProduct) {
-            // Convert return quantity to the raw material's base UOM before deducting/adding to stock.
-            const rmBaseUom = String(targetProduct.baseUom || "kg");
-            const selectedUom = rm.selectedUom || rm.uom || rmBaseUom;
-            const convertedQty = convertToBaseUom(Number(rm.quantity), selectedUom, rmBaseUom);
+          if (isLastHour) {
+            // Aggregate total qty produced for this machine, date, and shift
+            // Stop current run and carry forward pending qty to next shift if under-produced
+            await weeklyProgramService.stopProgramAndCarryForwardInternal(
+              tx,
+              weeklyProgram.weeklyProgramId,
+              data.operatorId ?? undefined
+            );
 
-            const currentQty = Number(targetProduct.onHandQty ?? 0);
-            const newOnHand = currentQty + convertedQty;
-
-            await tx.rawMaterial.update({
-              where: { rawMaterialId: rm.rawMaterialId },
+            const wpNum = parseInt(weeklyProgram.weeklyProgramId.replace(/\D/g, ""), 10) || 1;
+            // Automatically log a SYSTEM_STOP
+            await tx.hourlyProduction.create({
               data: {
-                onHandQty: { increment: convertedQty },
-                lastMovementAt: new Date()
-              }
-            });
-
-            await tx.rawMaterialTransaction.create({
-              data: {
-                storeId: rm.storeId || targetProduct.storeId || "STORE-001",
-                rawMaterialId: rm.rawMaterialId,
-                txnType: "RETURN",
-                qty: convertedQty,
-                remarks: `Returned remaining raw materials in Hourly Production`,
+                dailyPlanId: dailyPlan?.dailyPlanId ?? null,
                 productionOrderId: data.productionOrderId,
-              }
+                productionDate: prodDate,
+                shiftId: data.shiftId,
+                machineId: data.machineId,
+                hourIndex: -(10000 + wpNum),
+                qtyProduced: 0,
+                rejectQty: 0,
+                scrapQty: 0,
+                downtime: 0,
+                remarks: "Shift Hours Completed",
+                downtimeReason: "Shift Completed",
+                operatorId: "SYSTEM",
+              },
             });
 
-            await tx.stockAdjustmentItem.create({
-              data: {
-                stockAdjustmentId: saRecord.id,
-                itemType: "RAW_MATERIAL",
-                rawMaterialId: rm.rawMaterialId,
-                storeId: rm.storeId || targetProduct.storeId,
-                currentQty,
-                adjustedQty: newOnHand,
-                difference: convertedQty,
-                unitCost: Number((targetProduct as any).rate ?? 0),
-                remarks: `Returned raw material in Shift Log`,
-              }
-            });
+            if (dailyPlan?.dailyPlanId && dailyPlan.status !== "COMPLETED") {
+              await tx.dailyProductionPlan.update({
+                where: { dailyPlanId: dailyPlan.dailyPlanId },
+                data: { status: "POST_PRODUCTION" },
+              });
+            }
+          } else {
+            // Ensure status is IN_PROGRESS if not the last hour
+            if (weeklyProgram.status !== "COMPLETED" && weeklyProgram.status !== "IN_PROGRESS") {
+              await tx.weeklyMachineProgram.update({
+                where: { weeklyProgramId: weeklyProgram.weeklyProgramId },
+                data: { status: "IN_PROGRESS" },
+              });
+            }
           }
-        }
-      }
-      const isFinalEntry = (dailyPlan?.plannedHours && Number(data.hourIndex) === Number(dailyPlan.plannedHours)) || isLastHour || data.stopPlanEarly;
-      let highCheckResult = { newHighReached: false };
-      if (isFinalEntry) {
-        highCheckResult = await this.checkForNewCapacityHigh(tx, data, prodDate, dailyPlan);
-      }
 
-      return {
-        ...created,
-        ...highCheckResult,
-      };
-    }, { timeout: 15000 }).then(async (result) => {
-      // Auto-trigger OEE snapshot recalculation after transaction commits
-      try {
-        await oeeService.recalculateAndSaveSnapshot({
-          machineId: data.machineId,
-          productionDate: data.productionDate,
-          shiftId: data.shiftId,
-          dailyPlanId: result.dailyPlanId ?? null,
-        });
-      } catch (e) {
-        // OEE calculation errors should not fail the main operation
-        console.error("OEE snapshot recalculation failed:", e);
-      }
-      // Notify EOD stock page to refresh live quantities
-      try { getIO().emit("inventory:stockUpdated", { type: "hourly_production" }); } catch (_) {}
-      return result;
-    });
+          await syncProductionOrderQuantities(tx, data.productionOrderId);
+
+          // Process inline wastages & raw material returns into a single StockAdjustment record
+          const validWastages =
+            data.wastages && Array.isArray(data.wastages)
+              ? data.wastages.filter((w: any) => w.targetWastageProductId && w.quantity)
+              : [];
+          const validRmReturns =
+            data.rawMaterialsUsed && Array.isArray(data.rawMaterialsUsed)
+              ? data.rawMaterialsUsed.filter((r: any) => r.rawMaterialId && r.quantity)
+              : [];
+
+          if (validWastages.length > 0 || validRmReturns.length > 0) {
+            const latestSA = await tx.stockAdjustment.findFirst({ orderBy: { id: "desc" } });
+            const saNextId = latestSA ? Number(latestSA.id) + 1 : 1;
+            const adjustmentNumber = `SA${String(saNextId).padStart(4, "0")}`;
+
+            const saRecord = await tx.stockAdjustment.create({
+              data: {
+                adjustmentNumber,
+                adjustmentDate: new Date(),
+                adjustmentType: "STOCK_INCREASE",
+                type: "SYSTEM",
+                autoGenerated: true,
+                sourceDocument: "HOURLY_PRODUCTION",
+                sourceDocId: String(created.hourlyProductionId),
+                productionOrderId: data.productionOrderId,
+                reason: `Hourly Production Log (Wastages & Returns) for PO: ${data.productionOrderId}`,
+                status: "APPROVED",
+                approvedBy: userId,
+                approvedAt: new Date(),
+                createdBy: userId,
+              },
+            });
+
+            // 1. Process Wastage Items under single saRecord
+            for (const wastage of validWastages) {
+              const latestWastage = await tx.productionWastage.findFirst({
+                orderBy: { id: "desc" },
+              });
+              const nextId = latestWastage ? Number(latestWastage.id) + 1 : 1;
+              const wastageNo = `PW${String(nextId).padStart(4, "0")}`;
+
+              await tx.productionWastage.create({
+                data: {
+                  wastageNo,
+                  wastageDate: prodDate,
+                  productionOrderId: data.productionOrderId,
+                  hourlyProductionId: created.hourlyProductionId,
+                  machineId: data.machineId,
+                  shiftId: data.shiftId,
+                  productId: created.productionOrder?.productItemId ?? BigInt(1),
+                  targetWastageProductId: wastage.targetWastageProductId,
+                  storeId: wastage.storeId,
+                  wastageType: "SCRAP",
+                  quantity: wastage.quantity,
+                  uom: wastage.selectedUom || wastage.uom || "kg",
+                  status: "APPROVED",
+                  createdBy: userId,
+                  approvedBy: userId,
+                  approvedAt: new Date(),
+                  remarks: "Auto-logged from Hourly Production",
+                },
+              });
+
+              const targetProduct = await tx.rawMaterial.findUnique({
+                where: { rawMaterialId: wastage.targetWastageProductId },
+              });
+
+              if (targetProduct) {
+                // Convert wastage quantity to the raw material's base UOM before adding to stock.
+                // Frontend also does this conversion, but we re-do it server-side as a safety net
+                // in case selectedUom/baseUom are provided explicitly in the payload.
+                const rmBaseUom = String(targetProduct.baseUom || "kg");
+                const selectedUom = wastage.selectedUom || wastage.baseUom || rmBaseUom;
+                const convertedQty = convertToBaseUom(
+                  Number(wastage.quantity),
+                  selectedUom,
+                  rmBaseUom
+                );
+
+                const currentQty = Number(targetProduct.onHandQty ?? 0);
+                const newOnHand = currentQty + convertedQty;
+
+                await tx.rawMaterial.update({
+                  where: { rawMaterialId: wastage.targetWastageProductId },
+                  data: {
+                    onHandQty: { increment: convertedQty },
+                    lastMovementAt: new Date(),
+                  },
+                });
+
+                await tx.rawMaterialTransaction.create({
+                  data: {
+                    storeId: wastage.storeId || targetProduct.storeId || "STORE-001",
+                    rawMaterialId: wastage.targetWastageProductId,
+                    txnType: "WASTAGE_RECEIPT",
+                    qty: convertedQty,
+                    remarks: `Received from Hourly Production Auto-log #${wastageNo}`,
+                    productionOrderId: data.productionOrderId,
+                  },
+                });
+
+                await tx.stockAdjustmentItem.create({
+                  data: {
+                    stockAdjustmentId: saRecord.id,
+                    itemType: "WASTAGE",
+                    rawMaterialId: wastage.targetWastageProductId,
+                    storeId: wastage.storeId || targetProduct.storeId,
+                    currentQty,
+                    adjustedQty: newOnHand,
+                    difference: convertedQty,
+                    unitCost: Number((targetProduct as any).rate ?? 0),
+                    remarks: `Wastage entry #${wastageNo}`,
+                  },
+                });
+              }
+            }
+
+            // 2. Process Raw Material Returns under single saRecord
+            for (const rm of validRmReturns) {
+              const targetProduct = await tx.rawMaterial.findUnique({
+                where: { rawMaterialId: rm.rawMaterialId },
+              });
+
+              if (targetProduct) {
+                // Convert return quantity to the raw material's base UOM before deducting/adding to stock.
+                const rmBaseUom = String(targetProduct.baseUom || "kg");
+                const selectedUom = rm.selectedUom || rm.uom || rmBaseUom;
+                const convertedQty = convertToBaseUom(Number(rm.quantity), selectedUom, rmBaseUom);
+
+                const currentQty = Number(targetProduct.onHandQty ?? 0);
+                const newOnHand = currentQty + convertedQty;
+
+                await tx.rawMaterial.update({
+                  where: { rawMaterialId: rm.rawMaterialId },
+                  data: {
+                    onHandQty: { increment: convertedQty },
+                    lastMovementAt: new Date(),
+                  },
+                });
+
+                await tx.rawMaterialTransaction.create({
+                  data: {
+                    storeId: rm.storeId || targetProduct.storeId || "STORE-001",
+                    rawMaterialId: rm.rawMaterialId,
+                    txnType: "RETURN",
+                    qty: convertedQty,
+                    remarks: `Returned remaining raw materials in Hourly Production`,
+                    productionOrderId: data.productionOrderId,
+                  },
+                });
+
+                await tx.stockAdjustmentItem.create({
+                  data: {
+                    stockAdjustmentId: saRecord.id,
+                    itemType: "RAW_MATERIAL",
+                    rawMaterialId: rm.rawMaterialId,
+                    storeId: rm.storeId || targetProduct.storeId,
+                    currentQty,
+                    adjustedQty: newOnHand,
+                    difference: convertedQty,
+                    unitCost: Number((targetProduct as any).rate ?? 0),
+                    remarks: `Returned raw material in Shift Log`,
+                  },
+                });
+              }
+            }
+          }
+          const isFinalEntry =
+            (dailyPlan?.plannedHours &&
+              Number(data.hourIndex) === Number(dailyPlan.plannedHours)) ||
+            isLastHour ||
+            data.stopPlanEarly;
+          let highCheckResult = { newHighReached: false };
+          if (isFinalEntry) {
+            highCheckResult = await this.checkForNewCapacityHigh(tx, data, prodDate, dailyPlan);
+          }
+
+          return {
+            ...created,
+            ...highCheckResult,
+          };
+        },
+        { timeout: 15000 }
+      )
+      .then(async (result) => {
+        // Auto-trigger OEE snapshot recalculation after transaction commits
+        try {
+          await oeeService.recalculateAndSaveSnapshot({
+            machineId: data.machineId,
+            productionDate: data.productionDate,
+            shiftId: data.shiftId,
+            dailyPlanId: result.dailyPlanId ?? null,
+          });
+        } catch (e) {
+          // OEE calculation errors should not fail the main operation
+          console.error("OEE snapshot recalculation failed:", e);
+        }
+        // Notify EOD stock page to refresh live quantities
+        try {
+          emitToTenant("inventory:stockUpdated", { type: "hourly_production" });
+        } catch (_) {}
+        return result;
+      });
   }
 
-  async findAll(filters?: { machineId?: string; shiftId?: string; productionDate?: string; productionOrderId?: string; search?: string }) {
+  async findAll(filters?: {
+    machineId?: string;
+    shiftId?: string;
+    productionDate?: string;
+    productionOrderId?: string;
+    search?: string;
+  }) {
     const where: any = {};
     if (filters?.machineId) where.machineId = filters.machineId;
     if (filters?.shiftId) where.shiftId = filters.shiftId;
@@ -730,7 +811,7 @@ class HourlyProductionService {
         { productionOrderId: { contains: filters.search } },
         { machineId: { contains: filters.search } },
         { machine: { machineName: { contains: filters.search } } },
-        { productionOrder: { productItem: { productName: { contains: filters.search } } } }
+        { productionOrder: { productItem: { productName: { contains: filters.search } } } },
       ];
     }
 
@@ -742,116 +823,125 @@ class HourlyProductionService {
             productItem: {
               include: {
                 uom: true,
-              }
+              },
             },
-          }
+          },
         },
         machine: true,
         shift: true,
         productionWastages: true,
       },
-      orderBy: [
-        { productionDate: "desc" },
-        { hourIndex: "asc" }
-      ],
+      orderBy: [{ productionDate: "desc" }, { hourIndex: "asc" }],
     });
 
-    const operatorIds = [...new Set(logs.map(l => l.operatorId).filter(Boolean))].map(id => {
-      try { return BigInt(id as string); } catch (e) { return null; }
-    }).filter(Boolean) as bigint[];
+    const operatorIds = [...new Set(logs.map((l) => l.operatorId).filter(Boolean))]
+      .map((id) => {
+        try {
+          return BigInt(id as string);
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter(Boolean) as bigint[];
 
-    let operatorMap = new Map<string, string>();
+    const operatorMap = new Map<string, string>();
     if (operatorIds.length > 0) {
       const employees = await prisma.employee.findMany({
-        where: { id: { in: operatorIds } }
+        where: { id: { in: operatorIds } },
       });
-      employees.forEach(emp => {
+      employees.forEach((emp) => {
         operatorMap.set(emp.id.toString(), emp.fullName);
       });
     }
 
-    const enrichedLogs = await Promise.all(logs.map(async (log) => {
-      const { monday, dayOfWeek } = getMondayAndDayOfWeek(log.productionDate);
+    const enrichedLogs = await Promise.all(
+      logs.map(async (log) => {
+        const { monday, dayOfWeek } = getMondayAndDayOfWeek(log.productionDate);
 
-      let shiftPlannedQty = 0;
-      let weeklyProgramStatus = null;
-      let weeklyProgramId = null;
+        let shiftPlannedQty = 0;
+        let weeklyProgramStatus = null;
+        let weeklyProgramId = null;
 
-      if (log.dailyPlanId) {
-        const dailyPlan = await prisma.dailyProductionPlan.findUnique({
-          where: { dailyPlanId: log.dailyPlanId }
-        });
-        if (dailyPlan) {
-          shiftPlannedQty = Number(dailyPlan.plannedQty);
-          weeklyProgramStatus = dailyPlan.status;
-          weeklyProgramId = dailyPlan.weeklyProgramId;
-        }
-      }
-
-      if (!shiftPlannedQty) {
-        let weeklyProgram = null;
-        const hourIdx = Number(log.hourIndex);
-
-        if (hourIdx < 0) {
-          // Decode weeklyProgramId from hourIndex
-          const absVal = Math.abs(hourIdx);
-          const wpNum = absVal >= 10000 ? absVal - 10000 : absVal;
-          const decodedWpId = `WP${String(wpNum).padStart(4, '0')}`;
-          weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
-            where: { weeklyProgramId: decodedWpId }
+        if (log.dailyPlanId) {
+          const dailyPlan = await prisma.dailyProductionPlan.findUnique({
+            where: { dailyPlanId: log.dailyPlanId },
           });
+          if (dailyPlan) {
+            shiftPlannedQty = Number(dailyPlan.plannedQty);
+            weeklyProgramStatus = dailyPlan.status;
+            weeklyProgramId = dailyPlan.weeklyProgramId;
+          }
         }
 
-        // Fallback: search by coordinate, ordering by weeklyProgramId desc to get the newest (active) program first
-        if (!weeklyProgram) {
-          weeklyProgram = await prisma.weeklyMachineProgram.findFirst({
-            where: {
-              machineId: log.machineId,
-              shiftId: log.shiftId,
-              weekStartDate: monday,
-              dayOfWeek: dayOfWeek,
-              productionOrderId: log.productionOrderId,
-            },
-            orderBy: {
-              weeklyProgramId: "desc"
-            }
-          });
+        if (!shiftPlannedQty) {
+          let weeklyProgram = null;
+          const hourIdx = Number(log.hourIndex);
+
+          if (hourIdx < 0) {
+            // Decode weeklyProgramId from hourIndex
+            const absVal = Math.abs(hourIdx);
+            const wpNum = absVal >= 10000 ? absVal - 10000 : absVal;
+            const decodedWpId = `WP${String(wpNum).padStart(4, "0")}`;
+            weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
+              where: { weeklyProgramId: decodedWpId },
+            });
+          }
+
+          // Fallback: search by coordinate, ordering by weeklyProgramId desc to get the newest (active) program first
+          if (!weeklyProgram) {
+            weeklyProgram = await prisma.weeklyMachineProgram.findFirst({
+              where: {
+                machineId: log.machineId,
+                shiftId: log.shiftId,
+                weekStartDate: monday,
+                dayOfWeek: dayOfWeek,
+                productionOrderId: log.productionOrderId,
+              },
+              orderBy: {
+                weeklyProgramId: "desc",
+              },
+            });
+          }
+
+          if (weeklyProgram) {
+            shiftPlannedQty = Number(weeklyProgram.plannedQty);
+            weeklyProgramStatus = weeklyProgram.status;
+            weeklyProgramId = weeklyProgram.weeklyProgramId;
+          }
         }
 
-        if (weeklyProgram) {
-          shiftPlannedQty = Number(weeklyProgram.plannedQty);
-          weeklyProgramStatus = weeklyProgram.status;
-          weeklyProgramId = weeklyProgram.weeklyProgramId;
-        }
-      }
+        // ── Per-hour OEE calculation ───────────────────────────────────────────
+        const qtyProduced = Number(log.qtyProduced);
+        const rejectQty = Number(log.rejectQty);
+        const scrapQty = Number(log.scrapQty);
+        const downtimeMinutes = Number(log.downtime);
+        const runtimeMinutes = Number((log as any).runtimeMinutes ?? 60);
+        const goodQty = Math.max(0, qtyProduced - rejectQty - scrapQty);
 
-      // ── Per-hour OEE calculation ───────────────────────────────────────────
-      const qtyProduced = Number(log.qtyProduced);
-      const rejectQty = Number(log.rejectQty);
-      const scrapQty = Number(log.scrapQty);
-      const downtimeMinutes = Number(log.downtime);
-      const runtimeMinutes = Number((log as any).runtimeMinutes ?? 60);
-      const goodQty = Math.max(0, qtyProduced - rejectQty - scrapQty);
+        const actualRunTime = Math.max(0, runtimeMinutes - downtimeMinutes);
+        const availabilityPct =
+          runtimeMinutes > 0
+            ? Math.min(100, Math.round((actualRunTime / runtimeMinutes) * 10000) / 100)
+            : 0;
+        const qualityPct =
+          qtyProduced > 0 ? Math.min(100, Math.round((goodQty / qtyProduced) * 10000) / 100) : 100;
+        const hourlyOEE = Math.round(((availabilityPct * 100 * qualityPct) / 10000) * 100) / 100;
+        // Performance defaults to 100 per hour (machine-level cycleTime not available per-slot)
 
-      const actualRunTime = Math.max(0, runtimeMinutes - downtimeMinutes);
-      const availabilityPct = runtimeMinutes > 0 ? Math.min(100, Math.round((actualRunTime / runtimeMinutes) * 10000) / 100) : 0;
-      const qualityPct = qtyProduced > 0 ? Math.min(100, Math.round((goodQty / qtyProduced) * 10000) / 100) : 100;
-      const hourlyOEE = Math.round((availabilityPct * 100 * qualityPct) / 10000 * 100) / 100;
-      // Performance defaults to 100 per hour (machine-level cycleTime not available per-slot)
-
-      return {
-        ...log,
-        operatorName: log.operatorId ? (operatorMap.get(log.operatorId) || log.operatorId) : null,
-        shiftPlannedQty,
-        weeklyProgramStatus,
-        weeklyProgramId,
-        goodQty,
-        availabilityPct,
-        qualityPct,
-        performancePct: 100,
-        hourlyOEE,
-      };
-    }));
+        return {
+          ...log,
+          operatorName: log.operatorId ? operatorMap.get(log.operatorId) || log.operatorId : null,
+          shiftPlannedQty,
+          weeklyProgramStatus,
+          weeklyProgramId,
+          goodQty,
+          availabilityPct,
+          qualityPct,
+          performancePct: 100,
+          hourlyOEE,
+        };
+      })
+    );
 
     return enrichedLogs;
   }
@@ -865,9 +955,9 @@ class HourlyProductionService {
             productItem: {
               include: {
                 uom: true,
-              }
-            }
-          }
+              },
+            },
+          },
         },
         machine: true,
         shift: true,
@@ -875,18 +965,25 @@ class HourlyProductionService {
     });
 
     if (!log) {
-      throw new ApiError(404, `Hourly production log with ID ${hourlyProductionId.toString()} not found`);
+      throw new ApiError(
+        404,
+        `Hourly production log with ID ${hourlyProductionId.toString()} not found`
+      );
     }
 
     return log;
   }
 
-  async update(hourlyProductionId: bigint, data: UpdateHourlyProductionInput, userId: string = "SYSTEM") {
+  async update(
+    hourlyProductionId: bigint,
+    data: UpdateHourlyProductionInput,
+    userId: string = "SYSTEM"
+  ) {
     const existing = await this.findById(hourlyProductionId);
 
     // Merge existing and update data for validation
     const merged = {
-      dailyPlanId: data.dailyPlanId !== undefined ? data.dailyPlanId : (existing.dailyPlanId || null),
+      dailyPlanId: data.dailyPlanId !== undefined ? data.dailyPlanId : existing.dailyPlanId || null,
       productionOrderId: data.productionOrderId ?? existing.productionOrderId,
       productionDate: data.productionDate ?? existing.productionDate.toISOString().split("T")[0],
       shiftId: data.shiftId ?? existing.shiftId,
@@ -925,52 +1022,67 @@ class HourlyProductionService {
     if (data.scrapReason !== undefined) updateData.scrapReason = data.scrapReason;
     if (data.operatorId !== undefined) updateData.operatorId = data.operatorId;
 
-    return prisma.$transaction(async (tx) => {
-      const updated = await tx.hourlyProduction.update({
-        where: { hourlyProductionId },
-        data: updateData,
-        include: {
-          productionOrder: true,
+    return prisma
+      .$transaction(
+        async (tx) => {
+          const updated = await tx.hourlyProduction.update({
+            where: { hourlyProductionId },
+            data: updateData,
+            include: {
+              productionOrder: true,
+            },
+          });
+
+          await syncProductionOrderQuantities(tx, updated.productionOrderId);
+          if (existing.productionOrderId !== updated.productionOrderId) {
+            await syncProductionOrderQuantities(tx, existing.productionOrderId);
+          }
+
+          const [yyyy, mm, dd] = merged.productionDate.split("-").map(Number);
+          const prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
+          const dailyPlan = merged.dailyPlanId
+            ? await tx.dailyProductionPlan.findUnique({
+                where: { dailyPlanId: merged.dailyPlanId },
+              })
+            : null;
+
+          const isFinalEntry =
+            (dailyPlan?.plannedHours &&
+              Number(merged.hourIndex) === Number(dailyPlan.plannedHours)) ||
+            data.stopPlanEarly;
+          let highCheckResult = { newHighReached: false };
+          if (isFinalEntry) {
+            highCheckResult = await this.checkForNewCapacityHigh(tx, merged, prodDate, dailyPlan);
+          }
+
+          return {
+            ...updated,
+            ...highCheckResult,
+          };
         },
+        { timeout: 15000 }
+      )
+      .then((result) => {
+        try {
+          emitToTenant("inventory:stockUpdated", { type: "hourly_production" });
+        } catch (_) {}
+        return result;
       });
-
-      await syncProductionOrderQuantities(tx, updated.productionOrderId);
-      if (existing.productionOrderId !== updated.productionOrderId) {
-        await syncProductionOrderQuantities(tx, existing.productionOrderId);
-      }
-
-      const [yyyy, mm, dd] = merged.productionDate.split("-").map(Number);
-      const prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
-      const dailyPlan = merged.dailyPlanId
-        ? await tx.dailyProductionPlan.findUnique({ where: { dailyPlanId: merged.dailyPlanId } })
-        : null;
-
-      const isFinalEntry = (dailyPlan?.plannedHours && Number(merged.hourIndex) === Number(dailyPlan.plannedHours)) || data.stopPlanEarly;
-      let highCheckResult = { newHighReached: false };
-      if (isFinalEntry) {
-        highCheckResult = await this.checkForNewCapacityHigh(tx, merged, prodDate, dailyPlan);
-      }
-
-      return {
-        ...updated,
-        ...highCheckResult,
-      };
-    }, { timeout: 15000 }).then((result) => {
-      try { getIO().emit("inventory:stockUpdated", { type: "hourly_production" }); } catch (_) {}
-      return result;
-    });
   }
 
   async delete(hourlyProductionId: bigint) {
     const existing = await this.findById(hourlyProductionId);
 
-    return prisma.$transaction(async (tx) => {
-      const deleted = await tx.hourlyProduction.delete({
-        where: { hourlyProductionId },
-      });
-      await syncProductionOrderQuantities(tx, existing.productionOrderId);
-      return deleted;
-    }, { timeout: 15000 });
+    return prisma.$transaction(
+      async (tx) => {
+        const deleted = await tx.hourlyProduction.delete({
+          where: { hourlyProductionId },
+        });
+        await syncProductionOrderQuantities(tx, existing.productionOrderId);
+        return deleted;
+      },
+      { timeout: 15000 }
+    );
   }
 }
 

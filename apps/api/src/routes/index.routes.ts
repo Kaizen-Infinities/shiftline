@@ -55,6 +55,7 @@ import pettyCashRoutes from "../modules/petty-cash/petty-cash.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
+import retentionRoutes from "../modules/retention/retention.routes";
 
 const router = Router();
 
@@ -119,6 +120,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/payroll", router: payrollRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },
+  { path: "/retention", router: retentionRoutes },
 ];
 
 for (const { path, router: moduleRouter } of API_MOUNTS) {

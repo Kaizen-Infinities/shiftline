@@ -21,12 +21,11 @@ class ReturnsController {
       const data = await returnsService.createSalesReturn(input, createdBy);
 
       try {
-        const { getIO } = await import("../../socket/socket.js");
-        const io = getIO();
-        io.emit("salesReturn:created", data);
-        io.emit("voucher:created", { source: "salesReturn" });
-        io.emit("payment:created", { source: "salesReturn" });
-        io.emit("accountLedger:updated", { source: "salesReturn" });
+        const { emitToTenant } = await import("../../lib/realtime.js");
+        emitToTenant("salesReturn:created", data);
+        emitToTenant("voucher:created", { source: "salesReturn" });
+        emitToTenant("payment:created", { source: "salesReturn" });
+        emitToTenant("accountLedger:updated", { source: "salesReturn" });
       } catch (sErr) {
         console.error("[Socket Emit Error] salesReturn:created", sErr);
       }
@@ -55,12 +54,11 @@ class ReturnsController {
       const data = await returnsService.updateSalesReturn(id, input, updatedBy);
 
       try {
-        const { getIO } = await import("../../socket/socket.js");
-        const io = getIO();
-        io.emit("salesReturn:updated", data);
-        io.emit("voucher:created", { source: "salesReturn" });
-        io.emit("payment:created", { source: "salesReturn" });
-        io.emit("accountLedger:updated", { source: "salesReturn" });
+        const { emitToTenant } = await import("../../lib/realtime.js");
+        emitToTenant("salesReturn:updated", data);
+        emitToTenant("voucher:created", { source: "salesReturn" });
+        emitToTenant("payment:created", { source: "salesReturn" });
+        emitToTenant("accountLedger:updated", { source: "salesReturn" });
       } catch (sErr) {
         console.error("[Socket Emit Error] salesReturn:updated", sErr);
       }
@@ -88,13 +86,12 @@ class ReturnsController {
       const data = await returnsService.createPurchaseReturn(input, createdBy);
 
       try {
-        const { getIO } = await import("../../socket/socket.js");
-        const io = getIO();
-        io.emit("purchaseReturn:created", data);
-        io.emit("rawMaterial:updated", { source: "purchaseReturn" });
-        io.emit("voucher:created", { source: "purchaseReturn" });
-        io.emit("payment:created", { source: "purchaseReturn" });
-        io.emit("accountLedger:updated", { source: "purchaseReturn" });
+        const { emitToTenant } = await import("../../lib/realtime.js");
+        emitToTenant("purchaseReturn:created", data);
+        emitToTenant("rawMaterial:updated", { source: "purchaseReturn" });
+        emitToTenant("voucher:created", { source: "purchaseReturn" });
+        emitToTenant("payment:created", { source: "purchaseReturn" });
+        emitToTenant("accountLedger:updated", { source: "purchaseReturn" });
       } catch (sErr) {
         console.error("[Socket Emit Error] purchaseReturn:created", sErr);
       }

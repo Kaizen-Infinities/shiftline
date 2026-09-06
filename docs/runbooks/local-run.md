@@ -22,7 +22,8 @@ Then:
 ```bash
 npx -w @shiftline/api prisma migrate deploy
 make seed                                     # demo tenant, roles, users, masters
-make dev                                      # api on :5000, web on :5173
+make dev                                      # api (with embedded worker) on :5000, web on :5173
+make worker                                   # optional: the worker as its own process instead
 ```
 
 Demo logins (password `SEED_PASSWORD`, default `Demo@12345678`): `demo.owner`,

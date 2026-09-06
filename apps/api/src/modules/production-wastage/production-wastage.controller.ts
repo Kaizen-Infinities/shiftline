@@ -2,21 +2,21 @@ import { Request, Response } from "express";
 import productionWastageService from "./production-wastage.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 class ProductionWastageController {
   create = asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user?.userId || "d67768ba-bcde-4321-a123-bcdef9876543";
     const record = await productionWastageService.create(req.body, userId);
 
-    const safeRecord = JSON.parse(JSON.stringify(record, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("productionWastage:created", safeRecord);
-
-    return res.status(201).json(
-      new ApiResponse("Production wastage log created successfully", record)
+    const safeRecord = JSON.parse(
+      JSON.stringify(record, (key, value) => (typeof value === "bigint" ? value.toString() : value))
     );
+    emitToTenant("productionWastage:created", safeRecord);
+
+    return res
+      .status(201)
+      .json(new ApiResponse("Production wastage log created successfully", record));
   });
 
   findAll = asyncHandler(async (req: Request, res: Response) => {
@@ -33,18 +33,18 @@ class ProductionWastageController {
       status: status ? String(status) : undefined,
     });
 
-    return res.status(200).json(
-      new ApiResponse("Production wastage logs fetched successfully", result)
-    );
+    return res
+      .status(200)
+      .json(new ApiResponse("Production wastage logs fetched successfully", result));
   });
 
   findById = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const record = await productionWastageService.findById(BigInt(id as string));
 
-    return res.status(200).json(
-      new ApiResponse("Production wastage log fetched successfully", record)
-    );
+    return res
+      .status(200)
+      .json(new ApiResponse("Production wastage log fetched successfully", record));
   });
 
   update = asyncHandler(async (req: Request, res: Response) => {
@@ -52,25 +52,23 @@ class ProductionWastageController {
     const userId = (req as any).user?.userId || "d67768ba-bcde-4321-a123-bcdef9876543";
     const record = await productionWastageService.update(BigInt(id as string), req.body, userId);
 
-    const safeRecord = JSON.parse(JSON.stringify(record, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("productionWastage:updated", safeRecord);
-
-    return res.status(200).json(
-      new ApiResponse("Production wastage log updated successfully", record)
+    const safeRecord = JSON.parse(
+      JSON.stringify(record, (key, value) => (typeof value === "bigint" ? value.toString() : value))
     );
+    emitToTenant("productionWastage:updated", safeRecord);
+
+    return res
+      .status(200)
+      .json(new ApiResponse("Production wastage log updated successfully", record));
   });
 
   delete = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     await productionWastageService.delete(BigInt(id as string));
 
-    getIO().emit("productionWastage:deleted", { id: String(id) });
+    emitToTenant("productionWastage:deleted", { id: String(id) });
 
-    return res.status(200).json(
-      new ApiResponse("Production wastage log deleted successfully")
-    );
+    return res.status(200).json(new ApiResponse("Production wastage log deleted successfully"));
   });
 
   approve = asyncHandler(async (req: Request, res: Response) => {
@@ -78,14 +76,14 @@ class ProductionWastageController {
     const userId = (req as any).user?.userId || "d67768ba-bcde-4321-a123-bcdef9876543";
     const record = await productionWastageService.approve(BigInt(id as string), userId);
 
-    const safeRecord = JSON.parse(JSON.stringify(record, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("productionWastage:updated", safeRecord);
-
-    return res.status(200).json(
-      new ApiResponse("Production wastage log approved successfully", record)
+    const safeRecord = JSON.parse(
+      JSON.stringify(record, (key, value) => (typeof value === "bigint" ? value.toString() : value))
     );
+    emitToTenant("productionWastage:updated", safeRecord);
+
+    return res
+      .status(200)
+      .json(new ApiResponse("Production wastage log approved successfully", record));
   });
 
   reject = asyncHandler(async (req: Request, res: Response) => {
@@ -93,14 +91,14 @@ class ProductionWastageController {
     const userId = (req as any).user?.userId || "d67768ba-bcde-4321-a123-bcdef9876543";
     const record = await productionWastageService.reject(BigInt(id as string), userId);
 
-    const safeRecord = JSON.parse(JSON.stringify(record, (key, value) =>
-      typeof value === "bigint" ? value.toString() : value
-    ));
-    getIO().emit("productionWastage:updated", safeRecord);
-
-    return res.status(200).json(
-      new ApiResponse("Production wastage log rejected successfully", record)
+    const safeRecord = JSON.parse(
+      JSON.stringify(record, (key, value) => (typeof value === "bigint" ? value.toString() : value))
     );
+    emitToTenant("productionWastage:updated", safeRecord);
+
+    return res
+      .status(200)
+      .json(new ApiResponse("Production wastage log rejected successfully", record));
   });
 }
 

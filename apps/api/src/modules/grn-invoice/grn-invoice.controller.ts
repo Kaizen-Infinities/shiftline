@@ -5,7 +5,7 @@ import { prisma } from "../../config/prisma";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { ApiError } from "../../utils/ApiError";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 
@@ -38,11 +38,11 @@ class GrnInvoiceController {
       console.error("[GRN Controller] Voucher posting failed:", err);
     }
 
-    getIO().emit("grnInvoice:created", grnInvoice);
+    emitToTenant("grnInvoice:created", grnInvoice);
     try {
-      getIO().emit("voucher:created", { source: "grnInvoice" });
-      getIO().emit("payment:created", { source: "grnInvoice" });
-      getIO().emit("accountLedger:updated", { source: "grnInvoice" });
+      emitToTenant("voucher:created", { source: "grnInvoice" });
+      emitToTenant("payment:created", { source: "grnInvoice" });
+      emitToTenant("accountLedger:updated", { source: "grnInvoice" });
     } catch (e) {}
 
     return res.status(201).json(new ApiResponse("GRN / Invoice created successfully", grnInvoice));
@@ -82,11 +82,11 @@ class GrnInvoiceController {
       console.error("[GRN Controller] Voucher posting failed:", err);
     }
 
-    getIO().emit("grnInvoice:updated", grnInvoice);
+    emitToTenant("grnInvoice:updated", grnInvoice);
     try {
-      getIO().emit("voucher:updated", { source: "grnInvoice" });
-      getIO().emit("payment:updated", { source: "grnInvoice" });
-      getIO().emit("accountLedger:updated", { source: "grnInvoice" });
+      emitToTenant("voucher:updated", { source: "grnInvoice" });
+      emitToTenant("payment:updated", { source: "grnInvoice" });
+      emitToTenant("accountLedger:updated", { source: "grnInvoice" });
     } catch (e) {}
 
     return res.status(200).json(new ApiResponse("GRN / Invoice updated successfully", grnInvoice));
@@ -103,7 +103,7 @@ class GrnInvoiceController {
 
     await grnInvoiceService.deleteGrnInvoice(id);
 
-    getIO().emit("grnInvoice:deleted", { id });
+    emitToTenant("grnInvoice:deleted", { id });
 
     return res.status(200).json(new ApiResponse("GRN / Invoice deleted successfully"));
   });

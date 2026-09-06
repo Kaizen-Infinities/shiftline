@@ -20,6 +20,19 @@ const envSchema = z
     /** Key for encrypting stored credentials (WhatsApp tokens, SMTP passwords, GSP secrets). */
     DATA_ENCRYPTION_KEY: z.string().min(32).optional(),
 
+    /** Run the pg-boss worker inside the API process (single-process local runs). */
+    EMBED_WORKER: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((v) => v === "true"),
+    /** Postgres schema pg-boss owns; created on first start. */
+    PGBOSS_SCHEMA: z
+      .string()
+      .regex(/^[a-z_][a-z0-9_]*$/)
+      .default("pgboss"),
+    /** Local directory for retention archives (NDJSON.gz per sweep). */
+    ARCHIVE_DIR: z.string().min(1).default("./archives"),
+
     FRONTEND_URL: z.string().url().default("http://localhost:5173"),
     BACKEND_URL: z.string().url().default("http://localhost:5000"),
 
@@ -41,11 +54,21 @@ const envSchema = z
   })
   .superRefine((v, ctx) => {
     if (v.NODE_ENV === "production") {
-      for (const k of ["ADMIN_EMAIL", "ADMIN_USERNAME", "ADMIN_PASSWORD", "DATA_ENCRYPTION_KEY"] as const) {
-        if (!v[k]) ctx.addIssue({ code: "custom", path: [k], message: `${k} is required in production` });
+      for (const k of [
+        "ADMIN_EMAIL",
+        "ADMIN_USERNAME",
+        "ADMIN_PASSWORD",
+        "DATA_ENCRYPTION_KEY",
+      ] as const) {
+        if (!v[k])
+          ctx.addIssue({ code: "custom", path: [k], message: `${k} is required in production` });
       }
       if (v.ADMIN_PASSWORD && v.ADMIN_PASSWORD.length < 12) {
-        ctx.addIssue({ code: "custom", path: ["ADMIN_PASSWORD"], message: "ADMIN_PASSWORD must be at least 12 characters" });
+        ctx.addIssue({
+          code: "custom",
+          path: ["ADMIN_PASSWORD"],
+          message: "ADMIN_PASSWORD must be at least 12 characters",
+        });
       }
     }
   });

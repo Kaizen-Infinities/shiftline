@@ -35,12 +35,10 @@ class VouchersController {
       const raw = String(req.query.type || "").toUpperCase();
       const validTypes = Object.values(VoucherType);
       if (!validTypes.includes(raw as VoucherType)) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: `Invalid or missing 'type'. Allowed: ${validTypes.join(", ")}`,
-          });
+        return res.status(400).json({
+          success: false,
+          message: `Invalid or missing 'type'. Allowed: ${validTypes.join(", ")}`,
+        });
       }
       const voucherNo = await vouchersService.peekNextVoucherNo(raw as VoucherType);
       return res.status(200).json({ success: true, data: { voucherNo } });
@@ -56,11 +54,10 @@ class VouchersController {
       const voucher = await vouchersService.createVoucher(input, createdBy);
 
       try {
-        const { getIO } = await import("../../socket/socket.js");
-        const io = getIO();
-        io.emit("voucher:created", voucher);
-        io.emit("payment:created", voucher);
-        io.emit("accountLedger:updated", { source: "voucher" });
+        const { emitToTenant } = await import("../../lib/realtime.js");
+        emitToTenant("voucher:created", voucher);
+        emitToTenant("payment:created", voucher);
+        emitToTenant("accountLedger:updated", { source: "voucher" });
       } catch (e) {}
 
       return res.status(201).json({
@@ -78,10 +75,9 @@ class VouchersController {
       const result = await vouchersService.deleteVoucher(id);
 
       try {
-        const { getIO } = await import("../../socket/socket.js");
-        const io = getIO();
-        io.emit("voucher:deleted", { id });
-        io.emit("accountLedger:updated", { source: "voucher" });
+        const { emitToTenant } = await import("../../lib/realtime.js");
+        emitToTenant("voucher:deleted", { id });
+        emitToTenant("accountLedger:updated", { source: "voucher" });
       } catch (e) {}
 
       return res.status(200).json({ success: true, message: "Voucher deleted", data: result });

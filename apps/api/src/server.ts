@@ -7,7 +7,9 @@ import app from "./app";
 import { prisma } from "./config/prisma";
 import { bootstrapAdmin } from "./utils/bootstrapAdmin";
 import { initSocket } from "./socket/socket";
-import { initScheduler } from "./modules/inventory/jobs/scheduler";
+import { env } from "./config/env";
+import { startJobs, stopJobs } from "./lib/jobs";
+import { registerSchedules, registerWorkers } from "./jobs";
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -24,7 +26,15 @@ const startServer = async (): Promise<void> => {
     const server = http.createServer(app);
 
     initSocket(server);
-    initScheduler();
+
+    // Background jobs normally run in the worker process (src/worker.ts);
+    // EMBED_WORKER=true runs them here for single-process local runs.
+    if (env.EMBED_WORKER) {
+      await startJobs();
+      await registerWorkers();
+      await registerSchedules();
+      console.log("⚙️  Embedded worker started (EMBED_WORKER=true)");
+    }
 
     server.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);
@@ -35,6 +45,7 @@ const startServer = async (): Promise<void> => {
 
       server.close(async () => {
         try {
+          await stopJobs();
           await prisma.$disconnect();
 
           console.log("✅ Database disconnected");

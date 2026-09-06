@@ -5,7 +5,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { ApiError } from "../../utils/ApiError";
 import { prisma } from "../../config/prisma";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 class SupplierController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -27,7 +27,7 @@ class SupplierController {
       userId,
     });
 
-    getIO().emit("supplier:created", supplier);
+    emitToTenant("supplier:created", supplier);
 
     return res.status(201).json(new ApiResponse("Supplier created successfully", supplier));
   });
@@ -64,7 +64,7 @@ class SupplierController {
       userId,
     });
 
-    getIO().emit("supplier:updated", supplier);
+    emitToTenant("supplier:updated", supplier);
 
     return res.status(200).json(new ApiResponse("Supplier updated successfully", supplier));
   });
@@ -84,7 +84,7 @@ class SupplierController {
     const id = String(req.params.id);
     await supplierService.deleteSupplier(id);
 
-    getIO().emit("supplier:deleted", { id });
+    emitToTenant("supplier:deleted", { id });
 
     return res.status(200).json(new ApiResponse("Supplier deleted successfully"));
   });

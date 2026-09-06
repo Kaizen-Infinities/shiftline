@@ -23,9 +23,10 @@ Requirements: Node 22 (`.nvmrc`), Docker.
 npm install
 cp apps/api/.env.example apps/api/.env      # fill in JWT_ACCESS_SECRET and ADMIN_*
 cp apps/web/.env.example apps/web/.env
-docker compose up -d postgres               # arrives in P0-03
+docker compose up -d postgres               # or `make db`
 npm run -w @shiftline/api prisma:generate
-npm run dev --workspace @shiftline/api
+npm run dev --workspace @shiftline/api      # or EMBED_WORKER=true to skip the next line
+npm run worker --workspace @shiftline/api   # pg-boss worker: EOD snapshots, retention sweeps
 npm run dev --workspace @shiftline/web
 ```
 

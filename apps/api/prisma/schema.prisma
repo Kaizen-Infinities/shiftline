@@ -543,6 +543,8 @@ model Company {
   mobileRouteCustomers        MobileRouteCustomer[]        @relation("CompanyMobileRouteCustomer")
   mobileRouteAssignments      MobileRouteAssignment[]      @relation("CompanyMobileRouteAssignment")
   mobileSyncRecords           MobileSyncRecord[]           @relation("CompanyMobileSyncRecord")
+  retentionPolicies           RetentionPolicy[]            @relation("CompanyRetentionPolicy")
+  retentionSweeps             RetentionSweep[]             @relation("CompanyRetentionSweep")
 
   @@map("companies")
 }
@@ -2916,4 +2918,65 @@ model MobileSyncRecord {
   @@unique([companyId, clientId])
   @@index([companyId, agentUserId, entityType])
   @@map("mobile_sync_records")
+}
+
+// ─── Retention (P0-10) ────────────────────────────────────────────────────────
+
+/// Classes of data a tenant may set retention for. Statutory minimums are
+/// enforced in code (modules/retention/retention.policy.ts), not here.
+enum RetentionDataClass {
+  BOOKS
+  FILINGS
+  PAYROLL
+  AUDIT_LOGS
+  EOD_SNAPSHOTS
+  SESSIONS
+  LOGIN_ATTEMPTS
+  SYNC_TOMBSTONES
+}
+
+enum RetentionAction {
+  RETAIN
+  ARCHIVE
+  PURGE
+}
+
+model RetentionPolicy {
+  id            String             @id @default(uuid()) @db.Uuid
+  companyId     String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  dataClass     RetentionDataClass @map("data_class")
+  retentionDays Int                @map("retention_days")
+  action        RetentionAction    @default(RETAIN)
+  isActive      Boolean            @default(true) @map("is_active")
+  updatedBy     String?            @map("updated_by") @db.VarChar(36)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyRetentionPolicy", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, dataClass])
+  @@map("retention_policies")
+}
+
+/// One row per data class per sweep run; dry runs are recorded too.
+model RetentionSweep {
+  id          BigInt             @id @default(autoincrement())
+  companyId   String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  dataClass   RetentionDataClass @map("data_class")
+  action      RetentionAction
+  dryRun      Boolean            @map("dry_run")
+  cutoff      DateTime           @db.Timestamptz(6)
+  matched     Int                @default(0)
+  affected    Int                @default(0)
+  archivePath String?            @map("archive_path") @db.VarChar(500)
+  error       String?            @db.VarChar(1000)
+  triggeredBy String?            @map("triggered_by") @db.VarChar(36)
+  jobId       String?            @map("job_id") @db.VarChar(64)
+  startedAt   DateTime           @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt  DateTime?          @map("finished_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyRetentionSweep", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, startedAt])
+  @@map("retention_sweeps")
 }

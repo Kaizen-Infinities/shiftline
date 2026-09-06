@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 
 import purchaseOrderService from "./purchase-order.service";
 import { prisma } from "../../config/prisma";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
@@ -31,7 +31,7 @@ class PurchaseOrderController {
       companyId: company.id,
     });
 
-    getIO().emit("purchaseOrder:created", po);
+    emitToTenant("purchaseOrder:created", po);
 
     return res.status(201).json(new ApiResponse("Purchase Order created successfully", po));
   });
@@ -110,7 +110,7 @@ class PurchaseOrderController {
       })();
     }
 
-    getIO().emit("purchaseOrder:updated", po);
+    emitToTenant("purchaseOrder:updated", po);
 
     return res.status(200).json(new ApiResponse("Purchase Order updated successfully", po));
   });
@@ -126,7 +126,7 @@ class PurchaseOrderController {
 
     await purchaseOrderService.deletePurchaseOrder(id);
 
-    getIO().emit("purchaseOrder:deleted", { id });
+    emitToTenant("purchaseOrder:deleted", { id });
 
     return res.status(200).json(new ApiResponse("Purchase Order deleted successfully"));
   });

@@ -60,15 +60,20 @@ export const apiArchitectureRules = {
         "Never SET session-scoped app.* variables; use set_config(..., true) inside a transaction.",
     },
   ],
-  // Sockets emit per tenant through lib/realtime.ts (error from P0-10).
+  // Sockets emit per tenant through lib/realtime.ts; only it may touch the io server.
   "no-restricted-imports": [
-    "warn",
+    "error",
     {
       patterns: [
         {
           group: ["**/socket/socket", "**/socket/socket.js"],
           importNames: ["getIO"],
-          message: "Use emitToTenant() from lib/realtime instead of getIO() (enforced from P0-10).",
+          message:
+            "Use emitToTenant() from lib/realtime instead of getIO(); a bare emit broadcasts across tenants.",
+        },
+        {
+          group: ["node-cron"],
+          message: "Schedule work through pg-boss (lib/jobs.ts, src/jobs/), not in-process cron.",
         },
       ],
     },

@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 import Decimal from "decimal.js";
 
 export class StockAdjustmentService {
@@ -70,24 +70,45 @@ export class StockAdjustmentService {
     });
 
     if (targetStatus === "APPROVED") {
-      return await this.approveStockAdjustment(created.id, "APPROVED", "Auto-approved on creation", userId);
+      return await this.approveStockAdjustment(
+        created.id,
+        "APPROVED",
+        "Auto-approved on creation",
+        userId
+      );
     }
 
     return created;
   }
 
   static async getStockAdjustments(filters: any) {
-    const { status, search, page = 1, limit = 10, adjustmentType, productionOrderId, dateFrom, dateTo } = filters;
+    const {
+      status,
+      search,
+      page = 1,
+      limit = 10,
+      adjustmentType,
+      productionOrderId,
+      dateFrom,
+      dateTo,
+    } = filters;
     const skip = (Number(page) - 1) * Number(limit);
 
     const where: any = {};
     if (status) where.status = status;
     if (adjustmentType) where.adjustmentType = adjustmentType;
-    if (productionOrderId) where.productionOrderId = { contains: productionOrderId, mode: "insensitive" };
+    if (productionOrderId)
+      where.productionOrderId = { contains: productionOrderId, mode: "insensitive" };
     if (dateFrom || dateTo) {
       where.adjustmentDate = {};
-      if (dateFrom) where.adjustmentDate.gte = new Date(dateFrom.includes("T") ? dateFrom : `${dateFrom}T00:00:00.000Z`);
-      if (dateTo) where.adjustmentDate.lte = new Date(dateTo.includes("T") ? dateTo : `${dateTo}T23:59:59.999Z`);
+      if (dateFrom)
+        where.adjustmentDate.gte = new Date(
+          dateFrom.includes("T") ? dateFrom : `${dateFrom}T00:00:00.000Z`
+        );
+      if (dateTo)
+        where.adjustmentDate.lte = new Date(
+          dateTo.includes("T") ? dateTo : `${dateTo}T23:59:59.999Z`
+        );
     }
     if (search) {
       where.OR = [
@@ -132,19 +153,31 @@ export class StockAdjustmentService {
 
     // Attach createdBy user names
     const userIds = [...new Set(data.map((d) => d.createdBy).filter(Boolean) as string[])];
-    const users = userIds.length > 0
-      ? await prisma.user.findMany({ where: { userId: { in: userIds } }, select: { userId: true, fullName: true } })
-      : [];
+    const users =
+      userIds.length > 0
+        ? await prisma.user.findMany({
+            where: { userId: { in: userIds } },
+            select: { userId: true, fullName: true },
+          })
+        : [];
 
     const empIds = userIds
-      .map(id => {
-        try { return BigInt(id); } catch (e) { return null; }
+      .map((id) => {
+        try {
+          return BigInt(id);
+        } catch (e) {
+          return null;
+        }
       })
       .filter((id): id is bigint => id !== null);
 
-    const employees = empIds.length > 0
-      ? await prisma.employee.findMany({ where: { id: { in: empIds } }, select: { id: true, fullName: true } })
-      : [];
+    const employees =
+      empIds.length > 0
+        ? await prisma.employee.findMany({
+            where: { id: { in: empIds } },
+            select: { id: true, fullName: true },
+          })
+        : [];
 
     const nameMap = new Map<string, string>();
     users.forEach((u) => nameMap.set(u.userId, u.fullName));
@@ -152,7 +185,8 @@ export class StockAdjustmentService {
 
     const enriched = data.map((d) => ({
       ...d,
-      createdByUser: d.createdBy && nameMap.has(d.createdBy) ? { fullName: nameMap.get(d.createdBy) } : null,
+      createdByUser:
+        d.createdBy && nameMap.has(d.createdBy) ? { fullName: nameMap.get(d.createdBy) } : null,
     }));
 
     return {
@@ -216,7 +250,7 @@ export class StockAdjustmentService {
           const empId = BigInt(adjustment.createdBy);
           emp = await prisma.employee.findUnique({
             where: { id: empId },
-            select: { fullName: true }
+            select: { fullName: true },
           });
         } catch (e) {}
         (adjustment as any).createdByUser = emp ? { fullName: emp.fullName } : null;
@@ -243,7 +277,10 @@ export class StockAdjustmentService {
         select: { status: true },
       });
       if (po && ["IN_PROGRESS", "COMPLETED"].includes(po.status)) {
-        throw new ApiError(400, "Production Material Issue cannot be edited after Production has started.");
+        throw new ApiError(
+          400,
+          "Production Material Issue cannot be edited after Production has started."
+        );
       }
     }
 
@@ -284,7 +321,12 @@ export class StockAdjustmentService {
     });
   }
 
-  static async approveStockAdjustment(id: bigint | number | string, status: string, reason: string | undefined, userId: string) {
+  static async approveStockAdjustment(
+    id: bigint | number | string,
+    status: string,
+    reason: string | undefined,
+    userId: string
+  ) {
     const existing = await this.getStockAdjustmentById(id);
 
     if (existing.status === "APPROVED") {
@@ -306,107 +348,115 @@ export class StockAdjustmentService {
     }
 
     // Process Approval
-    return prisma.$transaction(async (tx) => {
-      for (const item of existing.items) {
-        if (item.difference.toNumber() === 0) continue;
+    return prisma
+      .$transaction(async (tx) => {
+        for (const item of existing.items) {
+          if (item.difference.toNumber() === 0) continue;
 
-        if (item.itemType === "RAW_MATERIAL" && item.rawMaterialId) {
-          // Update RM Stock
-          const rm = await tx.rawMaterial.findUnique({ where: { rawMaterialId: item.rawMaterialId } });
-          if (!rm) throw new ApiError(404, `Raw Material ${item.rawMaterialId} not found`);
+          if (item.itemType === "RAW_MATERIAL" && item.rawMaterialId) {
+            // Update RM Stock
+            const rm = await tx.rawMaterial.findUnique({
+              where: { rawMaterialId: item.rawMaterialId },
+            });
+            if (!rm) throw new ApiError(404, `Raw Material ${item.rawMaterialId} not found`);
 
-          const updatedReservedQty = existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE"
-            ? Math.max(0, Number(rm.reservedQty) - Math.abs(item.difference.toNumber()))
-            : Number(rm.reservedQty);
+            const updatedReservedQty =
+              existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE"
+                ? Math.max(0, Number(rm.reservedQty) - Math.abs(item.difference.toNumber()))
+                : Number(rm.reservedQty);
 
-          await tx.rawMaterial.update({
-            where: { rawMaterialId: item.rawMaterialId },
-            data: {
-              onHandQty: { increment: item.difference },
-              reservedQty: updatedReservedQty,
-              updatedBy: userId,
-            },
-          });
-
-          // Create Transaction
-          await tx.rawMaterialTransaction.create({
-            data: {
-              storeId: item.storeId,
-              rawMaterialId: item.rawMaterialId,
-              txnType: item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
-              qty: new Decimal(Math.abs(item.difference.toNumber())),
-              remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
-            },
-          });
-
-        } else if (item.itemType === "FINISHED_GOODS" && item.productItemId) {
-          // Find or create FG stock
-          const fgStock = await tx.finishedGoodsStock.findUnique({
-            where: {
-              storeId_productItemId: {
-                storeId: item.storeId,
-                productItemId: item.productItemId,
+            await tx.rawMaterial.update({
+              where: { rawMaterialId: item.rawMaterialId },
+              data: {
+                onHandQty: { increment: item.difference },
+                reservedQty: updatedReservedQty,
+                updatedBy: userId,
               },
-            },
-          });
+            });
 
-          if (fgStock) {
-            await tx.finishedGoodsStock.update({
+            // Create Transaction
+            await tx.rawMaterialTransaction.create({
+              data: {
+                storeId: item.storeId,
+                rawMaterialId: item.rawMaterialId,
+                txnType:
+                  item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
+                qty: new Decimal(Math.abs(item.difference.toNumber())),
+                remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
+              },
+            });
+          } else if (item.itemType === "FINISHED_GOODS" && item.productItemId) {
+            // Find or create FG stock
+            const fgStock = await tx.finishedGoodsStock.findUnique({
               where: {
                 storeId_productItemId: {
                   storeId: item.storeId,
                   productItemId: item.productItemId,
                 },
               },
-              data: { onHandQty: { increment: item.difference } },
             });
-          } else {
-            await tx.finishedGoodsStock.create({
+
+            if (fgStock) {
+              await tx.finishedGoodsStock.update({
+                where: {
+                  storeId_productItemId: {
+                    storeId: item.storeId,
+                    productItemId: item.productItemId,
+                  },
+                },
+                data: { onHandQty: { increment: item.difference } },
+              });
+            } else {
+              await tx.finishedGoodsStock.create({
+                data: {
+                  storeId: item.storeId,
+                  productItemId: item.productItemId,
+                  onHandQty: item.difference,
+                },
+              });
+            }
+
+            // Create Transaction
+            await tx.finishedGoodsTransaction.create({
               data: {
+                txnDateTime: new Date(),
                 storeId: item.storeId,
                 productItemId: item.productItemId,
-                onHandQty: item.difference,
+                txnType:
+                  item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
+                qty: new Decimal(Math.abs(item.difference.toNumber())),
+                relatedDocNo: existing.adjustmentNumber,
+                remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
+                createdBy: userId,
               },
             });
           }
+        }
 
-          // Create Transaction
-          await tx.finishedGoodsTransaction.create({
-            data: {
-              txnDateTime: new Date(),
-              storeId: item.storeId,
-              productItemId: item.productItemId,
-              txnType: item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
-              qty: new Decimal(Math.abs(item.difference.toNumber())),
-              relatedDocNo: existing.adjustmentNumber,
-              remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
-              createdBy: userId,
-            },
+        // If this is a PMI approval, update the production order status
+        if (existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE" && existing.productionOrderId) {
+          await tx.productionOrder.update({
+            where: { productionOrderId: existing.productionOrderId },
+            data: { status: "MATERIAL_ISSUED", updatedBy: userId },
           });
         }
-      }
 
-      // If this is a PMI approval, update the production order status
-      if (existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE" && existing.productionOrderId) {
-        await tx.productionOrder.update({
-          where: { productionOrderId: existing.productionOrderId },
-          data: { status: "MATERIAL_ISSUED", updatedBy: userId },
+        return tx.stockAdjustment.update({
+          where: { id: BigInt(id) },
+          data: {
+            status: "APPROVED",
+            approvedBy: userId,
+            approvedAt: new Date(),
+            updatedBy: userId,
+          },
         });
-      }
-
-      return tx.stockAdjustment.update({
-        where: { id: BigInt(id) },
-        data: {
-          status: "APPROVED",
-          approvedBy: userId,
-          approvedAt: new Date(),
-          updatedBy: userId,
-        },
+      })
+      .then((result) => {
+        try {
+          emitToTenant("inventory:stockUpdated", { type: "stock_adjustment" });
+        } catch (_) {}
+        return result;
       });
-    }).then((result) => {
-      try { getIO().emit("inventory:stockUpdated", { type: "stock_adjustment" }); } catch (_) {}
-      return result;
-    });
   }
 
   static async deleteStockAdjustment(id: bigint | number | string) {
@@ -423,7 +473,13 @@ export class StockAdjustmentService {
    * - no existing non-rejected PRODUCTION_MATERIAL_ISSUE for that PO
    */
   static async getProductionOrdersForIssue() {
-    const eligibleStatuses = ["RM_AVAILABLE", "MATERIAL_RESERVED", "APPROVED", "SCHEDULED", "PLANNED"];
+    const eligibleStatuses = [
+      "RM_AVAILABLE",
+      "MATERIAL_RESERVED",
+      "APPROVED",
+      "SCHEDULED",
+      "PLANNED",
+    ];
 
     // Get POs that already have a non-rejected PMI
     const alreadyIssuedPos = await prisma.stockAdjustment.findMany({
@@ -434,7 +490,9 @@ export class StockAdjustmentService {
       },
       select: { productionOrderId: true },
     });
-    const issuedPoIds = alreadyIssuedPos.map((a) => a.productionOrderId).filter(Boolean) as string[];
+    const issuedPoIds = alreadyIssuedPos
+      .map((a) => a.productionOrderId)
+      .filter(Boolean) as string[];
 
     const orders = await prisma.productionOrder.findMany({
       where: {

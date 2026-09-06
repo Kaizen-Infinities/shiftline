@@ -4,7 +4,7 @@ import creditCheckService from "./creditCheckService";
 import companyService from "../company/company.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 import { generateQuotationHtml } from "../../templates/quotationTemplate";
 import { generatePdfFromHtml } from "../../utils/pdfGenerator";
 import { sendEmail } from "../../utils/mailer";
@@ -22,7 +22,7 @@ function getPerms(req: Request): string[] {
 class SalesOrderController {
   create = asyncHandler(async (req: Request, res: Response) => {
     const order = await salesOrderService.create(req.body, getPerms(req));
-    getIO().emit("salesOrder:created", order);
+    emitToTenant("salesOrder:created", order);
     return res.status(201).json(new ApiResponse("Sales Order created successfully", order));
   });
 
@@ -68,14 +68,14 @@ class SalesOrderController {
 
   update = asyncHandler(async (req: Request, res: Response) => {
     const order = await salesOrderService.update(Number(req.params.id), req.body, getPerms(req));
-    getIO().emit("salesOrder:updated", order);
+    emitToTenant("salesOrder:updated", order);
     return res.status(200).json(new ApiResponse("Sales Order updated successfully", order));
   });
 
   delete = asyncHandler(async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     await salesOrderService.delete(id, getPerms(req));
-    getIO().emit("salesOrder:deleted", { id });
+    emitToTenant("salesOrder:deleted", { id });
     return res.status(200).json(new ApiResponse("Sales Order deleted successfully"));
   });
 
@@ -144,13 +144,13 @@ class SalesOrderController {
 
   confirmOrder = asyncHandler(async (req: Request, res: Response) => {
     const order = await salesOrderService.confirmOrder(Number(req.params.id), getPerms(req));
-    getIO().emit("salesOrder:updated", order);
+    emitToTenant("salesOrder:updated", order);
     return res.status(200).json(new ApiResponse("Order confirmed successfully", order));
   });
 
   convertToSalesOrder = asyncHandler(async (req: Request, res: Response) => {
     const order = await salesOrderService.convertToSalesOrder(Number(req.params.id), getPerms(req));
-    getIO().emit("salesOrder:updated", order);
+    emitToTenant("salesOrder:updated", order);
     return res
       .status(200)
       .json(new ApiResponse("Quotation converted to sales order successfully", order));
@@ -158,7 +158,7 @@ class SalesOrderController {
 
   markInQuotation = asyncHandler(async (req: Request, res: Response) => {
     const order = await salesOrderService.markInQuotation(Number(req.params.id));
-    getIO().emit("salesOrder:updated", order);
+    emitToTenant("salesOrder:updated", order);
     return res
       .status(200)
       .json(new ApiResponse("Order marked as in-quotation successfully", order));

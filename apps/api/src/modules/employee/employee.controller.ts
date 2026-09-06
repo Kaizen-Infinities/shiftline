@@ -5,7 +5,7 @@ import { prisma } from "../../config/prisma";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { ApiError } from "../../utils/ApiError";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 import { uploadToImageKit } from "../../config/imagekit";
 
 // ─── Helpers for FormData parsing ────────────────────────────────────────────
@@ -53,23 +53,52 @@ function parseEmployeeBody(body: Record<string, any>) {
 
   // ── Text fields passed through as-is (nullify empty strings) ──────────────
   const textFields = [
-    "empCode", "fullName", "mobile", "email",
+    "empCode",
+    "fullName",
+    "mobile",
+    "email",
     "photoUrl",
-    "bloodGroup", "gender", "maritalStatus", "status",
-    "personalMobile", "personalEmail",
-    "emergencyContactName", "emergencyContactNumber",
-    "fatherName", "motherName", "spouseName", "guardianName", "guardianRelationship",
-    "aadhaarNumber", "panNumber", "drivingLicense", "voterId",
-    "permanentAddressLine1", "permanentAddressLine2",
-    "permanentCity", "permanentState", "permanentPincode",
-    "presentAddressLine1", "presentAddressLine2",
-    "presentCity", "presentState", "presentPincode",
-    "designation", "employeeType",
+    "bloodGroup",
+    "gender",
+    "maritalStatus",
+    "status",
+    "personalMobile",
+    "personalEmail",
+    "emergencyContactName",
+    "emergencyContactNumber",
+    "fatherName",
+    "motherName",
+    "spouseName",
+    "guardianName",
+    "guardianRelationship",
+    "aadhaarNumber",
+    "panNumber",
+    "drivingLicense",
+    "voterId",
+    "permanentAddressLine1",
+    "permanentAddressLine2",
+    "permanentCity",
+    "permanentState",
+    "permanentPincode",
+    "presentAddressLine1",
+    "presentAddressLine2",
+    "presentCity",
+    "presentState",
+    "presentPincode",
+    "designation",
+    "employeeType",
     "previousExperience",
     "shiftId",
-    "salaryType", "paymentMode",
-    "bankName", "bankBranch", "accountNumber", "ifscCode", "accountHolderName",
-    "pfNumber", "uanNumber", "esiNumber",
+    "salaryType",
+    "paymentMode",
+    "bankName",
+    "bankBranch",
+    "accountNumber",
+    "ifscCode",
+    "accountHolderName",
+    "pfNumber",
+    "uanNumber",
+    "esiNumber",
   ];
 
   for (const field of textFields) {
@@ -80,8 +109,8 @@ function parseEmployeeBody(body: Record<string, any>) {
 
   // ── Date fields — Prisma DateTime requires a Date object, not a bare "YYYY-MM-DD" string ──
   if ("dateOfJoining" in body) parsed.dateOfJoining = parseDate(body.dateOfJoining);
-  if ("dateOfBirth"   in body) parsed.dateOfBirth   = parseDate(body.dateOfBirth);
-  if ("relievingDate" in body) parsed.relievingDate  = parseDate(body.relievingDate);
+  if ("dateOfBirth" in body) parsed.dateOfBirth = parseDate(body.dateOfBirth);
+  if ("relievingDate" in body) parsed.relievingDate = parseDate(body.relievingDate);
 
   // ── Numeric fields ─────────────────────────────────────────────────────────
   if ("departmentId" in body) parsed.departmentId = parseNum(body.departmentId) ?? null;
@@ -140,11 +169,11 @@ class EmployeeController {
     // Upload profile photo to ImageKit if provided
     if (req.file?.buffer) {
       try {
-        const ext = req.file.mimetype.split('/')[1] || 'jpg';
+        const ext = req.file.mimetype.split("/")[1] || "jpg";
         data.photoUrl = await uploadToImageKit(
           req.file.buffer,
           `emp-${Date.now()}.${ext}`,
-          '/shiftline/employees',
+          "/shiftline/employees"
         );
       } catch (err) {
         console.error("ImageKit upload failed:", err);
@@ -154,7 +183,7 @@ class EmployeeController {
 
     const employee = await employeeService.create(data);
 
-    getIO().emit("employee:created", employee);
+    emitToTenant("employee:created", employee);
 
     return res.status(201).json(new ApiResponse("Employee created successfully", employee));
   });
@@ -222,7 +251,9 @@ class EmployeeController {
 
   getNextCode = asyncHandler(async (_req: Request, res: Response) => {
     const nextCode = await employeeService.getNextEmployeeCode();
-    return res.status(200).json(new ApiResponse("Next employee code fetched successfully", { nextCode }));
+    return res
+      .status(200)
+      .json(new ApiResponse("Next employee code fetched successfully", { nextCode }));
   });
 
   findById = asyncHandler(async (req: Request, res: Response) => {
@@ -238,11 +269,11 @@ class EmployeeController {
     // Upload new profile photo to ImageKit if provided
     if (req.file?.buffer) {
       try {
-        const ext = req.file.mimetype.split('/')[1] || 'jpg';
+        const ext = req.file.mimetype.split("/")[1] || "jpg";
         data.photoUrl = await uploadToImageKit(
           req.file.buffer,
           `emp-${Date.now()}.${ext}`,
-          '/shiftline/employees',
+          "/shiftline/employees"
         );
       } catch (err) {
         console.error("ImageKit upload failed:", err);
@@ -251,7 +282,7 @@ class EmployeeController {
 
     const employee = await employeeService.update(id, data);
 
-    getIO().emit("employee:updated", employee);
+    emitToTenant("employee:updated", employee);
 
     return res.status(200).json(new ApiResponse("Employee updated successfully", employee));
   });
@@ -261,7 +292,7 @@ class EmployeeController {
 
     await employeeService.delete(id);
 
-    getIO().emit("employee:deleted", { id: id.toString() });
+    emitToTenant("employee:deleted", { id: id.toString() });
 
     return res.status(200).json(new ApiResponse("Employee deleted successfully"));
   });

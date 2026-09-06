@@ -1,6 +1,6 @@
 import { prisma } from "../../../config/prisma";
 import { getISTDateParts } from "../../../utils/dateUtils";
-import { getIO } from "../../../socket/socket";
+import { emitToTenant } from "../../../lib/realtime";
 
 /**
  * Helper to safely upsert EOD stock snapshots without triggering Postgres ON CONFLICT 42P10 errors
@@ -80,7 +80,9 @@ export const runEodStockSnapshot = async (targetDateStr?: string) => {
   // Construct a fixed recordedAt timestamp at 23:59:00 in India Standard Time (+05:30)
   const recordedAtFixed = new Date(`${dateStr}T23:59:00+05:30`);
 
-  const yesterday = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 1));
+  const yesterday = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 1)
+  );
 
   // Today's start in IST (midnight) as a UTC Date for querying transactions
   const todayISTStart = new Date(`${dateStr}T00:00:00+05:30`);
@@ -106,8 +108,16 @@ export const runEodStockSnapshot = async (targetDateStr?: string) => {
   for (const t of todayRmTxns) {
     const typ = t.txnType.toUpperCase();
     const q = Number(t.qty) || 0;
-    const isIn = typ.includes("IN") || typ.includes("RECEIPT") || typ.includes("OPENING") || typ.includes("RETURN");
-    const isOut = typ.includes("OUT") || typ.includes("ISSUE") || typ.includes("CONSUMPTION") || typ.includes("DISPATCH");
+    const isIn =
+      typ.includes("IN") ||
+      typ.includes("RECEIPT") ||
+      typ.includes("OPENING") ||
+      typ.includes("RETURN");
+    const isOut =
+      typ.includes("OUT") ||
+      typ.includes("ISSUE") ||
+      typ.includes("CONSUMPTION") ||
+      typ.includes("DISPATCH");
     const delta = isIn ? q : isOut ? -q : 0;
     rmNetMap.set(t.rawMaterialId, (rmNetMap.get(t.rawMaterialId) || 0) + delta);
   }
@@ -117,7 +127,11 @@ export const runEodStockSnapshot = async (targetDateStr?: string) => {
   for (const t of todayFgTxns) {
     const typ = t.txnType.toUpperCase();
     const q = Number(t.qty) || 0;
-    const isIn = typ.includes("IN") || typ.includes("RECEIPT") || typ.includes("OPENING") || typ.includes("RETURN");
+    const isIn =
+      typ.includes("IN") ||
+      typ.includes("RECEIPT") ||
+      typ.includes("OPENING") ||
+      typ.includes("RETURN");
     const isOut = typ.includes("OUT") || typ.includes("ISSUE") || typ.includes("DISPATCH");
     const delta = isIn ? q : isOut ? -q : 0;
     const key = `${t.productItemId}_${t.storeId}`;
@@ -231,5 +245,5 @@ export const runEodStockSnapshot = async (targetDateStr?: string) => {
     fgCount++;
   }
 
-  getIO().emit("inventorySnapshot:completed", { date: dateStr, timestamp: now.toISOString() });
+  emitToTenant("inventorySnapshot:completed", { date: dateStr, timestamp: now.toISOString() });
 };

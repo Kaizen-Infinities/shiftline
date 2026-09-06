@@ -9,7 +9,7 @@ import companyService from "../company/company.service";
 import { generateInvoiceHtml } from "../../templates/invoiceTemplate";
 import { generatePdfFromHtml } from "../../utils/pdfGenerator";
 import { sendEmail } from "../../utils/mailer";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 
@@ -38,11 +38,11 @@ class SalesInvoiceController {
       console.error("[Sales Invoice Controller] Voucher posting failed:", err);
     }
 
-    getIO().emit("salesInvoice:created", salesInvoice);
+    emitToTenant("salesInvoice:created", salesInvoice);
     try {
-      getIO().emit("voucher:created", { source: "salesInvoice" });
-      getIO().emit("payment:created", { source: "salesInvoice" });
-      getIO().emit("accountLedger:updated", { source: "salesInvoice" });
+      emitToTenant("voucher:created", { source: "salesInvoice" });
+      emitToTenant("payment:created", { source: "salesInvoice" });
+      emitToTenant("accountLedger:updated", { source: "salesInvoice" });
     } catch (e) {}
 
     return res
@@ -97,11 +97,11 @@ class SalesInvoiceController {
     const id = req.params.id as string;
     await salesInvoiceService.deleteSalesInvoice(id, companyId);
 
-    getIO().emit("salesInvoice:deleted", { id });
+    emitToTenant("salesInvoice:deleted", { id });
     try {
-      getIO().emit("voucher:deleted", { id });
-      getIO().emit("payment:deleted", { id });
-      getIO().emit("accountLedger:updated", { source: "salesInvoice" });
+      emitToTenant("voucher:deleted", { id });
+      emitToTenant("payment:deleted", { id });
+      emitToTenant("accountLedger:updated", { source: "salesInvoice" });
     } catch (e) {}
 
     return res.status(200).json(new ApiResponse("Sales Invoice deleted successfully"));
@@ -132,11 +132,11 @@ class SalesInvoiceController {
       console.error("[Sales Invoice Controller] Voucher posting failed:", err);
     }
 
-    getIO().emit("salesInvoice:updated", salesInvoice);
+    emitToTenant("salesInvoice:updated", salesInvoice);
     try {
-      getIO().emit("voucher:updated", { source: "salesInvoice" });
-      getIO().emit("payment:updated", { source: "salesInvoice" });
-      getIO().emit("accountLedger:updated", { source: "salesInvoice" });
+      emitToTenant("voucher:updated", { source: "salesInvoice" });
+      emitToTenant("payment:updated", { source: "salesInvoice" });
+      emitToTenant("accountLedger:updated", { source: "salesInvoice" });
     } catch (e) {}
 
     return res

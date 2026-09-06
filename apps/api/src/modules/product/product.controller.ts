@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import productService from "./product.service";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 class ProductController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -13,7 +13,7 @@ class ProductController {
       req.files as Express.Multer.File[] | undefined
     );
 
-    getIO().emit("product:created", product);
+    emitToTenant("product:created", product);
 
     return res.status(201).json(new ApiResponse("Product created successfully", product));
   });
@@ -45,7 +45,7 @@ class ProductController {
       req.files as Express.Multer.File[] | undefined
     );
 
-    getIO().emit("product:updated", product);
+    emitToTenant("product:updated", product);
 
     return res.status(200).json(new ApiResponse("Product updated successfully", product));
   });
@@ -55,7 +55,7 @@ class ProductController {
 
     await productService.delete(id);
 
-    getIO().emit("product:deleted", { id: id.toString() });
+    emitToTenant("product:deleted", { id: id.toString() });
 
     return res.status(200).json(new ApiResponse("Product deleted successfully"));
   });

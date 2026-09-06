@@ -9,7 +9,7 @@ import creditCheckService from "../sales-order/creditCheckService";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { ApiError } from "../../utils/ApiError";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 class CustomerController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -37,7 +37,7 @@ class CustomerController {
       companyId: company.id,
     });
 
-    getIO().emit("customer:created", customer);
+    emitToTenant("customer:created", customer);
 
     return res.status(201).json(new ApiResponse("Customer created successfully", customer));
   });
@@ -79,7 +79,7 @@ class CustomerController {
 
     const customer = await customerService.updateCustomer(id, req.body);
 
-    getIO().emit("customer:updated", customer);
+    emitToTenant("customer:updated", customer);
 
     return res.status(200).json(new ApiResponse("Customer updated successfully", customer));
   });
@@ -105,7 +105,7 @@ class CustomerController {
 
     await customerService.deleteCustomer(id);
 
-    getIO().emit("customer:deleted", { id });
+    emitToTenant("customer:deleted", { id });
 
     return res.status(200).json(new ApiResponse("Customer deleted successfully"));
   });

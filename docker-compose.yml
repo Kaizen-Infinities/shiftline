@@ -34,7 +34,7 @@ services:
       DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@postgres:5432/shiftline
       FRONTEND_URL: http://localhost:5173
       BACKEND_URL: http://localhost:5000
-      EMBED_WORKER: "true"
+      EMBED_WORKER: "false"
     env_file:
       - path: apps/api/.env
         required: false
@@ -44,6 +44,29 @@ services:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/prisma:/app/apps/api/prisma
       - ./packages:/app/packages
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    command: npm run worker --workspace @shiftline/api
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@postgres:5432/shiftline
+      ARCHIVE_DIR: /app/archives
+    env_file:
+      - path: apps/api/.env
+        required: false
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/prisma:/app/apps/api/prisma
+      - ./packages:/app/packages
+      - ./archives:/app/archives
     depends_on:
       postgres:
         condition: service_healthy

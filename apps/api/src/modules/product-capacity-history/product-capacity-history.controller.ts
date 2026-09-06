@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { productCapacityHistoryService } from "./product-capacity-history.service";
-import { getIO } from "../../socket/socket";
+import { emitToTenant } from "../../lib/realtime";
 
 export class ProductCapacityHistoryController {
   findByProduct = asyncHandler(async (req: Request, res: Response) => {
@@ -14,7 +14,10 @@ export class ProductCapacityHistoryController {
   getLatestByProductAndMachine = asyncHandler(async (req: Request, res: Response) => {
     const productId = Number(req.params.productId);
     const machineId = String(req.params.machineId);
-    const record = await productCapacityHistoryService.getLatestByProductAndMachine(productId, machineId);
+    const record = await productCapacityHistoryService.getLatestByProductAndMachine(
+      productId,
+      machineId
+    );
     res.json(new ApiResponse("Latest capacity fetched successfully", record));
   });
 
@@ -31,7 +34,7 @@ export class ProductCapacityHistoryController {
       updatedBy,
     });
 
-    getIO().emit("productCapacityHistory:created", record);
+    emitToTenant("productCapacityHistory:created", record);
 
     res.json(new ApiResponse("Capacity updated successfully", record));
   });

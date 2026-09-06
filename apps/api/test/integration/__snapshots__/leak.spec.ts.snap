@@ -46,6 +46,8 @@ exports[`cross-tenant leak suite > every tenant model returns only the caller's 
   "PurchaseReturn",
   "PurchaseReturnItem",
   "RawMaterialTransaction",
+  "RetentionPolicy",
+  "RetentionSweep",
   "Route",
   "SalaryAdvance",
   "SalesInvoice",

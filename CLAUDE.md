@@ -38,7 +38,9 @@ input leaks, secrets, error text → human review and merge → hand-off note.
   `runAsTenant(companyId, fn)` (jobs, seeds) or `withoutTenant(fn)` (login, platform admin).
 - Business codes are unique per tenant: look them up with `findFirst`, or the compound key
   `companyId_<field>` for `upsert`/`update`.
-- Socket emits only via `lib/realtime.ts` (`emitToTenant`).
+- Socket emits only via `lib/realtime.ts` (`emitToTenant`); never `getIO()` or `io.emit`.
+- Scheduled and background work runs on pg-boss (`lib/jobs.ts`, handlers in `src/jobs/`),
+  one job per tenant under `runAsTenant`, idempotent, never `node-cron` or `setInterval`.
 - Money is `Decimal`; dates are `Timestamptz`; ids are uuid; codes are
   `@@unique([companyId, code])`.
 - Frontend HTTP only through `apps/web/src/api/apiClient.ts` or the RTK `baseApi`.

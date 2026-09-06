@@ -104,11 +104,10 @@ async function safeCreateVoucher(
       }
     }
     try {
-      const { getIO } = await import("../../socket/socket.js");
-      const io = getIO();
-      io.emit("voucher:created", created);
-      io.emit("payment:created", created);
-      io.emit("accountLedger:updated", { source: "voucherPosting" });
+      const { emitToTenant } = await import("../../lib/realtime.js");
+      emitToTenant("voucher:created", created);
+      emitToTenant("payment:created", created);
+      emitToTenant("accountLedger:updated", { source: "voucherPosting" });
     } catch {}
     return created;
   } catch (err: any) {

@@ -51,6 +51,7 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   { module: "whatsapp", actions: ["view", "edit"], description: "WhatsApp Settings" },
   { module: "email-config", actions: ["view", "edit"], description: "Email Config" },
   { module: "invoice-settings", actions: ["view", "edit"], description: "Invoice Settings" },
+  { module: "retention", actions: ["view", "edit"], description: "Data Retention" },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {
