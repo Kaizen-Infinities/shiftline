@@ -7,7 +7,15 @@ import bcrypt from "bcrypt";
 
 class EmployeeService {
   async create(data: any) {
-    const { createLoginAccount, loginAccount, da, hra, otherAllowance, cashInHand, ...employeeData } = data;
+    const {
+      createLoginAccount,
+      loginAccount,
+      da,
+      hra,
+      otherAllowance,
+      cashInHand,
+      ...employeeData
+    } = data;
 
     if (employeeData.createdBy && employeeData.createdBy.startsWith("admin_")) {
       employeeData.createdBy = null;
@@ -16,7 +24,7 @@ class EmployeeService {
     const createdEmployee = (await prisma.$transaction(async (tx) => {
       // Check if email already exists
       if (employeeData.email) {
-        const existingEmail = await tx.employee.findUnique({
+        const existingEmail = await tx.employee.findFirst({
           where: { email: employeeData.email },
         });
         if (existingEmail) {
@@ -26,7 +34,7 @@ class EmployeeService {
 
       // Check if employee code already exists
       if (employeeData.empCode) {
-        const existingCode = await tx.employee.findUnique({
+        const existingCode = await tx.employee.findFirst({
           where: { empCode: employeeData.empCode },
         });
         if (existingCode) {
@@ -36,31 +44,31 @@ class EmployeeService {
 
       // Check unique identity fields
       if (employeeData.aadhaarNumber) {
-        const existing = await tx.employee.findUnique({
+        const existing = await tx.employee.findFirst({
           where: { aadhaarNumber: employeeData.aadhaarNumber },
         });
         if (existing) throw new ApiError(400, "Aadhaar number already exists");
       }
       if (employeeData.panNumber) {
-        const existing = await tx.employee.findUnique({
+        const existing = await tx.employee.findFirst({
           where: { panNumber: employeeData.panNumber },
         });
         if (existing) throw new ApiError(400, "PAN number already exists");
       }
       if (employeeData.pfNumber) {
-        const existing = await tx.employee.findUnique({
+        const existing = await tx.employee.findFirst({
           where: { pfNumber: employeeData.pfNumber },
         });
         if (existing) throw new ApiError(400, "PF number already exists");
       }
       if (employeeData.uanNumber) {
-        const existing = await tx.employee.findUnique({
+        const existing = await tx.employee.findFirst({
           where: { uanNumber: employeeData.uanNumber },
         });
         if (existing) throw new ApiError(400, "UAN number already exists");
       }
       if (employeeData.esiNumber) {
-        const existing = await tx.employee.findUnique({
+        const existing = await tx.employee.findFirst({
           where: { esiNumber: employeeData.esiNumber },
         });
         if (existing) throw new ApiError(400, "ESI number already exists");
@@ -76,7 +84,9 @@ class EmployeeService {
         where: { employeeId: employee.id },
         create: {
           employeeId: employee.id,
-          salaryType: employeeData.salaryType ? String(employeeData.salaryType).toUpperCase() : "MONTHLY",
+          salaryType: employeeData.salaryType
+            ? String(employeeData.salaryType).toUpperCase()
+            : "MONTHLY",
           monthlySalary: Number(employeeData.grossSalary || 0),
           basicSalary: Number(employeeData.basicSalary || 0),
           da: Number(da || 0),
@@ -88,10 +98,14 @@ class EmployeeService {
           bankName: employeeData.bankName || null,
           pfNumber: employeeData.pfNumber || null,
           esiNumber: employeeData.esiNumber || null,
-          paymentMode: employeeData.paymentMode ? String(employeeData.paymentMode).toUpperCase() : "CASH",
+          paymentMode: employeeData.paymentMode
+            ? String(employeeData.paymentMode).toUpperCase()
+            : "CASH",
         },
         update: {
-          salaryType: employeeData.salaryType ? String(employeeData.salaryType).toUpperCase() : "MONTHLY",
+          salaryType: employeeData.salaryType
+            ? String(employeeData.salaryType).toUpperCase()
+            : "MONTHLY",
           monthlySalary: Number(employeeData.grossSalary || 0),
           basicSalary: Number(employeeData.basicSalary || 0),
           da: Number(da || 0),
@@ -103,7 +117,9 @@ class EmployeeService {
           bankName: employeeData.bankName || null,
           pfNumber: employeeData.pfNumber || null,
           esiNumber: employeeData.esiNumber || null,
-          paymentMode: employeeData.paymentMode ? String(employeeData.paymentMode).toUpperCase() : "CASH",
+          paymentMode: employeeData.paymentMode
+            ? String(employeeData.paymentMode).toUpperCase()
+            : "CASH",
         },
       });
 
@@ -130,7 +146,8 @@ class EmployeeService {
             passwordHash,
             employeeId: employee.id,
             roleId: Number(loginAccount.roleId),
-            mustChangePw: loginAccount.mustChangePw !== undefined ? loginAccount.mustChangePw : true,
+            mustChangePw:
+              loginAccount.mustChangePw !== undefined ? loginAccount.mustChangePw : true,
             status:
               loginAccount.loginEnabled === false
                 ? UserStatus.SUSPENDED
@@ -148,12 +165,9 @@ class EmployeeService {
     }))!;
 
     // Send welcome email after transaction (non-blocking)
-    const recipientEmail = createdEmployee?.email || createdEmployee?.personalEmail || loginAccount?.email;
-    if (
-      createLoginAccount &&
-      loginAccount?.loginEnabled !== false &&
-      recipientEmail
-    ) {
+    const recipientEmail =
+      createdEmployee?.email || createdEmployee?.personalEmail || loginAccount?.email;
+    if (createLoginAccount && loginAccount?.loginEnabled !== false && recipientEmail) {
       try {
         await sendEmail({
           to: recipientEmail,
@@ -213,7 +227,13 @@ class EmployeeService {
     const [employees, total] = await Promise.all([
       prisma.employee.findMany({
         where,
-        include: { user: { include: { role: true } }, role: true, department: true, shift: true, payrollConfig: true },
+        include: {
+          user: { include: { role: true } },
+          role: true,
+          department: true,
+          shift: true,
+          payrollConfig: true,
+        },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
@@ -224,10 +244,12 @@ class EmployeeService {
     const mappedEmployees = employees.map((emp: any) => {
       const e = { ...emp };
       if (emp.payrollConfig) {
-        if (!e.basicSalary && emp.payrollConfig.basicSalary) e.basicSalary = emp.payrollConfig.basicSalary;
+        if (!e.basicSalary && emp.payrollConfig.basicSalary)
+          e.basicSalary = emp.payrollConfig.basicSalary;
         if (!e.da && emp.payrollConfig.da) e.da = emp.payrollConfig.da;
         if (!e.hra && emp.payrollConfig.hra) e.hra = emp.payrollConfig.hra;
-        if (!e.otherAllowance && emp.payrollConfig.otherAllowance) e.otherAllowance = emp.payrollConfig.otherAllowance;
+        if (!e.otherAllowance && emp.payrollConfig.otherAllowance)
+          e.otherAllowance = emp.payrollConfig.otherAllowance;
       }
       return e;
     });
@@ -258,7 +280,12 @@ class EmployeeService {
 
     const empObj: any = { ...employee };
     if (employee.payrollConfig) {
-      if ((empObj.basicSalary === null || empObj.basicSalary === undefined || Number(empObj.basicSalary) === 0) && employee.payrollConfig.basicSalary) {
+      if (
+        (empObj.basicSalary === null ||
+          empObj.basicSalary === undefined ||
+          Number(empObj.basicSalary) === 0) &&
+        employee.payrollConfig.basicSalary
+      ) {
         empObj.basicSalary = employee.payrollConfig.basicSalary;
       }
       if ((empObj.da === null || empObj.da === undefined) && employee.payrollConfig.da) {
@@ -267,7 +294,10 @@ class EmployeeService {
       if ((empObj.hra === null || empObj.hra === undefined) && employee.payrollConfig.hra) {
         empObj.hra = employee.payrollConfig.hra;
       }
-      if ((empObj.otherAllowance === null || empObj.otherAllowance === undefined) && employee.payrollConfig.otherAllowance) {
+      if (
+        (empObj.otherAllowance === null || empObj.otherAllowance === undefined) &&
+        employee.payrollConfig.otherAllowance
+      ) {
         empObj.otherAllowance = employee.payrollConfig.otherAllowance;
       }
     }
@@ -279,7 +309,15 @@ class EmployeeService {
     // Check if employee exists
     await this.findById(id);
 
-    const { createLoginAccount, loginAccount, da, hra, otherAllowance, cashInHand, ...employeeData } = data;
+    const {
+      createLoginAccount,
+      loginAccount,
+      da,
+      hra,
+      otherAllowance,
+      cashInHand,
+      ...employeeData
+    } = data;
 
     if (employeeData.updatedBy && employeeData.updatedBy.startsWith("admin_")) {
       employeeData.updatedBy = null;
@@ -288,27 +326,38 @@ class EmployeeService {
     const updatedEmployee = (await prisma.$transaction(async (tx) => {
       // Check unique identity fields against OTHER employees
       if (employeeData.empCode) {
-        const existing = await tx.employee.findUnique({ where: { empCode: employeeData.empCode } });
+        const existing = await tx.employee.findFirst({ where: { empCode: employeeData.empCode } });
         if (existing && existing.id !== id) throw new ApiError(400, "Employee code already exists");
       }
       if (employeeData.aadhaarNumber) {
-        const existing = await tx.employee.findUnique({ where: { aadhaarNumber: employeeData.aadhaarNumber } });
-        if (existing && existing.id !== id) throw new ApiError(400, "Aadhaar number already exists");
+        const existing = await tx.employee.findFirst({
+          where: { aadhaarNumber: employeeData.aadhaarNumber },
+        });
+        if (existing && existing.id !== id)
+          throw new ApiError(400, "Aadhaar number already exists");
       }
       if (employeeData.panNumber) {
-        const existing = await tx.employee.findUnique({ where: { panNumber: employeeData.panNumber } });
+        const existing = await tx.employee.findFirst({
+          where: { panNumber: employeeData.panNumber },
+        });
         if (existing && existing.id !== id) throw new ApiError(400, "PAN number already exists");
       }
       if (employeeData.pfNumber) {
-        const existing = await tx.employee.findUnique({ where: { pfNumber: employeeData.pfNumber } });
+        const existing = await tx.employee.findFirst({
+          where: { pfNumber: employeeData.pfNumber },
+        });
         if (existing && existing.id !== id) throw new ApiError(400, "PF number already exists");
       }
       if (employeeData.uanNumber) {
-        const existing = await tx.employee.findUnique({ where: { uanNumber: employeeData.uanNumber } });
+        const existing = await tx.employee.findFirst({
+          where: { uanNumber: employeeData.uanNumber },
+        });
         if (existing && existing.id !== id) throw new ApiError(400, "UAN number already exists");
       }
       if (employeeData.esiNumber) {
-        const existing = await tx.employee.findUnique({ where: { esiNumber: employeeData.esiNumber } });
+        const existing = await tx.employee.findFirst({
+          where: { esiNumber: employeeData.esiNumber },
+        });
         if (existing && existing.id !== id) throw new ApiError(400, "ESI number already exists");
       }
 
@@ -323,7 +372,9 @@ class EmployeeService {
         where: { employeeId: id },
         create: {
           employeeId: id,
-          salaryType: employeeData.salaryType ? String(employeeData.salaryType).toUpperCase() : "MONTHLY",
+          salaryType: employeeData.salaryType
+            ? String(employeeData.salaryType).toUpperCase()
+            : "MONTHLY",
           monthlySalary: Number(employeeData.grossSalary || 0),
           basicSalary: Number(employeeData.basicSalary || 0),
           da: Number(da || 0),
@@ -335,22 +386,36 @@ class EmployeeService {
           bankName: employeeData.bankName || null,
           pfNumber: employeeData.pfNumber || null,
           esiNumber: employeeData.esiNumber || null,
-          paymentMode: employeeData.paymentMode ? String(employeeData.paymentMode).toUpperCase() : "CASH",
+          paymentMode: employeeData.paymentMode
+            ? String(employeeData.paymentMode).toUpperCase()
+            : "CASH",
         },
         update: {
-          ...(employeeData.salaryType && { salaryType: String(employeeData.salaryType).toUpperCase() }),
-          ...(employeeData.grossSalary !== undefined && { monthlySalary: Number(employeeData.grossSalary || 0) }),
-          ...(employeeData.basicSalary !== undefined && { basicSalary: Number(employeeData.basicSalary || 0) }),
+          ...(employeeData.salaryType && {
+            salaryType: String(employeeData.salaryType).toUpperCase(),
+          }),
+          ...(employeeData.grossSalary !== undefined && {
+            monthlySalary: Number(employeeData.grossSalary || 0),
+          }),
+          ...(employeeData.basicSalary !== undefined && {
+            basicSalary: Number(employeeData.basicSalary || 0),
+          }),
           ...(da !== undefined && { da: Number(da || 0) }),
           ...(hra !== undefined && { hra: Number(hra || 0) }),
           ...(otherAllowance !== undefined && { otherAllowance: Number(otherAllowance || 0) }),
           ...(cashInHand !== undefined && { cashInHand: Number(cashInHand || 0) }),
-          ...(employeeData.accountNumber !== undefined && { bankAccount: employeeData.accountNumber || null }),
+          ...(employeeData.accountNumber !== undefined && {
+            bankAccount: employeeData.accountNumber || null,
+          }),
           ...(employeeData.ifscCode !== undefined && { ifscCode: employeeData.ifscCode || null }),
           ...(employeeData.bankName !== undefined && { bankName: employeeData.bankName || null }),
           ...(employeeData.pfNumber !== undefined && { pfNumber: employeeData.pfNumber || null }),
-          ...(employeeData.esiNumber !== undefined && { esiNumber: employeeData.esiNumber || null }),
-          ...(employeeData.paymentMode !== undefined && { paymentMode: String(employeeData.paymentMode).toUpperCase() }),
+          ...(employeeData.esiNumber !== undefined && {
+            esiNumber: employeeData.esiNumber || null,
+          }),
+          ...(employeeData.paymentMode !== undefined && {
+            paymentMode: String(employeeData.paymentMode).toUpperCase(),
+          }),
         },
       });
 
@@ -364,12 +429,15 @@ class EmployeeService {
           // Update existing user account
           const updateData: any = {
             username: loginAccount.username,
-            fullName: employeeData.fullName !== undefined ? employeeData.fullName : existingUser.fullName,
-            email: employeeData.email !== undefined ? (employeeData.email || null) : existingUser.email,
+            fullName:
+              employeeData.fullName !== undefined ? employeeData.fullName : existingUser.fullName,
+            email:
+              employeeData.email !== undefined ? employeeData.email || null : existingUser.email,
             roleId: Number(loginAccount.roleId),
-            status: loginAccount.loginEnabled === false
-              ? UserStatus.SUSPENDED
-              : loginAccount.status || existingUser.status,
+            status:
+              loginAccount.loginEnabled === false
+                ? UserStatus.SUSPENDED
+                : loginAccount.status || existingUser.status,
           };
 
           if (loginAccount.mustChangePw !== undefined) {
@@ -412,11 +480,12 @@ class EmployeeService {
             data: {
               username: loginAccount.username,
               fullName: employeeData.fullName || employee.fullName,
-              email: employeeData.email !== undefined ? (employeeData.email || null) : employee.email,
+              email: employeeData.email !== undefined ? employeeData.email || null : employee.email,
               passwordHash,
               employeeId: id,
               roleId: Number(loginAccount.roleId),
-              mustChangePw: loginAccount.mustChangePw !== undefined ? loginAccount.mustChangePw : true,
+              mustChangePw:
+                loginAccount.mustChangePw !== undefined ? loginAccount.mustChangePw : true,
               status:
                 loginAccount.loginEnabled === false
                   ? UserStatus.SUSPENDED
@@ -435,7 +504,8 @@ class EmployeeService {
     }))!;
 
     // Send email notification after transaction if login account password was set/updated
-    const recipientEmail = updatedEmployee?.email || updatedEmployee?.personalEmail || loginAccount?.email;
+    const recipientEmail =
+      updatedEmployee?.email || updatedEmployee?.personalEmail || loginAccount?.email;
     if (
       createLoginAccount &&
       loginAccount?.loginEnabled !== false &&
@@ -494,17 +564,39 @@ class EmployeeService {
   async delete(id: bigint) {
     await this.findById(id);
 
-    const linkedMachineAssignments = await prisma.machineOperationAssignment.findFirst({ where: { inchargeEmployeeId: id } });
-    if (linkedMachineAssignments) throw new ApiError(400, "Cannot delete employee because they are assigned as Incharge on a Machine.");
+    const linkedMachineAssignments = await prisma.machineOperationAssignment.findFirst({
+      where: { inchargeEmployeeId: id },
+    });
+    if (linkedMachineAssignments)
+      throw new ApiError(
+        400,
+        "Cannot delete employee because they are assigned as Incharge on a Machine."
+      );
 
-    const linkedMachineOperators = await prisma.machineAssignmentOperator.findFirst({ where: { employeeId: id } });
-    if (linkedMachineOperators) throw new ApiError(400, "Cannot delete employee because they are assigned as an Operator on a Machine.");
+    const linkedMachineOperators = await prisma.machineAssignmentOperator.findFirst({
+      where: { employeeId: id },
+    });
+    if (linkedMachineOperators)
+      throw new ApiError(
+        400,
+        "Cannot delete employee because they are assigned as an Operator on a Machine."
+      );
 
     const linkedStores = await prisma.store.findFirst({ where: { inchargeId: id } });
-    if (linkedStores) throw new ApiError(400, "Cannot delete employee because they are assigned as Incharge for a Store.");
+    if (linkedStores)
+      throw new ApiError(
+        400,
+        "Cannot delete employee because they are assigned as Incharge for a Store."
+      );
 
-    const linkedSalesOrders = await prisma.salesOrder.findFirst({ where: { sourceEmployeeId: id } });
-    if (linkedSalesOrders) throw new ApiError(400, "Cannot delete employee because they are linked as Source Employee on Sales Orders.");
+    const linkedSalesOrders = await prisma.salesOrder.findFirst({
+      where: { sourceEmployeeId: id },
+    });
+    if (linkedSalesOrders)
+      throw new ApiError(
+        400,
+        "Cannot delete employee because they are linked as Source Employee on Sales Orders."
+      );
 
     // explicitly delete linked records first to prevent RESTRICT foreign key constraint failures
     return prisma.$transaction(async (tx) => {

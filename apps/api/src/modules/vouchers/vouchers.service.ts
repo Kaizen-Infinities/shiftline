@@ -53,7 +53,7 @@ class VouchersService {
     // of truth, so on conflict we peek again.
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidate = await this.peekNextVoucherNo(type);
-      const exists = await prisma.voucher.findUnique({
+      const exists = await prisma.voucher.findFirst({
         where: { voucherNo: candidate },
         select: { id: true },
       });

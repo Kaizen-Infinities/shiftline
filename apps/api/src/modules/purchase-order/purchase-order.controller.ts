@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 
 import purchaseOrderService from "./purchase-order.service";
@@ -20,7 +21,7 @@ class PurchaseOrderController {
       throw new ApiError(401, "Unauthorized: missing user context");
     }
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "Internal Server Error: No company found in the system");
     }
@@ -69,7 +70,9 @@ class PurchaseOrderController {
       (async () => {
         try {
           const fullPo = await purchaseOrderService.getPurchaseOrderById(id);
-          const companyDetails = await prisma.company.findFirst();
+          const companyDetails = await prisma.company.findFirst({
+            where: { id: requireTenantId() },
+          });
           const supplier = fullPo.supplier;
 
           let recipientPhone = "";
@@ -137,7 +140,7 @@ class PurchaseOrderController {
     }
 
     const po = await purchaseOrderService.getPurchaseOrderById(id);
-    const companyDetails = await prisma.company.findFirst();
+    const companyDetails = await prisma.company.findFirst({ where: { id: requireTenantId() } });
 
     const supplier = po.supplier;
 
@@ -170,7 +173,7 @@ class PurchaseOrderController {
     }
 
     const po = await purchaseOrderService.getPurchaseOrderById(id);
-    const companyDetails = await prisma.company.findFirst();
+    const companyDetails = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     const supplier = po.supplier;
 
     const html = generatePoInvoiceHtml(po, companyDetails, supplier);

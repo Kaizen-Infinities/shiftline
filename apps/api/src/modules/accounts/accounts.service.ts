@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { LedgerType, VoucherType, Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
@@ -122,7 +123,7 @@ class AccountsService {
     const missing = DEFAULT_SEED_LEDGERS.filter((l) => !existingMap.has(l.code));
     for (const ledger of missing) {
       await db.accountLedger.upsert({
-        where: { code: ledger.code },
+        where: { companyId_code: { companyId: requireTenantId(), code: ledger.code } },
         update: {},
         create: {
           code: ledger.code,
@@ -143,7 +144,7 @@ class AccountsService {
         ledger.group !== "Cash & Bank"
       ) {
         await db.accountLedger.update({
-          where: { code: ledger.code },
+          where: { companyId_code: { companyId: requireTenantId(), code: ledger.code } },
           data: { group: ledger.group },
         });
       }
@@ -376,7 +377,7 @@ class AccountsService {
   }
 
   async createLedger(data: CreateLedgerInput) {
-    const existing = await prisma.accountLedger.findUnique({
+    const existing = await prisma.accountLedger.findFirst({
       where: { code: data.code },
     });
 
@@ -1487,7 +1488,7 @@ class AccountsService {
 
     const prefix = isCustomer ? "CUST" : "SUPP";
     const ledgerCode = `${prefix}-${party.code}`;
-    const codeExists = await db.accountLedger.findUnique({ where: { code: ledgerCode } });
+    const codeExists = await db.accountLedger.findFirst({ where: { code: ledgerCode } });
     const finalCode = codeExists
       ? `${prefix}-${party.code}-${Date.now().toString().slice(-4)}`
       : ledgerCode;

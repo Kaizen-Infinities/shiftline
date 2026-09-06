@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { CreateGrnInvoiceInput, UpdateGrnInvoiceInput } from "./grn-invoice.validation";
@@ -609,7 +610,7 @@ class GrnInvoiceService {
       throw new ApiError(404, "Supplier not found");
     }
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     const isInterState =
       company?.state?.toLowerCase().trim() !== supplier.billingState?.toLowerCase().trim();
 

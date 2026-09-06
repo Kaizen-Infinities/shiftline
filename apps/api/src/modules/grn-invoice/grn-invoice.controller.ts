@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 import grnInvoiceService from "./grn-invoice.service";
 import { prisma } from "../../config/prisma";
@@ -9,112 +10,103 @@ import { getIO } from "../../socket/socket";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 
 class GrnInvoiceController {
+  create = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
 
-    create = asyncHandler(async (req: Request, res: Response) => {
-        const userId = req.user?.userId;
+    if (!userId) {
+      throw new ApiError(401, "Unauthorized: missing user context");
+    }
 
-        if (!userId) {
-            throw new ApiError(401, "Unauthorized: missing user context");
-        }
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
+    if (!company) {
+      throw new ApiError(500, "Internal Server Error: No company found in the system");
+    }
 
-        const company = await prisma.company.findFirst();
-        if (!company) {
-            throw new ApiError(500, "Internal Server Error: No company found in the system");
-        }
+    const grnInvoice = await grnInvoiceService.createGrnInvoice(
+      req.body,
+      {
+        userId,
+        companyId: company.id,
+      },
+      req.file
+    );
 
-        const grnInvoice = await grnInvoiceService.createGrnInvoice(req.body, {
-            userId,
-            companyId: company.id,
-        }, req.file);
+    // Auto-post purchase and payment vouchers immediately on creation
+    try {
+      await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
+    } catch (err) {
+      console.error("[GRN Controller] Voucher posting failed:", err);
+    }
 
-        // Auto-post purchase and payment vouchers immediately on creation
-        try {
-            await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
-        } catch (err) {
-            console.error("[GRN Controller] Voucher posting failed:", err);
-        }
+    getIO().emit("grnInvoice:created", grnInvoice);
+    try {
+      getIO().emit("voucher:created", { source: "grnInvoice" });
+      getIO().emit("payment:created", { source: "grnInvoice" });
+      getIO().emit("accountLedger:updated", { source: "grnInvoice" });
+    } catch (e) {}
 
-        getIO().emit("grnInvoice:created", grnInvoice);
-        try {
-            getIO().emit("voucher:created", { source: "grnInvoice" });
-            getIO().emit("payment:created", { source: "grnInvoice" });
-            getIO().emit("accountLedger:updated", { source: "grnInvoice" });
-        } catch (e) {}
+    return res.status(201).json(new ApiResponse("GRN / Invoice created successfully", grnInvoice));
+  });
 
-        return res.status(201).json(
-            new ApiResponse("GRN / Invoice created successfully", grnInvoice)
-        );
+  findAll = asyncHandler(async (req: Request, res: Response) => {
+    const { page, pageSize, search, supplierId, storeId } = req.query;
+
+    const result = await grnInvoiceService.getAllGrnInvoices({
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      search: search as string,
+      supplierId: supplierId ? Number(supplierId) : undefined,
+      storeId: storeId as string,
     });
 
-    findAll = asyncHandler(async (req: Request, res: Response) => {
-        const { page, pageSize, search, supplierId, storeId } = req.query;
+    return res.status(200).json(new ApiResponse("GRN / Invoices fetched successfully", result));
+  });
 
-        const result = await grnInvoiceService.getAllGrnInvoices({
-            page: page ? Number(page) : undefined,
-            pageSize: pageSize ? Number(pageSize) : undefined,
-            search: search as string,
-            supplierId: supplierId ? Number(supplierId) : undefined,
-            storeId: storeId as string,
-        });
+  findOne = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
 
-        return res.status(200).json(
-            new ApiResponse("GRN / Invoices fetched successfully", result)
-        );
-    });
+    const grnInvoice = await grnInvoiceService.getGrnInvoiceById(id);
 
-    findOne = asyncHandler(async (req: Request, res: Response) => {
-        const id = req.params.id as string;
+    return res.status(200).json(new ApiResponse("GRN / Invoice fetched successfully", grnInvoice));
+  });
 
-        const grnInvoice = await grnInvoiceService.getGrnInvoiceById(id);
+  update = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
 
-        return res.status(200).json(
-            new ApiResponse("GRN / Invoice fetched successfully", grnInvoice)
-        );
-    });
+    const grnInvoice = await grnInvoiceService.updateGrnInvoice(id, req.body, req.file);
 
-    update = asyncHandler(async (req: Request, res: Response) => {
-        const id = req.params.id as string;
+    // Auto-post purchase and payment vouchers immediately on update
+    try {
+      await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
+    } catch (err) {
+      console.error("[GRN Controller] Voucher posting failed:", err);
+    }
 
-        const grnInvoice = await grnInvoiceService.updateGrnInvoice(id, req.body, req.file);
+    getIO().emit("grnInvoice:updated", grnInvoice);
+    try {
+      getIO().emit("voucher:updated", { source: "grnInvoice" });
+      getIO().emit("payment:updated", { source: "grnInvoice" });
+      getIO().emit("accountLedger:updated", { source: "grnInvoice" });
+    } catch (e) {}
 
-        // Auto-post purchase and payment vouchers immediately on update
-        try {
-            await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
-        } catch (err) {
-            console.error("[GRN Controller] Voucher posting failed:", err);
-        }
+    return res.status(200).json(new ApiResponse("GRN / Invoice updated successfully", grnInvoice));
+  });
 
-        getIO().emit("grnInvoice:updated", grnInvoice);
-        try {
-            getIO().emit("voucher:updated", { source: "grnInvoice" });
-            getIO().emit("payment:updated", { source: "grnInvoice" });
-            getIO().emit("accountLedger:updated", { source: "grnInvoice" });
-        } catch (e) {}
+  getNextCode = asyncHandler(async (req: Request, res: Response) => {
+    const nextCode = await grnInvoiceService.getNextGrnNumber();
 
-        return res.status(200).json(
-            new ApiResponse("GRN / Invoice updated successfully", grnInvoice)
-        );
-    });
+    return res.status(200).json(new ApiResponse("Next GRN number fetched successfully", nextCode));
+  });
 
-    getNextCode = asyncHandler(async (req: Request, res: Response) => {
-        const nextCode = await grnInvoiceService.getNextGrnNumber();
+  delete = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
 
-        return res.status(200).json(
-            new ApiResponse("Next GRN number fetched successfully", nextCode)
-        );
-    });
+    await grnInvoiceService.deleteGrnInvoice(id);
 
-    delete = asyncHandler(async (req: Request, res: Response) => {
-        const id = req.params.id as string;
+    getIO().emit("grnInvoice:deleted", { id });
 
-        await grnInvoiceService.deleteGrnInvoice(id);
-
-        getIO().emit("grnInvoice:deleted", { id });
-
-        return res.status(200).json(
-            new ApiResponse("GRN / Invoice deleted successfully")
-        );
-    });
+    return res.status(200).json(new ApiResponse("GRN / Invoice deleted successfully"));
+  });
 }
 
 export default new GrnInvoiceController();

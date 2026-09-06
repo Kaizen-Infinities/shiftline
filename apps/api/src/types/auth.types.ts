@@ -2,13 +2,13 @@ export enum UserRole {
   SUPER_ADMIN = "SUPER_ADMIN",
   ADMIN = "ADMIN",
   MANAGER = "MANAGER",
-  EMPLOYEE = "EMPLOYEE"
+  EMPLOYEE = "EMPLOYEE",
 }
 
 export enum UserStatus {
   ACTIVE = "active",
   SUSPENDED = "suspended",
-  LOCKED = "locked"
+  LOCKED = "locked",
 }
 
 // ============================================================
@@ -58,6 +58,8 @@ export interface AccessTokenPayload {
   roleId: string | null;
   permissions: string[];
   isSuperAdmin?: boolean;
+  /** Tenant id; null for platform admins until they select a tenant. */
+  companyId: string | null;
   sessionId: string; // Add session ID to token
 }
 

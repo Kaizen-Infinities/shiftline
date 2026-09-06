@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiError } from "../../utils/ApiError";
@@ -6,12 +7,12 @@ import { prisma } from "../../config/prisma";
 
 class InvoiceSettingsController {
   getConfig = asyncHandler(async (req: Request, res: Response) => {
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "No company found in the system. Please set up a company first.");
     }
 
-    let config = await prisma.invoiceSetting.findUnique({
+    const config = await prisma.invoiceSetting.findUnique({
       where: { companyId: company.id },
     });
 
@@ -34,9 +35,7 @@ class InvoiceSettingsController {
       );
     }
 
-    return res.status(200).json(
-      new ApiResponse("Invoice settings fetched successfully", config)
-    );
+    return res.status(200).json(new ApiResponse("Invoice settings fetched successfully", config));
   });
 
   saveConfig = asyncHandler(async (req: Request, res: Response) => {
@@ -47,14 +46,20 @@ class InvoiceSettingsController {
       financialYearStart,
       financialYearEnd,
       autoFinancialYear,
-      formatTemplate
+      formatTemplate,
     } = req.body;
 
-    if (!invoicePrefix || !sequenceLength || !financialYearStart || !financialYearEnd || !formatTemplate) {
+    if (
+      !invoicePrefix ||
+      !sequenceLength ||
+      !financialYearStart ||
+      !financialYearEnd ||
+      !formatTemplate
+    ) {
       throw new ApiError(400, "Required fields are missing.");
     }
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "No company found in the system.");
     }
@@ -64,7 +69,8 @@ class InvoiceSettingsController {
       update: {
         invoicePrefix: invoicePrefix.trim(),
         sequenceLength: Number(sequenceLength),
-        currentSequenceNumber: currentSequenceNumber !== undefined ? Number(currentSequenceNumber) : undefined,
+        currentSequenceNumber:
+          currentSequenceNumber !== undefined ? Number(currentSequenceNumber) : undefined,
         financialYearStart: new Date(financialYearStart),
         financialYearEnd: new Date(financialYearEnd),
         autoFinancialYear: Boolean(autoFinancialYear),
@@ -74,7 +80,8 @@ class InvoiceSettingsController {
         companyId: company.id,
         invoicePrefix: invoicePrefix.trim(),
         sequenceLength: Number(sequenceLength),
-        currentSequenceNumber: currentSequenceNumber !== undefined ? Number(currentSequenceNumber) : 1,
+        currentSequenceNumber:
+          currentSequenceNumber !== undefined ? Number(currentSequenceNumber) : 1,
         financialYearStart: new Date(financialYearStart),
         financialYearEnd: new Date(financialYearEnd),
         autoFinancialYear: Boolean(autoFinancialYear),
@@ -82,9 +89,7 @@ class InvoiceSettingsController {
       },
     });
 
-    return res.status(200).json(
-      new ApiResponse("Invoice settings saved successfully", config)
-    );
+    return res.status(200).json(new ApiResponse("Invoice settings saved successfully", config));
   });
 }
 

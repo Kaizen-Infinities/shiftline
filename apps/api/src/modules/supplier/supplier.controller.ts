@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 import supplierService from "./supplier.service";
 import { asyncHandler } from "../../utils/asyncHandler";
@@ -7,128 +8,86 @@ import { prisma } from "../../config/prisma";
 import { getIO } from "../../socket/socket";
 
 class SupplierController {
-  create = asyncHandler(
-    async (req: Request, res: Response) => {
-      // BUG-SUP-002 fix: removed hardcoded fallback UUID — always require authenticated user
-      const userId = req.user?.userId;
-      if (!userId) {
-        throw new ApiError(401, "Unauthorized: missing user context");
-      }
-
-      // BUG-SUP-001 fix: resolve companyId server-side — never trust it from the client
-      const company = await prisma.company.findFirst();
-      if (!company) {
-        throw new ApiError(500, "No company found in the system");
-      }
-
-      const supplier = await supplierService.createSupplier({
-        ...req.body,
-        companyId: company.id, // override any client-supplied companyId
-        userId,
-      });
-
-      getIO().emit("supplier:created", supplier);
-
-      return res.status(201).json(
-        new ApiResponse(
-          "Supplier created successfully",
-          supplier
-        )
-      );
+  create = asyncHandler(async (req: Request, res: Response) => {
+    // BUG-SUP-002 fix: removed hardcoded fallback UUID — always require authenticated user
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ApiError(401, "Unauthorized: missing user context");
     }
-  );
 
-  findAll = asyncHandler(
-    async (
-      req: Request,
-      res: Response
-    ) => {
-      const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 10;
-      const search = req.query.search ? String(req.query.search) : undefined;
-      const status = req.query.status ? String(req.query.status) : undefined;
-
-      const result = await supplierService.getAllSuppliers({
-        page,
-        limit,
-        search,
-        status,
-      });
-
-      return res.status(200).json(
-        new ApiResponse(
-          "Suppliers fetched successfully",
-          result
-        )
-      );
+    // BUG-SUP-001 fix: resolve companyId server-side — never trust it from the client
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
+    if (!company) {
+      throw new ApiError(500, "No company found in the system");
     }
-  );
 
-  findById = asyncHandler(
-    async (req: Request, res: Response) => {
-      const id = String(req.params.id);
-      const supplier = await supplierService.getSupplierById(id);
+    const supplier = await supplierService.createSupplier({
+      ...req.body,
+      companyId: company.id, // override any client-supplied companyId
+      userId,
+    });
 
-      return res.status(200).json(
-        new ApiResponse(
-          "Supplier fetched successfully",
-          supplier
-        )
-      );
-    }
-  );
+    getIO().emit("supplier:created", supplier);
 
-  update = asyncHandler(
-    async (req: Request, res: Response) => {
-      const id = String(req.params.id);
-      const userId = req.user?.userId;
+    return res.status(201).json(new ApiResponse("Supplier created successfully", supplier));
+  });
 
-      const supplier = await supplierService.updateSupplier(
-        id,
-        {
-          ...req.body,
-          userId,
-        }
-      );
+  findAll = asyncHandler(async (req: Request, res: Response) => {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search ? String(req.query.search) : undefined;
+    const status = req.query.status ? String(req.query.status) : undefined;
 
-      getIO().emit("supplier:updated", supplier);
+    const result = await supplierService.getAllSuppliers({
+      page,
+      limit,
+      search,
+      status,
+    });
 
-      return res.status(200).json(
-        new ApiResponse(
-          "Supplier updated successfully",
-          supplier
-        )
-      );
-    }
-  );
+    return res.status(200).json(new ApiResponse("Suppliers fetched successfully", result));
+  });
 
-  getNextCode = asyncHandler(
-    async (req: Request, res: Response) => {
-      const nextCode = await supplierService.getNextSupplierCode();
-      return res.status(200).json(
-        new ApiResponse(
-          // BUG-SUP (message typo) fix: corrected "customer" → "supplier"
-          "Next supplier code fetched successfully",
-          nextCode
-        )
-      );
-    }
-  );
+  findById = asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const supplier = await supplierService.getSupplierById(id);
 
-  delete = asyncHandler(
-    async (req: Request, res: Response) => {
-      const id = String(req.params.id);
-      await supplierService.deleteSupplier(id);
+    return res.status(200).json(new ApiResponse("Supplier fetched successfully", supplier));
+  });
 
-      getIO().emit("supplier:deleted", { id });
+  update = asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const userId = req.user?.userId;
 
-      return res.status(200).json(
-        new ApiResponse(
-          "Supplier deleted successfully"
-        )
-      );
-    }
-  );
+    const supplier = await supplierService.updateSupplier(id, {
+      ...req.body,
+      userId,
+    });
+
+    getIO().emit("supplier:updated", supplier);
+
+    return res.status(200).json(new ApiResponse("Supplier updated successfully", supplier));
+  });
+
+  getNextCode = asyncHandler(async (req: Request, res: Response) => {
+    const nextCode = await supplierService.getNextSupplierCode();
+    return res.status(200).json(
+      new ApiResponse(
+        // BUG-SUP (message typo) fix: corrected "customer" → "supplier"
+        "Next supplier code fetched successfully",
+        nextCode
+      )
+    );
+  });
+
+  delete = asyncHandler(async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    await supplierService.deleteSupplier(id);
+
+    getIO().emit("supplier:deleted", { id });
+
+    return res.status(200).json(new ApiResponse("Supplier deleted successfully"));
+  });
 }
 
 export default new SupplierController();

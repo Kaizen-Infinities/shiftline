@@ -1,6 +1,10 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateProductionOrderInput, UpdateProductionOrderInput, ProductionOrderQueryInput } from "./production-order.validation";
+import {
+  CreateProductionOrderInput,
+  UpdateProductionOrderInput,
+  ProductionOrderQueryInput,
+} from "./production-order.validation";
 import { Prisma } from "@prisma/client";
 import { StatusSyncService } from "../../utils/status-sync.util";
 
@@ -11,10 +15,19 @@ function normalizeUom(uom: string): string {
   if (u === "gram" || u === "grams") return "g";
   if (u === "ton" || u === "tonne" || u === "tonnes" || u === "tons") return "t";
   if (u === "liter" || u === "litre" || u === "liters" || u === "litres" || u === "ltr") return "l";
-  if (u === "milliliter" || u === "millilitre" || u === "milliliters" || u === "millilitres" || u === "ml") return "ml";
+  if (
+    u === "milliliter" ||
+    u === "millilitre" ||
+    u === "milliliters" ||
+    u === "millilitres" ||
+    u === "ml"
+  )
+    return "ml";
   if (u === "meter" || u === "meters" || u === "metre" || u === "metres") return "m";
-  if (u === "centimeter" || u === "centimetre" || u === "centimeters" || u === "centimetres") return "cm";
-  if (u === "millimeter" || u === "millimetre" || u === "millimeters" || u === "millimetres") return "mm";
+  if (u === "centimeter" || u === "centimetre" || u === "centimeters" || u === "centimetres")
+    return "cm";
+  if (u === "millimeter" || u === "millimetre" || u === "millimeters" || u === "millimetres")
+    return "mm";
   if (u === "pcs" || u === "piece" || u === "pieces" || u === "ea" || u === "each") return "pcs";
   if (u === "box" || u === "boxes") return "box";
   if (u === "dozen" || u === "dz") return "dz";
@@ -80,7 +93,6 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 class ProductionOrderService {
-
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   private validateStatusTransition(from: string, to: string) {
@@ -123,7 +135,9 @@ class ProductionOrderService {
   // - No StockAdjustment
   async create(data: CreateProductionOrderInput, userId?: string) {
     const productItemId = BigInt(data.productItemId);
-    const sourceSalesOrderLineId = data.sourceSalesOrderLineId ? BigInt(data.sourceSalesOrderLineId) : null;
+    const sourceSalesOrderLineId = data.sourceSalesOrderLineId
+      ? BigInt(data.sourceSalesOrderLineId)
+      : null;
 
     const existing = await prisma.productionOrder.findUnique({
       where: { productionOrderId: data.productionOrderId },
@@ -146,10 +160,14 @@ class ProductionOrderService {
     if (data.sourceSalesOrderId) {
       let salesOrder = null;
       if (!isNaN(Number(data.sourceSalesOrderId))) {
-        salesOrder = await prisma.salesOrder.findUnique({ where: { id: Number(data.sourceSalesOrderId) } });
+        salesOrder = await prisma.salesOrder.findUnique({
+          where: { id: Number(data.sourceSalesOrderId) },
+        });
       }
       if (!salesOrder) {
-        salesOrder = await prisma.salesOrder.findUnique({ where: { orderNo: data.sourceSalesOrderId } });
+        salesOrder = await prisma.salesOrder.findFirst({
+          where: { orderNo: data.sourceSalesOrderId },
+        });
       }
       if (!salesOrder) {
         throw new ApiError(404, `Sales Order with ID/No ${data.sourceSalesOrderId} not found`);
@@ -163,7 +181,10 @@ class ProductionOrderService {
         },
       });
       if (existingPoForSo) {
-        throw new ApiError(400, "A Production Order has already been created for this item in the Sales Order.");
+        throw new ApiError(
+          400,
+          "A Production Order has already been created for this item in the Sales Order."
+        );
       }
     }
 
@@ -174,68 +195,74 @@ class ProductionOrderService {
 
     if (data.destinationStoreId) {
       const store = await prisma.store.findUnique({ where: { storeId: data.destinationStoreId } });
-      if (!store) throw new ApiError(404, `Destination Store with ID ${data.destinationStoreId} not found`);
+      if (!store)
+        throw new ApiError(404, `Destination Store with ID ${data.destinationStoreId} not found`);
     }
 
     if (data.machineMachineId) {
-      const machine = await prisma.machine.findUnique({ where: { machineId: data.machineMachineId } });
+      const machine = await prisma.machine.findUnique({
+        where: { machineId: data.machineMachineId },
+      });
       if (!machine) throw new ApiError(404, `Machine with ID ${data.machineMachineId} not found`);
     }
 
     // ✅ STEP 1 RULE: Status is always CREATED on creation. No exceptions.
-    const result = await prisma.$transaction(async (tx) => {
-      const createdOrder = await tx.productionOrder.create({
-        data: {
-          productionOrderId: data.productionOrderId,
-          orderDate: new Date(data.orderDate),
-          dueDate: new Date(data.dueDate),
-          productItemId,
-          targetQty: data.targetQty,
-          producedQty: 0,
-          rejectedQty: 0,
-          scrapQty: 0,
-          uom: data.uom,
-          priority: data.priority ?? "MEDIUM",
-          orderType: data.orderType ?? "STANDARD",
-          batchNo: data.batchNo,
-          lotNo: data.lotNo,
-          sourceSalesOrderId: data.sourceSalesOrderId,
-          sourceSalesOrderLineId,
-          sourceStoreId: data.sourceStoreId,
-          destinationStoreId: data.destinationStoreId,
-          billOfMaterialId: data.billOfMaterialId ? String(data.billOfMaterialId) : null,
-          routingId: data.routingId,
-          machineMachineId: data.machineMachineId,
-          status: data.status === "DRAFT" ? "DRAFT" : "CREATED",
-          remarks: data.remarks,
-          createdBy: userId,
-          weightPerPieceUsed,
-          requiredRawMaterialQty,
-          draftRawMaterials: data.rawMaterials as any ?? null,
-          currentStepIndex: 0,
-          currentProductionStep: null,
-        } as any,
-        include: { productItem: true },
-      });
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const createdOrder = await tx.productionOrder.create({
+          data: {
+            productionOrderId: data.productionOrderId,
+            orderDate: new Date(data.orderDate),
+            dueDate: new Date(data.dueDate),
+            productItemId,
+            targetQty: data.targetQty,
+            producedQty: 0,
+            rejectedQty: 0,
+            scrapQty: 0,
+            uom: data.uom,
+            priority: data.priority ?? "MEDIUM",
+            orderType: data.orderType ?? "STANDARD",
+            batchNo: data.batchNo,
+            lotNo: data.lotNo,
+            sourceSalesOrderId: data.sourceSalesOrderId,
+            sourceSalesOrderLineId,
+            sourceStoreId: data.sourceStoreId,
+            destinationStoreId: data.destinationStoreId,
+            billOfMaterialId: data.billOfMaterialId ? String(data.billOfMaterialId) : null,
+            routingId: data.routingId,
+            machineMachineId: data.machineMachineId,
+            status: data.status === "DRAFT" ? "DRAFT" : "CREATED",
+            remarks: data.remarks,
+            createdBy: userId,
+            weightPerPieceUsed,
+            requiredRawMaterialQty,
+            draftRawMaterials: (data.rawMaterials as any) ?? null,
+            currentStepIndex: 0,
+            currentProductionStep: null,
+          } as any,
+          include: { productItem: true },
+        });
 
-      // ✅ Log creation history
-      await this.addHistory(
-        tx,
-        data.productionOrderId,
-        null,
-        data.status === "DRAFT" ? "DRAFT" : "CREATED",
-        userId,
-        data.remarks ?? "Production order created",
-        "CREATE"
-      );
+        // ✅ Log creation history
+        await this.addHistory(
+          tx,
+          data.productionOrderId,
+          null,
+          data.status === "DRAFT" ? "DRAFT" : "CREATED",
+          userId,
+          data.remarks ?? "Production order created",
+          "CREATE"
+        );
 
-      // Update linked Sales Order productionStatus
-      if (data.sourceSalesOrderId) {
-        await StatusSyncService.syncSalesOrderProductionStatus(tx, data.sourceSalesOrderId);
-      }
+        // Update linked Sales Order productionStatus
+        if (data.sourceSalesOrderId) {
+          await StatusSyncService.syncSalesOrderProductionStatus(tx, data.sourceSalesOrderId);
+        }
 
-      return createdOrder;
-    }, { timeout: 15000, maxWait: 10000 });
+        return createdOrder;
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
 
     // STEP 2: Auto-check raw material availability immediately after creation
     try {
@@ -259,20 +286,24 @@ class ProductionOrderService {
   // CREATED → READY_FOR_PLANNING (all materials available)
   //         → WAITING_FOR_MATERIAL (some materials insufficient)
   async checkMaterialAvailability(productionOrderId: string, userId?: string) {
-    const order = await prisma.productionOrder.findUnique({
+    const order = (await prisma.productionOrder.findUnique({
       where: { productionOrderId },
       include: {
         productItem: {
           include: { billOfMaterials: { include: { rawMaterial: true } } },
         },
       },
-    }) as any;
+    })) as any;
 
     if (!order) {
       throw new ApiError(404, `Production Order ${productionOrderId} not found`);
     }
 
-    if (!["CREATED", "WAITING_FOR_MATERIAL", "READY_FOR_PLANNING", "PENDING_PLANNING"].includes(order.status)) {
+    if (
+      !["CREATED", "WAITING_FOR_MATERIAL", "READY_FOR_PLANNING", "PENDING_PLANNING"].includes(
+        order.status
+      )
+    ) {
       throw new ApiError(
         400,
         `Cannot check materials for a Production Order with status "${order.status}".`
@@ -293,7 +324,11 @@ class ProductionOrderService {
     let allAvailable = true;
 
     // If draftRawMaterials is set, use that; otherwise use BOM
-    const rawMaterialsToCheck: Array<{ rawMaterialId: string; requiredQty: number; materialName?: string }> =
+    const rawMaterialsToCheck: Array<{
+      rawMaterialId: string;
+      requiredQty: number;
+      materialName?: string;
+    }> =
       Array.isArray(order.draftRawMaterials) && order.draftRawMaterials.length > 0
         ? (order.draftRawMaterials as any[])
         : bomItems.map((bi: any) => ({
@@ -323,24 +358,27 @@ class ProductionOrderService {
     const newStatus = allAvailable ? "READY_FOR_PLANNING" : "WAITING_FOR_MATERIAL";
     const previousStatus = order.status;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.productionOrder.update({
-        where: { productionOrderId },
-        data: { status: newStatus },
-      });
-      await this.addHistory(
-        tx,
-        productionOrderId,
-        previousStatus,
-        newStatus,
-        userId,
-        allAvailable
-          ? "All raw materials are available. Order is ready for weekly planning."
-          : "Insufficient raw materials. Order is waiting for material replenishment.",
-        "MATERIAL_CHECK",
-        { materialStatus }
-      );
-    }, { timeout: 15000, maxWait: 10000 });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.productionOrder.update({
+          where: { productionOrderId },
+          data: { status: newStatus },
+        });
+        await this.addHistory(
+          tx,
+          productionOrderId,
+          previousStatus,
+          newStatus,
+          userId,
+          allAvailable
+            ? "All raw materials are available. Order is ready for weekly planning."
+            : "Insufficient raw materials. Order is waiting for material replenishment.",
+          "MATERIAL_CHECK",
+          { materialStatus }
+        );
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
 
     return {
       status: newStatus,
@@ -371,7 +409,8 @@ class ProductionOrderService {
     const where: Prisma.ProductionOrderWhereInput = {};
 
     if (productItemId) where.productItemId = BigInt(productItemId);
-    if (productionOrderId) where.productionOrderId = { contains: productionOrderId, mode: "insensitive" };
+    if (productionOrderId)
+      where.productionOrderId = { contains: productionOrderId, mode: "insensitive" };
     if (sourceSalesOrderId) where.sourceSalesOrderId = sourceSalesOrderId;
     if (status) where.status = status;
     if (search) {
@@ -400,7 +439,9 @@ class ProductionOrderService {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    const soIdsOrNos = Array.from(new Set(items.map((i) => i.sourceSalesOrderId).filter(Boolean))) as string[];
+    const soIdsOrNos = Array.from(
+      new Set(items.map((i) => i.sourceSalesOrderId).filter(Boolean))
+    ) as string[];
     const salesOrders = await prisma.salesOrder.findMany({
       where: {
         OR: [
@@ -495,7 +536,7 @@ class ProductionOrderService {
         });
       }
       if (!salesOrder) {
-        salesOrder = await prisma.salesOrder.findUnique({
+        salesOrder = await prisma.salesOrder.findFirst({
           where: { orderNo: order.sourceSalesOrderId },
           include: { items: { include: { product: { include: { uom: true } } } }, customer: true },
         });
@@ -524,7 +565,8 @@ class ProductionOrderService {
                 const availableStock = currentRm ? Number(currentRm.onHandQty) : 0;
                 return {
                   rawMaterialId: bi.rawMaterialId,
-                  materialName: currentRm?.materialName || bi.rawMaterial?.materialName || bi.rawMaterialId,
+                  materialName:
+                    currentRm?.materialName || bi.rawMaterial?.materialName || bi.rawMaterialId,
                   requiredQty,
                   availableStock,
                   status: availableStock >= requiredQty ? "AVAILABLE" : "INSUFFICIENT",
@@ -533,12 +575,17 @@ class ProductionOrderService {
             }
 
             const isSelectedLine = productId.toString() === order.productItemId.toString();
-            const weightUsed = isSelectedLine && order.weightPerPieceUsed != null
-              ? Number(order.weightPerPieceUsed)
-              : Number(item.product?.weightPerPiece || 0);
+            const weightUsed =
+              isSelectedLine && order.weightPerPieceUsed != null
+                ? Number(order.weightPerPieceUsed)
+                : Number(item.product?.weightPerPiece || 0);
 
             let finalRms: any[] = [];
-            if (order.draftRawMaterials && Array.isArray(order.draftRawMaterials) && order.draftRawMaterials.length > 0) {
+            if (
+              order.draftRawMaterials &&
+              Array.isArray(order.draftRawMaterials) &&
+              order.draftRawMaterials.length > 0
+            ) {
               finalRms = (order.draftRawMaterials as any[]).map((rm: any) => {
                 const currentRm = rmMap.get(rm.rawMaterialId);
                 const availableStock = currentRm ? Number(currentRm.onHandQty) : 0;
@@ -589,7 +636,8 @@ class ProductionOrderService {
           const availableStock = currentRm ? Number(currentRm.onHandQty) : 0;
           return {
             rawMaterialId: bi.rawMaterialId,
-            materialName: currentRm?.materialName || bi.rawMaterial?.materialName || bi.rawMaterialId,
+            materialName:
+              currentRm?.materialName || bi.rawMaterial?.materialName || bi.rawMaterialId,
             requiredQty,
             availableStock,
             status: availableStock >= requiredQty ? "AVAILABLE" : "INSUFFICIENT",
@@ -604,9 +652,14 @@ class ProductionOrderService {
           productName: order.productItem?.productName,
           quantity,
           uom: order.uom,
-          weightPerPieceUsed: order.weightPerPieceUsed != null ? Number(order.weightPerPieceUsed) : Number(order.productItem?.weightPerPiece || 0),
+          weightPerPieceUsed:
+            order.weightPerPieceUsed != null
+              ? Number(order.weightPerPieceUsed)
+              : Number(order.productItem?.weightPerPiece || 0),
           rawMaterials:
-            order.draftRawMaterials && Array.isArray(order.draftRawMaterials) && order.draftRawMaterials.length > 0
+            order.draftRawMaterials &&
+            Array.isArray(order.draftRawMaterials) &&
+            order.draftRawMaterials.length > 0
               ? (order.draftRawMaterials as any[])
               : requiredRms,
         },
@@ -627,18 +680,34 @@ class ProductionOrderService {
     const existing = await this.findById(productionOrderId);
 
     // Locked statuses — only allow status-only updates
-    const lockedStatuses = ["IN_PRODUCTION", "POST_PRODUCTION", "PARTIAL_COMPLETED", "READY_FOR_DISPATCH", "DISPATCHED"];
+    const lockedStatuses = [
+      "IN_PRODUCTION",
+      "POST_PRODUCTION",
+      "PARTIAL_COMPLETED",
+      "READY_FOR_DISPATCH",
+      "DISPATCHED",
+    ];
     if (lockedStatuses.includes(existing.status || "")) {
       const keys = Object.keys(data).filter((k) => (data as any)[k] !== undefined);
       const allowedExecutionKeys = ["status", "producedQty", "rejectedQty", "scrapQty", "remarks"];
       const isSystemStatusUpdate = keys.every((k) => allowedExecutionKeys.includes(k));
       if (!isSystemStatusUpdate) {
-        throw new ApiError(400, "Production Order is locked for editing once production has started.");
+        throw new ApiError(
+          400,
+          "Production Order is locked for editing once production has started."
+        );
       }
     }
 
     const updateData: any = {};
-    const editableStatuses = ["DRAFT", "CREATED", "WAITING_FOR_MATERIAL", "READY_FOR_PLANNING", "WEEKLY_SCHEDULED", "DAILY_PLANNED"];
+    const editableStatuses = [
+      "DRAFT",
+      "CREATED",
+      "WAITING_FOR_MATERIAL",
+      "READY_FOR_PLANNING",
+      "WEEKLY_SCHEDULED",
+      "DAILY_PLANNED",
+    ];
 
     if (editableStatuses.includes(existing.status || "")) {
       if (data.orderDate !== undefined) updateData.orderDate = new Date(data.orderDate);
@@ -647,7 +716,8 @@ class ProductionOrderService {
       if (data.productItemId !== undefined) {
         const productItemId = BigInt(data.productItemId);
         const product = await prisma.product.findUnique({ where: { id: productItemId } });
-        if (!product) throw new ApiError(404, `Product with ID ${productItemId.toString()} not found`);
+        if (!product)
+          throw new ApiError(404, `Product with ID ${productItemId.toString()} not found`);
         updateData.productItemId = productItemId;
       }
 
@@ -662,15 +732,22 @@ class ProductionOrderService {
       if (data.sourceStoreId !== undefined) {
         if (data.sourceStoreId) {
           const store = await prisma.store.findUnique({ where: { storeId: data.sourceStoreId } });
-          if (!store) throw new ApiError(404, `Source Store with ID ${data.sourceStoreId} not found`);
+          if (!store)
+            throw new ApiError(404, `Source Store with ID ${data.sourceStoreId} not found`);
         }
         updateData.sourceStoreId = data.sourceStoreId;
       }
 
       if (data.destinationStoreId !== undefined) {
         if (data.destinationStoreId) {
-          const store = await prisma.store.findUnique({ where: { storeId: data.destinationStoreId } });
-          if (!store) throw new ApiError(404, `Destination Store with ID ${data.destinationStoreId} not found`);
+          const store = await prisma.store.findUnique({
+            where: { storeId: data.destinationStoreId },
+          });
+          if (!store)
+            throw new ApiError(
+              404,
+              `Destination Store with ID ${data.destinationStoreId} not found`
+            );
         }
         updateData.destinationStoreId = data.destinationStoreId;
       }
@@ -679,7 +756,10 @@ class ProductionOrderService {
 
       // Recalculate weight/material qty if product or target changed
       const finalProductItemId = updateData.productItemId ?? existing.productItemId;
-      const finalTargetQty = updateData.targetQty !== undefined ? Number(updateData.targetQty) : Number(existing.targetQty);
+      const finalTargetQty =
+        updateData.targetQty !== undefined
+          ? Number(updateData.targetQty)
+          : Number(existing.targetQty);
       const product = await prisma.product.findUnique({ where: { id: finalProductItemId } });
       if (product) {
         updateData.weightPerPieceUsed = product.weightPerPiece ? Number(product.weightPerPiece) : 0;
@@ -703,33 +783,36 @@ class ProductionOrderService {
     updateData.status = calculatedStatus;
     updateData.updatedBy = userId;
 
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-      const resultOrder = await tx.productionOrder.update({
-        where: { productionOrderId },
-        data: updateData,
-        include: { productItem: true },
-      });
+    const updatedOrder = await prisma.$transaction(
+      async (tx) => {
+        const resultOrder = await tx.productionOrder.update({
+          where: { productionOrderId },
+          data: updateData,
+          include: { productItem: true },
+        });
 
-      // Log status change in history
-      if (calculatedStatus !== existing.status) {
-        await this.addHistory(
-          tx,
-          productionOrderId,
-          existing.status,
-          calculatedStatus,
-          userId,
-          data.remarks || `Status changed to ${calculatedStatus}`,
-          "STATUS_CHANGE"
-        );
-      }
+        // Log status change in history
+        if (calculatedStatus !== existing.status) {
+          await this.addHistory(
+            tx,
+            productionOrderId,
+            existing.status,
+            calculatedStatus,
+            userId,
+            data.remarks || `Status changed to ${calculatedStatus}`,
+            "STATUS_CHANGE"
+          );
+        }
 
-      // Sync linked Sales Order
-      if (existing.sourceSalesOrderId) {
-        await StatusSyncService.syncSalesOrderProductionStatus(tx, existing.sourceSalesOrderId);
-      }
+        // Sync linked Sales Order
+        if (existing.sourceSalesOrderId) {
+          await StatusSyncService.syncSalesOrderProductionStatus(tx, existing.sourceSalesOrderId);
+        }
 
-      return resultOrder;
-    }, { timeout: 15000, maxWait: 10000 });
+        return resultOrder;
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
 
     return updatedOrder;
   }
@@ -742,15 +825,23 @@ class ProductionOrderService {
   // - Insert raw material transactions
   // - Set status to IN_PRODUCTION
   async startProduction(productionOrderId: string, userId?: string, dailyPlanId?: string) {
-    const order = await prisma.productionOrder.findUnique({
+    const order = (await prisma.productionOrder.findUnique({
       where: { productionOrderId },
-    }) as any;
+    })) as any;
 
     if (!order) {
       throw new ApiError(404, `Production Order ${productionOrderId} not found`);
     }
 
-    const allowedStartStatuses = ["DAILY_PLANNED", "PARTIAL_COMPLETED", "IN_PRODUCTION", "IN_PROGRESS", "POST_PRODUCTION", "WEEKLY_SCHEDULED", "DISPATCHED"];
+    const allowedStartStatuses = [
+      "DAILY_PLANNED",
+      "PARTIAL_COMPLETED",
+      "IN_PRODUCTION",
+      "IN_PROGRESS",
+      "POST_PRODUCTION",
+      "WEEKLY_SCHEDULED",
+      "DISPATCHED",
+    ];
     if (!allowedStartStatuses.includes(order.status)) {
       throw new ApiError(
         400,
@@ -771,172 +862,229 @@ class ProductionOrderService {
         shiftPlannedQty = Number(dailyPlan.plannedQty || 0);
         // Idempotency: check if this specific daily plan already had materials issued
         const existingIssueForShift = await prisma.stockAdjustment.findFirst({
-          where: { productionOrderId, adjustmentType: "RAW_MATERIAL_ISSUE", status: { not: "REJECTED" }, sourceDocId: dailyPlanId },
+          where: {
+            productionOrderId,
+            adjustmentType: "RAW_MATERIAL_ISSUE",
+            status: { not: "REJECTED" },
+            sourceDocId: dailyPlanId,
+          },
         });
         if (existingIssueForShift) {
-          const updated = await prisma.$transaction(async (tx) => {
-            const result = await tx.productionOrder.update({ where: { productionOrderId }, data: { status: "IN_PRODUCTION", updatedBy: userId } });
-            await this.addHistory(tx, productionOrderId, order.status, "IN_PRODUCTION", userId,
-              `Production started for shift plan ${dailyPlanId} (materials already issued for this shift)`, "PRODUCTION_START");
-            return result;
-          }, { timeout: 15000, maxWait: 10000 });
+          const updated = await prisma.$transaction(
+            async (tx) => {
+              const result = await tx.productionOrder.update({
+                where: { productionOrderId },
+                data: { status: "IN_PRODUCTION", updatedBy: userId },
+              });
+              await this.addHistory(
+                tx,
+                productionOrderId,
+                order.status,
+                "IN_PRODUCTION",
+                userId,
+                `Production started for shift plan ${dailyPlanId} (materials already issued for this shift)`,
+                "PRODUCTION_START"
+              );
+              return result;
+            },
+            { timeout: 15000, maxWait: 10000 }
+          );
           return updated;
         }
       }
     } else {
       // Legacy path: global idempotency check (no dailyPlanId provided)
       const existingIssue = await prisma.stockAdjustment.findFirst({
-        where: { productionOrderId, adjustmentType: "RAW_MATERIAL_ISSUE", status: { not: "REJECTED" }, sourceDocId: null },
+        where: {
+          productionOrderId,
+          adjustmentType: "RAW_MATERIAL_ISSUE",
+          status: { not: "REJECTED" },
+          sourceDocId: null,
+        },
       });
       if (existingIssue) {
-        const updated = await prisma.$transaction(async (tx) => {
-          const result = await tx.productionOrder.update({ where: { productionOrderId }, data: { status: "IN_PRODUCTION", updatedBy: userId } });
-          await this.addHistory(tx, productionOrderId, order.status, "IN_PRODUCTION", userId,
-            "Production started (materials already issued)", "PRODUCTION_START");
-          return result;
-        }, { timeout: 15000, maxWait: 10000 });
+        const updated = await prisma.$transaction(
+          async (tx) => {
+            const result = await tx.productionOrder.update({
+              where: { productionOrderId },
+              data: { status: "IN_PRODUCTION", updatedBy: userId },
+            });
+            await this.addHistory(
+              tx,
+              productionOrderId,
+              order.status,
+              "IN_PRODUCTION",
+              userId,
+              "Production started (materials already issued)",
+              "PRODUCTION_START"
+            );
+            return result;
+          },
+          { timeout: 15000, maxWait: 10000 }
+        );
         return updated;
       }
     }
 
     // Proportional ratio: e.g. shift=500, target=4000 → 0.125
-    const qtyRatio = (shiftPlannedQty !== null && poTargetQty > 0) ? shiftPlannedQty / poTargetQty : 1;
+    const qtyRatio =
+      shiftPlannedQty !== null && poTargetQty > 0 ? shiftPlannedQty / poTargetQty : 1;
 
-    const rawMaterials: any[] = Array.isArray(order.draftRawMaterials) && order.draftRawMaterials.length > 0
-      ? order.draftRawMaterials as any[]
-      : [];
+    const rawMaterials: any[] =
+      Array.isArray(order.draftRawMaterials) && order.draftRawMaterials.length > 0
+        ? (order.draftRawMaterials as any[])
+        : [];
 
     if (rawMaterials.length === 0) {
-      return await prisma.$transaction(async (tx) => {
+      return await prisma.$transaction(
+        async (tx) => {
+          const result = await tx.productionOrder.update({
+            where: { productionOrderId },
+            data: { status: "IN_PRODUCTION", updatedBy: userId },
+          });
+          await this.addHistory(
+            tx,
+            productionOrderId,
+            order.status,
+            "IN_PRODUCTION",
+            userId,
+            "Production started (no raw materials configured)",
+            "PRODUCTION_START"
+          );
+          return result;
+        },
+        { timeout: 15000, maxWait: 10000 }
+      );
+    }
+
+    return prisma.$transaction(
+      async (tx) => {
+        const now = new Date();
+        const dateStr = now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
+        const planSuffix = dailyPlanId ? `-${dailyPlanId}` : "";
+        const adjustmentNumber = `RMI-${productionOrderId}${planSuffix}-${dateStr}`;
+
+        const stockAdjustment = await tx.stockAdjustment.create({
+          data: {
+            adjustmentNumber,
+            adjustmentDate: now,
+            adjustmentType: "RAW_MATERIAL_ISSUE",
+            productionOrderId,
+            reason: dailyPlanId
+              ? `Raw material issued for Production Order: ${productionOrderId}, Daily Plan: ${dailyPlanId} (Shift Start)`
+              : `Raw material issued for Production Order: ${productionOrderId} (Production Start)`,
+            status: "APPROVED",
+            approvedBy: userId,
+            approvedAt: now,
+            createdBy: userId,
+            autoGenerated: true,
+            sourceDocument: dailyPlanId ? "DAILY_PLAN" : "PRODUCTION_ORDER",
+            sourceDocId: dailyPlanId ?? productionOrderId,
+          },
+        });
+
+        // 2. Process each raw material — scale qty to this shift's proportion
+        for (const rm of rawMaterials) {
+          const { rawMaterialId, requiredQty } = rm;
+          const fullQty = Number(requiredQty);
+          const qty = parseFloat((fullQty * qtyRatio).toFixed(6));
+          if (!rawMaterialId || qty <= 0) continue;
+
+          const stock = await tx.rawMaterial.findUnique({
+            where: { rawMaterialId },
+            include: { store: true },
+          });
+
+          if (!stock) continue;
+
+          // Check for negative stock (unless store allows)
+          const newOnHand = Number(stock.onHandQty) - qty;
+          const allowNegative = stock.store?.allowNegative ?? false;
+          if (newOnHand < 0 && !allowNegative) {
+            throw new ApiError(
+              400,
+              `Insufficient stock for raw material "${stock.materialName}" (${rawMaterialId}). Available: ${Number(stock.onHandQty).toFixed(3)}, Required for this shift (${shiftPlannedQty ?? fullQty} pcs): ${qty.toFixed(3)}`
+            );
+          }
+
+          const storeId = stock.storeId || order.sourceStoreId;
+          if (!storeId) continue;
+
+          const currentQty = stock.onHandQty;
+          const newReserved = Math.max(0, Number(stock.reservedQty) - qty);
+
+          // 3. Deduct raw material stock
+          await tx.rawMaterial.update({
+            where: { rawMaterialId },
+            data: {
+              onHandQty: newOnHand,
+              reservedQty: newReserved,
+              updatedBy: userId,
+            },
+          });
+
+          // 4. Create stock adjustment item
+          await tx.stockAdjustmentItem.create({
+            data: {
+              stockAdjustmentId: stockAdjustment.id,
+              itemType: "RAW_MATERIAL",
+              rawMaterialId,
+              storeId,
+              currentQty,
+              adjustedQty: newOnHand,
+              difference: -qty,
+              remarks: dailyPlanId
+                ? `Issued for Daily Plan ${dailyPlanId} (${shiftPlannedQty} pcs of PO ${productionOrderId} target ${poTargetQty} pcs)`
+                : `Issued for Production Order ${productionOrderId} on production start`,
+            },
+          });
+
+          // 5. Insert raw material transaction
+          await tx.rawMaterialTransaction.create({
+            data: {
+              storeId,
+              rawMaterialId,
+              txnType: "RAW_MATERIAL_ISSUE",
+              qty: -qty,
+              productionOrderId,
+              remarks: dailyPlanId
+                ? `Issued for Daily Plan ${dailyPlanId} (${shiftPlannedQty} pcs of PO ${productionOrderId})`
+                : `Issued for Production Order ${productionOrderId} on production start`,
+            },
+          });
+        }
+
+        // 6. Update production order status to IN_PRODUCTION
         const result = await tx.productionOrder.update({
           where: { productionOrderId },
           data: { status: "IN_PRODUCTION", updatedBy: userId },
+          include: { productItem: true },
         });
-        await this.addHistory(tx, productionOrderId, order.status, "IN_PRODUCTION", userId,
-          "Production started (no raw materials configured)", "PRODUCTION_START");
-        return result;
-      }, { timeout: 15000, maxWait: 10000 });
-    }
 
-    return prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const dateStr = now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
-      const planSuffix = dailyPlanId ? `-${dailyPlanId}` : "";
-      const adjustmentNumber = `RMI-${productionOrderId}${planSuffix}-${dateStr}`;
-
-      const stockAdjustment = await tx.stockAdjustment.create({
-        data: {
-          adjustmentNumber,
-          adjustmentDate: now,
-          adjustmentType: "RAW_MATERIAL_ISSUE",
+        // 7. Log history
+        await this.addHistory(
+          tx,
           productionOrderId,
-          reason: dailyPlanId
-            ? `Raw material issued for Production Order: ${productionOrderId}, Daily Plan: ${dailyPlanId} (Shift Start)`
-            : `Raw material issued for Production Order: ${productionOrderId} (Production Start)`,
-          status: "APPROVED",
-          approvedBy: userId,
-          approvedAt: now,
-          createdBy: userId,
-          autoGenerated: true,
-          sourceDocument: dailyPlanId ? "DAILY_PLAN" : "PRODUCTION_ORDER",
-          sourceDocId: dailyPlanId ?? productionOrderId,
-        },
-      });
+          order.status,
+          "IN_PRODUCTION",
+          userId,
+          dailyPlanId
+            ? `Production started for Daily Plan ${dailyPlanId} (${shiftPlannedQty} pcs). Raw materials issued proportionally (ratio: ${qtyRatio.toFixed(4)}).`
+            : "Production started. Raw materials issued.",
+          "PRODUCTION_START",
+          {
+            stockAdjustmentId: stockAdjustment.id.toString(),
+            rawMaterialsIssued: rawMaterials.length,
+            dailyPlanId: dailyPlanId ?? null,
+            shiftPlannedQty: shiftPlannedQty ?? null,
+            qtyRatio,
+          }
+        );
 
-      // 2. Process each raw material — scale qty to this shift's proportion
-      for (const rm of rawMaterials) {
-        const { rawMaterialId, requiredQty } = rm;
-        const fullQty = Number(requiredQty);
-        const qty = parseFloat((fullQty * qtyRatio).toFixed(6));
-        if (!rawMaterialId || qty <= 0) continue;
-
-        const stock = await tx.rawMaterial.findUnique({
-          where: { rawMaterialId },
-          include: { store: true },
-        });
-
-        if (!stock) continue;
-
-        // Check for negative stock (unless store allows)
-        const newOnHand = Number(stock.onHandQty) - qty;
-        const allowNegative = stock.store?.allowNegative ?? false;
-        if (newOnHand < 0 && !allowNegative) {
-          throw new ApiError(
-            400,
-            `Insufficient stock for raw material "${stock.materialName}" (${rawMaterialId}). Available: ${Number(stock.onHandQty).toFixed(3)}, Required for this shift (${shiftPlannedQty ?? fullQty} pcs): ${qty.toFixed(3)}`
-          );
-        }
-
-        const storeId = stock.storeId || order.sourceStoreId;
-        if (!storeId) continue;
-
-        const currentQty = stock.onHandQty;
-        const newReserved = Math.max(0, Number(stock.reservedQty) - qty);
-
-        // 3. Deduct raw material stock
-        await tx.rawMaterial.update({
-          where: { rawMaterialId },
-          data: {
-            onHandQty: newOnHand,
-            reservedQty: newReserved,
-            updatedBy: userId,
-          },
-        });
-
-        // 4. Create stock adjustment item
-        await tx.stockAdjustmentItem.create({
-          data: {
-            stockAdjustmentId: stockAdjustment.id,
-            itemType: "RAW_MATERIAL",
-            rawMaterialId,
-            storeId,
-            currentQty,
-            adjustedQty: newOnHand,
-            difference: -qty,
-            remarks: dailyPlanId
-              ? `Issued for Daily Plan ${dailyPlanId} (${shiftPlannedQty} pcs of PO ${productionOrderId} target ${poTargetQty} pcs)`
-              : `Issued for Production Order ${productionOrderId} on production start`,
-          },
-        });
-
-        // 5. Insert raw material transaction
-        await tx.rawMaterialTransaction.create({
-          data: {
-            storeId,
-            rawMaterialId,
-            txnType: "RAW_MATERIAL_ISSUE",
-            qty: -qty,
-            productionOrderId,
-            remarks: dailyPlanId
-              ? `Issued for Daily Plan ${dailyPlanId} (${shiftPlannedQty} pcs of PO ${productionOrderId})`
-              : `Issued for Production Order ${productionOrderId} on production start`,
-          },
-        });
-      }
-
-      // 6. Update production order status to IN_PRODUCTION
-      const result = await tx.productionOrder.update({
-        where: { productionOrderId },
-        data: { status: "IN_PRODUCTION", updatedBy: userId },
-        include: { productItem: true },
-      });
-
-      // 7. Log history
-      await this.addHistory(
-        tx,
-        productionOrderId,
-        order.status,
-        "IN_PRODUCTION",
-        userId,
-        dailyPlanId
-          ? `Production started for Daily Plan ${dailyPlanId} (${shiftPlannedQty} pcs). Raw materials issued proportionally (ratio: ${qtyRatio.toFixed(4)}).`
-          : "Production started. Raw materials issued.",
-        "PRODUCTION_START",
-        { stockAdjustmentId: stockAdjustment.id.toString(), rawMaterialsIssued: rawMaterials.length, dailyPlanId: dailyPlanId ?? null, shiftPlannedQty: shiftPlannedQty ?? null, qtyRatio }
-      );
-
-      return result;
-    }, { timeout: 15000, maxWait: 10000 });
+        return result;
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
   }
 
   // ── Complete Post-Production Step → READY_FOR_DISPATCH ───────────────────
@@ -955,32 +1103,35 @@ class ProductionOrderService {
       );
     }
 
-    return prisma.$transaction(async (tx) => {
-      const result = await tx.productionOrder.update({
-        where: { productionOrderId },
-        data: {
-          status: "READY_FOR_DISPATCH",
-          producedQty,
-          updatedBy: userId,
-        },
-      });
+    return prisma.$transaction(
+      async (tx) => {
+        const result = await tx.productionOrder.update({
+          where: { productionOrderId },
+          data: {
+            status: "READY_FOR_DISPATCH",
+            producedQty,
+            updatedBy: userId,
+          },
+        });
 
-      await this.addHistory(
-        tx,
-        productionOrderId,
-        "POST_PRODUCTION",
-        "READY_FOR_DISPATCH",
-        userId,
-        `Post-production completed. Produced qty: ${producedQty}. Order is ready for dispatch.`,
-        "POST_PRODUCTION_COMPLETE"
-      );
+        await this.addHistory(
+          tx,
+          productionOrderId,
+          "POST_PRODUCTION",
+          "READY_FOR_DISPATCH",
+          userId,
+          `Post-production completed. Produced qty: ${producedQty}. Order is ready for dispatch.`,
+          "POST_PRODUCTION_COMPLETE"
+        );
 
-      if (order.sourceSalesOrderId) {
-        await StatusSyncService.syncSalesOrderProductionStatus(tx, order.sourceSalesOrderId);
-      }
+        if (order.sourceSalesOrderId) {
+          await StatusSyncService.syncSalesOrderProductionStatus(tx, order.sourceSalesOrderId);
+        }
 
-      return result;
-    }, { timeout: 15000, maxWait: 10000 });
+        return result;
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
   }
 
   // ── Manual Material Issue (legacy/partial) ────────────────────────────────
@@ -988,7 +1139,15 @@ class ProductionOrderService {
   // Now gated: only READY_FOR_PLANNING or WEEKLY_SCHEDULED orders.
   async issueMaterials(
     productionOrderId: string,
-    data: { items: { rawMaterialId: string; storeId: string; qty: number; selectedUom?: string; remarks?: string }[] },
+    data: {
+      items: {
+        rawMaterialId: string;
+        storeId: string;
+        qty: number;
+        selectedUom?: string;
+        remarks?: string;
+      }[];
+    },
     userId?: string
   ) {
     const { items } = data;
@@ -1023,7 +1182,7 @@ class ProductionOrderService {
         adjustmentType: { in: ["RAW_MATERIAL_ISSUE", "PRODUCTION_MATERIAL_ISSUE"] },
         status: { not: "REJECTED" },
       },
-      include: { items: true }
+      include: { items: true },
     });
 
     if (existingIssues.length > 0) {
@@ -1033,7 +1192,10 @@ class ProductionOrderService {
         for (const adjItem of adj.items) {
           if (adjItem.rawMaterialId) {
             const current = issuedQtyMap.get(adjItem.rawMaterialId) || 0;
-            issuedQtyMap.set(adjItem.rawMaterialId, current + Math.abs(Number(adjItem.difference || 0)));
+            issuedQtyMap.set(
+              adjItem.rawMaterialId,
+              current + Math.abs(Number(adjItem.difference || 0))
+            );
           }
         }
       }
@@ -1067,95 +1229,112 @@ class ProductionOrderService {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const dateStr = now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
-      const adjustmentNumber = `RMI-${productionOrderId}-${dateStr}`;
+    return prisma.$transaction(
+      async (tx) => {
+        const now = new Date();
+        const dateStr = now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
+        const adjustmentNumber = `RMI-${productionOrderId}-${dateStr}`;
 
-      const stockAdjustment = await tx.stockAdjustment.create({
-        data: {
-          adjustmentNumber,
-          adjustmentDate: now,
-          adjustmentType: "RAW_MATERIAL_ISSUE",
-          productionOrderId,
-          reason: `Manual material issued for Production Order: ${productionOrderId}`,
-          status: "APPROVED",
-          approvedBy: userId,
-          approvedAt: now,
-          createdBy: userId,
-        },
-      });
-
-      for (const item of items) {
-        const { rawMaterialId, storeId, qty, selectedUom, remarks } = item;
-
-        const rm = await tx.rawMaterial.findUnique({ where: { rawMaterialId } });
-        if (!rm) throw new ApiError(404, `Raw Material with ID ${rawMaterialId} not found`);
-
-        // Convert qty from the user's selected UOM to the raw material's base UOM.
-        const rmBaseUom = String(rm.baseUom || "kg");
-        const issueUom = selectedUom || rmBaseUom;
-        const convertedQty = convertToBaseUom(qty, issueUom, rmBaseUom);
-
-        const currentQty = rm.onHandQty;
-        const newOnHand = Number(rm.onHandQty) - convertedQty;
-        const newReserved = Math.max(0, Number(rm.reservedQty) - convertedQty);
-
-        await tx.rawMaterial.update({
-          where: { rawMaterialId },
-          data: { onHandQty: newOnHand, reservedQty: newReserved, updatedBy: userId },
-        });
-
-        await tx.rawMaterialTransaction.create({
+        const stockAdjustment = await tx.stockAdjustment.create({
           data: {
-            storeId,
-            rawMaterialId,
-            txnType: "RAW_MATERIAL_ISSUE",
-            qty: -convertedQty,
-            remarks: remarks || `Issued for Production Order ${productionOrderId}`,
+            adjustmentNumber,
+            adjustmentDate: now,
+            adjustmentType: "RAW_MATERIAL_ISSUE",
             productionOrderId,
+            reason: `Manual material issued for Production Order: ${productionOrderId}`,
+            status: "APPROVED",
+            approvedBy: userId,
+            approvedAt: now,
+            createdBy: userId,
           },
         });
 
-        await tx.stockAdjustmentItem.create({
-          data: {
-            stockAdjustmentId: stockAdjustment.id,
-            itemType: "RAW_MATERIAL",
-            rawMaterialId,
-            storeId,
-            currentQty,
-            adjustedQty: newOnHand,
-            difference: -convertedQty,
-            remarks: remarks || `Issued for Production Order ${productionOrderId}`,
-          },
-        });
-      }
+        for (const item of items) {
+          const { rawMaterialId, storeId, qty, selectedUom, remarks } = item;
 
-      await this.addHistory(
-        tx,
-        productionOrderId,
-        order.status,
-        order.status,
-        userId,
-        `Manual material issue created: ${adjustmentNumber}`,
-        "MANUAL_MATERIAL_ISSUE"
-      );
+          const rm = await tx.rawMaterial.findUnique({ where: { rawMaterialId } });
+          if (!rm) throw new ApiError(404, `Raw Material with ID ${rawMaterialId} not found`);
 
-      return { adjustmentNumber, stockAdjustmentId: stockAdjustment.id.toString() };
-    }, { maxWait: 15000, timeout: 30000 });
+          // Convert qty from the user's selected UOM to the raw material's base UOM.
+          const rmBaseUom = String(rm.baseUom || "kg");
+          const issueUom = selectedUom || rmBaseUom;
+          const convertedQty = convertToBaseUom(qty, issueUom, rmBaseUom);
+
+          const currentQty = rm.onHandQty;
+          const newOnHand = Number(rm.onHandQty) - convertedQty;
+          const newReserved = Math.max(0, Number(rm.reservedQty) - convertedQty);
+
+          await tx.rawMaterial.update({
+            where: { rawMaterialId },
+            data: { onHandQty: newOnHand, reservedQty: newReserved, updatedBy: userId },
+          });
+
+          await tx.rawMaterialTransaction.create({
+            data: {
+              storeId,
+              rawMaterialId,
+              txnType: "RAW_MATERIAL_ISSUE",
+              qty: -convertedQty,
+              remarks: remarks || `Issued for Production Order ${productionOrderId}`,
+              productionOrderId,
+            },
+          });
+
+          await tx.stockAdjustmentItem.create({
+            data: {
+              stockAdjustmentId: stockAdjustment.id,
+              itemType: "RAW_MATERIAL",
+              rawMaterialId,
+              storeId,
+              currentQty,
+              adjustedQty: newOnHand,
+              difference: -convertedQty,
+              remarks: remarks || `Issued for Production Order ${productionOrderId}`,
+            },
+          });
+        }
+
+        await this.addHistory(
+          tx,
+          productionOrderId,
+          order.status,
+          order.status,
+          userId,
+          `Manual material issue created: ${adjustmentNumber}`,
+          "MANUAL_MATERIAL_ISSUE"
+        );
+
+        return { adjustmentNumber, stockAdjustmentId: stockAdjustment.id.toString() };
+      },
+      { maxWait: 15000, timeout: 30000 }
+    );
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
   async delete(productionOrderId: string) {
     const existing = await this.findById(productionOrderId);
 
-    const undeletableStatuses = ["IN_PRODUCTION", "POST_PRODUCTION", "PARTIAL_COMPLETED", "READY_FOR_DISPATCH", "DISPATCHED", "WEEKLY_SCHEDULED", "DAILY_PLANNED"];
+    const undeletableStatuses = [
+      "IN_PRODUCTION",
+      "POST_PRODUCTION",
+      "PARTIAL_COMPLETED",
+      "READY_FOR_DISPATCH",
+      "DISPATCHED",
+      "WEEKLY_SCHEDULED",
+      "DAILY_PLANNED",
+    ];
     if (undeletableStatuses.includes(existing.status)) {
-      throw new ApiError(400, `Production Order cannot be deleted with status "${existing.status}". Only CREATED, WAITING_FOR_MATERIAL, or READY_FOR_PLANNING orders can be deleted.`);
+      throw new ApiError(
+        400,
+        `Production Order cannot be deleted with status "${existing.status}". Only CREATED, WAITING_FOR_MATERIAL, or READY_FOR_PLANNING orders can be deleted.`
+      );
     }
 
     if (existing.sourceSalesOrderId) {
-      throw new ApiError(400, "Production Orders linked to Sales Orders cannot be deleted directly. Please cancel the Sales Order instead.");
+      throw new ApiError(
+        400,
+        "Production Orders linked to Sales Orders cannot be deleted directly. Please cancel the Sales Order instead."
+      );
     }
 
     await prisma.productionOrder.update({
@@ -1197,7 +1376,7 @@ class ProductionOrderService {
     // Separate admin IDs ("admin_<n>") from regular user UUIDs
     const allIds = Array.from(new Set(history.map((h) => h.changedBy).filter(Boolean))) as string[];
     const adminIds = allIds.filter((id) => id.startsWith("admin_"));
-    const userIds  = allIds.filter((id) => !id.startsWith("admin_"));
+    const userIds = allIds.filter((id) => !id.startsWith("admin_"));
 
     const nameMap = new Map<string, string>();
 
@@ -1213,7 +1392,13 @@ class ProductionOrderService {
     // Resolve admins (stored as "admin_<bigint id>")
     if (adminIds.length > 0) {
       const numericIds = adminIds
-        .map((id) => { try { return BigInt(id.replace("admin_", "")); } catch { return null; } })
+        .map((id) => {
+          try {
+            return BigInt(id.replace("admin_", ""));
+          } catch {
+            return null;
+          }
+        })
         .filter((n): n is bigint => n !== null);
       if (numericIds.length > 0) {
         const admins = await prisma.admin.findMany({

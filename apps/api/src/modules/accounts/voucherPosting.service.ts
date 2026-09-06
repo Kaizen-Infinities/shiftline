@@ -182,7 +182,7 @@ class VoucherPostingService {
 
     // Ensure system ledgers & party ledger exist
     await accountsService.ensureSystemLedgersExist(db);
-    const purchaseLedger = await db.accountLedger.findUnique({ where: { code: "PURCH-001" } });
+    const purchaseLedger = await db.accountLedger.findFirst({ where: { code: "PURCH-001" } });
     const supplierLedger = await accountsService.ensureSupplierLedger(grnInvoice.supplier, db);
 
     if (!purchaseLedger || !supplierLedger) {
@@ -236,7 +236,7 @@ class VoucherPostingService {
       // Add GST input credit entries if GST breakdown is available
       if (totalCgst > 0 || totalSgst > 0 || totalIgst > 0) {
         if (totalCgst > 0) {
-          const cgstRecLedger = await db.accountLedger.findUnique({
+          const cgstRecLedger = await db.accountLedger.findFirst({
             where: { code: "CGST-REC-001" },
           });
           if (cgstRecLedger) {
@@ -249,7 +249,7 @@ class VoucherPostingService {
           }
         }
         if (totalSgst > 0) {
-          const sgstRecLedger = await db.accountLedger.findUnique({
+          const sgstRecLedger = await db.accountLedger.findFirst({
             where: { code: "SGST-REC-001" },
           });
           if (sgstRecLedger) {
@@ -262,7 +262,7 @@ class VoucherPostingService {
           }
         }
         if (totalIgst > 0) {
-          const igstRecLedger = await db.accountLedger.findUnique({
+          const igstRecLedger = await db.accountLedger.findFirst({
             where: { code: "IGST-REC-001" },
           });
           if (igstRecLedger) {
@@ -337,8 +337,8 @@ class VoucherPostingService {
 
     await accountsService.ensureSystemLedgersExist(db);
     const supplierLedger = await accountsService.ensureSupplierLedger(grnInvoice.supplier, db);
-    const cashLedger = await db.accountLedger.findUnique({ where: { code: "CASH-001" } });
-    const bankLedger = await db.accountLedger.findUnique({ where: { code: "BANK-001" } });
+    const cashLedger = await db.accountLedger.findFirst({ where: { code: "CASH-001" } });
+    const bankLedger = await db.accountLedger.findFirst({ where: { code: "BANK-001" } });
 
     if (!supplierLedger || !cashLedger || !bankLedger) {
       console.error("[Auto-Post Payment Voucher Error] Missing ledgers");
@@ -466,7 +466,7 @@ class VoucherPostingService {
     }
 
     await accountsService.ensureSystemLedgersExist(db);
-    const salesLedger = await db.accountLedger.findUnique({ where: { code: "SALES-001" } });
+    const salesLedger = await db.accountLedger.findFirst({ where: { code: "SALES-001" } });
     const customerLedger = await accountsService.ensureCustomerLedger(salesInvoice.customer, db);
 
     if (!salesLedger || !customerLedger) {
@@ -530,7 +530,7 @@ class VoucherPostingService {
       // Credit GST liability ledgers if GST breakdown available
       if (totalCgst > 0 || totalSgst > 0 || totalIgst > 0) {
         if (totalCgst > 0) {
-          const cgstLiaLedger = await db.accountLedger.findUnique({
+          const cgstLiaLedger = await db.accountLedger.findFirst({
             where: { code: "CGST-LIA-001" },
           });
           if (cgstLiaLedger) {
@@ -543,7 +543,7 @@ class VoucherPostingService {
           }
         }
         if (totalSgst > 0) {
-          const sgstLiaLedger = await db.accountLedger.findUnique({
+          const sgstLiaLedger = await db.accountLedger.findFirst({
             where: { code: "SGST-LIA-001" },
           });
           if (sgstLiaLedger) {
@@ -556,7 +556,7 @@ class VoucherPostingService {
           }
         }
         if (totalIgst > 0) {
-          const igstLiaLedger = await db.accountLedger.findUnique({
+          const igstLiaLedger = await db.accountLedger.findFirst({
             where: { code: "IGST-LIA-001" },
           });
           if (igstLiaLedger) {
@@ -623,8 +623,8 @@ class VoucherPostingService {
 
     await accountsService.ensureSystemLedgersExist(db);
     const customerLedger = await accountsService.ensureCustomerLedger(salesInvoice.customer, db);
-    const cashLedger = await db.accountLedger.findUnique({ where: { code: "CASH-001" } });
-    const bankLedger = await db.accountLedger.findUnique({ where: { code: "BANK-001" } });
+    const cashLedger = await db.accountLedger.findFirst({ where: { code: "CASH-001" } });
+    const bankLedger = await db.accountLedger.findFirst({ where: { code: "BANK-001" } });
 
     if (!customerLedger || !cashLedger || !bankLedger) {
       console.error("[Auto-Post Receipt Voucher Error] Missing ledgers");
@@ -751,7 +751,7 @@ class VoucherPostingService {
 
     await accountsService.ensureSystemLedgersExist(db);
     const customerLedger = await accountsService.ensureCustomerLedger(salesReturn.customer, db);
-    let salesReturnLedger = await db.accountLedger.findUnique({ where: { code: "SRT-001" } });
+    let salesReturnLedger = await db.accountLedger.findFirst({ where: { code: "SRT-001" } });
     if (!salesReturnLedger) {
       const srList = await db.accountLedger.findMany({
         where: { name: { contains: "Sales Return", mode: "insensitive" } },
@@ -813,7 +813,7 @@ class VoucherPostingService {
     // do not set refundMode = CASH/BANK.
     if (salesReturn.refundMode === "CASH" || salesReturn.refundMode === "BANK") {
       const payLedgerCode = salesReturn.refundMode === "CASH" ? "CASH-001" : "BANK-001";
-      let payLedger = await db.accountLedger.findUnique({ where: { code: payLedgerCode } });
+      let payLedger = await db.accountLedger.findFirst({ where: { code: payLedgerCode } });
       if (!payLedger) {
         payLedger = await db.accountLedger.findFirst({
           where: {
@@ -894,7 +894,7 @@ class VoucherPostingService {
 
     await accountsService.ensureSystemLedgersExist(db);
     const supplierLedger = await accountsService.ensureSupplierLedger(purchaseReturn.supplier, db);
-    let purchaseReturnLedger = await db.accountLedger.findUnique({ where: { code: "PRT-001" } });
+    let purchaseReturnLedger = await db.accountLedger.findFirst({ where: { code: "PRT-001" } });
     if (!purchaseReturnLedger) {
       const prList = await db.accountLedger.findMany({
         where: { name: { contains: "Purchase Return", mode: "insensitive" } },
@@ -977,9 +977,9 @@ class VoucherPostingService {
     if (existingVoucher) return existingVoucher;
 
     await accountsService.ensureSystemLedgersExist(db);
-    const pcashLedger = await db.accountLedger.findUnique({ where: { code: "PCASH-001" } });
-    const expenseLedger = await db.accountLedger.findUnique({ where: { code: "EXP-001" } });
-    const cashLedger = await db.accountLedger.findUnique({ where: { code: "CASH-001" } });
+    const pcashLedger = await db.accountLedger.findFirst({ where: { code: "PCASH-001" } });
+    const expenseLedger = await db.accountLedger.findFirst({ where: { code: "EXP-001" } });
+    const cashLedger = await db.accountLedger.findFirst({ where: { code: "CASH-001" } });
 
     if (!pcashLedger || !expenseLedger) {
       console.warn("[Auto-Post Voucher] Missing system ledgers PCASH-001 or EXP-001.");
@@ -1118,11 +1118,11 @@ class VoucherPostingService {
 
     await accountsService.ensureSystemLedgersExist(db);
 
-    const expenseLedger = await db.accountLedger.findUnique({ where: { code: "EXP-001" } });
+    const expenseLedger = await db.accountLedger.findFirst({ where: { code: "EXP-001" } });
     const creditLedgerCode = this.getCreditLedgerCodeForExpense(
       paymentMethod || expense.paymentMethod
     );
-    const creditLedger = await db.accountLedger.findUnique({ where: { code: creditLedgerCode } });
+    const creditLedger = await db.accountLedger.findFirst({ where: { code: creditLedgerCode } });
 
     if (!expenseLedger || !creditLedger) {
       console.warn(
@@ -1469,7 +1469,7 @@ class VoucherPostingService {
     const db = txClient || prisma;
     await accountsService.ensureSystemLedgersExist(db);
     const supplierLedger = await accountsService.ensureSupplierLedger(supplier, db);
-    const eqLedger = await db.accountLedger.findUnique({ where: { code: "EQ-001" } });
+    const eqLedger = await db.accountLedger.findFirst({ where: { code: "EQ-001" } });
 
     if (!supplierLedger || !eqLedger) return null;
 
@@ -1533,7 +1533,7 @@ class VoucherPostingService {
     const db = txClient || prisma;
     await accountsService.ensureSystemLedgersExist(db);
     const customerLedger = await accountsService.ensureCustomerLedger(customer, db);
-    const eqLedger = await db.accountLedger.findUnique({ where: { code: "EQ-001" } });
+    const eqLedger = await db.accountLedger.findFirst({ where: { code: "EQ-001" } });
 
     if (!customerLedger || !eqLedger) return null;
 
@@ -1594,7 +1594,7 @@ class VoucherPostingService {
   ) {
     const db = txClient || prisma;
     await accountsService.ensureSystemLedgersExist(db);
-    const eqLedger = await db.accountLedger.findUnique({ where: { code: "EQ-001" } });
+    const eqLedger = await db.accountLedger.findFirst({ where: { code: "EQ-001" } });
     if (!eqLedger) return null;
 
     const opBal = new Prisma.Decimal(amount);

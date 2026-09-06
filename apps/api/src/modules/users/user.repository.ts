@@ -59,7 +59,7 @@ export class UserRepository {
     mustChangePw: boolean;
     createdBy: string;
   }) {
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findFirst({
       where: {
         email: data.email,
       },
@@ -104,10 +104,7 @@ export class UserRepository {
     });
   }
 
-  async updateUserStatus(
-    userId: string,
-    status: UserStatus
-  ) {
+  async updateUserStatus(userId: string, status: UserStatus) {
     return prisma.user.update({
       where: { userId },
       data: {
@@ -129,5 +126,4 @@ export class UserRepository {
   }
 }
 
-export const userRepository =
-  new UserRepository();
+export const userRepository = new UserRepository();

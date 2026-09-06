@@ -4,7 +4,7 @@ import { CreateCategoryInput, UpdateCategoryInput } from "./category.validation"
 
 class CategoryService {
   async create(data: CreateCategoryInput, userId?: string) {
-    const existing = await prisma.category.findUnique({
+    const existing = await prisma.category.findFirst({
       where: { code: data.code },
     });
 
@@ -38,24 +38,18 @@ class CategoryService {
     });
   }
 
-  async findAll(params: {
-    search?: string;
-    type?: string;
-    isActive?: boolean;
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-  } = {}) {
-    const {
-      search,
-      type,
-      isActive,
-      page,
-      limit,
-      sortBy = "createdAt",
-      sortOrder = "asc",
-    } = params;
+  async findAll(
+    params: {
+      search?: string;
+      type?: string;
+      isActive?: boolean;
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+    } = {}
+  ) {
+    const { search, type, isActive, page, limit, sortBy = "createdAt", sortOrder = "asc" } = params;
 
     const whereClause: any = {};
 

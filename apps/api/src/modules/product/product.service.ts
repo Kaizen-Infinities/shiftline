@@ -42,7 +42,7 @@ class ProductService {
   // "3000 PCS" instead of echoing whatever weight unit weightPerPiece used.
   private async resolvePcsUomId(): Promise<number> {
     const uomCode = "pcs";
-    let existingUom = await prisma.unitOfMeasure.findUnique({ where: { uomCode } });
+    let existingUom = await prisma.unitOfMeasure.findFirst({ where: { uomCode } });
 
     if (!existingUom) {
       existingUom = await prisma.unitOfMeasure.create({
@@ -99,32 +99,41 @@ class ProductService {
       minimumQty: data.minimumQty || "0",
       rate: toNumberOrNull(data.rate),
       gradeRates: data.gradeRates
-        ? (typeof data.gradeRates === "string" ? JSON.parse(data.gradeRates) : data.gradeRates)
+        ? typeof data.gradeRates === "string"
+          ? JSON.parse(data.gradeRates)
+          : data.gradeRates
         : undefined,
 
       ...(uploadedImages.length
         ? {
-          images: {
-            create: uploadedImages,
-          },
-        }
+            images: {
+              create: uploadedImages,
+            },
+          }
         : {}),
     };
 
     let rawMaterialsList: any[] = [];
     if (data.rawMaterials) {
       try {
-        rawMaterialsList = typeof data.rawMaterials === "string"
-          ? JSON.parse(data.rawMaterials)
-          : data.rawMaterials;
+        rawMaterialsList =
+          typeof data.rawMaterials === "string" ? JSON.parse(data.rawMaterials) : data.rawMaterials;
 
-        const percentageItems = rawMaterialsList.filter(rm => rm.percentage !== null && rm.percentage !== undefined && String(rm.percentage).trim() !== "");
-        const totalPercent = percentageItems.reduce((acc, curr) => acc + Number(curr.percentage), 0);
+        const percentageItems = rawMaterialsList.filter(
+          (rm) =>
+            rm.percentage !== null &&
+            rm.percentage !== undefined &&
+            String(rm.percentage).trim() !== ""
+        );
+        const totalPercent = percentageItems.reduce(
+          (acc, curr) => acc + Number(curr.percentage),
+          0
+        );
         if (percentageItems.length > 0 && totalPercent !== 100) {
           throw new ApiError(400, "Total Raw Material percentage must be exactly 100%");
         }
 
-        const rmIds = rawMaterialsList.map(rm => String(rm.rawMaterialId));
+        const rmIds = rawMaterialsList.map((rm) => String(rm.rawMaterialId));
         if (new Set(rmIds).size !== rmIds.length) {
           throw new ApiError(400, "Duplicate raw materials are not allowed");
         }
@@ -137,9 +146,10 @@ class ProductService {
     let capacityHistoryList: any[] = [];
     if (data.capacityHistory) {
       try {
-        capacityHistoryList = typeof data.capacityHistory === "string"
-          ? JSON.parse(data.capacityHistory)
-          : data.capacityHistory;
+        capacityHistoryList =
+          typeof data.capacityHistory === "string"
+            ? JSON.parse(data.capacityHistory)
+            : data.capacityHistory;
       } catch (e: any) {
         console.error("Failed to parse capacityHistory in create:", e);
       }
@@ -151,26 +161,26 @@ class ProductService {
           ...payload,
           ...(data.openingStockQty && data.openingStockStoreId
             ? {
-              finishedGoodsStocks: {
-                create: [
-                  {
-                    storeId: cleanRequiredString(data.openingStockStoreId, 20),
-                    onHandQty: Number(data.openingStockQty),
-                  },
-                ],
-              },
-              finishedGoodsTransactions: {
-                create: [
-                  {
-                    txnDateTime: new Date(),
-                    storeId: cleanRequiredString(data.openingStockStoreId, 20),
-                    txnType: "OPENING_STOCK",
-                    qty: Number(data.openingStockQty),
-                    remarks: "Opening Stock during product creation",
-                  },
-                ],
-              },
-            }
+                finishedGoodsStocks: {
+                  create: [
+                    {
+                      storeId: cleanRequiredString(data.openingStockStoreId, 20),
+                      onHandQty: Number(data.openingStockQty),
+                    },
+                  ],
+                },
+                finishedGoodsTransactions: {
+                  create: [
+                    {
+                      txnDateTime: new Date(),
+                      storeId: cleanRequiredString(data.openingStockStoreId, 20),
+                      txnType: "OPENING_STOCK",
+                      qty: Number(data.openingStockQty),
+                      remarks: "Opening Stock during product creation",
+                    },
+                  ],
+                },
+              }
             : {}),
           ...(rawMaterialsList.length > 0 && {
             billOfMaterials: {
@@ -210,13 +220,18 @@ class ProductService {
       console.error("Product create failed. Payload keys:", Object.keys(payload));
       console.error("Prisma error:", err.message);
       if (err.message?.includes("too long")) {
-        throw new ApiError(400, "One of the field values is too long. Please shorten your input and try again.");
+        throw new ApiError(
+          400,
+          "One of the field values is too long. Please shorten your input and try again."
+        );
       }
       throw err;
     }
   }
 
-  async findAll(params: { search?: string; categoryId?: string; page?: number; limit?: number } = {}) {
+  async findAll(
+    params: { search?: string; categoryId?: string; page?: number; limit?: number } = {}
+  ) {
     const { search, categoryId, page, limit } = params;
     const whereClause: Prisma.ProductWhereInput = {};
 
@@ -246,7 +261,13 @@ class ProductService {
       const take = Math.min(Math.max(limit ?? 20, 1), 200);
       const skip = (Math.max(page ?? 1, 1) - 1) * take;
       const [data, total] = await Promise.all([
-        prisma.product.findMany({ where: whereClause, include, orderBy: { createdAt: "asc" }, skip, take }),
+        prisma.product.findMany({
+          where: whereClause,
+          include,
+          orderBy: { createdAt: "asc" },
+          skip,
+          take,
+        }),
         prisma.product.count({ where: whereClause }),
       ]);
       return { data, total, page: page ?? 1, pageSize: take, totalPages: Math.ceil(total / take) };
@@ -304,25 +325,30 @@ class ProductService {
 
     const removedImageIds = toIdArray(data.removedImageIds);
     const primaryImageId =
-      data.primaryImageId !== undefined
-        ? Number(data.primaryImageId)
-        : undefined;
+      data.primaryImageId !== undefined ? Number(data.primaryImageId) : undefined;
 
     let rawMaterialsList: any[] | null = null;
     if (data.rawMaterials !== undefined) {
       try {
-        rawMaterialsList = typeof data.rawMaterials === "string"
-          ? JSON.parse(data.rawMaterials)
-          : data.rawMaterials;
+        rawMaterialsList =
+          typeof data.rawMaterials === "string" ? JSON.parse(data.rawMaterials) : data.rawMaterials;
 
         if (rawMaterialsList && rawMaterialsList.length > 0) {
-          const percentageItems = rawMaterialsList.filter(rm => rm.percentage !== null && rm.percentage !== undefined && String(rm.percentage).trim() !== "");
-          const totalPercent = percentageItems.reduce((acc, curr) => acc + Number(curr.percentage), 0);
+          const percentageItems = rawMaterialsList.filter(
+            (rm) =>
+              rm.percentage !== null &&
+              rm.percentage !== undefined &&
+              String(rm.percentage).trim() !== ""
+          );
+          const totalPercent = percentageItems.reduce(
+            (acc, curr) => acc + Number(curr.percentage),
+            0
+          );
           if (percentageItems.length > 0 && totalPercent !== 100) {
             throw new ApiError(400, "Total Raw Material percentage must be exactly 100%");
           }
 
-          const rmIds = rawMaterialsList.map(rm => String(rm.rawMaterialId));
+          const rmIds = rawMaterialsList.map((rm) => String(rm.rawMaterialId));
           if (new Set(rmIds).size !== rmIds.length) {
             throw new ApiError(400, "Duplicate raw materials are not allowed");
           }
@@ -336,9 +362,10 @@ class ProductService {
     let capacityHistoryList: any[] | null = null;
     if (data.capacityHistory !== undefined) {
       try {
-        capacityHistoryList = typeof data.capacityHistory === "string"
-          ? JSON.parse(data.capacityHistory)
-          : data.capacityHistory;
+        capacityHistoryList =
+          typeof data.capacityHistory === "string"
+            ? JSON.parse(data.capacityHistory)
+            : data.capacityHistory;
       } catch (e: any) {
         console.error("Failed to parse capacityHistory in update:", e);
       }
@@ -424,8 +451,8 @@ class ProductService {
               productId: id,
               rawMaterialId: String(rm.rawMaterialId),
               requiredQuantity: new Prisma.Decimal(rm.requiredQuantity || 0),
-              percentage: toNumberOrNull(rm.percentage)
-            }))
+              percentage: toNumberOrNull(rm.percentage),
+            })),
           });
         }
       }
@@ -447,19 +474,19 @@ class ProductService {
               actualQty: Number(entry.newCapacity),
               achievementPct: 100,
               operators: cleanString(entry.operatorName, 255),
-            }
+            },
           });
 
           const existing = await tx.productCapacityHistory.findMany({
             where: { productId: id, machineId: machineId },
             orderBy: { createdAt: "desc" },
-            select: { id: true }
+            select: { id: true },
           });
 
           if (existing.length > 2) {
-            const idsToDelete = existing.slice(2).map(r => r.id);
+            const idsToDelete = existing.slice(2).map((r) => r.id);
             await tx.productCapacityHistory.deleteMany({
-              where: { id: { in: idsToDelete } }
+              where: { id: { in: idsToDelete } },
             });
           }
         }
@@ -467,58 +494,69 @@ class ProductService {
     });
 
     const payload: Prisma.ProductUncheckedUpdateInput & { gradeRates?: any } = {
-      productCode: data.productCode !== undefined ? cleanRequiredString(data.productCode, 20) : undefined,
-      productName: data.productName !== undefined ? cleanRequiredString(data.productName, 160) : undefined,
+      productCode:
+        data.productCode !== undefined ? cleanRequiredString(data.productCode, 20) : undefined,
+      productName:
+        data.productName !== undefined ? cleanRequiredString(data.productName, 160) : undefined,
       description: data.description !== undefined ? cleanString(data.description, 255) : undefined,
-      productType: data.productType !== undefined ? (data.productType === "SALES_PRODUCTION" ? "SALES_PRODUCTION" : "PRODUCTION") : undefined,
+      productType:
+        data.productType !== undefined
+          ? data.productType === "SALES_PRODUCTION"
+            ? "SALES_PRODUCTION"
+            : "PRODUCTION"
+          : undefined,
 
       categoryId: data.categoryId ? Number(data.categoryId) : undefined,
 
-      weightPerPiece: data.weightPerPiece !== undefined ? toNumberOrNull(data.weightPerPiece) : undefined,
-      weightUom: data.weightUom !== undefined ? (cleanString(data.weightUom, 10) || "g") : undefined,
+      weightPerPiece:
+        data.weightPerPiece !== undefined ? toNumberOrNull(data.weightPerPiece) : undefined,
+      weightUom: data.weightUom !== undefined ? cleanString(data.weightUom, 10) || "g" : undefined,
       minimumQty: data.minimumQty !== undefined ? data.minimumQty : undefined,
       isActive: data.isActive !== undefined ? toBoolean(data.isActive, true) : undefined,
 
       rate: data.rate !== undefined ? toNumberOrNull(data.rate) : undefined,
-      gradeRates: data.gradeRates !== undefined
-        ? (typeof data.gradeRates === "string" ? JSON.parse(data.gradeRates) : data.gradeRates)
-        : undefined,
+      gradeRates:
+        data.gradeRates !== undefined
+          ? typeof data.gradeRates === "string"
+            ? JSON.parse(data.gradeRates)
+            : data.gradeRates
+          : undefined,
 
       ...(data.openingStockQty && data.openingStockStoreId
         ? {
-          finishedGoodsStocks: {
-            upsert: [
-              {
-                where: {
-                  storeId_productItemId: {
+            finishedGoodsStocks: {
+              upsert: [
+                {
+                  where: {
+                    storeId_productItemId: {
+                      storeId: String(data.openingStockStoreId),
+                      productItemId: id,
+                    },
+                  },
+                  update: { onHandQty: Number(data.openingStockQty) },
+                  create: {
                     storeId: String(data.openingStockStoreId),
-                    productItemId: id,
+                    onHandQty: Number(data.openingStockQty),
                   },
                 },
-                update: { onHandQty: Number(data.openingStockQty) },
-                create: {
-                  storeId: String(data.openingStockStoreId),
-                  onHandQty: Number(data.openingStockQty),
-                },
-              },
-            ],
-          },
-          ...(isStockChanged
-            ? {
-              finishedGoodsTransactions: {
-                create: [
-                  {
-                    txnDateTime: new Date(),
-                    storeId: String(data.openingStockStoreId),
-                    txnType: qtyDiff > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
-                    qty: Math.abs(qtyDiff),
-                    remarks: `Opening Stock updated (Difference: ${qtyDiff})`,
+              ],
+            },
+            ...(isStockChanged
+              ? {
+                  finishedGoodsTransactions: {
+                    create: [
+                      {
+                        txnDateTime: new Date(),
+                        storeId: String(data.openingStockStoreId),
+                        txnType: qtyDiff > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
+                        qty: Math.abs(qtyDiff),
+                        remarks: `Opening Stock updated (Difference: ${qtyDiff})`,
+                      },
+                    ],
                   },
-                ],
-              },
-            }
-            : {}),
-        }
+                }
+              : {}),
+          }
         : {}),
     };
 
@@ -563,7 +601,15 @@ class ProductService {
       prisma.productionWastage.count({ where: { productId: id } }),
     ]);
 
-    if (salesCount > 0 || prodOrderCount > 0 || dispatchCount > 0 || realTxnCount > 0 || invoiceCount > 0 || returnCount > 0 || wastageCount > 0) {
+    if (
+      salesCount > 0 ||
+      prodOrderCount > 0 ||
+      dispatchCount > 0 ||
+      realTxnCount > 0 ||
+      invoiceCount > 0 ||
+      returnCount > 0 ||
+      wastageCount > 0
+    ) {
       throw new ApiError(
         400,
         "Cannot delete product because it is referenced in active orders, invoices, production records, or inventory transactions."
@@ -578,18 +624,19 @@ class ProductService {
     }
 
     return executeDeleteWithValidation(
-      () => prisma.$transaction(async (tx) => {
-        await tx.finishedGoodsTransaction.deleteMany({ where: { productItemId: id } });
-        await tx.finishedGoodsStock.deleteMany({ where: { productItemId: id } });
-        await tx.billOfMaterial.deleteMany({ where: { productId: id } });
-        await tx.productionStep.deleteMany({ where: { productId: id } });
-        await tx.productImage.deleteMany({ where: { productId: id } });
-        await tx.productCapacityHistory.deleteMany({ where: { productId: id } });
-        await tx.productShiftRecord.deleteMany({ where: { productId: id } });
-        await tx.weeklyMachineProgram.deleteMany({ where: { productId: id } });
-        await tx.stockAdjustmentItem.deleteMany({ where: { productItemId: id } });
-        return tx.product.delete({ where: { id } });
-      }),
+      () =>
+        prisma.$transaction(async (tx) => {
+          await tx.finishedGoodsTransaction.deleteMany({ where: { productItemId: id } });
+          await tx.finishedGoodsStock.deleteMany({ where: { productItemId: id } });
+          await tx.billOfMaterial.deleteMany({ where: { productId: id } });
+          await tx.productionStep.deleteMany({ where: { productId: id } });
+          await tx.productImage.deleteMany({ where: { productId: id } });
+          await tx.productCapacityHistory.deleteMany({ where: { productId: id } });
+          await tx.productShiftRecord.deleteMany({ where: { productId: id } });
+          await tx.weeklyMachineProgram.deleteMany({ where: { productId: id } });
+          await tx.stockAdjustmentItem.deleteMany({ where: { productItemId: id } });
+          return tx.product.delete({ where: { id } });
+        }),
       "Product"
     );
   }

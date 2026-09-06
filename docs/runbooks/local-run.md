@@ -20,7 +20,7 @@ DATA_ENCRYPTION_KEY=<any 32+ random characters>
 Then:
 
 ```bash
-npx -w @shiftline/api prisma migrate deploy   # until P0-06 lands: npx -w @shiftline/api prisma db push
+npx -w @shiftline/api prisma migrate deploy
 make seed                                     # demo tenant, roles, users, masters
 make dev                                      # api on :5000, web on :5173
 ```

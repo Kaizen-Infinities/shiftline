@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import axios from "axios";
 import { encryptText, decryptText } from "../../utils/crypto";
@@ -19,7 +20,7 @@ export class WhatsappService {
    * @param message Text message content
    */
   static async sendTextMessage(to: string, message: string): Promise<any> {
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new Error("No company found.");
     }
@@ -58,9 +59,7 @@ export class WhatsappService {
     } catch (error: any) {
       console.error("Error sending WhatsApp message:", error?.response?.data || error.message);
       throw new Error(
-        `Failed to send WhatsApp message: ${
-          error?.response?.data?.error?.message || error.message
-        }`
+        `Failed to send WhatsApp message: ${error?.response?.data?.error?.message || error.message}`
       );
     }
   }
@@ -69,8 +68,12 @@ export class WhatsappService {
    * Sends a WhatsApp Template message using the Meta Graph API.
    * This is required to send a message directly without the user sending 'Hi' first.
    */
-  static async sendTemplateMessage(to: string, templateName: string = "hello_world", languageCode: string = "en_US"): Promise<any> {
-    const company = await prisma.company.findFirst();
+  static async sendTemplateMessage(
+    to: string,
+    templateName: string = "hello_world",
+    languageCode: string = "en_US"
+  ): Promise<any> {
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new Error("No company found.");
     }
@@ -94,9 +97,9 @@ export class WhatsappService {
       template: {
         name: templateName,
         language: {
-          code: languageCode
-        }
-      }
+          code: languageCode,
+        },
+      },
     };
 
     try {
@@ -108,7 +111,10 @@ export class WhatsappService {
       });
       return response.data;
     } catch (error: any) {
-      console.error("Error sending WhatsApp Template message:", error?.response?.data || error.message);
+      console.error(
+        "Error sending WhatsApp Template message:",
+        error?.response?.data || error.message
+      );
       throw new Error(
         `Failed to send WhatsApp Template message: ${
           error?.response?.data?.error?.message || error.message
@@ -123,8 +129,12 @@ export class WhatsappService {
    * @param filename The name of the file (e.g., Quotation.pdf)
    * @param mimetype The MIME type of the file (e.g., application/pdf)
    */
-  static async uploadMedia(fileBuffer: Buffer, filename: string, mimetype: string): Promise<string> {
-    const company = await prisma.company.findFirst();
+  static async uploadMedia(
+    fileBuffer: Buffer,
+    filename: string,
+    mimetype: string
+  ): Promise<string> {
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new Error("No company found.");
     }
@@ -174,8 +184,13 @@ export class WhatsappService {
    * @param filename Optional filename to display
    * @param caption Optional caption to include with the document
    */
-  static async sendDocumentMessage(to: string, mediaId: string, filename?: string, caption?: string): Promise<any> {
-    const company = await prisma.company.findFirst();
+  static async sendDocumentMessage(
+    to: string,
+    mediaId: string,
+    filename?: string,
+    caption?: string
+  ): Promise<any> {
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new Error("No company found.");
     }
@@ -213,7 +228,10 @@ export class WhatsappService {
       });
       return response.data;
     } catch (error: any) {
-      console.error("Error sending WhatsApp document message:", error?.response?.data || error.message);
+      console.error(
+        "Error sending WhatsApp document message:",
+        error?.response?.data || error.message
+      );
       throw new Error(
         `Failed to send WhatsApp document message: ${
           error?.response?.data?.error?.message || error.message

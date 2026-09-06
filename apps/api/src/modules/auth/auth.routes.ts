@@ -1,3 +1,4 @@
+import { requirePermission } from "../../middleware/permission.middleware";
 import { Router } from "express";
 
 import {
@@ -9,7 +10,7 @@ import {
   requestPasswordReset,
   resetPassword,
   getProfile,
-  getActiveSessions
+  getActiveSessions,
 } from "./auth.controller";
 
 import { validateMiddleware } from "../../middleware/validate.middleware";
@@ -19,11 +20,10 @@ import {
   loginSchema,
   changePasswordSchema,
   passwordResetRequestSchema,
-  passwordResetSchema
+  passwordResetSchema,
 } from "./auth.validation";
 
 import { authMiddleware } from "../../middleware/auth.middleware";
-import { roleMiddleware } from "../../middleware/role.middleware";
 
 const router = Router();
 
@@ -33,23 +33,22 @@ const router = Router();
 
 router.post("/login", validateMiddleware(loginSchema), login);
 
-router.post("/password-reset-request",
-  validateMiddleware(passwordResetRequestSchema), 
+router.post(
+  "/password-reset-request",
+  validateMiddleware(passwordResetRequestSchema),
   requestPasswordReset
 );
 
-router.post("/password-reset",
-  validateMiddleware(passwordResetSchema), 
-  resetPassword
-);
+router.post("/password-reset", validateMiddleware(passwordResetSchema), resetPassword);
 
 // ============================================================
 // PROTECTED ROUTES
 // ============================================================
 
-router.post("/register",
+router.post(
+  "/register",
   authMiddleware,
-  roleMiddleware("ROLE_ADMIN"),
+  requirePermission("users.create"),
   validateMiddleware(registerSchema),
   register
 );
@@ -60,9 +59,10 @@ router.post("/logout-all-sessions", authMiddleware, logoutAllSessions);
 
 router.get("/sessions", authMiddleware, getActiveSessions);
 
-router.post("/change-password",
-  authMiddleware, 
-  validateMiddleware(changePasswordSchema), 
+router.post(
+  "/change-password",
+  authMiddleware,
+  validateMiddleware(changePasswordSchema),
   changePassword
 );
 

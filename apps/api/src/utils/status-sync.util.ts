@@ -20,7 +20,7 @@ export const PRODUCTION_STATUS = {
   CLOSED: "CLOSED",
   READY_FOR_DISPATCH: "READY_FOR_DISPATCH",
   DISPATCHED: "DISPATCHED",
-  COMPLETED: "COMPLETED",       // legacy alias for READY_FOR_DISPATCH
+  COMPLETED: "COMPLETED", // legacy alias for READY_FOR_DISPATCH
   CANCELLED: "CANCELLED",
 } as const;
 
@@ -129,8 +129,7 @@ export class StatusSyncService {
     }
 
     const activeWeeklyPrograms = productionOrder.weeklyMachinePrograms.filter(
-      (p: any) =>
-        !["CANCELLED", "COMPLETED"].includes(p.status)
+      (p: any) => !["CANCELLED", "COMPLETED"].includes(p.status)
     );
 
     const totalPlannedQty = activeWeeklyPrograms.reduce((sum: number, p: any) => {
@@ -145,9 +144,9 @@ export class StatusSyncService {
       // No active weekly schedules → revert to READY_FOR_PLANNING
       if (
         currentStatus === "WEEKLY_SCHEDULED" ||
-        currentStatus === "SCHEDULED" ||       // legacy
-        currentStatus === "PLANNED" ||          // legacy
-        currentStatus === "PARTIALLY_PLANNED"   // legacy
+        currentStatus === "SCHEDULED" || // legacy
+        currentStatus === "PLANNED" || // legacy
+        currentStatus === "PARTIALLY_PLANNED" // legacy
       ) {
         newStatus = "READY_FOR_PLANNING";
       }
@@ -176,10 +175,7 @@ export class StatusSyncService {
 
     // Sync linked Sales Order
     if (productionOrder.sourceSalesOrderId) {
-      await this.syncSalesOrderProductionStatus(
-        prismaTx,
-        productionOrder.sourceSalesOrderId
-      );
+      await this.syncSalesOrderProductionStatus(prismaTx, productionOrder.sourceSalesOrderId);
     }
   }
 
@@ -187,16 +183,13 @@ export class StatusSyncService {
    * Recalculates the Sales Order productionStatus based on its
    * children Production Orders.
    */
-  static async syncSalesOrderProductionStatus(
-    prismaTx: any,
-    sourceSalesOrderId: string
-  ) {
+  static async syncSalesOrderProductionStatus(prismaTx: any, sourceSalesOrderId: string) {
     let salesOrderIdToUpdate: number | null = null;
 
     if (!isNaN(Number(sourceSalesOrderId))) {
       salesOrderIdToUpdate = Number(sourceSalesOrderId);
     } else {
-      const so = await prismaTx.salesOrder.findUnique({
+      const so = await prismaTx.salesOrder.findFirst({
         where: { orderNo: sourceSalesOrderId },
       });
       if (so) salesOrderIdToUpdate = so.id;
@@ -222,7 +215,17 @@ export class StatusSyncService {
 
     if (statuses.some((s: string) => s === "DISPATCHED")) {
       newSoStatus = "DISPATCHED";
-    } else if (statuses.some((s: string) => s === "READY_FOR_DISPATCH" || s === "PARTIAL_COMPLETED" || s === "COMPLETED_WITH_SHORTFALL" || s === "CLOSED" || s === "DISPATCHED" || s === "COMPLETED")) {
+    } else if (
+      statuses.some(
+        (s: string) =>
+          s === "READY_FOR_DISPATCH" ||
+          s === "PARTIAL_COMPLETED" ||
+          s === "COMPLETED_WITH_SHORTFALL" ||
+          s === "CLOSED" ||
+          s === "DISPATCHED" ||
+          s === "COMPLETED"
+      )
+    ) {
       newSoStatus = "READY_FOR_DISPATCH";
     } else if (statuses.some((s: string) => s === "POST_PRODUCTION")) {
       newSoStatus = "IN_PROGRESS";

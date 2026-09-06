@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiResponse } from "../../utils/ApiResponse";
@@ -8,7 +9,7 @@ import { getIO } from "../../socket/socket";
 
 class ExpenseController {
   private async getCompanyId(): Promise<string> {
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "Internal Server Error: No company found in the system");
     }
@@ -39,9 +40,7 @@ class ExpenseController {
 
     getIO().emit("expense:created", expense);
 
-    return res.status(201).json(
-      new ApiResponse("Expense created successfully", expense)
-    );
+    return res.status(201).json(new ApiResponse("Expense created successfully", expense));
   });
 
   findAll = asyncHandler(async (req: Request, res: Response) => {
@@ -60,9 +59,7 @@ class ExpenseController {
       status,
     });
 
-    return res.status(200).json(
-      new ApiResponse("Expenses fetched successfully", result)
-    );
+    return res.status(200).json(new ApiResponse("Expenses fetched successfully", result));
   });
 
   findOne = asyncHandler(async (req: Request, res: Response) => {
@@ -71,9 +68,7 @@ class ExpenseController {
 
     const expense = await expenseService.getExpenseById(id, companyId);
 
-    return res.status(200).json(
-      new ApiResponse("Expense fetched successfully", expense)
-    );
+    return res.status(200).json(new ApiResponse("Expense fetched successfully", expense));
   });
 
   update = asyncHandler(async (req: Request, res: Response) => {
@@ -84,9 +79,7 @@ class ExpenseController {
 
     getIO().emit("expense:updated", expense);
 
-    return res.status(200).json(
-      new ApiResponse("Expense updated successfully", expense)
-    );
+    return res.status(200).json(new ApiResponse("Expense updated successfully", expense));
   });
 
   delete = asyncHandler(async (req: Request, res: Response) => {
@@ -97,18 +90,16 @@ class ExpenseController {
 
     getIO().emit("expense:deleted", { id });
 
-    return res.status(200).json(
-      new ApiResponse("Expense deleted successfully")
-    );
+    return res.status(200).json(new ApiResponse("Expense deleted successfully"));
   });
 
   getNextCode = asyncHandler(async (req: Request, res: Response) => {
     const companyId = await this.getCompanyId();
     const nextCode = await expenseService.getNextExpenseNumber(companyId);
 
-    return res.status(200).json(
-      new ApiResponse("Next expense code fetched successfully", nextCode)
-    );
+    return res
+      .status(200)
+      .json(new ApiResponse("Next expense code fetched successfully", nextCode));
   });
 }
 

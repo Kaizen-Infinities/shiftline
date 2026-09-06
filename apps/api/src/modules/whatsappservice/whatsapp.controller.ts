@@ -1,3 +1,4 @@
+import { requireTenantId, withoutTenant } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 import { WhatsappService } from "./whatsapp.service";
 import { asyncHandler } from "../../utils/asyncHandler";
@@ -11,7 +12,7 @@ class WhatsappController {
    */
   getConfig = asyncHandler(async (req: Request, res: Response) => {
     // Get the default company
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "No company found in the system. Please set up a company first.");
     }
@@ -21,9 +22,7 @@ class WhatsappController {
     });
 
     if (!config) {
-      return res.status(200).json(
-        new ApiResponse("No WhatsApp configuration found", null)
-      );
+      return res.status(200).json(new ApiResponse("No WhatsApp configuration found", null));
     }
 
     return res.status(200).json(
@@ -45,11 +44,14 @@ class WhatsappController {
     const { phoneNumberId, wabaId, businessPhone, accessToken, webhookVerifyToken } = req.body;
 
     if (!phoneNumberId || !wabaId || !businessPhone || !accessToken) {
-      throw new ApiError(400, "All fields (phoneNumberId, wabaId, businessPhone, accessToken) are required.");
+      throw new ApiError(
+        400,
+        "All fields (phoneNumberId, wabaId, businessPhone, accessToken) are required."
+      );
     }
 
     // Get the default company
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "No company found in the system. Please set up a company first.");
     }
@@ -123,15 +125,16 @@ class WhatsappController {
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
 
-    // Get the default company and its WhatsApp config
-    const company = await prisma.company.findFirst();
-    if (company) {
-      const config = await prisma.whatsappConfig.findUnique({
-        where: { companyId: company.id },
-      });
-
-      if (mode === "subscribe" && token === config?.webhookVerifyToken) {
-        // Validation successful
+    // Public Meta callback: no user, so no tenant in context. The verify token
+    // identifies the tenant's WhatsApp configuration.
+    if (mode === "subscribe" && typeof token === "string" && token.length > 0) {
+      const config = await withoutTenant(() =>
+        prisma.whatsappConfig.findFirst({
+          where: { webhookVerifyToken: token },
+          select: { id: true },
+        })
+      );
+      if (config) {
         return res.status(200).send(challenge);
       }
     }
@@ -146,8 +149,17 @@ class WhatsappController {
   handleWebhookEvent = asyncHandler(async (req: Request, res: Response) => {
     const body = req.body;
 
-    // Log the incoming webhook event (for debugging)
-    console.log("Received WhatsApp Webhook Event:", JSON.stringify(body, null, 2));
+    // Tenant resolution for inbound events (by phone_number_id) arrives with the
+    // WhatsApp inbox work; until then events are acknowledged and not stored.
+    const phoneNumberId = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    if (phoneNumberId) {
+      await withoutTenant(() =>
+        prisma.whatsappConfig.findFirst({
+          where: { phoneNumberId: String(phoneNumberId) },
+          select: { companyId: true },
+        })
+      );
+    }
 
     // Acknowledge receipt of the webhook event
     return res.sendStatus(200);

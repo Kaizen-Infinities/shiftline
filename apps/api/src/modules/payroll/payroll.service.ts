@@ -1,13 +1,14 @@
-import { prisma } from '../../config/prisma';
-import { ApiError } from '../../utils/ApiError';
-import { getIO } from '../../socket/socket';
+import { requireTenantId } from "../../lib/tenant-context";
+import { prisma } from "../../config/prisma";
+import { ApiError } from "../../utils/ApiError";
+import { getIO } from "../../socket/socket";
 
 /** Convert a period string (YYYY-MM or YYYY-Www) to a date range { start, end } in YYYY-MM-DD */
 function periodToDateRange(period: string): { start: string; end: string } {
   if (/^\d{4}-\d{2}$/.test(period)) {
-    const [y, m] = period.split('-').map(Number);
+    const [y, m] = period.split("-").map(Number);
     const last = new Date(y, m, 0).getDate();
-    return { start: `${period}-01`, end: `${period}-${String(last).padStart(2, '0')}` };
+    return { start: `${period}-01`, end: `${period}-${String(last).padStart(2, "0")}` };
   }
   const match = period.match(/^(\d{4})-W(\d{2})$/);
   if (!match) return { start: period, end: period };
@@ -22,8 +23,8 @@ function periodToDateRange(period: string): { start: string; end: string } {
   sun.setDate(mon.getDate() + 6);
   const fmt = (d: Date) => {
     const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   };
   return { start: fmt(mon), end: fmt(sun) };
@@ -31,12 +32,12 @@ function periodToDateRange(period: string): { start: string; end: string } {
 
 /** Helper to compute ISO week string e.g. "2026-W32" for a date "YYYY-MM-DD" */
 function getIsoWeekPeriod(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
+  const d = new Date(dateStr + "T00:00:00");
   const dow = d.getDay() || 7;
   d.setDate(d.getDate() + 4 - dow);
   const yearStart = new Date(d.getFullYear(), 0, 1);
-  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
 /** Helper to compute all ISO week periods that fall within a given month YYYY-MM */
@@ -44,14 +45,14 @@ function getIsoWeeksForMonth(year: number, month: number): string[] {
   const daysInMonth = new Date(year, month, 0).getDate();
   const weeks = new Set<string>();
   for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     weeks.add(getIsoWeekPeriod(dateStr));
   }
   return Array.from(weeks);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type SalaryType = 'FIXED_MONTHLY' | 'PF_MONTHLY' | 'CASH_MONTHLY' | 'DAILY_WEEKLY' | 'WEEKLY';
+type SalaryType = "FIXED_MONTHLY" | "PF_MONTHLY" | "CASH_MONTHLY" | "DAILY_WEEKLY" | "WEEKLY";
 
 interface AttendanceInput {
   employeeId: number;
@@ -60,7 +61,7 @@ interface AttendanceInput {
   halfDays: number;
   otHours: number;
   lateMinutes: number;
-  dailyLateMinutes?: number[];  // per-day late minutes for per-day slab deduction
+  dailyLateMinutes?: number[]; // per-day late minutes for per-day slab deduction
   permissionMinutes: number;
   advance: number;
 }
@@ -94,7 +95,7 @@ interface PayrollSettings {
     fromMinutes: number;
     toMinutes: number;
     amount: number;
-    action?: 'DEDUCT_AMOUNT' | 'HALF_DAY' | 'HALF_DAY_PLUS_OT';
+    action?: "DEDUCT_AMOUNT" | "HALF_DAY" | "HALF_DAY_PLUS_OT";
     otHours?: number;
   }>;
   professionalTaxEnabled: boolean;
@@ -130,9 +131,13 @@ function applyRounding(value: number): number {
 }
 
 // toMinutes = 0 means "and above" (open-ended upper bound)
-function lookupSlab(minutes: number, slabs: Array<{ fromMinutes: number; toMinutes: number; amount: number }>): number {
+function lookupSlab(
+  minutes: number,
+  slabs: Array<{ fromMinutes: number; toMinutes: number; amount: number }>
+): number {
   for (const slab of slabs) {
-    if (minutes >= slab.fromMinutes && (slab.toMinutes === 0 || minutes <= slab.toMinutes)) return slab.amount;
+    if (minutes >= slab.fromMinutes && (slab.toMinutes === 0 || minutes <= slab.toMinutes))
+      return slab.amount;
   }
   return 0;
 }
@@ -144,7 +149,10 @@ function applyPermissionSlab(
 ): number {
   if (permissionMinutes <= 0) return 0;
   for (const slab of slabs) {
-    if (permissionMinutes >= slab.fromMinutes && (slab.toMinutes === 0 || permissionMinutes <= slab.toMinutes)) {
+    if (
+      permissionMinutes >= slab.fromMinutes &&
+      (slab.toMinutes === 0 || permissionMinutes <= slab.toMinutes)
+    ) {
       return slab.amount;
     }
   }
@@ -153,7 +161,7 @@ function applyPermissionSlab(
 
 function getFirstNonEmptyString(...values: Array<string | null | undefined>): string | null {
   for (const val of values) {
-    if (typeof val === 'string' && val.trim().length > 0) {
+    if (typeof val === "string" && val.trim().length > 0) {
       return val.trim();
     }
   }
@@ -178,16 +186,16 @@ export function getEffectivePayrollConfig(emp: any) {
     };
   }
 
-  let salaryType = 'FIXED_MONTHLY';
-  if (emp.salaryType === 'daily') {
-    salaryType = 'DAILY_WEEKLY';
-  } else if (emp.salaryType === 'weekly') {
+  let salaryType = "FIXED_MONTHLY";
+  if (emp.salaryType === "daily") {
+    salaryType = "DAILY_WEEKLY";
+  } else if (emp.salaryType === "weekly") {
     // Weekly salary employees get their own independent calculation path
-    salaryType = 'WEEKLY';
+    salaryType = "WEEKLY";
   } else if (emp.pfApplicable) {
-    salaryType = 'PF_MONTHLY';
-  } else if (emp.salaryType === 'monthly') {
-    salaryType = 'FIXED_MONTHLY';
+    salaryType = "PF_MONTHLY";
+  } else if (emp.salaryType === "monthly") {
+    salaryType = "FIXED_MONTHLY";
   }
 
   const grossSalary = Number(emp.grossSalary || emp.basicSalary || 0);
@@ -213,7 +221,7 @@ export function getEffectivePayrollConfig(emp: any) {
     pfApplicable: emp.pfApplicable ?? true,
     esiApplicable: emp.esiApplicable ?? true,
     professionalTax: emp.professionalTax ?? true,
-    paymentMode: emp.accountNumber ? 'BANK' : 'CASH',
+    paymentMode: emp.accountNumber ? "BANK" : "CASH",
   };
 }
 
@@ -225,8 +233,8 @@ function computeResult(
   loanRecoveryAmount = 0,
   otherDeductionAmount = 0,
   salaryAdvanceOverride = 0,
-  runType: 'MONTHLY' | 'WEEKLY' = 'MONTHLY',
-  monthCalendarDays = 0   // actual month's days (28-31) for MONTHLY_BY_CALENDAR formula
+  runType: "MONTHLY" | "WEEKLY" = "MONTHLY",
+  monthCalendarDays = 0 // actual month's days (28-31) for MONTHLY_BY_CALENDAR formula
 ) {
   const pc = getEffectivePayrollConfig(emp);
   if (!pc) return null;
@@ -244,17 +252,17 @@ function computeResult(
   let formulaDivisor = calDaysForFormula > 0 ? calDaysForFormula : 30;
 
   const st = String(salaryType).toUpperCase();
-  if (st === 'DAILY_WEEKLY' || st === 'DAILY') {
+  if (st === "DAILY_WEEKLY" || st === "DAILY") {
     if (monthlySalary === 0) {
       dailyRate = dailySalaryStored || 0;
       formulaDivisor = 1;
-    } else if (runType === 'WEEKLY') {
+    } else if (runType === "WEEKLY") {
       formulaDivisor = 6;
       dailyRate = monthlySalary / formulaDivisor;
     } else {
       dailyRate = monthlySalary / formulaDivisor;
     }
-  } else if (st === 'WEEKLY') {
+  } else if (st === "WEEKLY") {
     formulaDivisor = 6;
     dailyRate = monthlySalary / formulaDivisor;
   } else {
@@ -285,23 +293,23 @@ function computeResult(
   // Monthly types: full month salary minus LOP deduction → monthlySalary − (lopDays × dailyRate)
   // ─────────────────────────────────────────────────────────────────────────────
   let earnedSalary: number;
-  if (salaryType === 'DAILY_WEEKLY') {
+  if (salaryType === "DAILY_WEEKLY") {
     // Daily wage workers: pay only for days actually worked
     earnedSalary = dailyRate * presentDays;
-  } else if (salaryType === 'WEEKLY') {
+  } else if (salaryType === "WEEKLY") {
     // Weekly salary: 6 working days baseline.
     // If presentDays > 6 (e.g. Sunday worked = 7 days), add extra day's salary (1 × dailyRate).
     // If presentDays < 6 (e.g. absent), deduct LOP days.
     if (presentDays > 6) {
       const extraDays = presentDays - 6;
-      earnedSalary = monthlySalary + (extraDays * dailyRate);
+      earnedSalary = monthlySalary + extraDays * dailyRate;
     } else {
       const netLopDays = Math.max(0, 6 - presentDays);
-      earnedSalary = monthlySalary - (netLopDays * dailyRate);
+      earnedSalary = monthlySalary - netLopDays * dailyRate;
     }
   } else {
     // Monthly: full month salary minus LOP deductions
-    earnedSalary = monthlySalary - (lopDays * dailyRate);
+    earnedSalary = monthlySalary - lopDays * dailyRate;
   }
   earnedSalary = Math.max(0, earnedSalary);
 
@@ -327,17 +335,24 @@ function computeResult(
   // ─────────────────────────────────────────────────────────────────────────────
   const isPfApp = pc.pfApplicable ?? (emp as any).pfApplicable ?? true;
   const hasPf = isPfApp && (settings.pfEnabled ?? true);
-  let pfWage = 0, employeePf = 0, employerPf = 0;
+  let pfWage = 0,
+    employeePf = 0,
+    employerPf = 0;
   if (hasPf) {
     const maxPfCap = Number(settings.maxPfWage) > 0 ? Number(settings.maxPfWage) : 15000;
-    const baseWage = settings.pfWageFormula === 'GROSS'
-      ? grossSalary
-      : (basicSalary > 0 ? basicSalary : Math.round(grossSalary * 0.5));
+    const baseWage =
+      settings.pfWageFormula === "GROSS"
+        ? grossSalary
+        : basicSalary > 0
+          ? basicSalary
+          : Math.round(grossSalary * 0.5);
     pfWage = Math.min(baseWage, maxPfCap);
-    const empPfRate = Number(settings.employeePfPercent) > 0 ? Number(settings.employeePfPercent) : 12;
-    const emrPfRate = Number(settings.employerPfPercent) > 0 ? Number(settings.employerPfPercent) : 12;
-    employeePf = Math.round(pfWage * empPfRate / 100);
-    employerPf = Math.round(pfWage * emrPfRate / 100);
+    const empPfRate =
+      Number(settings.employeePfPercent) > 0 ? Number(settings.employeePfPercent) : 12;
+    const emrPfRate =
+      Number(settings.employerPfPercent) > 0 ? Number(settings.employerPfPercent) : 12;
+    employeePf = Math.round((pfWage * empPfRate) / 100);
+    employerPf = Math.round((pfWage * emrPfRate) / 100);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -347,12 +362,15 @@ function computeResult(
   const isEsiApp = pc.esiApplicable ?? (emp as any).esiApplicable ?? true;
   const maxEsiCap = Number(settings.maxEsiSalary) > 0 ? Number(settings.maxEsiSalary) : 21000;
   const hasEsi = isEsiApp && (settings.esiEnabled ?? true) && grossSalary <= maxEsiCap;
-  let employeeEsi = 0, employerEsi = 0;
+  let employeeEsi = 0,
+    employerEsi = 0;
   if (hasEsi) {
-    const empEsiRate = Number(settings.employeeEsiPercent) > 0 ? Number(settings.employeeEsiPercent) : 0.75;
-    const emrEsiRate = Number(settings.employerEsiPercent) > 0 ? Number(settings.employerEsiPercent) : 3.25;
-    employeeEsi = Math.round(grossSalary * empEsiRate / 100);
-    employerEsi = Math.round(grossSalary * emrEsiRate / 100);
+    const empEsiRate =
+      Number(settings.employeeEsiPercent) > 0 ? Number(settings.employeeEsiPercent) : 0.75;
+    const emrEsiRate =
+      Number(settings.employerEsiPercent) > 0 ? Number(settings.employerEsiPercent) : 3.25;
+    employeeEsi = Math.round((grossSalary * empEsiRate) / 100);
+    employerEsi = Math.round((grossSalary * emrEsiRate) / 100);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -365,7 +383,7 @@ function computeResult(
   // ─────────────────────────────────────────────────────────────────────────────
   let professionalTax = 0;
   const isPtApp = (emp as any).professionalTax ?? (pc as any)?.professionalTax ?? false;
-  if ((settings.professionalTaxEnabled || isPtApp) && runType === 'MONTHLY') {
+  if ((settings.professionalTaxEnabled || isPtApp) && runType === "MONTHLY") {
     const ptBasis = monthlySalary; // always use monthly salary as PT slab basis
     if (Number(settings.professionalTaxAmount) > 0) {
       professionalTax = Number(settings.professionalTaxAmount);
@@ -382,7 +400,8 @@ function computeResult(
   // ─────────────────────────────────────────────────────────────────────────────
   // STEP 9 — Per-minute rate (shared by Late & Permission deduction fallback)
   // ─────────────────────────────────────────────────────────────────────────────
-  const workingMins = (settings.defaultWorkingHoursPerDay > 0 ? settings.defaultWorkingHoursPerDay : 8) * 60;
+  const workingMins =
+    (settings.defaultWorkingHoursPerDay > 0 ? settings.defaultWorkingHoursPerDay : 8) * 60;
   const perMinuteRate = dailyRate / workingMins;
 
   // ─ Late entry deduction ─
@@ -397,7 +416,9 @@ function computeResult(
         if (settings.lateEntrySlabs?.length > 0) {
           lateEntryDeduction += lookupSlab(dayLate, settings.lateEntrySlabs);
         } else {
-          throw new Error(`Late Entry Deduction Slabs are not configured. Please add them in Payroll Settings before running payroll.`);
+          throw new Error(
+            `Late Entry Deduction Slabs are not configured. Please add them in Payroll Settings before running payroll.`
+          );
         }
       }
     }
@@ -417,24 +438,27 @@ function computeResult(
   // salaryAdvanceOverride is loaded server-side from the SalaryAdvance table filtered by period.
   // att.advance comes from the frontend attendance payload — ignored here to prevent double-counting.
   const totalDeductions =
-    employeePf + employeeEsi + professionalTax +
-    lateEntryDeduction + permissionDeduction +
-    salaryAdvanceOverride + loanRecoveryAmount + otherDeductionAmount;
+    employeePf +
+    employeeEsi +
+    professionalTax +
+    lateEntryDeduction +
+    permissionDeduction +
+    salaryAdvanceOverride +
+    loanRecoveryAmount +
+    otherDeductionAmount;
 
   // ─ Net salary ─
   // For WEEKLY runs: allow negative net salary when salary advance exceeds earned salary.
   // The payslip will display a negative balance — employee owes the difference.
   // For MONTHLY runs: clamp at 0 (excess advance carries forward to next period).
   const rawNet = grossSalary - totalDeductions;
-  const netSalary = applyRounding(
-    runType === 'WEEKLY' ? rawNet : Math.max(0, rawNet)
-  );
+  const netSalary = applyRounding(runType === "WEEKLY" ? rawNet : Math.max(0, rawNet));
 
   // ─ Variance detection (>20% deviation vs monthly salary for cash workers) ─
   let hasVariance = false;
   let varianceNote: string | undefined;
-  if (salaryType === 'CASH_MONTHLY' && monthlySalary > 0) {
-    const expectedNet = monthlySalary - (lopDays * dailyRate);
+  if (salaryType === "CASH_MONTHLY" && monthlySalary > 0) {
+    const expectedNet = monthlySalary - lopDays * dailyRate;
     const deviation = Math.abs(netSalary - expectedNet) / expectedNet;
     if (deviation > 0.2) {
       hasVariance = true;
@@ -452,7 +476,7 @@ function computeResult(
     employeeId: emp.id,
     employeeCode: emp.empCode,
     employeeName: emp.fullName,
-    department: emp.department?.name ?? '',
+    department: emp.department?.name ?? "",
     salaryType,
     totalDays,
     presentDays,
@@ -490,10 +514,8 @@ function computeResult(
   };
 }
 
-
 // ─── Service class ────────────────────────────────────────────────────────────
 class PayrollService {
-
   // ── Config ──────────────────────────────────────────────────────────────────
   async getConfig(companyId: string) {
     let config = await prisma.payrollConfig.findUnique({ where: { companyId } });
@@ -511,7 +533,7 @@ class PayrollService {
       update: data,
       create: { companyId, ...data },
     });
-    getIO().emit('payroll:config:updated', config);
+    getIO().emit("payroll:config:updated", config);
     return config;
   }
 
@@ -523,9 +545,20 @@ class PayrollService {
   async upsertEmployeePayrollConfig(employeeId: bigint, data: Record<string, unknown>) {
     const safe: Record<string, unknown> = {};
     const allowed = [
-      'salaryType', 'monthlySalary', 'basicSalary', 'da', 'hra',
-      'otherAllowance', 'cashInHand', 'dailySalary', 'bankAccount', 'ifscCode',
-      'bankName', 'pfNumber', 'esiNumber', 'paymentMode',
+      "salaryType",
+      "monthlySalary",
+      "basicSalary",
+      "da",
+      "hra",
+      "otherAllowance",
+      "cashInHand",
+      "dailySalary",
+      "bankAccount",
+      "ifscCode",
+      "bankName",
+      "pfNumber",
+      "esiNumber",
+      "paymentMode",
     ];
     for (const key of allowed) {
       if (data[key] !== undefined) safe[key] = data[key];
@@ -534,7 +567,7 @@ class PayrollService {
     const cfg = await prisma.employeePayrollConfig.upsert({
       where: { employeeId },
       update: safe,
-      create: { employeeId, salaryType: 'CASH_MONTHLY', monthlySalary: 0, basicSalary: 0, ...safe },
+      create: { employeeId, salaryType: "CASH_MONTHLY", monthlySalary: 0, basicSalary: 0, ...safe },
     });
 
     // Keep Employee table in sync
@@ -549,33 +582,35 @@ class PayrollService {
     if (data.esiNumber !== undefined) empUpdate.esiNumber = data.esiNumber || null;
 
     if (Object.keys(empUpdate).length > 0) {
-      await prisma.employee.update({
-        where: { id: employeeId },
-        data: empUpdate,
-      }).catch(() => { });
+      await prisma.employee
+        .update({
+          where: { id: employeeId },
+          data: empUpdate,
+        })
+        .catch(() => {});
     }
 
-    getIO().emit('payroll:employee:updated', cfg);
+    getIO().emit("payroll:employee:updated", cfg);
     return cfg;
   }
 
   async listEmployeesWithPayroll(category?: string) {
     const employees = await prisma.employee.findMany({
-      where: { status: 'active' },
+      where: { status: "active" },
       include: {
         payrollConfig: true,
         department: { select: { name: true } },
       },
-      orderBy: { empCode: 'asc' },
+      orderBy: { empCode: "asc" },
     });
 
-    const enriched = employees.map(e => ({
+    const enriched = employees.map((e) => ({
       ...e,
       payrollConfig: getEffectivePayrollConfig(e),
     }));
 
-    if (category && category !== 'ALL') {
-      return enriched.filter(e => e.payrollConfig?.salaryType === category);
+    if (category && category !== "ALL") {
+      return enriched.filter((e) => e.payrollConfig?.salaryType === category);
     }
     return enriched;
   }
@@ -590,35 +625,39 @@ class PayrollService {
           ...(employeeId ? { employeeId } : {}),
         },
         include: { shift: { select: { id: true, shiftCode: true, shiftName: true } } },
-        orderBy: [{ employeeId: 'asc' }, { date: 'asc' }],
+        orderBy: [{ employeeId: "asc" }, { date: "asc" }],
       });
     } else {
       const { start, end } = periodToDateRange(period);
       return prisma.attendanceRecord.findMany({
         where: {
-          OR: [
-            { period },
-            { date: { gte: start, lte: end } }
-          ],
+          OR: [{ period }, { date: { gte: start, lte: end } }],
           ...(employeeId ? { employeeId } : {}),
         },
         include: { shift: { select: { id: true, shiftCode: true, shiftName: true } } },
-        orderBy: [{ employeeId: 'asc' }, { date: 'asc' }],
+        orderBy: [{ employeeId: "asc" }, { date: "asc" }],
       });
     }
   }
 
-  async bulkUpsertAttendance(records: Array<{
-    employeeId: bigint; date: string; period: string;
-    status: string; otHours: number; lateMinutes: number;
-    permissionMinutes: number; salaryAdvance: number;
-    shiftId?: number | null;
-  }>) {
+  async bulkUpsertAttendance(
+    records: Array<{
+      employeeId: bigint;
+      date: string;
+      period: string;
+      status: string;
+      otHours: number;
+      lateMinutes: number;
+      permissionMinutes: number;
+      salaryAdvance: number;
+      shiftId?: number | null;
+    }>
+  ) {
     // Determine if this is a monthly or weekly save based on the period format
     const isMonthly = records.length > 0 && /^\d{4}-\d{2}$/.test(records[0].period);
 
     const allPeriodsToCheck = new Set<string>();
-    records.forEach(r => {
+    records.forEach((r) => {
       if (r.period) allPeriodsToCheck.add(r.period);
       if (r.date) {
         // Only check locks matching the same type as the save
@@ -633,33 +672,43 @@ class PayrollService {
     const lockedRuns = await prisma.payrollRun.findMany({
       where: {
         period: { in: Array.from(allPeriodsToCheck) },
-        status: { in: ['APPROVED', 'LOCKED'] }
-      }
+        status: { in: ["APPROVED", "LOCKED"] },
+      },
     });
 
     if (lockedRuns.length > 0) {
-      const lockedPeriodSet = new Set(lockedRuns.map(r => r.period));
-      const lockedRecords = records.filter(r => {
+      const lockedPeriodSet = new Set(lockedRuns.map((r) => r.period));
+      const lockedRecords = records.filter((r) => {
         if (isMonthly) {
-          const monthP = r.date ? r.date.slice(0, 7) : '';
+          const monthP = r.date ? r.date.slice(0, 7) : "";
           return lockedPeriodSet.has(r.period) || lockedPeriodSet.has(monthP);
         } else {
-          const weekP = r.date ? getIsoWeekPeriod(r.date) : '';
+          const weekP = r.date ? getIsoWeekPeriod(r.date) : "";
           return lockedPeriodSet.has(r.period) || lockedPeriodSet.has(weekP);
         }
       });
 
       if (lockedRecords.length > 0) {
-        const periodsStr = Array.from(new Set(lockedRuns.map(r => r.period))).join(', ');
-        throw new Error(`Cannot edit attendance for period(s) ${periodsStr} because payroll has already been approved or locked.`);
+        const periodsStr = Array.from(new Set(lockedRuns.map((r) => r.period))).join(", ");
+        throw new Error(
+          `Cannot edit attendance for period(s) ${periodsStr} because payroll has already been approved or locked.`
+        );
       }
     }
 
-    const ops = records.map(r => {
+    const ops = records.map((r) => {
       const { shiftId, ...rest } = r;
       return prisma.attendanceRecord.upsert({
         where: { employeeId_date: { employeeId: r.employeeId, date: r.date } },
-        update: { status: r.status, otHours: r.otHours, lateMinutes: r.lateMinutes, permissionMinutes: r.permissionMinutes, salaryAdvance: r.salaryAdvance, period: r.period, shiftId: shiftId ?? null },
+        update: {
+          status: r.status,
+          otHours: r.otHours,
+          lateMinutes: r.lateMinutes,
+          permissionMinutes: r.permissionMinutes,
+          salaryAdvance: r.salaryAdvance,
+          period: r.period,
+          shiftId: shiftId ?? null,
+        },
         create: { ...rest, shiftId: shiftId ?? null },
       });
     });
@@ -670,7 +719,7 @@ class PayrollService {
     if (entries.length === 0) return 0;
     const result = await prisma.attendanceRecord.deleteMany({
       where: {
-        OR: entries.map(e => ({
+        OR: entries.map((e) => ({
           employeeId: e.employeeId,
           date: e.date,
         })),
@@ -680,14 +729,23 @@ class PayrollService {
   }
 
   // ── Payroll Run ──────────────────────────────────────────────────────────────
-  async listRuns(opts: { period?: string; type?: string; status?: string; year?: string; month?: string; week?: string; page: number; limit: number }) {
+  async listRuns(opts: {
+    period?: string;
+    type?: string;
+    status?: string;
+    year?: string;
+    month?: string;
+    week?: string;
+    page: number;
+    limit: number;
+  }) {
     const where: Record<string, unknown> = {};
     if (opts.type) where.type = opts.type;
     if (opts.status) where.status = opts.status;
 
     if (opts.period) {
       if (/^\d{4}-\d{2}$/.test(opts.period)) {
-        const [yearStr, monthStr] = opts.period.split('-');
+        const [yearStr, monthStr] = opts.period.split("-");
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthStr, 10);
         const startOfMonth = new Date(year, month - 1, 1);
@@ -704,16 +762,21 @@ class PayrollService {
         where.period = opts.period;
       }
     } else {
-      const year = opts.year && opts.year !== 'ALL' ? opts.year : undefined;
-      const month = opts.month && opts.month !== 'ALL' ? opts.month.padStart(2, '0') : undefined;
-      const week = opts.week && opts.week !== 'ALL' ? (opts.week.startsWith('W') ? opts.week : `W${opts.week.padStart(2, '0')}`) : undefined;
+      const year = opts.year && opts.year !== "ALL" ? opts.year : undefined;
+      const month = opts.month && opts.month !== "ALL" ? opts.month.padStart(2, "0") : undefined;
+      const week =
+        opts.week && opts.week !== "ALL"
+          ? opts.week.startsWith("W")
+            ? opts.week
+            : `W${opts.week.padStart(2, "0")}`
+          : undefined;
 
       if (year && week) {
         where.period = `${year}-${week}`;
       } else if (week) {
         where.period = { contains: `-${week}` };
       } else if (year && month) {
-        if (opts.type === 'WEEKLY') {
+        if (opts.type === "WEEKLY") {
           const yNum = parseInt(year, 10);
           const mNum = parseInt(month, 10);
           const monthIsoWeeks = getIsoWeeksForMonth(yNum, mNum);
@@ -735,8 +798,8 @@ class PayrollService {
     const [runs, total] = await Promise.all([
       prisma.payrollRun.findMany({
         where,
-        include: { results: { orderBy: { employeeCode: 'asc' }, include: { employee: true } } },
-        orderBy: { createdAt: 'desc' },
+        include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
+        orderBy: { createdAt: "desc" },
         skip: (opts.page - 1) * opts.limit,
         take: opts.limit,
       }),
@@ -748,15 +811,15 @@ class PayrollService {
   async getRun(id: number) {
     const run = await prisma.payrollRun.findUnique({
       where: { id },
-      include: { results: { orderBy: { employeeCode: 'asc' }, include: { employee: true } } },
+      include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
     });
-    if (!run) throw new ApiError(404, 'Payroll run not found');
+    if (!run) throw new ApiError(404, "Payroll run not found");
     return run;
   }
 
   async computeRun(opts: {
     period: string;
-    type: 'MONTHLY' | 'WEEKLY';
+    type: "MONTHLY" | "WEEKLY";
     employeeCategory: string;
     calendarDays: number;
     attendance: AttendanceInput[];
@@ -771,7 +834,7 @@ class PayrollService {
         period: opts.period,
         type: opts.type,
         employeeCategory: opts.employeeCategory,
-        status: { in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'LOCKED', 'COMPLETED'] },
+        status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED", "LOCKED", "COMPLETED"] },
       },
     });
 
@@ -817,7 +880,7 @@ class PayrollService {
     // 2. Load employees
     const rawEmployees = await prisma.employee.findMany({
       where: {
-        status: 'active',
+        status: "active",
       },
       include: {
         payrollConfig: true,
@@ -826,25 +889,30 @@ class PayrollService {
     });
 
     const employees = rawEmployees
-      .map(e => ({
+      .map((e) => ({
         ...e,
         payrollConfig: getEffectivePayrollConfig(e),
       }))
-      .filter(e => {
-        const isWeekly = e.payrollConfig?.salaryType === 'DAILY_WEEKLY'
-          || e.payrollConfig?.salaryType === 'WEEKLY'
-          || (e as any).salaryType === 'daily'
-          || (e as any).salaryType === 'weekly';
-        if (opts.type === 'WEEKLY' && !isWeekly) return false;
-        if (opts.type === 'MONTHLY' && isWeekly) return false;
-        if (opts.employeeCategory !== 'ALL' && e.payrollConfig?.salaryType !== opts.employeeCategory) return false;
+      .filter((e) => {
+        const isWeekly =
+          e.payrollConfig?.salaryType === "DAILY_WEEKLY" ||
+          e.payrollConfig?.salaryType === "WEEKLY" ||
+          (e as any).salaryType === "daily" ||
+          (e as any).salaryType === "weekly";
+        if (opts.type === "WEEKLY" && !isWeekly) return false;
+        if (opts.type === "MONTHLY" && isWeekly) return false;
+        if (
+          opts.employeeCategory !== "ALL" &&
+          e.payrollConfig?.salaryType !== opts.employeeCategory
+        )
+          return false;
         return true;
       });
 
     // 3. Load permanent deductions for all employees in one query
     const permanentDeductionRows = await prisma.employeePermanentDeduction.findMany({
       where: {
-        employeeId: { in: employees.map(e => e.id) },
+        employeeId: { in: employees.map((e) => e.id) },
         isActive: true,
       },
     });
@@ -853,7 +921,7 @@ class PayrollService {
     const permanentDeductionMap = new Map<bigint, { loan: number; other: number }>();
     for (const row of permanentDeductionRows) {
       const existing = permanentDeductionMap.get(row.employeeId) ?? { loan: 0, other: 0 };
-      if (row.type === 'LOAN_EMI') {
+      if (row.type === "LOAN_EMI") {
         existing.loan += Number(row.amount);
       } else {
         existing.other += Number(row.amount);
@@ -868,11 +936,11 @@ class PayrollService {
     const attendanceDates = await prisma.attendanceRecord.findMany({
       where: {
         period: opts.period,
-        employeeId: { in: employees.map(e => e.id) },
+        employeeId: { in: employees.map((e) => e.id) },
       },
       select: { date: true },
-      distinct: ['date'],
-      orderBy: { date: 'asc' },
+      distinct: ["date"],
+      orderBy: { date: "asc" },
     });
     let periodStart: string;
     let periodEnd: string;
@@ -896,8 +964,8 @@ class PayrollService {
 
     const salaryAdvanceRows = await prisma.salaryAdvance.findMany({
       where: {
-        employeeId: { in: employees.map(e => e.id) },
-        status: { in: ['PENDING', 'PARTIAL'] },
+        employeeId: { in: employees.map((e) => e.id) },
+        status: { in: ["PENDING", "PARTIAL"] },
         disbursedDate: { lte: new Date(periodEnd) },
       },
     });
@@ -905,10 +973,10 @@ class PayrollService {
     // Also fetch advance deductions in active runs (DRAFT/APPROVED) for prior periods
     const priorResults = await prisma.payrollResult.findMany({
       where: {
-        employeeId: { in: employees.map(e => e.id) },
+        employeeId: { in: employees.map((e) => e.id) },
         payrollRun: {
           period: { lt: opts.period },
-          status: { in: ['DRAFT', 'APPROVED'] },
+          status: { in: ["DRAFT", "APPROVED"] },
         },
         salaryAdvance: { gt: 0 },
       },
@@ -937,36 +1005,49 @@ class PayrollService {
 
     // 4. Emit start
     const runCode = `PR-${opts.period}-${Date.now().toString().slice(-5)}`;
-    io.emit('payroll:computing', { runCode, period: opts.period, total: employees.length });
+    io.emit("payroll:computing", { runCode, period: opts.period, total: employees.length });
 
     // 5. Compute per employee with progress
     const results: ReturnType<typeof computeResult>[] = [];
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i] as EmployeePayrollData;
-      const attInput = opts.attendance.find(a => BigInt(a.employeeId) === emp.id);
+      const attInput = opts.attendance.find((a) => BigInt(a.employeeId) === emp.id);
       if (!attInput) continue;
 
       const permDed = permanentDeductionMap.get(emp.id) ?? { loan: 0, other: 0 };
       const pendingAdvance = salaryAdvanceMap.get(emp.id) ?? 0;
-      const advanceToUse = attInput.advance !== undefined ? Number(attInput.advance) : pendingAdvance;
-      const result = computeResult(emp, attInput, settings, opts.calendarDays, permDed.loan, permDed.other, advanceToUse, opts.type, monthCalendarDays);
+      const advanceToUse =
+        attInput.advance !== undefined ? Number(attInput.advance) : pendingAdvance;
+      const result = computeResult(
+        emp,
+        attInput,
+        settings,
+        opts.calendarDays,
+        permDed.loan,
+        permDed.other,
+        advanceToUse,
+        opts.type,
+        monthCalendarDays
+      );
       if (result) results.push(result);
 
       // Emit per-employee progress
-      io.emit('payroll:progress', {
+      io.emit("payroll:progress", {
         runCode,
         current: i + 1,
         total: employees.length,
         employee: { id: emp.id.toString(), name: emp.fullName, code: emp.empCode },
-        result: result ? {
-          netSalary: result.netSalary,
-          grossSalary: result.grossSalary,
-          hasVariance: result.hasVariance,
-        } : null,
+        result: result
+          ? {
+              netSalary: result.netSalary,
+              grossSalary: result.grossSalary,
+              hasVariance: result.hasVariance,
+            }
+          : null,
       });
 
       // Small async yield so other events can process
-      await new Promise(resolve => setImmediate(resolve));
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
     // 5. Aggregate totals
@@ -984,7 +1065,7 @@ class PayrollService {
           runCode,
           period: opts.period,
           type: opts.type,
-          status: 'DRAFT',
+          status: "DRAFT",
           employeeCategory: opts.employeeCategory,
           calendarDays: opts.calendarDays,
           totalEmployees: results.length,
@@ -999,7 +1080,7 @@ class PayrollService {
       });
 
       await tx.payrollResult.createMany({
-        data: results.map(r => ({
+        data: results.map((r) => ({
           payrollRunId: newRun.id,
           employeeId: r!.employeeId,
           employeeCode: r!.employeeCode,
@@ -1040,12 +1121,12 @@ class PayrollService {
 
       const dbRun = await tx.payrollRun.findUnique({
         where: { id: newRun.id },
-        include: { results: { orderBy: { employeeCode: 'asc' }, include: { employee: true } } },
+        include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
       });
 
       if (dbRun && dbRun.results) {
-        dbRun.results = dbRun.results.map(dbRes => {
-          const comp = results.find(r => r!.employeeId === dbRes.employeeId);
+        dbRun.results = dbRun.results.map((dbRes) => {
+          const comp = results.find((r) => r!.employeeId === dbRes.employeeId);
           if (comp) {
             return {
               ...dbRes,
@@ -1062,14 +1143,14 @@ class PayrollService {
     });
 
     // 7. Emit completed
-    io.emit('payroll:completed', {
+    io.emit("payroll:completed", {
       runCode,
       runId: run!.id,
       period: opts.period,
       totalEmployees: results.length,
       totalGross,
       totalNetSalary,
-      variances: results.filter(r => r!.hasVariance).length,
+      variances: results.filter((r) => r!.hasVariance).length,
     });
 
     return run;
@@ -1077,13 +1158,14 @@ class PayrollService {
 
   async approveRun(id: number, userId: string) {
     const run = await prisma.payrollRun.findUnique({ where: { id } });
-    if (!run) throw new ApiError(404, 'Payroll run not found');
-    if (run.status !== 'DRAFT') throw new ApiError(400, `Run is ${run.status}, can only approve DRAFT runs`);
+    if (!run) throw new ApiError(404, "Payroll run not found");
+    if (run.status !== "DRAFT")
+      throw new ApiError(400, `Run is ${run.status}, can only approve DRAFT runs`);
 
     const updated = await prisma.payrollRun.update({
       where: { id },
-      data: { status: 'APPROVED', approvedById: userId, approvedAt: new Date() },
-      include: { results: { orderBy: { employeeCode: 'asc' }, include: { employee: true } } },
+      data: { status: "APPROVED", approvedById: userId, approvedAt: new Date() },
+      include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
     });
 
     // ── Auto-recover SalaryAdvance records for each employee ─────────────────
@@ -1092,8 +1174,8 @@ class PayrollService {
       if (toRecover <= 0) continue;
 
       const advances = await prisma.salaryAdvance.findMany({
-        where: { employeeId: result.employee.id, status: { in: ['PENDING', 'PARTIAL'] } },
-        orderBy: { disbursedDate: 'asc' },
+        where: { employeeId: result.employee.id, status: { in: ["PENDING", "PARTIAL"] } },
+        orderBy: { disbursedDate: "asc" },
       });
 
       let remaining = toRecover;
@@ -1104,7 +1186,7 @@ class PayrollService {
 
         const recoverNow = Math.min(remaining, outstanding);
         const newRecovered = Number(adv.recoveredAmount) + recoverNow;
-        const newStatus = newRecovered >= Number(adv.amount) ? 'CLEARED' : 'PARTIAL';
+        const newStatus = newRecovered >= Number(adv.amount) ? "CLEARED" : "PARTIAL";
 
         await prisma.salaryAdvance.update({
           where: { id: adv.id },
@@ -1115,19 +1197,20 @@ class PayrollService {
       }
     }
 
-    getIO().emit('payroll:approved', { runId: id, period: run.period, approvedById: userId });
+    getIO().emit("payroll:approved", { runId: id, period: run.period, approvedById: userId });
     return updated;
   }
 
   async lockRun(id: number, userId: string) {
     const run = await prisma.payrollRun.findUnique({ where: { id } });
-    if (!run) throw new ApiError(404, 'Payroll run not found');
-    if (run.status !== 'APPROVED') throw new ApiError(400, `Run is ${run.status}, can only lock APPROVED runs`);
+    if (!run) throw new ApiError(404, "Payroll run not found");
+    if (run.status !== "APPROVED")
+      throw new ApiError(400, `Run is ${run.status}, can only lock APPROVED runs`);
 
     const updated = await prisma.payrollRun.update({
       where: { id },
-      data: { status: 'LOCKED', lockedById: userId, lockedAt: new Date() },
-      include: { results: { orderBy: { employeeCode: 'asc' }, include: { employee: true } } },
+      data: { status: "LOCKED", lockedById: userId, lockedAt: new Date() },
+      include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
     });
 
     // ── Auto-recover SalaryAdvance records for each employee ─────────────────
@@ -1137,8 +1220,8 @@ class PayrollService {
 
       // Load PENDING/PARTIAL advances for this employee, oldest first
       const advances = await prisma.salaryAdvance.findMany({
-        where: { employeeId: result.employee.id, status: { in: ['PENDING', 'PARTIAL'] } },
-        orderBy: { disbursedDate: 'asc' },
+        where: { employeeId: result.employee.id, status: { in: ["PENDING", "PARTIAL"] } },
+        orderBy: { disbursedDate: "asc" },
       });
 
       let remaining = toRecover;
@@ -1149,7 +1232,7 @@ class PayrollService {
 
         const recoverNow = Math.min(remaining, outstanding);
         const newRecovered = Number(adv.recoveredAmount) + recoverNow;
-        const newStatus = newRecovered >= Number(adv.amount) ? 'CLEARED' : 'PARTIAL';
+        const newStatus = newRecovered >= Number(adv.amount) ? "CLEARED" : "PARTIAL";
 
         await prisma.salaryAdvance.update({
           where: { id: adv.id },
@@ -1161,16 +1244,17 @@ class PayrollService {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    getIO().emit('payroll:locked', { runId: id, period: run.period, lockedById: userId });
+    getIO().emit("payroll:locked", { runId: id, period: run.period, lockedById: userId });
     return updated;
   }
 
   async deleteRun(id: number) {
     const run = await prisma.payrollRun.findUnique({ where: { id } });
-    if (!run) throw new ApiError(404, 'Payroll run not found');
-    if (run.status !== 'DRAFT') throw new ApiError(400, 'Cannot delete an approved or locked payroll run');
+    if (!run) throw new ApiError(404, "Payroll run not found");
+    if (run.status !== "DRAFT")
+      throw new ApiError(400, "Cannot delete an approved or locked payroll run");
     await prisma.payrollRun.delete({ where: { id } });
-    getIO().emit('payroll:deleted', { runId: id });
+    getIO().emit("payroll:deleted", { runId: id });
   }
 
   // ── Salary Advance ─────────────────────────────────────────────────────────────
@@ -1183,21 +1267,27 @@ class PayrollService {
         ...(dateTo ? { disbursedDate: { lte: new Date(dateTo) } } : {}),
       },
       include: { employee: { select: { empCode: true, fullName: true } } },
-      orderBy: { disbursedDate: 'desc' },
+      orderBy: { disbursedDate: "desc" },
     });
   }
 
-  async createAdvance(data: { employeeId: bigint; amount: number; disbursedDate: Date; reason?: string }) {
+  async createAdvance(data: {
+    employeeId: bigint;
+    amount: number;
+    disbursedDate: Date;
+    reason?: string;
+  }) {
     return prisma.salaryAdvance.create({
-      data: { ...data, status: 'PENDING' },
+      data: { ...data, status: "PENDING" },
       include: { employee: { select: { empCode: true, fullName: true } } },
     });
   }
 
   async deleteAdvance(id: number) {
     const adv = await prisma.salaryAdvance.findUnique({ where: { id } });
-    if (!adv) throw new ApiError(404, 'Advance not found');
-    if (Number(adv.recoveredAmount) > 0) throw new ApiError(400, 'Cannot delete a partially or fully recovered advance');
+    if (!adv) throw new ApiError(404, "Advance not found");
+    if (Number(adv.recoveredAmount) > 0)
+      throw new ApiError(400, "Cannot delete a partially or fully recovered advance");
     await prisma.salaryAdvance.delete({ where: { id } });
   }
 
@@ -1215,9 +1305,10 @@ class PayrollService {
         },
       },
     });
-    if (!result) throw new ApiError(404, 'Payslip not found');
+    if (!result) throw new ApiError(404, "Payslip not found");
 
     const company = await prisma.company.findFirst({
+      where: { id: requireTenantId() },
       select: {
         companyName: true,
         legalName: true,
@@ -1270,17 +1361,19 @@ class PayrollService {
         bankName: getFirstNonEmptyString(pc?.bankName, emp.bankName),
         accountNumber: getFirstNonEmptyString(pc?.bankAccount, emp.accountNumber),
         ifscCode: getFirstNonEmptyString(pc?.ifscCode, emp.ifscCode),
-        department: emp.department?.name ?? '',
+        department: emp.department?.name ?? "",
         dateOfJoining: emp.dateOfJoining?.toISOString() ?? null,
-        payrollConfig: pc ? {
-          salaryType: pc.salaryType,
-          monthlySalary: Number(pc.monthlySalary),
-          basicSalary: Number(pc.basicSalary),
-          hra: Number(pc.hra),
-          da: Number(pc.da),
-          otherAllowance: Number(pc.otherAllowance),
-          paymentMode: pc.paymentMode,
-        } : null,
+        payrollConfig: pc
+          ? {
+              salaryType: pc.salaryType,
+              monthlySalary: Number(pc.monthlySalary),
+              basicSalary: Number(pc.basicSalary),
+              hra: Number(pc.hra),
+              da: Number(pc.da),
+              otherAllowance: Number(pc.otherAllowance),
+              paymentMode: pc.paymentMode,
+            }
+          : null,
       },
       result: {
         id: result.id,
@@ -1319,8 +1412,6 @@ class PayrollService {
       },
     };
   }
-
 }
 
 export const payrollService = new PayrollService();
-

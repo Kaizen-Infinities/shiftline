@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import salesInvoiceService from "./sales-invoice.service";
@@ -19,7 +20,7 @@ class SalesInvoiceController {
       throw new ApiError(401, "Unauthorized: missing user context");
     }
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "Internal Server Error: No company found in the system");
     }
@@ -50,7 +51,7 @@ class SalesInvoiceController {
   });
 
   findAll = asyncHandler(async (req: Request, res: Response) => {
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "Internal Server Error: No company found in the system");
     }
@@ -72,7 +73,7 @@ class SalesInvoiceController {
   });
 
   findOne = asyncHandler(async (req: Request, res: Response) => {
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "Internal Server Error: No company found in the system");
     }
@@ -87,7 +88,7 @@ class SalesInvoiceController {
   });
 
   delete = asyncHandler(async (req: Request, res: Response) => {
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "Internal Server Error: No company found in the system");
     }
@@ -112,7 +113,7 @@ class SalesInvoiceController {
       throw new ApiError(401, "Unauthorized: missing user context");
     }
 
-    const company = await prisma.company.findFirst();
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
     if (!company) {
       throw new ApiError(500, "Internal Server Error: No company found in the system");
     }

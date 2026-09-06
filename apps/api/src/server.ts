@@ -8,7 +8,6 @@ import { prisma } from "./config/prisma";
 import { bootstrapAdmin } from "./utils/bootstrapAdmin";
 import { initSocket } from "./socket/socket";
 import { initScheduler } from "./modules/inventory/jobs/scheduler";
-import { accountsService } from "./modules/accounts/accounts.service";
 // Global BigInt serialization for JSON responses (reconnected)
 // This ensures all BigInt values are converted to strings when Express calls JSON.stringify.
 (BigInt.prototype as any).toJSON = function () {
@@ -25,18 +24,7 @@ const startServer = async (): Promise<void> => {
 
     // Automatically create admin user from .env variables.
     // Returns true only on a fresh install (DB was empty).
-    const isFirstRun = await bootstrapAdmin(prisma);
-
-    // Seed system ledgers only on fresh install — on subsequent restarts the
-    // accounts service memoises existence itself so this avoids an extra query.
-    if (isFirstRun) {
-      try {
-        await accountsService.ensureSystemLedgersExist();
-        console.log("✅ System ledgers verified");
-      } catch (err) {
-        console.error("⚠️  System ledger seed failed:", err);
-      }
-    }
+    await bootstrapAdmin(prisma);
 
     const server = http.createServer(app);
 
@@ -44,9 +32,7 @@ const startServer = async (): Promise<void> => {
     initScheduler();
 
     server.listen(PORT, () => {
-      console.log(
-        `🚀 Server is running on http://localhost:${PORT}`
-      );
+      console.log(`🚀 Server is running on http://localhost:${PORT}`);
     });
 
     const shutdown = async (signal: string) => {
@@ -69,7 +55,6 @@ const startServer = async (): Promise<void> => {
 
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("SIGTERM", () => shutdown("SIGTERM"));
-
   } catch (error) {
     console.error("❌ Failed to start server:", error);
     process.exit(1);

@@ -1,3 +1,4 @@
+import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { uploadToImageKit } from "../../utils/Imagekit";
@@ -11,14 +12,30 @@ class CompanyService {
    */
   /** Branding only, for the login screen. Never GSTIN, contact details or addresses. */
   async getPublicCompany() {
+    // Public route: no tenant yet. Per-domain branding arrives with tenant provisioning (P1-00).
     const company = await prisma.company.findFirst({
-      select: { companyName: true, shortName: true, logoUrl: true, faviconUrl: true, isOnboarded: true },
+      select: {
+        companyName: true,
+        shortName: true,
+        logoUrl: true,
+        faviconUrl: true,
+        isOnboarded: true,
+      },
     });
-    return company ?? { companyName: "Shiftline", shortName: null, logoUrl: null, faviconUrl: null, isOnboarded: false };
+    return (
+      company ?? {
+        companyName: "Shiftline",
+        shortName: null,
+        logoUrl: null,
+        faviconUrl: null,
+        isOnboarded: false,
+      }
+    );
   }
 
   async getCompany() {
     let company = await prisma.company.findFirst({
+      where: { id: requireTenantId() },
       include: {
         businessPlaces: true,
       },
@@ -53,7 +70,13 @@ class CompanyService {
   /**
    * Update the company and its business places
    */
-  async updateCompany(id: string, data: UpdateCompanyInput, userId: string, logoFile?: Express.Multer.File, faviconFile?: Express.Multer.File) {
+  async updateCompany(
+    id: string,
+    data: UpdateCompanyInput,
+    userId: string,
+    logoFile?: Express.Multer.File,
+    faviconFile?: Express.Multer.File
+  ) {
     const existingCompany = await prisma.company.findUnique({
       where: { id },
     });
@@ -67,7 +90,11 @@ class CompanyService {
     // Check if a new logo file was uploaded
     if (logoFile) {
       const fileName = `logo_${Date.now()}${path.extname(logoFile.originalname)}`;
-      companyData.logoUrl = await uploadToImageKit(logoFile.buffer || logoFile.path, fileName, "/company-logos")
+      companyData.logoUrl = await uploadToImageKit(
+        logoFile.buffer || logoFile.path,
+        fileName,
+        "/company-logos"
+      );
 
       // Clean up the local temp file after upload
       if (logoFile.path) {
@@ -82,7 +109,11 @@ class CompanyService {
     // Check if a new favicon file was uploaded
     if (faviconFile) {
       const fileName = `favicon_${Date.now()}${path.extname(faviconFile.originalname)}`;
-      companyData.faviconUrl = await uploadToImageKit(faviconFile.buffer || faviconFile.path, fileName, "/company-logos")
+      companyData.faviconUrl = await uploadToImageKit(
+        faviconFile.buffer || faviconFile.path,
+        fileName,
+        "/company-logos"
+      );
 
       // Clean up the local temp file after upload
       if (faviconFile.path) {
@@ -95,7 +126,11 @@ class CompanyService {
     }
 
     // Ensure mobile is stored as JSON string if passed as an object or array
-    if (companyData.mobile !== undefined && typeof companyData.mobile !== "string" && companyData.mobile !== null) {
+    if (
+      companyData.mobile !== undefined &&
+      typeof companyData.mobile !== "string" &&
+      companyData.mobile !== null
+    ) {
       companyData.mobile = JSON.stringify(companyData.mobile);
     }
 

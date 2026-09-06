@@ -1,3 +1,4 @@
+import { withoutTenant } from "../../lib/tenant-context";
 import crypto from "crypto";
 
 import { prisma } from "../../config/prisma";
@@ -13,7 +14,7 @@ import {
   RegisterDto,
   UserResponseDto,
   ProfileResponseDto,
-  UserStatus
+  UserStatus,
 } from "../../types/auth.types";
 
 const ACCESS_TOKEN_EXPIRY_DAYS = 7;
@@ -52,7 +53,7 @@ export class AuthService {
       username: payload.username,
       passwordHash,
       roleId: payload.roleId,
-      createdBy: payload.createdBy
+      createdBy: payload.createdBy,
     });
 
     await authRepository.createAuditLog({
@@ -62,17 +63,22 @@ export class AuthService {
       newValues: {
         email: user.email,
         username: user.username,
-        roleId: user.roleId
+        roleId: user.roleId,
       },
       changedBy: payload.createdBy,
       ipAddress,
-      userAgent
+      userAgent,
     });
 
     return this.formatUserResponse(user);
   }
 
-  async login(
+  /** Login runs before any tenant is known, so it reads users across tenants. */
+  async login(payload: LoginDto, ipAddress?: string, userAgent?: string): Promise<AuthResult> {
+    return withoutTenant(() => this.loginInner(payload, ipAddress, userAgent));
+  }
+
+  private async loginInner(
     payload: LoginDto,
     ipAddress?: string,
     userAgent?: string
@@ -96,7 +102,7 @@ export class AuthService {
         roleId: admin.roleId || null,
         role: admin.role || null,
         failedAttempts: 0,
-        lockedUntil: null
+        lockedUntil: null,
       };
     } else {
       user = await authRepository.findUserByEmail(payload.email);
@@ -118,7 +124,7 @@ export class AuthService {
           ipAddress,
           success: false,
           failureReason: "rate_limit_exceeded",
-          userAgent
+          userAgent,
         });
 
         throw new ApiError(429, "Too many login attempts. Please try again later.");
@@ -131,23 +137,19 @@ export class AuthService {
     }
 
     if (!user || user.status !== UserStatus.ACTIVE) {
-
       await authRepository.recordLoginAttempt({
         username: payload.email,
         ipAddress: ipAddress ?? "unknown",
         success: false,
         failureReason: "invalid_user",
-        userAgent
+        userAgent,
       });
 
       throw new ApiError(401, "Invalid email or password");
     }
 
     // Verify password
-    const passwordMatches = await comparePassword(
-      payload.password,
-      user.passwordHash
-    );
+    const passwordMatches = await comparePassword(payload.password, user.passwordHash);
 
     if (!passwordMatches) {
       if (!isAdminLogin) {
@@ -162,7 +164,7 @@ export class AuthService {
         ipAddress: ipAddress ?? "unknown",
         success: false,
         failureReason: "invalid_password",
-        userAgent
+        userAgent,
       });
 
       await authRepository.createAuditLog({
@@ -173,7 +175,7 @@ export class AuthService {
         changedBy: isAdminLogin ? undefined : user.userId,
         changedByAdmin: isAdminLogin ? admin!.id : undefined,
         ipAddress,
-        userAgent
+        userAgent,
       });
 
       throw new ApiError(401, "Invalid email or password");
@@ -193,7 +195,7 @@ export class AuthService {
       sessionToken,
       ipAddress,
       userAgent,
-      deviceLabel: this.extractDeviceLabel(userAgent)
+      deviceLabel: this.extractDeviceLabel(userAgent),
     });
 
     // Use the database session ID in the JWT payload
@@ -203,7 +205,8 @@ export class AuthService {
       roleId: roleCode,
       permissions,
       isSuperAdmin: isAdminLogin,
-      sessionId: session.id // Use the actual database session ID
+      companyId: isAdminLogin ? null : (user.companyId as string),
+      sessionId: session.id, // Use the actual database session ID
     };
 
     const accessToken = generateAccessToken(accessPayload);
@@ -212,17 +215,17 @@ export class AuthService {
     if (isAdminLogin) {
       await prisma.admin.update({
         where: { id: admin!.id },
-        data: { lastLoginAt: new Date() }
+        data: { lastLoginAt: new Date() },
       });
     } else {
       await authRepository.updateLastLogin(user.userId, ipAddress);
-      
+
       await authRepository.recordLoginAttempt({
         username: payload.email,
         userId: user.userId,
         ipAddress: ipAddress ?? "unknown",
         success: true,
-        userAgent
+        userAgent,
       });
     }
 
@@ -231,20 +234,20 @@ export class AuthService {
       entityId: isAdminLogin ? admin!.id.toString() : user.userId,
       action: "LOGIN_SUCCESS",
       ipAddress,
-      userAgent
+      userAgent,
     });
 
     return {
       user: this.formatUserResponse(user, isAdminLogin),
       tokens: {
         accessToken,
-        accessTokenExpiresAt: new Date(Date.now() + ACCESS_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+        accessTokenExpiresAt: new Date(Date.now() + ACCESS_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
       },
       sessionInfo: {
         deviceLabel: session.deviceLabel || "Unknown Device",
         loginAt: session.loginAt,
-        expiresAt: session.expiresAt
-      }
+        expiresAt: session.expiresAt,
+      },
     };
   }
 
@@ -255,17 +258,17 @@ export class AuthService {
     userAgent?: string
   ): Promise<void> {
     const isAdmin = userId.startsWith("admin_");
-    
+
     if (sessionId) {
       // Look up the specific session by sessionId (UUID from JWT)
       const session = await prisma.userSession.findFirst({
         where: {
           id: sessionId, // Use the sessionId from JWT to find the exact session
           ...(isAdmin ? { adminId: BigInt(userId.replace("admin_", "")) } : { userId }),
-          isActive: true
-        }
+          isActive: true,
+        },
       });
-      
+
       if (session) {
         await authRepository.logoutSession(session.id);
       }
@@ -286,17 +289,13 @@ export class AuthService {
       changedBy: isAdmin ? undefined : userId, // Don't pass admin userId to changedBy
       changedByAdmin: isAdmin ? BigInt(userId.replace("admin_", "")) : undefined,
       ipAddress,
-      userAgent
+      userAgent,
     });
   }
 
-  async logoutAllSessions(
-    userId: string,
-    ipAddress?: string,
-    userAgent?: string
-  ): Promise<void> {
+  async logoutAllSessions(userId: string, ipAddress?: string, userAgent?: string): Promise<void> {
     const isAdmin = userId.startsWith("admin_");
-    
+
     if (isAdmin) {
       const adminId = BigInt(userId.replace("admin_", ""));
       await authRepository.logoutAllUserSessions(undefined, adminId);
@@ -311,7 +310,7 @@ export class AuthService {
       changedBy: isAdmin ? undefined : userId, // Don't pass admin userId to changedBy
       changedByAdmin: isAdmin ? BigInt(userId.replace("admin_", "")) : undefined,
       ipAddress,
-      userAgent
+      userAgent,
     });
   }
 
@@ -321,7 +320,7 @@ export class AuthService {
 
   async getActiveSessions(userId: string): Promise<any[]> {
     const isAdmin = userId.startsWith("admin_");
-    
+
     if (isAdmin) {
       const adminId = BigInt(userId.replace("admin_", ""));
       return authRepository.getActiveSessions(undefined, adminId);
@@ -357,7 +356,7 @@ export class AuthService {
         newValues: { reason: "invalid_current_password" },
         changedBy: userId,
         ipAddress,
-        userAgent
+        userAgent,
       });
 
       throw new ApiError(401, "Current password is incorrect");
@@ -375,11 +374,15 @@ export class AuthService {
       action: "PASSWORD_CHANGED",
       changedBy: userId,
       ipAddress,
-      userAgent
+      userAgent,
     });
   }
 
   async requestPasswordReset(email: string, ipAddress?: string): Promise<string> {
+    return withoutTenant(() => this.requestPasswordResetInner(email, ipAddress));
+  }
+
+  private async requestPasswordResetInner(email: string, ipAddress?: string): Promise<string> {
     const user = await authRepository.findUserByEmail(email);
 
     // Don't reveal if user exists
@@ -393,20 +396,28 @@ export class AuthService {
     await authRepository.createPasswordResetToken({
       userId: user.userId,
       tokenHash,
-      requestedIp: ipAddress
+      requestedIp: ipAddress,
     });
 
     await authRepository.createAuditLog({
       entityName: "User",
       entityId: user.userId,
       action: "PASSWORD_RESET_REQUESTED",
-      ipAddress
+      ipAddress,
     });
 
     return resetToken;
   }
 
   async resetPassword(token: string, newPassword: string, ipAddress?: string): Promise<void> {
+    return withoutTenant(() => this.resetPasswordInner(token, newPassword, ipAddress));
+  }
+
+  private async resetPasswordInner(
+    token: string,
+    newPassword: string,
+    ipAddress?: string
+  ): Promise<void> {
     const tokenHash = this.hashToken(token);
     const resetToken = await authRepository.findPasswordResetToken(tokenHash);
 
@@ -415,7 +426,7 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(newPassword);
-    
+
     if (resetToken.userId) {
       await authRepository.updatePassword(resetToken.userId, passwordHash);
       await authRepository.logoutAllUserSessions(resetToken.userId);
@@ -423,14 +434,14 @@ export class AuthService {
       await authRepository.updateAdminPassword(resetToken.adminId, passwordHash);
       await authRepository.logoutAllUserSessions(undefined, resetToken.adminId);
     }
-    
+
     await authRepository.markPasswordResetTokenAsUsed(resetToken.id);
 
     await authRepository.createAuditLog({
       entityName: resetToken.userId ? "User" : "Admin",
       entityId: resetToken.userId || resetToken.adminId?.toString() || "",
       action: "PASSWORD_RESET_COMPLETED",
-      ipAddress
+      ipAddress,
     });
   }
 
@@ -445,7 +456,7 @@ export class AuthService {
       if (!admin) {
         throw new ApiError(404, "Admin not found");
       }
-      
+
       const mockedUser = {
         userId: userId,
         email: admin.email,
@@ -453,13 +464,13 @@ export class AuthService {
         fullName: admin.fullName,
         status: admin.status || "active",
         roleId: null,
-        role: null
+        role: null,
       };
 
       return {
         user: this.formatUserResponse(mockedUser, true),
         permissions: [],
-        isSuperAdmin: true
+        isSuperAdmin: true,
       };
     }
 
@@ -474,7 +485,7 @@ export class AuthService {
     return {
       user: this.formatUserResponse(user, false),
       permissions,
-      isSuperAdmin: false
+      isSuperAdmin: false,
     };
   }
 
@@ -494,8 +505,9 @@ export class AuthService {
       status: user.status,
       lastLoginAt: user.lastLoginAt,
       mfaEnabled: user.mfaEnabled || false,
-      avatarUrl: user.avatarUrl || user.profilePicture || user.photoUrl || user.employee?.photoUrl || null,
-      isSuperAdmin
+      avatarUrl:
+        user.avatarUrl || user.profilePicture || user.photoUrl || user.employee?.photoUrl || null,
+      isSuperAdmin,
     };
   }
 

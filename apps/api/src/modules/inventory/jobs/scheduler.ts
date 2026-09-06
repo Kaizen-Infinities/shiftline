@@ -2,6 +2,16 @@ import cron from "node-cron";
 import { prisma } from "../../../config/prisma";
 import { runEodStockSnapshot } from "./eodStockSnapshot.job";
 import { getISTDateParts } from "../../../utils/dateUtils";
+import { runAsTenant } from "../../../lib/tenant-context";
+
+/** Runs `fn` once per active tenant. Replaced by pg-boss per-tenant jobs in P0-10. */
+const forEachTenant = async (fn: () => Promise<void>) => {
+  const companies = await prisma.company.findMany({
+    where: { isActive: true },
+    select: { id: true },
+  });
+  for (const c of companies) await runAsTenant(c.id, fn);
+};
 
 /**
  * Checks if a snapshot already exists in the database for the given UTC date
@@ -20,7 +30,7 @@ const checkSnapshotExists = async (year: number, month: number, day: number): Pr
  * Common logic to check missing EOD snapshots for a specified range of days.
  * If the current time is past the cutoff time for a given day, and no snapshot exists,
  * it runs the snapshot generator for that day.
- * 
+ *
  * @param daysToCheck Number of past days to check (including today)
  */
 const runEodCheckForDaysRange = async (daysToCheck: number, contextLabel: string) => {
@@ -42,13 +52,18 @@ const runEodCheckForDaysRange = async (daysToCheck: number, contextLabel: string
 
       // Evaluate cutoff against IST clock time:
       // Past days (i > 0) are always past cutoff. For today (i === 0), we check if current IST time >= cutoff time.
-      const isPastCutoff = i > 0 || (nowParts.hours > cutoffHh || (nowParts.hours === cutoffHh && nowParts.minutes >= cutoffMm));
+      const isPastCutoff =
+        i > 0 ||
+        nowParts.hours > cutoffHh ||
+        (nowParts.hours === cutoffHh && nowParts.minutes >= cutoffMm);
 
       if (isPastCutoff) {
         const exists = await checkSnapshotExists(year, month, day);
         if (!exists) {
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          console.log(`⏰ [${contextLabel}] EOD snapshot for ${dateStr} is missing (cutoff: ${cutoffTime}). Running snapshot...`);
+          console.log(
+            `⏰ [${contextLabel}] EOD snapshot for ${dateStr} is missing (cutoff: ${cutoffTime}). Running snapshot...`
+          );
           await runEodStockSnapshot(dateStr);
         }
       }
@@ -64,7 +79,7 @@ const runEodCheckForDaysRange = async (daysToCheck: number, contextLabel: string
  */
 const runStartupCatchUpCheck = async () => {
   console.log("🔍 Running EOD startup catch-up check (scanning last 7 days)...");
-  await runEodCheckForDaysRange(7, "Startup Catch-up");
+  await forEachTenant(() => runEodCheckForDaysRange(7, "Startup Catch-up"));
 };
 
 /**
@@ -73,7 +88,7 @@ const runStartupCatchUpCheck = async () => {
  * safely catching up if the server went to sleep or experienced lag during the cutoff minute.
  */
 const runDailyCronCheck = async () => {
-  await runEodCheckForDaysRange(2, "Cron Loop");
+  await forEachTenant(() => runEodCheckForDaysRange(2, "Cron Loop"));
 };
 
 /**
@@ -103,7 +118,7 @@ const initDefaultCutoffSetting = async () => {
 };
 // Initialize settings only on server boot (no catch-up auto-snapshot creation)
 export const initScheduler = async () => {
-  await initDefaultCutoffSetting();
+  await forEachTenant(initDefaultCutoffSetting);
   // NOTE: Startup catch-up check is intentionally disabled.
   // Past dates should only have EOD snapshots from the actual nightly cron job.
   // Auto-generating snapshots on startup would create fake historical data
@@ -115,15 +130,18 @@ export const initScheduler = async () => {
  * Nightly cron job: runs at 23:59 IST every day to lock today's EOD snapshot.
  * Only runs for today — does NOT backfill past days.
  */
-cron.schedule("59 23 * * *", async () => {
-  const now = new Date();
-  const parts = getISTDateParts(now);
-  const dateStr = `${parts.year}-${String(parts.month + 1).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
-  console.log(`⏰ [Nightly Cron] Running EOD snapshot for today: ${dateStr}`);
-  try {
-    await runEodStockSnapshot(dateStr);
-  } catch (error) {
-    console.error("❌ Nightly EOD snapshot failed:", error);
-  }
-}, { timezone: "Asia/Kolkata" });
-
+cron.schedule(
+  "59 23 * * *",
+  async () => {
+    const now = new Date();
+    const parts = getISTDateParts(now);
+    const dateStr = `${parts.year}-${String(parts.month + 1).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+    console.log(`⏰ [Nightly Cron] Running EOD snapshot for today: ${dateStr}`);
+    try {
+      await forEachTenant(() => runEodStockSnapshot(dateStr));
+    } catch (error) {
+      console.error("❌ Nightly EOD snapshot failed:", error);
+    }
+  },
+  { timezone: "Asia/Kolkata" }
+);

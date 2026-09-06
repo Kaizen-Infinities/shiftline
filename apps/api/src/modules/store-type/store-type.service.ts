@@ -6,7 +6,7 @@ const db = prisma as any;
 
 class StoreTypeService {
   async create(data: CreateStoreTypeInput) {
-    const existing = await db.storeType?.findUnique({
+    const existing = await db.storeType?.findFirst({
       where: { code: data.code },
     });
 
@@ -24,21 +24,16 @@ class StoreTypeService {
     });
   }
 
-  async findAll(params: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-  } = {}) {
-
-    const {
-      page,
-      limit,
-      search,
-      sortBy = "name",
-      sortOrder = "asc",
-    } = params;
+  async findAll(
+    params: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+    } = {}
+  ) {
+    const { page, limit, search, sortBy = "name", sortOrder = "asc" } = params;
 
     const where: any = {};
 
@@ -116,7 +111,7 @@ class StoreTypeService {
 
     // If code is updated, check for conflicts
     if (data.code) {
-      const existing = await db.storeType?.findUnique({
+      const existing = await db.storeType?.findFirst({
         where: { code: data.code },
       });
 
@@ -135,12 +130,16 @@ class StoreTypeService {
     await this.findById(id);
 
     // Check if any stores are using this type
-    const storesUsingType = await db.store?.count({
-      where: { storeTypeId: id },
-    }) || 0;
+    const storesUsingType =
+      (await db.store?.count({
+        where: { storeTypeId: id },
+      })) || 0;
 
     if (storesUsingType > 0) {
-      throw new ApiError(400, `Cannot delete Store Type because it is already assigned in Storage Store Management.`);
+      throw new ApiError(
+        400,
+        `Cannot delete Store Type because it is already assigned in Storage Store Management.`
+      );
     }
 
     return db.storeType?.delete({

@@ -22,7 +22,8 @@
     "prebuild": "npm run build -w @shiftline/shared",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "postinstall": "npm run prisma:generate -w @shiftline/api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

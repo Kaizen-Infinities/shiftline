@@ -33,12 +33,12 @@ export class AuthRepository {
   // ============================================================
 
   async findUserByEmail(email: string): Promise<PrismaUser | null> {
-    return prisma.user.findUnique({
+    return prisma.user.findFirst({
       where: { email },
       include: {
         role: { select: { code: true, name: true } },
-        employee: { select: { photoUrl: true } }
-      }
+        employee: { select: { photoUrl: true } },
+      },
     }) as Promise<PrismaUser | null>;
   }
 
@@ -47,8 +47,8 @@ export class AuthRepository {
       where: { username },
       include: {
         role: { select: { code: true, name: true } },
-        employee: { select: { photoUrl: true } }
-      }
+        employee: { select: { photoUrl: true } },
+      },
     }) as Promise<PrismaUser | null>;
   }
 
@@ -57,8 +57,8 @@ export class AuthRepository {
       where: { userId },
       include: {
         role: { select: { code: true, name: true } },
-        employee: { select: { photoUrl: true } }
-      }
+        employee: { select: { photoUrl: true } },
+      },
     }) as Promise<PrismaUser | null>;
   }
 
@@ -67,30 +67,30 @@ export class AuthRepository {
   // ============================================================
 
   async findAdminByEmail(email: string) {
-    return prisma.admin.findUnique({ 
+    return prisma.admin.findFirst({
       where: { email },
-      include: { role: { select: { code: true, name: true } } }
+      include: { role: { select: { code: true, name: true } } },
     });
   }
 
   async findAdminByUsername(username: string) {
-    return prisma.admin.findUnique({ 
+    return prisma.admin.findUnique({
       where: { username },
-      include: { role: { select: { code: true, name: true } } }
+      include: { role: { select: { code: true, name: true } } },
     });
   }
 
   async findAdminById(id: bigint) {
-    return prisma.admin.findUnique({ 
+    return prisma.admin.findUnique({
       where: { id },
-      include: { role: { select: { code: true, name: true } } }
+      include: { role: { select: { code: true, name: true } } },
     });
   }
 
   async updateAdminLastLogin(id: bigint) {
     return prisma.admin.update({
       where: { id },
-      data: { lastLoginAt: new Date() }
+      data: { lastLoginAt: new Date() },
     });
   }
 
@@ -110,9 +110,9 @@ export class AuthRepository {
         username: payload.username,
         passwordHash: payload.passwordHash,
         roleId: payload.roleId !== undefined ? Number(payload.roleId) : undefined,
-        createdBy: payload.createdBy
+        createdBy: payload.createdBy,
       },
-      include: { role: { select: { code: true, name: true } } }
+      include: { role: { select: { code: true, name: true } } },
     }) as Promise<PrismaUser>;
   }
 
@@ -126,8 +126,8 @@ export class AuthRepository {
       data: {
         lastLoginAt: new Date(),
         lastLoginIp: ipAddress,
-        failedAttempts: 0
-      }
+        failedAttempts: 0,
+      },
     }) as Promise<PrismaUser>;
   }
 
@@ -141,15 +141,15 @@ export class AuthRepository {
     return prisma.user.update({
       where: { userId },
       data: {
-        failedAttempts: newFailedAttempts
-      }
+        failedAttempts: newFailedAttempts,
+      },
     }) as Promise<PrismaUser>;
   }
 
   async resetFailedAttempts(userId: string): Promise<PrismaUser> {
     return prisma.user.update({
       where: { userId },
-      data: { failedAttempts: 0 }
+      data: { failedAttempts: 0 },
     }) as Promise<PrismaUser>;
   }
 
@@ -159,8 +159,8 @@ export class AuthRepository {
       data: {
         status: UserStatus.ACTIVE,
         lockedUntil: null,
-        failedAttempts: 0
-      }
+        failedAttempts: 0,
+      },
     }) as Promise<PrismaUser>;
   }
 
@@ -169,8 +169,8 @@ export class AuthRepository {
       where: { userId },
       data: {
         passwordHash,
-        mustChangePw: false
-      }
+        mustChangePw: false,
+      },
     }) as Promise<PrismaUser>;
   }
 
@@ -178,8 +178,8 @@ export class AuthRepository {
     return prisma.admin.update({
       where: { id: adminId },
       data: {
-        passwordHash
-      }
+        passwordHash,
+      },
     });
   }
 
@@ -209,20 +209,23 @@ export class AuthRepository {
         where: {
           ...(payload.userId ? { userId: payload.userId } : {}),
           ...(payload.adminId ? { adminId: payload.adminId } : {}),
-          isActive: true
+          isActive: true,
         },
-        orderBy: { loginAt: 'asc' } // Oldest first
+        orderBy: { loginAt: "asc" }, // Oldest first
       });
 
       // If at limit, remove the oldest session
       if (existingSessions.length >= MAX_SESSIONS) {
-        const sessionsToRemove = existingSessions.slice(0, existingSessions.length - MAX_SESSIONS + 1);
+        const sessionsToRemove = existingSessions.slice(
+          0,
+          existingSessions.length - MAX_SESSIONS + 1
+        );
         await tx.userSession.deleteMany({
           where: {
             id: {
-              in: sessionsToRemove.map(s => s.id)
-            }
-          }
+              in: sessionsToRemove.map((s) => s.id),
+            },
+          },
         });
       }
 
@@ -237,38 +240,38 @@ export class AuthRepository {
           deviceLabel: payload.deviceLabel,
           loginAt: new Date(),
           expiresAt,
-          isActive: true
-        }
+          isActive: true,
+        },
       });
     });
   }
 
   async findUserSession(sessionId: string): Promise<any | null> {
     return prisma.userSession.findUnique({
-      where: { id: sessionId, isActive: true }
+      where: { id: sessionId, isActive: true },
     });
   }
 
   async findUserSessionByToken(sessionToken: string): Promise<any | null> {
     return prisma.userSession.findUnique({
-      where: { sessionToken, isActive: true }
+      where: { sessionToken, isActive: true },
     });
   }
 
   async updateSessionLastActivity(sessionId: string): Promise<any> {
     return prisma.userSession.update({
       where: { id: sessionId },
-      data: { updatedAt: new Date() }
+      data: { updatedAt: new Date() },
     });
   }
 
   async logoutSession(sessionId: string): Promise<any> {
     return prisma.userSession.update({
       where: { id: sessionId },
-      data: { 
+      data: {
         logoutAt: new Date(),
-        isActive: false
-      }
+        isActive: false,
+      },
     });
   }
 
@@ -277,12 +280,12 @@ export class AuthRepository {
       where: {
         ...(userId ? { userId } : {}),
         ...(adminId ? { adminId } : {}),
-        isActive: true
+        isActive: true,
       },
-      data: { 
+      data: {
         logoutAt: new Date(),
-        isActive: false
-      }
+        isActive: false,
+      },
     });
     return result.count;
   }
@@ -292,9 +295,9 @@ export class AuthRepository {
       where: {
         ...(userId ? { userId } : {}),
         ...(adminId ? { adminId } : {}),
-        isActive: true
+        isActive: true,
       },
-      orderBy: { loginAt: 'desc' }
+      orderBy: { loginAt: "desc" },
     });
   }
 
@@ -302,12 +305,12 @@ export class AuthRepository {
     const result = await prisma.userSession.updateMany({
       where: {
         expiresAt: { lt: new Date() },
-        isActive: true
+        isActive: true,
       },
       data: {
         isActive: false,
-        logoutAt: new Date()
-      }
+        logoutAt: new Date(),
+      },
     });
     return result.count;
   }
@@ -330,21 +333,21 @@ export class AuthRepository {
         adminId: payload.adminId,
         tokenHash: payload.tokenHash,
         expiresAt,
-        requestedIp: payload.requestedIp
-      }
+        requestedIp: payload.requestedIp,
+      },
     });
   }
 
   async findPasswordResetToken(tokenHash: string): Promise<any | null> {
     return prisma.passwordResetToken.findUnique({
-      where: { tokenHash }
+      where: { tokenHash },
     });
   }
 
   async markPasswordResetTokenAsUsed(tokenId: string): Promise<any> {
     return prisma.passwordResetToken.update({
       where: { id: tokenId },
-      data: { usedAt: new Date() }
+      data: { usedAt: new Date() },
     });
   }
 
@@ -355,10 +358,10 @@ export class AuthRepository {
         ...(adminId ? { adminId } : {}),
         usedAt: null,
         expiresAt: {
-          gt: new Date()
-        }
+          gt: new Date(),
+        },
       },
-      data: { usedAt: new Date() }
+      data: { usedAt: new Date() },
     });
     return result.count;
   }
@@ -376,8 +379,8 @@ export class AuthRepository {
         ipAddress: attempt.ipAddress,
         success: attempt.success,
         failureReason: attempt.failureReason,
-        userAgent: attempt.userAgent
-      }
+        userAgent: attempt.userAgent,
+      },
     });
   }
 
@@ -389,9 +392,9 @@ export class AuthRepository {
         ipAddress,
         success: false,
         attemptedAt: {
-          gte: since
-        }
-      }
+          gte: since,
+        },
+      },
     });
 
     return result;
@@ -408,7 +411,7 @@ export class AuthRepository {
 
     const permissions = await prisma.rolePermission.findMany({
       where: { roleId },
-      select: { permission: { select: { key: true } } }
+      select: { permission: { select: { key: true } } },
     });
 
     return permissions.map((p) => p.permission.key);
@@ -429,8 +432,8 @@ export class AuthRepository {
         changedBy: entry.changedBy,
         changedByAdmin: entry.changedByAdmin,
         ipAddress: entry.ipAddress,
-        userAgent: entry.userAgent
-      }
+        userAgent: entry.userAgent,
+      },
     });
   }
 
@@ -451,11 +454,11 @@ export class AuthRepository {
         ...(entityName && { entityName }),
         ...(entityId && { entityId }),
         ...(action && { action: action as AuditAction }),
-        ...(changedBy && { changedBy })
+        ...(changedBy && { changedBy }),
       },
       orderBy: { changedAt: "desc" },
       take: limit,
-      skip: offset
+      skip: offset,
     });
   }
 }
