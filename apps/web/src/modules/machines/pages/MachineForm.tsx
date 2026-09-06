@@ -157,7 +157,7 @@ const MachineForm: React.FC = () => {
         };
 
         let hasError = false;
-        let formattedErrors: Record<string, string> = {};
+        const formattedErrors: Record<string, string> = {};
 
         if (!inchargeRoleId) {
             formattedErrors["inchargeRoleId"] = "Incharge Role is required";

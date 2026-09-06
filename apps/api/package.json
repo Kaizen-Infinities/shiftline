@@ -8,7 +8,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "test": "echo \"tests arrive in P0-04\" && exit 0"
+    "test": "echo \"tests arrive in P0-04\" && exit 0",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
@@ -30,7 +31,8 @@
     "prisma": "^6.16.2",
     "puppeteer": "^25.4.0",
     "socket.io": "^4.8.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@shiftline/shared": "*"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

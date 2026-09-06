@@ -99,7 +99,7 @@ function weeksOfMonth(year: number, month: number): WeekOfMonth[] {
   firstMonday.setDate(firstDayOfMonth.getDate() - (firstDow - 1));
 
   const result: WeekOfMonth[] = [];
-  let currentMonday = new Date(firstMonday);
+  const currentMonday = new Date(firstMonday);
   let w = 1;
 
   while (currentMonday <= lastDayOfMonth) {
@@ -308,7 +308,7 @@ const AttendancePage: React.FC = () => {
       // Weekly view: only daily/weekly wage employees
       return employees.filter(e => isWeeklyEmployee(e));
     }
-  }, [employees, runType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [employees, runType]);  
 
   // ── Derived: weeks within the selected month ──────────────────────────────
   const monthWeeks = useMemo(() => weeksOfMonth(year, month), [year, month]);
@@ -356,7 +356,7 @@ const AttendancePage: React.FC = () => {
       })
       .catch(() => setError('Failed to load data'))
       .finally(() => setLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // ── Rebuild grid when dates / filtered employees change ───────────────────
   useEffect(() => {

@@ -67,6 +67,6 @@ export const useSocketSync = <T,>(
       socket.off(`${moduleName}:deleted`, handleDeleted);
     };
   // We stringify the function references or omit them to prevent infinite loops if they aren't wrapped in useCallback
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [socket, dispatch, moduleName]);
 };

@@ -157,7 +157,7 @@ const DailyReportPage: React.FC = () => {
          if (s) shiftName = s.shiftName;
       }
 
-      let productName = plan.product?.productName || plan.productionOrder?.productItem?.productName || "Unknown";
+      const productName = plan.product?.productName || plan.productionOrder?.productItem?.productName || "Unknown";
       
       machineWise.push({
         id: plan.id || plan.dailyPlanId,

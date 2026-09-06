@@ -325,21 +325,17 @@ class SalesOrderService {
 
         const gstOrderBy = { [query.sortBy]: query.sortOrder };
 
-        try {
-            const [rows, total] = await Promise.all([
-                prisma.salesOrder.findMany({
-                    where: gstWhere as any, include: INCLUDE_GST as any, orderBy: gstOrderBy, skip, take: pageSize,
-                }),
-                prisma.salesOrder.count({ where: gstWhere as any }),
-            ]);
-            return {
-                data: rows,
-                total, page, pageSize,
-                totalPages: Math.ceil(total / pageSize),
-            };
-        } catch (err: any) {
-            throw err;
-        }
+        const [rows, total] = await Promise.all([
+            prisma.salesOrder.findMany({
+                where: gstWhere as any, include: INCLUDE_GST as any, orderBy: gstOrderBy, skip, take: pageSize,
+            }),
+            prisma.salesOrder.count({ where: gstWhere as any }),
+        ]);
+        return {
+            data: rows,
+            total, page, pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        };
     }
 
     // ─── Find by ID ──────────────────────────────────────────────────────────

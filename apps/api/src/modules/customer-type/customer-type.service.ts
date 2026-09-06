@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import type { CreateCustomerTypeInput, UpdateCustomerTypeInput } from './customer-type.validation';
 
-const prisma = new PrismaClient();
 
 export class CustomerTypeService {
   static async getAll() {

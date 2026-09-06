@@ -107,7 +107,7 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
     const now = new Date();
     const getStartOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-    let buckets: { label: string, start: Date, end: Date, sales: number, purchase: number }[] = [];
+    const buckets: { label: string, start: Date, end: Date, sales: number, purchase: number }[] = [];
 
     if (period === "7d") {
       // Last 7 days

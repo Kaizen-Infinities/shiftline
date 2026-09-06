@@ -13,6 +13,9 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: ['@shiftline/shared'],
+  },
   define: {
     global: 'window',
   },

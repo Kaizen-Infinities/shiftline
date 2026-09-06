@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
-import { generatePermissions } from "../config/permissionRegistry";
+import { generatePermissions } from "@shiftline/shared";
 
 /**
  * Returns `true` if this was a fresh install (DB was empty),

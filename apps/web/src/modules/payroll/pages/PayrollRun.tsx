@@ -64,7 +64,7 @@ function getWeeksOfMonth(year: number, month: number): WeekOption[] {
   firstMonday.setDate(firstDayOfMonth.getDate() - (firstDow - 1));
 
   const opts: WeekOption[] = [];
-  let currentMonday = new Date(firstMonday);
+  const currentMonday = new Date(firstMonday);
   let weekOfMonth = 1;
 
   while (currentMonday <= lastDayOfMonth) {
@@ -1893,7 +1893,7 @@ const PayrollRun: React.FC = () => {
         }
 
         const allRecords = await payrollService.getAttendance(run.period);
-        let filteredRecords = allRecords;
+        const filteredRecords = allRecords;
 
         const typeFiltered = employees.filter(e =>
           run.type === 'WEEKLY' ? isWeeklyEmployee(e) : !isWeeklyEmployee(e)

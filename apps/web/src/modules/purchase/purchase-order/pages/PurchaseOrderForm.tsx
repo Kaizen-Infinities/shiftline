@@ -316,7 +316,7 @@ const PurchaseOrderForm: React.FC = () => {
     if (!isEdit) {
       fetchNextCode();
     }
-  }, [refreshSuppliers, dispatch, refreshStores, loadActiveUOMs, refreshRawMaterials, fetchNextCode, isEdit]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshSuppliers, dispatch, refreshStores, loadActiveUOMs, refreshRawMaterials, fetchNextCode, isEdit]);  
 
   useEffect(() => {
     if (!isEdit && user) {

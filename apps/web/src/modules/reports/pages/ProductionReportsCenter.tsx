@@ -345,8 +345,8 @@ const ProductionReportsCenter: React.FC = () => {
     if (val === "custom") return;
 
     const today = new Date();
-    let start = new Date();
-    let end = new Date();
+    const start = new Date();
+    const end = new Date();
 
     if (val === "today") {
       // both today

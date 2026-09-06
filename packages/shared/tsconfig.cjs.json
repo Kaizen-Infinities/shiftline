@@ -1,0 +1,13 @@
+{
+  "extends": "../config/tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "rootDir": "./src",
+    "outDir": "./dist/cjs",
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["src/**/*"]
+}

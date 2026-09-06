@@ -1,8 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/prisma';
 import { ApiError } from '../../utils/ApiError';
 import type { CreateCustomerGradeInput, UpdateCustomerGradeInput } from './customer-grade.validation';
 
-const prisma = new PrismaClient();
 
 export class CustomerGradeService {
   static async getAll() {

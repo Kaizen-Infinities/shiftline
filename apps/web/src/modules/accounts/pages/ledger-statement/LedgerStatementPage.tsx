@@ -236,7 +236,7 @@ export const LedgerStatementPage: React.FC = () => {
       setSelectedGroup(null);
       setSelectedLedgerIds(new Set());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isMerged]);
 
   // Progressive URL writer. Rather than a state-sync effect, each step

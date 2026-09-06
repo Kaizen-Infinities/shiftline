@@ -89,7 +89,7 @@ const mapCustomerToFormData = (customer: any): CustomerFormValues => {
     initialPhones = [{ label: "Primary Mobile Number", number: customer.mobile }];
   }
 
-  let addrs = customer.addresses && customer.addresses.length > 0 ? customer.addresses.map((a: any) => ({ address: a.address || a })) : [];
+  const addrs = customer.addresses && customer.addresses.length > 0 ? customer.addresses.map((a: any) => ({ address: a.address || a })) : [];
 
   return {
     customerId: customer.customerCode || "",

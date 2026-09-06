@@ -307,7 +307,7 @@ const InvoiceDetailPage: React.FC = () => {
                 return { ...item, taxableAmount, cgstRate, cgstAmount, sgstRate, sgstAmount, igstRate, igstAmount, netAmount: taxableAmount + totalGstAmount };
             });
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [isInterState, rawMaterials]);
 
     // ── When PO selected → auto-fill ─────────────────────────────────────────────

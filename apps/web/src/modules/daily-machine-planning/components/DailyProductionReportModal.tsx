@@ -121,7 +121,7 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
          if (s) shiftName = s.shiftName;
       }
 
-      let productName = plan.product?.productName || "Unknown";
+      const productName = plan.product?.productName || "Unknown";
       
       machineWise.push({
         id: plan.id,
