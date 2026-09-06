@@ -268,7 +268,7 @@ export const SalesPersonLiveMap: React.FC = () => {
             lat: Number((sp.lat + deltaLat).toFixed(5)),
             lng: Number((sp.lng + deltaLng).toFixed(5)),
             speedKmH: newSpeed,
-            lastUpdated: "Live",
+            lastUpdated: "Simulated",
           };
         })
       );
@@ -307,10 +307,16 @@ export const SalesPersonLiveMap: React.FC = () => {
             <FaMapMarkerAlt className="text-xs" />
           </div>
           <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink truncate">
-            Sales Force Live GPS Map
+            Sales Force GPS Map
           </div>
-          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          {/* TRUST-01: positions are simulated until the Field app position feed lands (P0-11 / A5). */}
+          <span
+            title="Demonstration data. Agent positions are simulated on this device; there is no GPS feed yet."
+            className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 border border-amber-500/40 uppercase tracking-wider shrink-0"
+          >
+            SIMULATED
+          </span>
+          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-card-2 text-ink-subtle border border-line-soft uppercase tracking-wider shrink-0">
             {salesPersons.filter((p) => p.status === "active").length} Active
           </span>
         </div>
@@ -321,7 +327,7 @@ export const SalesPersonLiveMap: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsSimulating(!isSimulating)}
-            title={isSimulating ? "Pause live simulation" : "Resume live simulation"}
+            title={isSimulating ? "Pause simulation" : "Resume simulation"}
             className={`p-1.5 rounded-lg text-[10px] font-bold border transition-colors flex items-center gap-1 cursor-pointer ${
               isSimulating
                 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
@@ -329,7 +335,7 @@ export const SalesPersonLiveMap: React.FC = () => {
             }`}
           >
             {isSimulating ? <FaPause className="text-[8px]" /> : <FaPlay className="text-[8px]" />}
-            <span className="hidden sm:inline">{isSimulating ? "Live Feed" : "Paused"}</span>
+            <span className="hidden sm:inline">{isSimulating ? "Simulating" : "Paused"}</span>
           </button>
 
           {/* Map Layer Switcher */}

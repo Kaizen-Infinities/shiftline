@@ -4,12 +4,16 @@ import { createCustomerGradeSchema, updateCustomerGradeSchema, customerGradeIdSc
 import { asyncHandler } from '../../utils/asyncHandler';
 import { validateMiddleware } from '../../middleware/validate.middleware';
 
-const router = Router();
+import { authMiddleware } from "../../middleware/auth.middleware";
+import { requirePermission } from "../../middleware/permission.middleware";
 
-router.get('/', asyncHandler(CustomerGradeController.getAll));
-router.get('/:id', validateMiddleware(customerGradeIdSchema), asyncHandler(CustomerGradeController.getById));
-router.post('/', validateMiddleware(createCustomerGradeSchema), asyncHandler(CustomerGradeController.create));
-router.put('/:id', validateMiddleware(updateCustomerGradeSchema), asyncHandler(CustomerGradeController.update));
-router.delete('/:id', validateMiddleware(customerGradeIdSchema), asyncHandler(CustomerGradeController.delete));
+const router = Router();
+router.use(authMiddleware);
+
+router.get('/', requirePermission("customer-grades.view"), asyncHandler(CustomerGradeController.getAll));
+router.get('/:id', requirePermission("customer-grades.view"), validateMiddleware(customerGradeIdSchema), asyncHandler(CustomerGradeController.getById));
+router.post('/', requirePermission("customer-grades.create"), validateMiddleware(createCustomerGradeSchema), asyncHandler(CustomerGradeController.create));
+router.put('/:id', requirePermission("customer-grades.edit"), validateMiddleware(updateCustomerGradeSchema), asyncHandler(CustomerGradeController.update));
+router.delete('/:id', requirePermission("customer-grades.delete"), validateMiddleware(customerGradeIdSchema), asyncHandler(CustomerGradeController.delete));
 
 export default router;

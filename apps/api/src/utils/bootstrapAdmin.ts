@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { env, isProduction } from "../config/env";
 import { generatePermissions } from "@shiftline/shared";
 
 /**
@@ -34,9 +35,15 @@ export const bootstrapAdmin = async (prisma: PrismaClient): Promise<boolean> => 
   }
 
   // ── Fresh install: run full bootstrap ────────────────────────────────────
-  const adminEmail    = process.env.ADMIN_EMAIL    || "admin@shiftline.local";
-  const adminUsername = process.env.ADMIN_USERNAME || "superadmin";
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin@123";
+  // Production requires explicit credentials (enforced in config/env.ts). In
+  // development a throwaway account is created and announced loudly.
+  const adminEmail    = env.ADMIN_EMAIL    || "admin@shiftline.local";
+  const adminUsername = env.ADMIN_USERNAME || "superadmin";
+  const adminPassword = env.ADMIN_PASSWORD || (isProduction ? "" : "dev-only-change-me-Admin#2026");
+  if (!adminPassword) throw new Error("ADMIN_PASSWORD is required to bootstrap the platform admin");
+  if (!env.ADMIN_PASSWORD) {
+    console.warn("[bootstrap] Using the development-only admin password. Set ADMIN_* in apps/api/.env.");
+  }
 
   const passwordHash = await bcrypt.hash(adminPassword, 10);
 

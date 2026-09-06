@@ -1,50 +1,16 @@
 import { prisma } from "../../config/prisma";
 import axios from "axios";
-import crypto from "crypto";
+import { encryptText, decryptText } from "../../utils/crypto";
 
 export class WhatsappService {
-  /**
-   * Generates a 32-byte encryption key from the JWT_ACCESS_SECRET
-   */
-  private static getEncryptionKey(): Buffer {
-    const secret = process.env.JWT_ACCESS_SECRET || "default_secret_key_needs_32bytes_!";
-    return crypto.createHash("sha256").update(secret).digest();
-  }
-
-  /**
-   * Encrypts a string (e.g., Access Token)
-   */
+  /** Encrypts a stored credential (AES-256-GCM, DATA_ENCRYPTION_KEY). */
   public static encryptText(text: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv("aes-256-gcm", this.getEncryptionKey(), iv);
-    
-    let encrypted = cipher.update(text, "utf8", "hex");
-    encrypted += cipher.final("hex");
-    
-    const authTag = cipher.getAuthTag().toString("hex");
-    return `${iv.toString("hex")}:${authTag}:${encrypted}`;
+    return encryptText(text);
   }
 
-  /**
-   * Decrypts an encrypted string
-   */
-  public static decryptText(encryptedData: string): string {
-    const parts = encryptedData.split(":");
-    if (parts.length !== 3) {
-      throw new Error("Invalid encrypted data format");
-    }
-    
-    const [ivHex, authTagHex, encryptedText] = parts;
-    const iv = Buffer.from(ivHex, "hex");
-    const authTag = Buffer.from(authTagHex, "hex");
-    
-    const decipher = crypto.createDecipheriv("aes-256-gcm", this.getEncryptionKey(), iv);
-    decipher.setAuthTag(authTag);
-    
-    let decrypted = decipher.update(encryptedText, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    
-    return decrypted;
+  /** Decrypts a stored credential; legacy plaintext values pass through. */
+  public static decryptText(payload: string): string {
+    return decryptText(payload);
   }
 
   /**

@@ -1,3 +1,4 @@
+import { getCurrentCompanyId } from "../../utils/companyContext";
 import { Request, Response, NextFunction } from "express";
 import { returnsService } from "./returns.service";
 import { createSalesReturnSchema, createPurchaseReturnSchema } from "./returns.types";
@@ -5,7 +6,7 @@ import { createSalesReturnSchema, createPurchaseReturnSchema } from "./returns.t
 class ReturnsController {
   async getSalesReturns(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = req.query.companyId as string | undefined;
+      const companyId = await getCurrentCompanyId();
       const data = await returnsService.getSalesReturns(companyId);
       return res.status(200).json({ success: true, data });
     } catch (error) {
@@ -72,7 +73,7 @@ class ReturnsController {
 
   async getPurchaseReturns(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = req.query.companyId as string | undefined;
+      const companyId = await getCurrentCompanyId();
       const data = await returnsService.getPurchaseReturns(companyId);
       return res.status(200).json({ success: true, data });
     } catch (error) {

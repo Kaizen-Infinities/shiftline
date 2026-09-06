@@ -216,8 +216,8 @@ class ProductService {
     }
   }
 
-  async findAll(params: { search?: string; categoryId?: string } = {}) {
-    const { search, categoryId } = params;
+  async findAll(params: { search?: string; categoryId?: string; page?: number; limit?: number } = {}) {
+    const { search, categoryId, page, limit } = params;
     const whereClause: Prisma.ProductWhereInput = {};
 
     if (search) {
@@ -231,19 +231,32 @@ class ProductService {
       whereClause.categoryId = Number(categoryId);
     }
 
+    const include = {
+      category: true,
+      uom: true,
+      images: true,
+      finishedGoodsStocks: { include: { store: true } },
+      billOfMaterials: { include: { rawMaterial: true } },
+      // Only the latest capacity row on list screens; the full history is on the detail endpoint.
+      capacityHistories: { orderBy: { createdAt: "desc" as const }, take: 1 },
+    } satisfies Prisma.ProductInclude;
+
+    // Paginated shape when the caller asks for a page; otherwise the legacy array, capped.
+    if (page !== undefined || limit !== undefined) {
+      const take = Math.min(Math.max(limit ?? 20, 1), 200);
+      const skip = (Math.max(page ?? 1, 1) - 1) * take;
+      const [data, total] = await Promise.all([
+        prisma.product.findMany({ where: whereClause, include, orderBy: { createdAt: "asc" }, skip, take }),
+        prisma.product.count({ where: whereClause }),
+      ]);
+      return { data, total, page: page ?? 1, pageSize: take, totalPages: Math.ceil(total / take) };
+    }
+
     return prisma.product.findMany({
       where: whereClause,
-      include: {
-        category: true,
-        uom: true,
-        images: true,
-        finishedGoodsStocks: { include: { store: true } },
-        billOfMaterials: { include: { rawMaterial: true } },
-        capacityHistories: { orderBy: { createdAt: "desc" } },
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
+      include,
+      orderBy: { createdAt: "asc" },
+      take: 1000,
     });
   }
 

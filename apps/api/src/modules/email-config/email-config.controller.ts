@@ -1,3 +1,4 @@
+import { encryptText } from "../../utils/crypto";
 import { Request, Response } from "express";
 
 import { ApiError } from "../../utils/ApiError";
@@ -10,7 +11,7 @@ export const getEmailConfig = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      data: config || null,
+      data: config ? { ...config, smtpPassword: config.smtpPassword ? "********" : null } : null,
     });
   } catch (error) {
     if (error instanceof ApiError) {
@@ -24,7 +25,10 @@ export const getEmailConfig = async (req: Request, res: Response) => {
 
 export const saveEmailConfig = async (req: Request, res: Response) => {
   try {
-    const { smtpHost, smtpPort, smtpUsername, smtpPassword, fromEmail, fromName, encryption } = req.body;
+    const { smtpHost, smtpPort, smtpUsername, fromEmail, fromName, encryption } = req.body;
+    const existing = await prisma.emailConfig.findFirst();
+    const rawPassword = req.body.smtpPassword as string | undefined;
+    const smtpPassword = rawPassword && rawPassword !== "********" ? encryptText(rawPassword) : existing?.smtpPassword;
 
     if (!smtpHost || !smtpPort || !smtpUsername || !smtpPassword || !fromEmail || !fromName) {
       throw new ApiError(400, "All SMTP fields are required");

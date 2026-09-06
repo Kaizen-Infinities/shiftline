@@ -1,3 +1,4 @@
+import { parsePagination } from "../../utils/pagination";
 import { Request, Response } from "express";
 
 import customerService from "./customer.service";
@@ -46,8 +47,7 @@ class CustomerController {
     async (req: Request, res: Response) => {
       // BUG-CUST-004 fix: pass page and limit for server-side pagination
       const search = req.query.search ? String(req.query.search) : undefined;
-      const page = req.query.page ? parseInt(String(req.query.page), 10) : 1;
-      const limit = req.query.limit ? parseInt(String(req.query.limit), 10) : 10;
+      const { page, limit } = parsePagination(req.query as Record<string, unknown>, 10);
       const status = req.query.status ? String(req.query.status) : undefined;
       const customerTypeId = req.query.customerTypeId ? parseInt(String(req.query.customerTypeId), 10) : undefined;
       const customerGradeId = req.query.customerGradeId ? parseInt(String(req.query.customerGradeId), 10) : undefined;

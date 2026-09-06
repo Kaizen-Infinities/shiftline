@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
+import { useAppSelector } from "../hooks/reduxHooks";
 import AccountsRealtimeSync from "./AccountsRealtimeSync";
 import AccountsPrefetcher from "./AccountsPrefetcher";
 
@@ -22,8 +23,16 @@ interface SocketProviderProps {
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const accessToken = useAppSelector((state) => state.auth.accessToken);
 
   useEffect(() => {
+    // SEC-05: the server rejects unauthenticated handshakes, so connect only once signed in
+    // and reconnect whenever the token changes.
+    if (!accessToken) {
+      setSocket(null);
+      setIsConnected(false);
+      return;
+    }
     // Get base URL without /api path (e.g. http://localhost:5000)
     const baseUrl = import.meta.env.VITE_IMAGE_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000";
 
@@ -34,16 +43,13 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     //  - reconnectionDelay: fast retry on drops for realtime feel
     //  - timeout: fail fast so UI doesn't hang if the server is unreachable
     const socketInstance = io(baseUrl, {
-      transports: ["websocket"],
+      transports: ["websocket", "polling"], // REL-02: degrade to polling where websockets are blocked
+      auth: { token: accessToken }, // SEC-05: authenticated handshake
       reconnection: true,
       reconnectionDelay: 300,
       reconnectionDelayMax: 3000,
       reconnectionAttempts: Infinity,
       timeout: 8000,
-      extraHeaders: {
-        "Bypass-Tunnel-Reminder": "true", // Bypasses localtunnel warning page
-        "ngrok-skip-browser-warning": "true", // Bypasses ngrok warning page
-      }
     });
 
     socketInstance.on("connect", () => {
@@ -84,7 +90,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     return () => {
       socketInstance.disconnect();
     };
-  }, []);
+  }, [accessToken]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

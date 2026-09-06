@@ -5,12 +5,16 @@ import { createCustomerTypeSchema, updateCustomerTypeSchema, customerTypeIdSchem
 import { asyncHandler } from '../../utils/asyncHandler';
 import { validateMiddleware } from '../../middleware/validate.middleware';
 
-const router = Router();
+import { authMiddleware } from "../../middleware/auth.middleware";
+import { requirePermission } from "../../middleware/permission.middleware";
 
-router.get('/', asyncHandler(CustomerTypeController.getAll));
-router.get('/:id', validateMiddleware(customerTypeIdSchema), asyncHandler(CustomerTypeController.getById));
-router.post('/', validateMiddleware(createCustomerTypeSchema), asyncHandler(CustomerTypeController.create));
-router.put('/:id', validateMiddleware(updateCustomerTypeSchema), asyncHandler(CustomerTypeController.update));
-router.delete('/:id', validateMiddleware(customerTypeIdSchema), asyncHandler(CustomerTypeController.delete));
+const router = Router();
+router.use(authMiddleware);
+
+router.get('/', requirePermission("customer-types.view"), asyncHandler(CustomerTypeController.getAll));
+router.get('/:id', requirePermission("customer-types.view"), validateMiddleware(customerTypeIdSchema), asyncHandler(CustomerTypeController.getById));
+router.post('/', requirePermission("customer-types.create"), validateMiddleware(createCustomerTypeSchema), asyncHandler(CustomerTypeController.create));
+router.put('/:id', requirePermission("customer-types.edit"), validateMiddleware(updateCustomerTypeSchema), asyncHandler(CustomerTypeController.update));
+router.delete('/:id', requirePermission("customer-types.delete"), validateMiddleware(customerTypeIdSchema), asyncHandler(CustomerTypeController.delete));
 
 export default router;

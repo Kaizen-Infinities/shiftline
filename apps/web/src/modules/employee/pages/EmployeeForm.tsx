@@ -56,10 +56,22 @@ function generatePassword(): string {
   const digits = "0123456789";
   const symbols = "!@#$%^&*";
   const all = upper + lower + digits + symbols;
-  const rand = (s: string) => s[Math.floor(Math.random() * s.length)];
-  let pw = rand(upper) + rand(lower) + rand(digits) + rand(symbols);
-  for (let i = 4; i < 12; i++) pw += rand(all);
-  return pw.split("").sort(() => Math.random() - 0.5).join("");
+  // Cryptographic randomness (SEC-03): rejection sampling avoids modulo bias.
+  const randomIndex = (n: number) => {
+    const limit = 256 - (256 % n);
+    const buf = new Uint8Array(1);
+    do crypto.getRandomValues(buf); while (buf[0] >= limit);
+    return buf[0] % n;
+  };
+  const rand = (s: string) => s[randomIndex(s.length)];
+  const chars = [rand(upper), rand(lower), rand(digits), rand(symbols)];
+  for (let i = 4; i < 14; i++) chars.push(rand(all));
+  // Fisher–Yates shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
 
 function fmtDate(val: string | null | undefined): string {

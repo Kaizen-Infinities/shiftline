@@ -152,16 +152,18 @@ export class AuthService {
     if (!passwordMatches) {
       if (!isAdminLogin) {
         await authRepository.incrementFailedAttempts(user.userId);
-
-        await authRepository.recordLoginAttempt({
-          username: payload.email,
-          userId: user.userId,
-          ipAddress: ipAddress ?? "unknown",
-          success: false,
-          failureReason: "invalid_password",
-          userAgent
-        });
       }
+
+      // SEC-01: every failed attempt is recorded, admin logins included, so the
+      // IP-based rate limiter above sees them.
+      await authRepository.recordLoginAttempt({
+        username: payload.email,
+        ...(isAdminLogin ? { adminId: admin!.id } : { userId: user.userId }),
+        ipAddress: ipAddress ?? "unknown",
+        success: false,
+        failureReason: "invalid_password",
+        userAgent
+      });
 
       await authRepository.createAuditLog({
         entityName: isAdminLogin ? "Admin" : "User",

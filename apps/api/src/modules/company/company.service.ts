@@ -9,6 +9,14 @@ class CompanyService {
   /**
    * Fetch the main company (assuming single-tenant/single company setup).
    */
+  /** Branding only, for the login screen. Never GSTIN, contact details or addresses. */
+  async getPublicCompany() {
+    const company = await prisma.company.findFirst({
+      select: { companyName: true, shortName: true, logoUrl: true, faviconUrl: true, isOnboarded: true },
+    });
+    return company ?? { companyName: "Shiftline", shortName: null, logoUrl: null, faviconUrl: null, isOnboarded: false };
+  }
+
   async getCompany() {
     let company = await prisma.company.findFirst({
       include: {

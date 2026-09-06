@@ -1,3 +1,4 @@
+import { getCurrentCompanyId } from "../../utils/companyContext";
 import { Request, Response, NextFunction } from "express";
 import { accountsService } from "./accounts.service";
 import { payableService } from "./payable.service";
@@ -300,7 +301,7 @@ export class AccountsController {
 
   async listPeriods(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = req.query.companyId as string;
+      const companyId = await getCurrentCompanyId();
       const data = await periodService.listPeriods(companyId);
       res.json({ success: true, data });
     } catch (error) {
@@ -310,7 +311,8 @@ export class AccountsController {
 
   async createPeriod(req: Request, res: Response, next: NextFunction) {
     try {
-      const { periodName, startDate, endDate, companyId } = req.body;
+      const { periodName, startDate, endDate } = req.body;
+      const companyId = await getCurrentCompanyId();
       const data = await periodService.createPeriod({ periodName, startDate, endDate, companyId });
       res.status(201).json({ success: true, data });
     } catch (error) {

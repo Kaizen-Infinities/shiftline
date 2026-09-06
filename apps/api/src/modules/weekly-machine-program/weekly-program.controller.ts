@@ -7,7 +7,6 @@ import { getIO } from "../../socket/socket";
 class WeeklyProgramController {
   create = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
-    console.log("CREATE PROGRAM PAYLOAD RECEIVED:", req.body);
 
     const weeklyProgram = await weeklyProgramService.create(
       req.body,

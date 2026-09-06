@@ -1,6 +1,8 @@
 import express, { Application } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 
 import apiRoutes from "./routes/index.routes";
@@ -19,7 +21,7 @@ if (isProduction) {
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Build CORS origin list from environment variables
-const allowedOrigins = [
+export const allowedOrigins = [
   env.FRONTEND_URL,
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -49,27 +51,38 @@ app.use(
   })
 );
 
-/* Security Headers*/
-app.use((_req, res, next) => {
-  res.setHeader(
-    "X-Content-Type-Options",
-    "nosniff"
-  );
+/** Security headers (SEC-06). API responses are JSON; uploads are served to the SPA origin. */
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+  })
+);
 
-  res.setHeader(
-    "X-Frame-Options",
-    "DENY"
-  );
-
-  if (isProduction) {
-    res.setHeader(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains"
-    );
-  }
-
-  next();
+/** Rate limits: a global ceiling per IP, and a tight one on credential endpoints. */
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1200,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many requests. Please slow down.", errors: [] },
 });
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { success: false, message: "Too many login attempts. Please try again later.", errors: [] },
+});
+app.use("/api", globalLimiter);
+app.use(["/api/auth/login", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/register"], authLimiter);
 
 /** Request Parsers*/
 app.use(cookieParser());

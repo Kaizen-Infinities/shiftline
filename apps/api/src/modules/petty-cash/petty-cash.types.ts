@@ -8,7 +8,6 @@ export const createPettyCashSchema = z.object({
   type: z.enum(["IN", "OUT"]),
   paidTo: z.string().max(120).optional().nullable(),
   receiptNo: z.string().max(40).optional().nullable(),
-  companyId: z.string().uuid("Valid company ID is required"),
 });
 
 export const getPettyCashQuerySchema = z.object({
@@ -16,7 +15,6 @@ export const getPettyCashQuerySchema = z.object({
   endDate: z.string().optional(),
   type: z.enum(["IN", "OUT"]).optional(),
   category: z.string().optional(),
-  companyId: z.string().optional(),
 });
 
 export type CreatePettyCashInput = z.infer<typeof createPettyCashSchema>;

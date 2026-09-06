@@ -5,7 +5,7 @@ import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { loginUser } from "../../../features/auth/authSlice";
-import { fetchCompany } from "../../../features/company/companySlice";
+import { companyService, type CompanyBranding } from "../../../services/companyService";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import Button from "../../../components/ui/Button/Button";
 
@@ -15,13 +15,11 @@ const LoginPage = () => {
     const location = useLocation();
 
     const { isLoading: reduxLoading } = useAppSelector((state) => state.auth);
-    const { data: company } = useAppSelector((state) => state.company);
+    const [company, setCompany] = useState<CompanyBranding | null>(null);
 
     useEffect(() => {
-        if (!company) {
-            dispatch(fetchCompany());
-        }
-    }, [dispatch, company]);
+        companyService.getPublicCompany().then(setCompany).catch(() => setCompany(null));
+    }, []);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

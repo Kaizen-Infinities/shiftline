@@ -1,3 +1,4 @@
+import { decryptText } from "./crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "../config/prisma";
 
@@ -25,7 +26,7 @@ export const sendEmail = async (options: SendEmailOptions) => {
       smtpHost = config.smtpHost || smtpHost;
       smtpPort = config.smtpPort || smtpPort;
       smtpUser = config.smtpUsername || smtpUser;
-      smtpPass = config.smtpPassword || smtpPass;
+      smtpPass = config.smtpPassword ? decryptText(config.smtpPassword) : smtpPass;
       fromEmail = config.fromEmail || fromEmail;
       fromName = config.fromName || fromName;
       encryption = config.encryption || encryption;

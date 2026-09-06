@@ -6,6 +6,11 @@ import { updateCompanySchema } from "./company.validation";
 import { ApiError } from "../../utils/ApiError";
 
 class CompanyController {
+  getPublicCompany = asyncHandler(async (_req: Request, res: Response) => {
+    const company = await companyService.getPublicCompany();
+    return res.status(200).json(new ApiResponse("Company branding fetched successfully", company));
+  });
+
   getCompany = asyncHandler(async (req: Request, res: Response) => {
     const company = await companyService.getCompany();
     return res.status(200).json(new ApiResponse("Company fetched successfully", company));

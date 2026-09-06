@@ -1,3 +1,4 @@
+import { getCurrentCompanyId } from "../../utils/companyContext";
 import { prisma } from "../../config/prisma";
 import { Prisma, VoucherType } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
@@ -12,8 +13,9 @@ class PettyCashService {
   }
 
   async getEntries(query: GetPettyCashQueryInput) {
+    const companyId = await getCurrentCompanyId();
     const where: Prisma.PettyCashEntryWhereInput = {
-      ...(query.companyId && { companyId: query.companyId }),
+      companyId,
       ...(query.type && { type: query.type }),
       ...(query.category && { category: { equals: query.category, mode: "insensitive" } }),
       ...((query.startDate || query.endDate) && {
@@ -38,7 +40,7 @@ class PettyCashService {
     // the screenshot (Type IN filter returning 15 OUT rows).
     const skipExpenses = query.type === "IN"; // no expense can ever be "IN"
     const expenseWhere: Prisma.ExpenseWhereInput = {
-      ...(query.companyId && { companyId: query.companyId }),
+      companyId,
       ...((query.startDate || query.endDate) && {
         date: {
           ...(query.startDate && { gte: new Date(query.startDate) }),
@@ -115,6 +117,7 @@ class PettyCashService {
   }
 
   async createEntry(data: CreatePettyCashInput, createdBy?: string) {
+    const companyId = await getCurrentCompanyId();
     const entryNo = this.generateEntryNo();
     const entryDate = data.entryDate ? new Date(data.entryDate) : new Date();
 
@@ -128,7 +131,7 @@ class PettyCashService {
         type: data.type,
         paidTo: data.paidTo || null,
         receiptNo: data.receiptNo || null,
-        companyId: data.companyId,
+        companyId,
         createdBy: createdBy || null,
       },
     });

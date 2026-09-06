@@ -32,8 +32,10 @@ class ProductController {
     ) => {
       const search = req.query.search ? String(req.query.search) : undefined;
       const categoryId = req.query.categoryId ? String(req.query.categoryId) : undefined;
+      const page = req.query.page !== undefined ? Number(req.query.page) : undefined;
+      const limit = req.query.limit !== undefined ? Number(req.query.limit) : undefined;
       const products =
-        await productService.findAll({ search, categoryId });
+        await productService.findAll({ search, categoryId, page, limit });
 
       return res.status(200).json(
         new ApiResponse(
