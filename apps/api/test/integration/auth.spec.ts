@@ -10,7 +10,9 @@ describe("authentication", () => {
   });
 
   it("logs in a seeded user and returns a bearer token", async () => {
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/auth/login")
       .send({ email: "demo.owner", password: SEED_PASSWORD });
     expect(res.status).toBe(200);
@@ -18,7 +20,9 @@ describe("authentication", () => {
   });
 
   it("rejects a wrong password without leaking which part was wrong", async () => {
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/auth/login")
       .send({ email: "demo.owner", password: "nope-nope-nope" });
     expect(res.status).toBe(401);
@@ -26,7 +30,9 @@ describe("authentication", () => {
   });
 
   it("rejects an unknown user with the same message", async () => {
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/auth/login")
       .send({ email: "ghost", password: "nope-nope-nope" });
     expect(res.status).toBe(401);
@@ -44,7 +50,9 @@ describe("authentication", () => {
     const payload = Buffer.from(
       JSON.stringify({ userId: "admin_1", isSuperAdmin: true, permissions: [], sessionId: "x" })
     ).toString("base64url");
-    const r2 = await (await api())
+    const r2 = await (
+      await api()
+    )
       .get("/api/companies")
       .set("Authorization", `Bearer ${header}.${payload}.`);
     expect(r2.status).toBe(401);
@@ -55,7 +63,9 @@ describe("authentication", () => {
     await prisma.loginAttempt.deleteMany();
     const statuses: number[] = [];
     for (let i = 0; i < 12; i++) {
-      const res = await (await api())
+      const res = await (
+        await api()
+      )
         .post("/api/auth/login")
         .send({ email: ADMIN.email, password: "wrong-password-!!" });
       statuses.push(res.status);

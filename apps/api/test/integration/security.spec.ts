@@ -63,7 +63,9 @@ describe("input pipeline (REL-01 / F6)", () => {
 
   it("rejects malformed JSON with 400", async () => {
     const { auth } = await authed();
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/customer-types")
       .set(auth)
       .set("content-type", "application/json")

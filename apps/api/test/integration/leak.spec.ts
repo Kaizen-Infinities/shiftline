@@ -155,7 +155,9 @@ describe("cross-tenant leak suite", () => {
   it("a tenant cannot edit another tenant's company record", async () => {
     const prisma = await getPrisma();
     const { auth } = await authed("demo.owner");
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .put(`/api/companies/${tenantB}`)
       .set(auth)
       .send({ companyName: "Hijacked Co" });
