@@ -4,8 +4,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-COPY packages/shared/package.json packages/shared/
-COPY packages/config/package.json packages/config/
+# The shared package's `prepare` script runs during npm ci even with
+# --ignore-scripts (npm links workspaces), so its sources must be present.
+COPY packages ./packages
 RUN npm ci --ignore-scripts --no-audit --no-fund
 
 FROM deps AS dev
