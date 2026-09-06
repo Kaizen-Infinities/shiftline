@@ -165,8 +165,16 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   },
 
   // ── Customer masters ───────────────────────────────────────────────────────
-  { module: "customer-types",  actions: ["view", "create", "edit", "delete"], description: "Customer Types" },
-  { module: "customer-grades", actions: ["view", "create", "edit", "delete"], description: "Customer Grades" },
+  {
+    module: "customer-types",
+    actions: ["view", "create", "edit", "delete"],
+    description: "Customer Types",
+  },
+  {
+    module: "customer-grades",
+    actions: ["view", "create", "edit", "delete"],
+    description: "Customer Grades",
+  },
 
   // ── Sales ───────────────────────────────────────────────────────────────────
   {

@@ -56,6 +56,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Prisma schema is valid
         run: npx -w @shiftline/api prisma validate
+      - name: Create the shadow database for migrate diff
+        run: PGPASSWORD=shiftline psql -h localhost -U shiftline -d shiftline -v ON_ERROR_STOP=1 -c "CREATE DATABASE shiftline_shadow;"
       - name: Migrations apply to an empty database and match the schema
         run: |
           cd apps/api
