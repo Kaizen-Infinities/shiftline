@@ -102,7 +102,9 @@ class PettyCashService {
     });
 
     // Sort combined entries by entryDate descending
-    formattedEntries.sort((a, b) => new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime());
+    formattedEntries.sort(
+      (a, b) => new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime()
+    );
 
     const currentBalance = totalIn - totalOut;
 
@@ -138,7 +140,7 @@ class PettyCashService {
 
     // Auto-post to ledger (double-entry bookkeeping)
     try {
-      const { voucherPostingService } = require("../accounts/voucherPosting.service");
+      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postPettyCashVoucher(entry.id);
     } catch (err) {
       console.error("[PettyCashService] Auto-post to ledger failed:", err);

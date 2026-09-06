@@ -8,7 +8,7 @@ import path from "path";
 import apiRoutes from "./routes/index.routes";
 
 import { errorMiddleware } from "./middleware/error.middleware";
-import { env, isProduction } from "./config/env";
+import { env, isProduction, isTest } from "./config/env";
 
 const app: Application = express();
 
@@ -38,14 +38,7 @@ app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["Content-Disposition"],
   })
@@ -70,6 +63,7 @@ app.use(
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 1200,
+  skip: () => isTest,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { success: false, message: "Too many requests. Please slow down.", errors: [] },
@@ -77,12 +71,25 @@ const globalLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
+  skip: () => isTest,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { success: false, message: "Too many login attempts. Please try again later.", errors: [] },
+  message: {
+    success: false,
+    message: "Too many login attempts. Please try again later.",
+    errors: [],
+  },
 });
 app.use("/api", globalLimiter);
-app.use(["/api/auth/login", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/register"], authLimiter);
+app.use(
+  [
+    "/api/auth/login",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+    "/api/auth/register",
+  ],
+  authLimiter
+);
 
 /** Request Parsers*/
 app.use(cookieParser());
@@ -92,7 +99,7 @@ app.use(
     limit: "10mb",
     verify: (req: any, _res, buf) => {
       req.rawBody = buf;
-    }
+    },
   })
 );
 
@@ -116,7 +123,7 @@ app.get("/", (req, res) => {
     message: "Shiftline API",
     version: "1.0.0",
     environment: process.env.NODE_ENV || "development",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

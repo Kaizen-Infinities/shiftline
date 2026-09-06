@@ -65,11 +65,18 @@ class VouchersService {
   }
 
   async deleteVoucher(id: number) {
-    const voucher = await prisma.voucher.findUnique({ where: { id }, select: { id: true, type: true, refDocType: true } });
+    const voucher = await prisma.voucher.findUnique({
+      where: { id },
+      select: { id: true, type: true, refDocType: true },
+    });
     if (!voucher) throw new ApiError(404, "Voucher not found");
 
     // Block deletion of system-generated vouchers (opening balance JVs, invoice-linked vouchers)
-    const blockedRefDocTypes = ["LEDGER_OPENING_BALANCE", "CUSTOMER_OPENING_BALANCE", "SUPPLIER_OPENING_BALANCE"];
+    const blockedRefDocTypes = [
+      "LEDGER_OPENING_BALANCE",
+      "CUSTOMER_OPENING_BALANCE",
+      "SUPPLIER_OPENING_BALANCE",
+    ];
     if (voucher.refDocType && blockedRefDocTypes.includes(voucher.refDocType)) {
       throw new ApiError(400, "System-generated vouchers cannot be deleted");
     }
@@ -170,7 +177,8 @@ class VouchersService {
         // Try matching Sales invoice
         if (!refDoc && (v.refDocType === "SALES_INVOICE" || v.refDocType === "SALES_PAYMENT")) {
           if (v.refDocId) {
-            inv = salesMapByPaymentId.get(String(v.refDocId)) || salesMapById.get(String(v.refDocId));
+            inv =
+              salesMapByPaymentId.get(String(v.refDocId)) || salesMapById.get(String(v.refDocId));
             if (!inv && String(v.refDocId).includes("_rcpt_")) {
               inv = salesMapById.get(String(v.refDocId).split("_rcpt_")[0]);
             }
@@ -183,7 +191,12 @@ class VouchersService {
               customerName: inv.customer?.firmName || "-",
               status: inv.paymentStatus || "POSTED",
               items: (inv.items || []).map((i: any) => ({
-                description: i.description || i.product?.productName || i.product?.skuCode || (i as any).productName || "Item",
+                description:
+                  i.description ||
+                  i.product?.productName ||
+                  i.product?.skuCode ||
+                  (i as any).productName ||
+                  "Item",
                 uom: i.uom || i.product?.uom || "Units",
                 quantity: Number(i.quantity || 1),
                 unitPrice: Number(i.unitPrice || (i as any).rate || 0),
@@ -212,7 +225,7 @@ class VouchersService {
     const offset = (page - 1) * limit;
 
     try {
-      const { voucherPostingService } = require("../accounts/voucherPosting.service");
+      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.syncUnpostedVouchers();
     } catch (e) {
       console.error("[VouchersService] Failed to sync unposted vouchers:", e);
@@ -255,8 +268,12 @@ class VouchersService {
         include: {
           items: {
             include: {
-              debitLedger: { select: { id: true, name: true, code: true, supplierId: true, customerId: true } },
-              creditLedger: { select: { id: true, name: true, code: true, supplierId: true, customerId: true } },
+              debitLedger: {
+                select: { id: true, name: true, code: true, supplierId: true, customerId: true },
+              },
+              creditLedger: {
+                select: { id: true, name: true, code: true, supplierId: true, customerId: true },
+              },
             },
           },
         },
@@ -307,17 +324,28 @@ class VouchersService {
     }
 
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      throw new ApiError(400, `Unbalanced voucher entry: Total Debit (${totalDebit.toFixed(2)}) must equal Total Credit (${totalCredit.toFixed(2)})`);
+      throw new ApiError(
+        400,
+        `Unbalanced voucher entry: Total Debit (${totalDebit.toFixed(2)}) must equal Total Credit (${totalCredit.toFixed(2)})`
+      );
     }
 
     // BUG 4 Guard: Return Refund vouchers must not reference Customer or Supplier ledgers
     if (data.refDocType === "SALES_RETURN_REFUND" || data.refDocType === "PURCHASE_RETURN_REFUND") {
-      const ledgerIds = data.items.flatMap(i => [i.debitLedgerId, i.creditLedgerId]).filter(Boolean) as number[];
+      const ledgerIds = data.items
+        .flatMap((i) => [i.debitLedgerId, i.creditLedgerId])
+        .filter(Boolean) as number[];
       const partyLedger = await prisma.accountLedger.findFirst({
-        where: { id: { in: ledgerIds }, OR: [{ customerId: { not: null } }, { supplierId: { not: null } }] }
+        where: {
+          id: { in: ledgerIds },
+          OR: [{ customerId: { not: null } }, { supplierId: { not: null } }],
+        },
       });
       if (partyLedger) {
-        throw new ApiError(400, `Return refund vouchers must not directly touch Customer or Supplier ledgers (attempted on ledger ${partyLedger.code})`);
+        throw new ApiError(
+          400,
+          `Return refund vouchers must not directly touch Customer or Supplier ledgers (attempted on ledger ${partyLedger.code})`
+        );
       }
     }
 

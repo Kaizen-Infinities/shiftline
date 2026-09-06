@@ -21,7 +21,7 @@ class ReturnsController {
       const data = await returnsService.createSalesReturn(input, createdBy);
 
       try {
-        const { getIO } = require("../../socket/socket");
+        const { getIO } = await import("../../socket/socket.js");
         const io = getIO();
         io.emit("salesReturn:created", data);
         io.emit("voucher:created", { source: "salesReturn" });
@@ -55,7 +55,7 @@ class ReturnsController {
       const data = await returnsService.updateSalesReturn(id, input, updatedBy);
 
       try {
-        const { getIO } = require("../../socket/socket");
+        const { getIO } = await import("../../socket/socket.js");
         const io = getIO();
         io.emit("salesReturn:updated", data);
         io.emit("voucher:created", { source: "salesReturn" });
@@ -88,7 +88,7 @@ class ReturnsController {
       const data = await returnsService.createPurchaseReturn(input, createdBy);
 
       try {
-        const { getIO } = require("../../socket/socket");
+        const { getIO } = await import("../../socket/socket.js");
         const io = getIO();
         io.emit("purchaseReturn:created", data);
         io.emit("rawMaterial:updated", { source: "purchaseReturn" });

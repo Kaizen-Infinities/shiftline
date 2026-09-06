@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "test": "echo \"tests arrive in P0-04\" && exit 0"
+    "test": "vitest run --project web"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

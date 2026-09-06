@@ -77,7 +77,10 @@ class ReturnsService {
             if (itemInput.salesInvoiceItemId) {
               const invItem = invoice.items.find((i) => i.id === itemInput.salesInvoiceItemId);
               if (!invItem) {
-                throw new ApiError(400, `Invoice item ${itemInput.salesInvoiceItemId} not found in invoice ${data.salesInvoiceId}`);
+                throw new ApiError(
+                  400,
+                  `Invoice item ${itemInput.salesInvoiceItemId} not found in invoice ${data.salesInvoiceId}`
+                );
               }
               const alreadyReturned = returnedQtyMap.get(itemInput.salesInvoiceItemId) || 0;
               const originalQty = Number(invItem.quantity);
@@ -147,16 +150,18 @@ class ReturnsService {
         });
 
         return salesReturn;
-      }, { maxWait: 10000, timeout: 30000 });
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
 
-      // 4. Post Double-Entry Accounting Voucher(s) after return transaction has committed
-      try {
-        await voucherPostingService.postSalesReturnVoucher(salesReturn.id);
-      } catch (vErr) {
-        console.error("[Auto-Post Voucher Error] Failed to post Sales Return Voucher:", vErr);
-      }
+    // 4. Post Double-Entry Accounting Voucher(s) after return transaction has committed
+    try {
+      await voucherPostingService.postSalesReturnVoucher(salesReturn.id);
+    } catch (vErr) {
+      console.error("[Auto-Post Voucher Error] Failed to post Sales Return Voucher:", vErr);
+    }
 
-      return salesReturn;
+    return salesReturn;
   }
 
   async getSalesReturnById(id: string) {
@@ -245,7 +250,10 @@ class ReturnsService {
     try {
       await voucherPostingService.postSalesReturnVoucher(updated.id);
     } catch (vErr) {
-      console.error("[Auto-Post Voucher Error] Failed to post Sales Return Voucher on update:", vErr);
+      console.error(
+        "[Auto-Post Voucher Error] Failed to post Sales Return Voucher on update:",
+        vErr
+      );
     }
 
     return updated;
@@ -258,7 +266,9 @@ class ReturnsService {
       include: {
         supplier: { select: { id: true, legalName: true, supplierCode: true } },
         grnInvoice: { select: { id: true, invoiceNo: true } },
-        items: { include: { rawMaterial: { select: { rawMaterialId: true, materialName: true } } } },
+        items: {
+          include: { rawMaterial: { select: { rawMaterialId: true, materialName: true } } },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -302,7 +312,11 @@ class ReturnsService {
 
           // Validate each item against GRN invoice line items
           for (const itemInput of data.items) {
-            const grnItem = grnInvoice.items?.find((i: any) => i.productId === itemInput.rawMaterialId || i.rawMaterialId === itemInput.rawMaterialId);
+            const grnItem = grnInvoice.items?.find(
+              (i: any) =>
+                i.productId === itemInput.rawMaterialId ||
+                i.rawMaterialId === itemInput.rawMaterialId
+            );
             if (grnItem) {
               const alreadyReturned = returnedQtyMap.get(itemInput.rawMaterialId) || 0;
               const originalQty = Number(grnItem.quantity);
@@ -325,11 +339,16 @@ class ReturnsService {
 
         if (!storeIdForDeduction) {
           // If no GRN storeId and no data.storeId, check if raw material has storeId or throw error
-          const firstRm = await tx.rawMaterial.findUnique({ where: { rawMaterialId: data.items[0].rawMaterialId } });
+          const firstRm = await tx.rawMaterial.findUnique({
+            where: { rawMaterialId: data.items[0].rawMaterialId },
+          });
           if (firstRm && firstRm.storeId) {
             storeIdForDeduction = firstRm.storeId;
           } else {
-            throw new ApiError(400, "Store/warehouse is required for purchase return stock deduction");
+            throw new ApiError(
+              400,
+              "Store/warehouse is required for purchase return stock deduction"
+            );
           }
         }
 
@@ -414,7 +433,9 @@ class ReturnsService {
         });
 
         for (const item of data.items) {
-          const rm = await tx.rawMaterial.findUnique({ where: { rawMaterialId: item.rawMaterialId } });
+          const rm = await tx.rawMaterial.findUnique({
+            where: { rawMaterialId: item.rawMaterialId },
+          });
           const currentQty = Number(rm?.onHandQty || 0) + Number(item.quantity); // qty before deduction
           const adjustedQty = Number(rm?.onHandQty || 0); // qty after deduction
 
@@ -440,7 +461,7 @@ class ReturnsService {
 
     // 4. Post Purchase Return Voucher (Debit: Supplier Ledger, Credit: Purchase Return Account) after return transaction commits
     try {
-      const { voucherPostingService } = require("../accounts/voucherPosting.service");
+      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postPurchaseReturnVoucher(purchaseReturn.id);
     } catch (vErr) {
       console.error("[Auto-Post Voucher Error] Failed to post Purchase Return Voucher:", vErr);

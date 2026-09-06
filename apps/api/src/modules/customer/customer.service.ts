@@ -2,15 +2,15 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { executeDeleteWithValidation } from "../../utils/deleteValidation";
 
-import {
-  CreateCustomerInput,
-  UpdateCustomerInput,
-} from "./customer.validation";
+import { CreateCustomerInput, UpdateCustomerInput } from "./customer.validation";
 import { accountsService } from "../accounts/accounts.service";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 
 class CustomerService {
-  async createCustomer(data: CreateCustomerInput, currentUser: { userId: string; companyId: string }) {
+  async createCustomer(
+    data: CreateCustomerInput,
+    currentUser: { userId: string; companyId: string }
+  ) {
     const existingCustomer = await prisma.customer.findFirst({
       where: {
         companyId: currentUser.companyId,
@@ -25,7 +25,13 @@ class CustomerService {
     // Also strip `openingBalancePaidThroughLedgerId` — it's a workflow-only field
     // used to route the auto-posted opening voucher to a bank/cash ledger; the
     // Customer table doesn't have (and doesn't need) a column for it.
-    const { phones, addresses, openingBalance, openingBalancePaidThroughLedgerId: _paidThrough, ...restData } = data as any;
+    const {
+      phones,
+      addresses,
+      openingBalance,
+      openingBalancePaidThroughLedgerId: _paidThrough,
+      ...restData
+    } = data as any;
     const mobileData = phones || restData.mobile || null;
 
     const newCustomer = await prisma.customer.create({
@@ -37,19 +43,20 @@ class CustomerService {
         // Seed outstanding amount and opening balance (immutable after creation)
         outstandingAmount: openingBalance ?? 0,
         openingBalance: openingBalance ?? 0,
-        ...(addresses && addresses.length > 0 && {
-          addresses: {
-            create: addresses.map((addr: any, index: number) => {
-              const { _label, ...cleanAddr } = addr;
-              return {
-                address: cleanAddr,
-                is_default: index === 0,
-                label: _label || `Address ${index + 1}`,
-                state_code: addr.state.toLowerCase(),
-              };
-            })
-          }
-        })
+        ...(addresses &&
+          addresses.length > 0 && {
+            addresses: {
+              create: addresses.map((addr: any, index: number) => {
+                const { _label, ...cleanAddr } = addr;
+                return {
+                  address: cleanAddr,
+                  is_default: index === 0,
+                  label: _label || `Address ${index + 1}`,
+                  state_code: addr.state.toLowerCase(),
+                };
+              }),
+            },
+          }),
       },
     });
 
@@ -63,7 +70,11 @@ class CustomerService {
       if (opBal > 0) {
         const opType = (data.openingBalanceType || "DEBIT").toUpperCase() as "DEBIT" | "CREDIT";
         await voucherPostingService.postCustomerOpeningBalanceVoucher(
-          { id: newCustomer.id, customerCode: newCustomer.customerCode, firmName: newCustomer.firmName },
+          {
+            id: newCustomer.id,
+            customerCode: newCustomer.customerCode,
+            firmName: newCustomer.firmName,
+          },
           opBal,
           opType
         );
@@ -115,35 +126,57 @@ class CustomerService {
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
-        include: { addresses: true, customerType: true, customerGrade: true }
+        include: { addresses: true, customerType: true, customerGrade: true },
       }),
       prisma.customer.count({ where: whereClause }),
     ]);
 
     // Fetch creator names from User and Admin tables
-    const creatorIds = [...new Set(customers.map(c => c.createdBy).filter(Boolean))];
+    const creatorIds = [...new Set(customers.map((c) => c.createdBy).filter(Boolean))];
 
     // Split IDs into admin IDs and normal user IDs
-    const adminIds = creatorIds.filter(id => id.startsWith('admin_')).map(id => BigInt(id.replace('admin_', '')));
-    const userIds = creatorIds.filter(id => !id.startsWith('admin_'));
+    const adminIds = creatorIds
+      .filter((id) => id.startsWith("admin_"))
+      .map((id) => BigInt(id.replace("admin_", "")));
+    const userIds = creatorIds.filter((id) => !id.startsWith("admin_"));
 
     const [admins, users] = await Promise.all([
-      adminIds.length > 0 ? prisma.admin.findMany({ where: { id: { in: adminIds } }, select: { id: true, fullName: true, role: { select: { name: true } } } }) : [],
-      userIds.length > 0 ? prisma.user.findMany({ where: { userId: { in: userIds } }, select: { userId: true, fullName: true, role: { select: { name: true } } } }) : []
+      adminIds.length > 0
+        ? prisma.admin.findMany({
+            where: { id: { in: adminIds } },
+            select: { id: true, fullName: true, role: { select: { name: true } } },
+          })
+        : [],
+      userIds.length > 0
+        ? prisma.user.findMany({
+            where: { userId: { in: userIds } },
+            select: { userId: true, fullName: true, role: { select: { name: true } } },
+          })
+        : [],
     ]);
 
-    const adminMap = new Map(admins.map(a => [`admin_${a.id}`, { name: a.fullName, role: a.role?.name || 'Super Admin' }]));
-    const userMap = new Map(users.map(u => [u.userId, { name: u.fullName, role: u.role?.name || 'User' }]));
+    const adminMap = new Map(
+      admins.map((a) => [
+        `admin_${a.id}`,
+        { name: a.fullName, role: a.role?.name || "Super Admin" },
+      ])
+    );
+    const userMap = new Map(
+      users.map((u) => [u.userId, { name: u.fullName, role: u.role?.name || "User" }])
+    );
 
-    const { receivableService } = require("../accounts/receivable.service");
+    const { receivableService } = await import("../accounts/receivable.service.js");
 
     const customersWithCreatorsAndBalance = await Promise.all(
       customers.map(async (customer) => {
-        const creatorInfo = adminMap.get(customer.createdBy) || userMap.get(customer.createdBy) || { name: 'Unknown User', role: 'Unknown Role' };
-        
+        const creatorInfo = adminMap.get(customer.createdBy) ||
+          userMap.get(customer.createdBy) || { name: "Unknown User", role: "Unknown Role" };
+
         let netBalance = 0;
         try {
-          const summaries = await receivableService.getReceivableSummaries({ customerId: customer.id });
+          const summaries = await receivableService.getReceivableSummaries({
+            customerId: customer.id,
+          });
           if (summaries && summaries.length > 0) {
             netBalance = summaries[0].netBalance;
           } else {
@@ -211,38 +244,41 @@ class CustomerService {
         addresses: true,
         customerType: true,
         customerGrade: true,
-      }
+      },
     });
 
     if (!customer) {
-      throw new ApiError(
-        404,
-        "Customer not found"
-      );
+      throw new ApiError(404, "Customer not found");
     }
 
-    let createdUserName = 'Unknown User';
-    let createdUserRole = 'Unknown Role';
+    let createdUserName = "Unknown User";
+    let createdUserRole = "Unknown Role";
     if (customer.createdBy) {
-      if (customer.createdBy.startsWith('admin_')) {
-        const adminId = BigInt(customer.createdBy.replace('admin_', ''));
-        const admin = await prisma.admin.findUnique({ where: { id: adminId }, select: { fullName: true, role: { select: { name: true } } } });
+      if (customer.createdBy.startsWith("admin_")) {
+        const adminId = BigInt(customer.createdBy.replace("admin_", ""));
+        const admin = await prisma.admin.findUnique({
+          where: { id: adminId },
+          select: { fullName: true, role: { select: { name: true } } },
+        });
         if (admin) {
           createdUserName = admin.fullName;
-          createdUserRole = admin.role?.name || 'Super Admin';
+          createdUserRole = admin.role?.name || "Super Admin";
         }
       } else {
-        const user = await prisma.user.findUnique({ where: { userId: customer.createdBy }, select: { fullName: true, role: { select: { name: true } } } });
+        const user = await prisma.user.findUnique({
+          where: { userId: customer.createdBy },
+          select: { fullName: true, role: { select: { name: true } } },
+        });
         if (user) {
           createdUserName = user.fullName;
-          createdUserRole = user.role?.name || 'User';
+          createdUserRole = user.role?.name || "User";
         }
       }
     }
 
     let netBalance = 0;
     try {
-      const { receivableService } = require("../accounts/receivable.service");
+      const { receivableService } = await import("../accounts/receivable.service.js");
       const summaries = await receivableService.getReceivableSummaries({ customerId: customer.id });
       if (summaries && summaries.length > 0) {
         netBalance = summaries[0].netBalance;
@@ -270,32 +306,24 @@ class CustomerService {
     };
   }
 
-  async updateCustomer(
-    id: string,
-    data: UpdateCustomerInput
-  ) {
+  async updateCustomer(id: string, data: UpdateCustomerInput) {
     const customer = await this.getCustomerById(id);
 
     if (data.customerCode) {
-      const existingCustomer =
-        await prisma.customer.findFirst({
-          where: {
-            companyId: customer.companyId,
+      const existingCustomer = await prisma.customer.findFirst({
+        where: {
+          companyId: customer.companyId,
 
-            customerCode:
-              data.customerCode,
+          customerCode: data.customerCode,
 
-            id: {
-              not: id,
-            },
+          id: {
+            not: id,
           },
-        });
+        },
+      });
 
       if (existingCustomer) {
-        throw new ApiError(
-          409,
-          "Customer code already exists for this company"
-        );
+        throw new ApiError(409, "Customer code already exists for this company");
       }
     }
 
@@ -319,9 +347,9 @@ class CustomerService {
                 label: _label || `Address ${index + 1}`,
                 state_code: addr.state.toLowerCase(),
               };
-            })
-          }
-        })
+            }),
+          },
+        }),
       },
       include: { addresses: true, customerType: true, customerGrade: true },
     });
@@ -353,10 +381,7 @@ class CustomerService {
       );
     }
 
-    return executeDeleteWithValidation(
-      () => prisma.customer.delete({ where: { id } }),
-      "Customer"
-    );
+    return executeDeleteWithValidation(() => prisma.customer.delete({ where: { id } }), "Customer");
   }
 }
 

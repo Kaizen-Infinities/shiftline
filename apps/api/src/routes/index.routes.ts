@@ -58,76 +58,81 @@ import categoryRoutes from "../modules/category/category.routes";
 
 const router = Router();
 
-router.use("/auth", authRoutes);
+/**
+ * Every API module and the path it is mounted on. Exported so tests can walk the
+ * route table (Express 5 no longer exposes mount paths on router layers).
+ */
+export const API_MOUNTS: { path: string; router: Router }[] = [
+  { path: "/auth", router: authRoutes },
+  { path: "/users", router: userRoutes },
+  { path: "/roles", router: roleRoutes },
+  { path: "/permissions", router: permissionRoutes },
+  { path: "/role-permissions", router: rolePermissionRoutes },
+  { path: "/departments", router: departmentRoutes },
+  { path: "/shifts", router: shiftRoutes },
+  { path: "/employees", router: employeeRoutes },
+  { path: "/customers", router: customerRoutes },
+  { path: "/customer-types", router: customerTypeRoutes },
+  { path: "/customer-grades", router: customerGradeRoutes },
+  { path: "/suppliers", router: supplierRoutes },
+  { path: "/purchase-orders", router: purchaseOrderRoutes },
+  { path: "/supplier-material-prices", router: supplierMaterialPriceRoutes },
+  { path: "/product/uoms", router: uomRoutes },
+  { path: "/uom", router: uomRoutes },
+  { path: "/product-images", router: productImageRoutes },
+  { path: "/products", router: productRoutes },
+  { path: "/companies", router: companyRoutes },
+  { path: "/stores", router: storeRoutes },
+  { path: "/raw-materials", router: rawMaterialRoutes },
+  { path: "/raw-material-stocks", router: rawMaterialStockRoutes },
+  { path: "/finished-goods-stocks", router: finishedGoodsStockRoutes },
+  { path: "/finished-goods-transactions", router: finishedGoodsTransactionRoutes },
+  { path: "/machines", router: machineRoutes },
+  { path: "/production-orders", router: productionOrderRoutes },
+  { path: "/hourly-productions", router: hourlyProductionRoutes },
+  { path: "/raw-material-transactions", router: rawMaterialTransactionRoutes },
+  { path: "/weekly-machine-programs", router: weeklyProgramRoutes },
+  { path: "/daily-schedule", router: dailyScheduleRoutes },
+  { path: "/daily-production-plans", router: dailyPlanRoutes },
+  { path: "/reports", router: reportsRoutes },
+  { path: "/bill-of-materials", router: billOfMaterialRoutes },
+  { path: "/sales-products", router: salesProductRoutes },
+  { path: "/sales-orders", router: salesOrderRoutes },
+  { path: "/stock-adjustments", router: stockAdjustmentRoutes },
+  { path: "/production-wastages", router: productionWastageRoutes },
+  { path: "/whatsapp", router: whatsappRoutes },
+  { path: "/invoice-settings", router: invoiceSettingsRoutes },
+  { path: "/expenses", router: expenseRoutes },
+  { path: "/grn-invoices", router: grnInvoiceRoutes },
+  { path: "/sales-invoices", router: salesInvoiceRoutes },
+  { path: "/oee", router: oeeRoutes },
+  { path: "/goods-dispatches", router: goodsDispatchRoutes },
+  { path: "/inventory", router: inventoryRoutes },
+  { path: "/machine-operation-assignments", router: machineOperationAssignmentRoutes },
+  { path: "/product-shift-records", router: productShiftRecordRoutes },
+  { path: "/product-capacity-history", router: productCapacityHistoryRoutes },
+  { path: "/email-config", router: emailConfigRoutes },
+  { path: "/accounts", router: accountsRoutes },
+  { path: "/vouchers", router: voucherRoutes },
+  { path: "/returns", router: returnRoutes },
+  { path: "/petty-cash", router: pettyCashRoutes },
+  { path: "/payroll", router: payrollRoutes },
+  { path: "/dashboard", router: dashboardRoutes },
+  { path: "/categories", router: categoryRoutes },
+];
 
-router.use("/users", userRoutes);
-router.use("/roles", roleRoutes);
-router.use("/permissions", permissionRoutes);
-router.use("/role-permissions", rolePermissionRoutes);
-router.use("/departments", departmentRoutes);
-router.use("/shifts", shiftRoutes);
-
-router.use("/employees", employeeRoutes);
-
-router.use("/customers", customerRoutes);
-router.use("/customer-types", customerTypeRoutes);
-router.use("/customer-grades", customerGradeRoutes);
-router.use("/suppliers", supplierRoutes);
-router.use("/purchase-orders", purchaseOrderRoutes);
-router.use("/supplier-material-prices", supplierMaterialPriceRoutes);
-
-router.use("/product/uoms", uomRoutes);
-router.use("/uom", uomRoutes);
-router.use("/product-images", productImageRoutes);
-router.use("/products", productRoutes);
-router.use("/companies", companyRoutes);
-
-router.use("/stores", storeRoutes);
-router.use("/raw-materials", rawMaterialRoutes);
-router.use("/raw-material-stocks", rawMaterialStockRoutes);
-router.use("/finished-goods-stocks", finishedGoodsStockRoutes);
-router.use("/finished-goods-transactions", finishedGoodsTransactionRoutes);
-router.use("/machines", machineRoutes);
-router.use("/production-orders", productionOrderRoutes);
-router.use("/hourly-productions", hourlyProductionRoutes);
-router.use("/raw-material-transactions", rawMaterialTransactionRoutes);
-router.use("/weekly-machine-programs", weeklyProgramRoutes);
-router.use("/daily-schedule", dailyScheduleRoutes);
-router.use("/daily-production-plans", dailyPlanRoutes);
-router.use("/reports", reportsRoutes);
-router.use("/bill-of-materials", billOfMaterialRoutes);
-router.use("/sales-products", salesProductRoutes);
-router.use("/sales-orders", salesOrderRoutes);
-router.use("/stock-adjustments", stockAdjustmentRoutes);
-router.use("/production-wastages", productionWastageRoutes);
-router.use("/whatsapp", whatsappRoutes);
-router.use("/invoice-settings", invoiceSettingsRoutes);
-router.use("/expenses", expenseRoutes);
-router.use("/grn-invoices", grnInvoiceRoutes);
-router.use("/sales-invoices", salesInvoiceRoutes);
-router.use("/oee", oeeRoutes);
-router.use("/goods-dispatches", goodsDispatchRoutes);
-router.use("/inventory", inventoryRoutes);
-router.use("/machine-operation-assignments", machineOperationAssignmentRoutes);
-router.use("/product-shift-records", productShiftRecordRoutes);
-router.use("/product-capacity-history", productCapacityHistoryRoutes);
-router.use("/email-config", emailConfigRoutes);
-router.use("/accounts", accountsRoutes);
-router.use("/vouchers", voucherRoutes);
-router.use("/returns", returnRoutes);
-router.use("/petty-cash", pettyCashRoutes);
-router.use("/payroll", payrollRoutes);
-router.use("/dashboard", dashboardRoutes);
-router.use("/categories", categoryRoutes);
+for (const { path, router: moduleRouter } of API_MOUNTS) {
+  router.use(path, moduleRouter);
+}
 
 router.get("/", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Shiftline API",
-        version: "1.0.0",
-        environment: process.env.NODE_ENV || "development",
-        timestamp: new Date().toISOString()
-    });
+  res.status(200).json({
+    success: true,
+    message: "Shiftline API",
+    version: "1.0.0",
+    environment: process.env.NODE_ENV || "development",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 export default router;

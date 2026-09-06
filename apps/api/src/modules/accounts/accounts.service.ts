@@ -11,17 +11,57 @@ import { CreateLedgerInput, UpdateLedgerInput } from "./accounts.types";
 const DEFAULT_SEED_LEDGERS = [
   { code: "CASH-001", name: "Cash in Hand", type: LedgerType.ASSET, group: "Cash in Hand" },
   { code: "BANK-001", name: "Main Bank Account", type: LedgerType.ASSET, group: "Bank Accounts" },
-  { code: "CRED-001", name: "Sundry Creditors", type: LedgerType.LIABILITY, group: "Current Liabilities" },
+  {
+    code: "CRED-001",
+    name: "Sundry Creditors",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
   { code: "DEBT-001", name: "Sundry Debtors", type: LedgerType.ASSET, group: "Current Assets" },
-  { code: "PURCH-001", name: "Purchase Account", type: LedgerType.EXPENSE, group: "Direct Expenses" },
+  {
+    code: "PURCH-001",
+    name: "Purchase Account",
+    type: LedgerType.EXPENSE,
+    group: "Direct Expenses",
+  },
   { code: "SALES-001", name: "Sales Account", type: LedgerType.INCOME, group: "Direct Income" },
-  { code: "EXP-001", name: "General Expenses", type: LedgerType.EXPENSE, group: "Indirect Expenses" },
+  {
+    code: "EXP-001",
+    name: "General Expenses",
+    type: LedgerType.EXPENSE,
+    group: "Indirect Expenses",
+  },
   { code: "PCASH-001", name: "Petty Cash Account", type: LedgerType.ASSET, group: "Cash in Hand" },
-  { code: "SRT-001", name: "Sales Return Account", type: LedgerType.INCOME, group: "Direct Income" },
-  { code: "PRT-001", name: "Purchase Return Account", type: LedgerType.EXPENSE, group: "Direct Expenses" },
-  { code: "CGST-LIA-001", name: "CGST Payable", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
-  { code: "SGST-LIA-001", name: "SGST Payable", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
-  { code: "IGST-LIA-001", name: "IGST Payable", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
+  {
+    code: "SRT-001",
+    name: "Sales Return Account",
+    type: LedgerType.INCOME,
+    group: "Direct Income",
+  },
+  {
+    code: "PRT-001",
+    name: "Purchase Return Account",
+    type: LedgerType.EXPENSE,
+    group: "Direct Expenses",
+  },
+  {
+    code: "CGST-LIA-001",
+    name: "CGST Payable",
+    type: LedgerType.LIABILITY,
+    group: "Tax Liabilities",
+  },
+  {
+    code: "SGST-LIA-001",
+    name: "SGST Payable",
+    type: LedgerType.LIABILITY,
+    group: "Tax Liabilities",
+  },
+  {
+    code: "IGST-LIA-001",
+    name: "IGST Payable",
+    type: LedgerType.LIABILITY,
+    group: "Tax Liabilities",
+  },
   { code: "CGST-REC-001", name: "CGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
   { code: "SGST-REC-001", name: "SGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
   { code: "IGST-REC-001", name: "IGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
@@ -97,7 +137,11 @@ class AccountsService {
     // Fix existing ledgers with stale "Cash & Bank" group — migrate to proper groups
     for (const ledger of DEFAULT_SEED_LEDGERS) {
       const currentGroup = existingMap.get(ledger.code);
-      if (currentGroup && currentGroup.toLowerCase().trim() === "cash & bank" && ledger.group !== "Cash & Bank") {
+      if (
+        currentGroup &&
+        currentGroup.toLowerCase().trim() === "cash & bank" &&
+        ledger.group !== "Cash & Bank"
+      ) {
         await db.accountLedger.update({
           where: { code: ledger.code },
           data: { group: ledger.group },
@@ -128,11 +172,9 @@ class AccountsService {
     // time to keep it a single fast query.
     const groupIsPartyMeta =
       !!params.group &&
-      (
-        // If Prisma returns rows for either grade/type match, use OR. We can't
-        // know ahead of time, so we always OR against both.
-        true
-      );
+      // If Prisma returns rows for either grade/type match, use OR. We can't
+      // know ahead of time, so we always OR against both.
+      true;
     const where: Prisma.AccountLedgerWhereInput = {
       ...(params.type && { type: params.type }),
       ...(params.group && {
@@ -203,7 +245,7 @@ class AccountsService {
         },
       });
       const buckets: Record<string, typeof ledgers> = {};
-      const push = (key: string, l: typeof ledgers[number]) => {
+      const push = (key: string, l: (typeof ledgers)[number]) => {
         if (!buckets[key]) buckets[key] = [];
         // Avoid double-listing the same ledger under the same key
         if (!buckets[key].some((x) => x.id === l.id)) buckets[key].push(l);
@@ -259,7 +301,13 @@ class AccountsService {
     // Throttled + memoized, so this is effectively free on hot path.
     await this.ensureSystemLedgersExist();
 
-    const bankGroups = ["Cash & Bank", "Bank Accounts", "Cash in Hand", "BANK ACCOUNTS", "CASH IN HAND"];
+    const bankGroups = [
+      "Cash & Bank",
+      "Bank Accounts",
+      "Cash in Hand",
+      "BANK ACCOUNTS",
+      "CASH IN HAND",
+    ];
 
     const ledgers = await prisma.accountLedger.findMany({
       where: {
@@ -306,9 +354,7 @@ class AccountsService {
     const creditMap = new Map<number, number>(
       creditRows.map((r) => [r.creditLedgerId as number, Number(r._sum?.creditAmount || 0)])
     );
-    const openingBalanceSet = new Set<number>(
-      openingVouchers.map((v) => Number(v.refDocId))
-    );
+    const openingBalanceSet = new Set<number>(openingVouchers.map((v) => Number(v.refDocId)));
 
     const results = ledgers.map((ledger) => {
       const totalDebit = debitMap.get(ledger.id) || 0;
@@ -357,8 +403,11 @@ class AccountsService {
     const openingBalance = Number(data.openingBalance || 0);
     if (openingBalance > 0) {
       try {
-        const { voucherPostingService } = require("./voucherPosting.service");
-        const opType = String(data.openingBalanceType || "DEBIT").toUpperCase() === "CREDIT" ? "CREDIT" : "DEBIT";
+        const { voucherPostingService } = await import("./voucherPosting.service.js");
+        const opType =
+          String(data.openingBalanceType || "DEBIT").toUpperCase() === "CREDIT"
+            ? "CREDIT"
+            : "DEBIT";
         await voucherPostingService.postGenericLedgerOpeningBalanceVoucher(
           { id: ledger.id, code: ledger.code, name: ledger.name },
           openingBalance,
@@ -409,9 +458,12 @@ class AccountsService {
     return ledger;
   }
 
-  async getLedgerStatement(id: number, options: { startDate?: string; endDate?: string; search?: string }) {
+  async getLedgerStatement(
+    id: number,
+    options: { startDate?: string; endDate?: string; search?: string }
+  ) {
     try {
-      const { voucherPostingService } = require("./voucherPosting.service");
+      const { voucherPostingService } = await import("./voucherPosting.service.js");
       await voucherPostingService.syncUnpostedVouchers();
       // Ensure opening-balance JVs exist for every customer/supplier that has
       // a non-zero opening. Without this the statement is missing rows for
@@ -426,7 +478,7 @@ class AccountsService {
     // Aggregate expansion — if this ledger is a standard "Sundry Debtors" or
     // "Sundry Creditors" parent, expand to include ALL child party ledgers so
     // the statement shows combined activity from every customer/supplier.
-    const { AGGREGATE_LEDGER_CODES, expandAggregateLedger } = require("./standardLedgers");
+    const { AGGREGATE_LEDGER_CODES, expandAggregateLedger } = await import("./standardLedgers.js");
     if (AGGREGATE_LEDGER_CODES.has(ledger.code)) {
       const expansion = await expandAggregateLedger(ledger, prisma);
       const multi = await this.getMultiLedgerStatement(expansion.ledgerIds, {
@@ -464,10 +516,7 @@ class AccountsService {
         debitLedger: { select: { id: true, name: true, code: true } },
         creditLedger: { select: { id: true, name: true, code: true } },
       },
-      orderBy: [
-        { voucher: { date: "asc" } },
-        { voucher: { id: "asc" } },
-      ],
+      orderBy: [{ voucher: { date: "asc" } }, { voucher: { id: "asc" } }],
     });
 
     const isAssetOrExpense = ledger.type === LedgerType.ASSET || ledger.type === LedgerType.EXPENSE;
@@ -481,10 +530,16 @@ class AccountsService {
     let openingType: "DEBIT" | "CREDIT" = "DEBIT";
     if (ledger.customer) {
       openingBalance = Number((ledger.customer as any).openingBalance || 0);
-      openingType = String((ledger.customer as any).openingBalanceType || "DEBIT").toUpperCase() === "CREDIT" ? "CREDIT" : "DEBIT";
+      openingType =
+        String((ledger.customer as any).openingBalanceType || "DEBIT").toUpperCase() === "CREDIT"
+          ? "CREDIT"
+          : "DEBIT";
     } else if (ledger.supplier) {
       openingBalance = Number((ledger.supplier as any).openingBalance || 0);
-      openingType = String((ledger.supplier as any).openingBalanceType || "CREDIT").toUpperCase() === "DEBIT" ? "DEBIT" : "CREDIT";
+      openingType =
+        String((ledger.supplier as any).openingBalanceType || "CREDIT").toUpperCase() === "DEBIT"
+          ? "DEBIT"
+          : "CREDIT";
     }
 
     // The ledger's natural side (Asset/Expense → DEBIT natural, Liability/Income/Equity → CREDIT natural).
@@ -568,7 +623,7 @@ class AccountsService {
       let isDebit = item.debitLedgerId === id;
       const rawDebit = Number(item.debitAmount);
       const rawCredit = Number(item.creditAmount);
-      const amt = rawDebit > 0 ? rawDebit : (rawCredit > 0 ? rawCredit : 0);
+      const amt = rawDebit > 0 ? rawDebit : rawCredit > 0 ? rawCredit : 0;
 
       // Force correct double-entry direction for Return Vouchers if party ledger was misattached
       if (item.voucher?.type === VoucherType.SALES_RETURN && ledger.customerId) {
@@ -645,7 +700,7 @@ class AccountsService {
     }
 
     try {
-      const { voucherPostingService } = require("./voucherPosting.service");
+      const { voucherPostingService } = await import("./voucherPosting.service.js");
       await voucherPostingService.syncUnpostedVouchers();
       await voucherPostingService.syncMissingOpeningBalanceVouchers();
     } catch (err) {
@@ -667,7 +722,7 @@ class AccountsService {
     // "Sundry Debtors" in "Selected Accounts" mode returns zero rows because
     // the parent ledger itself has no direct journal items — all activity is
     // on the individual customer/supplier ledgers under it.
-    const { AGGREGATE_LEDGER_CODES, expandAggregateLedger } = require("./standardLedgers");
+    const { AGGREGATE_LEDGER_CODES, expandAggregateLedger } = await import("./standardLedgers.js");
     const expandedIdSet = new Set<number>();
     for (const l of requestedLedgers) {
       if (AGGREGATE_LEDGER_CODES.has(l.code)) {
@@ -681,12 +736,13 @@ class AccountsService {
 
     // Refetch the full ledger set including expanded children (needed for
     // opening-balance aggregation and running-balance calculation below).
-    const ledgers = effectiveIds.length === requestedLedgers.length
-      ? requestedLedgers
-      : await prisma.accountLedger.findMany({
-          where: { id: { in: effectiveIds } },
-          include: { customer: true, supplier: true },
-        });
+    const ledgers =
+      effectiveIds.length === requestedLedgers.length
+        ? requestedLedgers
+        : await prisma.accountLedger.findMany({
+            where: { id: { in: effectiveIds } },
+            include: { customer: true, supplier: true },
+          });
 
     const dateFilter: Prisma.VoucherWhereInput = {};
     if (options.startDate || options.endDate) {
@@ -704,10 +760,7 @@ class AccountsService {
     // Matches Busy behaviour: every posted JV is a row, running balance follows.
     const journalItems = await prisma.journalItem.findMany({
       where: {
-        OR: [
-          { debitLedgerId: { in: effectiveIds } },
-          { creditLedgerId: { in: effectiveIds } },
-        ],
+        OR: [{ debitLedgerId: { in: effectiveIds } }, { creditLedgerId: { in: effectiveIds } }],
         voucher: dateFilter,
       },
       include: {
@@ -731,8 +784,8 @@ class AccountsService {
       id: number;
       name: string;
       isAssetOrExpense: boolean;
-      opening: number;   // signed in the ledger's natural direction
-      running: number;   // signed running balance
+      opening: number; // signed in the ledger's natural direction
+      running: number; // signed running balance
     };
     const perAccount = new Map<number, AccountAgg>();
 
@@ -742,12 +795,19 @@ class AccountsService {
       let openingType: "DEBIT" | "CREDIT" = "DEBIT";
       if (ledger.customer) {
         opening = Number((ledger.customer as any).openingBalance || 0);
-        openingType = String((ledger.customer as any).openingBalanceType || "DEBIT").toUpperCase() === "CREDIT" ? "CREDIT" : "DEBIT";
+        openingType =
+          String((ledger.customer as any).openingBalanceType || "DEBIT").toUpperCase() === "CREDIT"
+            ? "CREDIT"
+            : "DEBIT";
       } else if (ledger.supplier) {
         opening = Number((ledger.supplier as any).openingBalance || 0);
-        openingType = String((ledger.supplier as any).openingBalanceType || "CREDIT").toUpperCase() === "DEBIT" ? "DEBIT" : "CREDIT";
+        openingType =
+          String((ledger.supplier as any).openingBalanceType || "CREDIT").toUpperCase() === "DEBIT"
+            ? "DEBIT"
+            : "CREDIT";
       }
-      const isAssetOrExpense = ledger.type === LedgerType.ASSET || ledger.type === LedgerType.EXPENSE;
+      const isAssetOrExpense =
+        ledger.type === LedgerType.ASSET || ledger.type === LedgerType.EXPENSE;
       const naturalSide: "DEBIT" | "CREDIT" = isAssetOrExpense ? "DEBIT" : "CREDIT";
       const signedOpening = openingType === naturalSide ? opening : -opening;
       openingBalance += signedOpening;
@@ -798,12 +858,13 @@ class AccountsService {
       // Determine which side of the selected set the entry falls on
       const selectedLedger = isSelectedDebit ? item.debitLedger : item.creditLedger;
       const opposingLedger = isSelectedDebit ? item.creditLedger : item.debitLedger;
-      const isAssetOrExpense = selectedLedger?.type === LedgerType.ASSET || selectedLedger?.type === LedgerType.EXPENSE;
+      const isAssetOrExpense =
+        selectedLedger?.type === LedgerType.ASSET || selectedLedger?.type === LedgerType.EXPENSE;
 
       const debit = isSelectedDebit ? amt : 0;
       const credit = isSelectedCredit ? amt : 0;
 
-      const delta = isAssetOrExpense ? (debit - credit) : (credit - debit);
+      const delta = isAssetOrExpense ? debit - credit : credit - debit;
       runningBalance += delta;
       // Also apply the same delta to the individual account's running
       // balance so we can return per-account closing balances for the
@@ -850,7 +911,16 @@ class AccountsService {
     // group's balance in O(1) when rendering the per-account footer row).
     // Closing is expressed as a positive number + Dr/Cr side (natural side
     // of the ledger). `runningRaw` keeps the signed value for internal use.
-    const accountBalances: Record<string, { name: string; opening: number; openingSide: "Dr" | "Cr"; closing: number; closingSide: "Dr" | "Cr" }> = {};
+    const accountBalances: Record<
+      string,
+      {
+        name: string;
+        opening: number;
+        openingSide: "Dr" | "Cr";
+        closing: number;
+        closingSide: "Dr" | "Cr";
+      }
+    > = {};
     for (const agg of perAccount.values()) {
       const naturalSide: "Dr" | "Cr" = agg.isAssetOrExpense ? "Dr" : "Cr";
       const oppositeSide: "Dr" | "Cr" = agg.isAssetOrExpense ? "Cr" : "Dr";
@@ -877,15 +947,17 @@ class AccountsService {
     };
   }
 
-  async getTrialBalance(options: {
-    asOnDate?: string;
-    showZeroBalance?: boolean;
-    sortBy?: "name" | "code";
-    groupByCategory?: boolean;
-  } = {}) {
+  async getTrialBalance(
+    options: {
+      asOnDate?: string;
+      showZeroBalance?: boolean;
+      sortBy?: "name" | "code";
+      groupByCategory?: boolean;
+    } = {}
+  ) {
     await this.ensureSystemLedgersExist();
 
-    const { voucherPostingService } = require("./voucherPosting.service");
+    const { voucherPostingService } = await import("./voucherPosting.service.js");
     await voucherPostingService.syncMissingOpeningBalanceVouchers();
 
     const asOnDate = options.asOnDate ? new Date(options.asOnDate) : null;
@@ -903,7 +975,11 @@ class AccountsService {
       const [ledgers, debitSums, creditSums] = await Promise.all([
         tx.accountLedger.findMany({
           select: {
-            id: true, code: true, name: true, type: true, group: true,
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+            group: true,
             customer: { select: { openingBalance: true, openingBalanceType: true } },
             supplier: { select: { openingBalance: true, openingBalanceType: true } },
           },
@@ -931,7 +1007,8 @@ class AccountsService {
     );
 
     const rows = ledgers.map((ledger) => {
-      const isAssetOrExpense = ledger.type === LedgerType.ASSET || ledger.type === LedgerType.EXPENSE;
+      const isAssetOrExpense =
+        ledger.type === LedgerType.ASSET || ledger.type === LedgerType.EXPENSE;
 
       const totalDebit = debitMap.get(ledger.id) || 0;
       const totalCredit = creditMap.get(ledger.id) || 0;
@@ -942,9 +1019,7 @@ class AccountsService {
       // Dr / Opening Cr columns); closingBalance is derived from journal items
       // which already include the opening voucher amounts.
       const rawOp = Number(
-        (ledger.customer as any)?.openingBalance ||
-        (ledger.supplier as any)?.openingBalance ||
-        0
+        (ledger.customer as any)?.openingBalance || (ledger.supplier as any)?.openingBalance || 0
       );
       // Customer default = DEBIT (they owe us). Supplier default = CREDIT (we owe them).
       const opTypeStr = ledger.customer
@@ -974,7 +1049,9 @@ class AccountsService {
         totalCredit,
         closingBalance,
         debitBalance: isAssetOrExpense ? Math.max(0, closingBalance) : Math.max(0, -closingBalance),
-        creditBalance: isAssetOrExpense ? Math.max(0, -closingBalance) : Math.max(0, closingBalance),
+        creditBalance: isAssetOrExpense
+          ? Math.max(0, -closingBalance)
+          : Math.max(0, closingBalance),
       };
     });
 
@@ -990,7 +1067,12 @@ class AccountsService {
     );
 
     // Optional pre-grouped structure for hierarchical/grouped views
-    let grouped: Array<{ group: string; rows: typeof activeRows; groupDebit: number; groupCredit: number }> | null = null;
+    let grouped: Array<{
+      group: string;
+      rows: typeof activeRows;
+      groupDebit: number;
+      groupCredit: number;
+    }> | null = null;
     if (options.groupByCategory) {
       const buckets: Record<string, typeof activeRows> = {};
       for (const r of activeRows) {
@@ -1020,20 +1102,30 @@ class AccountsService {
     };
   }
 
-  async getBalanceSheet(options: {
-    asOnDate?: string;
-    showZeroBalance?: boolean;
-    groupByCategory?: boolean;
-  } = {}) {
+  async getBalanceSheet(
+    options: {
+      asOnDate?: string;
+      showZeroBalance?: boolean;
+      groupByCategory?: boolean;
+    } = {}
+  ) {
     // Always request full data from trial balance (no filtering there); we do our own here
-    const trialBalance = await this.getTrialBalance({ asOnDate: options.asOnDate, showZeroBalance: true });
+    const trialBalance = await this.getTrialBalance({
+      asOnDate: options.asOnDate,
+      showZeroBalance: true,
+    });
 
     let assets: any[] = [];
     let liabilities: any[] = [];
     let equity: any[] = [];
 
     for (const row of trialBalance.rows) {
-      const item = { code: row.code, name: row.name, group: row.group, balance: row.closingBalance };
+      const item = {
+        code: row.code,
+        name: row.name,
+        group: row.group,
+        balance: row.closingBalance,
+      };
       if (row.type === "ASSET") assets.push(item);
       else if (row.type === "LIABILITY") liabilities.push(item);
       else if (row.type === "EQUITY") equity.push(item);
@@ -1042,7 +1134,12 @@ class AccountsService {
     // Get P&L net profit up to asOnDate and add to equity
     const pnl = await this.getProfitAndLoss({ endDate: options.asOnDate });
     if (pnl.netProfit !== 0) {
-      equity.push({ code: "NET-PNL", name: "Net Profit / (Loss)", group: "Profit & Loss", balance: pnl.netProfit });
+      equity.push({
+        code: "NET-PNL",
+        name: "Net Profit / (Loss)",
+        group: "Profit & Loss",
+        balance: pnl.netProfit,
+      });
     }
 
     // Apply zero balance filter (default: hide)
@@ -1226,15 +1323,26 @@ class AccountsService {
       }
     } else {
       // Indian FY quarters: Q1=Apr-Jun, Q2=Jul-Sep, Q3=Oct-Dec, Q4=Jan-Mar
-      const quarterForMonth = (mo: number) => (mo >= 3 && mo <= 5 ? 1 : mo >= 6 && mo <= 8 ? 2 : mo >= 9 && mo <= 11 ? 3 : 4);
+      const quarterForMonth = (mo: number) =>
+        mo >= 3 && mo <= 5 ? 1 : mo >= 6 && mo <= 8 ? 2 : mo >= 9 && mo <= 11 ? 3 : 4;
       const quarterStart = (q: number, fyYear: number) => {
         // fyYear = the calendar year of April 1 for that FY
-        const monthMap = { 1: [3, fyYear], 2: [6, fyYear], 3: [9, fyYear], 4: [0, fyYear + 1] } as const;
+        const monthMap = {
+          1: [3, fyYear],
+          2: [6, fyYear],
+          3: [9, fyYear],
+          4: [0, fyYear + 1],
+        } as const;
         const [mo, y] = monthMap[q as 1 | 2 | 3 | 4];
         return new Date(y, mo, 1);
       };
       const quarterEnd = (q: number, fyYear: number) => {
-        const monthMap = { 1: [5, fyYear], 2: [8, fyYear], 3: [11, fyYear], 4: [2, fyYear + 1] } as const;
+        const monthMap = {
+          1: [5, fyYear],
+          2: [8, fyYear],
+          3: [11, fyYear],
+          4: [2, fyYear + 1],
+        } as const;
         const [mo, y] = monthMap[q as 1 | 2 | 3 | 4];
         return new Date(y, mo + 1, 0, 23, 59, 59, 999);
       };
@@ -1254,7 +1362,12 @@ class AccountsService {
           start: pStart,
           end: pEnd,
         });
-        if (curQ === 4) { curFy++; curQ = 1; } else { curQ++; }
+        if (curQ === 4) {
+          curFy++;
+          curQ = 1;
+        } else {
+          curQ++;
+        }
       }
     }
 
@@ -1277,7 +1390,8 @@ class AccountsService {
       orderBy: { code: "asc" },
     });
 
-    const findPeriodIndex = (date: Date) => periods.findIndex((p) => date >= p.start && date <= p.end);
+    const findPeriodIndex = (date: Date) =>
+      periods.findIndex((p) => date >= p.start && date <= p.end);
 
     const buildAccount = (ledger: (typeof ledgers)[number]) => {
       const perPeriod = new Array(periods.length).fill(0);
@@ -1285,13 +1399,17 @@ class AccountsService {
         const idx = findPeriodIndex(item.voucher.date);
         if (idx < 0) continue;
         // For INCOME accounts, a debit reduces income; for EXPENSE, debit increases expense
-        const delta = ledger.type === LedgerType.INCOME ? -Number(item.debitAmount) : Number(item.debitAmount);
+        const delta =
+          ledger.type === LedgerType.INCOME ? -Number(item.debitAmount) : Number(item.debitAmount);
         perPeriod[idx] += delta;
       }
       for (const item of ledger.creditItems) {
         const idx = findPeriodIndex(item.voucher.date);
         if (idx < 0) continue;
-        const delta = ledger.type === LedgerType.INCOME ? Number(item.creditAmount) : -Number(item.creditAmount);
+        const delta =
+          ledger.type === LedgerType.INCOME
+            ? Number(item.creditAmount)
+            : -Number(item.creditAmount);
         perPeriod[idx] += delta;
       }
       const total = perPeriod.reduce((s, v) => s + v, 0);
@@ -1310,7 +1428,8 @@ class AccountsService {
     for (const ledger of ledgers) {
       const acc = buildAccount(ledger);
       // Skip accounts with no activity in the range
-      if (Math.abs(acc.total) < 0.01 && acc.perPeriod.every((v: number) => Math.abs(v) < 0.01)) continue;
+      if (Math.abs(acc.total) < 0.01 && acc.perPeriod.every((v: number) => Math.abs(v) < 0.01))
+        continue;
       if (ledger.type === LedgerType.INCOME) incomeAccounts.push(acc);
       else expenseAccounts.push(acc);
     }
@@ -1369,7 +1488,9 @@ class AccountsService {
     const prefix = isCustomer ? "CUST" : "SUPP";
     const ledgerCode = `${prefix}-${party.code}`;
     const codeExists = await db.accountLedger.findUnique({ where: { code: ledgerCode } });
-    const finalCode = codeExists ? `${prefix}-${party.code}-${Date.now().toString().slice(-4)}` : ledgerCode;
+    const finalCode = codeExists
+      ? `${prefix}-${party.code}-${Date.now().toString().slice(-4)}`
+      : ledgerCode;
 
     return db.accountLedger.create({
       data: {
@@ -1383,12 +1504,24 @@ class AccountsService {
     });
   }
 
-  async ensureCustomerLedger(customer: { id: string; customerCode: string; firmName: string }, txClient?: Prisma.TransactionClient) {
-    return this.ensurePartyLedger({ type: "CUSTOMER", id: customer.id, code: customer.customerCode, name: customer.firmName }, txClient);
+  async ensureCustomerLedger(
+    customer: { id: string; customerCode: string; firmName: string },
+    txClient?: Prisma.TransactionClient
+  ) {
+    return this.ensurePartyLedger(
+      { type: "CUSTOMER", id: customer.id, code: customer.customerCode, name: customer.firmName },
+      txClient
+    );
   }
 
-  async ensureSupplierLedger(supplier: { id: number; supplierCode: string; legalName: string }, txClient?: Prisma.TransactionClient) {
-    return this.ensurePartyLedger({ type: "SUPPLIER", id: supplier.id, code: supplier.supplierCode, name: supplier.legalName }, txClient);
+  async ensureSupplierLedger(
+    supplier: { id: number; supplierCode: string; legalName: string },
+    txClient?: Prisma.TransactionClient
+  ) {
+    return this.ensurePartyLedger(
+      { type: "SUPPLIER", id: supplier.id, code: supplier.supplierCode, name: supplier.legalName },
+      txClient
+    );
   }
 
   /**
@@ -1433,7 +1566,7 @@ class AccountsService {
       ]);
     }
 
-    const { voucherPostingService } = require("./voucherPosting.service");
+    const { voucherPostingService } = await import("./voucherPosting.service.js");
     await voucherPostingService.syncMissingOpeningBalanceVouchers();
 
     return { removed: badVoucherIds.length, ok: true };
@@ -1471,11 +1604,14 @@ class AccountsService {
       select: { id: true },
     });
     if (existing.length > 0) {
-      throw new ApiError(400, "Opening balance has already been set for this account and cannot be changed");
+      throw new ApiError(
+        400,
+        "Opening balance has already been set for this account and cannot be changed"
+      );
     }
 
     if (amount > 0) {
-      const { voucherPostingService } = require("./voucherPosting.service");
+      const { voucherPostingService } = await import("./voucherPosting.service.js");
       await voucherPostingService.postGenericLedgerOpeningBalanceVoucher(
         { id: ledger.id, code: ledger.code, name: ledger.name },
         amount,

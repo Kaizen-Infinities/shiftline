@@ -44,9 +44,9 @@ class SalesInvoiceController {
       getIO().emit("accountLedger:updated", { source: "salesInvoice" });
     } catch (e) {}
 
-    return res.status(201).json(
-      new ApiResponse("Sales Invoice created successfully", salesInvoice)
-    );
+    return res
+      .status(201)
+      .json(new ApiResponse("Sales Invoice created successfully", salesInvoice));
   });
 
   findAll = asyncHandler(async (req: Request, res: Response) => {
@@ -68,9 +68,7 @@ class SalesInvoiceController {
       companyId,
     });
 
-    return res.status(200).json(
-      new ApiResponse("Sales Invoices fetched successfully", result)
-    );
+    return res.status(200).json(new ApiResponse("Sales Invoices fetched successfully", result));
   });
 
   findOne = asyncHandler(async (req: Request, res: Response) => {
@@ -83,9 +81,9 @@ class SalesInvoiceController {
     const id = req.params.id as string;
     const salesInvoice = await salesInvoiceService.getSalesInvoiceById(id, companyId);
 
-    return res.status(200).json(
-      new ApiResponse("Sales Invoice fetched successfully", salesInvoice)
-    );
+    return res
+      .status(200)
+      .json(new ApiResponse("Sales Invoice fetched successfully", salesInvoice));
   });
 
   delete = asyncHandler(async (req: Request, res: Response) => {
@@ -105,9 +103,7 @@ class SalesInvoiceController {
       getIO().emit("accountLedger:updated", { source: "salesInvoice" });
     } catch (e) {}
 
-    return res.status(200).json(
-      new ApiResponse("Sales Invoice deleted successfully")
-    );
+    return res.status(200).json(new ApiResponse("Sales Invoice deleted successfully"));
   });
 
   update = asyncHandler(async (req: Request, res: Response) => {
@@ -142,9 +138,9 @@ class SalesInvoiceController {
       getIO().emit("accountLedger:updated", { source: "salesInvoice" });
     } catch (e) {}
 
-    return res.status(200).json(
-      new ApiResponse("Sales Invoice updated successfully", salesInvoice)
-    );
+    return res
+      .status(200)
+      .json(new ApiResponse("Sales Invoice updated successfully", salesInvoice));
   });
 
   emailInvoice = asyncHandler(async (req: Request, res: Response) => {
@@ -176,8 +172,8 @@ class SalesInvoiceController {
         {
           filename: `Invoice-${invoice.invoiceNo}.pdf`,
           content: pdfBuffer,
-        }
-      ]
+        },
+      ],
     });
 
     return res.status(200).json(new ApiResponse("Email sent successfully!"));
@@ -203,16 +199,21 @@ class SalesInvoiceController {
     // 1. Generate PDF buffer
     const htmlContent = generateInvoiceHtml(invoice, company);
     const pdfBuffer = await generatePdfFromHtml(htmlContent);
-    
+
     const filename = `Invoice-${invoice.invoiceNo}.pdf`;
-    
-    const { WhatsappService } = require("../whatsappservice/whatsapp.service");
+
+    const { WhatsappService } = await import("../whatsappservice/whatsapp.service.js");
 
     // 2. Upload media
     const mediaId = await WhatsappService.uploadMedia(pdfBuffer, filename, "application/pdf");
 
     // 3. Send message with the document
-    await WhatsappService.sendDocumentMessage(to, mediaId, filename, message || `Invoice ${invoice.invoiceNo}`);
+    await WhatsappService.sendDocumentMessage(
+      to,
+      mediaId,
+      filename,
+      message || `Invoice ${invoice.invoiceNo}`
+    );
 
     return res.status(200).json(new ApiResponse("WhatsApp message sent successfully!"));
   });

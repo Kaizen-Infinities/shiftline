@@ -5,10 +5,7 @@ class ExpenseService {
   /**
    * Creates a new expense.
    */
-  async createExpense(
-    data: any,
-    currentUser: { userId: string; companyId: string }
-  ) {
+  async createExpense(data: any, currentUser: { userId: string; companyId: string }) {
     // Check if expense number already exists for this company
     const existingExpense = await prisma.expense.findFirst({
       where: {
@@ -18,7 +15,10 @@ class ExpenseService {
     });
 
     if (existingExpense) {
-      throw new ApiError(409, `Expense number '${data.expenseNumber}' already exists for this company.`);
+      throw new ApiError(
+        409,
+        `Expense number '${data.expenseNumber}' already exists for this company.`
+      );
     }
 
     const newExpense = await prisma.expense.create({
@@ -37,7 +37,7 @@ class ExpenseService {
 
     // Post a direct EXPENSE voucher to the correct Cash/Bank ledger
     try {
-      const { voucherPostingService } = require("../accounts/voucherPosting.service");
+      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postExpenseVoucher(newExpense.id, data.paymentMethod);
     } catch (voucherErr) {
       console.error("[Expense Voucher Posting Error]: Failed to post expense voucher", voucherErr);
@@ -61,7 +61,10 @@ class ExpenseService {
         },
       });
     } catch (pcErr) {
-      console.error("[Petty Cash Sync Error]: Failed to create petty cash entry for expense", pcErr);
+      console.error(
+        "[Petty Cash Sync Error]: Failed to create petty cash entry for expense",
+        pcErr
+      );
     }
 
     return newExpense;
@@ -70,13 +73,16 @@ class ExpenseService {
   /**
    * Fetches all expenses for a company with optional search, filtering, and pagination.
    */
-  async getAllExpenses(companyId: string, query?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: string;
-    status?: string;
-  }) {
+  async getAllExpenses(
+    companyId: string,
+    query?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      category?: string;
+      status?: string;
+    }
+  ) {
     const page = query?.page;
     const limit = query?.limit;
     const search = query?.search;
@@ -163,7 +169,10 @@ class ExpenseService {
       });
 
       if (existing) {
-        throw new ApiError(409, `Expense number '${data.expenseNumber}' already exists for this company.`);
+        throw new ApiError(
+          409,
+          `Expense number '${data.expenseNumber}' already exists for this company.`
+        );
       }
     }
 
@@ -171,7 +180,9 @@ class ExpenseService {
       ...data,
       ...(data.date && { date: new Date(data.date) }),
       ...(data.amount !== undefined && { amount: Number(data.amount) }),
-      ...(data.supplierId !== undefined && { supplierId: data.supplierId ? Number(data.supplierId) : null }),
+      ...(data.supplierId !== undefined && {
+        supplierId: data.supplierId ? Number(data.supplierId) : null,
+      }),
     };
 
     const updatedExpense = await prisma.expense.update({
@@ -191,7 +202,7 @@ class ExpenseService {
         await prisma.journalItem.deleteMany({ where: { voucherId: oldVoucher.id } });
         await prisma.voucher.delete({ where: { id: oldVoucher.id } });
       }
-      const { voucherPostingService } = require("../accounts/voucherPosting.service");
+      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postExpenseVoucher(id, updatedExpense.paymentMethod);
     } catch (voucherErr) {
       console.error("[Expense Voucher Update Error]:", voucherErr);
@@ -223,7 +234,7 @@ class ExpenseService {
    */
   async deleteExpense(id: string, companyId: string) {
     const expense = await this.getExpenseById(id, companyId);
-    
+
     // Delete associated EXPENSE voucher and its journal items
     try {
       const voucher = await prisma.voucher.findFirst({
