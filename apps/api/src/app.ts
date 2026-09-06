@@ -1,3 +1,4 @@
+import "./lib/bigint-json";
 import express, { Application } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";

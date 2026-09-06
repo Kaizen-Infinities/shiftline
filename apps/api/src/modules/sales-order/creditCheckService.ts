@@ -1,3 +1,4 @@
+import { ApiError } from "../../utils/ApiError";
 import { prisma } from "../../config/prisma";
 
 export const creditCheckService = {
@@ -35,7 +36,7 @@ export const creditCheckService = {
     });
 
     if (!customer) {
-      throw new Error("Customer not found");
+      throw new ApiError(404, "Customer not found");
     }
 
     const creditLimit = Number(customer.creditLimit || 0);
@@ -55,7 +56,9 @@ export const creditCheckService = {
     };
   },
 
-  hasBlockingPendingOrder: async (customerId: string): Promise<{ blocked: boolean; blockingOrder?: { id: number; orderNo: string } }> => {
+  hasBlockingPendingOrder: async (
+    customerId: string
+  ): Promise<{ blocked: boolean; blockingOrder?: { id: number; orderNo: string } }> => {
     const blockingOrder = await prisma.salesOrder.findFirst({
       where: {
         customerId,

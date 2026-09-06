@@ -1687,18 +1687,20 @@ class VoucherPostingService {
           db.customer.findMany({ where: { openingBalance: { gt: 0 } } }),
           db.supplier.findMany({ where: { openingBalance: { gt: 0 } } }),
         ])
-      : await prisma.$transaction([
-          prisma.voucher.findMany({
-            where: { refDocType: "CUSTOMER_OPENING_BALANCE" },
-            select: { refDocId: true },
-          }),
-          prisma.voucher.findMany({
-            where: { refDocType: "SUPPLIER_OPENING_BALANCE" },
-            select: { refDocId: true },
-          }),
-          prisma.customer.findMany({ where: { openingBalance: { gt: 0 } } }),
-          prisma.supplier.findMany({ where: { openingBalance: { gt: 0 } } }),
-        ]);
+      : await prisma.$transaction(async (tx) =>
+          Promise.all([
+            tx.voucher.findMany({
+              where: { refDocType: "CUSTOMER_OPENING_BALANCE" },
+              select: { refDocId: true },
+            }),
+            tx.voucher.findMany({
+              where: { refDocType: "SUPPLIER_OPENING_BALANCE" },
+              select: { refDocId: true },
+            }),
+            tx.customer.findMany({ where: { openingBalance: { gt: 0 } } }),
+            tx.supplier.findMany({ where: { openingBalance: { gt: 0 } } }),
+          ])
+        );
 
     const existingCustIds = new Set(existingCustomerVouchers.map((v) => v.refDocId));
     const existingSupIds = new Set(existingSupplierVouchers.map((v) => v.refDocId));

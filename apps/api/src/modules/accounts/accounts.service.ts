@@ -1561,10 +1561,10 @@ class AccountsService {
       .map((v) => v.id);
 
     if (badVoucherIds.length > 0) {
-      await prisma.$transaction([
-        prisma.journalItem.deleteMany({ where: { voucherId: { in: badVoucherIds } } }),
-        prisma.voucher.deleteMany({ where: { id: { in: badVoucherIds } } }),
-      ]);
+      await prisma.$transaction(async (tx) => {
+        await tx.journalItem.deleteMany({ where: { voucherId: { in: badVoucherIds } } });
+        await tx.voucher.deleteMany({ where: { id: { in: badVoucherIds } } });
+      });
     }
 
     const { voucherPostingService } = await import("./voucherPosting.service.js");

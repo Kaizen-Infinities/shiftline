@@ -8,11 +8,6 @@ import { prisma } from "./config/prisma";
 import { bootstrapAdmin } from "./utils/bootstrapAdmin";
 import { initSocket } from "./socket/socket";
 import { initScheduler } from "./modules/inventory/jobs/scheduler";
-// Global BigInt serialization for JSON responses (reconnected)
-// This ensures all BigInt values are converted to strings when Express calls JSON.stringify.
-(BigInt.prototype as any).toJSON = function () {
-  return this.toString();
-};
 
 const PORT = Number(process.env.PORT) || 5000;
 

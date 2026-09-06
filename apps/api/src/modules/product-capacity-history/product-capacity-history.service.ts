@@ -15,9 +15,7 @@ export class ProductCapacityHistoryService {
     operators?: string | null;
     updatedBy?: string | null;
   }) {
-    const achievementPct = data.targetQty > 0
-      ? (data.actualQty / data.targetQty) * 100
-      : 0;
+    const achievementPct = data.targetQty > 0 ? (data.actualQty / data.targetQty) * 100 : 0;
 
     return prisma.productCapacityHistory.create({
       data: {
@@ -61,7 +59,7 @@ export class ProductCapacityHistoryService {
       select: { id: true },
     });
     if (existing.length >= 2) {
-      const idsToDelete = existing.slice(1).map(r => r.id);
+      const idsToDelete = existing.slice(1).map((r) => r.id);
       await prisma.productCapacityHistory.deleteMany({
         where: { id: { in: idsToDelete } },
       });
@@ -71,8 +69,8 @@ export class ProductCapacityHistoryService {
     const actualQty = data.newCapacity;
     const achievementPct = targetQty > 0 ? 100 : 0;
 
-    const [history] = await prisma.$transaction([
-      prisma.productCapacityHistory.create({
+    const history = await prisma.$transaction(async (tx) => {
+      const created = await tx.productCapacityHistory.create({
         data: {
           productId: data.productId,
           previousCapacity,
@@ -87,12 +85,13 @@ export class ProductCapacityHistoryService {
           operators: data.operators || null,
           updatedBy: data.updatedBy || null,
         },
-      }),
-      prisma.product.update({
+      });
+      await tx.product.update({
         where: { id: data.productId },
         data: { capacityLitres: data.newCapacity },
-      }),
-    ]);
+      });
+      return created;
+    });
 
     return history;
   }

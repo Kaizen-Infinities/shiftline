@@ -81,10 +81,10 @@ class VouchersService {
       throw new ApiError(400, "System-generated vouchers cannot be deleted");
     }
 
-    await prisma.$transaction([
-      prisma.journalItem.deleteMany({ where: { voucherId: id } }),
-      prisma.voucher.delete({ where: { id } }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      await tx.journalItem.deleteMany({ where: { voucherId: id } });
+      await tx.voucher.delete({ where: { id } });
+    });
 
     return { deleted: true, id };
   }

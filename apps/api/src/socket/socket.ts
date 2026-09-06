@@ -7,7 +7,13 @@ import { AccessTokenPayload } from "../types/auth.types";
 
 let io: Server;
 
-const allowedOrigins = [env.FRONTEND_URL, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"];
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+];
 
 /**
  * Socket.io server. Connections must present a valid access token in the
@@ -22,7 +28,8 @@ export const initSocket = (httpServer: HttpServer) => {
   io.use((socket, next) => {
     const token =
       (socket.handshake.auth?.token as string | undefined) ??
-      (typeof socket.handshake.headers.authorization === "string" && socket.handshake.headers.authorization.startsWith("Bearer ")
+      (typeof socket.handshake.headers.authorization === "string" &&
+      socket.handshake.headers.authorization.startsWith("Bearer ")
         ? socket.handshake.headers.authorization.slice(7)
         : undefined);
     if (!token) return next(new Error("Unauthorized"));
@@ -44,9 +51,12 @@ export const initSocket = (httpServer: HttpServer) => {
   return io;
 };
 
-export const getIO = (): Server => {
-  if (!io) {
-    throw new Error("Socket.io not initialized. Call initSocket first.");
-  }
-  return io;
-};
+/** Emits are dropped until initSocket runs (tests, one-off scripts). */
+const noopIO = {
+  emit: () => false,
+  to: () => noopIO,
+  in: () => noopIO,
+  except: () => noopIO,
+} as unknown as Server;
+
+export const getIO = (): Server => io ?? noopIO;
