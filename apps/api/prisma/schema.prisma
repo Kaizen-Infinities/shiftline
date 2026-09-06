@@ -1,0 +1,2392 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id            BigInt         @id @default(autoincrement())
+  empCode       String         @unique
+  fullName      String
+  mobile        String?        @db.VarChar(20)
+  email         String?        @unique @db.VarChar(100)
+  dateOfJoining DateTime?
+  departmentId  Int?
+  status        EmployeeStatus @default(active)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(6)
+  createdBy     String?
+  updatedBy     String?
+
+  // Section 1: Basic Info
+  photoUrl      String?
+  gender        Gender?
+  dateOfBirth   DateTime?      @db.Date
+  bloodGroup    String?
+  maritalStatus MaritalStatus?
+
+  // Section 2: Contact Info
+  personalMobile         String? @db.VarChar(20)
+  personalEmail          String? @db.VarChar(100)
+  emergencyContactName   String?
+  emergencyContactNumber String? @db.VarChar(20)
+
+  // Section 3: Family Details
+  fatherName           String?
+  motherName           String?
+  spouseName           String?
+  guardianName         String?
+  guardianRelationship String?
+
+  // Section 4: Identity Documents
+  aadhaarNumber  String? @unique
+  panNumber      String? @unique
+  drivingLicense String?
+  voterId        String?
+
+  // Section 5: Address
+  permanentAddressLine1 String?
+  permanentAddressLine2 String?
+  permanentCity         String?
+  permanentState        String?
+  permanentPincode      String?
+  presentAddressLine1   String?
+  presentAddressLine2   String?
+  presentCity           String?
+  presentState          String?
+  presentPincode        String?
+
+  // Section 6: Official Info
+  designation  String?
+  employeeType EmployeeType?
+  roleId       Int?
+
+  // Section 7: Joining Details
+  relievingDate      DateTime?
+  previousExperience String?
+  probationPeriod    Int?
+  noticePeriod       Int?
+
+  // Section 8: Shift
+  shiftId String?
+
+  // Section 9: Payroll & Statutory
+  salaryType        SalaryType?
+  basicSalary       Decimal?    @db.Decimal(12, 2)
+  grossSalary       Decimal?    @db.Decimal(12, 2)
+  pfApplicable      Boolean     @default(false)
+  pfNumber          String?     @unique
+  uanNumber         String?     @unique
+  esiApplicable     Boolean     @default(false)
+  esiNumber         String?     @unique
+  professionalTax   Boolean     @default(false)
+  tdsApplicable     Boolean     @default(false)
+  paymentMode       String?     @default("BANK")
+  bankName          String?
+  bankBranch        String?
+  accountNumber     String?
+  ifscCode          String?
+  accountHolderName String?
+
+
+  createdByUser              User?                        @relation("EmployeeCreatedBy", fields: [createdBy], references: [userId])
+  department                 Department?                  @relation(fields: [departmentId], references: [id])
+  updatedByUser              User?                        @relation("EmployeeUpdatedBy", fields: [updatedBy], references: [userId])
+  machineAssignmentOperators MachineAssignmentOperator[]
+  inchargeAssignments        MachineOperationAssignment[] @relation("InchargeEmployeeAssignments")
+  stores                     Store[]
+  user                       User?
+  role                       Role?                        @relation(fields: [roleId], references: [id])
+  shift                      Shift?                       @relation(fields: [shiftId], references: [shiftCode])
+  payrollConfig              EmployeePayrollConfig?
+  payrollResults             PayrollResult[]
+  salaryAdvances             SalaryAdvance[]
+  permanentDeductions        EmployeePermanentDeduction[]
+  salesOrdersAsSource        SalesOrder[]                 @relation("SalesOrderSourceEmployee")
+
+  @@index([departmentId])
+  @@index([roleId])
+  @@index([status])
+  @@index([shiftId])
+  @@map("employees")
+}
+
+model Admin {
+  id                  BigInt               @id @default(autoincrement())
+  fullName            String
+  email               String?              @unique
+  phone               String?
+  createdAt           DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @db.Timestamptz(6)
+  username            String               @unique
+  passwordHash        String
+  status              UserStatus           @default(active)
+  lastLoginAt         DateTime?            @db.Timestamptz(6)
+  roleId              Int?
+  role                Role?                @relation(fields: [roleId], references: [id])
+  auditLogs           AuditLog[]           @relation("ChangedByAdmin")
+  loginAttempts       LoginAttempt[]
+  passwordResetTokens PasswordResetToken[]
+  userSessions        UserSession[]
+
+  @@map("admins")
+}
+
+model User {
+  userId                String               @id @default(uuid())
+  username              String               @unique
+  fullName              String
+  email                 String?              @unique
+  passwordHash          String
+  employeeId            BigInt?              @unique
+  roleId                Int?
+  status                UserStatus           @default(active)
+  mustChangePw          Boolean              @default(false)
+  failedAttempts        Int                  @default(0)
+  lockedUntil           DateTime?            @db.Timestamptz(6)
+  lastLoginAt           DateTime?            @db.Timestamptz(6)
+  lastLoginIp           String?
+  mfaEnabled            Boolean              @default(false)
+  mfaSecret             String?
+  createdBy             String?
+  createdOn             DateTime             @default(now()) @db.Timestamptz(6)
+  updatedOn             DateTime             @updatedAt @db.Timestamptz(6)
+  auditLogs             AuditLog[]           @relation("ChangedBy")
+  createdEmployees      Employee[]           @relation("EmployeeCreatedBy")
+  updatedEmployees      Employee[]           @relation("EmployeeUpdatedBy")
+  expensesCreated       Expense[]            @relation("ExpenseCreatedBy")
+  loginAttempts         LoginAttempt[]
+  passwordResetTokens   PasswordResetToken[]
+  createdSalesOrders         SalesOrder[]         @relation("SalesOrderCreatedBy")
+  sessions                   UserSession[]
+  employee              Employee?            @relation(fields: [employeeId], references: [id])
+  role                  Role?                @relation(fields: [roleId], references: [id])
+
+  @@index([status])
+  @@index([employeeId])
+  @@index([roleId])
+  @@map("users")
+}
+
+model UserSession {
+  id           String    @id @default(uuid())
+  userId       String?
+  adminId      BigInt?
+  sessionToken String    @unique
+  ipAddress    String?
+  userAgent    String?
+  deviceLabel  String?
+  loginAt      DateTime  @default(now()) @db.Timestamptz(6)
+  logoutAt     DateTime? @db.Timestamptz(6)
+  expiresAt    DateTime  @db.Timestamptz(6)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  admin        Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  user         User?     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([adminId, isActive])
+  @@index([sessionToken])
+  @@map("user_sessions")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid())
+  userId      String?
+  tokenHash   String    @unique
+  expiresAt   DateTime  @db.Timestamptz(6)
+  usedAt      DateTime? @db.Timestamptz(6)
+  used        Boolean   @default(false)
+  requestedIp String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  adminId     BigInt?
+  admin       Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model LoginAttempt {
+  id            BigInt   @id @default(autoincrement())
+  username      String
+  userId        String?
+  ipAddress     String
+  success       Boolean
+  failureReason String?
+  userAgent     String?
+  attemptedAt   DateTime @default(now()) @db.Timestamptz(6)
+  adminId       BigInt?
+  admin         Admin?   @relation(fields: [adminId], references: [id])
+  user          User?    @relation(fields: [userId], references: [userId])
+
+  @@index([username])
+  @@index([ipAddress])
+  @@index([attemptedAt])
+  @@index([userId])
+  @@map("login_attempts")
+}
+
+model AuditLog {
+  id                BigInt      @id @default(autoincrement())
+  entityName        String
+  entityId          String?
+  action            AuditAction
+  oldValues         Json?
+  newValues         Json?
+  changedBy         String?
+  ipAddress         String?
+  userAgent         String?
+  changedAt         DateTime    @default(now()) @db.Timestamptz(6)
+  changedByAdmin    BigInt?
+  changedByAdminRel Admin?      @relation("ChangedByAdmin", fields: [changedByAdmin], references: [id])
+  changedByUser     User?       @relation("ChangedBy", fields: [changedBy], references: [userId])
+
+  @@index([entityName, entityId])
+  @@index([changedBy])
+  @@map("audit_log")
+}
+
+model Permission {
+  id              Int              @id @default(autoincrement())
+  key             String           @unique
+  module          String
+  action          String
+  scope           String?
+  description     String?
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model Role {
+  id                         Int                          @id @default(autoincrement())
+  code                       String                       @unique @default("ADMIN")
+  name                       String
+  description                String?
+  isSystem                   Boolean                      @default(true)
+  status                     RoleStatus                   @default(active)
+  createdAt                  DateTime                     @default(now()) @db.Timestamptz(6)
+  Admin                      Admin[]
+  machineAssignmentOperators MachineAssignmentOperator[]
+  inchargeRoleAssignments    MachineOperationAssignment[] @relation("InchargeRoleAssignments")
+  rolePermissions            RolePermission[]
+  users                      User[]
+  employees                  Employee[]
+
+  @@map("roles")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model Department {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]
+
+  @@map("departments")
+}
+
+model CustomerType {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique @db.VarChar(100)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(6)
+  customers   Customer[]
+
+  @@map("customer_types")
+}
+
+model CustomerGrade {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique @db.VarChar(100)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(6)
+  customers   Customer[]
+
+  @@map("customer_grades")
+}
+
+model Customer {
+
+  email                String?                  @db.VarChar(120)
+  gstin                String?                  @db.VarChar(15)
+  creditLimit          Decimal                  @default(0) @db.Decimal(14, 2)
+  creditDays           Int?                     @map("credit_days")
+
+  transports           Json?                    @map("transports")
+
+  outstandingAmount    Decimal                  @default(0) @db.Decimal(14, 2)
+  createdBy            String
+  createdAt            DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime                 @updatedAt @db.Timestamptz(6)
+
+  companyId            String                   @db.Uuid
+  customerCode         String                   @db.VarChar(20)
+  deletedAt            DateTime?                @db.Timestamptz(6)
+  displayName          String?                  @db.VarChar(80)
+  firmName             String                   @db.VarChar(160)
+
+  mobile               Json?                    @map("mobile")
+
+  searchTsv            Unsupported("tsvector")?
+
+  status               String                   @default("Active") @db.VarChar(20)
+
+  updatedBy            String?
+  id                   String                   @id @default(uuid()) @db.Uuid
+  openingBalance       Decimal                  @default(0) @db.Decimal(14, 2)
+  openingBalanceType   String                   @default("DEBIT") @db.VarChar(10)
+  customerTypeId       Int?
+  customerGradeId      Int?
+  customerType         CustomerType?            @relation(fields: [customerTypeId], references: [id])
+  customerGrade        CustomerGrade?           @relation(fields: [customerGradeId], references: [id])
+  addresses            CustomerAddress[]
+  company              Company                  @relation(fields: [companyId], references: [id])
+  salesInvoices        SalesInvoice[]
+  salesOrders           SalesOrder[]             @relation("CustomerSalesOrders")
+  salesOrdersAsReferral SalesOrder[]             @relation("SalesOrderReferredBy")
+  accountLedger         AccountLedger?
+  salesReturns          SalesReturn[]
+
+  @@unique([companyId, customerCode])
+  @@index([companyId, status], map: "idx_cust_company_status")
+
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id         String   @id @default(uuid()) @map("id")
+  address    Json     @map("address")
+  customerId String   @map("customer_id") @db.Uuid
+  is_default Boolean  @default(false)
+  label      String   @db.VarChar(40)
+  state_code String   @db.VarChar(50)
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_addresses")
+}
+
+model Company {
+  id             String          @id @default(uuid()) @db.Uuid
+  companyCode    String?         @unique @db.VarChar(20)
+  companyName    String          @db.VarChar(160)
+  legalName      String?         @db.VarChar(160)
+  shortName      String?         @db.VarChar(60)
+  gstin          String?         @db.VarChar(15)
+  currencyCode   String          @default("INR") @db.VarChar(3)
+  phone          String?         @db.VarChar(20)
+  mobile         String?         @db.VarChar(1000)
+  email          String?         @db.VarChar(120)
+  website        String?         @db.VarChar(200)
+  logoUrl        String?
+  faviconUrl     String?
+  addressLine1   String?         @db.VarChar(255)
+
+  city           String?         @db.VarChar(100)
+  state          String?         @db.VarChar(100)
+  zipcode        String?         @db.VarChar(20)
+  country        String?         @db.VarChar(100)
+  isOnboarded    Boolean         @default(false)
+  isActive       Boolean         @default(true)
+  createdBy      String?         @db.Uuid
+  updatedBy      String?         @db.Uuid
+  createdAt      DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(6)
+  businessPlaces BusinessPlace[]
+  customers      Customer[]
+  expenses       Expense[]
+  invoiceSetting InvoiceSetting?
+  whatsappConfig WhatsappConfig?
+
+  @@map("companies")
+}
+
+model WhatsappConfig {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @unique @db.Uuid
+  phoneNumberId      String   @db.VarChar(50)
+  wabaId             String   @db.VarChar(50)
+  businessPhone      String   @db.VarChar(20)
+  accessToken        String
+  webhookVerifyToken String?  @db.VarChar(100)
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+  company            Company  @relation(fields: [companyId], references: [id])
+
+  @@map("whatsapp_configs")
+}
+
+model EmailConfig {
+  id           String   @id @default(uuid()) @db.Uuid
+  smtpHost     String   @db.VarChar(200)
+  smtpPort     Int
+  smtpUsername String   @db.VarChar(200)
+  smtpPassword String   @db.VarChar(200)
+  fromEmail    String   @db.VarChar(200)
+  fromName     String   @db.VarChar(160)
+  encryption   String   @default("TLS") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("email_configs")
+}
+
+model BusinessPlace {
+  id           BigInt            @id @default(autoincrement())
+  companyId    String            @db.Uuid
+  code         String            @db.VarChar(20)
+  name         String            @db.VarChar(120)
+  type         BusinessPlaceType
+  gstPlaceCode String?           @db.VarChar(2)
+  phone        String?           @db.VarChar(20)
+  email        String?           @db.VarChar(120)
+  isHeadOffice Boolean           @default(false)
+  isActive     Boolean           @default(true)
+  address      Json?
+  createdAt    DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(6)
+  company      Company           @relation(fields: [companyId], references: [id])
+  machines     Machine[]
+  stores       Store[]
+
+  @@map("business_places")
+}
+
+model Route {
+  id        String     @id @default(uuid()) @db.Uuid
+  routeCode String     @unique
+  routeName String
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+
+
+  @@map("routes")
+}
+
+model SupplierMaterialPrice {
+  id            String    @id @default(uuid())
+  supplierId    Int
+  rawMaterialId String
+  price         Decimal
+  validFrom     DateTime
+  validTo       DateTime?
+  createdAt     DateTime  @default(now())
+  supplier      Supplier  @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId, rawMaterialId, validFrom, validTo])
+}
+
+model Supplier {
+  mobile                Json?                   @map("mobile")
+  email                 String?                 @map("email") @db.VarChar(120)
+  gstin                 String?                 @map("gstin") @db.VarChar(15)
+  pan                   String?                 @map("pan") @db.VarChar(10)
+  altPhone              String?                 @map("alt_phone") @db.VarChar(15)
+  billingAddressLine1   String                  @map("billing_address_line1") @db.VarChar(255)
+  billingCity           String                  @map("billing_city") @db.VarChar(100)
+  billingState          String                  @map("billing_state") @db.VarChar(100)
+  billingPincode        String                  @map("billing_pincode") @db.VarChar(20)
+  billingCountry        String?                 @default("India") @map("billing_country") @db.VarChar(100)
+  companyId             String                  @map("company_id")
+  contactPerson         String?                 @map("contact_person") @db.VarChar(80)
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy             String                  @map("created_by")
+  deletedAt             DateTime?               @map("deleted_at") @db.Timestamptz(6)
+  displayName           String?                 @map("display_name") @db.VarChar(80)
+  gstRegType            String?                 @map("gst_reg_type") @db.VarChar(20)
+  legalName             String                  @map("legal_name") @db.VarChar(160)
+  minOrderQty           Decimal?                @map("min_order_qty") @db.Decimal(12, 3)
+  stateCode             String                  @map("state_code") @db.VarChar(2)
+  status                String                  @default("Active") @map("status") @db.VarChar(20)
+  supplierCode          String                  @map("supplier_code") @db.VarChar(20)
+  updatedAt             DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy             String?                 @map("updated_by")
+  whatsapp              String?                 @map("whatsapp") @db.VarChar(15)
+  openingBalance        Decimal                 @default(0) @map("opening_balance") @db.Decimal(14, 2)
+  openingBalanceType    String                  @default("CREDIT") @map("opening_balance_type") @db.VarChar(10)
+  id                    Int                     @id @default(autoincrement())
+  materialPrices        SupplierMaterialPrice[]
+  expenses              Expense[]
+  grnInvoices           GrnInvoice[]
+  purchaseOrders        PurchaseOrder[]
+  addresses             SupplierAddress[]
+  accountLedger         AccountLedger?
+  purchaseReturns       PurchaseReturn[]
+
+  @@unique([companyId, supplierCode])
+  @@index([legalName])
+  @@index([status])
+  @@map("suppliers")
+}
+
+model SupplierAddress {
+  id         String   @id @default(uuid()) @map("id")
+  address    Json     @map("address")
+  supplierId Int      @map("supplier_id")
+  is_default Boolean  @default(false)
+  label      String   @db.VarChar(40)
+  state_code String   @db.VarChar(50)
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@map("supplier_addresses")
+}
+
+model Shift {
+  id                   Int                          @id @default(autoincrement())
+  shiftCode            String                       @unique
+  shiftName            String                       @unique
+  startTime            String
+  endTime              String
+  breakDuration        Int?
+  gracePeriod          Int?
+  isActive             Boolean                      @default(true)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  dailyProductionPlans DailyProductionPlan[]
+  HourlyProduction     HourlyProduction[]
+  machineAssignments   MachineOperationAssignment[]
+  productionWastages   ProductionWastage[]
+  WeeklyMachineProgram WeeklyMachineProgram[]
+  shiftRecords         ProductShiftRecord[]
+  employees            Employee[]
+  attendanceRecords    AttendanceRecord[]
+
+  @@map("shifts")
+}
+
+
+model ProductImage {
+  id        BigInt  @id @default(autoincrement())
+  productId BigInt
+  imageUrl  String
+  isPrimary Boolean @default(false)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model Product {
+  id                        BigInt                     @id @default(autoincrement())
+  productCode               String                     @unique
+  productName               String
+  description               String?
+  uomId                     Int?
+  capacityLitres            Decimal?                   @db.Decimal(6, 2)
+  weightPerPiece            Decimal?                   @db.Decimal(10, 2)
+  weightUom                 String                     @default("g") @map("weight_uom") @db.VarChar(10)
+  isActive                  Boolean                    @default(true)
+  createdBy                 String?
+  modifiedBy                String?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  rate                      Decimal?                   @db.Decimal(12, 2)
+  gradeRates                Json?                      @map("grade_rates")
+  minimumQty                String                     @default("0") @map("minimum_qty")
+  productType               ProductType                @default(PRODUCTION) @map("product_type")
+  categoryId                Int?                       @map("category_id")
+  billOfMaterials           BillOfMaterial[]
+  finishedGoodsStocks       FinishedGoodsStock[]
+  finishedGoodsTransactions FinishedGoodsTransaction[]
+  goodsDispatchItems        GoodsDispatchItem[]
+  images                    ProductImage[]
+  productionOrders          ProductionOrder[]
+  productionSteps           ProductionStep[]
+  productionWastages        ProductionWastage[]
+  uom                       UnitOfMeasure?             @relation(fields: [uomId], references: [id], onDelete: Restrict)
+  category                  Category?                  @relation(fields: [categoryId], references: [id])
+  salesInvoiceItems         SalesInvoiceItem[]
+  salesOrderItems           SalesOrderItem[]           @relation("SalesOrderItemProduct")
+  salesReturnItems          SalesReturnItem[]
+  StockAdjustmentItem       StockAdjustmentItem[]
+  weeklyPrograms            WeeklyMachineProgram[]     @relation("ProductWeeklyPrograms")
+  shiftRecords              ProductShiftRecord[]
+  capacityHistories         ProductCapacityHistory[]
+  usedInSalesProducts       SalesProductComponent[]
+
+  @@index([uomId])
+  @@index([productName])
+  @@map("products")
+}
+
+// A separately-catalogued sellable item (e.g. "3L Container" kit), distinct
+// from the Production Product catalog. Assembled from Production Products
+// via SalesProductComponent, and carries its own price/stock like any
+// sellable item.
+model SalesProduct {
+  id               BigInt   @id @default(autoincrement())
+  salesProductCode String   @unique @map("sales_product_code")
+  salesProductName String   @map("sales_product_name")
+  description      String?
+  rate             Decimal? @db.Decimal(12, 2)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdBy        String?  @map("created_by")
+  modifiedBy       String?  @map("modified_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  components     SalesProductComponent[]
+  stocks         SalesProductStock[]
+  salesOrderItems SalesOrderItem[]
+
+  @@index([salesProductName])
+  @@map("sales_products")
+}
+
+model SalesProductStock {
+  storeId        String   @map("store_id") @db.VarChar(20)
+  salesProductId BigInt   @map("sales_product_id")
+  onHandQty      Decimal  @default(0) @map("on_hand_qty") @db.Decimal(14, 3)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  salesProduct SalesProduct @relation(fields: [salesProductId], references: [id], onDelete: Cascade)
+  store        Store        @relation(fields: [storeId], references: [storeId])
+
+  @@id([storeId, salesProductId])
+  @@index([storeId])
+  @@index([salesProductId])
+  @@map("sales_product_stocks")
+}
+
+// Links a Sales Product (e.g. "3L Container") to the Production Products it
+// is assembled from (e.g. "Container" + "Lid"), each with its own quantity.
+model SalesProductComponent {
+  id                 BigInt   @id @default(autoincrement())
+  salesProductId     BigInt   @map("sales_product_id")
+  componentProductId BigInt   @map("component_product_id")
+  quantity           Decimal  @map("quantity") @db.Decimal(12, 3)
+  remarks            String?  @db.VarChar(255)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  salesProduct     SalesProduct @relation(fields: [salesProductId], references: [id], onDelete: Cascade)
+  componentProduct Product      @relation(fields: [componentProductId], references: [id])
+
+  @@unique([salesProductId, componentProductId])
+  @@index([salesProductId])
+  @@index([componentProductId])
+  @@map("sales_product_components")
+}
+
+model ProductionStep {
+  id        BigInt  @id @default(autoincrement())
+  productId BigInt  @map("product_id")
+  stepKey   String  @map("step_key")
+  stepOrder Int     @map("step_order")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("production_steps")
+}
+
+model UnitOfMeasure {
+  id          Int       @id @default(autoincrement())
+  uomCode     String    @unique
+  uomName     String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Product     Product[]
+
+  @@map("units_of_measure")
+}
+
+model Location {
+  locationId   String   @id @map("location_id") @db.VarChar(20)
+  locationCode String   @unique @map("location_code") @db.VarChar(30)
+  locationName String   @map("location_name") @db.VarChar(100)
+  locationType String   @map("location_type") @db.VarChar(50)
+  address      String?  @map("address") @db.VarChar(255)
+  city         String?  @map("city") @db.VarChar(100)
+  state        String?  @map("state") @db.VarChar(100)
+  country      String?  @map("country") @db.VarChar(100)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdBy    String?  @map("created_by") @db.VarChar(36)
+  updatedBy    String?  @map("updated_by") @db.VarChar(36)
+  stores       Store[]
+
+  @@index([locationCode])
+  @@index([isActive])
+  @@map("locations")
+}
+
+model Machine {
+  machineId             String                       @id @map("machine_id") @db.VarChar(20)
+  machineName           String                       @map("machine_name") @db.VarChar(100)
+  technologyType        TechnologyType?
+  machineType           MachineType?
+  targetTemperature     Decimal?                     @map("target_temperature") @db.Decimal(5, 2)
+  targetLoadPercent     Decimal?                     @map("target_load_percent") @db.Decimal(5, 2)
+  manufacturer          String?                      @db.VarChar(100)
+  modelNumber           String?                      @map("model_number") @db.VarChar(50)
+  cycleTime             Decimal?                     @map("cycle_time") @db.Decimal(10, 2)
+  operatorId            String?                      @map("operator_id") @db.VarChar(20)
+  machineStatus         MachineStatus                @default(IDLE)
+  isActive              Boolean                      @default(true)
+  description           String?                      @db.VarChar(255)
+  createdAt             DateTime                     @default(now()) @map("created_at")
+  updatedAt             DateTime                     @updatedAt @map("updated_at")
+  businessPlaceId       BigInt?
+  dailyProductionPlans  DailyProductionPlan[]
+  hourlyProductions     HourlyProduction[]
+  oeeSnapshots          MachineOeeSnapshot[]
+  operationAssignments  MachineOperationAssignment[]
+  businessPlace         BusinessPlace?               @relation(fields: [businessPlaceId], references: [id])
+  productionOrders      ProductionOrder[]
+  productionWastages    ProductionWastage[]
+  weeklyMachinePrograms WeeklyMachineProgram[]
+  shiftRecords          ProductShiftRecord[]
+
+  @@map("machines")
+}
+
+model Store {
+  storeId                   String                     @id @map("store_id") @db.VarChar(20)
+  storeName                 String                     @map("store_name") @db.VarChar(120)
+  storeCategory             StoreCategory?             @map("store_category")
+  locationId                String?                    @map("location_id") @db.VarChar(20)
+  isActive                  Boolean                    @default(true) @map("is_active")
+  createdAt                 DateTime                   @default(now()) @map("created_at")
+  updatedAt                 DateTime                   @updatedAt @map("updated_at")
+  createdBy                 String?                    @map("created_by") @db.VarChar(36)
+  updatedBy                 String?                    @map("updated_by") @db.VarChar(36)
+  allowNegative             Boolean                    @default(false) @map("allow_negative")
+  costMethod                String                     @default("WAVG") @map("cost_method") @db.VarChar(10)
+  gstPlace                  String?                    @map("gst_place") @db.VarChar(50)
+  inchargeId                BigInt?                    @map("incharge_id")
+  locationDesc              String?                    @map("location_desc") @db.VarChar(500)
+  status                    String                     @default("Active") @map("status") @db.VarChar(20)
+  storeCode                 String?                    @unique @map("store_code") @db.VarChar(20)
+  businessPlaceId           BigInt?
+  finishedGoodsStocks       FinishedGoodsStock[]
+  finishedGoodsTransactions FinishedGoodsTransaction[]
+  salesProductStocks        SalesProductStock[]
+  goodsDispatches           GoodsDispatch[]
+  grnInvoices               GrnInvoice[]
+  productionWastages        ProductionWastage[]
+  rawMaterialTransactions   RawMaterialTransaction[]
+  rawMaterials              RawMaterial[]              @relation("StoreToRawMaterial")
+  salesInvoices             SalesInvoice[]
+  StockAdjustmentItem       StockAdjustmentItem[]
+  storeLocations            StoreLocation[]
+  businessPlace             BusinessPlace?             @relation(fields: [businessPlaceId], references: [id])
+  incharge                  Employee?                  @relation(fields: [inchargeId], references: [id])
+  location                  Location?                  @relation(fields: [locationId], references: [locationId])
+
+  @@index([isActive])
+  @@index([locationId])
+  @@map("stores")
+}
+
+model StoreLocation {
+  id           String          @id @default(uuid())
+  storeId      String          @map("store_id") @db.VarChar(20)
+  parentId     String?         @map("parent_id")
+  locationCode String          @map("location_code") @db.VarChar(20)
+  locationType String          @map("location_type") @db.VarChar(15)
+  capacityQty  Decimal?        @map("capacity_qty") @db.Decimal(12, 3)
+  capacityUom  String?         @map("capacity_uom") @db.VarChar(8)
+  status       String          @default("Active") @map("status") @db.VarChar(15)
+  RawMaterial  RawMaterial[]
+  parent       StoreLocation?  @relation("StoreLocationToParent", fields: [parentId], references: [id])
+  children     StoreLocation[] @relation("StoreLocationToParent")
+  store        Store           @relation(fields: [storeId], references: [storeId], onDelete: Cascade)
+
+  @@unique([storeId, locationCode])
+  @@map("store_locations")
+}
+
+
+model RawMaterial {
+  rawMaterialId           String                   @id @map("raw_material_id") @db.VarChar(20)
+  materialName            String                   @map("material_name") @db.VarChar(100)
+  baseUom                 String                   @map("base_uom") @db.VarChar(50)
+  reorderLevel            Decimal?                 @map("reorder_level") @db.Decimal(14, 3)
+  rate                    Decimal?                 @map("rate") @db.Decimal(14, 2)
+  isActive                Boolean                  @default(true) @map("is_active")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  createdBy               String?                  @map("created_by") @db.VarChar(36)
+  updatedBy               String?                  @map("updated_by") @db.VarChar(36)
+  storeId                 String?                  @map("store_id") @db.VarChar(20)
+  minimumStock            Decimal?                 @map("minimum_stock") @db.Decimal(14, 3)
+  status                  String                   @default("Active") @map("status") @db.VarChar(20)
+  batchNo                 String?                  @map("batch_no") @db.VarChar(40)
+  lastMovementAt          DateTime?                @map("last_movement_at")
+  locationId              String?                  @map("location_id")
+  onHandQty               Decimal                  @default(0) @map("on_hand_qty") @db.Decimal(14, 3)
+  reservedQty             Decimal                  @default(0) @map("qty_reserved") @db.Decimal(14, 3)
+  narration               String?                  @map("narration") @db.VarChar(255)
+  itemType                String?                  @map("item_type") @db.VarChar(50)
+  flaggedForReview        Boolean                  @default(false) @map("flagged_for_review")
+  categoryId              Int?                     @map("category_id")
+  billOfMaterials         BillOfMaterial[]
+  grnInvoiceItems         GrnInvoiceItem[]
+  productionWastages      ProductionWastage[]
+  targetedWastages        ProductionWastage[]      @relation("TargetWastageProduct")
+  rawMaterialTransactions RawMaterialTransaction[]
+  storeLocation           StoreLocation?           @relation(fields: [locationId], references: [id])
+  purchaseReturnItems     PurchaseReturnItem[]
+  store                   Store?                   @relation("StoreToRawMaterial", fields: [storeId], references: [storeId])
+  StockAdjustmentItem     StockAdjustmentItem[]
+  category                Category?                @relation(fields: [categoryId], references: [id])
+
+  @@index([storeId])
+  @@index([locationId])
+  @@index([isActive])
+  @@map("raw_materials")
+}
+
+model BillOfMaterial {
+  id               BigInt      @id @default(autoincrement())
+  productId        BigInt      @map("product_id")
+  rawMaterialId    String      @map("raw_material_id") @db.VarChar(20)
+  requiredQuantity Decimal     @map("required_quantity") @db.Decimal(12, 3)
+  percentage       Decimal?    @map("percentage") @db.Decimal(12, 4)
+  uom              String?     @map("uom") @db.VarChar(10)
+  remarks          String?     @db.VarChar(255)
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  product          Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rawMaterial      RawMaterial @relation(fields: [rawMaterialId], references: [rawMaterialId])
+
+  @@index([productId])
+  @@index([rawMaterialId])
+  @@map("bill_of_materials")
+}
+
+model FinishedGoodsStock {
+  storeId       String   @map("store_id") @db.VarChar(20)
+  productItemId BigInt   @map("product_item_id")
+  onHandQty     Decimal  @default(0) @map("on_hand_qty") @db.Decimal(14, 3)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  product       Product  @relation(fields: [productItemId], references: [id])
+  store         Store    @relation(fields: [storeId], references: [storeId])
+
+  @@id([storeId, productItemId])
+  @@index([storeId])
+  @@index([productItemId])
+  @@map("finished_goods_stocks")
+}
+
+model FinishedGoodsTransaction {
+  fgTxnId           BigInt           @id @default(autoincrement()) @map("fg_txn_id")
+  txnDateTime       DateTime         @map("txn_date_time")
+  storeId           String           @map("store_id") @db.VarChar(20)
+  productItemId     BigInt           @map("product_item_id")
+  txnType           String           @map("txn_type") @db.VarChar(30)
+  qty               Decimal          @map("qty") @db.Decimal(14, 3)
+  productionOrderId String?          @map("production_order_id") @db.VarChar(20)
+  deliveryChallanId String?          @map("delivery_challan_id") @db.VarChar(20)
+  invoiceId         String?          @map("invoice_id") @db.VarChar(20)
+  relatedDocNo      String?          @map("related_doc_no") @db.VarChar(30)
+  remarks           String?          @map("remarks") @db.VarChar(255)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  createdBy         String?          @map("created_by") @db.VarChar(36)
+  product           Product          @relation(fields: [productItemId], references: [id])
+  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [productionOrderId])
+  store             Store            @relation(fields: [storeId], references: [storeId])
+
+  @@index([txnDateTime])
+  @@index([storeId])
+  @@index([productItemId])
+  @@index([txnType])
+  @@map("finished_goods_transactions")
+}
+
+model ProductionOrder {
+  productionOrderId         String                     @id @map("production_order_id") @db.VarChar(20)
+  orderDate                 DateTime                   @map("order_date")
+  productItemId             BigInt                     @map("product_item_id")
+  targetQty                 Decimal                    @map("target_qty") @db.Decimal(14, 3)
+  uom                       String                     @db.VarChar(10)
+  sourceSalesOrderId        String?                    @map("source_sales_order_id") @db.VarChar(20)
+  sourceSalesOrderLineId    BigInt?                    @map("source_sales_order_line_id")
+  status                    String                     @default("CREATED") @db.VarChar(30)
+  remarks                   String?                    @db.VarChar(255)
+  createdAt                 DateTime                   @default(now()) @map("created_at")
+  updatedAt                 DateTime                   @updatedAt @map("updated_at")
+  createdBy                 String?                    @map("created_by") @db.VarChar(36)
+  updatedBy                 String?                    @map("updated_by") @db.VarChar(36)
+  approvedAt                DateTime?                  @map("approved_at")
+  approvedBy                String?                    @map("approved_by") @db.VarChar(36)
+  batchNo                   String?                    @map("batch_no") @db.VarChar(40)
+  billOfMaterialId          String?                    @map("bom_id") @db.VarChar(20)
+  destinationStoreId        String?                    @map("destination_store_id") @db.VarChar(20)
+  dueDate                   DateTime                   @map("due_date")
+  lotNo                     String?                    @map("lot_no") @db.VarChar(40)
+  machineMachineId          String?                    @db.VarChar(20)
+  orderType                 String                     @default("STANDARD") @db.VarChar(30)
+  priority                  String                     @default("MEDIUM") @db.VarChar(20)
+  producedQty               Decimal                    @default(0) @map("produced_qty") @db.Decimal(14, 3)
+  rejectedQty               Decimal                    @default(0) @map("rejected_qty") @db.Decimal(14, 3)
+  routingId                 String?                    @map("routing_id") @db.VarChar(20)
+  scrapQty                  Decimal                    @default(0) @map("scrap_qty") @db.Decimal(14, 3)
+  sourceStoreId             String?                    @map("source_store_id") @db.VarChar(20)
+  requiredRawMaterialQty    Decimal?                   @map("required_raw_material_qty") @db.Decimal(14, 3)
+  weightPerPieceUsed        Decimal?                   @map("weight_per_piece_used") @db.Decimal(10, 3)
+  draftRawMaterials         Json?                      @map("draft_raw_materials")
+  currentProductionStep     String?                    @map("current_production_step") @db.VarChar(100)
+  currentStepIndex          Int?                       @map("current_step_index")
+  dailyProductionPlans      DailyProductionPlan[]
+  finishedGoodsTransactions FinishedGoodsTransaction[]
+  goodsDispatchItems        GoodsDispatchItem[]
+  hourlyProductions         HourlyProduction[]
+  productionOrderHistories  ProductionOrderHistory[]
+  Machine                   Machine?                   @relation(fields: [machineMachineId], references: [machineId])
+  productItem               Product                    @relation(fields: [productItemId], references: [id])
+  productionWastages        ProductionWastage[]
+  rawMaterialTransactions   RawMaterialTransaction[]
+  stockAdjustments          StockAdjustment[]
+  weeklyMachinePrograms     WeeklyMachineProgram[]
+  shiftRecords              ProductShiftRecord[]
+
+  @@index([orderDate])
+  @@index([dueDate])
+  @@index([productItemId])
+  @@index([status])
+  @@map("production_orders")
+}
+
+model GoodsDispatch {
+  id                 BigInt              @id @default(autoincrement())
+  dispatchNumber     String              @unique @map("dispatch_number") @db.VarChar(30)
+  dispatchDate       DateTime            @map("dispatch_date") @db.Date
+  vehicleNumber      String              @map("vehicle_number") @db.VarChar(30)
+  driverName         String              @map("driver_name") @db.VarChar(100)
+  driverMobile       String?             @map("driver_mobile") @db.VarChar(20)
+  transportName      String?             @map("transport_name") @db.VarChar(100)
+  loadingTime        String?             @map("loading_time") @db.VarChar(10)
+  remarks            String?             @db.VarChar(500)
+  status             String              @default("PENDING_GATE_APPROVAL") @db.VarChar(30)
+  gateApprovedBy     String?             @map("gate_approved_by") @db.VarChar(36)
+  gateApprovedAt     DateTime?           @map("gate_approved_at")
+  gateRemarks        String?             @map("gate_remarks") @db.VarChar(500)
+  storeReceivedBy    String?             @map("store_received_by") @db.VarChar(36)
+  storeReceivedAt    DateTime?           @map("store_received_at")
+  storeRemarks       String?             @map("store_remarks") @db.VarChar(500)
+  destinationStoreId String?             @map("destination_store_id") @db.VarChar(20)
+  createdBy          String?             @map("created_by") @db.VarChar(36)
+  updatedBy          String?             @map("updated_by") @db.VarChar(36)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  items              GoodsDispatchItem[]
+  store              Store?              @relation(fields: [destinationStoreId], references: [storeId])
+
+  @@index([status])
+  @@index([dispatchDate])
+  @@map("goods_dispatches")
+}
+
+model MachineOperationAssignment {
+  id                 BigInt                      @id @default(autoincrement())
+  machineId          String                      @map("machine_id") @db.VarChar(20)
+  weekStartDate      DateTime                    @map("week_start_date") @db.Date
+  weekEndDate        DateTime                    @map("week_end_date") @db.Date
+  inchargeRoleId     Int?                        @map("incharge_role_id")
+  inchargeEmployeeId BigInt?                     @map("incharge_employee_id")
+  remarks            String?                     @db.VarChar(255)
+  isActive           Boolean                     @default(true) @map("is_active")
+  assignedBy         String?                     @map("assigned_by") @db.VarChar(36)
+  createdAt          DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  shiftId            String?                     @map("shift_id") @db.VarChar(20)
+  operators          MachineAssignmentOperator[]
+  inchargeEmployee   Employee?                   @relation("InchargeEmployeeAssignments", fields: [inchargeEmployeeId], references: [id])
+  inchargeRole       Role?                       @relation("InchargeRoleAssignments", fields: [inchargeRoleId], references: [id])
+  machine            Machine                     @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
+  shift              Shift?                      @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+
+  @@index([machineId])
+  @@index([weekStartDate, weekEndDate])
+  @@index([inchargeEmployeeId])
+  @@map("machine_operation_assignments")
+}
+
+model MachineAssignmentOperator {
+  id           BigInt                     @id @default(autoincrement())
+  assignmentId BigInt                     @map("assignment_id")
+  roleId       Int                        @map("role_id")
+  employeeId   BigInt                     @map("employee_id")
+  createdAt    DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  assignment   MachineOperationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  employee     Employee                   @relation(fields: [employeeId], references: [id])
+  role         Role                       @relation(fields: [roleId], references: [id])
+
+  @@unique([assignmentId, employeeId])
+  @@index([assignmentId])
+  @@index([employeeId])
+  @@map("machine_assignment_operators")
+}
+
+model GoodsDispatchItem {
+  id                BigInt          @id @default(autoincrement())
+  dispatchId        BigInt          @map("dispatch_id")
+  productionOrderId String          @map("production_order_id") @db.VarChar(20)
+  productItemId     BigInt          @map("product_item_id")
+  dispatchQty       Decimal         @map("dispatch_qty") @db.Decimal(14, 3)
+  uom               String          @db.VarChar(10)
+  receivedQty       Decimal?        @map("received_qty") @db.Decimal(14, 3)
+  remarks           String?         @db.VarChar(255)
+  dispatch          GoodsDispatch   @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productItemId], references: [id])
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [productionOrderId])
+
+  @@index([dispatchId])
+  @@index([productionOrderId])
+  @@map("goods_dispatch_items")
+}
+
+model WeeklyMachineProgram {
+  weeklyProgramId      String                @id @map("weekly_program_id") @db.VarChar(20)
+  weekStartDate        DateTime              @map("week_start_date") @db.Date
+  weekEndDate          DateTime              @map("week_end_date") @db.Date
+  machineId            String?               @map("machine_id") @db.VarChar(20)
+  dayOfWeek            Int                   @map("day_of_week")
+  shiftId              String?               @map("shift_id") @db.VarChar(20)
+  plannedQty           Decimal               @map("planned_qty") @db.Decimal(12, 3)
+  status               String                @default("DRAFT") @db.VarChar(20)
+  remarks              String?               @db.VarChar(255)
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  createdBy            String?               @map("created_by") @db.VarChar(36)
+  updatedBy            String?               @map("updated_by") @db.VarChar(36)
+  approvedAt           DateTime?             @map("approved_at")
+  approvedBy           String?               @map("approved_by") @db.VarChar(36)
+  plannedHours         Decimal?              @map("planned_hours") @db.Decimal(10, 2)
+  priority             String                @default("MEDIUM") @db.VarChar(20)
+  productId            BigInt?
+  productionOrderId    String                @map("production_order_id") @db.VarChar(20)
+  sequenceNo           Int                   @default(1) @map("sequence_no")
+  setupHours           Decimal?              @map("setup_hours") @db.Decimal(10, 2)
+  dailyProductionPlans DailyProductionPlan[]
+  machine              Machine?              @relation(fields: [machineId], references: [machineId])
+  Product              Product?              @relation("ProductWeeklyPrograms", fields: [productId], references: [id])
+  productionOrder      ProductionOrder       @relation(fields: [productionOrderId], references: [productionOrderId])
+  shift                Shift?                @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+
+  @@unique([machineId, shiftId, weekStartDate, dayOfWeek, sequenceNo])
+  @@index([productionOrderId])
+  @@index([machineId])
+  @@index([shiftId])
+  @@index([weekStartDate])
+  @@index([status])
+  @@map("weekly_machine_programs")
+}
+
+model HourlyProduction {
+  hourlyProductionId BigInt               @id @default(autoincrement()) @map("hourly_production_id")
+  productionOrderId  String               @map("production_order_id") @db.VarChar(20)
+  productionDate     DateTime             @map("production_date") @db.Date
+  shiftId            String               @map("shift_id") @db.VarChar(20)
+  machineId          String               @map("machine_id") @db.VarChar(20)
+  hourIndex          Int                  @map("hour_index")
+  qtyProduced        Decimal              @map("qty_produced") @db.Decimal(14, 3)
+  rejectQty          Decimal              @default(0) @map("reject_qty") @db.Decimal(14, 3)
+  scrapQty           Decimal              @default(0) @map("scrap_qty") @db.Decimal(14, 3)
+  downtime           Decimal              @default(0) @map("downtime") @db.Decimal(10, 2)
+  runtimeMinutes     Decimal              @default(60) @map("runtime_minutes") @db.Decimal(10, 2)
+  remarks            String?              @db.VarChar(255)
+  downtimeReason     String?              @map("downtime_reason") @db.VarChar(100)
+  rejectReason       String?              @map("reject_reason") @db.VarChar(100)
+  scrapReason        String?              @map("scrap_reason") @db.VarChar(100)
+  operatorId         String?              @map("operator_id") @db.VarChar(20)
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+  dailyPlanId        String?              @map("daily_plan_id") @db.VarChar(50)
+  dailyPlan          DailyProductionPlan? @relation(fields: [dailyPlanId], references: [dailyPlanId])
+  machine            Machine              @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
+  productionOrder    ProductionOrder      @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
+  shift              Shift                @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+  productionWastages ProductionWastage[]
+
+  @@unique([productionDate, machineId, shiftId, hourIndex])
+  @@index([productionOrderId])
+  @@index([machineId])
+  @@index([shiftId])
+  @@index([dailyPlanId])
+  @@map("hourly_productions")
+}
+
+model DailyProductionPlan {
+  dailyPlanId            String                @id @map("daily_plan_id") @db.VarChar(50)
+  weeklyProgramId        String                @map("weekly_program_id") @db.VarChar(20)
+  productionOrderId      String                @map("production_order_id") @db.VarChar(20)
+  productionDate         DateTime              @map("production_date") @db.Date
+  machineId              String                @map("machine_id") @db.VarChar(20)
+  shiftId                String                @map("shift_id") @db.VarChar(20)
+  plannedQty             Decimal               @map("planned_qty") @db.Decimal(12, 3)
+  plannedHours           Decimal?              @map("planned_hours") @db.Decimal(10, 2)
+  priority               String                @default("MEDIUM") @db.VarChar(20)
+  status                 String                @default("DRAFT") @db.VarChar(20)
+  remarks                String?               @db.VarChar(255)
+  selectedOperatorIds    String?               @map("selected_operator_ids") @db.VarChar(255)
+  carryForwardFromPlanId String?               @map("carry_forward_from_plan_id") @db.VarChar(50)
+  currentProductionStep  String?               @map("current_production_step") @db.VarChar(100)
+  currentStepIndex       Int?                  @map("current_step_index")
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
+  createdBy              String?               @map("created_by") @db.VarChar(36)
+  updatedBy              String?               @map("updated_by") @db.VarChar(36)
+  carryForwardFrom       DailyProductionPlan?  @relation("CarryForwardChain", fields: [carryForwardFromPlanId], references: [dailyPlanId])
+  carryForwardTo         DailyProductionPlan[] @relation("CarryForwardChain")
+  machine                Machine               @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
+  productionOrder        ProductionOrder       @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
+  shift                  Shift                 @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+  weeklyMachineProgram   WeeklyMachineProgram  @relation(fields: [weeklyProgramId], references: [weeklyProgramId], onDelete: Cascade)
+  hourlyProductions      HourlyProduction[]
+
+  @@index([weeklyProgramId])
+  @@index([productionOrderId])
+  @@index([machineId])
+  @@index([shiftId])
+  @@index([productionDate])
+  @@index([status])
+  @@index([carryForwardFromPlanId])
+  @@map("daily_production_plans")
+}
+
+model RawMaterialTransaction {
+  rmTxnId           BigInt           @id @default(autoincrement()) @map("rm_txn_id")
+  storeId           String           @map("store_id") @db.VarChar(20)
+  rawMaterialId     String           @map("raw_material_id") @db.VarChar(20)
+  txnType           String           @map("txn_type") @db.VarChar(30)
+  qty               Decimal          @map("qty") @db.Decimal(14, 3)
+  txnDateTime       DateTime         @default(now()) @map("txn_date_time")
+  remarks           String?          @map("remarks") @db.VarChar(255)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  productionOrderId String?          @map("production_order_id") @db.VarChar(20)
+  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [productionOrderId])
+  rawMaterial       RawMaterial      @relation(fields: [rawMaterialId], references: [rawMaterialId], onDelete: Cascade)
+  store             Store            @relation(fields: [storeId], references: [storeId], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([rawMaterialId])
+  @@index([txnDateTime])
+  @@index([productionOrderId])
+  @@map("raw_material_transactions")
+}
+
+model SalesOrder {
+  id               Int              @id @default(autoincrement())
+  orderNo          String           @unique @db.VarChar(30)
+  orderDate        DateTime
+  isInterState     Boolean          @default(false)
+  customerId       String           @db.Uuid
+  mobile           String?          @db.VarChar(20)
+  referenceText    String?          @db.VarChar(255)
+  narration        String?
+  status           SalesOrderStatus @default(DRAFT)
+  subtotal         Decimal          @default(0) @db.Decimal(14, 2)
+  netAmount        Decimal          @default(0) @db.Decimal(14, 2)
+ totalDiscount    Decimal          @default(0) @map("total_discount") @db.Decimal(14, 2)
+  orderDiscountType  String?        @map("order_discount_type") @db.VarChar(10)
+  orderDiscountValue Decimal?       @map("order_discount_value") @db.Decimal(14, 2)
+  totalTax         Decimal          @default(0) @map("total_tax") @db.Decimal(14, 2)
+  totalCgst        Decimal          @default(0) @map("total_cgst") @db.Decimal(14, 2)
+  totalSgst        Decimal          @default(0) @map("total_sgst") @db.Decimal(14, 2)
+  totalIgst        Decimal          @default(0) @map("total_igst") @db.Decimal(14, 2)
+  createdBy        String?
+  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+  orderType            String?
+  salesPersonName      String?          @db.VarChar(100)
+  sourceSalesOrderId   Int?             @map("source_sales_order_id")
+  // Order Source Tracking (7 types)
+  orderSource          String?          @map("order_source") @db.VarChar(30)
+  sourceEmployeeId     BigInt?          @map("source_employee_id")
+  referredByCustomerId String?          @map("referred_by_customer_id") @db.Uuid
+  referredByName       String?          @map("referred_by_name") @db.VarChar(100)
+  billSundry           Json?            @map("bill_sundry")
+  salesInvoices        SalesInvoice[]
+  items                SalesOrderItem[]
+  createdByUser        User?            @relation("SalesOrderCreatedBy", fields: [createdBy], references: [userId])
+  customer             Customer         @relation("CustomerSalesOrders", fields: [customerId], references: [id])
+  sourceEmployee       Employee?        @relation("SalesOrderSourceEmployee", fields: [sourceEmployeeId], references: [id])
+  referredByCustomer   Customer?        @relation("SalesOrderReferredBy", fields: [referredByCustomerId], references: [id])
+
+  @@index([customerId])
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id             BigInt        @id @default(autoincrement())
+  salesOrderId   Int
+  productId      BigInt
+  salesProductId BigInt?       @map("sales_product_id")
+  quantity       Decimal       @db.Decimal(14, 3)
+  invoicedQty    Decimal       @default(0) @db.Decimal(14, 3)
+  unitPrice      Decimal       @default(0) @map("unit_price") @db.Decimal(14, 2)
+  quotationUnitPrice Decimal?  @map("quotation_unit_price") @db.Decimal(14, 2)
+  lineTotal      Decimal       @default(0) @db.Decimal(14, 2)
+  taxableAmount  Decimal       @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  cgstRate       Decimal       @default(0) @map("cgst_rate") @db.Decimal(5, 2)
+  cgstAmount     Decimal       @default(0) @map("cgst_amount") @db.Decimal(14, 2)
+  sgstRate       Decimal       @default(0) @map("sgst_rate") @db.Decimal(5, 2)
+  sgstAmount     Decimal       @default(0) @map("sgst_amount") @db.Decimal(14, 2)
+  igstRate       Decimal       @default(0) @map("igst_rate") @db.Decimal(5, 2)
+  igstAmount     Decimal       @default(0) @map("igst_amount") @db.Decimal(14, 2)
+  product        Product       @relation("SalesOrderItemProduct", fields: [productId], references: [id])
+  salesProduct   SalesProduct? @relation(fields: [salesProductId], references: [id])
+  salesOrder     SalesOrder    @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@index([salesOrderId])
+  @@index([productId])
+  @@index([salesProductId])
+  @@map("sales_order_items")
+}
+
+model PurchaseOrder {
+  id                   String              @id @default(uuid()) @db.Uuid
+  poNumber             String              @unique
+  poDate               DateTime            @db.Date
+  expectedDeliveryDate DateTime            @db.Date
+  status               String              @default("DRAFT")
+  remarks              String?
+  rejectReason         String?
+  sameAsBilling        Boolean             @default(false)
+  billingAddressLine1  String
+  billingCity          String
+  billingState         String
+  billingPincode       String
+  billingCountry       String?             @default("India") @map("billing_country")
+  shippingAddressLine1 String
+  shippingCity         String
+  shippingState        String
+  shippingPincode      String
+  shippingCountry      String?             @default("India") @map("shipping_country")
+  subtotal             Decimal             @default(0) @db.Decimal(12, 2)
+  totalDiscount        Decimal             @default(0) @db.Decimal(12, 2)
+  totalTax             Decimal             @default(0) @db.Decimal(12, 2)
+  totalCgst            Decimal             @default(0) @db.Decimal(12, 2)
+  totalSgst            Decimal             @default(0) @db.Decimal(12, 2)
+  totalIgst            Decimal             @default(0) @db.Decimal(12, 2)
+  roundingAdjust       Decimal             @default(0) @map("rounding_adjust") @db.Decimal(12, 2)
+  netAmount            Decimal             @default(0) @db.Decimal(12, 2)
+  companyId            String              @db.Uuid
+  createdBy            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  supplierId           Int
+  storeId              String?             @map("store_id") @db.VarChar(20)
+  discountType         DiscountType        @default(PERCENT) @map("discount_type")
+  discountValue        Decimal             @default(0) @map("discount_value") @db.Decimal(12, 2)
+  grnInvoices          GrnInvoice[]
+  items                PurchaseOrderItem[]
+  supplier             Supplier            @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId])
+  @@index([companyId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid()) @db.Uuid
+  purchaseOrderId String        @db.Uuid
+  uom             String
+  quantity        Decimal       @db.Decimal(12, 3)
+  receivedQty     Decimal       @default(0) @db.Decimal(12, 3)
+  unitPrice       Decimal       @db.Decimal(12, 2)
+  discount        Decimal       @default(0) @db.Decimal(5, 2)
+  discountType    DiscountType  @default(PERCENT)
+  discountValue   Decimal       @default(0) @db.Decimal(12, 2)
+  discountAmount  Decimal       @default(0) @db.Decimal(14, 2)
+  tax             Decimal       @default(0) @db.Decimal(5, 2)
+  taxableAmount   Decimal       @default(0) @db.Decimal(14, 2)
+  cgstRate        Decimal       @default(0) @db.Decimal(5, 2)
+  cgstAmount      Decimal       @default(0) @db.Decimal(14, 2)
+  sgstRate        Decimal       @default(0) @db.Decimal(5, 2)
+  sgstAmount      Decimal       @default(0) @db.Decimal(14, 2)
+  igstRate        Decimal       @default(0) @db.Decimal(5, 2)
+  igstAmount      Decimal       @default(0) @db.Decimal(14, 2)
+  lineTotal       Decimal       @db.Decimal(12, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  productId       String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_items")
+}
+
+model GrnInvoice {
+  id                   String              @id @default(uuid()) @db.Uuid
+  grnNumber            String              @unique @map("grn_number")
+  invoiceNo            String              @map("invoice_no")
+  grnDate              DateTime            @map("grn_date") @db.Date
+  supplierId           Int                 @map("supplier_id")
+  storeId              String              @map("store_id") @db.VarChar(20)
+  billingAddressLine1  String              @map("billing_address_line1")
+  billingCity          String              @map("billing_city")
+  billingState         String              @map("billing_state")
+  billingPincode       String              @map("billing_pincode")
+  billingCountry       String?             @default("India") @map("billing_country")
+  sameAsBilling        Boolean             @default(false) @map("same_as_billing")
+  updateStock          Boolean             @default(false) @map("update_stock")
+  shippingAddressLine1 String              @map("shipping_address_line1")
+  shippingCity         String              @map("shipping_city")
+  shippingState        String              @map("shipping_state")
+  shippingPincode      String              @map("shipping_pincode")
+  shippingCountry      String?             @default("India") @map("shipping_country")
+  receiveDate          DateTime?           @map("receive_date") @db.Date
+  billDueDate          DateTime?           @map("bill_due_date") @db.Date
+  challanNo            String?             @map("challan_no")
+  transport            String?
+  eWayBill             String?             @map("eway_bill")
+  invoiceImage         String?             @map("invoice_image")
+  remarks              String?
+  discountType         DiscountType        @default(PERCENT) @map("discount_type")
+  discountValue        Decimal             @default(0) @map("discount_value") @db.Decimal(12, 2)
+  roundingAdjust       Decimal             @default(0) @map("rounding_adjust") @db.Decimal(12, 2)
+  paymentStatus        String              @default("Unpaid") @map("payment_status")
+  paymentMethod        String?             @map("payment_method")
+  referenceNumber      String?             @map("reference_number")
+  paymentDate          DateTime?           @map("payment_date") @db.Date
+  payments             Json?               @default("[]") @map("payments")
+  subtotal             Decimal             @default(0) @db.Decimal(12, 2)
+  totalDiscount        Decimal             @default(0) @db.Decimal(12, 2)
+  totalTax             Decimal             @default(0) @db.Decimal(12, 2)
+  totalCgst            Decimal             @default(0) @db.Decimal(12, 2)
+  totalSgst            Decimal             @default(0) @db.Decimal(12, 2)
+  totalIgst            Decimal             @default(0) @db.Decimal(12, 2)
+  netAmount            Decimal             @default(0) @db.Decimal(12, 2)
+  companyId            String              @map("company_id") @db.Uuid
+  createdBy            String?             @map("created_by")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  poId                 String?             @map("po_id") @db.Uuid
+  items                GrnInvoiceItem[]
+  paymentRecords       GrnInvoicePayment[]
+  purchaseOrder        PurchaseOrder?      @relation(fields: [poId], references: [id])
+  store                Store               @relation(fields: [storeId], references: [storeId])
+  supplier             Supplier            @relation(fields: [supplierId], references: [id])
+  purchaseReturns      PurchaseReturn[]
+
+  @@index([supplierId])
+  @@index([storeId])
+  @@index([companyId])
+  @@index([poId])
+  @@map("grn_invoices")
+}
+
+model GrnInvoiceItem {
+  id             String      @id @default(uuid()) @db.Uuid
+  grnInvoiceId   String      @map("grn_invoice_id") @db.Uuid
+  productId      String      @map("product_id")
+  description    String
+  uom            String
+  quantity       Decimal     @db.Decimal(12, 3)
+  unitPrice      Decimal     @map("unit_price") @db.Decimal(12, 2)
+  discountAmount Decimal     @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  tax            Decimal     @default(0) @db.Decimal(5, 2)
+  taxableAmount  Decimal     @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  cgstRate       Decimal     @default(0) @map("cgst_rate") @db.Decimal(5, 2)
+  cgstAmount     Decimal     @default(0) @map("cgst_amount") @db.Decimal(14, 2)
+  sgstRate       Decimal     @default(0) @map("sgst_rate") @db.Decimal(5, 2)
+  sgstAmount     Decimal     @default(0) @map("sgst_amount") @db.Decimal(14, 2)
+  igstRate       Decimal     @default(0) @map("igst_rate") @db.Decimal(5, 2)
+  igstAmount     Decimal     @default(0) @map("igst_amount") @db.Decimal(14, 2)
+  lineTotal      Decimal     @map("line_total") @db.Decimal(12, 2)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  grnInvoice     GrnInvoice  @relation(fields: [grnInvoiceId], references: [id], onDelete: Cascade)
+  rawMaterial    RawMaterial @relation(fields: [productId], references: [rawMaterialId])
+
+  @@index([grnInvoiceId])
+  @@index([productId])
+  @@map("grn_invoice_items")
+}
+
+model GrnInvoicePayment {
+  id              String     @id @default(uuid()) @db.Uuid
+  grnInvoiceId    String     @map("grn_invoice_id") @db.Uuid
+  amount          Decimal    @db.Decimal(14, 2)
+  paymentMethod   String     @map("payment_method") @db.VarChar(50)
+  referenceNumber String?    @map("reference_number") @db.VarChar(100)
+  paymentDate     DateTime   @map("payment_date") @db.Date
+  recordedBy      String?    @map("recorded_by") @db.VarChar(36)
+  voucherPosted   Boolean    @default(false) @map("voucher_posted")
+  sourceVoucherId String?    @map("source_voucher_id") @db.VarChar(36)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  grnInvoice      GrnInvoice @relation(fields: [grnInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([grnInvoiceId])
+  @@map("grn_invoice_payments")
+}
+
+model ProductionWastage {
+  id                     BigInt            @id @default(autoincrement())
+  wastageNo              String            @unique @map("wastage_no") @db.VarChar(30)
+  wastageDate            DateTime          @map("wastage_date") @db.Date
+  productionOrderId      String            @map("production_order_id") @db.VarChar(20)
+  hourlyProductionId     BigInt?           @map("hourly_production_id")
+  machineId              String            @map("machine_id") @db.VarChar(20)
+  shiftId                String            @map("shift_id") @db.VarChar(20)
+  productId              BigInt            @map("product_id")
+  rawMaterialId          String?           @map("raw_material_id") @db.VarChar(20)
+  wastageType            WastageType       @map("wastage_type")
+  quantity               Decimal           @map("quantity") @db.Decimal(18, 3)
+  uom                    String            @db.VarChar(10)
+  estimatedValue         Decimal?          @map("estimated_value") @db.Decimal(18, 2)
+  reason                 String?           @db.VarChar(255)
+  correctiveAction       String?           @map("corrective_action") @db.VarChar(255)
+  remarks                String?           @db.VarChar(255)
+  isRecyclable           Boolean           @default(false) @map("is_recyclable")
+  sentForRework          Boolean           @default(false) @map("sent_for_rework")
+  approvedBy             String?           @map("approved_by") @db.VarChar(36)
+  approvedAt             DateTime?         @map("approved_at")
+  status                 WastageStatus     @default(DRAFT)
+  createdBy              String            @map("created_by") @db.VarChar(36)
+  updatedBy              String?           @map("updated_by") @db.VarChar(36)
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
+  targetWastageProductId String?           @map("target_wastage_product_id") @db.VarChar(20)
+  storeId                String?           @map("store_id") @db.VarChar(20)
+  categoryId             Int?              @map("category_id")
+  hourlyProduction       HourlyProduction? @relation(fields: [hourlyProductionId], references: [hourlyProductionId])
+  machine                Machine           @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
+  product                Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productionOrder        ProductionOrder   @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
+  rawMaterial            RawMaterial?      @relation(fields: [rawMaterialId], references: [rawMaterialId])
+  shift                  Shift             @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+  store                  Store?            @relation(fields: [storeId], references: [storeId])
+  targetWastageProduct   RawMaterial?      @relation("TargetWastageProduct", fields: [targetWastageProductId], references: [rawMaterialId])
+  category               Category?         @relation(fields: [categoryId], references: [id])
+
+  @@index([productionOrderId])
+  @@index([hourlyProductionId])
+  @@index([machineId])
+  @@index([shiftId])
+  @@index([productId])
+  @@index([wastageDate])
+  @@map("production_wastages")
+}
+
+model StockAdjustment {
+  id                BigInt                @id @default(autoincrement()) @map("adj_id")
+  adjustmentNumber  String                @unique @map("adjustment_number") @db.VarChar(50)
+  adjustmentDate    DateTime              @map("adjustment_date")
+  adjustmentType    String                @default("STOCK_INCREASE") @map("adjustment_type") @db.VarChar(40)
+  reason            String?               @db.VarChar(255)
+  status            AdjustmentStatus      @default(DRAFT)
+  approvedBy        String?               @map("approved_by") @db.VarChar(36)
+  approvedAt        DateTime?             @map("approved_at")
+  createdBy         String?               @map("created_by") @db.VarChar(36)
+  updatedBy         String?               @map("updated_by") @db.VarChar(36)
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  sourceDocument    String?               @map("source_document") @db.VarChar(50)
+  sourceDocId       String?               @map("source_doc_id") @db.VarChar(50)
+  autoGenerated     Boolean               @default(false) @map("auto_generated")
+  type              String?               @map("type") @db.VarChar(50)
+  productionOrderId String?               @map("production_order_id") @db.VarChar(20)
+  items             StockAdjustmentItem[]
+  productionOrder   ProductionOrder?      @relation(fields: [productionOrderId], references: [productionOrderId])
+
+  @@index([adjustmentDate])
+  @@index([status])
+  @@index([adjustmentType])
+  @@index([productionOrderId])
+  @@map("stock_adjustments")
+}
+
+model StockAdjustmentItem {
+  id                BigInt           @id @default(autoincrement()) @map("adj_item_id")
+  stockAdjustmentId BigInt           @map("stock_adjustment_id")
+  itemType          ItemCategoryType @map("item_type")
+  rawMaterialId     String?          @map("raw_material_id") @db.VarChar(20)
+  productItemId     BigInt?          @map("product_item_id")
+  storeId           String           @map("store_id") @db.VarChar(20)
+  currentQty        Decimal          @map("current_qty") @db.Decimal(14, 3)
+  adjustedQty       Decimal          @map("adjusted_qty") @db.Decimal(14, 3)
+  difference        Decimal          @map("difference") @db.Decimal(14, 3)
+  remarks           String?          @db.VarChar(255)
+  unitCost          Decimal?         @map("unit_cost") @db.Decimal(14, 2)
+  batchNo           String?          @map("batch_no") @db.VarChar(40)
+  product           Product?         @relation(fields: [productItemId], references: [id])
+  rawMaterial       RawMaterial?     @relation(fields: [rawMaterialId], references: [rawMaterialId])
+  stockAdjustment   StockAdjustment  @relation(fields: [stockAdjustmentId], references: [id], onDelete: Cascade)
+  store             Store            @relation(fields: [storeId], references: [storeId])
+
+  @@index([stockAdjustmentId])
+  @@index([storeId])
+  @@map("stock_adjustment_items")
+}
+
+model ProductionOrderHistory {
+  id                BigInt          @id @default(autoincrement())
+  productionOrderId String          @map("production_order_id") @db.VarChar(20)
+  fromStatus        String?         @map("from_status") @db.VarChar(30)
+  toStatus          String          @map("to_status") @db.VarChar(30)
+  changedAt         DateTime        @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedBy         String?         @map("changed_by") @db.VarChar(36)
+  remarks           String?         @db.VarChar(500)
+  action            String?         @map("action") @db.VarChar(100)
+  metadata          Json?           @map("metadata")
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
+
+  @@index([productionOrderId])
+  @@index([changedAt])
+  @@map("production_order_history")
+}
+
+model Expense {
+  id              String    @id @default(uuid()) @db.Uuid
+  expenseNumber   String    @db.VarChar(30)
+  expenseCategory String    @db.VarChar(60)
+  date            DateTime  @db.Date
+  expense         String    @db.VarChar(120)
+  amount          Decimal   @db.Decimal(12, 2)
+  description     String?
+  paymentMethod   String    @db.VarChar(50)
+  status          String    @default("Draft") @db.VarChar(30)
+  notes           String?
+  receiptInvoice  String?   @db.VarChar(255)
+  companyId       String    @db.Uuid
+  supplierId      Int?
+  createdBy       String?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  company         Company   @relation(fields: [companyId], references: [id])
+  user            User?     @relation("ExpenseCreatedBy", fields: [createdBy], references: [userId])
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@unique([companyId, expenseNumber])
+  @@map("expenses")
+}
+
+model InvoiceSetting {
+  id                    String   @id @default(uuid()) @db.Uuid
+  companyId             String   @unique @db.Uuid
+  invoicePrefix         String   @default("INV") @map("invoice_prefix") @db.VarChar(20)
+  sequenceLength        Int      @default(4) @map("sequence_length")
+  currentSequenceNumber Int      @default(1) @map("current_sequence_number")
+  financialYearStart    DateTime @map("financial_year_start") @db.Date
+  financialYearEnd      DateTime @map("financial_year_end") @db.Date
+  autoFinancialYear     Boolean  @default(true) @map("auto_financial_year")
+  formatTemplate        String   @default("{PREFIX}-{FY}-{SEQ}") @map("format_template") @db.VarChar(100)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  company               Company  @relation(fields: [companyId], references: [id])
+
+  @@map("invoice_settings")
+}
+
+model SalesInvoice {
+  id             String                @id @default(uuid()) @db.Uuid
+  invoiceNo      String                @unique @map("invoice_no")
+  invoiceDate    DateTime              @map("invoice_date") @db.Date
+  dueDate        DateTime?             @map("due_date") @db.Date
+  status         String                @default("DRAFT")
+  customerId     String                @map("customer_id") @db.Uuid
+  notes          String?
+  subTotal       Decimal               @map("sub_total") @db.Decimal(14, 2)
+  discountType   String?               @map("discount_type") @db.VarChar(10)
+  discountValue  Decimal?              @map("discount_value") @db.Decimal(14, 2)
+  totalDiscount  Decimal               @default(0) @map("total_discount") @db.Decimal(14, 2)
+  taxTotal       Decimal               @map("tax_total") @db.Decimal(14, 2)
+  grandTotal     Decimal               @map("grand_total") @db.Decimal(14, 2)
+  companyId      String                @map("company_id") @db.Uuid
+  createdBy      String?               @map("created_by")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+  salesOrderId   Int?                  @map("sales_order_id")
+  storeId        String?               @map("store_id") @db.VarChar(20)
+  payments       Json?                 @default("[]") @map("payments")
+  narration      String?               @db.VarChar(2000)
+  transport      Json?                 @map("transport")
+  numberOfBundle Int?                  @map("number_of_bundle")
+  billSundry     Json?                 @map("bill_sundry")
+  shippingAddressLine1 String?         @map("shipping_address_line1") @db.VarChar(255)
+  shippingCity         String?         @map("shipping_city") @db.VarChar(100)
+  shippingState        String?         @map("shipping_state") @db.VarChar(100)
+  shippingPincode      String?         @map("shipping_pincode") @db.VarChar(20)
+  items          SalesInvoiceItem[]
+  paymentRecords SalesInvoicePayment[]
+  customer       Customer              @relation(fields: [customerId], references: [id])
+  salesOrder     SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  store          Store?                @relation(fields: [storeId], references: [storeId])
+  salesReturns   SalesReturn[]
+
+  @@index([customerId])
+  @@index([companyId])
+  @@index([salesOrderId])
+  @@index([storeId])
+  @@map("sales_invoices")
+}
+
+model SalesInvoiceItem {
+  id               String            @id @default(uuid()) @db.Uuid
+  salesInvoiceId   String            @map("sales_invoice_id") @db.Uuid
+  productId        BigInt            @map("product_id")
+  description      String?
+  uom              String?
+  quantity         Decimal           @db.Decimal(12, 3)
+  unitPrice        Decimal           @map("unit_price") @db.Decimal(12, 2)
+  tax              Decimal           @default(0) @db.Decimal(5, 2)
+  taxableAmount    Decimal           @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  cgstRate         Decimal           @default(0) @map("cgst_rate") @db.Decimal(5, 2)
+  cgstAmount       Decimal           @default(0) @map("cgst_amount") @db.Decimal(14, 2)
+  sgstRate         Decimal           @default(0) @map("sgst_rate") @db.Decimal(5, 2)
+  sgstAmount       Decimal           @default(0) @map("sgst_amount") @db.Decimal(14, 2)
+  igstRate         Decimal           @default(0) @map("igst_rate") @db.Decimal(5, 2)
+  igstAmount       Decimal           @default(0) @map("igst_amount") @db.Decimal(14, 2)
+  lineTotal        Decimal           @map("line_total") @db.Decimal(12, 2)
+  weight           Decimal?          @default(0) @db.Decimal(12, 3)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  discountAmount   Decimal           @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  product          Product           @relation(fields: [productId], references: [id])
+  salesInvoice     SalesInvoice      @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  salesReturnItems SalesReturnItem[]
+
+  @@index([salesInvoiceId])
+  @@index([productId])
+  @@map("sales_invoice_items")
+}
+
+model SalesInvoicePayment {
+  id              String       @id @default(uuid()) @db.Uuid
+  salesInvoiceId  String       @map("sales_invoice_id") @db.Uuid
+  amount          Decimal      @db.Decimal(14, 2)
+  paymentMethod   String       @map("payment_method") @db.VarChar(50)
+  referenceNumber String?      @map("reference_number") @db.VarChar(100)
+  paymentDate     DateTime     @map("payment_date") @db.Date
+  recordedBy      String?      @map("recorded_by") @db.VarChar(36)
+  voucherPosted   Boolean      @default(false) @map("voucher_posted")
+  sourceVoucherId String?      @map("source_voucher_id") @db.VarChar(36)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  salesInvoice    SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([salesInvoiceId])
+  @@map("sales_invoice_payments")
+}
+
+/// Stores calculated OEE metrics per machine per shift for historical lookup and reporting
+model MachineOeeSnapshot {
+  id             BigInt   @id @default(autoincrement())
+  machineId      String   @map("machine_id") @db.VarChar(20)
+  dailyPlanId    String?  @map("daily_plan_id") @db.VarChar(50)
+  productionDate DateTime @map("production_date") @db.Date
+  shiftId        String   @map("shift_id") @db.VarChar(20)
+  plannedRunTime Decimal  @map("planned_run_time") @db.Decimal(10, 2)
+  actualRunTime  Decimal  @map("actual_run_time") @db.Decimal(10, 2)
+  totalDowntime  Decimal  @map("total_downtime") @db.Decimal(10, 2)
+  totalProduced  Decimal  @map("total_produced") @db.Decimal(14, 3)
+  goodQty        Decimal  @map("good_qty") @db.Decimal(14, 3)
+  rejectQty      Decimal  @map("reject_qty") @db.Decimal(14, 3)
+  availability   Decimal  @map("availability") @db.Decimal(5, 2)
+  performance    Decimal  @map("performance") @db.Decimal(5, 2)
+  quality        Decimal  @map("quality") @db.Decimal(5, 2)
+  oeePercent     Decimal  @map("oee_percent") @db.Decimal(5, 2)
+  calculatedAt   DateTime @default(now()) @map("calculated_at")
+  machine        Machine  @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
+
+  @@unique([machineId, productionDate, shiftId])
+  @@index([machineId, productionDate])
+  @@index([dailyPlanId])
+  @@map("machine_oee_snapshots")
+}
+
+model EodStockSnapshot {
+  id           BigInt          @id @default(autoincrement())
+  category     EodItemCategory @map("category")
+  itemId       String          @map("item_id") @db.VarChar(100)
+  itemCode     String          @map("item_code") @db.VarChar(100)
+  itemName     String          @map("item_name") @db.VarChar(255)
+  uom          String?         @map("uom") @db.VarChar(50)
+  storeId      String          @map("store_id") @db.VarChar(100)
+  snapshotDate DateTime        @map("snapshot_date") @db.Date
+  startQty     Decimal         @map("start_qty") @db.Decimal(14, 3)
+  eodQty       Decimal         @map("eod_qty") @db.Decimal(14, 3)
+  recordedAt   DateTime        @map("recorded_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  @@unique([category, itemId, storeId, snapshotDate])
+  @@index([snapshotDate])
+  @@index([category])
+  @@index([storeId])
+  @@map("eod_stock_snapshots")
+}
+
+model SystemSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.VarChar(255)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model ProductShiftRecord {
+  id                BigInt          @id @default(autoincrement())
+  productId         BigInt          @map("product_id")
+  productionOrderId String          @map("production_order_id") @db.VarChar(20)
+  machineId         String          @map("machine_id") @db.VarChar(20)
+  shiftId           String          @map("shift_id") @db.VarChar(20)
+  achievedQty       Decimal         @map("achieved_qty") @db.Decimal(14, 3)
+  targetQty         Decimal         @map("target_qty") @db.Decimal(14, 3)
+  recordedDate      DateTime        @default(now()) @map("recorded_date") @db.Date
+  operatorIds       String?         @map("operator_ids") @db.VarChar(255)
+  isHighest         Boolean         @default(true) @map("is_highest")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  product           Product         @relation(fields: [productId], references: [id])
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [productionOrderId])
+  machine           Machine         @relation(fields: [machineId], references: [machineId])
+  shift             Shift           @relation(fields: [shiftId], references: [shiftCode])
+
+  @@index([productId])
+  @@index([machineId])
+  @@index([shiftId])
+  @@map("product_shift_records")
+}
+
+model ProductCapacityHistory {
+  id                BigInt   @id @default(autoincrement())
+  productId         BigInt   @map("product_id")
+  previousCapacity  Decimal  @map("previous_capacity") @db.Decimal(14, 3)
+  newCapacity       Decimal  @map("new_capacity") @db.Decimal(14, 3)
+  productionDate    DateTime @map("production_date") @db.Date
+  machineId         String   @map("machine_id") @db.VarChar(20)
+  shiftId           String   @map("shift_id") @db.VarChar(20)
+  productionOrderId String   @map("production_order_id") @db.VarChar(20)
+  targetQty         Decimal  @map("target_qty") @db.Decimal(14, 3)
+  actualQty         Decimal  @map("actual_qty") @db.Decimal(14, 3)
+  achievementPct    Decimal  @map("achievement_pct") @db.Decimal(8, 2)
+  operators         String?  @db.VarChar(255)
+  updatedBy         String?  @map("updated_by") @db.VarChar(36)
+  createdAt         DateTime @default(now()) @map("created_at")
+  product           Product  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([machineId])
+  @@map("product_capacity_history")
+}
+
+
+enum BusinessPlaceType {
+  HEAD_OFFICE
+  BRANCH_OFFICE
+  FACTORY
+  WAREHOUSE
+  RETAIL_STORE
+}
+
+enum MachineStatus {
+  IDLE
+  RUNNING
+  BREAKDOWN
+  MAINTENANCE
+  MATERIAL_WAITING
+  SETUP
+}
+
+enum MachineType {
+  PRODUCTION
+  UTILITY
+}
+
+enum TechnologyType {
+  INJECTION_MOULDING
+  EXTRUSION
+  BLOW_MOULDING
+  ROTATIONAL_MOULDING
+  THERMOFORMING
+  COMPRESSION_MOULDING
+  PRINTING
+  GRANULATION
+  MIXING
+  RECYCLING
+}
+
+enum UserStatus {
+  active
+  suspended
+  locked
+}
+
+enum DiscountType {
+  PERCENT
+  FLAT
+}
+
+enum EmployeeStatus {
+  active
+  inactive
+  resigned
+  retired
+  terminated
+}
+
+enum RoleStatus {
+  active
+  inactive
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  TOKEN_REFRESHED
+  LOGOUT_ALL_SESSIONS
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  PENDING_CUSTOMER_APPROVAL
+  CUSTOMER_APPROVED
+  CUSTOMER_REJECTED
+  CONFIRMED
+  QUOTATION_IN_PROGRESS
+  QUOTATION_COMPLETED
+  COMPLETED
+  CANCELLED
+  IN_PRODUCTION
+  PLANNED
+  MATERIAL_PENDING
+  MATERIAL_RESERVED
+  MATERIAL_ISSUED
+  SCHEDULED
+  IN_PROGRESS
+  ON_HOLD
+  FG_RECEIVED
+  READY_FOR_DISPATCH
+  PARTIALLY_DISPATCHED
+  DISPATCHED
+  QUOTED
+  INVOICED
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum WastageType {
+  STARTUP
+  MACHINE_SETUP
+  QUALITY_REJECTION
+  RAW_MATERIAL_WASTE
+  SCRAP
+  REWORK
+  MACHINE_BREAKDOWN
+  POWER_FAILURE
+  MOULD_CHANGE
+  COLOR_CHANGE
+  OTHER
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum MaritalStatus {
+  single
+  married
+  divorced
+  widowed
+}
+
+enum EmployeeType {
+  permanent
+  contract
+  intern
+  consultant
+  operator
+  supervisor
+}
+
+enum SalaryType {
+  monthly
+  weekly
+  daily
+  hourly
+}
+
+enum WastageStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+}
+
+enum StoreCategory {
+  RAW_MATERIAL
+  FINISHED_GOODS
+  WASTAGE
+}
+
+enum ProductType {
+  PRODUCTION
+  SALES_PRODUCTION
+}
+
+enum AdjustmentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum ItemCategoryType {
+  RAW_MATERIAL
+  FINISHED_GOODS
+  SEMI_FINISHED
+  CONSUMABLE
+  WASTAGE
+}
+
+enum EodItemCategory {
+  RAW_MATERIAL
+  FINISHED_PRODUCT
+  WASTAGE
+}
+
+enum LedgerType {
+  ASSET
+  LIABILITY
+  EXPENSE
+  INCOME
+  EQUITY
+}
+
+enum VoucherType {
+  PAYMENT
+  RECEIPT
+  JOURNAL
+  CONTRA
+  SALES
+  PURCHASE
+  SALES_RETURN
+  PURCHASE_RETURN
+  EXPENSE
+}
+
+enum CategoryType {
+  PRODUCT
+  RAW_MATERIAL
+  WASTAGE
+}
+
+model Category {
+  id          Int          @id @default(autoincrement())
+  code        String       @unique @db.VarChar(20)
+  name        String       @db.VarChar(100)
+  description String?      @db.VarChar(255)
+  type        CategoryType
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  createdBy   String?      @map("created_by") @db.VarChar(36)
+  updatedBy   String?      @map("updated_by") @db.VarChar(36)
+
+  rawMaterials       RawMaterial[]
+  products           Product[]
+  productionWastages ProductionWastage[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("categories")
+}
+
+model AccountLedger {
+  id          Int           @id @default(autoincrement())
+  code        String        @unique @db.VarChar(30)
+  name        String        @db.VarChar(160)
+  type        LedgerType
+  group       String        @db.VarChar(80)
+  isActive    Boolean       @default(true)
+  customerId  String?       @unique @db.Uuid
+  supplierId  Int?          @unique
+  customer    Customer?     @relation(fields: [customerId], references: [id])
+  supplier    Supplier?     @relation(fields: [supplierId], references: [id])
+  debitItems  JournalItem[] @relation("DebitItems")
+  creditItems JournalItem[] @relation("CreditItems")
+
+  @@map("account_ledgers")
+}
+
+model Voucher {
+  id         Int           @id @default(autoincrement())
+  voucherNo  String        @unique @db.VarChar(30)
+  type       VoucherType
+  date       DateTime      @db.Date
+  narration  String?       @db.VarChar(500)
+  refDocType String?       @db.VarChar(30)
+  refDocId   String?       @db.VarChar(36)
+  createdBy  String?       @db.VarChar(36)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  items      JournalItem[]
+
+  @@unique([refDocType, refDocId])
+  @@index([refDocType, refDocId])
+  @@map("vouchers")
+}
+
+model JournalItem {
+  id             Int            @id @default(autoincrement())
+  voucherId      Int
+  debitLedgerId  Int?
+  creditLedgerId Int?
+  debitAmount    Decimal        @default(0) @db.Decimal(14, 2)
+  creditAmount   Decimal        @default(0) @db.Decimal(14, 2)
+  narration      String?        @db.VarChar(255)
+  voucher        Voucher        @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  debitLedger    AccountLedger? @relation("DebitItems", fields: [debitLedgerId], references: [id])
+  creditLedger   AccountLedger? @relation("CreditItems", fields: [creditLedgerId], references: [id])
+
+  @@index([voucherId])
+  @@index([debitLedgerId])
+  @@index([creditLedgerId])
+  @@map("journal_items")
+}
+
+model SalesReturn {
+  id             String            @id @default(uuid()) @db.Uuid
+  returnNo       String            @unique @db.VarChar(30)
+  returnDate     DateTime          @db.Date
+  customerId     String            @db.Uuid
+  salesInvoiceId String?           @db.Uuid
+  reason         String?           @db.VarChar(255)
+  refundMode     String            @default("CREDIT_NOTE") @db.VarChar(20) // CREDIT_NOTE | CASH | BANK
+  subTotal       Decimal           @default(0) @db.Decimal(14, 2)
+  taxAmount      Decimal           @default(0) @db.Decimal(14, 2)
+  grandTotal     Decimal           @db.Decimal(14, 2)
+  status         String            @default("APPROVED") @db.VarChar(20)
+  narration      String?           @db.VarChar(500)
+  companyId      String            @db.Uuid
+  createdBy      String?           @db.VarChar(36)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  customer       Customer          @relation(fields: [customerId], references: [id])
+  salesInvoice   SalesInvoice?     @relation(fields: [salesInvoiceId], references: [id])
+  items          SalesReturnItem[]
+
+  @@index([customerId])
+  @@index([companyId])
+  @@index([salesInvoiceId])
+  @@map("sales_returns")
+}
+model SalesReturnItem {
+  id                 Int               @id @default(autoincrement())
+  salesReturnId      String            @db.Uuid
+  productId          BigInt
+  salesInvoiceItemId String?           @db.Uuid
+  quantity           Decimal           @db.Decimal(12, 3)
+  weight             Decimal?          @db.Decimal(12, 3)
+  uom                String?           @db.VarChar(20)
+  unitPrice          Decimal           @db.Decimal(14, 2)
+  taxRate            Decimal           @default(0) @db.Decimal(5, 2)
+  lineTotal          Decimal           @db.Decimal(14, 2)
+  reason             String?           @db.VarChar(255)
+  salesReturn        SalesReturn       @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  product            Product           @relation(fields: [productId], references: [id])
+  salesInvoiceItem   SalesInvoiceItem? @relation(fields: [salesInvoiceItemId], references: [id])
+
+  @@index([salesReturnId])
+  @@index([productId])
+  @@index([salesInvoiceItemId])
+  @@map("sales_return_items")
+}
+model PurchaseReturn {
+  id           String               @id @default(uuid()) @db.Uuid
+  returnNo     String               @unique @db.VarChar(30)
+  returnDate   DateTime             @db.Date
+  supplierId   Int
+  grnInvoiceId String?              @db.Uuid
+  reason       String?              @db.VarChar(255)
+  grandTotal   Decimal              @db.Decimal(14, 2)
+  status       String               @default("APPROVED") @db.VarChar(20)
+  narration    String?              @db.VarChar(500)
+  companyId    String               @db.Uuid
+  createdBy    String?              @db.VarChar(36)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  supplier     Supplier             @relation(fields: [supplierId], references: [id])
+  grnInvoice   GrnInvoice?          @relation(fields: [grnInvoiceId], references: [id])
+  items        PurchaseReturnItem[]
+
+  @@index([supplierId])
+  @@index([companyId])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               Int            @id @default(autoincrement())
+  purchaseReturnId String         @db.Uuid
+  rawMaterialId    String         @db.VarChar(20)
+  quantity         Decimal        @db.Decimal(12, 3)
+  unitPrice        Decimal        @db.Decimal(14, 2)
+  lineTotal        Decimal        @db.Decimal(14, 2)
+  reason           String?        @db.VarChar(255)
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  rawMaterial      RawMaterial    @relation(fields: [rawMaterialId], references: [rawMaterialId])
+
+  @@index([purchaseReturnId])
+  @@map("purchase_return_items")
+}
+
+model PettyCashEntry {
+  id          Int      @id @default(autoincrement())
+  entryNo     String   @unique @db.VarChar(30)
+  entryDate   DateTime @db.Date
+  category    String   @db.VarChar(80)
+  description String?  @db.VarChar(255)
+  amount      Decimal  @db.Decimal(14, 2)
+  type        String   @db.VarChar(3)
+  paidTo      String?  @db.VarChar(160)
+  receiptNo   String?  @db.VarChar(50)
+  companyId   String   @db.Uuid
+  createdBy   String?  @db.VarChar(36)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("petty_cash_entries")
+}
+
+model AccountingPeriod {
+  id         Int       @id @default(autoincrement())
+  periodName String    @db.VarChar(50)
+  startDate  DateTime  @db.Date
+  endDate    DateTime  @db.Date
+  isClosed   Boolean   @default(false)
+  closedAt   DateTime?
+  closedBy   String?   @db.VarChar(36)
+  companyId  String    @db.Uuid
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([companyId])
+  @@map("accounting_periods")
+}
+
+// ─── Payroll Module Tables ────────────────────────────────────────────────────
+
+model AttendanceRecord {
+  id                Int      @id @default(autoincrement())
+  employeeId        BigInt
+  date              String
+  period            String
+  status            String
+  shiftId           Int?
+  otHours           Decimal  @default(0) @db.Decimal(10, 2)
+  lateMinutes       Int      @default(0)
+  permissionMinutes Int      @default(0)
+  salaryAdvance     Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  shift             Shift?   @relation(fields: [shiftId], references: [id])
+
+  @@unique([employeeId, date])
+  @@map("attendance_records")
+}
+
+model EmployeePayrollConfig {
+  id             Int      @id @default(autoincrement())
+  employeeId     BigInt   @unique
+  salaryType     String
+  monthlySalary  Decimal  @default(0) @db.Decimal(14, 2)
+  basicSalary    Decimal  @default(0) @db.Decimal(14, 2)
+  da             Decimal  @default(0) @db.Decimal(14, 2)
+  hra            Decimal  @default(0) @db.Decimal(14, 2)
+  otherAllowance Decimal  @default(0) @db.Decimal(14, 2)
+  cashInHand     Decimal  @default(0) @db.Decimal(14, 2)
+  dailySalary    Decimal? @db.Decimal(14, 2)
+  bankAccount    String?
+  ifscCode       String?
+  bankName       String?
+  pfNumber       String?
+  esiNumber      String?
+  paymentMode    String   @default("CASH")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("employee_payroll_configs")
+}
+
+model PayrollConfig {
+  id                        Int      @id @default(autoincrement())
+  companyId                 String   @unique @db.Uuid
+  dailySalaryFormula        String   @default("MONTHLY_BY_CALENDAR")
+  salaryCalculationMethod   String   @default("CALENDAR_DAYS")
+  fixedDays                 Int      @default(26)
+  defaultWorkingHoursPerDay Decimal  @default(8) @db.Decimal(5, 2)
+  weeklyOffDays             Json     @default("[0]")
+  otEnabled                 Boolean  @default(true)
+  otMethod                  String   @default("SLAB")
+  otRatePerHour             Decimal  @default(0) @db.Decimal(10, 2)
+  weekdayOtMultiplier       Decimal  @default(1.5) @db.Decimal(5, 2)
+  holidayOtMultiplier       Decimal  @default(2.0) @db.Decimal(5, 2)
+  weeklyOffOtMultiplier     Decimal  @default(1.5) @db.Decimal(5, 2)
+  maxOtHoursPerDay          Decimal  @default(4) @db.Decimal(5, 2)
+  maxOtHoursPerWeek         Decimal  @default(20) @db.Decimal(5, 2)
+  otSlabs                   Json     @default("[]")
+  pfEnabled                 Boolean  @default(true)
+  pfWageFormula             String   @default("BASIC")
+  employeePfPercent         Decimal  @default(12) @db.Decimal(5, 2)
+  employerPfPercent         Decimal  @default(12) @db.Decimal(5, 2)
+  maxPfWage                 Decimal  @default(15000) @db.Decimal(10, 2)
+  pfRoundingRule            String   @default("ROUND")
+  esiEnabled                Boolean  @default(true)
+  employeeEsiPercent        Decimal  @default(0.75) @db.Decimal(5, 3)
+  employerEsiPercent        Decimal  @default(3.25) @db.Decimal(5, 3)
+  maxEsiSalary              Decimal  @default(21000) @db.Decimal(10, 2)
+  esiRoundingRule           String   @default("ROUND")
+  paidLeavePerYear          Int      @default(12)
+  lateEntryGraceMinutes     Int      @default(5)
+  permissionSlabs           Json     @default("[]")
+  lateEntrySlabs            Json     @default("[]")
+  professionalTaxEnabled    Boolean  @default(false)
+  professionalTaxAmount     Decimal  @default(200) @db.Decimal(10, 2)
+  components                Json     @default("[]")
+  roundingRule              String   @default("ROUND")
+  decimalPrecision          Int      @default(0)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("payroll_configs")
+}
+
+model PayrollRun {
+  id               Int             @id @default(autoincrement())
+  runCode          String          @unique
+  period           String
+  type             String
+  status           String          @default("DRAFT")
+  employeeCategory String          @default("ALL")
+  calendarDays     Int             @default(31)
+  totalEmployees   Int             @default(0)
+  totalGross       Decimal         @default(0) @db.Decimal(14, 2)
+  totalNetSalary   Decimal         @default(0) @db.Decimal(14, 2)
+  totalPfEmployee  Decimal         @default(0) @db.Decimal(14, 2)
+  totalPfEmployer  Decimal         @default(0) @db.Decimal(14, 2)
+  totalEsiEmployee Decimal         @default(0) @db.Decimal(14, 2)
+  totalEsiEmployer Decimal         @default(0) @db.Decimal(14, 2)
+  createdById      String
+  approvedById     String?
+  lockedById       String?
+  createdAt        DateTime        @default(now())
+  approvedAt       DateTime?
+  lockedAt         DateTime?
+  results          PayrollResult[]
+
+  @@map("payroll_runs")
+}
+
+model PayrollResult {
+  id                  Int        @id @default(autoincrement())
+  payrollRunId        Int
+  employeeId          BigInt
+  employeeCode        String
+  employeeName        String
+  department          String
+  salaryType          String
+  totalDays           Int        @default(0)
+  presentDays         Decimal    @default(0) @db.Decimal(10, 2)
+  absentDays          Decimal    @default(0) @db.Decimal(10, 2)
+  lopDays             Decimal    @default(0) @db.Decimal(10, 2)
+  halfDays            Decimal    @default(0) @db.Decimal(10, 2)
+  dailyRate           Decimal    @default(0) @db.Decimal(14, 2)
+  earnedSalary        Decimal    @default(0) @db.Decimal(14, 2)
+  grossSalary         Decimal    @default(0) @db.Decimal(14, 2)
+  otHours             Decimal    @default(0) @db.Decimal(10, 2)
+  otPay               Decimal    @default(0) @db.Decimal(14, 2)
+  pfWage              Decimal    @default(0) @db.Decimal(14, 2)
+  employeePf          Decimal    @default(0) @db.Decimal(14, 2)
+  employerPf          Decimal    @default(0) @db.Decimal(14, 2)
+  employeeEsi         Decimal    @default(0) @db.Decimal(14, 2)
+  employerEsi         Decimal    @default(0) @db.Decimal(14, 2)
+  pfApplicable        Boolean    @default(false)
+  esiApplicable       Boolean    @default(false)
+  professionalTax     Decimal    @default(0) @db.Decimal(14, 2)
+  permissionDeduction Decimal    @default(0) @db.Decimal(14, 2)
+  salaryAdvance       Decimal    @default(0) @db.Decimal(14, 2)
+  loanRecovery        Decimal    @default(0) @db.Decimal(14, 2)
+  otherDeductions     Decimal    @default(0) @db.Decimal(14, 2)
+  totalDeductions     Decimal    @default(0) @db.Decimal(14, 2)
+  netSalary           Decimal    @default(0) @db.Decimal(14, 2)
+  paymentMode         String     @default("CASH")
+  hasVariance         Boolean    @default(false)
+  varianceNote        String?
+  lateEntryDeduction  Decimal    @default(0) @db.Decimal(14, 2)
+  cashInHand          Decimal    @default(0) @db.Decimal(14, 2)
+  payrollRun          PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employee            Employee   @relation(fields: [employeeId], references: [id])
+
+  @@index([payrollRunId])
+  @@index([employeeId])
+  @@map("payroll_results")
+}
+
+model SalaryAdvance {
+  id              Int      @id @default(autoincrement())
+  employeeId      BigInt
+  amount          Decimal  @db.Decimal(14, 2)
+  disbursedDate   DateTime @db.Date
+  reason          String?
+  recoveredAmount Decimal  @default(0) @db.Decimal(14, 2)
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  employee        Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("salary_advances")
+}
+
+model EmployeePermanentDeduction {
+  id         Int      @id @default(autoincrement())
+  employeeId BigInt
+  type       String
+  label      String
+  amount     Decimal  @db.Decimal(14, 2)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("employee_permanent_deductions")
+}
