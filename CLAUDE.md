@@ -41,6 +41,9 @@ input leaks, secrets, error text → human review and merge → hand-off note.
 - Socket emits only via `lib/realtime.ts` (`emitToTenant`); never `getIO()` or `io.emit`.
 - Scheduled and background work runs on pg-boss (`lib/jobs.ts`, handlers in `src/jobs/`),
   one job per tenant under `runAsTenant`, idempotent, never `node-cron` or `setInterval`.
+- Field app sync (`modules/mobile`): the server enforces the conflict policy in
+  `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
+  by field, device headers on writes). Never let a device overwrite a server-owned row.
 - Money is `Decimal`; dates are `Timestamptz`; ids are uuid; codes are
   `@@unique([companyId, code])`.
 - Frontend HTTP only through `apps/web/src/api/apiClient.ts` or the RTK `baseApi`.

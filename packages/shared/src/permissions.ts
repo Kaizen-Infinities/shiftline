@@ -52,6 +52,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   { module: "email-config", actions: ["view", "edit"], description: "Email Config" },
   { module: "invoice-settings", actions: ["view", "edit"], description: "Invoice Settings" },
   { module: "retention", actions: ["view", "edit"], description: "Data Retention" },
+  {
+    module: "mobile-app",
+    actions: ["view", "create", "manage"],
+    description: "Field App (sync, collections, route planning)",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {

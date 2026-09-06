@@ -7,7 +7,7 @@ mobile app. Remastered from Sun Sea ERP.
 ## Layout
 
 ```
-apps/api        Express 5 + Prisma 6 + PostgreSQL API (and the pg-boss worker)
+apps/api        Express 5 + Prisma 6 + PostgreSQL API, the pg-boss worker and the Field app sync API (/api/mobile)
 apps/web        React 19 + Vite SPA
 packages/*      shared code (permission registry, zod schemas, config)
 docs/specs      half-page specs written before each work package

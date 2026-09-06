@@ -100,6 +100,7 @@ describe("retention sweep job", () => {
     } as never);
     expect(out.map((r) => r.dataClass).sort()).toEqual(
       [
+        "AGENT_POSITIONS",
         "AUDIT_LOGS",
         "BOOKS",
         "EOD_SNAPSHOTS",
@@ -112,7 +113,7 @@ describe("retention sweep job", () => {
     );
     expect(out.every((r) => r.affected === 0 && r.error === null)).toBe(true);
     const after = await asDemoTenant(() => prisma.retentionSweep.count());
-    expect(after - before).toBe(8);
+    expect(after - before).toBe(9);
   });
 
   it("purges only this tenant's expired sessions", async () => {

@@ -545,6 +545,8 @@ model Company {
   mobileSyncRecords           MobileSyncRecord[]           @relation("CompanyMobileSyncRecord")
   retentionPolicies           RetentionPolicy[]            @relation("CompanyRetentionPolicy")
   retentionSweeps             RetentionSweep[]             @relation("CompanyRetentionSweep")
+  mobileDevices               MobileDevice[]               @relation("CompanyMobileDevice")
+  agentPositions              AgentPosition[]              @relation("CompanyAgentPosition")
 
   @@map("companies")
 }
@@ -2933,6 +2935,7 @@ enum RetentionDataClass {
   SESSIONS
   LOGIN_ATTEMPTS
   SYNC_TOMBSTONES
+  AGENT_POSITIONS
 }
 
 enum RetentionAction {
@@ -2979,4 +2982,56 @@ model RetentionSweep {
 
   @@index([companyId, startedAt])
   @@map("retention_sweeps")
+}
+
+// ─── Mobile devices and positions (P0-11) ─────────────────────────────────────
+
+/// One row per physical device that has synced for a tenant. Revoking a device
+/// makes every sync, push and position call from it fail with DEVICE_REVOKED.
+/// Device-bound refresh tokens and remote wipe arrive with the device registry
+/// screens in P1-02.
+model MobileDevice {
+  id          String    @id @default(uuid()) @db.Uuid
+  companyId   String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  deviceId    String    @map("device_id") @db.VarChar(64)
+  userId      String    @map("user_id") @db.VarChar(36)
+  platform    String?   @db.VarChar(20)
+  appVersion  String?   @map("app_version") @db.VarChar(20)
+  model       String?   @db.VarChar(80)
+  firstSeenAt DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  lastSyncAt  DateTime? @map("last_sync_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedBy   String?   @map("revoked_by") @db.VarChar(36)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyMobileDevice", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, deviceId])
+  @@index([companyId, userId])
+  @@map("mobile_devices")
+}
+
+/// GPS points sent by the Field app (batched, offline-buffered). Personal data:
+/// the AGENT_POSITIONS retention class purges them after 90 days by default.
+model AgentPosition {
+  id          BigInt   @id @default(autoincrement())
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  agentUserId String   @map("agent_user_id") @db.VarChar(36)
+  deviceId    String?  @map("device_id") @db.VarChar(64)
+  latitude    Decimal  @db.Decimal(10, 7)
+  longitude   Decimal  @db.Decimal(10, 7)
+  accuracyM   Decimal? @map("accuracy_m") @db.Decimal(8, 2)
+  speedKmh    Decimal? @map("speed_kmh") @db.Decimal(6, 2)
+  heading     Decimal? @db.Decimal(6, 2)
+  batteryPct  Int?     @map("battery_pct")
+  recordedAt  DateTime @map("recorded_at") @db.Timestamptz(6)
+  receivedAt  DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyAgentPosition", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, agentUserId, recordedAt])
+  @@index([companyId, receivedAt])
+  @@map("agent_positions")
 }

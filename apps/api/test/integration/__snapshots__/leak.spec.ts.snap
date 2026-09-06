@@ -2,6 +2,7 @@
 
 exports[`cross-tenant leak suite > every tenant model returns only the caller's rows 1`] = `
 [
+  "AgentPosition",
   "AttendanceRecord",
   "AuditLog",
   "CustomerAddress",
@@ -26,8 +27,7 @@ exports[`cross-tenant leak suite > every tenant model returns only the caller's 
   "MachineOeeSnapshot",
   "MachineOperationAssignment",
   "MobileCollection",
-  "MobileRouteAssignment",
-  "MobileRouteCustomer",
+  "MobileDevice",
   "MobileSyncRecord",
   "MobileVisit",
   "PayrollConfig",
@@ -48,7 +48,6 @@ exports[`cross-tenant leak suite > every tenant model returns only the caller's 
   "RawMaterialTransaction",
   "RetentionPolicy",
   "RetentionSweep",
-  "Route",
   "SalaryAdvance",
   "SalesInvoice",
   "SalesInvoiceItem",

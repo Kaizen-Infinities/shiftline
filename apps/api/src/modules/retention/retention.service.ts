@@ -178,6 +178,17 @@ const CLASS_OPS: Record<RetentionDataClass, ClassOps> = {
       return a.count + b.count + c.count + d.count;
     },
   },
+  AGENT_POSITIONS: {
+    count: (tx, cutoff) => tx.agentPosition.count({ where: { recordedAt: { lt: cutoff } } }),
+    fetch: (tx, cutoff, take) =>
+      tx.agentPosition.findMany({
+        where: { recordedAt: { lt: cutoff } },
+        orderBy: { id: "asc" },
+        take,
+      }),
+    remove: async (tx, ids) =>
+      (await tx.agentPosition.deleteMany({ where: { id: { in: ids as bigint[] } } })).count,
+  },
 };
 
 const BATCH = 1000;

@@ -51,6 +51,15 @@ const envSchema = z
     IMAGEKIT_PUBLIC_KEY: optionalString,
     IMAGEKIT_PRIVATE_KEY: optionalString,
     IMAGEKIT_URL_ENDPOINT: optionalString,
+
+    /** Field app: cheque OCR (optional; the app falls back to manual entry). */
+    ANTHROPIC_API_KEY: optionalString,
+    MOBILE_OCR_MODEL: z.string().default("claude-opus-5"),
+    /** Field app attachment storage: ImageKit (default) or S3. */
+    MOBILE_STORAGE_DRIVER: z.enum(["imagekit", "s3"]).optional(),
+    AWS_S3_BUCKET: optionalString,
+    AWS_REGION: optionalString,
+    AWS_S3_PUBLIC_URL: optionalString,
   })
   .superRefine((v, ctx) => {
     if (v.NODE_ENV === "production") {

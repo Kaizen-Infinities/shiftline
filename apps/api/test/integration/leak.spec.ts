@@ -86,6 +86,9 @@ describe("cross-tenant leak suite", () => {
         ["stores", await first(prisma.store.findFirst(), "storeId")],
         ["raw-materials", await first(prisma.rawMaterial.findFirst(), "rawMaterialId")],
         ["raw-material-stocks", await first(prisma.rawMaterial.findFirst(), "rawMaterialId")],
+        ["routes", await first(prisma.route.findFirst())],
+        ["mobile/admin", await first(prisma.route.findFirst())],
+        ["mobile/customers", await first(prisma.customer.findFirst())],
       ];
       return Object.fromEntries(entries.filter(([, v]) => v !== undefined) as [string, string][]);
     });

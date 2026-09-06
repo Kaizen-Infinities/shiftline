@@ -56,6 +56,7 @@ import payrollRoutes from "../modules/payroll/payroll.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
 import retentionRoutes from "../modules/retention/retention.routes";
+import mobileRoutes from "../modules/mobile/mobile.routes";
 
 const router = Router();
 
@@ -121,6 +122,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },
   { path: "/retention", router: retentionRoutes },
+  { path: "/mobile", router: mobileRoutes },
 ];
 
 for (const { path, router: moduleRouter } of API_MOUNTS) {

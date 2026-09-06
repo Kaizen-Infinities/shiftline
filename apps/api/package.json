@@ -16,6 +16,7 @@
     "test:watch": "vitest --project api"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@prisma/client": "^6.16.2",
     "@shiftline/shared": "*",
     "axios": "^1.19.0",

@@ -12,6 +12,7 @@ describe("retention API", () => {
     );
     expect(Object.keys(byClass).sort()).toEqual(
       [
+        "AGENT_POSITIONS",
         "AUDIT_LOGS",
         "BOOKS",
         "EOD_SNAPSHOTS",
@@ -74,7 +75,7 @@ describe("retention API", () => {
     const client = await api();
     const run = await client.post("/api/retention/sweeps").set(auth).send({ dryRun: true });
     expect(run.status).toBe(200);
-    expect(run.body.data).toHaveLength(8);
+    expect(run.body.data).toHaveLength(9);
     expect(run.body.data.every((r: { affected: number }) => r.affected === 0)).toBe(true);
 
     const list = await client.get("/api/retention/sweeps?limit=10&dataClass=SESSIONS").set(auth);

@@ -77,6 +77,13 @@ export const RETENTION_CLASSES: Record<RetentionDataClass, RetentionClassSpec> =
     purgeable: true,
     description: "Mobile sync records and soft-deleted mobile rows",
   },
+  AGENT_POSITIONS: {
+    minDays: 7,
+    defaultDays: 90,
+    defaultAction: "PURGE",
+    purgeable: true,
+    description: "GPS points from the Field app (personal data; keep short)",
+  },
 };
 
 export const RETENTION_DATA_CLASSES = Object.keys(RETENTION_CLASSES) as RetentionDataClass[];

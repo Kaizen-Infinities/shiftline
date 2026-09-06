@@ -106,7 +106,10 @@ export const ROLE_DEFS = (): {
     code: "SALES_EXEC",
     name: "Sales Executive",
     description: "Field sales via the mobile app",
-    keys: keysFor(["customers", "sales-orders", "quotations", "dash-overview"], ["view", "create"]),
+    keys: [
+      ...keysFor(["customers", "sales-orders", "quotations", "dash-overview"], ["view", "create"]),
+      ...keysFor(["mobile-app"], ["view", "create"]),
+    ],
   },
 ];
 
@@ -600,6 +603,39 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       update: {},
       create: { key: "EOD_CUTOFF_TIME", value: "23:59" },
     });
+
+    // One field route for the Field app: three customers, covered by the sales user every day.
+    const route = await prisma.route.upsert({
+      where: { companyId_routeCode: { companyId: company.id, routeCode: "R01" } },
+      update: {},
+      create: { routeCode: "R01", routeName: "City Route 1" },
+    });
+    const routeCustomers = await prisma.customer.findMany({
+      where: { customerCode: { in: ["C001", "C002", "C003"] } },
+      select: { id: true, customerCode: true },
+      orderBy: { customerCode: "asc" },
+    });
+    for (const [idx, c] of routeCustomers.entries()) {
+      await prisma.mobileRouteCustomer.upsert({
+        where: { routeId_customerId: { routeId: route.id, customerId: c.id } },
+        update: { sequence: idx + 1, deletedAt: null },
+        create: {
+          routeId: route.id,
+          customerId: c.id,
+          sequence: idx + 1,
+          plannedTime: `${9 + idx}:30`.padStart(5, "0"),
+        },
+      });
+    }
+    const salesUser = await prisma.user.findUnique({ where: { username: `${opts.slug}.sales` } });
+    if (
+      salesUser &&
+      !(await prisma.mobileRouteAssignment.findFirst({ where: { routeId: route.id } }))
+    ) {
+      await prisma.mobileRouteAssignment.create({
+        data: { routeId: route.id, agentUserId: salesUser.userId, dayOfWeek: null },
+      });
+    }
     log("masters seeded");
   });
 

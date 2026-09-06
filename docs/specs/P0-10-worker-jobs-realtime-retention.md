@@ -54,7 +54,7 @@ attempts) are scoped through `user.companyId`, which RLS filters as well; a bare
 **Tests.** `realtime.spec.ts` (handshake rejected without token; emits reach only the tenant's
 sockets; explicit companyId from outside a request; no-tenant emit dropped; admin-only room
 selection), `jobs.spec.ts` (queues created, singleton de-dup, EOD job end to end through
-pg-boss, idempotent re-run, dry-run sweep writes 8 rows and touches nothing, purge removes only
+pg-boss, idempotent re-run, dry-run sweep writes 9 rows and touches nothing, purge removes only
 this tenant's expired sessions, floors enforced), `retention.spec.ts` (API and permission).
 
 **Done when.** Worker starts and registers the three schedules; 70 tests green; lint has zero

@@ -112,3 +112,26 @@ export const createRawMaterial = async (
     });
   });
 };
+
+export const createSalesInvoice = async (
+  overrides: Partial<Prisma.SalesInvoiceUncheckedCreateInput> & { customerId: string }
+) => {
+  return asDemoTenant(async () => {
+    const prisma = await getPrisma();
+    const company = await demoCompany();
+    const total = overrides.grandTotal ?? D(3000);
+    return prisma.salesInvoice.create({
+      data: {
+        companyId: company.id,
+        invoiceNo: code("INV-T"),
+        invoiceDate: new Date(),
+        subTotal: total,
+        taxTotal: D(0),
+        grandTotal: total,
+        status: "UNPAID",
+        payments: [],
+        ...overrides,
+      },
+    });
+  });
+};
