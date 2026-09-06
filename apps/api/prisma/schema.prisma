@@ -9,7 +9,7 @@ datasource db {
 
 model Employee {
   id            BigInt         @id @default(autoincrement())
-  companyId     String         @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId     String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   empCode       String
   fullName      String
   mobile        String?        @db.VarChar(20)
@@ -146,7 +146,7 @@ model Admin {
 
 model User {
   userId              String               @id @default(uuid())
-  companyId           String               @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId           String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   username            String               @unique
   fullName            String
   email               String?              @unique
@@ -285,7 +285,7 @@ model Permission {
 
 model Role {
   id                         Int                          @id @default(autoincrement())
-  companyId                  String                       @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId                  String                       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   code                       String                       @default("ADMIN")
   name                       String
   description                String?
@@ -306,7 +306,7 @@ model Role {
 }
 
 model RolePermission {
-  companyId    String     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   roleId       Int
   permissionId Int
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
@@ -322,7 +322,7 @@ model RolePermission {
 
 model Department {
   id          Int        @id @default(autoincrement())
-  companyId   String     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   name        String
   description String?
   createdAt   DateTime   @default(now())
@@ -337,7 +337,7 @@ model Department {
 
 model CustomerType {
   id        Int        @id @default(autoincrement())
-  companyId String     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   name      String     @db.VarChar(100)
   createdAt DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt DateTime   @updatedAt @db.Timestamptz(6)
@@ -351,7 +351,7 @@ model CustomerType {
 
 model CustomerGrade {
   id        Int        @id @default(autoincrement())
-  companyId String     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   name      String     @db.VarChar(100)
   createdAt DateTime   @default(now()) @db.Timestamptz(6)
   updatedAt DateTime   @updatedAt @db.Timestamptz(6)
@@ -389,7 +389,7 @@ model Customer {
 
   updatedBy             String?
   id                    String            @id @default(uuid()) @db.Uuid
-  companyId             String            @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId             String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   openingBalance        Decimal           @default(0) @db.Decimal(14, 2)
   openingBalanceType    String            @default("DEBIT") @db.VarChar(10)
   customerTypeId        Int?
@@ -416,7 +416,7 @@ model Customer {
 
 model CustomerAddress {
   id         String   @id @default(uuid()) @map("id")
-  companyId  String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId  String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   address    Json     @map("address")
   customerId String   @map("customer_id") @db.Uuid
   is_default Boolean  @default(false)
@@ -549,7 +549,7 @@ model Company {
 
 model WhatsappConfig {
   id                 String   @id @default(uuid()) @db.Uuid
-  companyId          String   @unique @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId          String   @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   phoneNumberId      String   @db.VarChar(50)
   wabaId             String   @db.VarChar(50)
   businessPhone      String   @db.VarChar(20)
@@ -565,7 +565,7 @@ model WhatsappConfig {
 
 model EmailConfig {
   id           String   @id @default(uuid()) @db.Uuid
-  companyId    String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   smtpHost     String   @db.VarChar(200)
   smtpPort     Int
   smtpUsername String   @db.VarChar(200)
@@ -584,7 +584,7 @@ model EmailConfig {
 
 model BusinessPlace {
   id           BigInt            @id @default(autoincrement())
-  companyId    String            @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   code         String            @db.VarChar(20)
   name         String            @db.VarChar(120)
   type         BusinessPlaceType
@@ -607,7 +607,7 @@ model BusinessPlace {
 
 model Route {
   id        String   @id @default(uuid()) @db.Uuid
-  companyId String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   routeCode String
   routeName String
   createdAt DateTime @default(now()) @db.Timestamptz(6)
@@ -624,7 +624,7 @@ model Route {
 
 model SupplierMaterialPrice {
   id            String    @id @default(uuid())
-  companyId     String    @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId     String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   supplierId    Int
   rawMaterialId String
   price         Decimal
@@ -667,7 +667,7 @@ model Supplier {
   openingBalance      Decimal                 @default(0) @map("opening_balance") @db.Decimal(14, 2)
   openingBalanceType  String                  @default("CREDIT") @map("opening_balance_type") @db.VarChar(10)
   id                  Int                     @id @default(autoincrement())
-  companyId           String                  @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId           String                  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   materialPrices      SupplierMaterialPrice[]
   expenses            Expense[]
   grnInvoices         GrnInvoice[]
@@ -686,7 +686,7 @@ model Supplier {
 
 model SupplierAddress {
   id         String   @id @default(uuid()) @map("id")
-  companyId  String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId  String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   address    Json     @map("address")
   supplierId Int      @map("supplier_id")
   is_default Boolean  @default(false)
@@ -702,7 +702,7 @@ model SupplierAddress {
 
 model Shift {
   id                   Int                          @id @default(autoincrement())
-  companyId            String                       @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId            String                       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   shiftCode            String                       @unique
   shiftName            String
   startTime            String
@@ -729,7 +729,7 @@ model Shift {
 
 model ProductImage {
   id        BigInt  @id @default(autoincrement())
-  companyId String  @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId String  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productId BigInt
   imageUrl  String
   isPrimary Boolean @default(false)
@@ -744,7 +744,7 @@ model ProductImage {
 
 model Product {
   id                        BigInt                     @id @default(autoincrement())
-  companyId                 String                     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId                 String                     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productCode               String
   productName               String
   description               String?
@@ -795,7 +795,7 @@ model Product {
 // sellable item.
 model SalesProduct {
   id               BigInt   @id @default(autoincrement())
-  companyId        String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId        String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   salesProductCode String   @map("sales_product_code")
   salesProductName String   @map("sales_product_name")
   description      String?
@@ -818,7 +818,7 @@ model SalesProduct {
 }
 
 model SalesProductStock {
-  companyId      String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   storeId        String   @map("store_id") @db.VarChar(20)
   salesProductId BigInt   @map("sales_product_id")
   onHandQty      Decimal  @default(0) @map("on_hand_qty") @db.Decimal(14, 3)
@@ -841,7 +841,7 @@ model SalesProductStock {
 // is assembled from (e.g. "Container" + "Lid"), each with its own quantity.
 model SalesProductComponent {
   id                 BigInt   @id @default(autoincrement())
-  companyId          String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId          String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   salesProductId     BigInt   @map("sales_product_id")
   componentProductId BigInt   @map("component_product_id")
   quantity           Decimal  @map("quantity") @db.Decimal(12, 3)
@@ -863,7 +863,7 @@ model SalesProductComponent {
 
 model ProductionStep {
   id        BigInt  @id @default(autoincrement())
-  companyId String  @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId String  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productId BigInt  @map("product_id")
   stepKey   String  @map("step_key")
   stepOrder Int     @map("step_order")
@@ -878,7 +878,7 @@ model ProductionStep {
 
 model UnitOfMeasure {
   id          Int       @id @default(autoincrement())
-  companyId   String    @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   uomCode     String
   uomName     String
   description String?
@@ -895,7 +895,7 @@ model UnitOfMeasure {
 
 model Location {
   locationId   String   @id @map("location_id") @db.VarChar(20)
-  companyId    String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   locationCode String   @map("location_code") @db.VarChar(30)
   locationName String   @map("location_name") @db.VarChar(100)
   locationType String   @map("location_type") @db.VarChar(50)
@@ -920,7 +920,7 @@ model Location {
 
 model Machine {
   machineId             String                       @id @map("machine_id") @db.VarChar(20)
-  companyId             String                       @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId             String                       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   machineName           String                       @map("machine_name") @db.VarChar(100)
   technologyType        TechnologyType?
   machineType           MachineType?
@@ -954,7 +954,7 @@ model Machine {
 
 model Store {
   storeId                   String                     @id @map("store_id") @db.VarChar(20)
-  companyId                 String                     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId                 String                     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   storeName                 String                     @map("store_name") @db.VarChar(120)
   storeCategory             StoreCategory?             @map("store_category")
   locationId                String?                    @map("location_id") @db.VarChar(20)
@@ -996,7 +996,7 @@ model Store {
 
 model StoreLocation {
   id           String          @id @default(uuid())
-  companyId    String          @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   storeId      String          @map("store_id") @db.VarChar(20)
   parentId     String?         @map("parent_id")
   locationCode String          @map("location_code") @db.VarChar(20)
@@ -1017,7 +1017,7 @@ model StoreLocation {
 
 model RawMaterial {
   rawMaterialId           String                   @id @map("raw_material_id") @db.VarChar(20)
-  companyId               String                   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId               String                   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   materialName            String                   @map("material_name") @db.VarChar(100)
   baseUom                 String                   @map("base_uom") @db.VarChar(50)
   reorderLevel            Decimal?                 @map("reorder_level") @db.Decimal(14, 3)
@@ -1061,7 +1061,7 @@ model RawMaterial {
 
 model BillOfMaterial {
   id               BigInt      @id @default(autoincrement())
-  companyId        String      @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId        String      @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productId        BigInt      @map("product_id")
   rawMaterialId    String      @map("raw_material_id") @db.VarChar(20)
   requiredQuantity Decimal     @map("required_quantity") @db.Decimal(12, 3)
@@ -1082,7 +1082,7 @@ model BillOfMaterial {
 }
 
 model FinishedGoodsStock {
-  companyId     String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   storeId       String   @map("store_id") @db.VarChar(20)
   productItemId BigInt   @map("product_item_id")
   onHandQty     Decimal  @default(0) @map("on_hand_qty") @db.Decimal(14, 3)
@@ -1102,7 +1102,7 @@ model FinishedGoodsStock {
 
 model FinishedGoodsTransaction {
   fgTxnId           BigInt           @id @default(autoincrement()) @map("fg_txn_id")
-  companyId         String           @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   txnDateTime       DateTime         @map("txn_date_time")
   storeId           String           @map("store_id") @db.VarChar(20)
   productItemId     BigInt           @map("product_item_id")
@@ -1131,7 +1131,7 @@ model FinishedGoodsTransaction {
 
 model ProductionOrder {
   productionOrderId         String                     @id @map("production_order_id") @db.VarChar(20)
-  companyId                 String                     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId                 String                     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   orderDate                 DateTime                   @map("order_date")
   productItemId             BigInt                     @map("product_item_id")
   targetQty                 Decimal                    @map("target_qty") @db.Decimal(14, 3)
@@ -1189,7 +1189,7 @@ model ProductionOrder {
 
 model GoodsDispatch {
   id                 BigInt              @id @default(autoincrement())
-  companyId          String              @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId          String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   dispatchNumber     String              @map("dispatch_number") @db.VarChar(30)
   dispatchDate       DateTime            @map("dispatch_date") @db.Date
   vehicleNumber      String              @map("vehicle_number") @db.VarChar(30)
@@ -1223,7 +1223,7 @@ model GoodsDispatch {
 
 model MachineOperationAssignment {
   id                 BigInt                      @id @default(autoincrement())
-  companyId          String                      @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId          String                      @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   machineId          String                      @map("machine_id") @db.VarChar(20)
   weekStartDate      DateTime                    @map("week_start_date") @db.Date
   weekEndDate        DateTime                    @map("week_end_date") @db.Date
@@ -1252,7 +1252,7 @@ model MachineOperationAssignment {
 
 model MachineAssignmentOperator {
   id           BigInt                     @id @default(autoincrement())
-  companyId    String                     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String                     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   assignmentId BigInt                     @map("assignment_id")
   roleId       Int                        @map("role_id")
   employeeId   BigInt                     @map("employee_id")
@@ -1272,7 +1272,7 @@ model MachineAssignmentOperator {
 
 model GoodsDispatchItem {
   id                BigInt          @id @default(autoincrement())
-  companyId         String          @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   dispatchId        BigInt          @map("dispatch_id")
   productionOrderId String          @map("production_order_id") @db.VarChar(20)
   productItemId     BigInt          @map("product_item_id")
@@ -1294,7 +1294,7 @@ model GoodsDispatchItem {
 
 model WeeklyMachineProgram {
   weeklyProgramId      String                @id @map("weekly_program_id") @db.VarChar(20)
-  companyId            String                @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId            String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   weekStartDate        DateTime              @map("week_start_date") @db.Date
   weekEndDate          DateTime              @map("week_end_date") @db.Date
   machineId            String?               @map("machine_id") @db.VarChar(20)
@@ -1334,7 +1334,7 @@ model WeeklyMachineProgram {
 
 model HourlyProduction {
   hourlyProductionId BigInt               @id @default(autoincrement()) @map("hourly_production_id")
-  companyId          String               @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId          String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productionOrderId  String               @map("production_order_id") @db.VarChar(20)
   productionDate     DateTime             @map("production_date") @db.Date
   shiftId            String               @map("shift_id") @db.VarChar(20)
@@ -1371,7 +1371,7 @@ model HourlyProduction {
 
 model DailyProductionPlan {
   dailyPlanId            String                @id @map("daily_plan_id") @db.VarChar(50)
-  companyId              String                @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId              String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   weeklyProgramId        String                @map("weekly_program_id") @db.VarChar(20)
   productionOrderId      String                @map("production_order_id") @db.VarChar(20)
   productionDate         DateTime              @map("production_date") @db.Date
@@ -1413,7 +1413,7 @@ model DailyProductionPlan {
 
 model RawMaterialTransaction {
   rmTxnId           BigInt           @id @default(autoincrement()) @map("rm_txn_id")
-  companyId         String           @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   storeId           String           @map("store_id") @db.VarChar(20)
   rawMaterialId     String           @map("raw_material_id") @db.VarChar(20)
   txnType           String           @map("txn_type") @db.VarChar(30)
@@ -1438,7 +1438,7 @@ model RawMaterialTransaction {
 
 model SalesOrder {
   id                   Int              @id @default(autoincrement())
-  companyId            String           @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId            String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   orderNo              String           @db.VarChar(30)
   orderDate            DateTime
   isInterState         Boolean          @default(false)
@@ -1484,7 +1484,7 @@ model SalesOrder {
 
 model SalesOrderItem {
   id                 BigInt        @id @default(autoincrement())
-  companyId          String        @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId          String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   salesOrderId       Int
   productId          BigInt
   salesProductId     BigInt?       @map("sales_product_id")
@@ -1515,7 +1515,7 @@ model SalesOrderItem {
 
 model PurchaseOrder {
   id                   String              @id @default(uuid()) @db.Uuid
-  companyId            String              @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId            String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   poNumber             String
   poDate               DateTime            @db.Date
   expectedDeliveryDate DateTime            @db.Date
@@ -1562,7 +1562,7 @@ model PurchaseOrder {
 
 model PurchaseOrderItem {
   id              String        @id @default(uuid()) @db.Uuid
-  companyId       String        @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId       String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   purchaseOrderId String        @db.Uuid
   uom             String
   quantity        Decimal       @db.Decimal(12, 3)
@@ -1595,7 +1595,7 @@ model PurchaseOrderItem {
 
 model GrnInvoice {
   id                   String              @id @default(uuid()) @db.Uuid
-  companyId            String              @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId            String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   grnNumber            String              @map("grn_number")
   invoiceNo            String              @map("invoice_no")
   grnDate              DateTime            @map("grn_date") @db.Date
@@ -1658,7 +1658,7 @@ model GrnInvoice {
 
 model GrnInvoiceItem {
   id             String      @id @default(uuid()) @db.Uuid
-  companyId      String      @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId      String      @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   grnInvoiceId   String      @map("grn_invoice_id") @db.Uuid
   productId      String      @map("product_id")
   description    String
@@ -1690,7 +1690,7 @@ model GrnInvoiceItem {
 
 model GrnInvoicePayment {
   id              String     @id @default(uuid()) @db.Uuid
-  companyId       String     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId       String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   grnInvoiceId    String     @map("grn_invoice_id") @db.Uuid
   amount          Decimal    @db.Decimal(14, 2)
   paymentMethod   String     @map("payment_method") @db.VarChar(50)
@@ -1712,7 +1712,7 @@ model GrnInvoicePayment {
 
 model ProductionWastage {
   id                     BigInt            @id @default(autoincrement())
-  companyId              String            @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId              String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   wastageNo              String            @map("wastage_no") @db.VarChar(30)
   wastageDate            DateTime          @map("wastage_date") @db.Date
   productionOrderId      String            @map("production_order_id") @db.VarChar(20)
@@ -1764,7 +1764,7 @@ model ProductionWastage {
 
 model StockAdjustment {
   id                BigInt                @id @default(autoincrement()) @map("adj_id")
-  companyId         String                @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   adjustmentNumber  String                @map("adjustment_number") @db.VarChar(50)
   adjustmentDate    DateTime              @map("adjustment_date")
   adjustmentType    String                @default("STOCK_INCREASE") @map("adjustment_type") @db.VarChar(40)
@@ -1796,7 +1796,7 @@ model StockAdjustment {
 
 model StockAdjustmentItem {
   id                BigInt           @id @default(autoincrement()) @map("adj_item_id")
-  companyId         String           @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   stockAdjustmentId BigInt           @map("stock_adjustment_id")
   itemType          ItemCategoryType @map("item_type")
   rawMaterialId     String?          @map("raw_material_id") @db.VarChar(20)
@@ -1823,7 +1823,7 @@ model StockAdjustmentItem {
 
 model ProductionOrderHistory {
   id                BigInt          @id @default(autoincrement())
-  companyId         String          @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productionOrderId String          @map("production_order_id") @db.VarChar(20)
   fromStatus        String?         @map("from_status") @db.VarChar(30)
   toStatus          String          @map("to_status") @db.VarChar(30)
@@ -1844,7 +1844,7 @@ model ProductionOrderHistory {
 
 model Expense {
   id              String    @id @default(uuid()) @db.Uuid
-  companyId       String    @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId       String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   expenseNumber   String    @db.VarChar(30)
   expenseCategory String    @db.VarChar(60)
   date            DateTime  @db.Date
@@ -1870,7 +1870,7 @@ model Expense {
 
 model InvoiceSetting {
   id                    String   @id @default(uuid()) @db.Uuid
-  companyId             String   @unique @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId             String   @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   invoicePrefix         String   @default("INV") @map("invoice_prefix") @db.VarChar(20)
   sequenceLength        Int      @default(4) @map("sequence_length")
   currentSequenceNumber Int      @default(1) @map("current_sequence_number")
@@ -1888,7 +1888,7 @@ model InvoiceSetting {
 
 model SalesInvoice {
   id                   String                @id @default(uuid()) @db.Uuid
-  companyId            String                @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId            String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   invoiceNo            String                @map("invoice_no")
   invoiceDate          DateTime              @map("invoice_date") @db.Date
   dueDate              DateTime?             @map("due_date") @db.Date
@@ -1934,7 +1934,7 @@ model SalesInvoice {
 
 model SalesInvoiceItem {
   id               String            @id @default(uuid()) @db.Uuid
-  companyId        String            @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId        String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   salesInvoiceId   String            @map("sales_invoice_id") @db.Uuid
   productId        BigInt            @map("product_id")
   description      String?
@@ -1968,7 +1968,7 @@ model SalesInvoiceItem {
 
 model SalesInvoicePayment {
   id              String       @id @default(uuid()) @db.Uuid
-  companyId       String       @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId       String       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   salesInvoiceId  String       @map("sales_invoice_id") @db.Uuid
   amount          Decimal      @db.Decimal(14, 2)
   paymentMethod   String       @map("payment_method") @db.VarChar(50)
@@ -1991,7 +1991,7 @@ model SalesInvoicePayment {
 /// Stores calculated OEE metrics per machine per shift for historical lookup and reporting
 model MachineOeeSnapshot {
   id             BigInt   @id @default(autoincrement())
-  companyId      String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   machineId      String   @map("machine_id") @db.VarChar(20)
   dailyPlanId    String?  @map("daily_plan_id") @db.VarChar(50)
   productionDate DateTime @map("production_date") @db.Date
@@ -2019,7 +2019,7 @@ model MachineOeeSnapshot {
 
 model EodStockSnapshot {
   id           BigInt          @id @default(autoincrement())
-  companyId    String          @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   category     EodItemCategory @map("category")
   itemId       String          @map("item_id") @db.VarChar(100)
   itemCode     String          @map("item_code") @db.VarChar(100)
@@ -2043,7 +2043,7 @@ model EodStockSnapshot {
 
 model SystemSetting {
   id        Int      @id @default(autoincrement())
-  companyId String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   key       String   @db.VarChar(100)
   value     String   @db.VarChar(255)
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -2056,7 +2056,7 @@ model SystemSetting {
 
 model ProductShiftRecord {
   id                BigInt          @id @default(autoincrement())
-  companyId         String          @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productId         BigInt          @map("product_id")
   productionOrderId String          @map("production_order_id") @db.VarChar(20)
   machineId         String          @map("machine_id") @db.VarChar(20)
@@ -2083,7 +2083,7 @@ model ProductShiftRecord {
 
 model ProductCapacityHistory {
   id                BigInt   @id @default(autoincrement())
-  companyId         String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   productId         BigInt   @map("product_id")
   previousCapacity  Decimal  @map("previous_capacity") @db.Decimal(14, 3)
   newCapacity       Decimal  @map("new_capacity") @db.Decimal(14, 3)
@@ -2329,7 +2329,7 @@ enum CategoryType {
 
 model Category {
   id          Int          @id @default(autoincrement())
-  companyId   String       @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   code        String       @db.VarChar(20)
   name        String       @db.VarChar(100)
   description String?      @db.VarChar(255)
@@ -2354,7 +2354,7 @@ model Category {
 
 model AccountLedger {
   id          Int           @id @default(autoincrement())
-  companyId   String        @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   code        String        @db.VarChar(30)
   name        String        @db.VarChar(160)
   type        LedgerType
@@ -2375,7 +2375,7 @@ model AccountLedger {
 
 model Voucher {
   id         Int           @id @default(autoincrement())
-  companyId  String        @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId  String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   voucherNo  String        @db.VarChar(30)
   type       VoucherType
   date       DateTime      @db.Date
@@ -2397,7 +2397,7 @@ model Voucher {
 
 model JournalItem {
   id             Int            @id @default(autoincrement())
-  companyId      String         @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId      String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   voucherId      Int
   debitLedgerId  Int?
   creditLedgerId Int?
@@ -2419,7 +2419,7 @@ model JournalItem {
 
 model SalesReturn {
   id             String            @id @default(uuid()) @db.Uuid
-  companyId      String            @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId      String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   returnNo       String            @db.VarChar(30)
   returnDate     DateTime          @db.Date
   customerId     String            @db.Uuid
@@ -2449,7 +2449,7 @@ model SalesReturn {
 
 model SalesReturnItem {
   id                 Int               @id @default(autoincrement())
-  companyId          String            @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId          String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   salesReturnId      String            @db.Uuid
   productId          BigInt
   salesInvoiceItemId String?           @db.Uuid
@@ -2475,7 +2475,7 @@ model SalesReturnItem {
 
 model PurchaseReturn {
   id           String               @id @default(uuid()) @db.Uuid
-  companyId    String               @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId    String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   returnNo     String               @db.VarChar(30)
   returnDate   DateTime             @db.Date
   supplierId   Int
@@ -2501,7 +2501,7 @@ model PurchaseReturn {
 
 model PurchaseReturnItem {
   id               Int            @id @default(autoincrement())
-  companyId        String         @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId        String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   purchaseReturnId String         @db.Uuid
   rawMaterialId    String         @db.VarChar(20)
   quantity         Decimal        @db.Decimal(12, 3)
@@ -2520,7 +2520,7 @@ model PurchaseReturnItem {
 
 model PettyCashEntry {
   id          Int      @id @default(autoincrement())
-  companyId   String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   entryNo     String   @db.VarChar(30)
   entryDate   DateTime @db.Date
   category    String   @db.VarChar(80)
@@ -2542,7 +2542,7 @@ model PettyCashEntry {
 
 model AccountingPeriod {
   id         Int       @id @default(autoincrement())
-  companyId  String    @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId  String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   periodName String    @db.VarChar(50)
   startDate  DateTime  @db.Date
   endDate    DateTime  @db.Date
@@ -2562,7 +2562,7 @@ model AccountingPeriod {
 
 model AttendanceRecord {
   id                Int      @id @default(autoincrement())
-  companyId         String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId         String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   employeeId        BigInt
   date              String
   period            String
@@ -2586,7 +2586,7 @@ model AttendanceRecord {
 
 model EmployeePayrollConfig {
   id             Int      @id @default(autoincrement())
-  companyId      String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   employeeId     BigInt   @unique
   salaryType     String
   monthlySalary  Decimal  @default(0) @db.Decimal(14, 2)
@@ -2614,7 +2614,7 @@ model EmployeePayrollConfig {
 
 model PayrollConfig {
   id                        Int      @id @default(autoincrement())
-  companyId                 String   @unique @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId                 String   @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   dailySalaryFormula        String   @default("MONTHLY_BY_CALENDAR")
   salaryCalculationMethod   String   @default("CALENDAR_DAYS")
   fixedDays                 Int      @default(26)
@@ -2659,7 +2659,7 @@ model PayrollConfig {
 
 model PayrollRun {
   id               Int             @id @default(autoincrement())
-  companyId        String          @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId        String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   runCode          String
   period           String
   type             String
@@ -2689,7 +2689,7 @@ model PayrollRun {
 
 model PayrollResult {
   id                  Int        @id @default(autoincrement())
-  companyId           String     @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId           String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   payrollRunId        Int
   employeeId          BigInt
   employeeCode        String
@@ -2738,7 +2738,7 @@ model PayrollResult {
 
 model SalaryAdvance {
   id              Int      @id @default(autoincrement())
-  companyId       String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId       String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   employeeId      BigInt
   amount          Decimal  @db.Decimal(14, 2)
   disbursedDate   DateTime @db.Date
@@ -2757,7 +2757,7 @@ model SalaryAdvance {
 
 model EmployeePermanentDeduction {
   id         Int      @id @default(autoincrement())
-  companyId  String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId  String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   employeeId BigInt
   type       String
   label      String
@@ -2776,7 +2776,7 @@ model EmployeePermanentDeduction {
 /// Per-tenant, per-document-type number series (replaces ad-hoc max()+1 generators).
 model DocumentSequence {
   id              String   @id @default(uuid()) @db.Uuid
-  companyId       String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId       String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   docType         String   @map("doc_type") @db.VarChar(40)
   businessPlaceId BigInt?  @map("business_place_id")
   fyCode          String   @default("") @map("fy_code") @db.VarChar(10)
@@ -2795,7 +2795,7 @@ model DocumentSequence {
 /// Field-sales mobile app: a planned or executed customer visit (id generated on the device).
 model MobileVisit {
   id          String    @id @db.Uuid
-  companyId   String    @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   agentUserId String    @map("agent_user_id") @db.VarChar(36)
   customerId  String    @map("customer_id") @db.Uuid
   routeId     String?   @map("route_id") @db.Uuid
@@ -2826,7 +2826,7 @@ model MobileVisit {
 /// Field collection captured on the mobile app; posted to invoices and receipt vouchers on push.
 model MobileCollection {
   id          String    @id @db.Uuid
-  companyId   String    @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   receiptNo   String    @map("receipt_no") @db.VarChar(30)
   agentUserId String    @map("agent_user_id") @db.VarChar(36)
   customerId  String    @map("customer_id") @db.Uuid
@@ -2863,7 +2863,7 @@ model MobileCollection {
 /// Ordered stops on a route (drives auto-planned daily visits).
 model MobileRouteCustomer {
   id          String    @id @default(uuid()) @db.Uuid
-  companyId   String    @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   routeId     String    @map("route_id") @db.Uuid
   customerId  String    @map("customer_id") @db.Uuid
   sequence    Int       @default(0)
@@ -2882,7 +2882,7 @@ model MobileRouteCustomer {
 /// Which agent covers a route, optionally on one weekday (0 = Sunday).
 model MobileRouteAssignment {
   id          String   @id @default(uuid()) @db.Uuid
-  companyId   String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   routeId     String   @map("route_id") @db.Uuid
   agentUserId String   @map("agent_user_id") @db.VarChar(36)
   dayOfWeek   Int?     @map("day_of_week")
@@ -2899,7 +2899,7 @@ model MobileRouteAssignment {
 /// Idempotency map for records created on a device (client id -> server id).
 model MobileSyncRecord {
   id          String   @id @default(uuid()) @db.Uuid
-  companyId   String   @default(dbgenerated("current_setting('app.company_id')::uuid")) @map("company_id") @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   clientId    String   @map("client_id") @db.VarChar(64)
   entityType  String   @map("entity_type") @db.VarChar(30)
   serverId    String?  @map("server_id") @db.VarChar(64)

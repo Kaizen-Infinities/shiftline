@@ -79,7 +79,7 @@ CREATE TYPE "CategoryType" AS ENUM ('PRODUCT', 'RAW_MATERIAL', 'WASTAGE');
 -- CreateTable
 CREATE TABLE "employees" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "empCode" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
     "mobile" VARCHAR(20),
@@ -167,7 +167,7 @@ CREATE TABLE "admins" (
 -- CreateTable
 CREATE TABLE "users" (
     "userId" TEXT NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "username" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
     "email" TEXT,
@@ -274,7 +274,7 @@ CREATE TABLE "permissions" (
 -- CreateTable
 CREATE TABLE "roles" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "code" TEXT NOT NULL DEFAULT 'ADMIN',
     "name" TEXT NOT NULL,
     "description" TEXT,
@@ -287,7 +287,7 @@ CREATE TABLE "roles" (
 
 -- CreateTable
 CREATE TABLE "role_permissions" (
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "roleId" INTEGER NOT NULL,
     "permissionId" INTEGER NOT NULL,
 
@@ -297,7 +297,7 @@ CREATE TABLE "role_permissions" (
 -- CreateTable
 CREATE TABLE "departments" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -309,7 +309,7 @@ CREATE TABLE "departments" (
 -- CreateTable
 CREATE TABLE "customer_types" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "name" VARCHAR(100) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -320,7 +320,7 @@ CREATE TABLE "customer_types" (
 -- CreateTable
 CREATE TABLE "customer_grades" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "name" VARCHAR(100) NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
@@ -348,7 +348,7 @@ CREATE TABLE "customers" (
     "status" VARCHAR(20) NOT NULL DEFAULT 'Active',
     "updatedBy" TEXT,
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "openingBalance" DECIMAL(14,2) NOT NULL DEFAULT 0,
     "openingBalanceType" VARCHAR(10) NOT NULL DEFAULT 'DEBIT',
     "customerTypeId" INTEGER,
@@ -360,7 +360,7 @@ CREATE TABLE "customers" (
 -- CreateTable
 CREATE TABLE "customer_addresses" (
     "id" TEXT NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "address" JSONB NOT NULL,
     "customer_id" UUID NOT NULL,
     "is_default" BOOLEAN NOT NULL DEFAULT false,
@@ -403,7 +403,7 @@ CREATE TABLE "companies" (
 -- CreateTable
 CREATE TABLE "whatsapp_configs" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "phoneNumberId" VARCHAR(50) NOT NULL,
     "wabaId" VARCHAR(50) NOT NULL,
     "businessPhone" VARCHAR(20) NOT NULL,
@@ -418,7 +418,7 @@ CREATE TABLE "whatsapp_configs" (
 -- CreateTable
 CREATE TABLE "email_configs" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "smtpHost" VARCHAR(200) NOT NULL,
     "smtpPort" INTEGER NOT NULL,
     "smtpUsername" VARCHAR(200) NOT NULL,
@@ -435,7 +435,7 @@ CREATE TABLE "email_configs" (
 -- CreateTable
 CREATE TABLE "business_places" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "code" VARCHAR(20) NOT NULL,
     "name" VARCHAR(120) NOT NULL,
     "type" "BusinessPlaceType" NOT NULL,
@@ -454,7 +454,7 @@ CREATE TABLE "business_places" (
 -- CreateTable
 CREATE TABLE "routes" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "routeCode" TEXT NOT NULL,
     "routeName" TEXT NOT NULL,
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -466,7 +466,7 @@ CREATE TABLE "routes" (
 -- CreateTable
 CREATE TABLE "SupplierMaterialPrice" (
     "id" TEXT NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "supplierId" INTEGER NOT NULL,
     "rawMaterialId" TEXT NOT NULL,
     "price" DECIMAL(65,30) NOT NULL,
@@ -506,7 +506,7 @@ CREATE TABLE "suppliers" (
     "opening_balance" DECIMAL(14,2) NOT NULL DEFAULT 0,
     "opening_balance_type" VARCHAR(10) NOT NULL DEFAULT 'CREDIT',
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
 
     CONSTRAINT "suppliers_pkey" PRIMARY KEY ("id")
 );
@@ -514,7 +514,7 @@ CREATE TABLE "suppliers" (
 -- CreateTable
 CREATE TABLE "supplier_addresses" (
     "id" TEXT NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "address" JSONB NOT NULL,
     "supplier_id" INTEGER NOT NULL,
     "is_default" BOOLEAN NOT NULL DEFAULT false,
@@ -527,7 +527,7 @@ CREATE TABLE "supplier_addresses" (
 -- CreateTable
 CREATE TABLE "shifts" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "shiftCode" TEXT NOT NULL,
     "shiftName" TEXT NOT NULL,
     "startTime" TEXT NOT NULL,
@@ -544,7 +544,7 @@ CREATE TABLE "shifts" (
 -- CreateTable
 CREATE TABLE "product_images" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "productId" BIGINT NOT NULL,
     "imageUrl" TEXT NOT NULL,
     "isPrimary" BOOLEAN NOT NULL DEFAULT false,
@@ -555,7 +555,7 @@ CREATE TABLE "product_images" (
 -- CreateTable
 CREATE TABLE "products" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "productCode" TEXT NOT NULL,
     "productName" TEXT NOT NULL,
     "description" TEXT,
@@ -580,7 +580,7 @@ CREATE TABLE "products" (
 -- CreateTable
 CREATE TABLE "sales_products" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "sales_product_code" TEXT NOT NULL,
     "sales_product_name" TEXT NOT NULL,
     "description" TEXT,
@@ -596,7 +596,7 @@ CREATE TABLE "sales_products" (
 
 -- CreateTable
 CREATE TABLE "sales_product_stocks" (
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "store_id" VARCHAR(20) NOT NULL,
     "sales_product_id" BIGINT NOT NULL,
     "on_hand_qty" DECIMAL(14,3) NOT NULL DEFAULT 0,
@@ -609,7 +609,7 @@ CREATE TABLE "sales_product_stocks" (
 -- CreateTable
 CREATE TABLE "sales_product_components" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "sales_product_id" BIGINT NOT NULL,
     "component_product_id" BIGINT NOT NULL,
     "quantity" DECIMAL(12,3) NOT NULL,
@@ -623,7 +623,7 @@ CREATE TABLE "sales_product_components" (
 -- CreateTable
 CREATE TABLE "production_steps" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "product_id" BIGINT NOT NULL,
     "step_key" TEXT NOT NULL,
     "step_order" INTEGER NOT NULL,
@@ -634,7 +634,7 @@ CREATE TABLE "production_steps" (
 -- CreateTable
 CREATE TABLE "units_of_measure" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "uomCode" TEXT NOT NULL,
     "uomName" TEXT NOT NULL,
     "description" TEXT,
@@ -648,7 +648,7 @@ CREATE TABLE "units_of_measure" (
 -- CreateTable
 CREATE TABLE "locations" (
     "location_id" VARCHAR(20) NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "location_code" VARCHAR(30) NOT NULL,
     "location_name" VARCHAR(100) NOT NULL,
     "location_type" VARCHAR(50) NOT NULL,
@@ -668,7 +668,7 @@ CREATE TABLE "locations" (
 -- CreateTable
 CREATE TABLE "machines" (
     "machine_id" VARCHAR(20) NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "machine_name" VARCHAR(100) NOT NULL,
     "technologyType" "TechnologyType",
     "machineType" "MachineType",
@@ -691,7 +691,7 @@ CREATE TABLE "machines" (
 -- CreateTable
 CREATE TABLE "stores" (
     "store_id" VARCHAR(20) NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "store_name" VARCHAR(120) NOT NULL,
     "store_category" "StoreCategory",
     "location_id" VARCHAR(20),
@@ -715,7 +715,7 @@ CREATE TABLE "stores" (
 -- CreateTable
 CREATE TABLE "store_locations" (
     "id" TEXT NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "store_id" VARCHAR(20) NOT NULL,
     "parent_id" TEXT,
     "location_code" VARCHAR(20) NOT NULL,
@@ -730,7 +730,7 @@ CREATE TABLE "store_locations" (
 -- CreateTable
 CREATE TABLE "raw_materials" (
     "raw_material_id" VARCHAR(20) NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "material_name" VARCHAR(100) NOT NULL,
     "base_uom" VARCHAR(50) NOT NULL,
     "reorder_level" DECIMAL(14,3),
@@ -759,7 +759,7 @@ CREATE TABLE "raw_materials" (
 -- CreateTable
 CREATE TABLE "bill_of_materials" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "product_id" BIGINT NOT NULL,
     "raw_material_id" VARCHAR(20) NOT NULL,
     "required_quantity" DECIMAL(12,3) NOT NULL,
@@ -774,7 +774,7 @@ CREATE TABLE "bill_of_materials" (
 
 -- CreateTable
 CREATE TABLE "finished_goods_stocks" (
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "store_id" VARCHAR(20) NOT NULL,
     "product_item_id" BIGINT NOT NULL,
     "on_hand_qty" DECIMAL(14,3) NOT NULL DEFAULT 0,
@@ -787,7 +787,7 @@ CREATE TABLE "finished_goods_stocks" (
 -- CreateTable
 CREATE TABLE "finished_goods_transactions" (
     "fg_txn_id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "txn_date_time" TIMESTAMP(3) NOT NULL,
     "store_id" VARCHAR(20) NOT NULL,
     "product_item_id" BIGINT NOT NULL,
@@ -807,7 +807,7 @@ CREATE TABLE "finished_goods_transactions" (
 -- CreateTable
 CREATE TABLE "production_orders" (
     "production_order_id" VARCHAR(20) NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "order_date" TIMESTAMP(3) NOT NULL,
     "product_item_id" BIGINT NOT NULL,
     "target_qty" DECIMAL(14,3) NOT NULL,
@@ -847,7 +847,7 @@ CREATE TABLE "production_orders" (
 -- CreateTable
 CREATE TABLE "goods_dispatches" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "dispatch_number" VARCHAR(30) NOT NULL,
     "dispatch_date" DATE NOT NULL,
     "vehicle_number" VARCHAR(30) NOT NULL,
@@ -875,7 +875,7 @@ CREATE TABLE "goods_dispatches" (
 -- CreateTable
 CREATE TABLE "machine_operation_assignments" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "machine_id" VARCHAR(20) NOT NULL,
     "week_start_date" DATE NOT NULL,
     "week_end_date" DATE NOT NULL,
@@ -894,7 +894,7 @@ CREATE TABLE "machine_operation_assignments" (
 -- CreateTable
 CREATE TABLE "machine_assignment_operators" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "assignment_id" BIGINT NOT NULL,
     "role_id" INTEGER NOT NULL,
     "employee_id" BIGINT NOT NULL,
@@ -906,7 +906,7 @@ CREATE TABLE "machine_assignment_operators" (
 -- CreateTable
 CREATE TABLE "goods_dispatch_items" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "dispatch_id" BIGINT NOT NULL,
     "production_order_id" VARCHAR(20) NOT NULL,
     "product_item_id" BIGINT NOT NULL,
@@ -921,7 +921,7 @@ CREATE TABLE "goods_dispatch_items" (
 -- CreateTable
 CREATE TABLE "weekly_machine_programs" (
     "weekly_program_id" VARCHAR(20) NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "week_start_date" DATE NOT NULL,
     "week_end_date" DATE NOT NULL,
     "machine_id" VARCHAR(20),
@@ -949,7 +949,7 @@ CREATE TABLE "weekly_machine_programs" (
 -- CreateTable
 CREATE TABLE "hourly_productions" (
     "hourly_production_id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "production_order_id" VARCHAR(20) NOT NULL,
     "production_date" DATE NOT NULL,
     "shift_id" VARCHAR(20) NOT NULL,
@@ -975,7 +975,7 @@ CREATE TABLE "hourly_productions" (
 -- CreateTable
 CREATE TABLE "daily_production_plans" (
     "daily_plan_id" VARCHAR(50) NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "weekly_program_id" VARCHAR(20) NOT NULL,
     "production_order_id" VARCHAR(20) NOT NULL,
     "production_date" DATE NOT NULL,
@@ -1001,7 +1001,7 @@ CREATE TABLE "daily_production_plans" (
 -- CreateTable
 CREATE TABLE "raw_material_transactions" (
     "rm_txn_id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "store_id" VARCHAR(20) NOT NULL,
     "raw_material_id" VARCHAR(20) NOT NULL,
     "txn_type" VARCHAR(30) NOT NULL,
@@ -1017,7 +1017,7 @@ CREATE TABLE "raw_material_transactions" (
 -- CreateTable
 CREATE TABLE "sales_orders" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "orderNo" VARCHAR(30) NOT NULL,
     "orderDate" TIMESTAMP(3) NOT NULL,
     "isInterState" BOOLEAN NOT NULL DEFAULT false,
@@ -1053,7 +1053,7 @@ CREATE TABLE "sales_orders" (
 -- CreateTable
 CREATE TABLE "sales_order_items" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "salesOrderId" INTEGER NOT NULL,
     "productId" BIGINT NOT NULL,
     "sales_product_id" BIGINT,
@@ -1076,7 +1076,7 @@ CREATE TABLE "sales_order_items" (
 -- CreateTable
 CREATE TABLE "purchase_orders" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "poNumber" TEXT NOT NULL,
     "poDate" DATE NOT NULL,
     "expectedDeliveryDate" DATE NOT NULL,
@@ -1116,7 +1116,7 @@ CREATE TABLE "purchase_orders" (
 -- CreateTable
 CREATE TABLE "purchase_order_items" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "purchaseOrderId" UUID NOT NULL,
     "uom" TEXT NOT NULL,
     "quantity" DECIMAL(12,3) NOT NULL,
@@ -1145,7 +1145,7 @@ CREATE TABLE "purchase_order_items" (
 -- CreateTable
 CREATE TABLE "grn_invoices" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "grn_number" TEXT NOT NULL,
     "invoice_no" TEXT NOT NULL,
     "grn_date" DATE NOT NULL,
@@ -1196,7 +1196,7 @@ CREATE TABLE "grn_invoices" (
 -- CreateTable
 CREATE TABLE "grn_invoice_items" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "grn_invoice_id" UUID NOT NULL,
     "product_id" TEXT NOT NULL,
     "description" TEXT NOT NULL,
@@ -1222,7 +1222,7 @@ CREATE TABLE "grn_invoice_items" (
 -- CreateTable
 CREATE TABLE "grn_invoice_payments" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "grn_invoice_id" UUID NOT NULL,
     "amount" DECIMAL(14,2) NOT NULL,
     "payment_method" VARCHAR(50) NOT NULL,
@@ -1240,7 +1240,7 @@ CREATE TABLE "grn_invoice_payments" (
 -- CreateTable
 CREATE TABLE "production_wastages" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "wastage_no" VARCHAR(30) NOT NULL,
     "wastage_date" DATE NOT NULL,
     "production_order_id" VARCHAR(20) NOT NULL,
@@ -1275,7 +1275,7 @@ CREATE TABLE "production_wastages" (
 -- CreateTable
 CREATE TABLE "stock_adjustments" (
     "adj_id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "adjustment_number" VARCHAR(50) NOT NULL,
     "adjustment_date" TIMESTAMP(3) NOT NULL,
     "adjustment_type" VARCHAR(40) NOT NULL DEFAULT 'STOCK_INCREASE',
@@ -1299,7 +1299,7 @@ CREATE TABLE "stock_adjustments" (
 -- CreateTable
 CREATE TABLE "stock_adjustment_items" (
     "adj_item_id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "stock_adjustment_id" BIGINT NOT NULL,
     "item_type" "ItemCategoryType" NOT NULL,
     "raw_material_id" VARCHAR(20),
@@ -1318,7 +1318,7 @@ CREATE TABLE "stock_adjustment_items" (
 -- CreateTable
 CREATE TABLE "production_order_history" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "production_order_id" VARCHAR(20) NOT NULL,
     "from_status" VARCHAR(30),
     "to_status" VARCHAR(30) NOT NULL,
@@ -1334,7 +1334,7 @@ CREATE TABLE "production_order_history" (
 -- CreateTable
 CREATE TABLE "expenses" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "expenseNumber" VARCHAR(30) NOT NULL,
     "expenseCategory" VARCHAR(60) NOT NULL,
     "date" DATE NOT NULL,
@@ -1356,7 +1356,7 @@ CREATE TABLE "expenses" (
 -- CreateTable
 CREATE TABLE "invoice_settings" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "invoice_prefix" VARCHAR(20) NOT NULL DEFAULT 'INV',
     "sequence_length" INTEGER NOT NULL DEFAULT 4,
     "current_sequence_number" INTEGER NOT NULL DEFAULT 1,
@@ -1373,7 +1373,7 @@ CREATE TABLE "invoice_settings" (
 -- CreateTable
 CREATE TABLE "sales_invoices" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "invoice_no" TEXT NOT NULL,
     "invoice_date" DATE NOT NULL,
     "due_date" DATE,
@@ -1407,7 +1407,7 @@ CREATE TABLE "sales_invoices" (
 -- CreateTable
 CREATE TABLE "sales_invoice_items" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "sales_invoice_id" UUID NOT NULL,
     "product_id" BIGINT NOT NULL,
     "description" TEXT,
@@ -1434,7 +1434,7 @@ CREATE TABLE "sales_invoice_items" (
 -- CreateTable
 CREATE TABLE "sales_invoice_payments" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "sales_invoice_id" UUID NOT NULL,
     "amount" DECIMAL(14,2) NOT NULL,
     "payment_method" VARCHAR(50) NOT NULL,
@@ -1452,7 +1452,7 @@ CREATE TABLE "sales_invoice_payments" (
 -- CreateTable
 CREATE TABLE "machine_oee_snapshots" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "machine_id" VARCHAR(20) NOT NULL,
     "daily_plan_id" VARCHAR(50),
     "production_date" DATE NOT NULL,
@@ -1475,7 +1475,7 @@ CREATE TABLE "machine_oee_snapshots" (
 -- CreateTable
 CREATE TABLE "eod_stock_snapshots" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "category" "EodItemCategory" NOT NULL,
     "item_id" VARCHAR(100) NOT NULL,
     "item_code" VARCHAR(100) NOT NULL,
@@ -1494,7 +1494,7 @@ CREATE TABLE "eod_stock_snapshots" (
 -- CreateTable
 CREATE TABLE "system_settings" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "key" VARCHAR(100) NOT NULL,
     "value" VARCHAR(255) NOT NULL,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -1505,7 +1505,7 @@ CREATE TABLE "system_settings" (
 -- CreateTable
 CREATE TABLE "product_shift_records" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "product_id" BIGINT NOT NULL,
     "production_order_id" VARCHAR(20) NOT NULL,
     "machine_id" VARCHAR(20) NOT NULL,
@@ -1523,7 +1523,7 @@ CREATE TABLE "product_shift_records" (
 -- CreateTable
 CREATE TABLE "product_capacity_history" (
     "id" BIGSERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "product_id" BIGINT NOT NULL,
     "previous_capacity" DECIMAL(14,3) NOT NULL,
     "new_capacity" DECIMAL(14,3) NOT NULL,
@@ -1544,7 +1544,7 @@ CREATE TABLE "product_capacity_history" (
 -- CreateTable
 CREATE TABLE "categories" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "code" VARCHAR(20) NOT NULL,
     "name" VARCHAR(100) NOT NULL,
     "description" VARCHAR(255),
@@ -1561,7 +1561,7 @@ CREATE TABLE "categories" (
 -- CreateTable
 CREATE TABLE "account_ledgers" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "code" VARCHAR(30) NOT NULL,
     "name" VARCHAR(160) NOT NULL,
     "type" "LedgerType" NOT NULL,
@@ -1576,7 +1576,7 @@ CREATE TABLE "account_ledgers" (
 -- CreateTable
 CREATE TABLE "vouchers" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "voucherNo" VARCHAR(30) NOT NULL,
     "type" "VoucherType" NOT NULL,
     "date" DATE NOT NULL,
@@ -1593,7 +1593,7 @@ CREATE TABLE "vouchers" (
 -- CreateTable
 CREATE TABLE "journal_items" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "voucherId" INTEGER NOT NULL,
     "debitLedgerId" INTEGER,
     "creditLedgerId" INTEGER,
@@ -1607,7 +1607,7 @@ CREATE TABLE "journal_items" (
 -- CreateTable
 CREATE TABLE "sales_returns" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "returnNo" VARCHAR(30) NOT NULL,
     "returnDate" DATE NOT NULL,
     "customerId" UUID NOT NULL,
@@ -1629,7 +1629,7 @@ CREATE TABLE "sales_returns" (
 -- CreateTable
 CREATE TABLE "sales_return_items" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "salesReturnId" UUID NOT NULL,
     "productId" BIGINT NOT NULL,
     "salesInvoiceItemId" UUID,
@@ -1647,7 +1647,7 @@ CREATE TABLE "sales_return_items" (
 -- CreateTable
 CREATE TABLE "purchase_returns" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "returnNo" VARCHAR(30) NOT NULL,
     "returnDate" DATE NOT NULL,
     "supplierId" INTEGER NOT NULL,
@@ -1666,7 +1666,7 @@ CREATE TABLE "purchase_returns" (
 -- CreateTable
 CREATE TABLE "purchase_return_items" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "purchaseReturnId" UUID NOT NULL,
     "rawMaterialId" VARCHAR(20) NOT NULL,
     "quantity" DECIMAL(12,3) NOT NULL,
@@ -1680,7 +1680,7 @@ CREATE TABLE "purchase_return_items" (
 -- CreateTable
 CREATE TABLE "petty_cash_entries" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "entryNo" VARCHAR(30) NOT NULL,
     "entryDate" DATE NOT NULL,
     "category" VARCHAR(80) NOT NULL,
@@ -1699,7 +1699,7 @@ CREATE TABLE "petty_cash_entries" (
 -- CreateTable
 CREATE TABLE "accounting_periods" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "periodName" VARCHAR(50) NOT NULL,
     "startDate" DATE NOT NULL,
     "endDate" DATE NOT NULL,
@@ -1715,7 +1715,7 @@ CREATE TABLE "accounting_periods" (
 -- CreateTable
 CREATE TABLE "attendance_records" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "employeeId" BIGINT NOT NULL,
     "date" TEXT NOT NULL,
     "period" TEXT NOT NULL,
@@ -1734,7 +1734,7 @@ CREATE TABLE "attendance_records" (
 -- CreateTable
 CREATE TABLE "employee_payroll_configs" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "employeeId" BIGINT NOT NULL,
     "salaryType" TEXT NOT NULL,
     "monthlySalary" DECIMAL(14,2) NOT NULL DEFAULT 0,
@@ -1759,7 +1759,7 @@ CREATE TABLE "employee_payroll_configs" (
 -- CreateTable
 CREATE TABLE "payroll_configs" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "dailySalaryFormula" TEXT NOT NULL DEFAULT 'MONTHLY_BY_CALENDAR',
     "salaryCalculationMethod" TEXT NOT NULL DEFAULT 'CALENDAR_DAYS',
     "fixedDays" INTEGER NOT NULL DEFAULT 26,
@@ -1803,7 +1803,7 @@ CREATE TABLE "payroll_configs" (
 -- CreateTable
 CREATE TABLE "payroll_runs" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "runCode" TEXT NOT NULL,
     "period" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -1830,7 +1830,7 @@ CREATE TABLE "payroll_runs" (
 -- CreateTable
 CREATE TABLE "payroll_results" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "payrollRunId" INTEGER NOT NULL,
     "employeeId" BIGINT NOT NULL,
     "employeeCode" TEXT NOT NULL,
@@ -1873,7 +1873,7 @@ CREATE TABLE "payroll_results" (
 -- CreateTable
 CREATE TABLE "salary_advances" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "employeeId" BIGINT NOT NULL,
     "amount" DECIMAL(14,2) NOT NULL,
     "disbursedDate" DATE NOT NULL,
@@ -1889,7 +1889,7 @@ CREATE TABLE "salary_advances" (
 -- CreateTable
 CREATE TABLE "employee_permanent_deductions" (
     "id" SERIAL NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "employeeId" BIGINT NOT NULL,
     "type" TEXT NOT NULL,
     "label" TEXT NOT NULL,
@@ -1904,7 +1904,7 @@ CREATE TABLE "employee_permanent_deductions" (
 -- CreateTable
 CREATE TABLE "document_sequences" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "doc_type" VARCHAR(40) NOT NULL,
     "business_place_id" BIGINT,
     "fy_code" VARCHAR(10) NOT NULL DEFAULT '',
@@ -1920,7 +1920,7 @@ CREATE TABLE "document_sequences" (
 -- CreateTable
 CREATE TABLE "mobile_visits" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "agent_user_id" VARCHAR(36) NOT NULL,
     "customer_id" UUID NOT NULL,
     "route_id" UUID,
@@ -1944,7 +1944,7 @@ CREATE TABLE "mobile_visits" (
 -- CreateTable
 CREATE TABLE "mobile_collections" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "receipt_no" VARCHAR(30) NOT NULL,
     "agent_user_id" VARCHAR(36) NOT NULL,
     "customer_id" UUID NOT NULL,
@@ -1974,7 +1974,7 @@ CREATE TABLE "mobile_collections" (
 -- CreateTable
 CREATE TABLE "mobile_route_customers" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "route_id" UUID NOT NULL,
     "customer_id" UUID NOT NULL,
     "sequence" INTEGER NOT NULL DEFAULT 0,
@@ -1987,7 +1987,7 @@ CREATE TABLE "mobile_route_customers" (
 -- CreateTable
 CREATE TABLE "mobile_route_assignments" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "route_id" UUID NOT NULL,
     "agent_user_id" VARCHAR(36) NOT NULL,
     "day_of_week" INTEGER,
@@ -2000,7 +2000,7 @@ CREATE TABLE "mobile_route_assignments" (
 -- CreateTable
 CREATE TABLE "mobile_sync_records" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL DEFAULT current_setting('app.company_id')::uuid,
+    "company_id" UUID NOT NULL DEFAULT (current_setting('app.company_id'::text))::uuid,
     "client_id" VARCHAR(64) NOT NULL,
     "entity_type" VARCHAR(30) NOT NULL,
     "server_id" VARCHAR(64),

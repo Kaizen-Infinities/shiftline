@@ -8,6 +8,10 @@ import { getTenant, tenantStorage, type TenantContext } from "./tenant-context";
  * transaction that first sets `app.company_id`, which the database uses for
  * the `company_id` column default and, from P0-08, for row-level security.
  *
+ * Row-level security (migration 20260906220000_enable_rls) enforces the same
+ * boundary in the database: tenant rows are visible only when app.company_id
+ * matches, or when app.bypass_rls is on (platform paths via withoutTenant).
+ *
  * Rules:
  *  - `new PrismaClient()` anywhere else is a lint error.
  *  - Code without a tenant context that touches a tenant model throws; use
@@ -83,8 +87,17 @@ const extended = base.$extends({
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
         const ctx = getTenant();
-        if (!TENANT_MODELS.has(model) || ctx?.bypass) {
+        if (!TENANT_MODELS.has(model)) {
           return query(args);
+        }
+        if (ctx?.bypass) {
+          if (ctx.inTx) return query(args);
+          // Platform / system path: row-level security is lifted for this transaction only.
+          const [, result] = await base.$transaction([
+            base.$executeRaw`SELECT set_config('app.bypass_rls', 'on', TRUE)`,
+            query(args),
+          ]);
+          return result;
         }
         if (!ctx?.companyId) {
           throw new ApiError(500, `Tenant-scoped ${operation} on ${model} without tenant context`);
@@ -111,7 +124,9 @@ async function tenantTransaction(arg: unknown, opts?: unknown): Promise<unknown>
   }
   const ctx = getTenant();
   return extended.$transaction(async (tx) => {
-    if (ctx?.companyId && !ctx.bypass) {
+    if (ctx?.bypass) {
+      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', TRUE)`;
+    } else if (ctx?.companyId) {
       await tx.$executeRaw`SELECT set_config('app.company_id', ${ctx.companyId}, TRUE)`;
     }
     const inner: TenantContext = { ...(ctx ?? { companyId: null }), inTx: true };

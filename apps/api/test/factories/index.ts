@@ -1,9 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { faker } from "@faker-js/faker";
 import { Prisma } from "@prisma/client";
 import { getPrisma } from "../helpers/db";
 import { runAsTenant } from "../../src/lib/tenant-context";
-
-faker.seed(20260906);
 
 const D = (n: number | string) => new Prisma.Decimal(n);
 const code = (prefix: string) =>

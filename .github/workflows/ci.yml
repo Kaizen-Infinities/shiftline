@@ -88,14 +88,15 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: shiftline_migrator
-          POSTGRES_PASSWORD: shiftline_migrator
-          POSTGRES_DB: shiftline_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U shiftline_migrator -d shiftline_test"
+          --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
+      # A non-superuser role: superusers bypass row-level security, which would make the RLS suite meaningless.
       TEST_DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@localhost:5432/shiftline_test
     steps:
       - uses: actions/checkout@v4
@@ -103,8 +104,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+      - name: Create the non-superuser test role
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE shiftline_migrator LOGIN CREATEDB PASSWORD 'shiftline_migrator';"
       - run: npm ci --no-audit --no-fund
-      - run: npx -w @shiftline/api prisma generate
       - run: npm run test -w @shiftline/api
       - run: npm run test -w @shiftline/shared
 
