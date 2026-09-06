@@ -3,7 +3,7 @@ SHELL := /bin/bash
 API := npm run --workspace @shiftline/api
 WEB := npm run --workspace @shiftline/web
 
-.PHONY: help install db db-down dev api worker web seed reset typecheck lint test format
+.PHONY: help install db db-down dev api worker web seed reset typecheck lint test e2e format
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -46,6 +46,9 @@ lint: ## lint all workspaces
 
 test: ## run all tests
 	npm run test
+
+e2e: ## browser smoke suite against a seeded local database (starts api and web itself)
+	npm run e2e
 
 format: ## prettier --write
 	npm run format

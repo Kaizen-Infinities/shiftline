@@ -21,7 +21,8 @@ input leaks, secrets, error text → human review and merge → hand-off note.
 
 ## Definition of done
 
-- Integration tests cover the happy path and every validation rejection; CI green.
+- Integration tests cover the happy path and every validation rejection; CI green. A new
+  screen is added to `e2e/smoke.spec.ts`.
 - Every new query is tenant-scoped; a cross-tenant test proves a foreign
   `companyId` returns nothing.
 - No endpoint returns a raw error message; no secret in code; env validated.

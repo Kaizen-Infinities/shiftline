@@ -237,11 +237,35 @@ class EmployeeController {
 
     const userRecord = await prisma.user.findUnique({
       where: { userId },
-      select: { employeeId: true },
+      select: {
+        employeeId: true,
+        fullName: true,
+        email: true,
+        status: true,
+        createdOn: true,
+        role: { select: { name: true } },
+      },
     });
+    if (!userRecord) throw new ApiError(404, "User not found");
 
-    if (!userRecord?.employeeId) {
-      throw new ApiError(404, "No employee record linked to this account");
+    // Office users (owners, accountants) often have no HR record: answer with
+    // what the account knows instead of a 404 the profile screen cannot render.
+    if (!userRecord.employeeId) {
+      return res.status(200).json(
+        new ApiResponse("Profile fetched successfully", {
+          fullName: userRecord.fullName,
+          empCode: null,
+          department: null,
+          designation: userRecord.role ? { name: userRecord.role.name } : null,
+          dateOfJoining: null,
+          createdAt: userRecord.createdOn,
+          status: userRecord.status,
+          mobile: null,
+          email: userRecord.email,
+          roles: userRecord.role ? [{ role: { name: userRecord.role.name } }] : [],
+          employeeLinked: false,
+        })
+      );
     }
 
     const employee = await employeeService.findById(userRecord.employeeId);

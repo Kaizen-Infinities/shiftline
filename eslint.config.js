@@ -19,7 +19,7 @@ export default defineConfig([
   ]),
   // API and shared packages: Node
   {
-    files: ["apps/api/**/*.ts", "packages/**/*.ts"],
+    files: ["apps/api/**/*.ts", "packages/**/*.ts", "e2e/**/*.ts"],
     extends: baseConfigs,
     languageOptions: { globals: globals.node },
     rules: { ...baseRules },

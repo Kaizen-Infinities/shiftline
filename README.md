@@ -30,7 +30,8 @@ npm run worker --workspace @shiftline/api   # pg-boss worker: EOD snapshots, ret
 npm run dev --workspace @shiftline/web
 ```
 
-`npm run typecheck`, `npm run lint`, `npm run test` run across all workspaces.
+`npm run typecheck`, `npm run lint`, `npm run test` run across all workspaces; `npm run e2e`
+(or `make e2e`) runs the Playwright smoke suite against a seeded database.
 
 ## Working model
 

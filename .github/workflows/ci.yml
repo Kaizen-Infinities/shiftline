@@ -130,11 +130,66 @@ jobs:
           VITE_API_URL: /api
 
   e2e:
-    name: Browser smoke (arrives in P0-12)
+    name: Browser smoke (Playwright)
     runs-on: ubuntu-latest
     needs: [test-api, test-web]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      CI: "true"
+      NODE_ENV: development
+      DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@localhost:5432/shiftline_e2e
+      JWT_ACCESS_SECRET: e2e-secret-e2e-secret-e2e-secret-0000
+      DATA_ENCRYPTION_KEY: e2e-encryption-key-e2e-encryption-key-00
+      ADMIN_EMAIL: admin@e2e.shiftline.local
+      ADMIN_USERNAME: e2eadmin
+      ADMIN_PASSWORD: E2eAdmin#2026!!
+      SEED_PASSWORD: Demo@12345678
+      E2E_USER: owner@demo.shiftline.local
+      E2E_PASSWORD: Demo@12345678
+      FRONTEND_URL: http://localhost:5173
+      BACKEND_URL: http://localhost:5000
+      VITE_API_URL: http://localhost:5000/api
     steps:
-      - run: echo "Playwright smoke suite is added in P0-12"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Create the application role and database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE shiftline_migrator LOGIN CREATEDB PASSWORD 'shiftline_migrator';" \
+            -c "CREATE DATABASE shiftline_e2e OWNER shiftline_migrator;"
+      - run: npm ci --no-audit --no-fund
+      - name: Migrate and seed the demo tenant
+        run: |
+          npx -w @shiftline/api prisma migrate deploy
+          npm run db:seed -w @shiftline/api
+      - name: Build the web app against the local API
+        run: |
+          npm run build -w @shiftline/shared
+          npm run build -w @shiftline/web
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:typecheck
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
 
   docker:
     name: Docker images build
