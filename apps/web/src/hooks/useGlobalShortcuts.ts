@@ -27,7 +27,7 @@ interface UseGlobalShortcutsOptions {
 }
 
 /**
- * Global keyboard shortcut handler for Sunsea ERP.
+ * Global keyboard shortcut handler for Shiftline.
  *
  * Priority:
  *  1. F1–F12  → Tally-style function keys

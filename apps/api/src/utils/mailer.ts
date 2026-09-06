@@ -15,7 +15,7 @@ export const sendEmail = async (options: SendEmailOptions) => {
   let smtpUser = process.env.SMTP_USER || "";
   let smtpPass = process.env.SMTP_PASS || "";
   let fromEmail = process.env.SMTP_FROM || "";
-  let fromName = process.env.FROM_NAME || "Sunsea";
+  let fromName = process.env.FROM_NAME || "Shiftline";
   let encryption = process.env.SMTP_ENCRYPTION || "TLS";
 
   try {

@@ -35,7 +35,7 @@ const WhatsappCreatePage: React.FC = () => {
 
     // Test message state
     const [testPhone, setTestPhone] = useState("");
-    const [testMessage, setTestMessage] = useState("Hello from SUNSEA ERP! This is a test message.");
+    const [testMessage, setTestMessage] = useState("Hello from Shiftline! This is a test message.");
     const [sending, setSending] = useState(false);
 
     // Fetch config with cache (survives navigation, instant on return)

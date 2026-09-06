@@ -25,7 +25,7 @@ export async function uploadToImageKit(
     const token = Buffer.from(`${privateKey}:`).toString("base64");
 
     const fileBuffer = Buffer.isBuffer(fileInput) ? fileInput : fs.readFileSync(fileInput);
-    const blob = new Blob([fileBuffer]);
+    const blob = new Blob([new Uint8Array(fileBuffer)]);
 
     const formData = new FormData();
     formData.append("file", blob, fileName);

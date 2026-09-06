@@ -157,15 +157,15 @@ class EmployeeService {
       try {
         await sendEmail({
           to: recipientEmail,
-          subject: "Welcome to Sunsea — Your Account Has Been Created",
+          subject: "Welcome to Shiftline — Your Account Has Been Created",
           html: generateWelcomeEmailHtml({
             fullName: createdEmployee.fullName,
             empCode: createdEmployee.empCode,
             username: loginAccount.username,
             password: loginAccount.password,
-            title: "Welcome to Sunsea!",
+            title: "Welcome to Shiftline!",
             subtitle: "Your official employee account and login credentials are ready.",
-            teamName: "Sunsea HR & IT Team",
+            teamName: "Shiftline HR & IT Team",
           }),
         });
       } catch (emailErr) {
@@ -445,15 +445,15 @@ class EmployeeService {
       try {
         await sendEmail({
           to: recipientEmail,
-          subject: "Sunsea — Your Login Account Credentials",
+          subject: "Shiftline — Your Login Account Credentials",
           html: generateWelcomeEmailHtml({
             fullName: updatedEmployee.fullName,
             empCode: updatedEmployee.empCode,
             username: loginAccount.username,
             password: loginAccount.password,
             title: "Account Credentials Updated",
-            subtitle: "Your login credentials for the Sunsea portal have been updated.",
-            teamName: "Sunsea HR & IT Team",
+            subtitle: "Your login credentials for the Shiftline portal have been updated.",
+            teamName: "Shiftline HR & IT Team",
           }),
         });
       } catch (emailErr) {

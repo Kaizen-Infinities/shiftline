@@ -17,7 +17,7 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "sunsea-theme";
+const STORAGE_KEY = "shiftline-theme";
 
 function applyTheme(mode: ThemeMode) {
   const root = document.documentElement;

@@ -156,7 +156,7 @@ const LoginPage = () => {
                     <div className="flex-1 flex flex-col justify-center">
                         <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.1] mb-5 tracking-tight">
                             Welcome to<br />
-                            Sun Sea ERP
+                            Shiftline
                         </h1>
 
                         <p className="text-blue-100 text-base leading-relaxed max-w-[540px] opacity-80">
@@ -166,7 +166,7 @@ const LoginPage = () => {
 
                     {/* Copyright */}
                     <p className="text-blue-200 text-xs opacity-50 pb-10">
-                        © {new Date().getFullYear()} {company?.companyName || "SunSea"} ERP. All rights reserved.
+                        © {new Date().getFullYear()} {company?.companyName || "Shiftline"}. All rights reserved.
                     </p>
                 </div>
             </div>
@@ -178,7 +178,7 @@ const LoginPage = () => {
                 <div className="lg:hidden mb-8 flex flex-col items-center">
                     <img
                         src={company?.logoUrl || Logo}
-                        alt="SunSea"
+                        alt={company?.companyName || "Shiftline"}
                         className="h-12 object-contain"
                     />
                 </div>
@@ -210,7 +210,7 @@ const LoginPage = () => {
                             name="email"
                             type="text"
                             value={email}
-                            placeholder="you@sunsea.com"
+                            placeholder="you@company.com"
                             required
                             icon={<FaEnvelope />}
                             disabled={loading}

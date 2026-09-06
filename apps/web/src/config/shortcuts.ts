@@ -1,4 +1,4 @@
-// Sunsea ERP — Global Shortcut Registry
+// Shiftline — Global Shortcut Registry
 // F1–F12 = Tally-style function keys  (see useGlobalShortcuts.ts for handlers)
 // Ctrl+letter = page navigation shortcuts
 // Plain letter = quick report shortcuts

@@ -144,7 +144,7 @@ class EmployeeController {
         data.photoUrl = await uploadToImageKit(
           req.file.buffer,
           `emp-${Date.now()}.${ext}`,
-          '/sunsea-erp/employees',
+          '/shiftline/employees',
         );
       } catch (err) {
         console.error("ImageKit upload failed:", err);
@@ -242,7 +242,7 @@ class EmployeeController {
         data.photoUrl = await uploadToImageKit(
           req.file.buffer,
           `emp-${Date.now()}.${ext}`,
-          '/sunsea-erp/employees',
+          '/shiftline/employees',
         );
       } catch (err) {
         console.error("ImageKit upload failed:", err);

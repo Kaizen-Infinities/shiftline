@@ -223,7 +223,7 @@ const TvDashboard: React.FC = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                SUNSEA ERP{" "}
+                SHIFTLINE{" "}
                 <span style={{ fontWeight: 500, color: T.textDim }}>— Management Dashboard</span>
               </div>
               <div

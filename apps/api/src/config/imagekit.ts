@@ -17,7 +17,7 @@ const imagekit = new ImageKit({
 export async function uploadToImageKit(
   buffer: Buffer,
   fileName: string,
-  folder: string = '/sunsea-erp',
+  folder: string = '/shiftline',
 ): Promise<string> {
   const base64 = buffer.toString('base64');
 

@@ -433,7 +433,7 @@ const QuotationList: React.FC = () => {
             setRecipientEmail((fullItem.customer as any)?.email || "");
             setEmailSubject(`Quotation for Order ${fullItem.orderNo}`);
             setEmailMessage(
-                `Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached quotation.\n\nBest regards,\n${company?.companyName || "Sunsea"}`
+                `Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached quotation.\n\nBest regards,\n${company?.companyName || "Our team"}`
             );
             setShowEmailModal(true);
         } catch {
@@ -466,7 +466,7 @@ const QuotationList: React.FC = () => {
             setWhatsappOrder(fullItem);
             setRecipientPhone(fullItem.mobile || "");
             setWhatsappMessage(
-                `Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached quotation.\n\nBest regards,\n${company?.companyName || "Sunsea"}`
+                `Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached quotation.\n\nBest regards,\n${company?.companyName || "Our team"}`
             );
             setShowWhatsappModal(true);
         } catch {

@@ -6,7 +6,7 @@ const Footer: React.FC = () => {
   return (
     <footer className="flex items-center justify-between px-6 py-3 bg-card border-t border-line text-sm text-ink-subtle shrink-0 gap-4">
       <p className="shrink-0">
-        © {nowYear} SUNSEA ERP. All Rights Reserved.
+        © {nowYear} Shiftline. All rights reserved.
       </p>
 
       {/* Center — prefetch progress (only visible on /accounts routes while a

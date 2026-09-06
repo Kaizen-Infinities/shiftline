@@ -141,7 +141,7 @@ const SalesInvoiceList: React.FC = () => {
             setEmailInvoice(fullItem);
             setRecipientEmail((fullItem.customer as any)?.email || "");
             setEmailSubject(`Invoice ${fullItem.invoiceNo}`);
-            setEmailMessage(`Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached invoice for your reference.\n\nBest regards,\n${company?.companyName || "Sunsea"}`);
+            setEmailMessage(`Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached invoice for your reference.\n\nBest regards,\n${company?.companyName || "Our team"}`);
             setShowEmailModal(true);
         } catch (error: any) {
             toast.error("Failed to load invoice details");
@@ -191,7 +191,7 @@ const SalesInvoiceList: React.FC = () => {
             }
             setRecipientPhone(rPhone);
 
-            setWhatsappMessage(`Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached invoice for your reference.\n\nBest regards,\n${company?.companyName || "Sunsea"}`);
+            setWhatsappMessage(`Dear ${fullItem.customer?.displayName || fullItem.customer?.firmName || "Customer"},\n\nPlease find the attached invoice for your reference.\n\nBest regards,\n${company?.companyName || "Our team"}`);
             setShowWhatsappModal(true);
         } catch (error: any) {
             toast.error("Failed to load invoice details");

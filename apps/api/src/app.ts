@@ -25,7 +25,6 @@ const allowedOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5174",
-  "https://sunsea-hu67-dt0lgdajz-kaizen-infinities.vercel.app",
 ];
 
 // Add production frontend URLs if different from defaults
@@ -45,12 +44,7 @@ app.use(
       "DELETE",
       "OPTIONS",
     ],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "ngrok-skip-browser-warning",
-      "Bypass-Tunnel-Reminder",
-    ],
+    allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["Content-Disposition"],
   })
 );
@@ -65,11 +59,6 @@ app.use((_req, res, next) => {
   res.setHeader(
     "X-Frame-Options",
     "DENY"
-  );
-
-  res.setHeader(
-    "X-XSS-Protection",
-    "1; mode=block"
   );
 
   if (isProduction) {
@@ -111,7 +100,7 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Welcome to Sunsea ERP API",
+    message: "Shiftline API",
     version: "1.0.0",
     environment: process.env.NODE_ENV || "development",
     timestamp: new Date().toISOString()

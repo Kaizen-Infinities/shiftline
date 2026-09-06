@@ -12,7 +12,7 @@ export interface WelcomeEmailData {
 }
 
 /**
- * Generates a grand, modern, big-brand styled HTML Email Template for Sunsea portal welcome & credential emails.
+ * Generates a grand, modern, big-brand styled HTML Email Template for Shiftline portal welcome & credential emails.
  */
 export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
   const portalUrl = data.portalUrl || process.env.FRONTEND_URL || env.FRONTEND_URL || "http://localhost:5173";
@@ -20,9 +20,9 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
   const empCode = data.empCode;
   const username = data.username;
   const password = data.password;
-  const title = data.title || "Welcome to Sunsea!";
+  const title = data.title || "Welcome to Shiftline!";
   const subtitle = data.subtitle || "Your official employee account and login credentials are ready.";
-  const teamName = data.teamName || "Sunsea HR & IT Team";
+  const teamName = data.teamName || "Shiftline HR & IT Team";
 
   return `
 <!DOCTYPE html>
@@ -60,7 +60,7 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td>
-                    <!-- Sunsea Brand Icon + Title -->
+                    <!-- Shiftline Brand Icon + Title -->
                     <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                       <tr>
                         <td style="background: linear-gradient(135deg, #2563eb, #1d4ed8); width: 44px; height: 44px; border-radius: 12px; text-align: center; vertical-align: middle; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);">
@@ -68,7 +68,7 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
                         </td>
                         <td style="padding-left: 14px;">
                           <div style="font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; line-height: 1.2;">
-                            SUNSEA
+                            SHIFTLINE
                           </div>
                           <div style="font-size: 11px; font-weight: 700; color: #2563eb; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px;">
                             ENTERPRISE MANAGEMENT PORTAL
@@ -162,7 +162,7 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
                       <tr>
                         <td style="vertical-align: top; padding-right: 12px; font-size: 20px;">🛡️</td>
                         <td style="vertical-align: middle; font-size: 13px; color: #92400e; line-height: 1.5;">
-                          <strong style="color: #78350f;">Security Notice:</strong> For security reasons, please log in to the Sunsea portal and change your password at your earliest convenience.
+                          <strong style="color: #78350f;">Security Notice:</strong> For security reasons, please log in to the Shiftline portal and change your password at your earliest convenience.
                         </td>
                       </tr>
                     </table>
@@ -175,7 +175,7 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
                 <tr>
                   <td align="center">
                     <a href="${portalUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 15px 36px; border-radius: 10px; font-weight: 700; font-size: 15px; letter-spacing: 0.2px; box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4); text-align: center;">
-                      Log In to Sunsea Portal &rarr;
+                      Log In to Shiftline &rarr;
                     </a>
                   </td>
                 </tr>
@@ -193,13 +193,13 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
           <tr>
             <td style="padding: 24px 40px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
               <p style="margin: 0 0 8px 0; font-size: 12px; color: #64748b; font-weight: 600;">
-                Sunsea Enterprise Management Systems
+                Shiftline by Kaizen Infinities
               </p>
               <p style="margin: 0 0 12px 0; font-size: 11px; color: #94a3b8; line-height: 1.5;">
                 This is an automated system notification. If you did not request or expect this email, please contact your system administrator.
               </p>
               <p style="margin: 0; font-size: 11px; color: #cbd5e1;">
-                &copy; ${new Date().getFullYear()} Sunsea. All rights reserved.
+                &copy; ${new Date().getFullYear()} Shiftline. All rights reserved.
               </p>
             </td>
           </tr>

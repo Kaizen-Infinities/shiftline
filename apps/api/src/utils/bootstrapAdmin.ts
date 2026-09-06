@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { generatePermissions } from "../config/permissionRegistry";
 
 /**
@@ -34,7 +34,7 @@ export const bootstrapAdmin = async (prisma: PrismaClient): Promise<boolean> => 
   }
 
   // ── Fresh install: run full bootstrap ────────────────────────────────────
-  const adminEmail    = process.env.ADMIN_EMAIL    || "admin@sunsea.in";
+  const adminEmail    = process.env.ADMIN_EMAIL    || "admin@shiftline.local";
   const adminUsername = process.env.ADMIN_USERNAME || "superadmin";
   const adminPassword = process.env.ADMIN_PASSWORD || "admin@123";
 

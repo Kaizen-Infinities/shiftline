@@ -8,7 +8,7 @@ export const PublicRoute: React.FC = () => {
 
     // App is still fetching user details from refresh token at start
     if (!isInitialized) {
-        return <CommonLoader text="Loading Sunsea ERP..." />;
+        return <CommonLoader text="Loading Shiftline..." />;
     }
 
     if (isAuthenticated) {

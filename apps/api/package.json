@@ -1,18 +1,19 @@
 {
   "main": "server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
-    "start": "node server.js",
-    "vercel-build": "tsc",
-    "test": "echo \"No tests configured\""
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "test": "echo \"tests arrive in P0-04\" && exit 0"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.3",
-    "cloudinary": "^2.10.0",
     "convert-units": "^2.3.4",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -29,12 +30,10 @@
     "prisma": "^6.16.2",
     "puppeteer": "^25.4.0",
     "socket.io": "^4.8.3",
-    "ts-node-dev": "^2.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
-    "@types/bcryptjs": "^2.4.6",
     "@types/convert-units": "^2.3.12",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -44,8 +43,13 @@
     "@types/node": "^25.9.3",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^8.0.1",
-    "nodemon": "^3.1.14",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.2"
+  },
+  "name": "@shiftline/api",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22 <23"
   }
 }

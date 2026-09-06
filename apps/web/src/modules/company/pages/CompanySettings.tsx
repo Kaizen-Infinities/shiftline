@@ -174,7 +174,7 @@ const CompanySettings: React.FC = () => {
         </div>
         <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-ink pb-2">Welcome to Sunsea ERP</h2>
+            <h2 className="text-3xl font-bold text-ink pb-2">Welcome to Shiftline</h2>
             <p className="text-ink-muted">Please complete your company onboarding to get started.</p>
           </div>
           <div className="bg-card rounded-xl shadow-lg border border-line-soft">

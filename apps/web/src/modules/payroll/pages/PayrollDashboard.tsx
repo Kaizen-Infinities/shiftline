@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppSelector } from '../../../hooks/reduxHooks';
 import {
   Users, IndianRupee, Clock, CheckCircle2,
   CalendarDays, FileText, Settings, BarChart3, ChevronRight,
@@ -33,6 +34,7 @@ const getCurrentMonth = () => {
 };
 
 const PayrollDashboard: React.FC = () => {
+  const company = useAppSelector((state) => state.company.data);
   const navigate = useNavigate();
   const { can } = usePermission();
   const canCreateRun      = can("payroll-run.create");
@@ -190,7 +192,7 @@ const PayrollDashboard: React.FC = () => {
         <div>
           <h1 className="text-2xl font-extrabold text-ink tracking-tight">Payroll Overview</h1>
           <p className="text-xs text-ink-muted mt-1 flex items-center gap-1.5">
-            <span>Sunsea Plastics</span>
+            <span>{company?.companyName || 'Company'}</span>
             <span>•</span>
             <span>Payroll Dashboard</span>
             {currentPeriod !== '—' && (

@@ -129,14 +129,14 @@ export class UserService {
     try {
       await sendEmail({
         to: data.email,
-        subject: "Welcome to Sunsea — Your User Account Has Been Created",
+        subject: "Welcome to Shiftline — Your User Account Has Been Created",
         html: generateWelcomeEmailHtml({
           fullName: data.fullName,
           username: data.username,
           password: data.password,
-          title: "Welcome to Sunsea!",
+          title: "Welcome to Shiftline!",
           subtitle: "Your user login account has been created successfully.",
-          teamName: "Sunsea Admin Team",
+          teamName: "Shiftline Admin Team",
         }),
       });
     } catch (emailErr) {
