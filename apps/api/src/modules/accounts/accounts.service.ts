@@ -74,8 +74,9 @@ class AccountsService {
   // Once all system ledgers exist we never need to re-check the DB — they never
   // get deleted at runtime. Memoized flag avoids the findMany on every report load
   // that was contributing to Neon pool exhaustion (P2024).
-  private static _systemLedgersReadyAt: number = 0;
-  private static _inFlightSystemLedgerCheck: Promise<void> | null = null;
+  // Memoized per tenant: a check for one company must never satisfy another.
+  private static _systemLedgersReadyAt = new Map<string, number>();
+  private static _inFlightSystemLedgerCheck = new Map<string, Promise<void>>();
   private static readonly SYSTEM_LEDGERS_TTL_MS: number = 5 * 60_000; // 5 min
 
   /**
@@ -91,24 +92,28 @@ class AccountsService {
     if (txClient) {
       return this._doEnsureSystemLedgersExist(txClient);
     }
+    const companyId = requireTenantId();
     const now = Date.now();
-    if (now - AccountsService._systemLedgersReadyAt < AccountsService.SYSTEM_LEDGERS_TTL_MS) {
+    const readyAt = AccountsService._systemLedgersReadyAt.get(companyId) ?? 0;
+    if (now - readyAt < AccountsService.SYSTEM_LEDGERS_TTL_MS) {
       return;
     }
-    if (AccountsService._inFlightSystemLedgerCheck) {
-      return AccountsService._inFlightSystemLedgerCheck;
+    const inFlight = AccountsService._inFlightSystemLedgerCheck.get(companyId);
+    if (inFlight) {
+      return inFlight;
     }
-    AccountsService._inFlightSystemLedgerCheck = this._doEnsureSystemLedgersExist()
+    const check = this._doEnsureSystemLedgersExist()
       .then(() => {
-        AccountsService._systemLedgersReadyAt = Date.now();
+        AccountsService._systemLedgersReadyAt.set(companyId, Date.now());
       })
       .catch((err) => {
         logger.error({ err: err }, "[System Ledgers] ensureSystemLedgersExist failed:");
       })
       .finally(() => {
-        AccountsService._inFlightSystemLedgerCheck = null;
+        AccountsService._inFlightSystemLedgerCheck.delete(companyId);
       });
-    return AccountsService._inFlightSystemLedgerCheck;
+    AccountsService._inFlightSystemLedgerCheck.set(companyId, check);
+    return check;
   }
 
   private async _doEnsureSystemLedgersExist(txClient?: Prisma.TransactionClient) {

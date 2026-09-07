@@ -34,7 +34,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
     companyName: opts.companyName,
     legalName: `${opts.companyName} Private Limited`,
     slug: opts.slug,
-    gstin: "33AAAAA0000A1Z5", // syntactically valid, not a real registration
+    gstin: "33AAAAA0000A1Z9", // syntactically valid, not a real registration
     phone: "0000000000",
     email: `hello@${opts.slug}.shiftline.local`,
     addressLine1: "Plot 1, Demo Industrial Estate",
@@ -56,6 +56,22 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       });
     }
     const factory = await prisma.businessPlace.findFirstOrThrow({ where: { code: "F1" } });
+
+    // The provisioned Main Bank Account gets bank details, as the onboarding wizard would add.
+    const mainBank = await prisma.accountLedger.findFirstOrThrow({ where: { code: "BANK-001" } });
+    await prisma.bankAccount.upsert({
+      where: { ledgerId: mainBank.id },
+      update: {},
+      create: {
+        ledgerId: mainBank.id,
+        bankName: "Demo Bank",
+        accountName: `${opts.companyName} Private Limited`,
+        accountNumber: "000000000001",
+        ifsc: "DEMO0000001",
+        branch: "Chennai Main",
+        isDefault: true,
+      },
+    });
 
     // Users (username/email are global uniques, hence the slug)
     const passwordHash = await hashPassword(opts.password);

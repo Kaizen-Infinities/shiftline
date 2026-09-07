@@ -41,6 +41,74 @@ const snapshotTenant = async (companyId: string): Promise<TableSnapshot> => {
   );
 };
 
+/** Tenant models the seed leaves empty (policy-covered by rls.spec, not swept here). */
+const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
+  "AgentPosition",
+  "AttendanceRecord",
+  "CustomerAddress",
+  "DailyProductionPlan",
+  "EmailConfig",
+  "EmployeePayrollConfig",
+  "EmployeePermanentDeduction",
+  "EodStockSnapshot",
+  "Expense",
+  "FinishedGoodsStock",
+  "FinishedGoodsTransaction",
+  "GoodsDispatch",
+  "GoodsDispatchItem",
+  "GrnInvoice",
+  "GrnInvoiceItem",
+  "GrnInvoicePayment",
+  "HourlyProduction",
+  "Invitation",
+  "JournalItem",
+  "Location",
+  "MachineAssignmentOperator",
+  "MachineOeeSnapshot",
+  "MachineOperationAssignment",
+  "MobileCollection",
+  "MobileDevice",
+  "MobileSyncRecord",
+  "MobileVisit",
+  "PayrollConfig",
+  "PayrollResult",
+  "PayrollRun",
+  "PettyCashEntry",
+  "ProductCapacityHistory",
+  "ProductImage",
+  "ProductShiftRecord",
+  "ProductionOrder",
+  "ProductionOrderHistory",
+  "ProductionStep",
+  "ProductionWastage",
+  "PurchaseOrder",
+  "PurchaseOrderItem",
+  "PurchaseReturn",
+  "PurchaseReturnItem",
+  "RawMaterialTransaction",
+  "RetentionPolicy",
+  "RetentionSweep",
+  "SalaryAdvance",
+  "SalesInvoice",
+  "SalesInvoiceItem",
+  "SalesInvoicePayment",
+  "SalesOrder",
+  "SalesOrderItem",
+  "SalesProduct",
+  "SalesProductComponent",
+  "SalesProductStock",
+  "SalesReturn",
+  "SalesReturnItem",
+  "StockAdjustment",
+  "StockAdjustmentItem",
+  "StoreLocation",
+  "SupplierAddress",
+  "SupplierMaterialPrice",
+  "Voucher",
+  "WeeklyMachineProgram",
+  "WhatsappConfig",
+]);
+
 describe("cross-tenant leak suite", () => {
   let tenantA: string;
   let tenantB: string;
@@ -118,8 +186,10 @@ describe("cross-tenant leak suite", () => {
       if (a.length === 0 && b.length === 0) unexercised.push(model);
     }
     // Models with no seeded rows in either tenant are still policy-covered (rls.spec) but not
-    // exercised here; keep the list visible so new models get seed coverage deliberately.
-    expect(unexercised.sort()).toMatchSnapshot();
+    // exercised here. A new model must either get seed rows or be added to the list below
+    // deliberately; other suites sharing this worker database may exercise some of these.
+    const unexpected = unexercised.filter((m) => !MODELS_WITHOUT_SEED_ROWS.has(m));
+    expect(unexpected, "new tenant models without seed coverage").toEqual([]);
   });
 
   const paramValue = (route: RouteEntry, param: string): string | undefined => {

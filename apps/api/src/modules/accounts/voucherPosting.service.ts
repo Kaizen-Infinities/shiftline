@@ -1588,7 +1588,9 @@ class VoucherPostingService {
     ledger: { id: number; code: string; name: string },
     amount: number,
     type: "DEBIT" | "CREDIT" = "DEBIT",
-    txClient?: Prisma.TransactionClient
+    txClient?: Prisma.TransactionClient,
+    /** Date of the opening entry; defaults to the start of the current Indian financial year. */
+    opts: { date?: Date } = {}
   ) {
     const db = txClient || prisma;
     await accountsService.ensureSystemLedgersExist(db);
@@ -1603,7 +1605,7 @@ class VoucherPostingService {
       {
         voucherNo: `JV-LEDG-OP-${ledger.code}`,
         type: VoucherType.JOURNAL,
-        date: getFinancialYearStart(),
+        date: opts.date ?? getFinancialYearStart(),
         narration: `Opening balance for ${ledger.name} (${type} ₹${amount})`,
         refDocType: "LEDGER_OPENING_BALANCE",
         refDocId: String(ledger.id),

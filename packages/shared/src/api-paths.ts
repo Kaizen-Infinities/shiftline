@@ -113,6 +113,9 @@ export const API_PATHS = {
     base: "/supplier-material-prices",
     nextId: "/supplier-material-prices/next-id",
   },
+  onboarding: {
+    base: "/onboarding",
+  },
   company: {
     base: "/companies",
   },

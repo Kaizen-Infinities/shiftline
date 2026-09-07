@@ -43,10 +43,52 @@ conflicts, platform routes closed to tenants, owner accepts and lands in an empt
 single-use link, colleague invitation replace/revoke/expire, field users cannot invite.
 105 API tests.
 
-## Part 2 — onboarding wizard and ToS (planned)
+## Part 2 — onboarding wizard and terms of service (2026-09-07)
 
-`onboardingStep` on Company (`company` → `gst` → `financial-year` → `bank` → `users` → done),
-`tosAcceptedAt/By`; API to read and advance; web wizard replacing the `/company/create` redirect.
+**State machine.** `Company.onboardingStep` holds the next step to complete:
+`company` → `gst` → `financial-year` → `bank` → `users` → `review`; completion sets
+`isOnboarded = true` and clears the step. Any step may be revisited until completion (the pointer
+only moves forward); after completion every wizard write answers 409 and the ordinary settings
+screens take over. `PUT /api/companies/:id` no longer flips `isOnboarded`; only completion does.
+
+**API** (`modules/onboarding`, mounted at `/api/onboarding`; any signed-in member may `GET`, writes
+need `company-settings.edit`):
+
+| Route                 | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /`               | Step pointer, per-step done flags, terms status and version, and the current values of every step (company, GST and places, financial year, bank accounts with balances, users, pending invitations, roles).                                                                                                                                                                                                                                                                                                                                         |
+| `PUT /company`        | Name, legal and short name, contact, address.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `PUT /gst`            | Registration type (regular, composition, unregistered; stored as the `GST_REGISTRATION_TYPE` setting), GSTIN validated by format, state code and check digit (`isValidGstin` in `@shiftline/shared`), and the full list of places of business (exactly one head office; the GSTIN state must match it; codes unique). Places are upserted by id or code; dropped places are deleted, or deactivated when machines or stores point at them. `Company.gstin` and `state` follow.                                                                       |
+| `PUT /financial-year` | `fyStart` (first of a month) and optional `booksBeginOn` (`BOOKS_BEGIN_ON` setting). Re-dates `InvoiceSetting`, renames and re-dates the open accounting period, and moves unused `DocumentSequence` rows (`next = 1`) to the new year code (`2026-27`, or `2026` for a calendar year). Refused with 409 once vouchers exist.                                                                                                                                                                                                                        |
+| `PUT /bank`           | Bank accounts: an existing bank ledger (`ledgerId`, for example the provisioned `BANK-001`) is renamed and given details, new ones get the next `BANK-nnn` ledger in the _Bank Accounts_ group. Details live in the new `BankAccount` model (bank, account name and number, IFSC, branch, UPI id, default flag; RLS, audit trigger). A positive `openingBalance` posts the opening journal (`JV-LEDG-OP-<code>`, `LEDGER_OPENING_BALANCE`) dated the day books begin, once per ledger. Exactly one default account. An empty list is a valid "skip". |
+| `PUT /users`          | Invitations by email and role code through `invitationService`; per-row result `invited`, `exists` or `error` so one duplicate does not fail the batch. Empty list skips.                                                                                                                                                                                                                                                                                                                                                                            |
+| `POST /accept-tos`    | Body `{ version }` must equal `TOS_VERSION` (`2026-09`); records `tosAcceptedAt/By` and the `TOS_VERSION_ACCEPTED` setting.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `POST /complete`      | Requires the pointer at `review` and the current terms accepted; marks the company onboarded.                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+`accountsService.ensureSystemLedgersExist()` memoises per tenant now (it was process-wide, so a
+second tenant provisioned within five minutes of any report load could have skipped its ledgers).
+`postGenericLedgerOpeningBalanceVoucher` accepts an explicit date.
+
+**Shared.** `packages/shared/gst-states.ts`: the 37 GST state codes with names and abbreviations,
+`GSTIN_REGEX`, `isValidGstin` (mod-36 check digit) and `stateCodeOfGstin`. The seed and tests use
+check-digit-valid placeholder GSTINs (`33AAAAA0000A1Z9`, `29AAAAA0000A1ZY`).
+
+**Web.** `/onboarding` (`modules/onboarding`), rendered without the main layout. `ProtectedRoute`
+sends every member of a not-yet-onboarded tenant there and bounces onboarded tenants back to the
+dashboard (the old `/company/create` route is gone). Left rail stepper (completed steps are
+clickable), one screen per step, review screen with a terms summary and checkbox, "Finish setup"
+accepts the terms if needed, completes, refreshes the company and lands on the dashboard. Members
+without `company-settings.edit` see a "being set up" page with step progress, refresh and sign out.
+
+**Tests.** `onboarding.spec.ts` (8): provisioned owner lands on step one with defaults; each step
+validates and advances (bad GSTIN check digit, GSTIN/head-office state mismatch, mid-month FY start,
+bad IFSC); FY change re-dates period, settings and sequences; bank step renames `BANK-001`, creates
+`BANK-002` with a balanced opening journal dated the books-begin day and two audit rows; users step
+reports invited/exists/error; completion needs the current terms, then locks the wizard; members
+without the permission read but cannot write. `e2e/onboarding.spec.ts`: platform admin provisions
+a tenant, the owner accepts and completes all six steps in the browser and reaches the dashboard.
+113 API tests, 15 browser tests. The leak suite's seed-coverage check is now a subset assertion
+against a documented list, so other suites sharing a worker database cannot make it flap.
 
 ## Part 3 — CSV imports, notifications, surrogate keys (planned)
 

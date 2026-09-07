@@ -1,9 +1,5 @@
-export type BusinessPlaceType = 
-  | "HEAD_OFFICE"
-  | "BRANCH_OFFICE"
-  | "FACTORY"
-  | "WAREHOUSE"
-  | "RETAIL_STORE";
+export type BusinessPlaceType =
+  "HEAD_OFFICE" | "BRANCH_OFFICE" | "FACTORY" | "WAREHOUSE" | "RETAIL_STORE";
 
 export interface BusinessPlace {
   id: string; // Stored as BigInt in DB but returned as string via API
@@ -38,6 +34,9 @@ export interface Company {
   zipcode?: string | null;
   country?: string | null;
   isOnboarded: boolean;
+  onboardingStep?: string | null;
+  tosAcceptedAt?: string | null;
+  slug?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -60,6 +60,7 @@ import mobileRoutes from "../modules/mobile/mobile.routes";
 import platformBackupsRoutes from "../modules/platform/backups.routes";
 import platformTenantsRoutes from "../modules/platform/tenants.routes";
 import invitationRoutes from "../modules/users/invitation.routes";
+import onboardingRoutes from "../modules/onboarding/onboarding.routes";
 
 const router = Router();
 
@@ -129,6 +130,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/platform/backups", router: platformBackupsRoutes },
   { path: "/platform/tenants", router: platformTenantsRoutes },
   { path: "/invitations", router: invitationRoutes },
+  { path: "/onboarding", router: onboardingRoutes },
 ];
 
 for (const { path, router: moduleRouter } of API_MOUNTS) {

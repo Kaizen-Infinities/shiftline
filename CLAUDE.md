@@ -53,7 +53,9 @@ input leaks, secrets, error text → human review and merge → hand-off note.
 - New tenants come only from `provisioningService.provisionTenant()` (seed, platform API,
   later self-signup); anything every company needs on day one belongs there, not in a seed.
   Users join through invitations (`modules/users/invitation.service.ts`), never with a password
-  sent by email.
+  sent by email. A new tenant is finished by its owner in the onboarding wizard
+  (`modules/onboarding`, web `/onboarding`); only `POST /api/onboarding/complete` sets
+  `Company.isOnboarded`. GSTINs are validated with `isValidGstin` from `@shiftline/shared`.
 - Field app sync (`modules/mobile`): the server enforces the conflict policy in
   `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
   by field, device headers on writes). Never let a device overwrite a server-owned row.

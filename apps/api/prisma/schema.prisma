@@ -560,6 +560,7 @@ model Company {
   retentionSweeps             RetentionSweep[]             @relation("CompanyRetentionSweep")
   mobileDevices               MobileDevice[]               @relation("CompanyMobileDevice")
   agentPositions              AgentPosition[]              @relation("CompanyAgentPosition")
+  bankAccounts                BankAccount[]                @relation("CompanyBankAccount")
 
   @@map("companies")
 }
@@ -2383,11 +2384,38 @@ model AccountLedger {
   supplier    Supplier?     @relation(fields: [supplierId], references: [id])
   debitItems  JournalItem[] @relation("DebitItems")
   creditItems JournalItem[] @relation("CreditItems")
+  bankAccount BankAccount?
 
   company Company @relation("CompanyAccountLedger", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, code])
   @@map("account_ledgers")
+}
+
+/// A bank account of the tenant, backed by an asset ledger in the "Bank Accounts"
+/// group. Created by the onboarding wizard (P1-00); the base for statement import and
+/// reconciliation (P1-20) and payment links (P1-21).
+model BankAccount {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  ledgerId      Int      @unique @map("ledger_id")
+  bankName      String   @map("bank_name") @db.VarChar(120)
+  /// Name the account is held in, when it differs from the company name.
+  accountName   String?  @map("account_name") @db.VarChar(160)
+  accountNumber String?  @map("account_number") @db.VarChar(34)
+  ifsc          String?  @db.VarChar(11)
+  branch        String?  @db.VarChar(120)
+  upiId         String?  @map("upi_id") @db.VarChar(80)
+  isDefault     Boolean  @default(false) @map("is_default")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ledger  AccountLedger @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  company Company       @relation("CompanyBankAccount", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@map("bank_accounts")
 }
 
 model Voucher {

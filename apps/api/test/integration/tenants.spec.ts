@@ -34,7 +34,7 @@ describe("tenant provisioning and invitations", () => {
         companyCode,
         companyName: "New Company Industries",
         slug,
-        gstin: "29AAAAA0000A1Z5",
+        gstin: "29AAAAA0000A1ZY",
         owner: { email: ownerEmail, fullName: "New Owner" },
       });
     expect(res.status, JSON.stringify(res.body)).toBe(201);

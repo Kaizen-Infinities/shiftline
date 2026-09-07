@@ -18,6 +18,7 @@ const NotFoundPage = lazy(() => import("../modules/not-found/pages/NotFoundPage"
 const UnauthorizedPage = lazy(() => import("../modules/unauthorized/pages/UnauthorizedPage"));
 const LoginPage = lazy(() => import("../modules/login/pages/LoginPage"));
 const AcceptInvitationPage = lazy(() => import("../modules/login/pages/AcceptInvitationPage"));
+const OnboardingWizard = lazy(() => import("../modules/onboarding/pages/OnboardingWizard"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
 
 // ===========================================================================
@@ -346,8 +347,8 @@ const AppRoutes = () => {
       <Routes>
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-          {/* Onboarding Route (Rendered without BaseLayout) */}
-          <Route path="/company/create" element={<CompanySettings />} />
+          {/* Onboarding wizard (rendered without BaseLayout) */}
+          <Route path="/onboarding" element={<OnboardingWizard />} />
 
           {/* TV Dashboard — full-screen, no navbar/footer */}
           <Route path="/tv-dashboard" element={<TvDashboard />} />

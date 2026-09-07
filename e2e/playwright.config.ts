@@ -8,6 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
  * Env:
  *   E2E_WEB_URL / E2E_API_URL   where the app runs (defaults: 5173 / 5000)
  *   E2E_USER / E2E_PASSWORD     seeded login (defaults: owner@demo.shiftline.local / Demo@12345678)
+ *   E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD   platform admin for the onboarding flow (defaults to the CI values)
  *   E2E_NO_SERVER=1             do not start servers (they are already running)
  *   E2E_WEB_COMMAND             override the web server command (CI uses vite preview)
  *   PLAYWRIGHT_CHROMIUM_PATH    use a pre-installed Chromium instead of the downloaded one
@@ -17,7 +18,10 @@ const WEB = process.env.E2E_WEB_URL ?? "http://localhost:5173";
 const API = process.env.E2E_API_URL ?? "http://localhost:5000";
 const webCommand =
   process.env.E2E_WEB_COMMAND ??
-  (CI ? "npx vite preview --port 5173 --strictPort" : "npx vite --port 5173 --strictPort");
+  (CI
+    ? "npx vite preview --port 5173 --strictPort"
+    : // --force: a stale pre-bundle of @shiftline/shared otherwise hides new exports locally.
+      "npx vite --port 5173 --strictPort --force");
 
 export default defineConfig({
   testDir: ".",
