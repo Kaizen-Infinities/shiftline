@@ -12,6 +12,7 @@ import {
   resetPassword,
   getProfile,
   getActiveSessions,
+  endImpersonation,
 } from "./auth.controller";
 
 import { validateMiddleware } from "../../middleware/validate.middleware";
@@ -69,5 +70,6 @@ router.post(
 );
 
 router.get("/me", authMiddleware, getProfile);
+router.post("/impersonation/end", authMiddleware, endImpersonation);
 
 export default router;

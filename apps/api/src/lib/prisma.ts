@@ -31,6 +31,7 @@ const GLOBAL_MODELS = new Set([
   "UserSession",
   "PasswordResetToken",
   "LoginAttempt",
+  "ImpersonationSession",
 ]);
 
 const modelHasCompanyId = (name: string): boolean => {

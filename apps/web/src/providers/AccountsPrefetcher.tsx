@@ -15,7 +15,8 @@ const AccountsPrefetcher: React.FC = () => {
   const companyId = company?.id;
 
   useEffect(() => {
-    if (!user) return;
+    // Platform admins have no tenant (P1-02): the accounts caches are not theirs to warm.
+    if (!user || user.isSuperAdmin) return;
     // Tiny delay so the current page's own fetch grabs its Neon pool connection
     // first (13-conn limit shared with the prefetch burst).
     const timer = window.setTimeout(() => {

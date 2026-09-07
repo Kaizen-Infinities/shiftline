@@ -36,7 +36,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const payload = req.body as LoginDto;
 
-  const authResult = await authService.login(payload, req.ip, req.get("user-agent") ?? undefined);
+  const authResult = await authService.login(
+    payload,
+    req.ip,
+    req.get("user-agent") ?? undefined,
+    req.header("x-device-id") ?? undefined
+  );
 
   if (authResult.tokens.refreshToken) setRefreshCookie(res, authResult.tokens.refreshToken);
   res.status(200).json(
@@ -58,7 +63,12 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   if (!raw) throw new ApiError(401, "Refresh token is required");
   let result;
   try {
-    result = await authService.refresh(raw, req.ip, req.get("user-agent") ?? undefined);
+    result = await authService.refresh(
+      raw,
+      req.ip,
+      req.get("user-agent") ?? undefined,
+      req.header("x-device-id") ?? undefined
+    );
   } catch (err) {
     clearRefreshCookie(res);
     throw err;
@@ -164,5 +174,15 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
   const user = await authService.getProfile(userId);
 
   res.status(200).json(new ApiResponse("Profile fetched successfully", user));
+  return;
+});
+
+/** Ends the caller's own impersonation window (P1-02); a plain token is refused. */
+export const endImpersonation = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.user?.impersonationId;
+  if (!id) throw new ApiError(400, "This session is not an impersonation");
+  const { impersonationService } = await import("../platform/impersonation.service.js");
+  await impersonationService.end(id, { reason: "ended by impersonator" });
+  res.status(200).json(new ApiResponse("Impersonation ended"));
   return;
 });

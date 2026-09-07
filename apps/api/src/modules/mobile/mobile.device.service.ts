@@ -8,7 +8,7 @@
 import type { Request } from "express";
 
 import { prisma } from "../../config/prisma";
-import { requireTenantId } from "../../lib/tenant-context";
+import { requireTenantId, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import {
   AgentContext,
@@ -126,10 +126,19 @@ class MobileDeviceService {
     const device = await prisma.mobileDevice.findUnique({ where: { id } });
     if (!device) throw new ApiError(404, "Device not found");
     if (device.revokedAt) return device;
-    return prisma.mobileDevice.update({
+    const updated = await prisma.mobileDevice.update({
       where: { id },
       data: { revokedAt: new Date(), revokedBy: revokedBy?.slice(0, 36) ?? null },
     });
+    // Revoke-and-wipe (P1-02 B1): the device's refresh tokens die with it, so the next call
+    // from the phone is refused and the app wipes its local database.
+    await withoutTenant(() =>
+      prisma.userSession.updateMany({
+        where: { userId: device.userId, deviceId: device.deviceId, isActive: true },
+        data: { isActive: false, logoutAt: new Date() },
+      })
+    );
+    return updated;
   }
 
   async restore(id: string) {

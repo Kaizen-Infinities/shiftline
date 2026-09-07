@@ -2,11 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 import { ApiError } from "../utils/ApiError";
+import { logger } from "../lib/logger";
 import { env } from "../config/env";
 import { JwtPayload } from "../types/auth.types";
 import { prisma } from "../config/prisma";
 import { tenantStorage, withoutTenant } from "../lib/tenant-context";
 import { enforceTenantApiCap } from "../lib/tenant-rate-limit";
+import { impersonationService } from "../modules/platform/impersonation.service";
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -33,6 +35,10 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     }
 
     const isAdmin = decoded.userId.startsWith("admin_");
+    // An impersonation token names a tenant user but rides on the admin's session (P1-02).
+    const impersonating = Boolean(decoded.impersonatedBy && decoded.impersonationId);
+    const sessionOwner = impersonating ? decoded.impersonatedBy! : decoded.userId;
+    const ownerIsAdmin = sessionOwner.startsWith("admin_");
 
     // Session, account and permission checks read across tenants (the tenant is not known yet).
     const resolved = await withoutTenant(async () => {
@@ -40,9 +46,9 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       const session = await prisma.userSession.findFirst({
         where: {
           id: decoded.sessionId,
-          ...(isAdmin
-            ? { adminId: BigInt(decoded.userId.replace("admin_", "")) }
-            : { userId: decoded.userId }),
+          ...(ownerIsAdmin
+            ? { adminId: BigInt(sessionOwner.replace("admin_", "")) }
+            : { userId: sessionOwner }),
           isActive: true,
           expiresAt: { gt: new Date() },
         },
@@ -51,7 +57,25 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       if (!session) {
         throw new ApiError(401, "Session expired or invalid");
       }
+      // A refresh token bound to a device only serves requests from that device (P1-02 B1).
+      if (session.deviceId && req.header("x-device-id") !== session.deviceId) {
+        throw new ApiError(401, "This session belongs to another device", "DEVICE_MISMATCH");
+      }
       let companyId: string | null = null;
+
+      if (impersonating) {
+        const live = await impersonationService.active(decoded.impersonationId!, sessionOwner);
+        if (!live || live.userId !== decoded.userId) {
+          throw new ApiError(401, "Impersonation has ended", "IMPERSONATION_ENDED");
+        }
+        const admin = await prisma.admin.findUnique({
+          where: { id: live.adminId },
+          select: { status: true },
+        });
+        if (!admin || admin.status !== "active") {
+          throw new ApiError(401, "Admin account is suspended or inactive");
+        }
+      }
 
       // Verify user/admin account is still active
       if (isAdmin) {
@@ -76,11 +100,24 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       } else {
         const user = await prisma.user.findUnique({
           where: { userId: decoded.userId },
-          select: { status: true, roleId: true, companyId: true },
+          select: {
+            status: true,
+            roleId: true,
+            companyId: true,
+            company: { select: { isActive: true } },
+          },
         });
 
         if (!user || user.status !== "active") {
           throw new ApiError(401, "Account is suspended or inactive");
+        }
+        // A suspended tenant keeps its data but nobody in it can sign in (P1-02 console).
+        if (user.company && !user.company.isActive) {
+          throw new ApiError(
+            403,
+            "This company is suspended; contact Shiftline",
+            "TENANT_SUSPENDED"
+          );
         }
         companyId = user.companyId;
 
@@ -104,6 +141,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         companyId: resolved.companyId,
         userId: decoded.userId,
         isSuperAdmin: !!decoded.isSuperAdmin,
+        ...(impersonating && { impersonatedBy: decoded.impersonatedBy }),
       },
       () => {
         // Plan API cap (P1-01) counts every authenticated request of the tenant.
@@ -112,6 +150,10 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     );
   } catch (err) {
     if (err instanceof ApiError) return next(err);
+    // A bad or expired JWT is the normal case; anything else is worth a line in the log.
+    if (!(err instanceof Error) || !/jwt|token/i.test(err.name + err.message)) {
+      logger.warn({ err }, "auth middleware failed");
+    }
     return next(new ApiError(401, "Invalid or Expired Token"));
   }
 };

@@ -52,4 +52,6 @@ export interface AuthState {
   isInitialized: boolean;
   /** Null until the profile loads; platform admins keep it null. */
   entitlements: Entitlements | null;
+  /** Set while a platform admin acts as a tenant user (P1-02); read from the token. */
+  impersonation: { id: string; impersonatedBy: string; expiresAt: string; reason: string } | null;
 }

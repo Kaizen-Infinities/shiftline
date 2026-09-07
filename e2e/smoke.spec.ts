@@ -28,6 +28,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/accounts/balance-sheet", marker: /Balance Sheet/ },
   { path: "/accounts/profit-loss", marker: /Profit & Loss/ },
   { path: "/expenses", marker: /Expense Management/ },
+  { path: "/settings/devices", marker: /Field Devices/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 

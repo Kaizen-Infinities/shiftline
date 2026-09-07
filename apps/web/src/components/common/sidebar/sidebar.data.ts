@@ -1,5 +1,5 @@
 import type { SidebarItem } from "./sidebar.types";
-import { FiPieChart, FiSettings, FiBarChart2, FiClock, FiRepeat } from "react-icons/fi";
+import { FiPieChart, FiSettings, FiBarChart2, FiClock, FiRepeat, FiServer } from "react-icons/fi";
 
 export const sidebarItems: SidebarItem[] = [
   // ── 1. Dashboard (Direct Top-Level Link) ──────────────────────────────────
@@ -196,6 +196,7 @@ export const sidebarItems: SidebarItem[] = [
           },
           { title: "Data Imports", path: "/settings/imports", permission: "company-settings.view" },
           { title: "GST & HSN", path: "/settings/gst", permission: "gst_tax.view" },
+          { title: "Field Devices", path: "/settings/devices", permission: "mobile-app.manage" },
         ],
       },
       // ── 4. Users & Roles ──
@@ -235,6 +236,7 @@ export const sidebarItems: SidebarItem[] = [
       "/settings/invoice",
       "/settings/imports",
       "/settings/gst",
+      "/settings/devices",
       "/roles",
       "/role-permissions",
       "/departments",
@@ -749,5 +751,19 @@ export const sidebarItems: SidebarItem[] = [
       "payroll-attendance.view",
       "payroll-advance.view",
     ],
+  },
+
+  // ── Platform console (super admins only, P1-02) ───────────────────────────
+  {
+    title: "Platform",
+    icon: FiServer,
+    path: "/platform",
+    superAdminOnly: true,
+    children: [
+      { title: "Overview", path: "/platform" },
+      { title: "Tenants", path: "/platform/tenants" },
+      { title: "Plans", path: "/platform/plans" },
+    ],
+    activePaths: ["/platform"],
   },
 ];

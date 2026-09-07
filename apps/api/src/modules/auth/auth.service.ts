@@ -82,14 +82,20 @@ export class AuthService {
   }
 
   /** Login runs before any tenant is known, so it reads users across tenants. */
-  async login(payload: LoginDto, ipAddress?: string, userAgent?: string): Promise<AuthResult> {
-    return withoutTenant(() => this.loginInner(payload, ipAddress, userAgent));
+  async login(
+    payload: LoginDto,
+    ipAddress?: string,
+    userAgent?: string,
+    deviceId?: string
+  ): Promise<AuthResult> {
+    return withoutTenant(() => this.loginInner(payload, ipAddress, userAgent, deviceId));
   }
 
   private async loginInner(
     payload: LoginDto,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    deviceId?: string
   ): Promise<AuthResult> {
     let isAdminLogin = false;
     let admin = await authRepository.findAdminByEmail(payload.email);
@@ -136,6 +142,17 @@ export class AuthService {
         });
 
         throw new ApiError(429, "Too many login attempts. Please try again later.");
+      }
+    }
+
+    // A suspended tenant refuses every login with the tenant code (P1-02 console).
+    if (user && !isAdminLogin && user.companyId) {
+      const company = await prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { isActive: true },
+      });
+      if (company && !company.isActive) {
+        throw new ApiError(403, "This company is suspended; contact Shiftline", "TENANT_SUSPENDED");
       }
     }
 
@@ -204,6 +221,8 @@ export class AuthService {
       ipAddress,
       userAgent,
       deviceLabel: this.extractDeviceLabel(userAgent),
+      // Native clients bind the session to their device (P1-02 B1).
+      deviceId: deviceId?.slice(0, 120),
     });
 
     // Use the database session ID in the JWT payload
@@ -267,14 +286,20 @@ export class AuthService {
    * away is a replay: inside the grace window it is treated as a concurrent
    * tab and rotated again; beyond it the whole session is revoked.
    */
-  async refresh(rawToken: string, ipAddress?: string, userAgent?: string): Promise<AuthResult> {
-    return withoutTenant(() => this.refreshInner(rawToken, ipAddress, userAgent));
+  async refresh(
+    rawToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+    deviceId?: string
+  ): Promise<AuthResult> {
+    return withoutTenant(() => this.refreshInner(rawToken, ipAddress, userAgent, deviceId));
   }
 
   private async refreshInner(
     rawToken: string,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    deviceId?: string
   ): Promise<AuthResult> {
     const now = new Date();
     const hash = hashToken(rawToken);
@@ -305,6 +330,27 @@ export class AuthService {
         throw new ApiError(401, "Session revoked: refresh token reuse detected");
       }
       session = replayed;
+    }
+
+    // Device-bound sessions (P1-02 B1): the device must be the same and not revoked.
+    if (session.deviceId) {
+      if (deviceId !== session.deviceId) {
+        throw new ApiError(401, "This session belongs to another device", "DEVICE_MISMATCH");
+      }
+      if (session.userId) {
+        const revoked = await prisma.mobileDevice.findFirst({
+          where: { deviceId: session.deviceId, userId: session.userId, revokedAt: { not: null } },
+          select: { id: true },
+        });
+        if (revoked) {
+          await authRepository.logoutSession(session.id);
+          throw new ApiError(
+            403,
+            "This device has been revoked; sign out and wipe",
+            "DEVICE_REVOKED"
+          );
+        }
+      }
     }
 
     const isAdminLogin = session.adminId !== null;

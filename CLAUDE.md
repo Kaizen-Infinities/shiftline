@@ -73,6 +73,10 @@ input leaks, secrets, error text → human review and merge → hand-off note.
 - Year-end (`modules/year-end`): closing is prepared then approved; the closing JV carries
   `refDocType "YEAR_END"`, the P&L statement excludes it and the balance sheet includes it. Never post
   or cancel it by hand; the freeze date moves with the closing.
+- Platform admins (`Admin` rows, `isSuperAdmin`) have no tenant: console screens sit behind
+  `ProtectedRoute superAdmin` and `requireSuperAdmin()`, read tenant data with `runAsTenant`, and
+  act as a user only through `impersonationService` (30-minute token, reason, `impersonatedBy` on
+  every audit row). Native clients send `x-device-id`; a session bound to a device dies with it.
 - Field app sync (`modules/mobile`): the server enforces the conflict policy in
   `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
   by field, device headers on writes). Never let a device overwrite a server-owned row.

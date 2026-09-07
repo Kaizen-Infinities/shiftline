@@ -61,6 +61,9 @@ export interface AccessTokenPayload {
   /** Tenant id; null for platform admins until they select a tenant. */
   companyId: string | null;
   sessionId: string; // Add session ID to token
+  /** Platform admin acting as this user (P1-02); the session id is the admin's. */
+  impersonatedBy?: string;
+  impersonationId?: string;
 }
 
 export type JwtPayload = AccessTokenPayload;

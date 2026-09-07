@@ -9,6 +9,7 @@ import { ApiError } from "../../utils/ApiError";
 import { entitlementService } from "../entitlements/entitlement.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { invitationService } from "../users/invitation.service";
+import { impersonationService } from "./impersonation.service";
 import { provisioningService } from "./provisioning.service";
 
 export const createTenantSchema = z.object({
@@ -135,6 +136,21 @@ export const tenantsController = {
         }
       )
     );
+  },
+
+  /** Act as one of the tenant's users for up to thirty minutes (P1-02). */
+  impersonate: async (req: Request, res: Response) => {
+    const company = await tenantOr404(String(req.params.id));
+    const { userId, reason } = req.body as { userId?: string; reason: string };
+    const result = await impersonationService.start({
+      adminUserId: req.user!.userId,
+      adminSessionId: req.user!.sessionId,
+      companyId: company.id,
+      userId,
+      reason,
+      ipAddress: req.ip,
+    });
+    res.json(new ApiResponse("Impersonation started", result));
   },
 
   /** A tenant's plan, status, seats and effective entitlements. */

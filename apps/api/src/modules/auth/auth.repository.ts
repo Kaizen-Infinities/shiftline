@@ -199,6 +199,7 @@ export class AuthRepository {
     ipAddress?: string;
     userAgent?: string;
     deviceLabel?: string;
+    deviceId?: string;
   }): Promise<any> {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     const MAX_SESSIONS = 4;
@@ -238,6 +239,7 @@ export class AuthRepository {
           ipAddress: payload.ipAddress,
           userAgent: payload.userAgent,
           deviceLabel: payload.deviceLabel,
+          deviceId: payload.deviceId ?? null,
           loginAt: new Date(),
           expiresAt,
           isActive: true,

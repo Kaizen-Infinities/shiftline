@@ -6,11 +6,7 @@ import { logoutUser, getCurrentUser } from "../../../features/auth/authSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import React, { useEffect } from "react";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
-import {
-  FaChevronDown,
-  FaChevronRight,
-  FaSignOutAlt,
-} from "react-icons/fa";
+import { FaChevronDown, FaChevronRight, FaSignOutAlt } from "react-icons/fa";
 import { FiPower, FiMenu, FiChevronsLeft, FiChevronsRight, FiLogOut } from "react-icons/fi";
 import Logo from "../../../assets/images/sun-sea.webp";
 import { sidebarItems } from "./sidebar.data";
@@ -22,34 +18,38 @@ const Sidebar = () => {
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
-  const isMenuActive = useCallback((menu: any) => {
-    // Check main path
-    if (menu.path && location.pathname.startsWith(menu.path)) return true;
-    // Check activePaths array if it exists (for flat menus with multiple related paths)
-    if (menu.activePaths && Array.isArray(menu.activePaths)) {
-      if (menu.activePaths.some((p: string) => location.pathname.startsWith(p))) return true;
-    }
-    // Check nested children
-    if (menu.children) {
-      return menu.children.some((child: any) => {
-        if (child.path && location.pathname.startsWith(child.path)) return true;
-        if (child.activePaths && Array.isArray(child.activePaths)) {
-          if (child.activePaths.some((p: string) => location.pathname.startsWith(p))) return true;
-        }
-        if (child.children) {
-          return child.children.some((subChild: any) => {
-            if (subChild.path && location.pathname.startsWith(subChild.path)) return true;
-            if (subChild.activePaths && Array.isArray(subChild.activePaths)) {
-              if (subChild.activePaths.some((p: string) => location.pathname.startsWith(p))) return true;
-            }
-            return false;
-          });
-        }
-        return false;
-      });
-    }
-    return false;
-  }, [location.pathname]);
+  const isMenuActive = useCallback(
+    (menu: any) => {
+      // Check main path
+      if (menu.path && location.pathname.startsWith(menu.path)) return true;
+      // Check activePaths array if it exists (for flat menus with multiple related paths)
+      if (menu.activePaths && Array.isArray(menu.activePaths)) {
+        if (menu.activePaths.some((p: string) => location.pathname.startsWith(p))) return true;
+      }
+      // Check nested children
+      if (menu.children) {
+        return menu.children.some((child: any) => {
+          if (child.path && location.pathname.startsWith(child.path)) return true;
+          if (child.activePaths && Array.isArray(child.activePaths)) {
+            if (child.activePaths.some((p: string) => location.pathname.startsWith(p))) return true;
+          }
+          if (child.children) {
+            return child.children.some((subChild: any) => {
+              if (subChild.path && location.pathname.startsWith(subChild.path)) return true;
+              if (subChild.activePaths && Array.isArray(subChild.activePaths)) {
+                if (subChild.activePaths.some((p: string) => location.pathname.startsWith(p)))
+                  return true;
+              }
+              return false;
+            });
+          }
+          return false;
+        });
+      }
+      return false;
+    },
+    [location.pathname]
+  );
 
   const toggleMenu = (menuTitle: string) => {
     setOpenMenu((prev) => (prev === menuTitle ? null : menuTitle));
@@ -61,7 +61,7 @@ const Sidebar = () => {
   };
   const { user } = useAppSelector((state) => state.auth);
   const { data: company } = useAppSelector((state) => state.company);
-  const { can } = usePermission();
+  const { can, isSuperAdmin } = usePermission();
 
   // 🔴 Live Real-Time Permission Sync:
   // Listens to socket events when roles or permissions change anywhere in the app
@@ -92,13 +92,16 @@ const Sidebar = () => {
     navigate("/login");
   };
   /** Returns the first path the user has permission for, falling back to menu.path */
-  const resolveMenuPath = useCallback((menu: (typeof sidebarItems)[0]): string => {
-    if (menu.pathsByPermission) {
-      const match = menu.pathsByPermission.find((p) => can(p.permission));
-      if (match) return match.path;
-    }
-    return menu.path ?? "/";
-  }, [can]);
+  const resolveMenuPath = useCallback(
+    (menu: (typeof sidebarItems)[0]): string => {
+      if (menu.pathsByPermission) {
+        const match = menu.pathsByPermission.find((p) => can(p.permission));
+        if (match) return match.path;
+      }
+      return menu.path ?? "/";
+    },
+    [can, isSuperAdmin]
+  );
 
   const filteredSidebarItems = useMemo(() => {
     const filterSubItems = (items: any[]): any[] => {
@@ -118,6 +121,9 @@ const Sidebar = () => {
 
     return sidebarItems
       .map((item) => {
+        if (item.superAdminOnly && !isSuperAdmin) {
+          return null;
+        }
         if (item.permission && !can(item.permission)) {
           return null;
         }
@@ -164,7 +170,6 @@ const Sidebar = () => {
     <aside
       className={`h-screen bg-nav text-nav-fg relative overflow-visible flex flex-col transition-[width] duration-300 ease-in-out z-50 border-r border-black/10  w-[250px]`}
     >
-
       <div className="flex-1 px-5 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/20 [&::-webkit-scrollbar-thumb]:rounded-full">
         {filteredSidebarItems.map((menu) => {
           // ── Flat top-level item (no children) → render as a direct link ──
@@ -180,8 +185,12 @@ const Sidebar = () => {
                   onClick={() => setOpenMenu(null)}
                   className={`w-full border-none outline-none cursor-pointer p-[10px_15px] rounded-sm flex items-center justify-between transition-all duration-300 ${menuActive ? "!bg-nav-active !text-nav-active-fg font-bold" : "bg-transparent text-nav-fg"}`}
                 >
-                  <div className={`flex items-center text-[14px] font-bold leading-[1.334rem] transition-colors ${menuActive ? "!text-nav-active-fg" : "text-nav-fg"}`}>
-                    <span className={menuActive ? "!text-nav-active-fg" : "text-nav-fg"}>{menu.title}</span>
+                  <div
+                    className={`flex items-center text-[14px] font-bold leading-[1.334rem] transition-colors ${menuActive ? "!text-nav-active-fg" : "text-nav-fg"}`}
+                  >
+                    <span className={menuActive ? "!text-nav-active-fg" : "text-nav-fg"}>
+                      {menu.title}
+                    </span>
                   </div>
                 </NavLink>
               </div>
@@ -200,10 +209,20 @@ const Sidebar = () => {
                 className={`w-full border-none outline-none cursor-pointer p-[14px_6px] rounded-xl flex items-center justify-between transition-all duration-300 bg-transparent text-nav-fg`}
                 onClick={() => toggleMenu(menu.title)}
               >
-                <div className={`flex items-center text-[15px] font-bold leading-[1.334rem] transition-colors text-nav-fg`}>
+                <div
+                  className={`flex items-center text-[15px] font-bold leading-[1.334rem] transition-colors text-nav-fg`}
+                >
                   <span className="text-nav-fg">{menu.title}</span>
                 </div>
-                {isOpen ? <FaChevronDown className={`min-w-[14px] text-[14px] transition-colors text-nav-fg`} /> : <FaChevronRight className={`min-w-[14px] text-[14px] transition-colors text-nav-fg`} />}
+                {isOpen ? (
+                  <FaChevronDown
+                    className={`min-w-[14px] text-[14px] transition-colors text-nav-fg`}
+                  />
+                ) : (
+                  <FaChevronRight
+                    className={`min-w-[14px] text-[14px] transition-colors text-nav-fg`}
+                  />
+                )}
               </button>
               {isOpen && (
                 <div className="mt-2 ml-3 pl-2 border-l-2 border-black/10 flex flex-col gap-1">
@@ -237,7 +256,11 @@ const Sidebar = () => {
                                       `no-underline px-3 py-2.5 rounded-lg text-[15px] font-bold leading-[1.334rem] transition-all duration-300 flex items-center gap-3 pl-5 ${isActive && child.path === location.pathname + location.search ? "!bg-nav-active !text-nav-active-fg font-bold" : "text-nav-fg"}`
                                     }
                                   >
-                                    <span className={`transition-colors ${child.path === location.pathname + location.search ? "" : ""}`}>{child.title}</span>
+                                    <span
+                                      className={`transition-colors ${child.path === location.pathname + location.search ? "" : ""}`}
+                                    >
+                                      {child.title}
+                                    </span>
                                   </NavLink>
                                 ) : null
                               )}
@@ -253,7 +276,11 @@ const Sidebar = () => {
                               `no-underline px-3 py-2.5 rounded-lg text-[15px] font-bold leading-[1.334rem] transition-all duration-300 flex items-center gap-3 ${isActive ? "!bg-nav-active !text-nav-active-fg font-bold" : "text-nav-fg"}`
                             }
                           >
-                            <span className={`transition-colors ${subMenu.path === location.pathname ? "" : ""}`}>{subMenu.title}</span>
+                            <span
+                              className={`transition-colors ${subMenu.path === location.pathname ? "" : ""}`}
+                            >
+                              {subMenu.title}
+                            </span>
                           </NavLink>
                         )
                       )}
@@ -266,7 +293,9 @@ const Sidebar = () => {
         })}
       </div>
       <div className="p-4 mt-auto shrink-0">
-<div className={`flex items-center p-3 rounded-2xl bg-card hover:bg-card-2 transition-colors border border-line-soft justify-between`}>
+        <div
+          className={`flex items-center p-3 rounded-2xl bg-card hover:bg-card-2 transition-colors border border-line-soft justify-between`}
+        >
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-card-2 shadow-sm flex items-center justify-center text-primary font-bold text-lg border border-line">
               {avatarImage ? (
@@ -276,8 +305,12 @@ const Sidebar = () => {
               )}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[15px] font-bold text-ink leading-tight tracking-tight truncate">{user?.fullName || "Super Admin"}</span>
-              <span className="text-[13px] text-ink-subtle font-medium truncate">{formatRole(user)}</span>
+              <span className="text-[15px] font-bold text-ink leading-tight tracking-tight truncate">
+                {user?.fullName || "Super Admin"}
+              </span>
+              <span className="text-[13px] text-ink-subtle font-medium truncate">
+                {formatRole(user)}
+              </span>
             </div>
           </div>
           <button

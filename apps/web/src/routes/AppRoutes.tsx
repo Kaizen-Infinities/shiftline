@@ -215,6 +215,11 @@ const ProductionReportsCenter = lazy(
 const AuditTrailPage = lazy(() => import("../modules/reports/pages/AuditTrailPage"));
 const YearEndPage = lazy(() => import("../modules/accounts/pages/year-end/YearEndPage"));
 const BooksPage = lazy(() => import("../modules/accounts/pages/books/BooksPage"));
+const PlatformOverviewPage = lazy(() => import("../modules/platform/pages/PlatformOverviewPage"));
+const TenantsPage = lazy(() => import("../modules/platform/pages/TenantsPage"));
+const TenantDetailPage = lazy(() => import("../modules/platform/pages/TenantDetailPage"));
+const PlansPage = lazy(() => import("../modules/platform/pages/PlansPage"));
+const DevicesPage = lazy(() => import("../modules/settings/pages/DevicesPage"));
 const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
 
 // ===========================================================================
@@ -614,6 +619,16 @@ const AppRoutes = () => {
                 <Route path="/accounts/cash-book" element={<BooksPage />} />
                 <Route path="/accounts/bank-book" element={<BooksPage />} />
                 <Route path="/accounts/cash-flow" element={<CashFlowPage />} />
+              </Route>
+              {/* ---------- Platform console (super admins, P1-02) ---------- */}
+              <Route element={<ProtectedRoute superAdmin />}>
+                <Route path="/platform" element={<PlatformOverviewPage />} />
+                <Route path="/platform/tenants" element={<TenantsPage />} />
+                <Route path="/platform/tenants/:id" element={<TenantDetailPage />} />
+                <Route path="/platform/plans" element={<PlansPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="mobile-app.manage" />}>
+                <Route path="/settings/devices" element={<DevicesPage />} />
               </Route>
             </Route>
             {/* ================= end of PageContainer group ==================== */}

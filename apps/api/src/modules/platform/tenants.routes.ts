@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { requireSuperAdmin } from "../../middleware/permission.middleware";
+import { impersonateSchema } from "./impersonation.service";
 import { validateMiddleware } from "../../middleware/validate.middleware";
 import { asyncHandler } from "../../utils/asyncHandler";
 import {
@@ -38,6 +39,12 @@ router.delete(
   "/:id/overrides/:feature",
   validateMiddleware(overrideDeleteSchema),
   asyncHandler(tenantsController.removeOverride)
+);
+
+router.post(
+  "/:id/impersonate",
+  validateMiddleware(impersonateSchema),
+  asyncHandler(tenantsController.impersonate)
 );
 
 export default router;

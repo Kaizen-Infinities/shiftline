@@ -185,6 +185,26 @@ model User {
   @@map("users")
 }
 
+/// A platform admin acting as a tenant user for a bounded window (P1-02). Platform data:
+/// not tenant-scoped, never deleted; audit rows written meanwhile carry `impersonated_by`.
+model ImpersonationSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  adminId        BigInt    @map("admin_id")
+  adminSessionId String    @map("admin_session_id") @db.Uuid
+  companyId      String    @map("company_id") @db.Uuid
+  userId         String    @map("user_id") @db.VarChar(36)
+  reason         String    @db.VarChar(255)
+  startedAt      DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  endedAt        DateTime? @map("ended_at") @db.Timestamptz(6)
+  endedReason    String?   @map("ended_reason") @db.VarChar(120)
+  ipAddress      String?   @map("ip_address") @db.VarChar(45)
+
+  @@index([companyId, startedAt])
+  @@index([adminId, startedAt])
+  @@map("impersonation_sessions")
+}
+
 model UserSession {
   id            String    @id @default(uuid())
   userId        String?
@@ -193,6 +213,8 @@ model UserSession {
   ipAddress     String?
   userAgent     String?
   deviceLabel   String?
+  /// Native device the refresh token is bound to (P1-02); browsers leave it null.
+  deviceId      String?   @map("device_id") @db.VarChar(120)
   loginAt       DateTime  @default(now()) @db.Timestamptz(6)
   logoutAt      DateTime? @db.Timestamptz(6)
   expiresAt     DateTime  @db.Timestamptz(6)

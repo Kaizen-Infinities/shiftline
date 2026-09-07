@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 
-import { useAppSelector } from '../../hooks/reduxHooks';
-import Navbar from '../common/Navbar';
-import Sidebar from '../common/sidebar/Sidebar';
-import HorizontalNav from '../common/sidebar/HorizontalNav';
-import Footer from '../common/Footer';
-import ShortcutPanel from '../ui/ShortcutPanel/ShortcutPanel';
-import Calculator from '../ui/Calculator/Calculator';
-import { useGlobalShortcuts } from '../../hooks/useGlobalShortcuts';
+import { useAppSelector } from "../../hooks/reduxHooks";
+import Navbar from "../common/Navbar";
+import ImpersonationBanner from "../common/ImpersonationBanner";
+import Sidebar from "../common/sidebar/Sidebar";
+import HorizontalNav from "../common/sidebar/HorizontalNav";
+import Footer from "../common/Footer";
+import ShortcutPanel from "../ui/ShortcutPanel/ShortcutPanel";
+import Calculator from "../ui/Calculator/Calculator";
+import { useGlobalShortcuts } from "../../hooks/useGlobalShortcuts";
 
 const BaseLayout = () => {
   const [showSidebar, setShowSidebar] = useState(false);
@@ -20,8 +21,8 @@ const BaseLayout = () => {
   // ── Shortcut panel: persistent in localStorage across all page navigation & reloads ──
   const [panelOpen, setPanelOpen] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem('shortcut_panel_open');
-      if (saved !== null) return saved === 'true';
+      const saved = localStorage.getItem("shortcut_panel_open");
+      if (saved !== null) return saved === "true";
     } catch (_) {}
     return true; // Default open on desktop
   });
@@ -30,7 +31,7 @@ const BaseLayout = () => {
     setPanelOpen((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('shortcut_panel_open', String(next));
+        localStorage.setItem("shortcut_panel_open", String(next));
       } catch (_) {}
       return next;
     });
@@ -60,8 +61,8 @@ const BaseLayout = () => {
     if (company?.faviconUrl) {
       let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
       if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
+        link = document.createElement("link");
+        link.rel = "icon";
         document.head.appendChild(link);
       }
       link.href = company.faviconUrl;
@@ -70,7 +71,6 @@ const BaseLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-
       {/* Mobile Sidebar Overlay */}
       {showSidebar && (
         <div
@@ -82,29 +82,29 @@ const BaseLayout = () => {
       {/* Mobile Sidebar Drawer */}
       <div
         className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
-          showSidebar ? 'translate-x-0' : '-translate-x-full'
+          showSidebar ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <Sidebar />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-
         {/* Top Navbar (Mobile only) */}
         <div className="lg:hidden">
           <Navbar
             onMenuClick={() => setShowSidebar(true)}
             user={user}
-            onProfileClick={() => navigate('/company/view')}
+            onProfileClick={() => navigate("/company/view")}
           />
         </div>
+
+        <ImpersonationBanner />
 
         {/* Horizontal Navigation (Large screens) */}
         <HorizontalNav />
 
         {/* Content row: main + shortcut panel side by side */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
-
           {/* Main Content */}
           <main className="flex-1 w-full min-w-0 overflow-y-auto bg-page">
             <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 min-h-full flex flex-col">

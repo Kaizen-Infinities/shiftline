@@ -39,5 +39,8 @@ export interface SidebarItem {
   /** Show this item if the user has ANY of these permissions */
   permissionAny?: string[];
 
+  /** Platform console entries (P1-02): shown to super admins only. */
+  superAdminOnly?: boolean;
+
   children?: SidebarSubItem[];
 }

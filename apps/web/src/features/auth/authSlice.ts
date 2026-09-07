@@ -4,6 +4,22 @@ import authService from "../../services/authService";
 import { refreshAccessToken } from "../../api/refresh";
 import type { AuthState, UserResponseDto, LoginDto, ProfileResponseDto } from "./types";
 
+const decodePayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+};
+
 const decodePermissions = (token: string): string[] => {
   try {
     const base64Url = token.split(".")[1];
@@ -30,6 +46,7 @@ const initialState: AuthState = {
   isLoading: false,
   isInitialized: false,
   entitlements: null,
+  impersonation: null,
 };
 
 // Async Thunks
@@ -98,13 +115,27 @@ const authSlice = createSlice({
   reducers: {
     setAccessToken: (
       state,
-      action: PayloadAction<{ accessToken: string; accessTokenExpiresAt: string | null }>
+      action: PayloadAction<{
+        accessToken: string;
+        accessTokenExpiresAt: string | null;
+        reason?: string;
+      }>
     ) => {
       state.accessToken = action.payload.accessToken;
       state.accessTokenExpiresAt = action.payload.accessTokenExpiresAt;
       state.permissions = action.payload.accessToken
         ? decodePermissions(action.payload.accessToken)
         : [];
+      const payload = action.payload.accessToken ? decodePayload(action.payload.accessToken) : null;
+      state.impersonation =
+        payload && typeof payload.impersonationId === "string"
+          ? {
+              id: payload.impersonationId,
+              impersonatedBy: String(payload.impersonatedBy ?? ""),
+              expiresAt: new Date(Number(payload.exp) * 1000).toISOString(),
+              reason: action.payload.reason ?? state.impersonation?.reason ?? "",
+            }
+          : null;
       // Never persisted: a fresh page renews it from the httpOnly cookie.
       localStorage.removeItem("accessToken");
       sessionStorage.removeItem("accessToken");
@@ -112,6 +143,7 @@ const authSlice = createSlice({
     clearUser: (state) => {
       state.user = null;
       state.entitlements = null;
+      state.impersonation = null;
       state.accessToken = null;
       state.accessTokenExpiresAt = null;
       state.permissions = [];

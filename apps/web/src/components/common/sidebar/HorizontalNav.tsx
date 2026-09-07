@@ -12,7 +12,7 @@ import LiveBadge from "../../../components/ui/LiveBadge/LiveBadge";
 import NotificationBell from "../notifications/NotificationBell";
 
 const HorizontalNav = () => {
-  const { can } = usePermission();
+  const { can, isSuperAdmin } = usePermission();
   const location = useLocation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -157,6 +157,9 @@ const HorizontalNav = () => {
 
     return sidebarItems
       .map((item) => {
+        if (item.superAdminOnly && !isSuperAdmin) {
+          return null;
+        }
         if (item.permission && !can(item.permission)) {
           return null;
         }
@@ -173,7 +176,7 @@ const HorizontalNav = () => {
         return item;
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
-  }, [can]);
+  }, [can, isSuperAdmin]);
 
   const activeMenuData = useMemo(() => {
     return filteredSidebarItems.find((m) => m.title === activeMenuId);

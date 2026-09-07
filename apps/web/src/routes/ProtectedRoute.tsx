@@ -11,6 +11,8 @@ interface ProtectedRouteProps {
   permissionAny?: string[];
   /** Plan feature the screen belongs to, for screens that carry no permission (P1-01). */
   feature?: string;
+  /** Platform console screens (P1-02): only a super admin passes. */
+  superAdmin?: boolean;
   redirectPath?: string;
 }
 
@@ -20,22 +22,25 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   permission,
   permissionAny,
   feature,
+  superAdmin,
   redirectPath = "/unauthorized",
 }) => {
   const dispatch = useAppDispatch();
   const { isAuthenticated, isInitialized } = useAppSelector((state) => state.auth);
   const { data: company, loading: companyLoading } = useAppSelector((state) => state.company);
-  const { can, holds, hasFeature } = usePermission();
+  const { can, holds, hasFeature, isSuperAdmin } = usePermission();
   const location = useLocation();
 
+  // Platform admins have no tenant company (P1-02): fetching one would fail and, because a
+  // rejected fetch leaves `company` null, loop for ever and trip the rate limiter.
   useEffect(() => {
-    if (isAuthenticated && !company && !companyLoading) {
+    if (isAuthenticated && !company && !companyLoading && !isSuperAdmin) {
       dispatch(fetchCompany());
     }
-  }, [isAuthenticated, company, companyLoading, dispatch]);
+  }, [isAuthenticated, company, companyLoading, isSuperAdmin, dispatch]);
 
   // Show loading screen while auth or company details are initializing
-  if (!isInitialized || (isAuthenticated && !company)) {
+  if (!isInitialized || (isAuthenticated && !company && !isSuperAdmin)) {
     return <CommonLoader text="Loading..." />;
   }
 
@@ -60,6 +65,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // RBAC permission check — Super Admin bypasses automatically via usePermission
+  if (superAdmin && !isSuperAdmin) {
+    return <Navigate to={redirectPath} replace />;
+  }
+
   if (permission && !can(permission)) {
     if (holds(permission)) {
       return <Navigate to={upgradeFor(featureForPermission(permission))} replace />;
