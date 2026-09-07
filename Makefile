@@ -17,6 +17,7 @@ env: ## create apps/api/.env and apps/web/.env from the examples (development va
 	@echo "env files ready (apps/api/.env, apps/web/.env)"
 
 up: ## run the whole stack in docker (postgres, api with migrations + seed, worker, web) on :5173 and :5000
+	docker compose --profile full down --remove-orphans
 	docker compose --profile full up --build
 
 down: ## stop the whole stack (add -v to `docker compose --profile full down` to drop the database)

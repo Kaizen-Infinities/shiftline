@@ -37,6 +37,9 @@ from `docker/api.env` (placeholders, never for anything reachable from the inter
 | Platform admin                                          | `admin@dev.shiftline.local`                                                     | `DevAdmin#2026!!` |
 
 `make down` stops the stack; `docker compose --profile full down -v` also drops the database.
+`make up` removes the previous containers first, so a worker or web container never keeps
+running against a database volume that was dropped underneath it. The worker and web
+containers start only after the api reports `/ready` (migrations applied, seed done).
 `apps/api/.env` (gitignored) overrides anything in `docker/api.env`.
 
 **Api and web on the host** (faster reloads):

@@ -31,7 +31,8 @@ services:
       target: dev
     # Migrations and the (idempotent) demo seed run first, so a fresh clone boots to a login page.
     command: >
-      sh -c "npx -w @shiftline/api prisma migrate deploy
+      sh -c "npm run -w @shiftline/shared build
+      && npx -w @shiftline/api prisma migrate deploy
       && npm run -w @shiftline/api db:seed
       && npm run dev --workspace @shiftline/api"
     environment:
@@ -50,7 +51,19 @@ services:
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/prisma:/app/apps/api/prisma
-      - ./packages:/app/packages
+      # Only the sources: the built packages/shared/dist stays in the image (it is
+      # gitignored on the host, so mounting ./packages would hide it).
+      - ./packages/shared/src:/app/packages/shared/src
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://localhost:5000/ready'').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,11 +87,17 @@ services:
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/prisma:/app/apps/api/prisma
-      - ./packages:/app/packages
+      # Only the sources: the built packages/shared/dist stays in the image (it is
+      # gitignored on the host, so mounting ./packages would hide it).
+      - ./packages/shared/src:/app/packages/shared/src
       - ./archives:/app/archives
       - ./backups:/app/backups
+    # Waits for the api's /ready (migrations applied, seed done) so pg-boss and the job
+    # handlers never see a half-initialised database.
     depends_on:
       postgres:
+        condition: service_healthy
+      api:
         condition: service_healthy
 
   web:
@@ -95,9 +114,12 @@ services:
     volumes:
       - ./apps/web/src:/app/apps/web/src
       - ./apps/web/index.html:/app/apps/web/index.html
-      - ./packages:/app/packages
+      # Only the sources: the built packages/shared/dist stays in the image (it is
+      # gitignored on the host, so mounting ./packages would hide it).
+      - ./packages/shared/src:/app/packages/shared/src
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
 volumes:
   pgdata:
