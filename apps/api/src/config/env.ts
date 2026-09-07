@@ -29,6 +29,8 @@ const envSchema = z
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
     /** A rotated-away refresh token replayed within this window is treated as a race, not theft. */
     REFRESH_REUSE_GRACE_MS: z.coerce.number().int().min(0).max(60_000).default(10_000),
+    /** Login and password-reset requests per IP per 15 minutes; browser suites raise it. */
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(5).max(10_000).default(30),
     REFRESH_COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).optional(),
     COOKIE_SECURE: z
       .enum(["true", "false"])

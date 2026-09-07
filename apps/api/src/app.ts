@@ -85,7 +85,7 @@ const globalLimiter = rateLimit({
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30,
+  limit: env.AUTH_RATE_LIMIT_MAX,
   skip: () => isTest,
   standardHeaders: "draft-7",
   legacyHeaders: false,

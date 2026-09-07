@@ -55,7 +55,12 @@ export default defineConfig({
           url: `${API}/api`,
           reuseExistingServer: !CI,
           timeout: 120_000,
-          env: { ...process.env, PORT: new URL(API).port || "5000" },
+          env: {
+            ...process.env,
+            PORT: new URL(API).port || "5000",
+            // One login per screen: the suite outgrows the production cap of 30 per 15 minutes.
+            AUTH_RATE_LIMIT_MAX: process.env.AUTH_RATE_LIMIT_MAX ?? "500",
+          },
         },
         {
           command: webCommand,

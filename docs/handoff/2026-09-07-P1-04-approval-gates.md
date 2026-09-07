@@ -12,6 +12,9 @@
 - Web `/compliance/approvals` (sidebar under Accounts) and `modules/compliance/components/
 ApprovalPanel.tsx` for reuse on filing screens; `filingService`; smoke entry.
 - `filings.spec.ts` (2 tests); route and leak snapshots updated.
+- CI fix: the login rate limit is now `AUTH_RATE_LIMIT_MAX` (default 30 per IP per 15 minutes);
+  the Playwright web server sets 500 because the smoke suite logs in once per screen and had
+  outgrown the cap, which failed the wrong-password test on the P1-03 run.
 
 ## Half-done / known gaps
 
