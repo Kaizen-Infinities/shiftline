@@ -119,6 +119,9 @@ export const API_PATHS = {
   imports: {
     base: "/imports",
   },
+  notifications: {
+    base: "/notifications",
+  },
   company: {
     base: "/companies",
   },

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Thirteen screens must render for a logged-in owner without a server error.
+ * Fourteen screens must render for a logged-in owner without a server error.
  * `marker` is a stable piece of text on the page; the API tracker fails the
  * test on any 5xx the screen triggered.
  */
@@ -19,6 +19,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/settings/company", marker: /General Info/i },
   { path: "/company/view", marker: /Employee Code/i },
   { path: "/settings/imports", marker: /Data imports/i },
+  { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 
 const trackApi = (page: Page) => {

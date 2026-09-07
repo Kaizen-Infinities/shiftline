@@ -132,7 +132,41 @@ materials with reference errors and opening quantities; opening balances for exi
 ledgers dated the FY start, refused for party ledgers, `exists` on re-run; opening stock
 increments once; permissions per type. 121 API tests.
 
-## Part 3b — notifications, surrogate keys (planned)
+## Part 3b — notification centre (2026-09-07)
 
-`Notification` model and in-app centre; uuid primary keys for the seven code-keyed models;
-Prisma 8 upgrade evaluation; retire the legacy password-by-email user creation.
+**Model.** `Notification` (RLS; one row per recipient: `userId`, `level` INFO/SUCCESS/WARNING/ERROR,
+`category`, `title`, `body`, `link`, `data`, `readAt`, `createdBy`). Fan-out at write time keeps
+read state and retention per user; a new `NOTIFICATIONS` retention class (30-day floor, 180-day
+default, purge) sweeps old rows. Sockets now also join `user:<userId>`; `emitToUser()` in
+`lib/realtime.ts` addresses one person.
+
+**Producer API.** `notify({ category, title, body?, link?, level?, data?, to, createdBy? })` in
+`modules/notifications/notify.ts`, callable from requests and jobs under a tenant context. Audiences:
+`{ userIds }`, `{ permission, exclude? }` (active users whose role holds the key) or
+`{ all: true, exclude? }`. Platform admin ids are never recipients. It never throws into the
+caller: the business action already happened, the notice is a courtesy. Each recipient's sockets
+receive `notification:created`.
+
+**First producers.** Invitation accepted → the inviter ("X joined", `/users`); onboarding completed
+→ every other member ("Setup complete"); CSV import committed → the person who ran it (counts, or
+the row it stopped at, `/settings/imports`); retention sweep with effect or errors → `retention.view`
+holders; end-of-day snapshot failure → `eod-stock.view` holders. The seed leaves a welcome notice for
+every demo user.
+
+**Reader API** (`/api/notifications`, signed-in tenant users): `GET /?unread=&limit=&cursor=`
+(newest first, `unreadCount`, `nextCursor`), `POST /:id/read`, `POST /read-all`. Rows are scoped
+to the caller; another user's id is a 404.
+
+**Web.** Bell in the header (`NotificationBell`): unread badge, dropdown of the latest twelve,
+mark-all-read, click opens the link; fed by the socket room with a one-minute poll fallback.
+`/notifications` page lists everything with unread filter and paging. Both in the smoke suite.
+
+**Tests.** `notifications.spec.ts` (5): permission audience reaches only holders; per-recipient read
+state and 404 across users; unread filter and read-all; everyone-except and explicit audiences,
+admin ids skipped; cursor paging; invitation acceptance notifies the inviter; import commit leaves
+a record. 126 API tests.
+
+## Part 3c — surrogate keys (planned)
+
+uuid primary keys for the seven code-keyed models; Prisma 8 upgrade evaluation; retire the legacy
+password-by-email user creation.

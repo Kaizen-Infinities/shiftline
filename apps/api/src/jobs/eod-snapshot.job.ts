@@ -4,6 +4,7 @@ import { prisma } from "../config/prisma";
 import { QUEUES, sendTenantJob, type TenantJobData } from "../lib/jobs";
 import { runAsTenant, withoutTenant } from "../lib/tenant-context";
 import { runEodStockSnapshot } from "../modules/inventory/jobs/eodStockSnapshot.job";
+import { notify } from "../modules/notifications/notify";
 import { getISTDateParts, getISTDateString } from "../utils/dateUtils";
 
 export interface EodSnapshotJobData extends TenantJobData {
@@ -43,7 +44,19 @@ export const eodSnapshotHandler = async (job: PgBoss.Job<EodSnapshotJobData>) =>
     if (!force && date === istDateMinus(0) && !(await isPastCutoff())) {
       return { skipped: "before-cutoff" };
     }
-    await runEodStockSnapshot(date);
+    try {
+      await runEodStockSnapshot(date);
+    } catch (err) {
+      await notify({
+        category: "inventory",
+        level: "ERROR",
+        title: "End-of-day stock snapshot failed",
+        body: `${date}: ${err instanceof Error ? err.message.slice(0, 300) : String(err)}`,
+        link: "/eod-stock",
+        to: { permission: "eod-stock.view" },
+      });
+      throw err;
+    }
     return { snapshotDate: date };
   });
 };

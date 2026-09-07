@@ -84,6 +84,13 @@ export const RETENTION_CLASSES: Record<RetentionDataClass, RetentionClassSpec> =
     purgeable: true,
     description: "GPS points from the Field app (personal data; keep short)",
   },
+  NOTIFICATIONS: {
+    minDays: 30,
+    defaultDays: 180,
+    defaultAction: "PURGE",
+    purgeable: true,
+    description: "In-app notifications shown in the notification centre",
+  },
 };
 
 export const RETENTION_DATA_CLASSES = Object.keys(RETENTION_CLASSES) as RetentionDataClass[];

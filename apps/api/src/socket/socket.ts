@@ -55,6 +55,9 @@ export const initSocket = (httpServer: HttpServer) => {
   io.on("connection", (socket: Socket) => {
     const companyId = socket.data.companyId as string | null;
     void socket.join(companyId ? `tenant:${companyId}` : "platform");
+    // Personal room for notifications; the user id is the verified token's.
+    const userId = (socket.data.user as { userId?: string } | undefined)?.userId;
+    if (userId) void socket.join(`user:${userId}`);
   });
 
   return io;

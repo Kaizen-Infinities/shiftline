@@ -19,6 +19,7 @@ import customerService from "../customer/customer.service";
 import productService from "../product/product.service";
 import rawMaterialService from "../raw-material/raw-material.service";
 import supplierService from "../supplier/supplier.service";
+import { notify } from "../notifications/notify";
 import { normaliseHeader, parseCsv, toCsv } from "./imports.csv";
 import {
   IMPORT_TYPE_DEFS,
@@ -528,6 +529,17 @@ class ImportsService {
         break;
       }
     }
+    await notify({
+      category: "imports",
+      level: report.failed ? "WARNING" : "SUCCESS",
+      title: `Imported ${report.imported} ${def.label.toLowerCase()}`,
+      body: report.failed
+        ? `Stopped at row ${report.failed.row}: ${report.failed.message.slice(0, 200)}`
+        : `${report.imported} row(s) created${report.exists ? `, ${report.exists} already existed` : ""}.`,
+      link: "/settings/imports",
+      to: { userIds: [userId] },
+      createdBy: userId,
+    });
     return report;
   }
 

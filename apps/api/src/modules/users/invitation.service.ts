@@ -15,6 +15,7 @@ import { ApiError } from "../../utils/ApiError";
 import { hashPassword } from "../../utils/hashPassword";
 import { sendEmail } from "../../utils/mailer";
 import { authService } from "../auth/auth.service";
+import { notify } from "../notifications/notify";
 
 export const INVITATION_TTL_DAYS = 7;
 
@@ -191,6 +192,15 @@ class InvitationService {
       await prisma.invitation.update({
         where: { id: inv.id },
         data: { acceptedAt: new Date(), acceptedUserId: created.userId },
+      });
+      await notify({
+        category: "team",
+        level: "SUCCESS",
+        title: `${fullName} joined`,
+        body: `Accepted your invitation as ${inv.roleName}.`,
+        link: "/users",
+        to: { userIds: [inv.invitedBy] },
+        createdBy: created.userId,
       });
       return created;
     });

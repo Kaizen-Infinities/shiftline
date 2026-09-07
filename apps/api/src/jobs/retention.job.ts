@@ -4,6 +4,7 @@ import { prisma } from "../config/prisma";
 import { QUEUES, sendTenantJob, type TenantJobData } from "../lib/jobs";
 import { runAsTenant, withoutTenant } from "../lib/tenant-context";
 import { PLATFORM_LOGIN_ATTEMPT_DAYS } from "../modules/retention/retention.policy";
+import { notify } from "../modules/notifications/notify";
 import { cutoffFor, retentionService } from "../modules/retention/retention.service";
 
 export interface RetentionSweepJobData extends TenantJobData {
@@ -13,9 +14,23 @@ export interface RetentionSweepJobData extends TenantJobData {
 /** Per-tenant sweep; the service records one RetentionSweep row per class. */
 export const retentionSweepHandler = async (job: PgBoss.Job<RetentionSweepJobData>) => {
   const { companyId, dryRun } = job.data;
-  const results = await runAsTenant(companyId, () =>
-    retentionService.runSweep({ dryRun, triggeredBy: "schedule", jobId: job.id })
-  );
+  const results = await runAsTenant(companyId, async () => {
+    const out = await retentionService.runSweep({ dryRun, triggeredBy: "schedule", jobId: job.id });
+    const affected = out.reduce((n, r) => n + (r.affected ?? 0), 0);
+    const errors = out.filter((r) => r.error);
+    if (!dryRun && (affected > 0 || errors.length > 0)) {
+      await notify({
+        category: "retention",
+        level: errors.length ? "WARNING" : "INFO",
+        title: errors.length ? "Retention sweep finished with errors" : "Retention sweep complete",
+        body: `${affected} row(s) archived or purged across ${out.length} data classes${
+          errors.length ? `; ${errors.map((e) => e.dataClass).join(", ")} failed` : ""
+        }.`,
+        to: { permission: "retention.view" },
+      });
+    }
+    return out;
+  });
   return results.map((r) => ({
     dataClass: r.dataClass,
     matched: r.matched,

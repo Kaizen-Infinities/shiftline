@@ -9,6 +9,7 @@ import { FiLogOut, FiUser } from "react-icons/fi";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import ThemeToggle from "../ThemeToggle";
 import LiveBadge from "../../../components/ui/LiveBadge/LiveBadge";
+import NotificationBell from "../notifications/NotificationBell";
 
 const HorizontalNav = () => {
   const { can } = usePermission();
@@ -25,9 +26,9 @@ const HorizontalNav = () => {
   const dropdownPortalRef = useRef<HTMLDivElement>(null);
 
   // Keyboard nav — refs for each level
-  const navItemRefs  = useRef<(HTMLElement | null)[]>([]);
+  const navItemRefs = useRef<(HTMLElement | null)[]>([]);
   const dropItemRefs = useRef<(HTMLElement | null)[]>([]);
-  const subItemRefs  = useRef<(HTMLElement | null)[]>([]);
+  const subItemRefs = useRef<(HTMLElement | null)[]>([]);
   // Which dropdown item triggered the active submenu (for focus-return on Escape)
   const activeDropIdxRef = useRef<number>(-1);
   // Which top-level nav item opened the current dropdown (for focus-return on Escape)
@@ -36,7 +37,10 @@ const HorizontalNav = () => {
   // Dropdown portal state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [activeSubMenuId, setActiveSubMenuId] = useState<string | null>(null);
-  const [menuRect, setMenuRect] = useState<{ left: number; bottom: number }>({ left: 0, bottom: 0 });
+  const [menuRect, setMenuRect] = useState<{ left: number; bottom: number }>({
+    left: 0,
+    bottom: 0,
+  });
 
   // Reset sub-menu when main menu changes
   useEffect(() => {
@@ -124,13 +128,16 @@ const HorizontalNav = () => {
     setActiveSubMenuId(activeSubMenuId === title ? null : title);
   };
 
-  const resolveMenuPath = useCallback((menu: (typeof sidebarItems)[0]): string => {
-    if (menu.pathsByPermission) {
-      const match = menu.pathsByPermission.find((p) => can(p.permission));
-      if (match) return match.path;
-    }
-    return menu.path ?? "/";
-  }, [can]);
+  const resolveMenuPath = useCallback(
+    (menu: (typeof sidebarItems)[0]): string => {
+      if (menu.pathsByPermission) {
+        const match = menu.pathsByPermission.find((p) => can(p.permission));
+        if (match) return match.path;
+      }
+      return menu.path ?? "/";
+    },
+    [can]
+  );
 
   const filteredSidebarItems = useMemo(() => {
     const filterSubItems = (items: any[]): any[] => {
@@ -172,23 +179,38 @@ const HorizontalNav = () => {
     return filteredSidebarItems.find((m) => m.title === activeMenuId);
   }, [activeMenuId, filteredSidebarItems]);
 
-  const isMenuActive = useCallback((menu: any): boolean => {
-    if (menu.path && location.pathname === menu.path) return true;
-    if (menu.activePaths && menu.activePaths.some((p: string) => location.pathname.startsWith(p))) {
-      return true;
-    }
-    if (menu.children) {
-      return menu.children.some((child: any) => {
-        if (child.path && (location.pathname === child.path || location.pathname.startsWith(child.path.split('?')[0]))) return true;
-        if (child.activePaths && child.activePaths.some((p: string) => location.pathname.startsWith(p))) return true;
-        if (child.children) {
-          return isMenuActive(child);
-        }
-        return false;
-      });
-    }
-    return false;
-  }, [location.pathname]);
+  const isMenuActive = useCallback(
+    (menu: any): boolean => {
+      if (menu.path && location.pathname === menu.path) return true;
+      if (
+        menu.activePaths &&
+        menu.activePaths.some((p: string) => location.pathname.startsWith(p))
+      ) {
+        return true;
+      }
+      if (menu.children) {
+        return menu.children.some((child: any) => {
+          if (
+            child.path &&
+            (location.pathname === child.path ||
+              location.pathname.startsWith(child.path.split("?")[0]))
+          )
+            return true;
+          if (
+            child.activePaths &&
+            child.activePaths.some((p: string) => location.pathname.startsWith(p))
+          )
+            return true;
+          if (child.children) {
+            return isMenuActive(child);
+          }
+          return false;
+        });
+      }
+      return false;
+    },
+    [location.pathname]
+  );
 
   const getInitials = (name?: string) => {
     if (!name) return "U";
@@ -198,13 +220,20 @@ const HorizontalNav = () => {
   const formatRole = (userObj?: any) => {
     if (!userObj) return "User";
     if (userObj.isSuperAdmin) return "Super Admin";
-    if (userObj.role && typeof userObj.role === 'object' && userObj.role.name) return userObj.role.name;
-    if (typeof userObj.role === 'string') return userObj.role;
-    if (userObj.roles && userObj.roles.length > 0 && userObj.roles[0].name) return userObj.roles[0].name;
+    if (userObj.role && typeof userObj.role === "object" && userObj.role.name)
+      return userObj.role.name;
+    if (typeof userObj.role === "string") return userObj.role;
+    if (userObj.roles && userObj.roles.length > 0 && userObj.roles[0].name)
+      return userObj.roles[0].name;
     return "User";
   };
 
-  const avatarImage = (user as any)?.employeeProfile?.profilePicture || user?.avatarUrl || (user as any)?.profilePicture || (user as any)?.photoUrl || (user as any)?.profileImage;
+  const avatarImage =
+    (user as any)?.employeeProfile?.profilePicture ||
+    user?.avatarUrl ||
+    (user as any)?.profilePicture ||
+    (user as any)?.photoUrl ||
+    (user as any)?.profileImage;
 
   // ── Keyboard helpers ──────────────────────────────────────────
   const closeAll = useCallback(() => {
@@ -229,29 +258,36 @@ const HorizontalNav = () => {
   }, []);
 
   /** Open menu programmatically (e.g. from global shortcut Ctrl+A / Ctrl+T / Ctrl+D / Ctrl+Y / Alt+T) */
-  const openMenuByTitle = useCallback((title: string) => {
-    const navIdx = filteredSidebarItems.findIndex((m) => m.title.toLowerCase() === title.toLowerCase());
-    if (navIdx === -1) return;
-    const menu = filteredSidebarItems[navIdx];
-    if (menu.children && menu.children.length > 0) {
-      let el = navItemRefs.current[navIdx];
-      if (!el && navContainerRef.current) {
-        const items = navContainerRef.current.querySelectorAll<HTMLElement>('li > div[role="button"], li > a');
-        el = items[navIdx] || null;
+  const openMenuByTitle = useCallback(
+    (title: string) => {
+      const navIdx = filteredSidebarItems.findIndex(
+        (m) => m.title.toLowerCase() === title.toLowerCase()
+      );
+      if (navIdx === -1) return;
+      const menu = filteredSidebarItems[navIdx];
+      if (menu.children && menu.children.length > 0) {
+        let el = navItemRefs.current[navIdx];
+        if (!el && navContainerRef.current) {
+          const items = navContainerRef.current.querySelectorAll<HTMLElement>(
+            'li > div[role="button"], li > a'
+          );
+          el = items[navIdx] || null;
+        }
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          setMenuRect({ left: rect.left, bottom: rect.bottom });
+        }
+        activeNavIdxRef.current = navIdx;
+        setActiveMenuId((prev) => (prev === menu.title ? null : menu.title));
+        setActiveSubMenuId(null);
+        focusFirstDropItem();
+      } else {
+        navigate(resolveMenuPath(menu));
+        closeAll();
       }
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        setMenuRect({ left: rect.left, bottom: rect.bottom });
-      }
-      activeNavIdxRef.current = navIdx;
-      setActiveMenuId((prev) => (prev === menu.title ? null : menu.title));
-      setActiveSubMenuId(null);
-      focusFirstDropItem();
-    } else {
-      navigate(resolveMenuPath(menu));
-      closeAll();
-    }
-  }, [filteredSidebarItems, focusFirstDropItem, navigate, resolveMenuPath, closeAll]);
+    },
+    [filteredSidebarItems, focusFirstDropItem, navigate, resolveMenuPath, closeAll]
+  );
 
   useEffect(() => {
     const handleNavEvent = (e: any) => {
@@ -340,7 +376,15 @@ const HorizontalNav = () => {
           break;
       }
     },
-    [filteredSidebarItems, activeMenuId, closeAll, focusNav, focusFirstDropItem, navigate, resolveMenuPath]
+    [
+      filteredSidebarItems,
+      activeMenuId,
+      closeAll,
+      focusNav,
+      focusFirstDropItem,
+      navigate,
+      resolveMenuPath,
+    ]
   );
 
   /** Keyboard handler for full dropdown tree navigation */
@@ -603,9 +647,7 @@ const HorizontalNav = () => {
           >
             <div className="flex items-center gap-1.5 min-w-0">
               {/* Tiny small arrow indicator only for grandchild / leaf items */}
-              <span className="text-[9px] text-emerald-400 font-bold shrink-0">
-                ▸
-              </span>
+              <span className="text-[9px] text-emerald-400 font-bold shrink-0">▸</span>
               <span className="text-[12.5px] truncate">{item.title}</span>
             </div>
             {item.badge && (
@@ -621,7 +663,6 @@ const HorizontalNav = () => {
 
   return (
     <div className="w-full bg-slate-900/95 backdrop-blur-md text-white shadow-sm border-b border-slate-800/80 relative z-40 hidden lg:flex items-center justify-between px-3.5 py-1.5">
-      
       {/* ── MIDDLE: Navigation Items ── */}
       <div className="flex-1 overflow-x-auto no-scrollbar" ref={navContainerRef}>
         <ul className="flex items-center gap-1.5 min-w-max list-none m-0 p-0 flex-nowrap">
@@ -641,12 +682,18 @@ const HorizontalNav = () => {
 
             const getShortcutLabel = (title: string) => {
               switch (title.toLowerCase()) {
-                case "dashboard": return "D";
-                case "administration": return "Alt+A";
-                case "transactions": return "Alt+T";
-                case "display": return "Alt+D";
-                case "payroll": return "Alt+P";
-                default: return "";
+                case "dashboard":
+                  return "D";
+                case "administration":
+                  return "Alt+A";
+                case "transactions":
+                  return "Alt+T";
+                case "display":
+                  return "Alt+D";
+                case "payroll":
+                  return "Alt+P";
+                default:
+                  return "";
               }
             };
             const shortcut = getShortcutLabel(menu.title);
@@ -655,7 +702,9 @@ const HorizontalNav = () => {
               <li key={menu.title} className="relative">
                 {hasChildren ? (
                   <div
-                    ref={(el) => { navItemRefs.current[navIdx] = el; }}
+                    ref={(el) => {
+                      navItemRefs.current[navIdx] = el;
+                    }}
                     role="button"
                     tabIndex={0}
                     title={shortcut ? `${menu.title} (${shortcut})` : menu.title}
@@ -663,19 +712,27 @@ const HorizontalNav = () => {
                     onKeyDown={(e) => handleNavKeyDown(e, navIdx, menu)}
                     className={navItemClass}
                   >
-                    <span className="text-[13.5px] whitespace-nowrap select-none tracking-tight">{menu.title}</span>
-                    <FaChevronDown className={`text-[9px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""} text-white`} />
+                    <span className="text-[13.5px] whitespace-nowrap select-none tracking-tight">
+                      {menu.title}
+                    </span>
+                    <FaChevronDown
+                      className={`text-[9px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""} text-white`}
+                    />
                   </div>
                 ) : (
                   <NavLink
-                    ref={(el) => { navItemRefs.current[navIdx] = el as HTMLElement | null; }}
+                    ref={(el) => {
+                      navItemRefs.current[navIdx] = el as HTMLElement | null;
+                    }}
                     to={resolvedPath}
                     tabIndex={0}
                     title={menu.title}
                     onKeyDown={(e) => handleNavKeyDown(e, navIdx, menu)}
                     className={`${navItemClass} no-underline`}
                   >
-                    <span className="text-[13.5px] whitespace-nowrap select-none tracking-tight">{menu.title}</span>
+                    <span className="text-[13.5px] whitespace-nowrap select-none tracking-tight">
+                      {menu.title}
+                    </span>
                   </NavLink>
                 )}
               </li>
@@ -689,114 +746,122 @@ const HorizontalNav = () => {
         {/* Live Status Indicator */}
         <LiveBadge size="xs" />
 
+        {/* Notification centre (P1-00) */}
+        <NotificationBell />
+
         {/* Theme Toggle Button */}
         <ThemeToggle className="!w-8 !h-8 !rounded-full bg-slate-800/80 border border-slate-700/60 hover:bg-slate-700 shadow-xs" />
 
         {/* User Profile Card */}
-        {user && (() => {
-          const name = user.fullName || user.username || "User";
-          const role = formatRole(user);
-          return (
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                title="Account Menu"
-                className={`flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full border transition-all duration-200 cursor-pointer ${
-                  showProfileMenu 
-                    ? "bg-slate-800 border-teal-500/60 shadow-md shadow-teal-500/15" 
-                    : "bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 hover:border-slate-600 shadow-xs"
-                }`}
-              >
-                {/* Round Avatar */}
-                <div className="shrink-0">
-                  {avatarImage ? (
-                    <img 
-                      src={avatarImage} 
-                      alt={name} 
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                      className="w-7 h-7 rounded-full object-cover border border-slate-700 shadow-xs" 
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-xs uppercase">
-                      {getInitials(name)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Two Stacked Lines */}
-                <div className="flex flex-col text-left leading-tight pr-0.5">
-                  <span className="font-bold text-xs text-white tracking-tight whitespace-nowrap">
-                    {name}
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-400 capitalize whitespace-nowrap">
-                    {role}
-                  </span>
-                </div>
-
-                <FaChevronDown className={`text-[9px] transition-transform duration-200 ${showProfileMenu ? "rotate-180 text-teal-400" : "text-slate-400"}`} />
-              </button>
-
-              {/* Interactive Profile Dropdown Menu */}
-              {showProfileMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-line-soft rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="p-2.5 rounded-xl bg-card-2 border border-line-soft mb-1.5 flex items-center gap-2.5">
+        {user &&
+          (() => {
+            const name = user.fullName || user.username || "User";
+            const role = formatRole(user);
+            return (
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  title="Account Menu"
+                  className={`flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full border transition-all duration-200 cursor-pointer ${
+                    showProfileMenu
+                      ? "bg-slate-800 border-teal-500/60 shadow-md shadow-teal-500/15"
+                      : "bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 hover:border-slate-600 shadow-xs"
+                  }`}
+                >
+                  {/* Round Avatar */}
+                  <div className="shrink-0">
                     {avatarImage ? (
-                      <img 
-                        src={avatarImage} 
-                        alt={name} 
-                        className="w-8 h-8 rounded-full object-cover border border-line-soft shadow-xs shrink-0" 
+                      <img
+                        src={avatarImage}
+                        alt={name}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                        className="w-7 h-7 rounded-full object-cover border border-slate-700 shadow-xs"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0 uppercase">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-xs uppercase">
                         {getInitials(name)}
                       </div>
                     )}
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-xs text-ink truncate">{name}</div>
-                      <div className="text-[10px] font-semibold text-teal-500 uppercase tracking-wider">{role}</div>
+                  </div>
+
+                  {/* Two Stacked Lines */}
+                  <div className="flex flex-col text-left leading-tight pr-0.5">
+                    <span className="font-bold text-xs text-white tracking-tight whitespace-nowrap">
+                      {name}
+                    </span>
+                    <span className="text-[10px] font-medium text-slate-400 capitalize whitespace-nowrap">
+                      {role}
+                    </span>
+                  </div>
+
+                  <FaChevronDown
+                    className={`text-[9px] transition-transform duration-200 ${showProfileMenu ? "rotate-180 text-teal-400" : "text-slate-400"}`}
+                  />
+                </button>
+
+                {/* Interactive Profile Dropdown Menu */}
+                {showProfileMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-line-soft rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="p-2.5 rounded-xl bg-card-2 border border-line-soft mb-1.5 flex items-center gap-2.5">
+                      {avatarImage ? (
+                        <img
+                          src={avatarImage}
+                          alt={name}
+                          className="w-8 h-8 rounded-full object-cover border border-line-soft shadow-xs shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0 uppercase">
+                          {getInitials(name)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-xs text-ink truncate">{name}</div>
+                        <div className="text-[10px] font-semibold text-teal-500 uppercase tracking-wider">
+                          {role}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          navigate("/profile");
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-ink-muted hover:text-ink hover:bg-card-2 transition-colors cursor-pointer text-left"
+                      >
+                        <FiUser className="text-sm text-teal-500" />
+                        <span>My Profile</span>
+                      </button>
+
+                      <div className="h-px bg-line-soft my-1" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
+                      >
+                        <FiLogOut className="text-sm" />
+                        <span>Log Out</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        navigate("/profile");
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-ink-muted hover:text-ink hover:bg-card-2 transition-colors cursor-pointer text-left"
-                    >
-                      <FiUser className="text-sm text-teal-500" />
-                      <span>My Profile</span>
-                    </button>
-
-                    <div className="h-px bg-line-soft my-1" />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        handleLogout();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
-                    >
-                      <FiLogOut className="text-sm" />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
+                )}
+              </div>
+            );
+          })()}
       </div>
 
       {/* ── FIXED PORTAL FOR DROPDOWNS: BUSY ERP STYLE INLINE TREE INSIDE CARD ── */}
       {activeMenuData && activeMenuData.children && activeMenuData.children.length > 0 && (
-        <div 
+        <div
           ref={dropdownPortalRef}
           onKeyDown={handleDropdownKeyDown}
           className="fixed z-50 pt-2 animate-in fade-in slide-in-from-top-2 outline-none"

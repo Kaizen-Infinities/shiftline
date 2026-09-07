@@ -14,6 +14,7 @@ import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 import { invitationService } from "../users/invitation.service";
+import { notify } from "../notifications/notify";
 import {
   ONBOARDING_STEPS,
   STEP_LABELS,
@@ -605,6 +606,15 @@ class OnboardingService {
       where: { id: company.id },
       data: { isOnboarded: true, onboardingStep: null, updatedBy: actorUuid(userId) },
       include: { businessPlaces: true },
+    });
+    await notify({
+      category: "onboarding",
+      level: "SUCCESS",
+      title: "Setup complete",
+      body: `${updated.companyName} is ready to use.`,
+      link: "/dashboard",
+      to: { all: true, exclude: [userId] },
+      createdBy: userId,
     });
     return {
       ...updated,

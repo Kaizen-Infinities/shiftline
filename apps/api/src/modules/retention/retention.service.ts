@@ -192,6 +192,17 @@ const CLASS_OPS: Record<RetentionDataClass, ClassOps> = {
     remove: async (tx, ids) =>
       (await tx.agentPosition.deleteMany({ where: { id: { in: ids as bigint[] } } })).count,
   },
+  NOTIFICATIONS: {
+    count: (tx, cutoff) => tx.notification.count({ where: { createdAt: { lt: cutoff } } }),
+    fetch: (tx, cutoff, take) =>
+      tx.notification.findMany({
+        where: { createdAt: { lt: cutoff } },
+        orderBy: { createdAt: "asc" },
+        take,
+      }),
+    remove: async (tx, ids) =>
+      (await tx.notification.deleteMany({ where: { id: { in: ids as string[] } } })).count,
+  },
 };
 
 const BATCH = 1000;

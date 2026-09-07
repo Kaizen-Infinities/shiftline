@@ -24,3 +24,11 @@ export const emitToTenant = (event: string, payload?: unknown, companyId?: strin
 export const emitToPlatform = (event: string, payload?: unknown): void => {
   getIO().to(PLATFORM_ROOM).emit(event, payload);
 };
+
+/** Room for one signed-in user across all their sockets (notifications). */
+export const userRoom = (userId: string) => `user:${userId}`;
+
+/** Emits to one user's sockets only (personal notices). */
+export const emitToUser = (userId: string, event: string, payload?: unknown): void => {
+  getIO().to(userRoom(userId)).emit(event, payload);
+};

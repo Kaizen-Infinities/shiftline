@@ -103,6 +103,21 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
     const owner = users.OWNER;
     log(`roles and users seeded (${opts.slug}.*)`);
 
+    for (const userId of Object.values(users)) {
+      if (!(await prisma.notification.findFirst({ where: { userId, category: "welcome" } }))) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            category: "welcome",
+            level: "INFO",
+            title: `Welcome to ${opts.companyName}`,
+            body: "Notices about imports, retention sweeps, stock snapshots and your team show up here.",
+            link: "/notifications",
+          },
+        });
+      }
+    }
+
     // Organisation masters
     for (const name of ["Production", "Stores", "Accounts", "Sales", "Quality"]) {
       if (!(await prisma.department.findFirst({ where: { name } })))
