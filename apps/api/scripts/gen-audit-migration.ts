@@ -53,6 +53,8 @@ export const AUDITED_MODELS = [
   "Plan",
   "Subscription",
   "FeatureFlagOverride",
+  "HsnCode",
+  "GstRate",
 ];
 
 const models = Prisma.dmmf.datamodel.models;

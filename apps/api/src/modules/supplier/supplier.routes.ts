@@ -22,9 +22,7 @@ router.post(
   "/",
   authMiddleware,
   requirePermission("suppliers.create"),
-  validateMiddleware(
-    createSupplierSchema
-  ),
+  validateMiddleware(createSupplierSchema),
   supplierController.create
 );
 
@@ -35,9 +33,7 @@ router.get(
   "/",
   authMiddleware,
   requirePermission("suppliers.view"),
-  validateMiddleware(
-    getSuppliersQuerySchema
-  ),
+  validateMiddleware(getSuppliersQuerySchema),
   supplierController.findAll
 );
 
@@ -58,9 +54,7 @@ router.get(
   "/:id",
   authMiddleware,
   requirePermission("suppliers.view"),
-  validateMiddleware(
-    supplierIdSchema
-  ),
+  validateMiddleware(supplierIdSchema),
   supplierController.findById
 );
 
@@ -71,9 +65,7 @@ router.put(
   "/:id",
   authMiddleware,
   requirePermission("suppliers.edit"),
-  validateMiddleware(
-    updateSupplierSchema
-  ),
+  validateMiddleware(updateSupplierSchema),
   supplierController.update
 );
 
@@ -84,9 +76,7 @@ router.delete(
   "/:id",
   authMiddleware,
   requirePermission("suppliers.delete"),
-  validateMiddleware(
-    supplierIdSchema
-  ),
+  validateMiddleware(supplierIdSchema),
   supplierController.delete
 );
 

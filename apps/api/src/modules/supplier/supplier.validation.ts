@@ -1,3 +1,4 @@
+import { isValidGstin } from "@shiftline/shared";
 import { z } from "zod";
 
 /**
@@ -9,9 +10,7 @@ const addressSubSchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   // BUG-SUP-006 fix: pincode must be exactly 6 digits
-  pincode: z
-    .string()
-    .regex(/^\d{6}$/, "Pincode must be exactly 6 digits"),
+  pincode: z.string().regex(/^\d{6}$/, "Pincode must be exactly 6 digits"),
 });
 
 const supplierAddressInputSchema = z.object({
@@ -32,7 +31,13 @@ export const createSupplierSchema = z.object({
     phones: z.any().optional().nullable(),
     altPhone: z.string().max(15).optional().nullable(),
     whatsapp: z.string().max(15).optional(),
-    email: z.string().email("Invalid email address").max(120).optional().nullable().or(z.literal("")),
+    email: z
+      .string()
+      .email("Invalid email address")
+      .max(120)
+      .optional()
+      .nullable()
+      .or(z.literal("")),
 
     // BUG-SUP-007 fix: GSTIN format validation (15-char pattern)
     gstin: z
@@ -41,8 +46,8 @@ export const createSupplierSchema = z.object({
         z
           .string()
           .refine(
-            (val) => !val || /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(val),
-            "Invalid GSTIN format (e.g. 33ABCDE1234F1Z5)"
+            (val) => !val || isValidGstin(val),
+            "Invalid GSTIN (format, state or check digit)"
           )
           .optional()
           .nullable()
@@ -62,7 +67,14 @@ export const createSupplierSchema = z.object({
           .nullable()
       )
       .or(z.literal("")),
-    gstRegType: z.string().max(20).optional().nullable(),
+    gstRegType: z.preprocess(
+      (val) =>
+        typeof val === "string" && val.trim() ? val.trim().toUpperCase() : val === "" ? null : val,
+      z
+        .enum(["REGULAR", "COMPOSITION", "UNREGISTERED", "SEZ", "OVERSEAS", "UIN"])
+        .optional()
+        .nullable()
+    ),
 
     billingAddressLine1: z.string().min(1, "Billing Address Line 1 is required").max(255),
     billingCity: z.string().min(1, "City is required").max(100),
@@ -71,7 +83,7 @@ export const createSupplierSchema = z.object({
     billingPincode: z
       .string()
       .regex(/^\d{6}$/, "Pincode must be exactly 6 digits")
-      .or(z.string().max(20)),  // keep max(20) for non-Indian use, but enforce 6-digit Indian format
+      .or(z.string().max(20)), // keep max(20) for non-Indian use, but enforce 6-digit Indian format
     billingCountry: z.string().optional().nullable().default("India"),
     stateCode: z.string().length(2, "State code must be exactly 2 characters"),
     status: z.enum(["Active", "Backup", "Inactive", "Blacklisted"]).default("Active"),
@@ -107,14 +119,8 @@ export const supplierIdSchema = z.object({
  */
 export const getSuppliersQuerySchema = z.object({
   query: z.object({
-    page: z
-      .string()
-      .regex(/^\d+$/, "Page must be a valid integer")
-      .optional(),
-    limit: z
-      .string()
-      .regex(/^\d+$/, "Limit must be a valid integer")
-      .optional(),
+    page: z.string().regex(/^\d+$/, "Page must be a valid integer").optional(),
+    limit: z.string().regex(/^\d+$/, "Limit must be a valid integer").optional(),
     search: z.string().optional(),
     status: z.string().optional(),
   }),

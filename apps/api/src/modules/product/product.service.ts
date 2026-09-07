@@ -92,6 +92,8 @@ class ProductService {
       uomId: await this.resolvePcsUomId(),
 
       categoryId: data.categoryId ? Number(data.categoryId) : null,
+      hsnCodeId: data.hsnCodeId ? String(data.hsnCodeId) : null,
+      gstRate: toNumberOrNull(data.gstRate),
 
       weightPerPiece: toNumberOrNull(data.weightPerPiece),
       weightUom: cleanString(data.weightUom, 10) || "g",
@@ -508,6 +510,9 @@ class ProductService {
           : undefined,
 
       categoryId: data.categoryId ? Number(data.categoryId) : undefined,
+      hsnCodeId:
+        data.hsnCodeId !== undefined ? (data.hsnCodeId ? String(data.hsnCodeId) : null) : undefined,
+      gstRate: data.gstRate !== undefined ? toNumberOrNull(data.gstRate) : undefined,
 
       weightPerPiece:
         data.weightPerPiece !== undefined ? toNumberOrNull(data.weightPerPiece) : undefined,

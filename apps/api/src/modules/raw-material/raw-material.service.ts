@@ -22,6 +22,8 @@ class RawMaterialService {
           // Scalar foreign keys, not `connect`: the tenant extension adds `companyId` to
           // `data`, which Prisma only accepts alongside scalar (unchecked) relation fields.
           categoryId: data.categoryId ?? null,
+          hsnCodeId: data.hsnCodeId ?? null,
+          gstRate: data.gstRate ?? null,
           minimumStock: data.minimumStock,
           baseUom: data.baseUom,
           reorderLevel: data.reorderLevel,
@@ -157,7 +159,7 @@ class RawMaterialService {
   async update(rawMaterialId: string, data: UpdateRawMaterialInput, userId?: string) {
     await this.findById(rawMaterialId);
 
-    const { categoryId, storeId, locationId, ...restData } = data;
+    const { categoryId, storeId, locationId, hsnCodeId, ...restData } = data;
 
     const updateData: any = {
       ...restData,
@@ -186,6 +188,11 @@ class RawMaterialService {
       } else {
         updateData.store = { connect: byCode("storeId", storeId) };
       }
+    }
+
+    if (hsnCodeId !== undefined) {
+      updateData.hsnCode =
+        hsnCodeId === null ? { disconnect: true } : { connect: { id: hsnCodeId } };
     }
 
     return prisma.rawMaterial.update({

@@ -461,7 +461,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
         billingCity: "Chennai",
         billingState: "Tamil Nadu",
         stateCode: "33",
-        gstRegType: "Regular",
+        gstRegType: "REGULAR" as const,
       },
       {
         supplierCode: "S002",
@@ -470,7 +470,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
         billingCity: "Coimbatore",
         billingState: "Tamil Nadu",
         stateCode: "33",
-        gstRegType: "Regular",
+        gstRegType: "REGULAR" as const,
       },
       {
         supplierCode: "S003",
@@ -479,7 +479,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
         billingCity: "Bengaluru",
         billingState: "Karnataka",
         stateCode: "29",
-        gstRegType: "Composition",
+        gstRegType: "COMPOSITION" as const,
       },
     ]) {
       await prisma.supplier.upsert({

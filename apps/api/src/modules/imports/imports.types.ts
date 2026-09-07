@@ -14,6 +14,7 @@ export const IMPORT_TYPES = [
   "raw-materials",
   "opening-balances",
   "opening-stock",
+  "hsn",
 ] as const;
 export type ImportType = (typeof IMPORT_TYPES)[number];
 
@@ -275,7 +276,31 @@ export const openingStockRow = z.object({
 });
 export type OpeningStockRow = z.infer<typeof openingStockRow>;
 
+export const hsnRow = z.object({
+  code: z.preprocess(
+    emptyToUndefined,
+    z
+      .string({ message: "Code is required" })
+      .regex(/^\d{4}(\d{2})?(\d{2})?$/, "HSN/SAC codes are 4, 6 or 8 digits")
+  ),
+  type: z.preprocess(
+    (v) => emptyToUndefined(upper(v)),
+    z.enum(["HSN", "SAC"], { message: "Use HSN or SAC" }).optional()
+  ),
+  description: requiredText(255, "Description"),
+  gstRate: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() !== "" ? Number(v.replace(/[%\s]/g, "")) : undefined),
+    z.number({ message: "GST rate is required" }).min(0).max(100)
+  ),
+  cessRate: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() !== "" ? Number(v.replace(/[%\s]/g, "")) : undefined),
+    z.number().min(0).max(100).optional()
+  ),
+});
+export type HsnRow = z.infer<typeof hsnRow>;
+
 export const ROW_SCHEMAS: Record<ImportType, z.ZodTypeAny> = {
+  hsn: hsnRow,
   customers: customerRow,
   suppliers: supplierRow,
   products: productRow,
@@ -646,6 +671,43 @@ export const IMPORT_TYPE_DEFS: ImportTypeDef[] = [
         description: "Positive quantity in the item's unit",
       },
       { key: "remarks", label: "Remarks", example: "Physical count 31 Mar", description: "" },
+    ],
+  },
+  {
+    key: "hsn",
+    label: "HSN / SAC codes",
+    description:
+      "Your own HSN and SAC codes with default GST and cess rates, added to the starter list.",
+    permissions: ["gst_tax.create"],
+    columns: [
+      {
+        key: "code",
+        label: "Code",
+        required: true,
+        example: "39232990",
+        description: "4, 6 or 8 digits",
+      },
+      {
+        key: "type",
+        label: "Type",
+        example: "HSN",
+        description: "HSN for goods, SAC for services (default from the code)",
+      },
+      {
+        key: "description",
+        label: "Description",
+        required: true,
+        example: "Plastic caps and closures",
+        description: "",
+      },
+      {
+        key: "gstRate",
+        label: "GST rate",
+        required: true,
+        example: "18",
+        description: "Total rate in percent",
+      },
+      { key: "cessRate", label: "Cess rate", example: "", description: "Percent, when applicable" },
     ],
   },
 ];

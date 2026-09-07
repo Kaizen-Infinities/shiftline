@@ -1,10 +1,32 @@
 import { prisma } from "../../config/prisma";
+import { stateNameToCode } from "../imports/imports.types";
 import { ApiError } from "../../utils/ApiError";
 import { executeDeleteWithValidation } from "../../utils/deleteValidation";
 
 import { CreateCustomerInput, UpdateCustomerInput } from "./customer.validation";
 import { accountsService } from "../accounts/accounts.service";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
+
+/**
+ * GST identity of a party (P1-08): a GSTIN implies REGULAR unless told otherwise and
+ * fixes the state code; without one the state code comes from the address state.
+ */
+const deriveGstFields = (
+  d: { gstin?: string | null; gstRegType?: string | null; stateCode?: string | null },
+  addressState?: string
+) => {
+  const gstin = d.gstin ? String(d.gstin).trim().toUpperCase() : null;
+  const gstRegType =
+    d.gstRegType ??
+    (gstin ? "REGULAR" : d.stateCode || addressState ? "UNREGISTERED" : "UNREGISTERED");
+  const stateCode = gstin
+    ? gstin.slice(0, 2)
+    : (d.stateCode ?? (addressState ? (stateNameToCode(addressState) ?? null) : null));
+  if (gstin && d.stateCode && d.stateCode !== gstin.slice(0, 2)) {
+    throw new ApiError(400, "stateCode does not match the GSTIN's state");
+  }
+  return { gstin: gstin ?? d.gstin ?? undefined, gstRegType, stateCode };
+};
 import { logger } from "../../lib/logger";
 
 class CustomerService {
@@ -34,6 +56,7 @@ class CustomerService {
       ...restData
     } = data as any;
     const mobileData = phones || restData.mobile || null;
+    Object.assign(restData, deriveGstFields(restData, addresses?.[0]?.state));
 
     const newCustomer = await prisma.customer.create({
       data: {
@@ -330,6 +353,24 @@ class CustomerService {
 
     const { phones, addresses, ...restData } = data as any;
     const mobileData = phones !== undefined ? phones : restData.mobile;
+    if (
+      restData.gstin !== undefined ||
+      restData.gstRegType !== undefined ||
+      restData.stateCode !== undefined
+    ) {
+      Object.assign(
+        restData,
+        deriveGstFields(
+          {
+            gstin: restData.gstin !== undefined ? restData.gstin : customer.gstin,
+            gstRegType: restData.gstRegType ?? (customer as any).gstRegType,
+            stateCode:
+              restData.stateCode !== undefined ? restData.stateCode : (customer as any).stateCode,
+          },
+          addresses?.[0]?.state
+        )
+      );
+    }
 
     const updated = await prisma.customer.update({
       where: { id },

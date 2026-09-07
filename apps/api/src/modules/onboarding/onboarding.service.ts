@@ -28,7 +28,6 @@ import {
 } from "./onboarding.types";
 
 const BANK_GROUP = "Bank Accounts";
-const SETTING_GST_REG_TYPE = "GST_REGISTRATION_TYPE";
 const SETTING_BOOKS_BEGIN_ON = "BOOKS_BEGIN_ON";
 const SETTING_TOS_VERSION = "TOS_VERSION_ACCEPTED";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,7 +68,7 @@ class OnboardingService {
         prisma.invoiceSetting.findUnique({ where: { companyId } }),
         prisma.systemSetting.findMany({
           where: {
-            key: { in: [SETTING_GST_REG_TYPE, SETTING_BOOKS_BEGIN_ON, SETTING_TOS_VERSION] },
+            key: { in: [SETTING_BOOKS_BEGIN_ON, SETTING_TOS_VERSION] },
           },
         }),
         prisma.user.findMany({
@@ -141,7 +140,7 @@ class OnboardingService {
         gstin: company.gstin,
       },
       gst: {
-        registrationType: setting(SETTING_GST_REG_TYPE) ?? (company.gstin ? "REGULAR" : null),
+        registrationType: company.gstRegistrationType,
         gstin: company.gstin,
         businessPlaces: company.businessPlaces.map((p) => {
           const address = (p.address ?? {}) as Record<string, unknown>;
@@ -151,6 +150,7 @@ class OnboardingService {
             name: p.name,
             type: p.type,
             gstPlaceCode: p.gstPlaceCode,
+            gstin: p.gstin,
             phone: p.phone,
             email: p.email,
             isHeadOffice: p.isHeadOffice,
@@ -279,6 +279,7 @@ class OnboardingService {
         name: p.name,
         type: p.type,
         gstPlaceCode: p.gstPlaceCode,
+        gstin: p.gstin ? p.gstin.toUpperCase() : isHeadOffice ? gstin : null,
         phone: p.phone,
         email: p.email || null,
         isHeadOffice,
@@ -319,11 +320,12 @@ class OnboardingService {
       where: { id: company.id },
       data: {
         gstin,
+        gstRegistrationType: input.registrationType,
+        stateCode: head.gstPlaceCode,
         state: GST_STATE_BY_CODE.get(head.gstPlaceCode)?.name ?? company.state,
         updatedBy: actorUuid(userId),
       },
     });
-    await this.setSetting(SETTING_GST_REG_TYPE, input.registrationType);
     return { step: await this.advance(company, "gst", userId) };
   }
 

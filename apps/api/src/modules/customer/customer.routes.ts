@@ -35,11 +35,7 @@ router.get(
   customerController.getNextCode
 );
 
-router.get(
-  "/:id/credit-status",
-  authMiddleware,
-  customerController.getCreditStatus
-);
+router.get("/:id/credit-status", authMiddleware, customerController.getCreditStatus);
 
 router.get(
   "/:id",

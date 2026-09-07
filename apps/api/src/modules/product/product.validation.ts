@@ -13,7 +13,6 @@ export const createProductSchema = z.object({
 
     uomId: z.string().optional(),
 
-
     productType: z.enum(["PRODUCTION", "SALES_PRODUCTION"]).optional(),
 
     weightPerPiece: z.coerce.number().optional(),
@@ -26,12 +25,12 @@ export const createProductSchema = z.object({
     minimumQty: z.string().max(20).optional(),
 
     categoryId: z.coerce.number().int().positive().optional().nullable(),
+    hsnCodeId: z.string().uuid().optional().nullable().or(z.literal("")),
+    gstRate: z.coerce.number().min(0).max(100).optional().nullable(),
 
     // FormData booleans also arrive as the literal strings "true"/"false"
-    isActive: z
-      .union([z.literal("true"), z.literal("false")])
-      .optional(),
-      
+    isActive: z.union([z.literal("true"), z.literal("false")]).optional(),
+
     openingStockQty: z.string().max(20).optional(),
     openingStockStoreId: z.string().max(20).optional(),
     rawMaterials: z.any().optional(),
@@ -45,13 +44,12 @@ export const createProductSchema = z.object({
 // 1-item array — z.preprocess normalizes both shapes to string[] before
 // validation runs, and z.coerce.number() further down turns each id into
 // a number for the Prisma `in` filter.
-const removedImageIdsField = z.preprocess(
-  (value) => {
+const removedImageIdsField = z
+  .preprocess((value) => {
     if (value === undefined) return undefined;
     return Array.isArray(value) ? value : [value];
-  },
-  z.array(z.coerce.number().int().positive())
-).optional();
+  }, z.array(z.coerce.number().int().positive()))
+  .optional();
 
 export const updateProductSchema = z.object({
   body: createProductSchema.shape.body.partial().extend({
@@ -72,9 +70,6 @@ export const updateProductSchema = z.object({
 
 export const productIdSchema = z.object({
   params: z.object({
-    id: z.string().regex(
-      /^\d+$/,
-      "Invalid product id"
-    ),
+    id: z.string().regex(/^\d+$/, "Invalid product id"),
   }),
 });

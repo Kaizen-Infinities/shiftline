@@ -54,6 +54,16 @@ class SupplierService {
     } = data as any;
 
     const mobileData = phones || supplierData.mobile || null;
+    if (supplierData.gstin) {
+      supplierData.gstin = String(supplierData.gstin).toUpperCase();
+      if (supplierData.stateCode && supplierData.stateCode !== supplierData.gstin.slice(0, 2)) {
+        throw new ApiError(400, "stateCode does not match the GSTIN's state");
+      }
+      supplierData.stateCode = supplierData.gstin.slice(0, 2);
+      supplierData.gstRegType = supplierData.gstRegType ?? "REGULAR";
+    } else {
+      supplierData.gstRegType = supplierData.gstRegType ?? "UNREGISTERED";
+    }
 
     const insertData: Prisma.SupplierCreateInput = {
       ...supplierData,

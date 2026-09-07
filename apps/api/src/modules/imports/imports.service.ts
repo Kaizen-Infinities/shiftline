@@ -19,6 +19,7 @@ import customerService from "../customer/customer.service";
 import productService from "../product/product.service";
 import rawMaterialService from "../raw-material/raw-material.service";
 import supplierService from "../supplier/supplier.service";
+import { gstService } from "../gst/gst.service";
 import { notify } from "../notifications/notify";
 import { normaliseHeader, parseCsv, toCsv } from "./imports.csv";
 import { byCode } from "../../lib/prisma";
@@ -29,6 +30,7 @@ import {
   importTypeDef,
   stateNameToCode,
   type CustomerRow,
+  type HsnRow,
   type ImportType,
   type ImportTypeDef,
   type OpeningBalanceRow,
@@ -386,6 +388,27 @@ class ImportsService {
         }
         break;
       }
+      case "hsn": {
+        const rows = valid as { index: number; data: HsnRow }[];
+        const codes = rows.map((r) => r.data.code);
+        const dupes = dup(codes, (c) => c);
+        const existing = new Set(
+          (
+            await prisma.hsnCode.findMany({
+              where: { code: { in: codes } },
+              select: { code: true },
+            })
+          ).map((h) => h.code)
+        );
+        for (const r of rows) {
+          if (dupes.has(r.data.code)) fail(r.index, "code: repeated in the file");
+          else if (existing.has(r.data.code)) exists(r.index, "This HSN/SAC already exists");
+          if (results[r.index].status === "ok") {
+            prepared.push({ result: results[r.index], data: r.data, refs: {} });
+          }
+        }
+        break;
+      }
       case "opening-stock": {
         const rows = valid as { index: number; data: OpeningStockRow }[];
         const key = (d: OpeningStockRow) => `${d.itemType}|${d.itemCode}|${d.store}`;
@@ -517,6 +540,17 @@ class ImportsService {
               date
             );
             break;
+          case "hsn": {
+            const d = p.data as HsnRow;
+            await gstService.createHsn({
+              code: d.code,
+              type: d.type,
+              description: d.description,
+              gstRate: d.gstRate,
+              cessRate: d.cessRate,
+            });
+            break;
+          }
         }
         report.imported++;
       } catch (err) {

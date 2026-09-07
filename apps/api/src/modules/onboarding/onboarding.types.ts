@@ -71,6 +71,8 @@ export const businessPlaceInput = z.object({
   name: trimmed(120).min(1, "Name is required"),
   type: z.enum(["HEAD_OFFICE", "BRANCH_OFFICE", "FACTORY", "WAREHOUSE", "RETAIL_STORE"]),
   gstPlaceCode: stateCodeField,
+  /** Separate GSTIN for a branch registration; blank places reuse the company's (head office). */
+  gstin: gstinField.optional().nullable().or(z.literal("")),
   phone: optionalTrimmed(20),
   email: z.string().trim().email().max(120).optional().nullable().or(z.literal("")),
   addressLine1: optionalTrimmed(255),
@@ -114,6 +116,15 @@ export const gstStepSchema = z.object({
           });
         }
         codes.add(p.code);
+      }
+      for (const p of b.businessPlaces) {
+        if (p.gstin && p.gstin.slice(0, 2) !== p.gstPlaceCode) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["businessPlaces"],
+            message: `Place ${p.code}: the GSTIN state does not match its state`,
+          });
+        }
       }
       if (b.gstin && heads[0] && heads[0].gstPlaceCode !== b.gstin.slice(0, 2)) {
         ctx.addIssue({

@@ -65,6 +65,7 @@ import importsRoutes from "../modules/imports/imports.routes";
 import notificationsRoutes from "../modules/notifications/notifications.routes";
 import entitlementsRoutes from "../modules/entitlements/entitlements.routes";
 import platformPlansRoutes from "../modules/platform/plans.routes";
+import gstRoutes from "../modules/gst/gst.routes";
 
 const router = Router();
 
@@ -139,6 +140,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/notifications", router: notificationsRoutes },
   { path: "/entitlements", router: entitlementsRoutes },
   { path: "/platform/plans", router: platformPlansRoutes },
+  { path: "/gst", router: gstRoutes },
 ];
 
 for (const { path, router: moduleRouter } of API_MOUNTS) {

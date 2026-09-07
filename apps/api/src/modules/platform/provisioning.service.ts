@@ -14,6 +14,7 @@ import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { entitlementService } from "../entitlements/entitlement.service";
+import { gstService } from "../gst/gst.service";
 
 const keysFor = (modules: string[], actions?: string[]) =>
   PERMISSION_REGISTRY.filter((m) => modules.includes(m.module)).flatMap((m) =>
@@ -214,6 +215,8 @@ class ProvisioningService {
             state: input.state,
             zipcode: input.zipcode,
             country: input.country ?? "India",
+            stateCode: stateCode ?? null,
+            gstRegistrationType: input.gstin ? "REGULAR" : "UNREGISTERED",
             isOnboarded: input.isOnboarded ?? false,
             onboardingStep: input.isOnboarded ? null : "company",
             createdBy: input.createdBy,
@@ -246,6 +249,7 @@ class ProvisioningService {
         entitlementService.invalidate(company.id);
       }
       await accountsService.ensureSystemLedgersExist();
+      await gstService.ensureGstMasters();
 
       if ((await prisma.businessPlace.count()) === 0) {
         await prisma.businessPlace.create({

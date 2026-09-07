@@ -39,6 +39,7 @@ describe("csv imports", () => {
       "raw-materials",
       "opening-balances",
       "opening-stock",
+      "hsn",
     ]);
 
     const stores = await authed("demo.stores");

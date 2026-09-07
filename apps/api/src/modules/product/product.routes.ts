@@ -6,12 +6,7 @@ import { authMiddleware } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 import { validateMiddleware } from "../../middleware/validate.middleware";
 
-
-import {
-  createProductSchema,
-  updateProductSchema,
-  productIdSchema,
-} from "./product.validation";
+import { createProductSchema, updateProductSchema, productIdSchema } from "./product.validation";
 import { uploadProductImage } from "../../middleware/upload.middleware";
 
 const router = Router();
@@ -19,11 +14,7 @@ const router = Router();
 /**
  * Get Next Product ID
  */
-router.get(
-  "/next-id",
-  authMiddleware,
-  productController.getNextId
-);
+router.get("/next-id", authMiddleware, productController.getNextId);
 
 /**
  * Create Product
@@ -45,12 +36,7 @@ router.post(
 /**
  * Get All Products
  */
-router.get(
-  "/",
-  authMiddleware,
-  requirePermission("products.view"),
-  productController.findAll
-);
+router.get("/", authMiddleware, requirePermission("products.view"), productController.findAll);
 
 /**
  * Get Product By Id

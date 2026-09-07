@@ -1,3 +1,4 @@
+import { GST_STATE_BY_CODE, isValidGstin } from "@shiftline/shared";
 import { z } from "zod";
 
 export const createCustomerSchema = z.object({
@@ -15,7 +16,6 @@ export const createCustomerSchema = z.object({
 
   mobile: z.any().optional().nullable(),
 
-
   phones: z.any().optional().nullable(),
 
   // accepts "", undefined, or a valid email — only rejects a malformed non-empty string
@@ -24,26 +24,42 @@ export const createCustomerSchema = z.object({
     z.string().email("Invalid email").optional()
   ),
 
-  gstin: z.string().optional(),
+  gstin: z.preprocess(
+    (val) => (typeof val === "string" ? val.trim().toUpperCase() : val),
+    z
+      .string()
+      .refine((v) => !v || isValidGstin(v), "Invalid GSTIN (format, state or check digit)")
+      .optional()
+      .nullable()
+  ),
+  gstRegType: z
+    .enum(["REGULAR", "COMPOSITION", "UNREGISTERED", "SEZ", "OVERSEAS", "UIN"])
+    .optional(),
+  stateCode: z
+    .string()
+    .regex(/^\d{2}$/, "State code is two digits")
+    .refine((c) => GST_STATE_BY_CODE.has(c), "Unknown GST state code")
+    .optional()
+    .nullable(),
   //pan: z.string().optional(),
-
-
-
 
   creditLimit: z.number().optional(),
   creditDays: z.number().nullable().optional(),
 
-  transports: z.array(z.object({
-    name: z.string().min(1),
-    address: z.string().optional().default(""),
-    phone: z.string().optional().default(""),
-  })).nullable().optional(),
+  transports: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        address: z.string().optional().default(""),
+        phone: z.string().optional().default(""),
+      })
+    )
+    .nullable()
+    .optional(),
 
   // Opening balance — set once at creation, never editable
   openingBalance: z.number().min(0, "Opening balance cannot be negative").optional().default(0),
   openingBalanceType: z.enum(["DEBIT", "CREDIT"]).optional().default("DEBIT"),
-
-
 
   addresses: z
     .array(
@@ -58,11 +74,7 @@ export const createCustomerSchema = z.object({
     )
     .optional(),
 
-  status: z
-    .enum(["Active", "OnHold", "Blocked", "Lead", "Inactive"])
-    .optional(),
-
-
+  status: z.enum(["Active", "OnHold", "Blocked", "Lead", "Inactive"]).optional(),
 });
 
 // openingBalance is intentionally excluded from updates — it is immutable after creation

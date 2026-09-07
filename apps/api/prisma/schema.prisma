@@ -396,18 +396,20 @@ model Customer {
   status String @default("Active") @db.VarChar(20)
 
   updatedBy             String?
-  id                    String            @id @default(uuid()) @db.Uuid
-  companyId             String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  openingBalance        Decimal           @default(0) @db.Decimal(14, 2)
-  openingBalanceType    String            @default("DEBIT") @db.VarChar(10)
+  id                    String              @id @default(uuid()) @db.Uuid
+  companyId             String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  openingBalance        Decimal             @default(0) @db.Decimal(14, 2)
+  openingBalanceType    String              @default("DEBIT") @db.VarChar(10)
+  gstRegType            GstRegistrationType @default(UNREGISTERED) @map("gst_reg_type")
+  stateCode             String?             @map("state_code") @db.VarChar(2)
   customerTypeId        Int?
   customerGradeId       Int?
-  customerType          CustomerType?     @relation(fields: [customerTypeId], references: [id])
-  customerGrade         CustomerGrade?    @relation(fields: [customerGradeId], references: [id])
+  customerType          CustomerType?       @relation(fields: [customerTypeId], references: [id])
+  customerGrade         CustomerGrade?      @relation(fields: [customerGradeId], references: [id])
   addresses             CustomerAddress[]
   salesInvoices         SalesInvoice[]
-  salesOrders           SalesOrder[]      @relation("CustomerSalesOrders")
-  salesOrdersAsReferral SalesOrder[]      @relation("SalesOrderReferredBy")
+  salesOrders           SalesOrder[]        @relation("CustomerSalesOrders")
+  salesOrdersAsReferral SalesOrder[]        @relation("SalesOrderReferredBy")
   accountLedger         AccountLedger?
   salesReturns          SalesReturn[]
 
@@ -454,22 +456,25 @@ model Company {
   faviconUrl   String?
   addressLine1 String? @db.VarChar(255)
 
-  city           String?      @db.VarChar(100)
-  state          String?      @db.VarChar(100)
-  zipcode        String?      @db.VarChar(20)
-  country        String?      @db.VarChar(100)
-  isOnboarded    Boolean      @default(false)
-  isActive       Boolean      @default(true)
-  createdBy      String?      @db.Uuid
-  updatedBy      String?      @db.Uuid
-  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+  city                String?             @db.VarChar(100)
+  state               String?             @db.VarChar(100)
+  zipcode             String?             @db.VarChar(20)
+  country             String?             @db.VarChar(100)
+  isOnboarded         Boolean             @default(false)
+  isActive            Boolean             @default(true)
+  createdBy           String?             @db.Uuid
+  updatedBy           String?             @db.Uuid
+  createdAt           DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @db.Timestamptz(6)
   /// URL-safe tenant handle (login branding, invitations); unique across the platform.
-  slug           String?      @unique @db.VarChar(40)
-  onboardingStep String?      @map("onboarding_step") @db.VarChar(40)
-  tosAcceptedAt  DateTime?    @map("tos_accepted_at") @db.Timestamptz(6)
-  tosAcceptedBy  String?      @map("tos_accepted_by") @db.VarChar(36)
-  invitations    Invitation[] @relation("CompanyInvitation")
+  slug                String?             @unique @db.VarChar(40)
+  onboardingStep      String?             @map("onboarding_step") @db.VarChar(40)
+  tosAcceptedAt       DateTime?           @map("tos_accepted_at") @db.Timestamptz(6)
+  tosAcceptedBy       String?             @map("tos_accepted_by") @db.VarChar(36)
+  /// GST registration of the head office; places of business carry their own GSTIN.
+  gstRegistrationType GstRegistrationType @default(REGULAR) @map("gst_registration_type")
+  stateCode           String?             @map("state_code") @db.VarChar(2)
+  invitations         Invitation[]        @relation("CompanyInvitation")
 
   accountLedgers              AccountLedger[]              @relation("CompanyAccountLedger")
   accountingPeriods           AccountingPeriod[]           @relation("CompanyAccountingPeriod")
@@ -565,6 +570,8 @@ model Company {
   notifications               Notification[]               @relation("CompanyNotification")
   subscription                Subscription?                @relation("CompanySubscription")
   featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
+  hsnCodes                    HsnCode[]                    @relation("CompanyHsnCode")
+  gstRates                    GstRate[]                    @relation("CompanyGstRate")
 
   @@map("companies")
 }
@@ -611,6 +618,8 @@ model BusinessPlace {
   name         String            @db.VarChar(120)
   type         BusinessPlaceType
   gstPlaceCode String?           @db.VarChar(2)
+  /// GSTIN of this place when registered separately (branch registration); state code in gstPlaceCode.
+  gstin        String?           @db.VarChar(15)
   phone        String?           @db.VarChar(20)
   email        String?           @db.VarChar(120)
   isHeadOffice Boolean           @default(false)
@@ -677,7 +686,7 @@ model Supplier {
   createdBy           String                  @map("created_by")
   deletedAt           DateTime?               @map("deleted_at") @db.Timestamptz(6)
   displayName         String?                 @map("display_name") @db.VarChar(80)
-  gstRegType          String?                 @map("gst_reg_type") @db.VarChar(20)
+  gstRegType          GstRegistrationType?    @map("gst_reg_type")
   legalName           String                  @map("legal_name") @db.VarChar(160)
   minOrderQty         Decimal?                @map("min_order_qty") @db.Decimal(12, 3)
   stateCode           String                  @map("state_code") @db.VarChar(2)
@@ -785,6 +794,10 @@ model Product {
   minimumQty                String                     @default("0") @map("minimum_qty")
   productType               ProductType                @default(PRODUCTION) @map("product_type")
   categoryId                Int?                       @map("category_id")
+  hsnCodeId                 String?                    @map("hsn_code_id") @db.Uuid
+  /// Overrides the HSN default when set.
+  gstRate                   Decimal?                   @map("gst_rate") @db.Decimal(5, 2)
+  hsnCode                   HsnCode?                   @relation(fields: [hsnCodeId], references: [id])
   billOfMaterials           BillOfMaterial[]
   finishedGoodsStocks       FinishedGoodsStock[]
   finishedGoodsTransactions FinishedGoodsTransaction[]
@@ -1069,6 +1082,9 @@ model RawMaterial {
   itemType                String?                  @map("item_type") @db.VarChar(50)
   flaggedForReview        Boolean                  @default(false) @map("flagged_for_review")
   categoryId              Int?                     @map("category_id")
+  hsnCodeId               String?                  @map("hsn_code_id") @db.Uuid
+  gstRate                 Decimal?                 @map("gst_rate") @db.Decimal(5, 2)
+  hsnCode                 HsnCode?                 @relation(fields: [hsnCodeId], references: [id])
   billOfMaterials         BillOfMaterial[]
   grnInvoiceItems         GrnInvoiceItem[]
   productionWastages      ProductionWastage[]
@@ -2542,6 +2558,61 @@ model FeatureFlagOverride {
 
   @@unique([companyId, feature])
   @@map("feature_flag_overrides")
+}
+
+enum GstRegistrationType {
+  REGULAR
+  COMPOSITION
+  UNREGISTERED
+  SEZ
+  OVERSEAS
+  UIN
+}
+
+enum HsnType {
+  HSN
+  SAC
+}
+
+/// HSN (goods) or SAC (services) code with its default GST rate (P1-08). Tenant-scoped so a
+/// company can add codes and adjust rates; provisioning seeds a starter list.
+model HsnCode {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code        String   @db.VarChar(8)
+  type        HsnType  @default(HSN)
+  description String   @db.VarChar(255)
+  /// Total GST rate (CGST + SGST, or IGST) in percent.
+  gstRate     Decimal  @default(0) @map("gst_rate") @db.Decimal(5, 2)
+  cessRate    Decimal  @default(0) @map("cess_rate") @db.Decimal(5, 2)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  products     Product[]
+  rawMaterials RawMaterial[]
+  company      Company       @relation("CompanyHsnCode", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+  @@map("hsn_codes")
+}
+
+/// GST slab with optional cess (P1-08). Seeded with the statutory slabs; tenants may add cess variants.
+model GstRate {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  name      String   @db.VarChar(40)
+  rate      Decimal  @db.Decimal(5, 2)
+  cessRate  Decimal  @default(0) @map("cess_rate") @db.Decimal(5, 2)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyGstRate", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, rate, cessRate])
+  @@map("gst_rates")
 }
 
 model Voucher {
