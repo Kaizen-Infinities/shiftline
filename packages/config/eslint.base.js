@@ -78,6 +78,6 @@ export const apiArchitectureRules = {
       ],
     },
   ],
-  // Structured logging arrives in P0-13; until then console is a warning.
-  "no-console": "warn",
+  // Structured logging goes through lib/logger.ts (pino); console is an error in the API.
+  "no-console": "error",
 };

@@ -1,0 +1,21 @@
+{
+  "$comment": "Accepted production-dependency advisories for scripts/audit-gate.mjs. Every entry needs a reason and an expiry; an expired entry fails CI so the risk is re-argued, not forgotten.",
+  "advisories": [
+    {
+      "id": "GHSA-ggr8-5vv4-36mx",
+      "package": "deepmerge-ts (via prisma > @prisma/config)",
+      "severity": "high",
+      "reason": "Reachable only while the Prisma CLI loads prisma.config.ts at migrate time; no request path merges attacker-controlled objects. Fixed upstream in Prisma 8.1; the upgrade is scheduled with the surrogate-key work in P1-00.",
+      "expires": "2026-12-31",
+      "owner": "platform"
+    },
+    {
+      "id": "GHSA-w5hq-g745-h8pq",
+      "package": "uuid (via imagekit)",
+      "severity": "moderate",
+      "reason": "imagekit 6 pins an old uuid; the vulnerable v3/v5/v6 buffer path is not used. imagekit is replaced by @imagekit/nodejs when attachments move to the storage abstraction (P1-03).",
+      "expires": "2026-12-31",
+      "owner": "platform"
+    }
+  ]
+}

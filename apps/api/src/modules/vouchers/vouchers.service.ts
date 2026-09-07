@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { VoucherType, Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
 import { CreateVoucherInput, GetVouchersQueryInput } from "./vouchers.types";
+import { logger } from "../../lib/logger";
 
 class VouchersService {
   private readonly prefixMap: Record<VoucherType, string> = {
@@ -214,7 +215,7 @@ class VouchersService {
         };
       });
     } catch (e) {
-      console.error("[VouchersService] Error in enrichVouchers:", e);
+      logger.error({ err: e }, "[VouchersService] Error in enrichVouchers:");
       return vouchers;
     }
   }
@@ -228,7 +229,7 @@ class VouchersService {
       const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.syncUnpostedVouchers();
     } catch (e) {
-      console.error("[VouchersService] Failed to sync unposted vouchers:", e);
+      logger.error({ err: e }, "[VouchersService] Failed to sync unposted vouchers:");
     }
 
     const supplierIdNum = query.supplierId ? Number(query.supplierId) : undefined;

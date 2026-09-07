@@ -7,6 +7,7 @@ import { prisma } from "../../config/prisma";
 import bcrypt from "bcrypt";
 import { sendEmail } from "../../utils/mailer";
 import { generateWelcomeEmailHtml } from "../../templates/welcomeEmailTemplate";
+import { logger } from "../../lib/logger";
 export class UserService {
   async getProfile(userId: string): Promise<UserResponse> {
     const user = await userRepository.findUserById(userId);
@@ -70,50 +71,38 @@ export class UserService {
   }
 
   async create(data: {
-  username: string;
-  fullName: string;
-  email?: string;
-  password: string;
-  employeeId?: number | null;
-  roleId: number;
-}): Promise<UserResponse> {
+    username: string;
+    fullName: string;
+    email?: string;
+    password: string;
+    employeeId?: number | null;
+    roleId: number;
+  }): Promise<UserResponse> {
+    const existingUser = await userRepository.findByUsername(data.username);
 
-  const existingUser =
-    await userRepository.findByUsername(
-      data.username
-    );
+    if (existingUser) {
+      throw new ApiError(400, "Username already exists");
+    }
 
-  if (existingUser) {
-    throw new ApiError(
-      400,
-      "Username already exists"
-    );
-  }
+    const passwordHash = await bcrypt.hash(data.password, 10);
 
-  const passwordHash =
-    await bcrypt.hash(
-      data.password,
-      10
-    );
+    let finalEmployeeId: bigint;
+    if (data.employeeId) {
+      finalEmployeeId = BigInt(data.employeeId);
+    } else {
+      const empCode = await employeeService.getNextEmployeeCode();
+      const employee = await prisma.employee.create({
+        data: {
+          empCode,
+          fullName: data.fullName,
+          email: data.email,
+          status: "active",
+        },
+      });
+      finalEmployeeId = employee.id;
+    }
 
-  let finalEmployeeId: bigint;
-  if (data.employeeId) {
-    finalEmployeeId = BigInt(data.employeeId);
-  } else {
-    const empCode = await employeeService.getNextEmployeeCode();
-    const employee = await prisma.employee.create({
-      data: {
-        empCode,
-        fullName: data.fullName,
-        email: data.email,
-        status: "active",
-      }
-    });
-    finalEmployeeId = employee.id;
-  }
-
-  const user =
-    await userRepository.createUser({
+    const user = await userRepository.createUser({
       username: data.username,
       fullName: data.fullName,
       email: data.email,
@@ -125,28 +114,27 @@ export class UserService {
       createdBy: "ADMIN",
     });
 
-  if (data.email) {
-    try {
-      await sendEmail({
-        to: data.email,
-        subject: "Welcome to Shiftline — Your User Account Has Been Created",
-        html: generateWelcomeEmailHtml({
-          fullName: data.fullName,
-          username: data.username,
-          password: data.password,
-          title: "Welcome to Shiftline!",
-          subtitle: "Your user login account has been created successfully.",
-          teamName: "Shiftline Admin Team",
-        }),
-      });
-    } catch (emailErr) {
-      console.error("Failed to send welcome email (non-fatal):", emailErr);
+    if (data.email) {
+      try {
+        await sendEmail({
+          to: data.email,
+          subject: "Welcome to Shiftline — Your User Account Has Been Created",
+          html: generateWelcomeEmailHtml({
+            fullName: data.fullName,
+            username: data.username,
+            password: data.password,
+            title: "Welcome to Shiftline!",
+            subtitle: "Your user login account has been created successfully.",
+            teamName: "Shiftline Admin Team",
+          }),
+        });
+      } catch (emailErr) {
+        logger.error({ err: emailErr }, "Failed to send welcome email (non-fatal):");
+      }
     }
+
+    return this.formatUser(user);
   }
-
-  return this.formatUser(user);
-}
-
 
   async checkUsernameAvailable(username: string): Promise<{ available: boolean }> {
     const existingUser = await userRepository.findByUsername(username);

@@ -12,6 +12,7 @@ import { generatePoInvoiceHtml } from "../../templates/poInvoiceTemplate";
 import { generatePdfFromHtml } from "../../utils/pdfGenerator";
 import { sendEmail } from "../../utils/mailer";
 import { WhatsappService } from "../whatsappservice/whatsapp.service";
+import { logger } from "../../lib/logger";
 
 class PurchaseOrderController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -105,7 +106,7 @@ class PurchaseOrderController {
             await WhatsappService.sendDocumentMessage(formattedPhone, mediaId, filename, message);
           }
         } catch (err) {
-          console.error("Failed to auto-send WhatsApp on PO approval", err);
+          logger.error({ err: err }, "Failed to auto-send WhatsApp on PO approval");
         }
       })();
     }

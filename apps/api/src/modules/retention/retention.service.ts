@@ -78,8 +78,11 @@ const CLASS_OPS: Record<RetentionDataClass, ClassOps> = {
     count: (tx, cutoff) => tx.auditLog.count({ where: { changedAt: { lt: cutoff } } }),
     fetch: (tx, cutoff, take) =>
       tx.auditLog.findMany({ where: { changedAt: { lt: cutoff } }, orderBy: { id: "asc" }, take }),
-    remove: async (tx, ids) =>
-      (await tx.auditLog.deleteMany({ where: { id: { in: ids as bigint[] } } })).count,
+    remove: async (tx, ids) => {
+      // audit_log is append-only; only the retention sweep may delete, and only past the floor.
+      await tx.$executeRaw`SELECT set_config('app.retention_sweep', 'on', TRUE)`;
+      return (await tx.auditLog.deleteMany({ where: { id: { in: ids as bigint[] } } })).count;
+    },
   },
   EOD_SNAPSHOTS: {
     count: (tx, cutoff) => tx.eodStockSnapshot.count({ where: { snapshotDate: { lt: cutoff } } }),

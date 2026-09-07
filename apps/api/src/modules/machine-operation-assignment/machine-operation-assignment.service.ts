@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { logger } from "../../lib/logger";
 
 export class MachineOperationAssignmentService {
   /**
@@ -34,10 +35,7 @@ export class MachineOperationAssignmentService {
         status: "active",
         ...(roleId
           ? {
-              OR: [
-                { roleId: Number(roleId) },
-                { user: { roleId: Number(roleId) } },
-              ],
+              OR: [{ roleId: Number(roleId) }, { user: { roleId: Number(roleId) } }],
             }
           : {}),
       },
@@ -100,7 +98,11 @@ export class MachineOperationAssignmentService {
       where.OR = [
         { machineId: { contains: search, mode: "insensitive" } },
         { machine: { machineName: { contains: search, mode: "insensitive" } } },
-        { operators: { some: { employee: { fullName: { contains: search, mode: "insensitive" } } } } },
+        {
+          operators: {
+            some: { employee: { fullName: { contains: search, mode: "insensitive" } } },
+          },
+        },
         { inchargeEmployee: { fullName: { contains: search, mode: "insensitive" } } },
         { remarks: { contains: search, mode: "insensitive" } },
       ];
@@ -138,15 +140,17 @@ export class MachineOperationAssignmentService {
     ]);
 
     // Fetch employee details for machine operatorIds (which store Employee IDs)
-    const machineOperatorIds = [...new Set(rawAssignments.map(a => a.machine?.operatorId).filter(Boolean))];
+    const machineOperatorIds = [
+      ...new Set(rawAssignments.map((a) => a.machine?.operatorId).filter(Boolean)),
+    ];
     let machineOperatorMap = new Map();
     if (machineOperatorIds.length > 0) {
       try {
         const machineOperators = await prisma.employee.findMany({
-          where: { id: { in: machineOperatorIds.map(id => BigInt(id as string)) } },
+          where: { id: { in: machineOperatorIds.map((id) => BigInt(id as string)) } },
           select: { id: true, fullName: true, empCode: true },
         });
-        machineOperatorMap = new Map(machineOperators.map(emp => [emp.id.toString(), emp]));
+        machineOperatorMap = new Map(machineOperators.map((emp) => [emp.id.toString(), emp]));
       } catch (err) {
         // Fallback if operatorId is not a valid BigInt (e.g. empCode)
       }
@@ -162,22 +166,26 @@ export class MachineOperationAssignmentService {
 
       return {
         ...a,
-        machine: a.machine ? {
-          ...a.machine,
-          operatorName: machineOperatorName
-        } : null,
+        machine: a.machine
+          ? {
+              ...a.machine,
+              operatorName: machineOperatorName,
+            }
+          : null,
         id: a.id.toString(),
         inchargeEmployeeId: a.inchargeEmployeeId ? a.inchargeEmployeeId.toString() : null,
         inchargeEmployee: a.inchargeEmployee
           ? { ...a.inchargeEmployee, id: a.inchargeEmployee.id.toString() }
           : null,
-        operators: a.operators ? a.operators.map((op: any) => ({
-          ...op,
-          id: op.id.toString(),
-          assignmentId: op.assignmentId.toString(),
-          employeeId: op.employeeId.toString(),
-          employee: { ...op.employee, id: op.employee.id.toString() },
-        })) : [],
+        operators: a.operators
+          ? a.operators.map((op: any) => ({
+              ...op,
+              id: op.id.toString(),
+              assignmentId: op.assignmentId.toString(),
+              employeeId: op.employeeId.toString(),
+              employee: { ...op.employee, id: op.employee.id.toString() },
+            }))
+          : [],
       };
     });
 
@@ -208,7 +216,10 @@ export class MachineOperationAssignmentService {
       throw new ApiError(404, `Machine ${machineId} not found`);
     }
     if (!machine.isActive) {
-      throw new ApiError(400, `Machine ${machine.machineName} (${machineId}) is currently inactive and cannot be assigned`);
+      throw new ApiError(
+        400,
+        `Machine ${machine.machineName} (${machineId}) is currently inactive and cannot be assigned`
+      );
     }
 
     // 2. Validate Operator Employees active status
@@ -247,7 +258,7 @@ export class MachineOperationAssignmentService {
       where: {
         id: { not: undefined },
         machineId: machineId,
-        shiftId: shiftId !== undefined ? (shiftId || null) : undefined,
+        shiftId: shiftId !== undefined ? shiftId || null : undefined,
         isActive: true,
         OR: [
           {
@@ -279,10 +290,11 @@ export class MachineOperationAssignmentService {
         isActive,
         assignedBy: userId || "SYSTEM",
         operators: {
-          create: operators?.map((o: any) => ({
-            roleId: Number(o.roleId),
-            employeeId: BigInt(o.employeeId),
-          })) || [],
+          create:
+            operators?.map((o: any) => ({
+              roleId: Number(o.roleId),
+              employeeId: BigInt(o.employeeId),
+            })) || [],
         },
       },
       include: {
@@ -310,7 +322,10 @@ export class MachineOperationAssignmentService {
             machineId,
             weekStartDate: startDate.toISOString(),
             weekEndDate: endDate.toISOString(),
-            operators: operators.map((o: any) => ({ roleId: o.roleId, employeeId: String(o.employeeId) })),
+            operators: operators.map((o: any) => ({
+              roleId: o.roleId,
+              employeeId: String(o.employeeId),
+            })),
             inchargeEmployeeId: inchargeEmployeeId ? String(inchargeEmployeeId) : null,
             assignedBy: userId || "SYSTEM",
           },
@@ -318,20 +333,24 @@ export class MachineOperationAssignmentService {
         },
       });
     } catch (e) {
-      console.warn("Audit Log creation warning:", e);
+      logger.warn({ err: e }, "Audit Log creation warning:");
     }
 
     return {
       ...rawAssignment,
       id: rawAssignment.id.toString(),
-      inchargeEmployeeId: rawAssignment.inchargeEmployeeId ? rawAssignment.inchargeEmployeeId.toString() : null,
-      operators: rawAssignment.operators ? rawAssignment.operators.map((op: any) => ({
-        ...op,
-        id: op.id.toString(),
-        assignmentId: op.assignmentId.toString(),
-        employeeId: op.employeeId.toString(),
-        employee: { ...op.employee, id: op.employee.id.toString() },
-      })) : [],
+      inchargeEmployeeId: rawAssignment.inchargeEmployeeId
+        ? rawAssignment.inchargeEmployeeId.toString()
+        : null,
+      operators: rawAssignment.operators
+        ? rawAssignment.operators.map((op: any) => ({
+            ...op,
+            id: op.id.toString(),
+            assignmentId: op.assignmentId.toString(),
+            employeeId: op.employeeId.toString(),
+            employee: { ...op.employee, id: op.employee.id.toString() },
+          }))
+        : [],
       inchargeEmployee: rawAssignment.inchargeEmployee
         ? { ...rawAssignment.inchargeEmployee, id: rawAssignment.inchargeEmployee.id.toString() }
         : null,
@@ -361,7 +380,7 @@ export class MachineOperationAssignmentService {
       where: {
         id: { not: targetId },
         machineId: newMachineId,
-        shiftId: shiftId !== undefined ? (shiftId || null) : existing.shiftId,
+        shiftId: shiftId !== undefined ? shiftId || null : existing.shiftId,
         isActive: true,
         OR: [
           {
@@ -373,7 +392,9 @@ export class MachineOperationAssignmentService {
     });
 
     if (existingOverlap) {
-      const shiftMsg = (shiftId !== undefined ? (shiftId || null) : existing.shiftId) ? ` on this shift` : "";
+      const shiftMsg = (shiftId !== undefined ? shiftId || null : existing.shiftId)
+        ? ` on this shift`
+        : "";
       throw new ApiError(
         409,
         `An active assignment already exists for this Machine${shiftMsg} for week period ${startDate.toISOString().split("T")[0]} to ${endDate.toISOString().split("T")[0]}`
@@ -385,8 +406,12 @@ export class MachineOperationAssignmentService {
     if (data.weekStartDate) updateData.weekStartDate = startDate;
     if (data.weekEndDate) updateData.weekEndDate = endDate;
     if (shiftId !== undefined) updateData.shiftId = shiftId || null;
-    if (data.inchargeRoleId !== undefined) updateData.inchargeRoleId = data.inchargeRoleId ? Number(data.inchargeRoleId) : null;
-    if (data.inchargeEmployeeId !== undefined) updateData.inchargeEmployeeId = data.inchargeEmployeeId ? BigInt(data.inchargeEmployeeId) : null;
+    if (data.inchargeRoleId !== undefined)
+      updateData.inchargeRoleId = data.inchargeRoleId ? Number(data.inchargeRoleId) : null;
+    if (data.inchargeEmployeeId !== undefined)
+      updateData.inchargeEmployeeId = data.inchargeEmployeeId
+        ? BigInt(data.inchargeEmployeeId)
+        : null;
     if (data.remarks !== undefined) updateData.remarks = data.remarks;
     if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
 
@@ -425,31 +450,39 @@ export class MachineOperationAssignmentService {
           entityId: targetId.toString(),
           action: "UPDATE",
           oldValues: {
-            inchargeEmployeeId: existing.inchargeEmployeeId ? String(existing.inchargeEmployeeId) : null,
+            inchargeEmployeeId: existing.inchargeEmployeeId
+              ? String(existing.inchargeEmployeeId)
+              : null,
             isActive: existing.isActive,
           },
           newValues: {
-            inchargeEmployeeId: updatedRaw.inchargeEmployeeId ? String(updatedRaw.inchargeEmployeeId) : null,
+            inchargeEmployeeId: updatedRaw.inchargeEmployeeId
+              ? String(updatedRaw.inchargeEmployeeId)
+              : null,
             isActive: updatedRaw.isActive,
           },
           changedBy: userId || "SYSTEM",
         },
       });
     } catch (e) {
-      console.warn("Audit Log creation warning:", e);
+      logger.warn({ err: e }, "Audit Log creation warning:");
     }
 
     return {
       ...updatedRaw,
       id: updatedRaw.id.toString(),
-      inchargeEmployeeId: updatedRaw.inchargeEmployeeId ? updatedRaw.inchargeEmployeeId.toString() : null,
-      operators: updatedRaw.operators ? updatedRaw.operators.map((op: any) => ({
-        ...op,
-        id: op.id.toString(),
-        assignmentId: op.assignmentId.toString(),
-        employeeId: op.employeeId.toString(),
-        employee: { ...op.employee, id: op.employee.id.toString() },
-      })) : [],
+      inchargeEmployeeId: updatedRaw.inchargeEmployeeId
+        ? updatedRaw.inchargeEmployeeId.toString()
+        : null,
+      operators: updatedRaw.operators
+        ? updatedRaw.operators.map((op: any) => ({
+            ...op,
+            id: op.id.toString(),
+            assignmentId: op.assignmentId.toString(),
+            employeeId: op.employeeId.toString(),
+            employee: { ...op.employee, id: op.employee.id.toString() },
+          }))
+        : [],
       inchargeEmployee: updatedRaw.inchargeEmployee
         ? { ...updatedRaw.inchargeEmployee, id: updatedRaw.inchargeEmployee.id.toString() }
         : null,
@@ -473,22 +506,26 @@ export class MachineOperationAssignmentService {
           include: {
             role: true,
             employee: true,
-          }
-        }
+          },
+        },
       },
     });
 
     return {
       ...updatedRaw,
       id: updatedRaw.id.toString(),
-      inchargeEmployeeId: updatedRaw.inchargeEmployeeId ? updatedRaw.inchargeEmployeeId.toString() : null,
-      operators: updatedRaw.operators ? updatedRaw.operators.map((op: any) => ({
-        ...op,
-        id: op.id.toString(),
-        assignmentId: op.assignmentId.toString(),
-        employeeId: op.employeeId.toString(),
-        employee: { ...op.employee, id: op.employee.id.toString() },
-      })) : [],
+      inchargeEmployeeId: updatedRaw.inchargeEmployeeId
+        ? updatedRaw.inchargeEmployeeId.toString()
+        : null,
+      operators: updatedRaw.operators
+        ? updatedRaw.operators.map((op: any) => ({
+            ...op,
+            id: op.id.toString(),
+            assignmentId: op.assignmentId.toString(),
+            employeeId: op.employeeId.toString(),
+            employee: { ...op.employee, id: op.employee.id.toString() },
+          }))
+        : [],
     };
   }
 
@@ -517,13 +554,15 @@ export class MachineOperationAssignmentService {
       ...a,
       id: a.id.toString(),
       inchargeEmployeeId: a.inchargeEmployeeId ? a.inchargeEmployeeId.toString() : null,
-      operators: a.operators ? a.operators.map((op: any) => ({
-        ...op,
-        id: op.id.toString(),
-        assignmentId: op.assignmentId.toString(),
-        employeeId: op.employeeId.toString(),
-        employee: { ...op.employee, id: op.employee.id.toString() },
-      })) : [],
+      operators: a.operators
+        ? a.operators.map((op: any) => ({
+            ...op,
+            id: op.id.toString(),
+            assignmentId: op.assignmentId.toString(),
+            employeeId: op.employeeId.toString(),
+            employee: { ...op.employee, id: op.employee.id.toString() },
+          }))
+        : [],
       inchargeEmployee: a.inchargeEmployee
         ? { ...a.inchargeEmployee, id: a.inchargeEmployee.id.toString() }
         : null,
@@ -582,23 +621,31 @@ export class MachineOperationAssignmentService {
       let machineOperatorName = latestRaw.machine?.operatorId;
       if (latestRaw.machine?.operatorId) {
         try {
-          const emp = await prisma.employee.findUnique({ where: { id: BigInt(latestRaw.machine.operatorId as string) }});
+          const emp = await prisma.employee.findUnique({
+            where: { id: BigInt(latestRaw.machine.operatorId as string) },
+          });
           if (emp) machineOperatorName = emp.fullName;
         } catch (e) {}
       }
 
       return {
         ...latestRaw,
-        machine: latestRaw.machine ? { ...latestRaw.machine, operatorName: machineOperatorName } : null,
+        machine: latestRaw.machine
+          ? { ...latestRaw.machine, operatorName: machineOperatorName }
+          : null,
         id: latestRaw.id.toString(),
-        inchargeEmployeeId: latestRaw.inchargeEmployeeId ? latestRaw.inchargeEmployeeId.toString() : null,
-        operators: latestRaw.operators ? latestRaw.operators.map((op: any) => ({
-          ...op,
-          id: op.id.toString(),
-          assignmentId: op.assignmentId.toString(),
-          employeeId: op.employeeId.toString(),
-          employee: { ...op.employee, id: op.employee.id.toString() },
-        })) : [],
+        inchargeEmployeeId: latestRaw.inchargeEmployeeId
+          ? latestRaw.inchargeEmployeeId.toString()
+          : null,
+        operators: latestRaw.operators
+          ? latestRaw.operators.map((op: any) => ({
+              ...op,
+              id: op.id.toString(),
+              assignmentId: op.assignmentId.toString(),
+              employeeId: op.employeeId.toString(),
+              employee: { ...op.employee, id: op.employee.id.toString() },
+            }))
+          : [],
         inchargeEmployee: latestRaw.inchargeEmployee
           ? { ...latestRaw.inchargeEmployee, id: latestRaw.inchargeEmployee.id.toString() }
           : null,
@@ -608,23 +655,31 @@ export class MachineOperationAssignmentService {
     let machineOperatorName = currentRaw.machine?.operatorId;
     if (currentRaw.machine?.operatorId) {
       try {
-        const emp = await prisma.employee.findUnique({ where: { id: BigInt(currentRaw.machine.operatorId as string) }});
+        const emp = await prisma.employee.findUnique({
+          where: { id: BigInt(currentRaw.machine.operatorId as string) },
+        });
         if (emp) machineOperatorName = emp.fullName;
       } catch (e) {}
     }
 
     return {
       ...currentRaw,
-      machine: currentRaw.machine ? { ...currentRaw.machine, operatorName: machineOperatorName } : null,
+      machine: currentRaw.machine
+        ? { ...currentRaw.machine, operatorName: machineOperatorName }
+        : null,
       id: currentRaw.id.toString(),
-      inchargeEmployeeId: currentRaw.inchargeEmployeeId ? currentRaw.inchargeEmployeeId.toString() : null,
-      operators: currentRaw.operators ? currentRaw.operators.map((op: any) => ({
-        ...op,
-        id: op.id.toString(),
-        assignmentId: op.assignmentId.toString(),
-        employeeId: op.employeeId.toString(),
-        employee: { ...op.employee, id: op.employee.id.toString() },
-      })) : [],
+      inchargeEmployeeId: currentRaw.inchargeEmployeeId
+        ? currentRaw.inchargeEmployeeId.toString()
+        : null,
+      operators: currentRaw.operators
+        ? currentRaw.operators.map((op: any) => ({
+            ...op,
+            id: op.id.toString(),
+            assignmentId: op.assignmentId.toString(),
+            employeeId: op.employeeId.toString(),
+            employee: { ...op.employee, id: op.employee.id.toString() },
+          }))
+        : [],
       inchargeEmployee: currentRaw.inchargeEmployee
         ? { ...currentRaw.inchargeEmployee, id: currentRaw.inchargeEmployee.id.toString() }
         : null,
@@ -678,12 +733,14 @@ export class MachineOperationAssignmentService {
         fullName: op.employee.fullName,
         status: op.employee.status,
       })),
-      shiftIncharge: assignment.inchargeEmployee ? {
-        id: assignment.inchargeEmployee.id.toString(),
-        empCode: assignment.inchargeEmployee.empCode,
-        fullName: assignment.inchargeEmployee.fullName,
-        status: assignment.inchargeEmployee.status,
-      } : null,
+      shiftIncharge: assignment.inchargeEmployee
+        ? {
+            id: assignment.inchargeEmployee.id.toString(),
+            empCode: assignment.inchargeEmployee.empCode,
+            fullName: assignment.inchargeEmployee.fullName,
+            status: assignment.inchargeEmployee.status,
+          }
+        : null,
     };
   }
 
@@ -711,18 +768,21 @@ export class MachineOperationAssignmentService {
     return {
       ...assignment,
       id: assignment.id.toString(),
-      inchargeEmployeeId: assignment.inchargeEmployeeId ? assignment.inchargeEmployeeId.toString() : null,
+      inchargeEmployeeId: assignment.inchargeEmployeeId
+        ? assignment.inchargeEmployeeId.toString()
+        : null,
       inchargeEmployee: assignment.inchargeEmployee
         ? { ...assignment.inchargeEmployee, id: assignment.inchargeEmployee.id.toString() }
         : null,
-      operators: assignment.operators ? assignment.operators.map((op: any) => ({
-        ...op,
-        id: op.id.toString(),
-        assignmentId: op.assignmentId.toString(),
-        employeeId: op.employeeId.toString(),
-        employee: { ...op.employee, id: op.employee.id.toString() },
-      })) : [],
+      operators: assignment.operators
+        ? assignment.operators.map((op: any) => ({
+            ...op,
+            id: op.id.toString(),
+            assignmentId: op.assignmentId.toString(),
+            employeeId: op.employeeId.toString(),
+            employee: { ...op.employee, id: op.employee.id.toString() },
+          }))
+        : [],
     };
   }
 }
-

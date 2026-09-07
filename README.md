@@ -31,7 +31,10 @@ npm run dev --workspace @shiftline/web
 ```
 
 `npm run typecheck`, `npm run lint`, `npm run test` run across all workspaces; `npm run e2e`
-(or `make e2e`) runs the Playwright smoke suite against a seeded database.
+(or `make e2e`) runs the Playwright smoke suite against a seeded database; `npm run audit:gate`
+is the dependency gate CI runs. The API answers `GET /health` and `GET /ready`; logs are pino
+JSON with an `x-request-id` that also appears in error responses. Backups: `make backup`,
+`make restore` (see `docs/runbooks/backup-restore.md`).
 
 ## Working model
 

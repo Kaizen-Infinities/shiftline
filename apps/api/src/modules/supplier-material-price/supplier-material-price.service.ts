@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { Prisma } from "@prisma/client";
+import { logger } from "../../lib/logger";
 
 class SupplierMaterialPriceService {
   async fetchCurrent(supplierId: number) {
@@ -14,9 +15,7 @@ class SupplierMaterialPriceService {
         validFrom: "desc",
       },
     });
-
-    // console.log(supplierId, "sadsad")
-    // console.log(prices, 'kjlk')
+    // logger.info({ a0: prices, a1: 'kjlk' }, "info")
 
     // if (prices.length === 0) {
     //   return [];
@@ -35,9 +34,7 @@ class SupplierMaterialPriceService {
       },
     });
 
-    const materialNameMap = new Map(
-      rawMaterials.map((rm) => [rm.rawMaterialId, rm.materialName])
-    );
+    const materialNameMap = new Map(rawMaterials.map((rm) => [rm.rawMaterialId, rm.materialName]));
 
     // Compute revision counts for each raw material of this supplier
     const revisionCounts = await prisma.supplierMaterialPrice.groupBy({
@@ -50,9 +47,7 @@ class SupplierMaterialPriceService {
       },
     });
 
-    const revisionCountMap = new Map(
-      revisionCounts.map((rc) => [rc.rawMaterialId, rc._count.id])
-    );
+    const revisionCountMap = new Map(revisionCounts.map((rc) => [rc.rawMaterialId, rc._count.id]));
 
     // Map pricing rows to include materialName and revisionCount
     return prices.map((price) => ({
@@ -98,10 +93,7 @@ class SupplierMaterialPriceService {
     });
 
     if (existingCurrent) {
-      throw new ApiError(
-        400,
-        `Current price row already exists for raw material ${rawMaterialId}`
-      );
+      throw new ApiError(400, `Current price row already exists for raw material ${rawMaterialId}`);
     }
 
     const created = await prisma.supplierMaterialPrice.create({

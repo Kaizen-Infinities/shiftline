@@ -185,25 +185,30 @@ model User {
 }
 
 model UserSession {
-  id           String    @id @default(uuid())
-  userId       String?
-  adminId      BigInt?
-  sessionToken String    @unique
-  ipAddress    String?
-  userAgent    String?
-  deviceLabel  String?
-  loginAt      DateTime  @default(now()) @db.Timestamptz(6)
-  logoutAt     DateTime? @db.Timestamptz(6)
-  expiresAt    DateTime  @db.Timestamptz(6)
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
-  admin        Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  user         User?     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  id            String    @id @default(uuid())
+  userId        String?
+  adminId       BigInt?
+  sessionToken  String    @unique
+  ipAddress     String?
+  userAgent     String?
+  deviceLabel   String?
+  loginAt       DateTime  @default(now()) @db.Timestamptz(6)
+  logoutAt      DateTime? @db.Timestamptz(6)
+  expiresAt     DateTime  @db.Timestamptz(6)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  /// sha256 of the refresh token this session accepted before the last rotation (reuse detection).
+  prevTokenHash String?   @map("prev_token_hash") @db.VarChar(64)
+  rotatedAt     DateTime? @map("rotated_at") @db.Timestamptz(6)
+  lastUsedAt    DateTime? @map("last_used_at") @db.Timestamptz(6)
+  admin         Admin?    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  user          User?     @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@index([userId, isActive])
   @@index([adminId, isActive])
   @@index([sessionToken])
+  @@index([prevTokenHash])
   @@map("user_sessions")
 }
 
@@ -3034,4 +3039,31 @@ model AgentPosition {
   @@index([companyId, agentUserId, recordedAt])
   @@index([companyId, receivedAt])
   @@map("agent_positions")
+}
+
+// ─── Platform backups (P0-13) ─────────────────────────────────────────────────
+
+enum BackupStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+/// One row per pg_dump run (daily job or manual). Platform table: no companyId,
+/// readable by platform admins only. MCA Rule 3(5): daily backup of the books.
+model BackupRun {
+  id          BigInt       @id @default(autoincrement())
+  status      BackupStatus @default(RUNNING)
+  fileName    String?      @map("file_name") @db.VarChar(255)
+  bytes       BigInt?
+  sha256      String?      @db.VarChar(64)
+  durationMs  Int?         @map("duration_ms")
+  error       String?      @db.VarChar(1000)
+  triggeredBy String?      @map("triggered_by") @db.VarChar(36)
+  jobId       String?      @map("job_id") @db.VarChar(64)
+  startedAt   DateTime     @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt  DateTime?    @map("finished_at") @db.Timestamptz(6)
+
+  @@index([startedAt])
+  @@map("backup_runs")
 }

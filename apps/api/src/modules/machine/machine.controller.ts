@@ -3,6 +3,7 @@ import machineService from "./machine.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { emitToTenant } from "../../lib/realtime";
+import { logger } from "../../lib/logger";
 
 class MachineController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -11,7 +12,7 @@ class MachineController {
     try {
       emitToTenant("machine:created", machine);
     } catch (err) {
-      console.error("Socket emit error:", err);
+      logger.error({ err: err }, "Socket emit error:");
     }
 
     return res.status(201).json(new ApiResponse("Machine created successfully", machine));
@@ -40,7 +41,7 @@ class MachineController {
     try {
       emitToTenant("machine:updated", machine);
     } catch (err) {
-      console.error("Socket emit error:", err);
+      logger.error({ err: err }, "Socket emit error:");
     }
 
     return res.status(200).json(new ApiResponse("Machine updated successfully", machine));
@@ -55,7 +56,7 @@ class MachineController {
         machineId: req.params.machineId,
       });
     } catch (err) {
-      console.error("Socket emit error:", err);
+      logger.error({ err: err }, "Socket emit error:");
     }
 
     return res.status(200).json(new ApiResponse("Machine deleted successfully"));

@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { logger } from "../../lib/logger";
 
 class ExpenseService {
   /**
@@ -40,7 +41,10 @@ class ExpenseService {
       const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postExpenseVoucher(newExpense.id, data.paymentMethod);
     } catch (voucherErr) {
-      console.error("[Expense Voucher Posting Error]: Failed to post expense voucher", voucherErr);
+      logger.error(
+        { err: voucherErr },
+        "[Expense Voucher Posting Error]: Failed to post expense voucher"
+      );
     }
 
     // Also create a Petty Cash entry for petty cash tracking (record-keeping only, no voucher posting)
@@ -61,9 +65,9 @@ class ExpenseService {
         },
       });
     } catch (pcErr) {
-      console.error(
-        "[Petty Cash Sync Error]: Failed to create petty cash entry for expense",
-        pcErr
+      logger.error(
+        { err: pcErr },
+        "[Petty Cash Sync Error]: Failed to create petty cash entry for expense"
       );
     }
 
@@ -205,7 +209,7 @@ class ExpenseService {
       const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postExpenseVoucher(id, updatedExpense.paymentMethod);
     } catch (voucherErr) {
-      console.error("[Expense Voucher Update Error]:", voucherErr);
+      logger.error({ err: voucherErr }, "[Expense Voucher Update Error]:");
     }
 
     // Update corresponding petty cash entry if exists
@@ -223,7 +227,7 @@ class ExpenseService {
         },
       });
     } catch (pcErr) {
-      console.error("[Petty Cash Update Error]:", pcErr);
+      logger.error({ err: pcErr }, "[Petty Cash Update Error]:");
     }
 
     return updatedExpense;
@@ -245,7 +249,7 @@ class ExpenseService {
         await prisma.voucher.delete({ where: { id: voucher.id } });
       }
     } catch (voucherErr) {
-      console.error("[Expense Voucher Delete Error]:", voucherErr);
+      logger.error({ err: voucherErr }, "[Expense Voucher Delete Error]:");
     }
 
     // Delete corresponding petty cash entry if exists
@@ -255,7 +259,7 @@ class ExpenseService {
         where: { entryNo: pcEntryNo },
       });
     } catch (pcErr) {
-      console.error("[Petty Cash Delete Error]:", pcErr);
+      logger.error({ err: pcErr }, "[Petty Cash Delete Error]:");
     }
 
     return prisma.expense.delete({

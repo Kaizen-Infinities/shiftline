@@ -91,6 +91,9 @@ export interface ProfileResponseDto {
 export interface AuthTokens {
   accessToken: string;
   accessTokenExpiresAt?: Date;
+  /** Opaque refresh secret; sent as an httpOnly cookie to browsers, in the body to devices. */
+  refreshToken?: string;
+  refreshTokenExpiresAt?: Date;
 }
 
 export interface AuthResult {

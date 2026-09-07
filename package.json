@@ -25,6 +25,7 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "e2e:typecheck": "tsc -p e2e/tsconfig.json --noEmit",
+    "audit:gate": "node scripts/audit-gate.mjs",
     "postinstall": "npm run prisma:generate -w @shiftline/api"
   },
   "devDependencies": {

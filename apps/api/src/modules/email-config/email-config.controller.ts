@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { ApiError } from "../../utils/ApiError";
 import { prisma } from "../../config/prisma";
 import { sendEmail } from "../../utils/mailer";
+import { logger } from "../../lib/logger";
 
 export const getEmailConfig = async (req: Request, res: Response) => {
   try {
@@ -17,7 +18,7 @@ export const getEmailConfig = async (req: Request, res: Response) => {
     if (error instanceof ApiError) {
       res.status(error.statusCode).json({ success: false, message: error.message });
     } else {
-      console.error("Error in getEmailConfig:", error);
+      logger.error({ err: error }, "Error in getEmailConfig:");
       res.status(500).json({ success: false, message: "Internal server error" });
     }
   }
@@ -28,7 +29,8 @@ export const saveEmailConfig = async (req: Request, res: Response) => {
     const { smtpHost, smtpPort, smtpUsername, fromEmail, fromName, encryption } = req.body;
     const existing = await prisma.emailConfig.findFirst();
     const rawPassword = req.body.smtpPassword as string | undefined;
-    const smtpPassword = rawPassword && rawPassword !== "********" ? encryptText(rawPassword) : existing?.smtpPassword;
+    const smtpPassword =
+      rawPassword && rawPassword !== "********" ? encryptText(rawPassword) : existing?.smtpPassword;
 
     if (!smtpHost || !smtpPort || !smtpUsername || !smtpPassword || !fromEmail || !fromName) {
       throw new ApiError(400, "All SMTP fields are required");
@@ -72,12 +74,11 @@ export const saveEmailConfig = async (req: Request, res: Response) => {
     if (error instanceof ApiError) {
       res.status(error.statusCode).json({ success: false, message: error.message });
     } else {
-      console.error("Error in saveEmailConfig:", error);
+      logger.error({ err: error }, "Error in saveEmailConfig:");
       res.status(500).json({ success: false, message: "Internal server error" });
     }
   }
 };
-
 
 export const sendEmailDirect = async (req: Request, res: Response) => {
   try {
@@ -99,7 +100,7 @@ export const sendEmailDirect = async (req: Request, res: Response) => {
       data: info,
     });
   } catch (error: any) {
-    console.error("Error in sendEmailDirect:", error);
+    logger.error({ err: error }, "Error in sendEmailDirect:");
     res.status(500).json({
       success: false,
       message: error.message || "Failed to send email. Please check your configuration.",
@@ -125,7 +126,7 @@ export const sendEmailWithAttachment = async (req: Request, res: Response) => {
         filename: file.originalname,
         content: file.buffer,
         contentType: file.mimetype,
-      }
+      },
     ];
 
     const info = await sendEmail({
@@ -141,7 +142,7 @@ export const sendEmailWithAttachment = async (req: Request, res: Response) => {
       data: info,
     });
   } catch (error: any) {
-    console.error("Error in sendEmailWithAttachment:", error);
+    logger.error({ err: error }, "Error in sendEmailWithAttachment:");
     res.status(500).json({
       success: false,
       message: error.message || "Failed to send email. Please check your configuration.",

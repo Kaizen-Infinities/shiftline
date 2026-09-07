@@ -5,19 +5,22 @@ dotenv.config();
 import http from "http";
 import app from "./app";
 import { prisma } from "./config/prisma";
+import { flushSentry, initSentry } from "./lib/sentry";
 import { bootstrapAdmin } from "./utils/bootstrapAdmin";
 import { initSocket } from "./socket/socket";
 import { env } from "./config/env";
 import { startJobs, stopJobs } from "./lib/jobs";
 import { registerSchedules, registerWorkers } from "./jobs";
+import { logger } from "./lib/logger";
 
 const PORT = Number(process.env.PORT) || 5000;
 
 const startServer = async (): Promise<void> => {
   try {
+    initSentry("shiftline-api");
     await prisma.$connect();
 
-    console.log("✅ Database connected successfully");
+    logger.info("✅ Database connected successfully");
 
     // Automatically create admin user from .env variables.
     // Returns true only on a fresh install (DB was empty).
@@ -33,27 +36,28 @@ const startServer = async (): Promise<void> => {
       await startJobs();
       await registerWorkers();
       await registerSchedules();
-      console.log("⚙️  Embedded worker started (EMBED_WORKER=true)");
+      logger.info("⚙️  Embedded worker started (EMBED_WORKER=true)");
     }
 
     server.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      logger.info(`🚀 Server is running on http://localhost:${PORT}`);
     });
 
     const shutdown = async (signal: string) => {
-      console.log(`\n⚠️ ${signal} received. Shutting down server...`);
+      logger.info(`\n⚠️ ${signal} received. Shutting down server...`);
 
       server.close(async () => {
         try {
           await stopJobs();
           await prisma.$disconnect();
+          await flushSentry();
 
-          console.log("✅ Database disconnected");
-          console.log("✅ Server stopped successfully");
+          logger.info("✅ Database disconnected");
+          logger.info("✅ Server stopped successfully");
 
           process.exit(0);
         } catch (error) {
-          console.error("❌ Error during shutdown:", error);
+          logger.error({ err: error }, "❌ Error during shutdown:");
           process.exit(1);
         }
       });
@@ -62,7 +66,7 @@ const startServer = async (): Promise<void> => {
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("SIGTERM", () => shutdown("SIGTERM"));
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    logger.error({ err: error }, "❌ Failed to start server:");
     process.exit(1);
   }
 };

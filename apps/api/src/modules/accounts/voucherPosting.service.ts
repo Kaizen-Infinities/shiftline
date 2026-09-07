@@ -3,6 +3,7 @@ import { VoucherType, Prisma } from "@prisma/client";
 import { accountsService } from "./accounts.service";
 import { extractPaymentsArray } from "../../utils/payments";
 import crypto from "crypto";
+import { logger } from "../../lib/logger";
 
 /**
  * Neon serverless goes idle after ~5 min. First query after idle can fail with
@@ -173,9 +174,7 @@ class VoucherPostingService {
     });
 
     if (!grnInvoice || !grnInvoice.supplier) {
-      console.warn(
-        `[Auto-Post Voucher] GRN Invoice ${grnInvoiceId} not found or missing supplier.`
-      );
+      logger.warn(`[Auto-Post Voucher] GRN Invoice ${grnInvoiceId} not found or missing supplier.`);
       return null;
     }
 
@@ -185,7 +184,7 @@ class VoucherPostingService {
     const supplierLedger = await accountsService.ensureSupplierLedger(grnInvoice.supplier, db);
 
     if (!purchaseLedger || !supplierLedger) {
-      console.error("[Auto-Post Voucher Error] Missing purchase or supplier ledger");
+      logger.error("[Auto-Post Voucher Error] Missing purchase or supplier ledger");
       return null;
     }
 
@@ -209,7 +208,7 @@ class VoucherPostingService {
       // If total GST > netAmountNum (due to inconsistent/corrupted source data), the purchase base
       // would be negative and posting a voucher would result in unbalanced debits and credits.
       if (totalGst > netAmountNum) {
-        console.error(
+        logger.error(
           `[Auto-Post Voucher Error] Inconsistent GST data on GRN Invoice ${grnInvoice.id}: ` +
             `Total GST (${totalGst}) exceeds Net Amount (${netAmountNum}). Voucher posting aborted.`
         );
@@ -340,7 +339,7 @@ class VoucherPostingService {
     const bankLedger = await db.accountLedger.findFirst({ where: { code: "BANK-001" } });
 
     if (!supplierLedger || !cashLedger || !bankLedger) {
-      console.error("[Auto-Post Payment Voucher Error] Missing ledgers");
+      logger.error("[Auto-Post Payment Voucher Error] Missing ledgers");
       return [];
     }
 
@@ -423,9 +422,9 @@ class VoucherPostingService {
         data: { payments: rawPayments as any },
       });
     } catch (err) {
-      console.error(
-        "[postPaymentVouchersForGRN] Failed to update grnInvoice payments array with sourceVoucherId:",
-        err
+      logger.error(
+        { err: err },
+        "[postPaymentVouchersForGRN] Failed to update grnInvoice payments array with sourceVoucherId:"
       );
     }
 
@@ -458,7 +457,7 @@ class VoucherPostingService {
     });
 
     if (!salesInvoice || !salesInvoice.customer) {
-      console.warn(
+      logger.warn(
         `[Auto-Post Voucher] Sales Invoice ${salesInvoiceId} not found or missing customer.`
       );
       return null;
@@ -469,7 +468,7 @@ class VoucherPostingService {
     const customerLedger = await accountsService.ensureCustomerLedger(salesInvoice.customer, db);
 
     if (!salesLedger || !customerLedger) {
-      console.error("[Auto-Post Voucher Error] Missing sales or customer ledger");
+      logger.error("[Auto-Post Voucher Error] Missing sales or customer ledger");
       return null;
     }
 
@@ -497,7 +496,7 @@ class VoucherPostingService {
       // If total GST > grandTotalNum (due to inconsistent/corrupted source data), the sales base
       // would be negative and posting a voucher would result in unbalanced debits and credits.
       if (totalGst > grandTotalNum) {
-        console.error(
+        logger.error(
           `[Auto-Post Voucher Error] Inconsistent GST data on Sales Invoice ${salesInvoice.id}: ` +
             `Total GST (${totalGst}) exceeds Grand Total (${grandTotalNum}). Voucher posting aborted.`
         );
@@ -626,7 +625,7 @@ class VoucherPostingService {
     const bankLedger = await db.accountLedger.findFirst({ where: { code: "BANK-001" } });
 
     if (!customerLedger || !cashLedger || !bankLedger) {
-      console.error("[Auto-Post Receipt Voucher Error] Missing ledgers");
+      logger.error("[Auto-Post Receipt Voucher Error] Missing ledgers");
       return [];
     }
 
@@ -706,9 +705,9 @@ class VoucherPostingService {
         data: { payments: rawPayments as any },
       });
     } catch (err) {
-      console.error(
-        "[postReceiptVouchersForSales] Failed to update salesInvoice payments array with sourceVoucherId:",
-        err
+      logger.error(
+        { err: err },
+        "[postReceiptVouchersForSales] Failed to update salesInvoice payments array with sourceVoucherId:"
       );
     }
 
@@ -742,7 +741,7 @@ class VoucherPostingService {
     });
 
     if (!salesReturn || !salesReturn.customer) {
-      console.warn(
+      logger.warn(
         `[Auto-Post Voucher] Sales Return ${salesReturnId} not found or missing customer.`
       );
       return null;
@@ -759,7 +758,7 @@ class VoucherPostingService {
     }
 
     if (!salesReturnLedger || !customerLedger) {
-      console.error("[Auto-Post Voucher Error] Missing sales return or customer ledger");
+      logger.error("[Auto-Post Voucher Error] Missing sales return or customer ledger");
       return null;
     }
 
@@ -885,7 +884,7 @@ class VoucherPostingService {
     });
 
     if (!purchaseReturn || !purchaseReturn.supplier) {
-      console.warn(
+      logger.warn(
         `[Auto-Post Voucher] Purchase Return ${purchaseReturnId} not found or missing supplier.`
       );
       return null;
@@ -902,7 +901,7 @@ class VoucherPostingService {
     }
 
     if (!purchaseReturnLedger || !supplierLedger) {
-      console.error("[Auto-Post Voucher Error] Missing purchase return or supplier ledger");
+      logger.error("[Auto-Post Voucher Error] Missing purchase return or supplier ledger");
       return null;
     }
 
@@ -981,7 +980,7 @@ class VoucherPostingService {
     const cashLedger = await db.accountLedger.findFirst({ where: { code: "CASH-001" } });
 
     if (!pcashLedger || !expenseLedger) {
-      console.warn("[Auto-Post Voucher] Missing system ledgers PCASH-001 or EXP-001.");
+      logger.warn("[Auto-Post Voucher] Missing system ledgers PCASH-001 or EXP-001.");
       return null;
     }
 
@@ -1051,7 +1050,7 @@ class VoucherPostingService {
         String(entry.id)
       );
     } else {
-      console.error(
+      logger.error(
         `[Auto-Post Voucher Error] Invalid petty cash entry type "${entry.type}" for entry ${entry.id}`
       );
       return null;
@@ -1124,7 +1123,7 @@ class VoucherPostingService {
     const creditLedger = await db.accountLedger.findFirst({ where: { code: creditLedgerCode } });
 
     if (!expenseLedger || !creditLedger) {
-      console.warn(
+      logger.warn(
         `[Auto-Post Expense Voucher] Missing system ledgers EXP-001 or ${creditLedgerCode}.`
       );
       return null;
@@ -1197,7 +1196,7 @@ class VoucherPostingService {
         return res;
       })
       .catch((err) => {
-        console.error("[Auto-Post Voucher Error] Syncing unposted vouchers failed:", err);
+        logger.error({ err: err }, "[Auto-Post Voucher Error] Syncing unposted vouchers failed:");
         return { failedPostings: [], error: String(err) };
       })
       .finally(() => {
@@ -1397,9 +1396,9 @@ class VoucherPostingService {
             });
             pettyCashList.push({ id: createdEntry.id, entryNo: createdEntry.entryNo });
           } catch (pcErr: any) {
-            console.error(
-              `[Auto-Post Voucher Error] Syncing expense ${exp.expenseNumber} to petty cash failed:`,
-              pcErr
+            logger.error(
+              { err: pcErr },
+              `[Auto-Post Voucher Error] Syncing expense ${exp.expenseNumber} to petty cash failed:`
             );
             failedPostings.push({
               id: exp.id,
@@ -1433,13 +1432,13 @@ class VoucherPostingService {
       }
 
       if (failedPostings.length > 0) {
-        console.warn(
-          `[Auto-Post Voucher Sync Warning] Completed with ${failedPostings.length} failed posting(s):`,
-          failedPostings
+        logger.warn(
+          { err: failedPostings },
+          `[Auto-Post Voucher Sync Warning] Completed with ${failedPostings.length} failed posting(s):`
         );
       }
     } catch (err) {
-      console.error("[Auto-Post Voucher Error] Syncing unposted vouchers failed:", err);
+      logger.error({ err: err }, "[Auto-Post Voucher Error] Syncing unposted vouchers failed:");
     }
 
     return { failedPostings };
@@ -1658,7 +1657,10 @@ class VoucherPostingService {
         return res;
       })
       .catch((err) => {
-        console.error("[Auto-Post Voucher Error] Syncing opening balance vouchers failed:", err);
+        logger.error(
+          { err: err },
+          "[Auto-Post Voucher Error] Syncing opening balance vouchers failed:"
+        );
         return { error: String(err) };
       })
       .finally(() => {
@@ -1717,8 +1719,7 @@ class VoucherPostingService {
       const opBal = Number(cust.openingBalance || 0);
       if (opBal <= 0) continue;
       const opType = ((cust as any).openingBalanceType || "DEBIT").toUpperCase() as
-        | "DEBIT"
-        | "CREDIT";
+        "DEBIT" | "CREDIT";
       await this.postCustomerOpeningBalanceVoucher(
         { id: cust.id, customerCode: cust.customerCode, firmName: cust.firmName },
         opBal,
@@ -1730,8 +1731,7 @@ class VoucherPostingService {
       const opBal = Number(supp.openingBalance || 0);
       if (opBal <= 0) continue;
       const opType = ((supp as any).openingBalanceType || "CREDIT").toUpperCase() as
-        | "DEBIT"
-        | "CREDIT";
+        "DEBIT" | "CREDIT";
       await this.postSupplierOpeningBalanceVoucher(
         { id: supp.id, supplierCode: supp.supplierCode, legalName: supp.legalName },
         opBal,

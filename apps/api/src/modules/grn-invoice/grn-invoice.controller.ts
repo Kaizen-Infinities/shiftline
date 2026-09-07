@@ -8,6 +8,7 @@ import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
 
 import { voucherPostingService } from "../accounts/voucherPosting.service";
+import { logger } from "../../lib/logger";
 
 class GrnInvoiceController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -35,7 +36,7 @@ class GrnInvoiceController {
     try {
       await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
     } catch (err) {
-      console.error("[GRN Controller] Voucher posting failed:", err);
+      logger.error({ err: err }, "[GRN Controller] Voucher posting failed:");
     }
 
     emitToTenant("grnInvoice:created", grnInvoice);
@@ -79,7 +80,7 @@ class GrnInvoiceController {
     try {
       await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
     } catch (err) {
-      console.error("[GRN Controller] Voucher posting failed:", err);
+      logger.error({ err: err }, "[GRN Controller] Voucher posting failed:");
     }
 
     emitToTenant("grnInvoice:updated", grnInvoice);

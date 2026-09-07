@@ -5,6 +5,7 @@ import { executeDeleteWithValidation } from "../../utils/deleteValidation";
 import { uploadToImageKit } from "../../utils/Imagekit";
 import fs from "fs";
 import path from "path";
+import { logger } from "../../lib/logger";
 
 function toNumberOrNull(value: any): number | null {
   if (value === undefined || value === null || value === "") return null;
@@ -72,11 +73,11 @@ class ProductService {
             try {
               fs.unlinkSync(file.path);
             } catch (err) {
-              console.error("Failed to delete temp file:", file.path, err);
+              logger.error({ err: err, path: file.path }, "Failed to delete temp file");
             }
           }
         } catch (err) {
-          console.error("Failed to upload product image to ImageKit:", err);
+          logger.error({ err: err }, "Failed to upload product image to ImageKit:");
           throw err;
         }
       }
@@ -139,7 +140,7 @@ class ProductService {
         }
       } catch (e: any) {
         if (e instanceof ApiError) throw e;
-        console.error("Failed to parse rawMaterials in create:", e);
+        logger.error({ err: e }, "Failed to parse rawMaterials in create:");
       }
     }
 
@@ -151,7 +152,7 @@ class ProductService {
             ? JSON.parse(data.capacityHistory)
             : data.capacityHistory;
       } catch (e: any) {
-        console.error("Failed to parse capacityHistory in create:", e);
+        logger.error({ err: e }, "Failed to parse capacityHistory in create:");
       }
     }
 
@@ -217,8 +218,8 @@ class ProductService {
         },
       });
     } catch (err: any) {
-      console.error("Product create failed. Payload keys:", Object.keys(payload));
-      console.error("Prisma error:", err.message);
+      logger.error({ err: Object.keys(payload) }, "Product create failed. Payload keys:");
+      logger.error({ err: err.message }, "Prisma error:");
       if (err.message?.includes("too long")) {
         throw new ApiError(
           400,
@@ -355,7 +356,7 @@ class ProductService {
         }
       } catch (e: any) {
         if (e instanceof ApiError) throw e;
-        console.error("Failed to parse rawMaterials in update:", e);
+        logger.error({ err: e }, "Failed to parse rawMaterials in update:");
       }
     }
 
@@ -367,7 +368,7 @@ class ProductService {
             ? JSON.parse(data.capacityHistory)
             : data.capacityHistory;
       } catch (e: any) {
-        console.error("Failed to parse capacityHistory in update:", e);
+        logger.error({ err: e }, "Failed to parse capacityHistory in update:");
       }
     }
 
@@ -390,11 +391,11 @@ class ProductService {
             try {
               fs.unlinkSync(file.path);
             } catch (err) {
-              console.error("Failed to delete temp file:", file.path, err);
+              logger.error({ err: err, path: file.path }, "Failed to delete temp file");
             }
           }
         } catch (err) {
-          console.error("Failed to upload product image to ImageKit:", err);
+          logger.error({ err: err }, "Failed to upload product image to ImageKit:");
           throw err;
         }
       }

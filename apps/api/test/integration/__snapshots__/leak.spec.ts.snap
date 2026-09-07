@@ -4,7 +4,6 @@ exports[`cross-tenant leak suite > every tenant model returns only the caller's 
 [
   "AgentPosition",
   "AttendanceRecord",
-  "AuditLog",
   "CustomerAddress",
   "DailyProductionPlan",
   "DocumentSequence",

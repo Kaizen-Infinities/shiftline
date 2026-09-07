@@ -2,6 +2,7 @@ import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import axios from "axios";
 import { encryptText, decryptText } from "../../utils/crypto";
+import { logger } from "../../lib/logger";
 
 export class WhatsappService {
   /** Encrypts a stored credential (AES-256-GCM, DATA_ENCRYPTION_KEY). */
@@ -57,7 +58,10 @@ export class WhatsappService {
       });
       return response.data;
     } catch (error: any) {
-      console.error("Error sending WhatsApp message:", error?.response?.data || error.message);
+      logger.error(
+        { err: error?.response?.data || error.message },
+        "Error sending WhatsApp message:"
+      );
       throw new Error(
         `Failed to send WhatsApp message: ${error?.response?.data?.error?.message || error.message}`
       );
@@ -111,9 +115,9 @@ export class WhatsappService {
       });
       return response.data;
     } catch (error: any) {
-      console.error(
-        "Error sending WhatsApp Template message:",
-        error?.response?.data || error.message
+      logger.error(
+        { err: error?.response?.data || error.message },
+        "Error sending WhatsApp Template message:"
       );
       throw new Error(
         `Failed to send WhatsApp Template message: ${
@@ -168,7 +172,10 @@ export class WhatsappService {
       });
       return response.data.id;
     } catch (error: any) {
-      console.error("Error uploading media to WhatsApp:", error?.response?.data || error.message);
+      logger.error(
+        { err: error?.response?.data || error.message },
+        "Error uploading media to WhatsApp:"
+      );
       throw new Error(
         `Failed to upload media to WhatsApp: ${
           error?.response?.data?.error?.message || error.message
@@ -228,9 +235,9 @@ export class WhatsappService {
       });
       return response.data;
     } catch (error: any) {
-      console.error(
-        "Error sending WhatsApp document message:",
-        error?.response?.data || error.message
+      logger.error(
+        { err: error?.response?.data || error.message },
+        "Error sending WhatsApp document message:"
       );
       throw new Error(
         `Failed to send WhatsApp document message: ${

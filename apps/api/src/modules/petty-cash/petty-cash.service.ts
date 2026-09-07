@@ -4,6 +4,7 @@ import { Prisma, VoucherType } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
 import { CreatePettyCashInput, GetPettyCashQueryInput } from "./petty-cash.types";
 import { accountsService } from "../accounts/accounts.service";
+import { logger } from "../../lib/logger";
 
 class PettyCashService {
   private generateEntryNo(): string {
@@ -143,7 +144,7 @@ class PettyCashService {
       const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postPettyCashVoucher(entry.id);
     } catch (err) {
-      console.error("[PettyCashService] Auto-post to ledger failed:", err);
+      logger.error({ err: err }, "[PettyCashService] Auto-post to ledger failed:");
       // Don't fail the entry creation if ledger posting fails
     }
 

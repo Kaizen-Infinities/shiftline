@@ -42,6 +42,14 @@ input leaks, secrets, error text → human review and merge → hand-off note.
 - Socket emits only via `lib/realtime.ts` (`emitToTenant`); never `getIO()` or `io.emit`.
 - Scheduled and background work runs on pg-boss (`lib/jobs.ts`, handlers in `src/jobs/`),
   one job per tenant under `runAsTenant`, idempotent, never `node-cron` or `setInterval`.
+- Logging only via `lib/logger.ts` (pino): `logger.info({ id }, "message")`; never `console.*`
+  in the API. Every request has a request id (`lib/request-context.ts`) that appears in logs,
+  error bodies and audit rows; jobs get a synthetic one.
+- Books, documents, payroll and master tables are audited by database trigger
+  (`scripts/gen-audit-migration.ts`, `AUDITED_MODELS`). Add new models of that kind to the list
+  and generate a new migration; never write to `audit_log` by hand and never delete from it.
+- Auth: 15-minute access tokens in memory on the client; the httpOnly refresh cookie rotates on
+  every use (`modules/auth/refresh-token.ts`). New clients call `POST /api/auth/refresh` on 401.
 - Field app sync (`modules/mobile`): the server enforces the conflict policy in
   `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
   by field, device headers on writes). Never let a device overwrite a server-owned row.

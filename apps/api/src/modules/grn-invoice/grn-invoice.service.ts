@@ -6,6 +6,7 @@ import { uploadToImageKit } from "../../utils/Imagekit";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { logger } from "../../lib/logger";
 
 function getUomMultiplier(uom: string = "", baseUom: string = ""): number {
   const u = (uom || "").trim().toLowerCase();
@@ -216,7 +217,7 @@ class GrnInvoiceService {
       try {
         invoiceImageUrl = await uploadToImageKit(file.buffer, uniqueName, "/invoices");
       } catch (err) {
-        console.error("Failed to upload invoice copy to ImageKit:", err);
+        logger.error({ err: err }, "Failed to upload invoice copy to ImageKit:");
         throw err;
       }
     }
@@ -484,9 +485,9 @@ class GrnInvoiceService {
       await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
       await voucherPostingService.postPaymentVouchersForGRN(grnInvoice.id);
     } catch (vErr) {
-      console.error(
-        "[Auto-Post Voucher Error] Failed to post Purchase/Payment Voucher for GRN:",
-        vErr
+      logger.error(
+        { err: vErr },
+        "[Auto-Post Voucher Error] Failed to post Purchase/Payment Voucher for GRN:"
       );
     }
 
@@ -631,7 +632,7 @@ class GrnInvoiceService {
       try {
         invoiceImageUrl = await uploadToImageKit(file.buffer, uniqueName, "/invoices");
       } catch (err) {
-        console.error("Failed to upload invoice copy to ImageKit:", err);
+        logger.error({ err: err }, "Failed to upload invoice copy to ImageKit:");
         throw err;
       }
     }
@@ -1196,9 +1197,9 @@ class GrnInvoiceService {
       const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postPaymentVouchersForGRN(updated.id);
     } catch (vErr) {
-      console.error(
-        "[Auto-Post Voucher Error] Failed to post Payment Vouchers for updated GRN:",
-        vErr
+      logger.error(
+        { err: vErr },
+        "[Auto-Post Voucher Error] Failed to post Payment Vouchers for updated GRN:"
       );
     }
 

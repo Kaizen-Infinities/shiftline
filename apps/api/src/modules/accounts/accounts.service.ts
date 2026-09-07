@@ -3,6 +3,7 @@ import { prisma } from "../../config/prisma";
 import { LedgerType, VoucherType, Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
 import { CreateLedgerInput, UpdateLedgerInput } from "./accounts.types";
+import { logger } from "../../lib/logger";
 
 /**
  * Default seed ledgers — created once when the DB has zero ledger rows.
@@ -102,7 +103,7 @@ class AccountsService {
         AccountsService._systemLedgersReadyAt = Date.now();
       })
       .catch((err) => {
-        console.error("[System Ledgers] ensureSystemLedgersExist failed:", err);
+        logger.error({ err: err }, "[System Ledgers] ensureSystemLedgersExist failed:");
       })
       .finally(() => {
         AccountsService._inFlightSystemLedgerCheck = null;
@@ -269,13 +270,16 @@ class AccountsService {
         ]);
         for (const g of allGrades) if (g.name && !buckets[g.name]) buckets[g.name] = [];
         for (const t of allTypes) if (t.name && !buckets[t.name]) buckets[t.name] = [];
-        console.log("[getLedgers.grouped]", {
-          gradesFromTable: allGrades.map((g) => g.name),
-          typesFromTable: allTypes.map((t) => t.name),
-          finalBucketCount: Object.keys(buckets).length,
-        });
+        logger.info(
+          {
+            gradesFromTable: allGrades.map((g) => g.name),
+            typesFromTable: allTypes.map((t) => t.name),
+            finalBucketCount: Object.keys(buckets).length,
+          },
+          "[getLedgers.grouped]"
+        );
       } catch (err) {
-        console.error("[getLedgers.grouped] master seed failed:", err);
+        logger.error({ err: err }, "[getLedgers.grouped] master seed failed:");
       }
       grouped = Object.entries(buckets)
         .sort(([a], [b]) => a.localeCompare(b))
@@ -415,7 +419,7 @@ class AccountsService {
           opType as "DEBIT" | "CREDIT"
         );
       } catch (err) {
-        console.error("[AccountsService] Auto-post opening balance failed:", err);
+        logger.error({ err: err }, "[AccountsService] Auto-post opening balance failed:");
         // Do not throw — the ledger is already created; the user can add a JV manually if needed.
       }
     }
@@ -471,7 +475,7 @@ class AccountsService {
       // legacy party records that never triggered a manual post.
       await voucherPostingService.syncMissingOpeningBalanceVouchers();
     } catch (err) {
-      console.error("[AccountsService] Sync unposted vouchers failed:", err);
+      logger.error({ err: err }, "[AccountsService] Sync unposted vouchers failed:");
     }
 
     const ledger = await this.getLedgerById(id);
@@ -705,7 +709,7 @@ class AccountsService {
       await voucherPostingService.syncUnpostedVouchers();
       await voucherPostingService.syncMissingOpeningBalanceVouchers();
     } catch (err) {
-      console.error("[AccountsService] Sync unposted vouchers failed:", err);
+      logger.error({ err: err }, "[AccountsService] Sync unposted vouchers failed:");
     }
 
     // First fetch the caller-supplied ledgers so we can detect aggregate parents.
@@ -840,13 +844,16 @@ class AccountsService {
       const isSelectedDebit = item.debitLedgerId && selectedIds.has(item.debitLedgerId);
       const isSelectedCredit = item.creditLedgerId && selectedIds.has(item.creditLedgerId);
       if (__diagLogged < 5 && !isSelectedDebit && !isSelectedCredit) {
-        console.warn("[getMultiLedger] item matched WHERE but neither side is in selectedIds", {
-          itemId: item.id,
-          debitLedgerId: item.debitLedgerId,
-          creditLedgerId: item.creditLedgerId,
-          selectedIdsSize: selectedIds.size,
-          selectedIdsSample: Array.from(selectedIds).slice(0, 10),
-        });
+        logger.warn(
+          {
+            itemId: item.id,
+            debitLedgerId: item.debitLedgerId,
+            creditLedgerId: item.creditLedgerId,
+            selectedIdsSize: selectedIds.size,
+            selectedIdsSample: Array.from(selectedIds).slice(0, 10),
+          },
+          "[getMultiLedger] item matched WHERE but neither side is in selectedIds"
+        );
         __diagLogged++;
       }
       // If both sides are within the selected set, the entry is internal — skip

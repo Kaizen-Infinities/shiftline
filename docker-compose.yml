@@ -59,6 +59,7 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@postgres:5432/shiftline
       ARCHIVE_DIR: /app/archives
+      BACKUP_DIR: /app/backups
     env_file:
       - path: apps/api/.env
         required: false
@@ -67,6 +68,7 @@ services:
       - ./apps/api/prisma:/app/apps/api/prisma
       - ./packages:/app/packages
       - ./archives:/app/archives
+      - ./backups:/app/backups
     depends_on:
       postgres:
         condition: service_healthy

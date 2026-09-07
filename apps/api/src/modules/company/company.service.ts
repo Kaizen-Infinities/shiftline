@@ -5,6 +5,7 @@ import { uploadToImageKit } from "../../utils/Imagekit";
 import { UpdateCompanyInput } from "./company.validation";
 import fs from "fs";
 import path from "path";
+import { logger } from "../../lib/logger";
 
 class CompanyService {
   /**
@@ -101,7 +102,7 @@ class CompanyService {
         try {
           fs.unlinkSync(logoFile.path);
         } catch (err) {
-          console.error("Failed to delete temp file:", logoFile.path, err);
+          logger.error({ err: err, path: logoFile.path }, "Failed to delete temp file");
         }
       }
     }
@@ -120,7 +121,7 @@ class CompanyService {
         try {
           fs.unlinkSync(faviconFile.path);
         } catch (err) {
-          console.error("Failed to delete temp file:", faviconFile.path, err);
+          logger.error({ err: err, path: faviconFile.path }, "Failed to delete temp file");
         }
       }
     }

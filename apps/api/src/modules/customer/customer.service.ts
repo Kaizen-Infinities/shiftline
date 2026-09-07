@@ -5,6 +5,7 @@ import { executeDeleteWithValidation } from "../../utils/deleteValidation";
 import { CreateCustomerInput, UpdateCustomerInput } from "./customer.validation";
 import { accountsService } from "../accounts/accounts.service";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
+import { logger } from "../../lib/logger";
 
 class CustomerService {
   async createCustomer(
@@ -80,7 +81,7 @@ class CustomerService {
         );
       }
     } catch (err) {
-      console.error("Failed to auto-create customer ledger:", err);
+      logger.error({ err: err }, "Failed to auto-create customer ledger:");
     }
 
     return newCustomer;

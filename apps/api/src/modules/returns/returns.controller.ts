@@ -2,6 +2,7 @@ import { getCurrentCompanyId } from "../../utils/companyContext";
 import { Request, Response, NextFunction } from "express";
 import { returnsService } from "./returns.service";
 import { createSalesReturnSchema, createPurchaseReturnSchema } from "./returns.types";
+import { logger } from "../../lib/logger";
 
 class ReturnsController {
   async getSalesReturns(req: Request, res: Response, next: NextFunction) {
@@ -27,7 +28,7 @@ class ReturnsController {
         emitToTenant("payment:created", { source: "salesReturn" });
         emitToTenant("accountLedger:updated", { source: "salesReturn" });
       } catch (sErr) {
-        console.error("[Socket Emit Error] salesReturn:created", sErr);
+        logger.error({ err: sErr }, "[Socket Emit Error] salesReturn:created");
       }
 
       return res.status(201).json({ success: true, message: "Sales return created", data });
@@ -60,7 +61,7 @@ class ReturnsController {
         emitToTenant("payment:created", { source: "salesReturn" });
         emitToTenant("accountLedger:updated", { source: "salesReturn" });
       } catch (sErr) {
-        console.error("[Socket Emit Error] salesReturn:updated", sErr);
+        logger.error({ err: sErr }, "[Socket Emit Error] salesReturn:updated");
       }
 
       return res.status(200).json({ success: true, message: "Sales return updated", data });
@@ -93,7 +94,7 @@ class ReturnsController {
         emitToTenant("payment:created", { source: "purchaseReturn" });
         emitToTenant("accountLedger:updated", { source: "purchaseReturn" });
       } catch (sErr) {
-        console.error("[Socket Emit Error] purchaseReturn:created", sErr);
+        logger.error({ err: sErr }, "[Socket Emit Error] purchaseReturn:created");
       }
 
       return res.status(201).json({ success: true, message: "Purchase return created", data });

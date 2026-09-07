@@ -1,6 +1,7 @@
 import PgBoss from "pg-boss";
 
 import { env, isTest } from "../config/env";
+import { logger } from "./logger";
 
 /**
  * Background jobs run on pg-boss (Postgres-backed, no extra broker). One
@@ -23,6 +24,10 @@ export const QUEUES = {
   RETENTION_FANOUT: "platform.retention.fanout",
   /** Per-tenant retention sweep (archive/purge or dry run). */
   RETENTION_SWEEP: "platform.retention.sweep",
+  /** Every minute; `/ready` reads its last completion as worker liveness. */
+  HEARTBEAT: "platform.heartbeat",
+  /** Daily pg_dump (01:30 IST, before the monthly retention sweep). */
+  BACKUP_DAILY: "platform.backup.daily",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -56,8 +61,7 @@ export const startJobs = async (opts: JobsOptions = {}): Promise<PgBoss> => {
   });
   instance.on("error", (err) => {
     // pino arrives in P0-13; keep the worker alive on transient DB errors.
-    // eslint-disable-next-line no-console
-    console.error("[jobs] pg-boss error:", err);
+    logger.error({ err: err }, "[jobs] pg-boss error:");
   });
   await instance.start();
   for (const name of Object.values(QUEUES)) {

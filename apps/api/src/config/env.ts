@@ -13,10 +13,27 @@ const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     PORT: z.coerce.number().int().positive().default(5000),
+    /** pino level; defaults to debug in development, info in production, silent in tests. */
+    LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
+    /** `json` forces machine-readable logs in development. */
+    LOG_FORMAT: z.enum(["pretty", "json"]).optional(),
+    SERVICE_NAME: z.string().default("shiftline-api"),
+    /** Optional error reporting; nothing is sent when unset. */
+    SENTRY_DSN: z.string().url().optional(),
+    SENTRY_ENVIRONMENT: optionalString,
 
     DATABASE_URL: z.string().min(1, "Database URL is required"),
 
     JWT_ACCESS_SECRET: z.string().min(32, "JWT Access Secret must be at least 32 characters"),
+    /** Sliding refresh-session lifetime; sessions never outlive 30 days from login. */
+    REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(30).default(7),
+    /** A rotated-away refresh token replayed within this window is treated as a race, not theft. */
+    REFRESH_REUSE_GRACE_MS: z.coerce.number().int().min(0).max(60_000).default(10_000),
+    REFRESH_COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).optional(),
+    COOKIE_SECURE: z
+      .enum(["true", "false"])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === "true")),
     /** Key for encrypting stored credentials (WhatsApp tokens, SMTP passwords, GSP secrets). */
     DATA_ENCRYPTION_KEY: z.string().min(32).optional(),
 
@@ -32,6 +49,11 @@ const envSchema = z
       .default("pgboss"),
     /** Local directory for retention archives (NDJSON.gz per sweep). */
     ARCHIVE_DIR: z.string().min(1).default("./archives"),
+    /** Daily pg_dump destination and rotation (MCA Rule 3(5)). */
+    BACKUP_DIR: z.string().min(1).default("./backups"),
+    BACKUP_KEEP_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
+    /** pg_dump binary; must be at least the server's major version. */
+    PG_DUMP_PATH: z.string().default("pg_dump"),
 
     FRONTEND_URL: z.string().url().default("http://localhost:5173"),
     BACKEND_URL: z.string().url().default("http://localhost:5000"),

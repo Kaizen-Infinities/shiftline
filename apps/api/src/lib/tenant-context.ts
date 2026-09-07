@@ -11,6 +11,8 @@ export interface TenantContext {
   companyId: string | null;
   userId?: string;
   isSuperAdmin?: boolean;
+  /** Platform admin acting as this user (P1-02); recorded on every audit row. */
+  impersonatedBy?: string;
   /** Skip tenant filtering: platform admin and system paths only. */
   bypass?: boolean;
   /** Already inside a tenant transaction (set_config done); do not nest. */

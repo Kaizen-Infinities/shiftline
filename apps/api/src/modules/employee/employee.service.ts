@@ -4,6 +4,7 @@ import { UserStatus } from "../../types/auth.types";
 import { sendEmail } from "../../utils/mailer";
 import { generateWelcomeEmailHtml } from "../../templates/welcomeEmailTemplate";
 import bcrypt from "bcrypt";
+import { logger } from "../../lib/logger";
 
 class EmployeeService {
   async create(data: any) {
@@ -183,7 +184,7 @@ class EmployeeService {
           }),
         });
       } catch (emailErr) {
-        console.error("Failed to send welcome email (non-fatal):", emailErr);
+        logger.error({ err: emailErr }, "Failed to send welcome email (non-fatal):");
       }
     }
 
@@ -527,7 +528,7 @@ class EmployeeService {
           }),
         });
       } catch (emailErr) {
-        console.error("Failed to send welcome email on update (non-fatal):", emailErr);
+        logger.error({ err: emailErr }, "Failed to send welcome email on update (non-fatal):");
       }
     }
 

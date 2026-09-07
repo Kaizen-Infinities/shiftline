@@ -1,5 +1,6 @@
 import fs from "fs";
 import { ApiError } from "./ApiError";
+import { logger } from "../lib/logger";
 
 /**
  * Uploads a file to ImageKit and returns the resulting file URL.
@@ -12,45 +13,45 @@ import { ApiError } from "./ApiError";
  * @param folder    ImageKit folder path, e.g. "/company-logos" or "/products"
  */
 export async function uploadToImageKit(
-    fileInput: string | Buffer,
-    fileName: string,
-    folder: string
+  fileInput: string | Buffer,
+  fileName: string,
+  folder: string
 ): Promise<string> {
-    const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
 
-    if (!privateKey) {
-        throw new ApiError(500, "ImageKit private key is not configured in backend .env file");
+  if (!privateKey) {
+    throw new ApiError(500, "ImageKit private key is not configured in backend .env file");
+  }
+
+  const token = Buffer.from(`${privateKey}:`).toString("base64");
+
+  const fileBuffer = Buffer.isBuffer(fileInput) ? fileInput : fs.readFileSync(fileInput);
+  const blob = new Blob([new Uint8Array(fileBuffer)]);
+
+  const formData = new FormData();
+  formData.append("file", blob, fileName);
+  formData.append("fileName", fileName);
+  formData.append("folder", folder);
+
+  try {
+    const response = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      logger.error({ err: errText }, "ImageKit upload error response:");
+      throw new ApiError(500, `ImageKit upload failed: ${response.statusText}`);
     }
 
-    const token = Buffer.from(`${privateKey}:`).toString("base64");
-
-    const fileBuffer = Buffer.isBuffer(fileInput) ? fileInput : fs.readFileSync(fileInput);
-    const blob = new Blob([new Uint8Array(fileBuffer)]);
-
-    const formData = new FormData();
-    formData.append("file", blob, fileName);
-    formData.append("fileName", fileName);
-    formData.append("folder", folder);
-
-    try {
-        const response = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-            method: "POST",
-            headers: {
-                Authorization: `Basic ${token}`
-            },
-            body: formData
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            console.error("ImageKit upload error response:", errText);
-            throw new ApiError(500, `ImageKit upload failed: ${response.statusText}`);
-        }
-
-        const result = (await response.json()) as any;
-        return result.url;
-    } catch (err: any) {
-        console.error("ImageKit upload error:", err);
-        throw new ApiError(500, err?.message || "Failed to upload image to ImageKit");
-    }
+    const result = (await response.json()) as any;
+    return result.url;
+  } catch (err: any) {
+    logger.error({ err: err }, "ImageKit upload error:");
+    throw new ApiError(500, err?.message || "Failed to upload image to ImageKit");
+  }
 }

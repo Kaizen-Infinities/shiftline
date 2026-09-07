@@ -33,6 +33,16 @@ export default defineConfig([
     ],
     rules: { ...apiArchitectureRules },
   },
+  // Seeds, scripts and the two entrypoints print to the terminal on purpose.
+  {
+    files: [
+      "apps/api/prisma/**/*.ts",
+      "apps/api/scripts/**/*.ts",
+      "packages/**/*.ts",
+      "e2e/**/*.ts",
+    ],
+    rules: { "no-console": "off" },
+  },
   // Web: browser + React
   {
     files: ["apps/web/**/*.{ts,tsx}"],

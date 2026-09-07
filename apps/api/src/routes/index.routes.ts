@@ -57,6 +57,7 @@ import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
 import retentionRoutes from "../modules/retention/retention.routes";
 import mobileRoutes from "../modules/mobile/mobile.routes";
+import platformBackupsRoutes from "../modules/platform/backups.routes";
 
 const router = Router();
 
@@ -123,6 +124,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/categories", router: categoryRoutes },
   { path: "/retention", router: retentionRoutes },
   { path: "/mobile", router: mobileRoutes },
+  { path: "/platform/backups", router: platformBackupsRoutes },
 ];
 
 for (const { path, router: moduleRouter } of API_MOUNTS) {

@@ -31,6 +31,37 @@ const trackApi = (page: Page) => {
   return () => failures;
 };
 
+const API = process.env.E2E_API_URL ?? "http://localhost:5000";
+const USER = process.env.E2E_USER ?? "owner@demo.shiftline.local";
+const PASSWORD = process.env.E2E_PASSWORD ?? "Demo@12345678";
+
+/**
+ * Each test starts from a fresh API login: the refresh cookie rotates on every
+ * use, so a session saved to disk would be replayed and revoked by the second
+ * test. Logging in through the API costs a few milliseconds.
+ */
+test.beforeEach(async ({ context, request }) => {
+  const res = await request.post(`${API}/api/auth/login`, {
+    data: { email: USER, password: PASSWORD },
+  });
+  expect(res.ok(), await res.text()).toBe(true);
+  const setCookie = res.headersArray().filter((h) => h.name.toLowerCase() === "set-cookie");
+  const rt = setCookie.map((h) => h.value).find((v) => v.startsWith("shiftline_rt="));
+  expect(rt, "refresh cookie issued").toBeTruthy();
+  const value = rt!.split(";")[0].split("=")[1];
+  await context.addCookies([
+    {
+      name: "shiftline_rt",
+      value,
+      domain: new URL(API).hostname,
+      path: "/api/auth",
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+    },
+  ]);
+});
+
 test.describe("smoke", () => {
   for (const screen of SCREENS) {
     test(`${screen.path} renders`, async ({ page }) => {
@@ -46,7 +77,7 @@ test.describe("smoke", () => {
   }
 
   test("a wrong password is refused without a crash", async ({ browser }) => {
-    const context = await browser.newContext({ storageState: undefined });
+    const context = await browser.newContext();
     const page = await context.newPage();
     const failures = trackApi(page);
     await page.goto("/login");

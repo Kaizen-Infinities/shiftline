@@ -7,6 +7,14 @@ import { authRepository } from "./auth.repository";
 import { hashPassword, comparePassword } from "../../utils/hashPassword";
 import { generateAccessToken } from "../../utils/generateAccessToken";
 import {
+  ACCESS_TOKEN_TTL_SECONDS,
+  SESSION_MAX_DAYS,
+  hashToken,
+  newRefreshToken,
+  refreshTtlMs,
+  reuseGraceMs,
+} from "./refresh-token";
+import {
   AccessTokenPayload,
   AuthResult,
   AuthTokens,
@@ -17,7 +25,6 @@ import {
   UserStatus,
 } from "../../types/auth.types";
 
-const ACCESS_TOKEN_EXPIRY_DAYS = 7;
 const ACCOUNT_LOCK_THRESHOLD = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 30;
 const RATE_LIMIT_THRESHOLD = 10;
@@ -185,14 +192,14 @@ export class AuthService {
     const permissions = await authRepository.findPermissionsByRole(user.roleId);
     const roleCode = user.role?.code ?? (user.roleId !== null ? user.roleId.toString() : "");
 
-    // Generate unique session token
-    const sessionToken = crypto.randomBytes(32).toString("hex");
+    // The refresh token is the session secret; only its hash is stored.
+    const refreshToken = newRefreshToken();
 
     // Create session first (automatically manages 4-device limit)
     const session = await authRepository.createUserSession({
       userId: isAdminLogin ? undefined : user.userId,
       adminId: isAdminLogin ? admin!.id : undefined,
-      sessionToken,
+      sessionToken: hashToken(refreshToken),
       ipAddress,
       userAgent,
       deviceLabel: this.extractDeviceLabel(userAgent),
@@ -241,12 +248,130 @@ export class AuthService {
       user: this.formatUserResponse(user, isAdminLogin),
       tokens: {
         accessToken,
-        accessTokenExpiresAt: new Date(Date.now() + ACCESS_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+        accessTokenExpiresAt: new Date(Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000),
+        refreshToken,
+        refreshTokenExpiresAt: session.expiresAt,
       },
       sessionInfo: {
         deviceLabel: session.deviceLabel || "Unknown Device",
         loginAt: session.loginAt,
         expiresAt: session.expiresAt,
+      },
+    };
+  }
+
+  /**
+   * Rotates the refresh token and issues a fresh access token with the
+   * account's current role and permissions. A token that was already rotated
+   * away is a replay: inside the grace window it is treated as a concurrent
+   * tab and rotated again; beyond it the whole session is revoked.
+   */
+  async refresh(rawToken: string, ipAddress?: string, userAgent?: string): Promise<AuthResult> {
+    return withoutTenant(() => this.refreshInner(rawToken, ipAddress, userAgent));
+  }
+
+  private async refreshInner(
+    rawToken: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<AuthResult> {
+    const now = new Date();
+    const hash = hashToken(rawToken);
+    let session = await prisma.userSession.findFirst({
+      where: { sessionToken: hash, isActive: true, expiresAt: { gt: now } },
+    });
+
+    if (!session) {
+      const replayed = await prisma.userSession.findFirst({
+        where: { prevTokenHash: hash, isActive: true },
+      });
+      if (!replayed) throw new ApiError(401, "Session expired or invalid");
+      const withinGrace =
+        replayed.rotatedAt !== null &&
+        now.getTime() - replayed.rotatedAt.getTime() <= reuseGraceMs();
+      if (!withinGrace) {
+        await authRepository.logoutSession(replayed.id);
+        await authRepository.createAuditLog({
+          entityName: replayed.adminId ? "Admin" : "User",
+          entityId: replayed.adminId ? replayed.adminId.toString() : (replayed.userId ?? ""),
+          action: "LOGOUT",
+          newValues: { reason: "refresh_token_reuse", sessionId: replayed.id },
+          changedBy: replayed.userId ?? undefined,
+          changedByAdmin: replayed.adminId ?? undefined,
+          ipAddress,
+          userAgent,
+        });
+        throw new ApiError(401, "Session revoked: refresh token reuse detected");
+      }
+      session = replayed;
+    }
+
+    const isAdminLogin = session.adminId !== null;
+    // Same shape login builds, so the token and the profile response match.
+    let user: any = null;
+    if (isAdminLogin) {
+      const admin = await authRepository.findAdminById(session.adminId!);
+      if (!admin || (admin.status || "active") !== "active") {
+        throw new ApiError(401, "Admin account is not active");
+      }
+      user = {
+        userId: "admin_" + admin.id.toString(),
+        email: admin.email,
+        username: admin.username,
+        fullName: admin.fullName,
+        status: admin.status || "active",
+        roleId: admin.roleId || null,
+        role: admin.role || null,
+      };
+    } else {
+      user = await authRepository.findUserById(session.userId!);
+      if (!user || String(user.status) !== String(UserStatus.ACTIVE)) {
+        throw new ApiError(401, "Account is not active");
+      }
+    }
+
+    const permissions = await authRepository.findPermissionsByRole(user.roleId);
+    const roleCode = user.role?.code ?? (user.roleId !== null ? String(user.roleId) : "");
+
+    const nextRaw = newRefreshToken();
+    const absoluteMax = new Date(
+      session.loginAt.getTime() + SESSION_MAX_DAYS * 24 * 60 * 60 * 1000
+    );
+    const sliding = new Date(now.getTime() + refreshTtlMs());
+    await prisma.userSession.update({
+      where: { id: session.id },
+      data: {
+        sessionToken: hashToken(nextRaw),
+        prevTokenHash: hash,
+        rotatedAt: now,
+        lastUsedAt: now,
+        expiresAt: sliding < absoluteMax ? sliding : absoluteMax,
+        ...(ipAddress ? { ipAddress } : {}),
+      },
+    });
+
+    const accessToken = generateAccessToken({
+      userId: user.userId,
+      email: user.email!,
+      roleId: roleCode,
+      permissions,
+      isSuperAdmin: isAdminLogin,
+      companyId: isAdminLogin ? null : (user.companyId as string),
+      sessionId: session.id,
+    });
+
+    return {
+      user: this.formatUserResponse(user, isAdminLogin),
+      tokens: {
+        accessToken,
+        accessTokenExpiresAt: new Date(now.getTime() + ACCESS_TOKEN_TTL_SECONDS * 1000),
+        refreshToken: nextRaw,
+        refreshTokenExpiresAt: sliding < absoluteMax ? sliding : absoluteMax,
+      },
+      sessionInfo: {
+        deviceLabel: session.deviceLabel || "Unknown Device",
+        loginAt: session.loginAt,
+        expiresAt: sliding < absoluteMax ? sliding : absoluteMax,
       },
     };
   }

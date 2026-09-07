@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { env, isProduction } from "../config/env";
 import { generatePermissions } from "@shiftline/shared";
+import { logger } from "../lib/logger";
 
 /**
  * Returns `true` if this was a fresh install (DB was empty),
@@ -22,7 +23,7 @@ export const bootstrapAdmin = async (
       skipDuplicates: true,
     });
     if (count > 0) {
-      console.log(`✅ ${count} new permissions seeded from registry`);
+      logger.info(`✅ ${count} new permissions seeded from registry`);
     }
     return false;
   }
@@ -35,7 +36,7 @@ export const bootstrapAdmin = async (
   const adminPassword = env.ADMIN_PASSWORD || (isProduction ? "" : "dev-only-change-me-Admin#2026");
   if (!adminPassword) throw new Error("ADMIN_PASSWORD is required to bootstrap the platform admin");
   if (!env.ADMIN_PASSWORD) {
-    console.warn(
+    logger.warn(
       "[bootstrap] Using the development-only admin password. Set ADMIN_* in apps/api/.env."
     );
   }
@@ -55,7 +56,7 @@ export const bootstrapAdmin = async (
     },
   });
 
-  console.log("✅ Platform admin bootstrapped");
+  logger.info("✅ Platform admin bootstrapped");
 
   // ── 3. Seed ALL permissions from centralized registry ────────────────────
   //    generatePermissions() reads PERMISSION_REGISTRY — adding a new module
@@ -67,7 +68,7 @@ export const bootstrapAdmin = async (
     skipDuplicates: true,
   });
 
-  console.log(`✅ ${permissionData.length} permissions seeded from registry`);
+  logger.info(`✅ ${permissionData.length} permissions seeded from registry`);
 
   return true;
 };

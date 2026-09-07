@@ -27,6 +27,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run lint
+      - name: Dependency audit (high/critical must be fixed or allowlisted with an expiry)
+        run: npm run audit:gate
       - name: Format check (new code only; legacy screens are formatted as they are touched)
         run: npx prettier --check "packages/**/*.{ts,js,json}" "apps/api/test/**/*.ts" "apps/api/prisma/seed.ts" "*.{js,mjs,mts,json,yml}" ".github/**/*.yml"
 

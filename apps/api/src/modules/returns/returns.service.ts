@@ -6,6 +6,7 @@ import { accountsService } from "../accounts/accounts.service";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 import rawMaterialStockService from "../raw-material-stock/raw-material-stock.service";
 import { vouchersService } from "../vouchers/vouchers.service";
+import { logger } from "../../lib/logger";
 
 class ReturnsService {
   private generateReturnNo(prefix: string): string {
@@ -158,7 +159,7 @@ class ReturnsService {
     try {
       await voucherPostingService.postSalesReturnVoucher(salesReturn.id);
     } catch (vErr) {
-      console.error("[Auto-Post Voucher Error] Failed to post Sales Return Voucher:", vErr);
+      logger.error({ err: vErr }, "[Auto-Post Voucher Error] Failed to post Sales Return Voucher:");
     }
 
     return salesReturn;
@@ -250,9 +251,9 @@ class ReturnsService {
     try {
       await voucherPostingService.postSalesReturnVoucher(updated.id);
     } catch (vErr) {
-      console.error(
-        "[Auto-Post Voucher Error] Failed to post Sales Return Voucher on update:",
-        vErr
+      logger.error(
+        { err: vErr },
+        "[Auto-Post Voucher Error] Failed to post Sales Return Voucher on update:"
       );
     }
 
@@ -464,7 +465,10 @@ class ReturnsService {
       const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postPurchaseReturnVoucher(purchaseReturn.id);
     } catch (vErr) {
-      console.error("[Auto-Post Voucher Error] Failed to post Purchase Return Voucher:", vErr);
+      logger.error(
+        { err: vErr },
+        "[Auto-Post Voucher Error] Failed to post Purchase Return Voucher:"
+      );
     }
 
     return purchaseReturn;

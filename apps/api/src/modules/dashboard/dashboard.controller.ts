@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import { LedgerType, VoucherType } from "@prisma/client";
 import { getTvSummary } from "./dashboard.tv.service";
+import { logger } from "../../lib/logger";
 
 const dashboardController = {
   getSummary: async (req: Request, res: Response) => {
@@ -23,159 +24,185 @@ const dashboardController = {
         allSalesProducts,
       ] = await Promise.all([
         // Sales Orders
-        prisma.salesOrder.findMany({
-          select: {
-            id: true,
-            orderNo: true,
-            netAmount: true,
-            status: true,
-            createdAt: true,
-            orderDate: true,
-            customer: { select: { id: true, firmName: true } },
-            items: {
-              select: {
-                productId: true,
-                quantity: true,
-                product: { select: { productName: true } },
-                salesProductId: true,
-                salesProduct: { select: { salesProductName: true } },
+        prisma.salesOrder
+          .findMany({
+            select: {
+              id: true,
+              orderNo: true,
+              netAmount: true,
+              status: true,
+              createdAt: true,
+              orderDate: true,
+              customer: { select: { id: true, firmName: true } },
+              items: {
+                select: {
+                  productId: true,
+                  quantity: true,
+                  product: { select: { productName: true } },
+                  salesProductId: true,
+                  salesProduct: { select: { salesProductName: true } },
+                },
               },
             },
-          },
-          orderBy: { createdAt: "desc" },
-        }).catch(() => []),
+            orderBy: { createdAt: "desc" },
+          })
+          .catch(() => []),
 
         // Purchase Orders
-        prisma.purchaseOrder.findMany({
-          select: {
-            id: true,
-            poNumber: true,
-            netAmount: true,
-            status: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: "desc" },
-        }).catch(() => []),
+        prisma.purchaseOrder
+          .findMany({
+            select: {
+              id: true,
+              poNumber: true,
+              netAmount: true,
+              status: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+          })
+          .catch(() => []),
 
         // Production Orders
-        prisma.productionOrder.findMany({
-          select: {
-            productionOrderId: true,
-            status: true,
-            targetQty: true,
-            producedQty: true,
-            createdAt: true,
-            orderDate: true,
-            productItem: { select: { productName: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        }).catch(() => []),
+        prisma.productionOrder
+          .findMany({
+            select: {
+              productionOrderId: true,
+              status: true,
+              targetQty: true,
+              producedQty: true,
+              createdAt: true,
+              orderDate: true,
+              productItem: { select: { productName: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+          .catch(() => []),
 
         // Products — id, name, code for report
-        prisma.product.findMany({
-          where: { isActive: true },
-          select: { id: true, productName: true, productCode: true },
-          orderBy: { productName: "asc" },
-        }).catch(() => []),
+        prisma.product
+          .findMany({
+            where: { isActive: true },
+            select: { id: true, productName: true, productCode: true },
+            orderBy: { productName: "asc" },
+          })
+          .catch(() => []),
 
         // Customers — for product purchase report
-        prisma.customer.findMany({
-          where: { deletedAt: null },
-          select: { id: true, firmName: true, customerCode: true },
-          orderBy: { firmName: "asc" },
-        }).catch(() => []),
+        prisma.customer
+          .findMany({
+            where: { deletedAt: null },
+            select: { id: true, firmName: true, customerCode: true },
+            orderBy: { firmName: "asc" },
+          })
+          .catch(() => []),
 
         // Active employees count
         prisma.employee.count({ where: { status: "active" } }).catch(() => 0),
 
         // Machines
-        prisma.machine.findMany({
-          take: 10,
-        }).catch(() => []),
+        prisma.machine
+          .findMany({
+            take: 10,
+          })
+          .catch(() => []),
 
         // Weekly Programs
-        prisma.weeklyMachineProgram.findMany({
-          orderBy: { createdAt: "desc" },
-          take: 100,
-        }).catch(() => []),
+        prisma.weeklyMachineProgram
+          .findMany({
+            orderBy: { createdAt: "desc" },
+            take: 100,
+          })
+          .catch(() => []),
 
         // Raw Materials
-        prisma.rawMaterial.findMany({
-          select: {
-            rawMaterialId: true,
-            materialName: true,
-            baseUom: true,
-            onHandQty: true,
-            storeId: true,
-            store: { select: { storeName: true } },
-          }
-        }).catch(() => []),
+        prisma.rawMaterial
+          .findMany({
+            select: {
+              rawMaterialId: true,
+              materialName: true,
+              baseUom: true,
+              onHandQty: true,
+              storeId: true,
+              store: { select: { storeName: true } },
+            },
+          })
+          .catch(() => []),
 
         // Finished Goods Stocks
-        prisma.finishedGoodsStock.findMany({
-          select: {
-            onHandQty: true,
-            productItemId: true,
-            storeId: true,
-            product: { select: { productName: true } },
-            store: { select: { storeName: true } }
-          }
-        }).catch(() => []),
+        prisma.finishedGoodsStock
+          .findMany({
+            select: {
+              onHandQty: true,
+              productItemId: true,
+              storeId: true,
+              product: { select: { productName: true } },
+              store: { select: { storeName: true } },
+            },
+          })
+          .catch(() => []),
 
         // Daily Plans
-        prisma.dailyProductionPlan.findMany({
-          select: {
-            dailyPlanId: true,
-            productionDate: true,
-            status: true,
-            productionOrderId: true,
-            machine: { select: { machineName: true } },
-            shift: { select: { shiftName: true } },
-            productionOrder: {
-              select: {
-                productItem: { select: { productName: true } }
-              }
-            }
-          },
-          orderBy: { productionDate: "desc" },
-          take: 50,
-        }).catch(() => []),
+        prisma.dailyProductionPlan
+          .findMany({
+            select: {
+              dailyPlanId: true,
+              productionDate: true,
+              status: true,
+              productionOrderId: true,
+              machine: { select: { machineName: true } },
+              shift: { select: { shiftName: true } },
+              productionOrder: {
+                select: {
+                  productItem: { select: { productName: true } },
+                },
+              },
+            },
+            orderBy: { productionDate: "desc" },
+            take: 50,
+          })
+          .catch(() => []),
 
         // Sales Invoices for pending amount and trend chart
-        prisma.salesInvoice.findMany({
-          select: {
-            id: true,
-            grandTotal: true,
-            payments: true,
-            status: true,
-            invoiceDate: true,
-            createdAt: true,
-          },
-          where: {
-            status: { not: "CANCELLED" },
-          },
-          orderBy: { createdAt: "desc" },
-        }).catch(() => []),
+        prisma.salesInvoice
+          .findMany({
+            select: {
+              id: true,
+              grandTotal: true,
+              payments: true,
+              status: true,
+              invoiceDate: true,
+              createdAt: true,
+            },
+            where: {
+              status: { not: "CANCELLED" },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+          .catch(() => []),
 
         // Purchase / GRN Invoices for trend chart
-        (prisma as any).grnInvoice.findMany({
-          select: {
-            id: true,
-            netAmount: true,
-            subtotal: true,
-            payments: true,
-            paymentStatus: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: "desc" },
-        }).catch(() => []),
+        (prisma as any).grnInvoice
+          .findMany({
+            select: {
+              id: true,
+              netAmount: true,
+              subtotal: true,
+              payments: true,
+              paymentStatus: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+          })
+          .catch(() => []),
 
         // Sales Products — for Customer Purchase Report
-        prisma.salesProduct.findMany({
-          where: { isActive: true },
-          select: { id: true, salesProductName: true, salesProductCode: true },
-          orderBy: { salesProductName: "asc" },
-        }).catch(() => []),
+        prisma.salesProduct
+          .findMany({
+            where: { isActive: true },
+            select: { id: true, salesProductName: true, salesProductCode: true },
+            orderBy: { salesProductName: "asc" },
+          })
+          .catch(() => []),
       ]);
 
       return res.status(200).json({
@@ -200,7 +227,7 @@ const dashboardController = {
         },
       });
     } catch (error) {
-      console.error("Dashboard summary error:", error);
+      logger.error({ err: error }, "Dashboard summary error:");
       return res.status(500).json({ success: false, message: "Failed to load dashboard data" });
     }
   },
@@ -228,36 +255,84 @@ const dashboardController = {
       }
       const periodEnd = now;
 
-      const bankGroups = ["Cash & Bank", "Bank Accounts", "Cash in Hand", "BANK ACCOUNTS", "CASH IN HAND"];
+      const bankGroups = [
+        "Cash & Bank",
+        "Bank Accounts",
+        "Cash in Hand",
+        "BANK ACCOUNTS",
+        "CASH IN HAND",
+      ];
 
       // Fetch all data in ONE transaction — shares 1 pool connection instead of 20+
       const {
-        bankLedgers, customerLedgers, supplierLedgers,
-        debitSums, creditSums,
-        salesInvoices, purchaseInvoices,
-        finishedStock, rawStock,
-        recentVouchers, draftVouchers,
+        bankLedgers,
+        customerLedgers,
+        supplierLedgers,
+        debitSums,
+        creditSums,
+        salesInvoices,
+        purchaseInvoices,
+        finishedStock,
+        rawStock,
+        recentVouchers,
+        draftVouchers,
       } = await prisma.$transaction(async (tx) => {
         const [
-          bankLedgers, customerLedgers, supplierLedgers,
-          salesInvoices, purchaseInvoices,
-          finishedStock, rawStock,
-          recentVouchers, draftVouchers,
+          bankLedgers,
+          customerLedgers,
+          supplierLedgers,
+          salesInvoices,
+          purchaseInvoices,
+          finishedStock,
+          rawStock,
+          recentVouchers,
+          draftVouchers,
         ] = await Promise.all([
           tx.accountLedger.findMany({
-            where: { type: LedgerType.ASSET, group: { in: bankGroups, mode: "insensitive" }, isActive: true },
+            where: {
+              type: LedgerType.ASSET,
+              group: { in: bankGroups, mode: "insensitive" },
+              isActive: true,
+            },
             select: { id: true, code: true, name: true, group: true },
           }),
           tx.accountLedger.findMany({
             where: { customerId: { not: null } },
-            select: { id: true, customer: { select: { firmName: true, displayName: true, openingBalance: true, openingBalanceType: true } } },
+            select: {
+              id: true,
+              customer: {
+                select: {
+                  firmName: true,
+                  displayName: true,
+                  openingBalance: true,
+                  openingBalanceType: true,
+                },
+              },
+            },
           }),
           tx.accountLedger.findMany({
             where: { supplierId: { not: null } },
-            select: { id: true, supplier: { select: { legalName: true, displayName: true, openingBalance: true, openingBalanceType: true } } },
+            select: {
+              id: true,
+              supplier: {
+                select: {
+                  legalName: true,
+                  displayName: true,
+                  openingBalance: true,
+                  openingBalanceType: true,
+                },
+              },
+            },
           }),
           tx.salesInvoice.findMany({
-            select: { id: true, grandTotal: true, payments: true, status: true, invoiceDate: true, createdAt: true },
+            select: {
+              id: true,
+              grandTotal: true,
+              payments: true,
+              status: true,
+              invoiceDate: true,
+              createdAt: true,
+            },
             where: {
               status: { not: "CANCELLED" },
               invoiceDate: { gte: periodStart, lte: periodEnd },
@@ -277,17 +352,31 @@ const dashboardController = {
             orderBy: { createdAt: "desc" },
             take: 20,
             select: {
-              id: true, voucherNo: true, type: true, date: true, narration: true,
+              id: true,
+              voucherNo: true,
+              type: true,
+              date: true,
+              narration: true,
               items: {
                 select: {
-                  debitAmount: true, creditAmount: true,
+                  debitAmount: true,
+                  creditAmount: true,
                   debitLedger: { select: { name: true } },
                   creditLedger: { select: { name: true } },
                 },
               },
             },
           }),
-          tx.voucher.count({ where: { OR: [{ refDocType: "DRAFT" }, { narration: { contains: "draft", mode: "insensitive" } }] } }).catch(() => 0),
+          tx.voucher
+            .count({
+              where: {
+                OR: [
+                  { refDocType: "DRAFT" },
+                  { narration: { contains: "draft", mode: "insensitive" } },
+                ],
+              },
+            })
+            .catch(() => 0),
         ]);
 
         const ledgerIds = [
@@ -295,35 +384,48 @@ const dashboardController = {
           ...customerLedgers.map((l) => l.id),
           ...supplierLedgers.map((l) => l.id),
         ];
-        const [debitSums, creditSums] = ledgerIds.length === 0
-          ? [[], []]
-          : await Promise.all([
-              tx.journalItem.groupBy({
-                by: ["debitLedgerId"],
-                where: { debitLedgerId: { in: ledgerIds } },
-                _sum: { debitAmount: true },
-              }),
-              tx.journalItem.groupBy({
-                by: ["creditLedgerId"],
-                where: { creditLedgerId: { in: ledgerIds } },
-                _sum: { creditAmount: true },
-              }),
-            ]);
+        const [debitSums, creditSums] =
+          ledgerIds.length === 0
+            ? [[], []]
+            : await Promise.all([
+                tx.journalItem.groupBy({
+                  by: ["debitLedgerId"],
+                  where: { debitLedgerId: { in: ledgerIds } },
+                  _sum: { debitAmount: true },
+                }),
+                tx.journalItem.groupBy({
+                  by: ["creditLedgerId"],
+                  where: { creditLedgerId: { in: ledgerIds } },
+                  _sum: { creditAmount: true },
+                }),
+              ]);
 
         return {
-          bankLedgers, customerLedgers, supplierLedgers,
-          debitSums, creditSums,
-          salesInvoices, purchaseInvoices,
-          finishedStock, rawStock,
-          recentVouchers, draftVouchers,
+          bankLedgers,
+          customerLedgers,
+          supplierLedgers,
+          debitSums,
+          creditSums,
+          salesInvoices,
+          purchaseInvoices,
+          finishedStock,
+          rawStock,
+          recentVouchers,
+          draftVouchers,
         };
       });
 
       const debitMap = new Map<number, number>(
-        (debitSums as any[]).map((r) => [r.debitLedgerId as number, Number(r._sum?.debitAmount || 0)])
+        (debitSums as any[]).map((r) => [
+          r.debitLedgerId as number,
+          Number(r._sum?.debitAmount || 0),
+        ])
       );
       const creditMap = new Map<number, number>(
-        (creditSums as any[]).map((r) => [r.creditLedgerId as number, Number(r._sum?.creditAmount || 0)])
+        (creditSums as any[]).map((r) => [
+          r.creditLedgerId as number,
+          Number(r._sum?.creditAmount || 0),
+        ])
       );
 
       // ─── Bank & Cash aggregation ─────────────────────────────
@@ -404,14 +506,26 @@ const dashboardController = {
       payableDetails.sort((a, b) => b.amount - a.amount);
 
       // ─── Sales / Purchase invoice totals ─────────────────────
-      const totalSales = salesInvoices.reduce((s: number, inv: any) => s + Number(inv.grandTotal || 0), 0);
-      const totalPurchase = purchaseInvoices.reduce((s: number, inv: any) => s + Number(inv.netAmount || inv.subtotal || 0), 0);
+      const totalSales = salesInvoices.reduce(
+        (s: number, inv: any) => s + Number(inv.grandTotal || 0),
+        0
+      );
+      const totalPurchase = purchaseInvoices.reduce(
+        (s: number, inv: any) => s + Number(inv.netAmount || inv.subtotal || 0),
+        0
+      );
       const salesVoucherCount = salesInvoices.length;
       const purchaseVoucherCount = purchaseInvoices.length;
 
       // ─── Stock value ─────────────────────────────────────────
-      const finishedValue = finishedStock.reduce((s: number, r: any) => s + Number(r.onHandQty || 0) * Number(r.product?.rate || 0), 0);
-      const rawValue = rawStock.reduce((s: number, r: any) => s + Number(r.onHandQty || 0) * Number(r.rate || 0), 0);
+      const finishedValue = finishedStock.reduce(
+        (s: number, r: any) => s + Number(r.onHandQty || 0) * Number(r.product?.rate || 0),
+        0
+      );
+      const rawValue = rawStock.reduce(
+        (s: number, r: any) => s + Number(r.onHandQty || 0) * Number(r.rate || 0),
+        0
+      );
       const stockValue = finishedValue + rawValue;
       const stockItemCount = finishedStock.length + rawStock.length;
 
@@ -426,8 +540,13 @@ const dashboardController = {
       let todayPaymentCount = 0;
       for (const v of todayVouchers) {
         const amt = v.items.reduce((s: number, i: any) => s + Number(i.debitAmount || 0), 0);
-        if (v.type === VoucherType.RECEIPT) { todayReceipts += amt; todayReceiptCount++; }
-        else if (v.type === VoucherType.PAYMENT) { todayPayments += amt; todayPaymentCount++; }
+        if (v.type === VoucherType.RECEIPT) {
+          todayReceipts += amt;
+          todayReceiptCount++;
+        } else if (v.type === VoucherType.PAYMENT) {
+          todayPayments += amt;
+          todayPaymentCount++;
+        }
       }
 
       // ─── Recent Transactions (last 10 vouchers, decorated) ───
@@ -449,8 +568,14 @@ const dashboardController = {
       });
 
       // ─── Alerts — each item is a scrollable clickable row ───
-      const fmtINR = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      const alerts: Array<{ level: "info" | "warn" | "danger"; message: string; link?: string; details?: Array<{ name: string; amount: string }> }> = [];
+      const fmtINR = (n: number) =>
+        `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const alerts: Array<{
+        level: "info" | "warn" | "danger";
+        message: string;
+        link?: string;
+        details?: Array<{ name: string; amount: string }>;
+      }> = [];
       if (totalReceivable > 0) {
         alerts.push({
           level: "danger",
@@ -498,33 +623,45 @@ const dashboardController = {
         success: true,
         data: {
           // 6 top cards
-          totalSales, salesVoucherCount,
-          totalPurchase, purchaseVoucherCount,
-          totalReceivable, receivableCustomerCount,
-          totalCustomerAdvances, customerAdvanceCount,
-          totalPayable, payableSupplierCount,
-          totalSupplierAdvances, supplierAdvanceCount,
-          totalCashInHand, totalBankBalance,
+          totalSales,
+          salesVoucherCount,
+          totalPurchase,
+          purchaseVoucherCount,
+          totalReceivable,
+          receivableCustomerCount,
+          totalCustomerAdvances,
+          customerAdvanceCount,
+          totalPayable,
+          payableSupplierCount,
+          totalSupplierAdvances,
+          supplierAdvanceCount,
+          totalCashInHand,
+          totalBankBalance,
           cashBankAccountCount: bankLedgers.length,
-          cashAccountCount, bankAccountCount,
-          stockValue, stockItemCount,
+          cashAccountCount,
+          bankAccountCount,
+          stockValue,
+          stockItemCount,
           // Extras
-          todayReceipts, todayPayments, todayReceiptCount, todayPaymentCount,
+          todayReceipts,
+          todayPayments,
+          todayReceiptCount,
+          todayPaymentCount,
           recentTransactions,
           alerts,
         },
       });
     } catch (error) {
-      console.error("Accounts summary error:", error);
+      logger.error({ err: error }, "Accounts summary error:");
       return res.status(500).json({ success: false, message: "Failed to load accounts summary" });
     }
   },
-   getTvSummary: async (_req: Request, res: Response) => {
+  getTvSummary: async (_req: Request, res: Response) => {
     try {
       const data = await getTvSummary();
       return res.json({ success: true, data });
     } catch (error) {
-      console.error("TV summary error:", error);
+      logger.error({ err: error }, "TV summary error:");
       return res.status(500).json({ success: false, message: "Failed to load TV dashboard data" });
     }
   },

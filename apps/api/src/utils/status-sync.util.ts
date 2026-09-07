@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { logger } from "../lib/logger";
 
 // =====================================================================
 // PRODUCTION ORDER STATUS WORKFLOW (ERP Standard)
@@ -93,7 +94,7 @@ export class StatusSyncService {
       });
     } catch (e) {
       // Never let history logging break the main transaction
-      console.error("[StatusSyncService] Failed to log history:", e);
+      logger.error({ err: e }, "[StatusSyncService] Failed to log history:");
     }
   }
 

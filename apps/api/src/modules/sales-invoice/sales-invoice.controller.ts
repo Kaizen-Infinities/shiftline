@@ -12,6 +12,7 @@ import { sendEmail } from "../../utils/mailer";
 import { emitToTenant } from "../../lib/realtime";
 
 import { voucherPostingService } from "../accounts/voucherPosting.service";
+import { logger } from "../../lib/logger";
 
 class SalesInvoiceController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -35,7 +36,7 @@ class SalesInvoiceController {
     try {
       await voucherPostingService.postSalesVoucher(salesInvoice.id);
     } catch (err) {
-      console.error("[Sales Invoice Controller] Voucher posting failed:", err);
+      logger.error({ err: err }, "[Sales Invoice Controller] Voucher posting failed:");
     }
 
     emitToTenant("salesInvoice:created", salesInvoice);
@@ -129,7 +130,7 @@ class SalesInvoiceController {
     try {
       await voucherPostingService.postSalesVoucher(salesInvoice.id);
     } catch (err) {
-      console.error("[Sales Invoice Controller] Voucher posting failed:", err);
+      logger.error({ err: err }, "[Sales Invoice Controller] Voucher posting failed:");
     }
 
     emitToTenant("salesInvoice:updated", salesInvoice);

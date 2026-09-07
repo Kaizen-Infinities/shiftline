@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { ApiError } from "../utils/ApiError";
+import { getRequestId } from "./request-context";
 import { getTenant, tenantStorage, type TenantContext } from "./tenant-context";
 
 /**
@@ -81,6 +82,30 @@ export const scopeArgs = (operation: string, args: any, companyId: string): any 
   return a;
 };
 
+/**
+ * One statement that sets every transaction-local variable the row-level
+ * security policies and the audit triggers read: tenant, bypass flag, actor
+ * (user or platform admin), request id and impersonator. `TRUE` scopes each
+ * value to the current transaction, so nothing leaks between pooled connections.
+ */
+function sessionSettings(ctx: TenantContext | undefined, mode: "tenant" | "bypass"): Prisma.Sql {
+  const requestId = getRequestId() ?? "";
+  const userId = ctx?.userId && ctx.userId !== "system" ? ctx.userId : "";
+  const isAdmin = userId.startsWith("admin_");
+  const adminId = isAdmin ? userId.slice("admin_".length) : "";
+  const actor = !userId ? "system" : isAdmin ? "admin" : "user";
+  const companyId = mode === "tenant" ? (ctx?.companyId ?? "") : "";
+  const bypass = mode === "bypass" ? "on" : "off";
+  return Prisma.sql`SELECT
+    set_config('app.company_id', ${companyId}, TRUE),
+    set_config('app.bypass_rls', ${bypass}, TRUE),
+    set_config('app.user_id', ${isAdmin ? "" : userId}, TRUE),
+    set_config('app.admin_id', ${adminId}, TRUE),
+    set_config('app.actor_type', ${actor}, TRUE),
+    set_config('app.request_id', ${requestId}, TRUE),
+    set_config('app.impersonated_by', ${ctx?.impersonatedBy ?? ""}, TRUE)`;
+}
+
 const extended = base.$extends({
   name: "tenantScope",
   query: {
@@ -88,13 +113,19 @@ const extended = base.$extends({
       async $allOperations({ model, operation, args, query }) {
         const ctx = getTenant();
         if (!TENANT_MODELS.has(model)) {
-          return query(args);
+          // Global tables carry no tenant, but their audit rows still need the actor.
+          if (ctx?.inTx || !ctx?.userId || ctx.userId === "system") return query(args);
+          const [, result] = await base.$transaction([
+            base.$executeRaw(sessionSettings(ctx, ctx.bypass ? "bypass" : "tenant")),
+            query(args),
+          ]);
+          return result;
         }
         if (ctx?.bypass) {
           if (ctx.inTx) return query(args);
           // Platform / system path: row-level security is lifted for this transaction only.
           const [, result] = await base.$transaction([
-            base.$executeRaw`SELECT set_config('app.bypass_rls', 'on', TRUE)`,
+            base.$executeRaw(sessionSettings(ctx, "bypass")),
             query(args),
           ]);
           return result;
@@ -107,7 +138,7 @@ const extended = base.$extends({
           return query(scoped); // set_config already ran in this transaction
         }
         const [, result] = await base.$transaction([
-          base.$executeRaw`SELECT set_config('app.company_id', ${ctx.companyId}, TRUE)`,
+          base.$executeRaw(sessionSettings(ctx, "tenant")),
           query(scoped),
         ]);
         return result;
@@ -125,9 +156,9 @@ async function tenantTransaction(arg: unknown, opts?: unknown): Promise<unknown>
   const ctx = getTenant();
   return extended.$transaction(async (tx) => {
     if (ctx?.bypass) {
-      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', TRUE)`;
+      await tx.$executeRaw(sessionSettings(ctx, "bypass"));
     } else if (ctx?.companyId) {
-      await tx.$executeRaw`SELECT set_config('app.company_id', ${ctx.companyId}, TRUE)`;
+      await tx.$executeRaw(sessionSettings(ctx, "tenant"));
     }
     const inner: TenantContext = { ...(ctx ?? { companyId: null }), inTx: true };
     return tenantStorage.run(

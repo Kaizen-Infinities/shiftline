@@ -8,6 +8,7 @@ import weeklyProgramService from "../weekly-machine-program/weekly-program.servi
 import oeeService from "../oee/oee.service";
 import { MachineOperationAssignmentService } from "../machine-operation-assignment/machine-operation-assignment.service";
 import { emitToTenant } from "../../lib/realtime";
+import { logger } from "../../lib/logger";
 
 /** Normalize UOM aliases to canonical short form (mirrors frontend normalizeUom) */
 function normalizeUom(uom: string): string {
@@ -426,7 +427,7 @@ class HourlyProductionService {
           });
           operatorNames = emps.map((e: any) => e.fullName).join(", ");
         } catch (err) {
-          console.error("Failed to parse operator names", err);
+          logger.error({ err: err }, "Failed to parse operator names");
         }
       }
 
@@ -780,7 +781,7 @@ class HourlyProductionService {
           });
         } catch (e) {
           // OEE calculation errors should not fail the main operation
-          console.error("OEE snapshot recalculation failed:", e);
+          logger.error({ err: e }, "OEE snapshot recalculation failed:");
         }
         // Notify EOD stock page to refresh live quantities
         try {

@@ -1,6 +1,7 @@
 import { decryptText } from "./crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "../config/prisma";
+import { logger } from "../lib/logger";
 
 export interface SendEmailOptions {
   to: string | string[];
@@ -66,7 +67,7 @@ export const sendEmail = async (options: SendEmailOptions) => {
 
     return info;
   } catch (error) {
-    console.error("Error sending email:", error);
+    logger.error({ err: error }, "Error sending email:");
     throw error;
   }
 };

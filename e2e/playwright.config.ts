@@ -40,13 +40,7 @@ export default defineConfig({
       : {}),
   },
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
-    {
-      name: "chromium",
-      testMatch: /.*\.spec\.ts/,
-      dependencies: ["setup"],
-      use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/owner.json" },
-    },
+    { name: "chromium", testMatch: /.*\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: process.env.E2E_NO_SERVER
     ? undefined

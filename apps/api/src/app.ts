@@ -3,10 +3,14 @@ import express, { Application } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+import { pinoHttp } from "pino-http";
 import rateLimit from "express-rate-limit";
 import path from "path";
 
 import apiRoutes from "./routes/index.routes";
+import { logger } from "./lib/logger";
+import { requestContextMiddleware } from "./lib/request-context";
+import healthRoutes from "./routes/health.routes";
 
 import { errorMiddleware } from "./middleware/error.middleware";
 import { env, isProduction, isTest } from "./config/env";
@@ -40,8 +44,18 @@ app.use(
     origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["Content-Disposition"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Request-Id",
+      "X-Company-Id",
+      "X-Device-Id",
+      "X-App-Version",
+      "X-Device-Platform",
+      "X-Device-Model",
+      "X-Device-Time",
+    ],
+    exposedHeaders: ["Content-Disposition", "X-Request-Id"],
   })
 );
 
@@ -81,6 +95,21 @@ const authLimiter = rateLimit({
     errors: [],
   },
 });
+// Request id first so every later log line and error response carries it.
+app.use(requestContextMiddleware);
+app.use(
+  pinoHttp({
+    logger,
+    genReqId: (req) => String(req.headers["x-request-id"] ?? ""),
+    autoLogging: { ignore: (req) => req.url === "/health" || req.url === "/ready" },
+    customLogLevel: (_req, res, err) =>
+      err || res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info",
+    serializers: {
+      req: (req) => ({ method: req.method, url: req.url }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
+  })
+);
 app.use("/api", globalLimiter);
 app.use(
   [
@@ -110,12 +139,6 @@ app.use(
     limit: "10mb",
   })
 );
-/** Request Logger Middleware */
-app.use((req, res, next) => {
-  const timestamp = new Date().toLocaleTimeString();
-  console.log(`[${timestamp}] ${req.method} ${req.originalUrl}`);
-  next();
-});
 
 /** Application Routes*/
 app.get("/", (req, res) => {
@@ -128,6 +151,8 @@ app.get("/", (req, res) => {
   });
 });
 
+// Liveness and readiness for compose, CI and the status page (no auth, no rate limit).
+app.use(healthRoutes);
 app.use("/api", apiRoutes);
 
 /** Route Not Found Handler*/

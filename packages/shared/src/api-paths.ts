@@ -4,6 +4,7 @@ export const API_PATHS = {
     login: "/auth/login",
     getCurrentUser: "/auth/me",
     logout: "/auth/logout",
+    refresh: "/auth/refresh",
     sessions: "/auth/sessions",
     logoutAllSessions: "/auth/logout-all-sessions",
   },

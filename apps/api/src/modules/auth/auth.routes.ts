@@ -5,6 +5,7 @@ import {
   register,
   login,
   logout,
+  refresh,
   logoutAllSessions,
   changePassword,
   requestPasswordReset,
@@ -53,6 +54,7 @@ router.post(
   register
 );
 
+router.post("/refresh", refresh);
 router.post("/logout", authMiddleware, logout);
 
 router.post("/logout-all-sessions", authMiddleware, logoutAllSessions);

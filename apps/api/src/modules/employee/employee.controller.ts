@@ -7,6 +7,7 @@ import { ApiResponse } from "../../utils/ApiResponse";
 import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
 import { uploadToImageKit } from "../../config/imagekit";
+import { logger } from "../../lib/logger";
 
 // ─── Helpers for FormData parsing ────────────────────────────────────────────
 
@@ -176,7 +177,7 @@ class EmployeeController {
           "/shiftline/employees"
         );
       } catch (err) {
-        console.error("ImageKit upload failed:", err);
+        logger.error({ err: err }, "ImageKit upload failed:");
         // fall through — employee saved without photo
       }
     }
@@ -300,7 +301,7 @@ class EmployeeController {
           "/shiftline/employees"
         );
       } catch (err) {
-        console.error("ImageKit upload failed:", err);
+        logger.error({ err: err }, "ImageKit upload failed:");
       }
     }
 

@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { CreateSalesInvoiceInput } from "./sales-invoice.validation";
 import crypto from "crypto";
+import { logger } from "../../lib/logger";
 
 function serializeInvoice(invoice: any) {
   if (!invoice) return invoice;
@@ -394,7 +395,10 @@ class SalesInvoiceService {
         const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
         await voucherPostingService.postSalesVoucher(invoice.id);
       } catch (vErr) {
-        console.error("[Auto-Post Voucher Error] Failed to post Sales Voucher for invoice:", vErr);
+        logger.error(
+          { err: vErr },
+          "[Auto-Post Voucher Error] Failed to post Sales Voucher for invoice:"
+        );
       }
     }
 

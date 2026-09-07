@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { emitToTenant } from "../../lib/realtime";
 import * as rolePermissionService from "./role-permission.service";
+import { logger } from "../../lib/logger";
 
 export const assignPermissions = async (req: Request, res: Response) => {
   const { roleId, permissionIds } = req.body;
@@ -13,7 +14,7 @@ export const assignPermissions = async (req: Request, res: Response) => {
   try {
     emitToTenant("rolePermission:updated", { roleId: Number(String(roleId)) });
   } catch (e) {
-    console.error("Socket emit failed:", e);
+    logger.error({ err: e }, "Socket emit failed:");
   }
 
   return res.status(200).json({
@@ -44,7 +45,7 @@ export const removePermission = async (req: Request, res: Response) => {
   try {
     emitToTenant("rolePermission:updated", { roleId: Number(String(roleId)) });
   } catch (e) {
-    console.error("Socket emit failed:", e);
+    logger.error({ err: e }, "Socket emit failed:");
   }
 
   return res.status(200).json({

@@ -7,6 +7,7 @@ import {
 } from "./production-order.validation";
 import { Prisma } from "@prisma/client";
 import { StatusSyncService } from "../../utils/status-sync.util";
+import { logger } from "../../lib/logger";
 
 /** Normalize UOM aliases to canonical short form */
 function normalizeUom(uom: string): string {
@@ -276,7 +277,7 @@ class ProductionOrderService {
       });
       return updatedOrder || result;
     } catch (error) {
-      console.error("Auto material check failed after PO creation:", error);
+      logger.error({ err: error }, "Auto material check failed after PO creation:");
       return result;
     }
   }

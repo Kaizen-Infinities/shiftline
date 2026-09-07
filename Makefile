@@ -3,7 +3,7 @@ SHELL := /bin/bash
 API := npm run --workspace @shiftline/api
 WEB := npm run --workspace @shiftline/web
 
-.PHONY: help install db db-down dev api worker web seed reset typecheck lint test e2e format
+.PHONY: help install db db-down dev api worker web seed reset typecheck lint test e2e format backup restore
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -49,6 +49,12 @@ test: ## run all tests
 
 e2e: ## browser smoke suite against a seeded local database (starts api and web itself)
 	npm run e2e
+
+backup: ## pg_dump DATABASE_URL into ./backups (same format as the nightly job)
+	scripts/backup.sh
+
+restore: ## restore a dump: make restore DUMP=backups/<file>.dump TARGET=postgresql://.../shiftline_restore
+	scripts/restore.sh "$(DUMP)" "$(TARGET)" --drop
 
 format: ## prettier --write
 	npm run format

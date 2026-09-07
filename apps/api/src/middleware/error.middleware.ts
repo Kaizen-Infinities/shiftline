@@ -4,11 +4,16 @@ import { Prisma } from "@prisma/client";
 
 import { ApiError } from "../utils/ApiError";
 import { isProduction } from "../config/env";
+import { logger } from "../lib/logger";
+import { getRequestId } from "../lib/request-context";
+import { captureError } from "../lib/sentry";
 
 type ErrorBody = {
   success: false;
   message: string;
   errors: unknown[];
+  /** Correlates the response with server logs and audit rows. */
+  requestId?: string;
   /** Diagnostic detail, development only. Never sent in production. */
   detail?: string;
 };
@@ -21,6 +26,8 @@ const send = (
   detail?: string
 ) => {
   const body: ErrorBody = { success: false, message, errors };
+  const requestId = getRequestId();
+  if (requestId) body.requestId = requestId;
   if (!isProduction && detail) body.detail = detail;
   res.status(status).json(body);
 };
@@ -40,7 +47,10 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
   }
 
   if (err instanceof ApiError) {
-    if (err.statusCode >= 500) console.error("[API ERROR]", req.method, req.originalUrl, err);
+    if (err.statusCode >= 500) {
+      logger.error({ err, method: req.method, url: req.originalUrl }, "API error");
+      captureError(err, { method: req.method, url: req.originalUrl });
+    }
     return send(res, err.statusCode, err.message);
   }
 
@@ -63,11 +73,9 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
     (errName === "PrismaClientUnknownRequestError" &&
       /out of range|Could not convert|invalid input syntax/i.test((err as Error).message))
   ) {
-    console.warn(
-      "[Invalid request]",
-      req.method,
-      req.originalUrl,
-      (err as Error).message.split("\n")[0]
+    logger.warn(
+      { method: req.method, url: req.originalUrl, reason: (err as Error).message.split("\n")[0] },
+      "Invalid request"
     );
     return send(res, 400, "Invalid request data.", [], (err as Error).message);
   }
@@ -85,12 +93,16 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
       case "P2025":
         return send(res, 404, "Record not found.");
       default:
-        console.error("[Prisma ERROR]", known.code, req.method, req.originalUrl, known.message);
+        logger.error(
+          { code: known.code, method: req.method, url: req.originalUrl, detail: known.message },
+          "Prisma error"
+        );
         return send(res, 500, "Internal server error", [], `${known.code}: ${known.message}`);
     }
   }
 
-  console.error("[UNHANDLED ERROR]", req.method, req.originalUrl, err);
+  logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
+  captureError(err, { method: req.method, url: req.originalUrl });
   return send(
     res,
     500,
