@@ -156,6 +156,8 @@ const GrnInvoiceViewPage: React.FC = () => {
     // Tax calculations per item (CGST/SGST or IGST)
     const isInterState = useMemo(() => {
         if (!selectedItem) return false;
+        // P1-08: the stored supply type wins; older GRNs are read off their IGST amounts.
+        if (selectedItem.supplyType) return selectedItem.supplyType !== "INTRA_STATE";
         return (selectedItem.items || []).some((item: any) => Number(item.igstAmount) > 0);
     }, [selectedItem]);
 
@@ -402,6 +404,9 @@ const GrnInvoiceViewPage: React.FC = () => {
                                 </div>
                                 <div className="flex-1 px-4 py-3 space-y-1.5">
                                     <MetaRow label="Invoice No." value={selectedItem.invoiceNo || "—"} />
+                                    {hasTax && (
+                                        <MetaRow label="Reverse Charge" value={selectedItem.reverseCharge ? "Yes" : "No"} />
+                                    )}
                                     {selectedItem.purchaseOrder?.poNumber && (
                                         <MetaRow label="Ref. PO No." value={selectedItem.purchaseOrder.poNumber} />
                                     )}
@@ -444,6 +449,7 @@ const GrnInvoiceViewPage: React.FC = () => {
                                     <tr>
                                         <Th w="35px">S.N.</Th>
                                         <Th>Description of Goods</Th>
+                                        <Th w="62px">HSN</Th>
                                         <Th w="55px" align="right">Qty.</Th>
                                         <Th w="45px">Unit</Th>
                                         <Th w="60px" align="right">Price</Th>
@@ -468,6 +474,7 @@ const GrnInvoiceViewPage: React.FC = () => {
                                         <tr key={item.id || idx}>
                                             <Td align="center">{idx + 1}.</Td>
                                             <Td>{item.rawMaterial?.materialName || item.description || "N/A"}</Td>
+                                            <Td align="center">{item.hsnCode || ""}</Td>
                                             <Td align="right">{item.qty}</Td>
                                             <Td align="center">{item.unit}</Td>
                                             <Td align="right">{formatMoney(item.rate)}</Td>
@@ -489,7 +496,7 @@ const GrnInvoiceViewPage: React.FC = () => {
                                     ))}
                                     {(!selectedItem.items || selectedItem.items.length === 0) && (
                                         <tr>
-                                            <td colSpan={!hasTax ? 5 : isInterState ? 7 : 9} className="border border-black px-2 py-4 text-center text-slate-500">
+                                            <td colSpan={!hasTax ? 6 : isInterState ? 8 : 10} className="border border-black px-2 py-4 text-center text-slate-500">
                                                 No items found for this invoice.
                                             </td>
                                         </tr>
@@ -497,7 +504,7 @@ const GrnInvoiceViewPage: React.FC = () => {
                                 </tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colSpan={!hasTax ? 5 : isInterState ? 7 : 9} className="border border-black px-2 py-1 text-right font-bold">
+                                        <td colSpan={!hasTax ? 6 : isInterState ? 8 : 10} className="border border-black px-2 py-1 text-right font-bold">
                                             Grand Total
                                         </td>
                                         <td className="border border-black px-2 py-1 text-right font-bold font-mono">

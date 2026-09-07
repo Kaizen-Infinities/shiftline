@@ -118,6 +118,8 @@ export const SalesReturnPage: React.FC = () => {
   const { csvColumns, csvFilename } = useMemo(() => {
     const columns = [
       { header: "Return No", accessor: (item: any) => item.returnNo || "" },
+      { header: "Credit Note", accessor: (item: any) => item.creditNoteNo || "" },
+      { header: "Kind", accessor: (item: any) => (item.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return") },
       { header: "Return Date", accessor: (item: any) => item.returnDate ? new Date(item.returnDate).toLocaleDateString("en-IN") : "" },
       { header: "Customer", accessor: (item: any) => item.customer?.firmName || item.customer?.displayName || "" },
       { header: "Invoice No", accessor: (item: any) => item.salesInvoice?.invoiceNo || (item.salesInvoiceId ? `INV #${item.salesInvoiceId}` : "") },
@@ -361,6 +363,23 @@ export const SalesReturnPage: React.FC = () => {
                 value: selectedViewReturn?.salesInvoiceId
                   ? `INV #${selectedViewReturn.salesInvoiceId}`
                   : "Direct Return",
+              },
+              {
+                label: "Credit Note",
+                value: selectedViewReturn?.creditNoteNo || "—",
+              },
+              {
+                label: "Kind",
+                value:
+                  selectedViewReturn?.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return",
+              },
+              {
+                label: "GST",
+                value: selectedViewReturn
+                  ? `₹${Number(selectedViewReturn.taxAmount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}${
+                      selectedViewReturn.supplyType ? ` · ${String(selectedViewReturn.supplyType).replace("_", " ").toLowerCase()}` : ""
+                    }`
+                  : "—",
               },
               {
                 label: "Grand Total",

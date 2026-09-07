@@ -30,6 +30,8 @@ import { salesOrderService } from "../../services/salesOrderService";
 import { salesProductService } from "../../services/salesProductService";
 import { finishedGoodsStockService } from "../../services/finishedGoodsStockService";
 import { useSocketSync } from "../../hooks/useSocketSync";
+import { GST_STATES } from "@shiftline/shared";
+import { documentsService } from "../../services/documentsService";
 
 // ---- Types ----
 interface InvoiceLineItem {
@@ -41,6 +43,8 @@ interface InvoiceLineItem {
   weight: number;
   discountAmount: number;
   taxPercent: number;
+  /** HSN/SAC printed on the line; defaults from the product master (server fills it when absent). */
+  hsnCode?: string;
   amount: number;
   taxAmount: number;
   total: number;
@@ -56,6 +60,7 @@ interface ItemOption {
   name: string;
   defaultRate: number;
   gstRate: number;
+  hsnCode: string | null;
 }
 
 const emptyLine = (): InvoiceLineItem => ({
@@ -67,76 +72,12 @@ const emptyLine = (): InvoiceLineItem => ({
   weight: 0,
   discountAmount: 0,
   taxPercent: 0,
+  hsnCode: "",
   amount: 0,
   taxAmount: 0,
   total: 0,
 });
 
-// ---- Financial Year and Invoice Number calculations ----
-const getFinancialYearForDate = (dateStr: string, settings: any) => {
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return null;
-
-  let startYear = date.getFullYear();
-  let fyStartMonth = 3;
-  if (settings?.financialYearStart) {
-    const sDate = new Date(settings.financialYearStart);
-    if (!isNaN(sDate.getTime())) fyStartMonth = sDate.getMonth();
-  }
-
-  if (date.getMonth() < fyStartMonth) startYear -= 1;
-  const endYear = startYear + 1;
-  const fyLabel = `${startYear}-${String(endYear).slice(-2)}`;
-
-  let isCurrentFy = true;
-  if (settings?.financialYearStart && settings?.financialYearEnd) {
-    const settingsStart = new Date(settings.financialYearStart);
-    const settingsEnd = new Date(settings.financialYearEnd);
-    if (!isNaN(settingsStart.getTime()) && !isNaN(settingsEnd.getTime())) {
-      isCurrentFy = date >= settingsStart && date <= settingsEnd;
-    }
-  } else {
-    const today = new Date();
-    let currentFyStartYear = today.getFullYear();
-    if (today.getMonth() < fyStartMonth) currentFyStartYear -= 1;
-    isCurrentFy = startYear === currentFyStartYear;
-  }
-
-  return { startYear, endYear, fyLabel, isCurrentFy };
-};
-
-const extractSequenceNumber = (code: string): number => {
-  if (!code) return 0;
-  const match = code.match(/(\d+)\s*$/);
-  return match ? parseInt(match[1], 10) : 0;
-};
-
-const calculateInvoiceNumber = (dateStr: string, settings: any, orders: any[]) => {
-  if (!settings) return "";
-  const fyInfo = getFinancialYearForDate(dateStr, settings);
-  if (!fyInfo) return "";
-  const { fyLabel, isCurrentFy } = fyInfo;
-
-  let seq = settings.currentSequenceNumber || 1;
-  let maxSeq = 0;
-  orders.forEach((order: any) => {
-    const orderDateStr = order.orderDate || order.invoiceDate || order.createdAt;
-    if (!orderDateStr) return;
-    const orderFyInfo = getFinancialYearForDate(orderDateStr, settings);
-    if (orderFyInfo && orderFyInfo.fyLabel === fyLabel) {
-      const orderSeq = extractSequenceNumber(order.orderNo || order.invoiceNo || "");
-      if (orderSeq > maxSeq) maxSeq = orderSeq;
-    }
-  });
-
-  seq = isCurrentFy ? Math.max(seq, maxSeq + 1) : maxSeq + 1;
-  const paddedSeq = String(seq).padStart(settings.sequenceLength || 4, "0");
-  let preview = settings.formatTemplate || "{PREFIX}-{FY}-{SEQ}";
-  preview = preview.replace(/{PREFIX}/g, settings.invoicePrefix || "");
-  preview = preview.replace(/{FY}/g, fyLabel);
-  preview = preview.replace(/{SEQ}/g, paddedSeq);
-  return preview;
-};
 
 // ---- Component ----
 const SalesInvoiceForm: React.FC = () => {
@@ -345,7 +286,12 @@ const SalesInvoiceForm: React.FC = () => {
             id: String(p.id),
             name: p.productName,
             defaultRate: Number(p.mrp) || Number(p.b2b) || 0,
-            gstRate: Number(p.gstRate) || 0,
+            // The product's own rate, else its HSN's default (P1-08).
+            gstRate:
+              p.gstRate !== null && p.gstRate !== undefined && p.gstRate !== ""
+                ? Number(p.gstRate)
+                : Number(p.hsnCode?.gstRate ?? 0),
+            hsnCode: p.hsnCode?.code ?? null,
           })));
 
         const ordersList = ordersResponse?.data || (ordersResponse as any)?.orders || [];
@@ -369,7 +315,6 @@ const SalesInvoiceForm: React.FC = () => {
           setInvoiceSettings(settings);
           if (!id) {
             const todayStr = new Date().toISOString().split("T")[0];
-            setPreviewInvoiceNo(calculateInvoiceNumber(todayStr, settings, ordersList));
           }
         }
 
@@ -395,13 +340,6 @@ const SalesInvoiceForm: React.FC = () => {
       .catch(() => toast.error("Failed to load customers/items"))
       .finally(() => setLoading(false));
   }, []);
-
-  // Recalculate invoice number when date changes
-  useEffect(() => {
-    if (!id && invoiceDate && invoiceSettings) {
-      setPreviewInvoiceNo(calculateInvoiceNumber(invoiceDate, invoiceSettings, allOrders));
-    }
-  }, [id, invoiceDate, invoiceSettings, allOrders]);
 
   const loadCustomerOrders = useCallback((custId: string) => {
     if (!custId) return;
@@ -626,6 +564,7 @@ const SalesInvoiceForm: React.FC = () => {
             updated.rate = selected.defaultRate ?? 0;
             updated.discountAmount = 0;
             updated.taxPercent = selected.gstRate ?? 0;
+            updated.hsnCode = selected.hsnCode ?? "";
             updated.amount = updated.qty * updated.rate;
           }
         } else if (field === "qty" || field === "rate" || field === "discountAmount") {
@@ -652,11 +591,48 @@ const SalesInvoiceForm: React.FC = () => {
     );
   };
 
-  const isInterState = useMemo(() => {
-    const selectedCustomer = customersRaw.find((c) => String(c.id) === customerId);
-    if (!company?.state || !selectedCustomer?.billingState) return false;
-    return company.state.toLowerCase().trim() !== selectedCustomer.billingState.toLowerCase().trim();
+  // ---- GST nature of the supply (P1-08): state codes, never state names ----
+  const stateCodeOf = (code?: string | null, gstin?: string | null, stateName?: string | null) =>
+    code ||
+    (gstin && /^\d{2}/.test(gstin) ? gstin.slice(0, 2) : "") ||
+    GST_STATES.find((s) => s.name.toLowerCase() === String(stateName ?? "").trim().toLowerCase())?.code ||
+    "";
+  const chargesGst = !["COMPOSITION", "UNREGISTERED"].includes(
+    String(company?.gstRegistrationType ?? "REGULAR")
+  );
+  const supplyType = useMemo(() => {
+    const c = customersRaw.find((x) => String(x.id) === customerId);
+    if (c?.gstRegType === "OVERSEAS") return "EXPORT";
+    if (c?.gstRegType === "SEZ") return "SEZ";
+    const from = stateCodeOf(company?.stateCode, company?.gstin, company?.state);
+    const to = stateCodeOf(c?.stateCode, c?.gstin, c?.billingState);
+    if (!from || !to) return "INTRA_STATE";
+    return from === to ? "INTRA_STATE" : "INTER_STATE";
   }, [company, customersRaw, customerId]);
+  const isInterState = supplyType !== "INTRA_STATE";
+  const documentLabel = !chargesGst
+    ? "Bill of Supply"
+    : supplyType === "EXPORT"
+      ? "Export Invoice"
+      : "Tax Invoice";
+  const documentSeries = !chargesGst
+    ? "BILL_OF_SUPPLY"
+    : supplyType === "EXPORT"
+      ? "EXPORT_INVOICE"
+      : "SALES_INVOICE";
+
+  // The number is assigned by the server's series on save; show what it will be.
+  useEffect(() => {
+    if (isEditMode) return;
+    let alive = true;
+    documentsService
+      .nextNumber(documentSeries, { date: invoiceDate || undefined })
+      .then((n) => alive && setPreviewInvoiceNo(n))
+      .catch(() => alive && setPreviewInvoiceNo(""));
+    return () => {
+      alive = false;
+    };
+  }, [isEditMode, documentSeries, invoiceDate]);
 
   // ---- Auto-calculate due date from customer creditDays ----
   useEffect(() => {
@@ -691,7 +667,7 @@ const SalesInvoiceForm: React.FC = () => {
         const lineAmount = l.qty * l.rate;
         const share = lineAmount / subTotal;
         const lineTaxable = lineAmount - (totalDiscount * share);
-        taxTotal += (lineTaxable * l.taxPercent) / 100;
+        taxTotal += (lineTaxable * (chargesGst ? l.taxPercent : 0)) / 100;
       });
     }
 
@@ -701,7 +677,7 @@ const SalesInvoiceForm: React.FC = () => {
     const sgst = isInterState ? 0 : taxTotal / 2;
     const igst = isInterState ? taxTotal : 0;
     return { subTotal, totalDiscount, taxTotal, grandTotal, cgst, sgst, igst, additions, deductions, discountLabel: discNum > 0 ? `${discNum}${discountType === "PERCENT" ? "%" : " Flat"}` : "" };
-  }, [lines, isInterState, chargeRows, discountValue, discountType]);
+  }, [lines, isInterState, chargesGst, chargeRows, discountValue, discountType]);
 
   // ---- Credit Limit Check ----
   const limitExceeded = useMemo(() => {
@@ -747,7 +723,8 @@ const SalesInvoiceForm: React.FC = () => {
 
     try {
       const payload: any = {
-        invoiceNo: previewInvoiceNo,
+        // New invoices take the next number in the series on the server (P1-08).
+        ...(isEditMode ? { invoiceNo: previewInvoiceNo } : {}),
         customerId,
         invoiceDate,
         dueDate: dueDate || null,
@@ -780,7 +757,8 @@ const SalesInvoiceForm: React.FC = () => {
             rate: l.rate,
             weight: l.weight || 0,
             discountAmount: l.discountAmount,
-            taxPercent: l.taxPercent,
+            taxPercent: chargesGst ? l.taxPercent : 0,
+            hsnCode: l.hsnCode || undefined,
             amount: l.amount,
             taxAmount: l.taxAmount,
             total: l.total,
@@ -923,6 +901,17 @@ const SalesInvoiceForm: React.FC = () => {
             onChange={(e) => updateLine(row.id, "itemId", (e as any).target ? (e as any).target.value : String(e))} />
         );
       },
+    },
+    {
+      key: "hsnCode",
+      header: "HSN",
+      width: "90px",
+      align: "center" as const,
+      render: (row: InvoiceLineItem) => (
+        <input type="text" inputMode="numeric" value={row.hsnCode || ""} disabled={isLocked}
+          onChange={(e) => updateLine(row.id, "hsnCode", e.target.value.replace(/\D/g, "").slice(0, 8))}
+          className="w-full bg-transparent text-[12px] font-mono text-ink text-center outline-none border-none p-0 h-full" placeholder="—" />
+      ),
     },
     {
       key: "qty",
@@ -1140,6 +1129,12 @@ const SalesInvoiceForm: React.FC = () => {
           <h2 className="text-lg font-bold text-ink flex items-start">
             {isEditMode ? "Edit Sales Invoice" : "Create Sales Invoice"}
             <span className="text-purple-400 text-sm ml-1 mt-0.5 leading-none">*{previewInvoiceNo || "Auto"}</span>
+            <span
+              className="ml-2 rounded-full border border-line-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-muted"
+              title="Decided by your GST registration and the customer's state"
+            >
+              {documentLabel} · {supplyType.replace("_", " ")}
+            </span>
           </h2>
           <BackButton text="Back to List" />
         </div>

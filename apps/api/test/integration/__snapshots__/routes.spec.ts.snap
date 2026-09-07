@@ -80,6 +80,7 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "DELETE /api/departments/:id",
   "GET /api/departments/:id",
   "PATCH /api/departments/:id",
+  "GET /api/documents/next-number",
   "GET /api/email-config",
   "POST /api/email-config",
   "POST /api/email-config/send",

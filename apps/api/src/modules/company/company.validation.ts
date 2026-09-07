@@ -6,6 +6,8 @@ export const businessPlaceSchema = z.object({
   name: z.string().min(1, "Name is required").max(120),
   type: z.enum(["HEAD_OFFICE", "BRANCH_OFFICE", "FACTORY", "WAREHOUSE", "RETAIL_STORE"]),
   gstPlaceCode: z.string().max(2).optional().nullable(),
+  /// GSTIN of a separately registered branch (P1-08).
+  gstin: z.string().max(15).optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
   email: z.string().email("Invalid email format").max(120).or(z.literal("")).optional().nullable(),
   isHeadOffice: z.boolean().default(false),

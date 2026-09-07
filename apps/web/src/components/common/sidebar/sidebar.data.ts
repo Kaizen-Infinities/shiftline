@@ -190,6 +190,7 @@ export const sidebarItems: SidebarItem[] = [
             permission: "invoice-settings.view",
           },
           { title: "Data Imports", path: "/settings/imports", permission: "company-settings.view" },
+          { title: "GST & HSN", path: "/settings/gst", permission: "gst_tax.view" },
         ],
       },
       // ── 4. Users & Roles ──
@@ -228,6 +229,7 @@ export const sidebarItems: SidebarItem[] = [
       "/email-config",
       "/settings/invoice",
       "/settings/imports",
+      "/settings/gst",
       "/roles",
       "/role-permissions",
       "/departments",

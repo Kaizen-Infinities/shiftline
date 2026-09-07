@@ -76,6 +76,15 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
   const update = (idx: number, patch: Partial<OnboardingBusinessPlace>) =>
     setPlaces((ps) => ps.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
 
+  /** A branch GSTIN fixes that branch's state (its first two characters). */
+  const onPlaceGstin = (idx: number, value: string) => {
+    const v = value
+      .toUpperCase()
+      .replace(/[^0-9A-Z]/g, "")
+      .slice(0, 15);
+    update(idx, { gstin: v || null, ...(v.length >= 2 ? { gstPlaceCode: v.slice(0, 2) } : {}) });
+  };
+
   const makeHead = (idx: number) =>
     setPlaces((ps) =>
       ps.map((p, i) => ({
@@ -92,6 +101,11 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
       setError("Enter a valid 15-character GSTIN (the last character is a check digit).");
       return;
     }
+    const badBranch = places.find((p) => !p.isHeadOffice && p.gstin && !isValidGstin(p.gstin));
+    if (registered && badBranch) {
+      setError(`The GSTIN for ${badBranch.code || "a branch"} is not valid.`);
+      return;
+    }
     setBusy(true);
     try {
       const res = await onboardingService.saveGst({
@@ -101,6 +115,8 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
           ...p,
           code: p.code.trim().toUpperCase(),
           name: p.name.trim(),
+          // The head office bills under the company registration; a branch only with its own.
+          gstin: registered && !p.isHeadOffice && p.gstin ? p.gstin : null,
         })),
       });
       await onSaved(res.step);
@@ -237,6 +253,26 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
                   ))}
                 </select>
               </Field>
+              {registered && (
+                <Field
+                  label={p.isHeadOffice ? "Head office GSTIN" : "Branch GSTIN"}
+                  className="md:col-span-3"
+                  hint={
+                    p.isHeadOffice
+                      ? "Uses the registration above."
+                      : "Only when this branch is registered separately; blank means it bills under the head office GSTIN."
+                  }
+                >
+                  <input
+                    className={`${inputClass} font-mono tracking-wider`}
+                    value={p.isHeadOffice ? gstin : (p.gstin ?? "")}
+                    onChange={(e) => onPlaceGstin(idx, e.target.value)}
+                    maxLength={15}
+                    disabled={p.isHeadOffice}
+                    aria-label={`Place ${idx + 1} GSTIN`}
+                  />
+                </Field>
+              )}
               <Field label="Address" className="md:col-span-3">
                 <input
                   className={inputClass}

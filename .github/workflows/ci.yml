@@ -209,7 +209,7 @@ jobs:
           target: runtime
           push: false
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
       - name: Build web image
         uses: docker/build-push-action@v6
         with:
@@ -218,4 +218,4 @@ jobs:
           target: runtime
           push: false
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true

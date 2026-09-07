@@ -119,6 +119,13 @@ export const API_PATHS = {
   imports: {
     base: "/imports",
   },
+  gst: {
+    base: "/gst",
+  },
+  documents: {
+    base: "/documents",
+    nextNumber: "/documents/next-number",
+  },
   notifications: {
     base: "/notifications",
   },

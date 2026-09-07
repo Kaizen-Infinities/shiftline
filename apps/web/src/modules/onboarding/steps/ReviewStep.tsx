@@ -84,6 +84,7 @@ const ReviewStep: React.FC<Props> = ({ state, onEdit, onComplete }) => {
             {state.gst.businessPlaces.map((p) => (
               <li key={p.id ?? p.code}>
                 {p.code} · {p.name} · {stateName(p.gstPlaceCode)}
+                {p.gstin ? <span className="font-mono"> · {p.gstin}</span> : null}
                 {p.isHeadOffice && " (head office)"}
               </li>
             ))}

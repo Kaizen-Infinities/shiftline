@@ -8,6 +8,8 @@ export interface BusinessPlace {
   name: string;
   type: BusinessPlaceType;
   gstPlaceCode?: string | null;
+  /** GSTIN of a separately registered branch; the head office uses the company's. */
+  gstin?: string | null;
   phone?: string | null;
   email?: string | null;
   isHeadOffice: boolean;
@@ -21,6 +23,10 @@ export interface Company {
   legalName?: string | null;
   shortName?: string | null;
   gstin?: string | null;
+  /** GST registration (P1-08): REGULAR, COMPOSITION, UNREGISTERED, SEZ, OVERSEAS, UIN. */
+  gstRegistrationType?: string | null;
+  /** Two-digit GST state code of the registered office. */
+  stateCode?: string | null;
   currencyCode: string;
   phone?: string | null;
   mobile?: string | null;

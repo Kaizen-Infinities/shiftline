@@ -146,7 +146,44 @@ note mirroring the invoice split, over-return refused; purchase return → debit
 adjustment leaves stock alone, goods return deducts; expense with ITC and TDS, reverse-charge
 expense, blocked credit, invalid GSTIN refused; petty cash with and without a vendor GSTIN.
 
-## Part C — web (planned)
+## Part C — web (2026-09-07)
 
-HSN and GST slab screens under Configuration; GSTIN per place in company settings and the
-onboarding GST step; invoice and GRN forms showing HSN and the computed split.
+### Screens
+
+- **Configuration → GST & HSN** (`/settings/gst`, permission `gst_tax.view`): two tabs. _HSN / SAC
+  codes_: search by code or description, filter by type, show inactive, add/edit (code, type,
+  description, GST rate from the active slabs, cess), remove (deactivates when products or materials
+  use the code), reactivate. _GST slabs_: list with add/edit/deactivate/reactivate. Service
+  `services/gstService.ts`.
+- **Company settings → Places of business**: each place shows code, name, type, an editable GST
+  state and GSTIN (head office reads the company GSTIN; a branch GSTIN fixes its state). Saved with
+  the company form through `PUT /companies/:id` (`businessPlaces[].gstin` now accepted).
+- **Onboarding → GST step**: a "Branch GSTIN" per non-head-office place (validated with the check
+  digit; blank means the branch bills under the head office GSTIN); the review step lists it.
+
+### Documents
+
+- **Sales invoice form**: the supply type comes from the customer's state code (or GSTIN, or state
+  name as a last resort) against the company's; a badge shows _Tax Invoice / Bill of Supply / Export
+  Invoice · intra/inter state_. Lines carry an editable HSN column filled from the product master;
+  the line rate defaults to the product's own rate, else its HSN's. A composition or unregistered
+  company sees zero tax. New invoices no longer send a client-computed number: the form shows the
+  series' next number from `GET /documents/next-number` and the server assigns it on save.
+- **GRN form**: supply type from the supplier's state code against the company's; HSN column filled
+  from the raw material; a _Reverse charge_ switch (net payable then excludes GST); the GRN number
+  shown is the series peek.
+- **Printed invoice / GRN**: title from `documentType`, Place of Supply, Reverse Charge yes/no, HSN
+  column; the CGST/SGST vs IGST columns follow the stored `supplyType`.
+- **Returns**: a _Kind_ selector (goods return / price adjustment) on both forms; lists and detail
+  modals show the credit/debit note number, the kind and the GST amount.
+
+### API additions in this part
+
+`GET /api/documents/next-number?docType=&businessPlaceId=&date=` (authenticated; `peek` of the
+series). Product and raw-material list/detail responses include `hsnCode { id, code, gstRate,
+cessRate }`. `businessPlaceSchema` accepts `gstin`.
+
+### Browser tests
+
+`e2e/smoke.spec.ts` adds `/settings/gst`; the onboarding flow picks "Regular" before the GSTIN
+(18 browser tests).

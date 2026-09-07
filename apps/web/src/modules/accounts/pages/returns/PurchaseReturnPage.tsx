@@ -80,6 +80,8 @@ export const PurchaseReturnPage: React.FC = () => {
   const [fetchingGrn, setFetchingGrn] = useState<boolean>(false);
 
   const [refundMode, setRefundMode] = useState<"CREDIT_NOTE" | "CASH" | "BANK">("CREDIT_NOTE");
+  // A price adjustment raises the debit note without moving stock (P1-08).
+  const [kind, setKind] = useState<"GOODS_RETURN" | "PRICE_ADJUSTMENT">("GOODS_RETURN");
   const [reason, setReason] = useState<string>("");
   const [narration, setNarration] = useState<string>("");
   const [returnRows, setReturnRows] = useState<FormReturnRow[]>([]);
@@ -269,7 +271,7 @@ export const PurchaseReturnPage: React.FC = () => {
       return;
     }
 
-    if (!selectedGrnId && !selectedStoreId) {
+    if (kind === "GOODS_RETURN" && !selectedGrnId && !selectedStoreId) {
       toast.error("Please select a Store/Warehouse when no GRN Invoice is linked");
       return;
     }
@@ -291,6 +293,7 @@ export const PurchaseReturnPage: React.FC = () => {
         supplierId: parseInt(supplierId, 10),
         grnInvoiceId: selectedGrnId || undefined,
         storeId: selectedStoreId || undefined,
+        kind,
         refundMode,
         reason: reason.trim(),
         narration,
@@ -375,6 +378,11 @@ export const PurchaseReturnPage: React.FC = () => {
   const { csvColumns, csvFilename } = useMemo(() => {
     const columns = [
       { header: "Return No", accessor: (item: any) => item.returnNo || "" },
+      { header: "Debit Note", accessor: (item: any) => item.debitNoteNo || "" },
+      {
+        header: "Kind",
+        accessor: (item: any) => (item.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return"),
+      },
       {
         header: "Return Date",
         accessor: (item: any) =>
@@ -625,6 +633,13 @@ export const PurchaseReturnPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
+                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Kind <span className="text-red-500">*</span></label>
+                    <select value={kind} required onChange={(e) => setKind(e.target.value as "GOODS_RETURN" | "PRICE_ADJUSTMENT")} className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary" aria-label="Return kind">
+                      <option value="GOODS_RETURN">Goods return (stock moves out)</option>
+                      <option value="PRICE_ADJUSTMENT">Price adjustment (debit note only)</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Refund Mode <span className="text-red-500">*</span></label>
                     <select value={refundMode} required onChange={(e) => setRefundMode(e.target.value as any)} className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary">
                       <option value="CREDIT_NOTE">Debit Note</option>
@@ -757,6 +772,21 @@ export const PurchaseReturnPage: React.FC = () => {
                 value: selectedViewReturn?.grnInvoice?.invoiceNo
                   ? selectedViewReturn.grnInvoice.invoiceNo
                   : (selectedViewReturn?.grnInvoiceId ? `GRN #${selectedViewReturn.grnInvoiceId}` : "Direct Return"),
+              },
+              {
+                label: "Debit Note",
+                value: selectedViewReturn?.debitNoteNo || "—",
+              },
+              {
+                label: "Kind",
+                value:
+                  selectedViewReturn?.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return",
+              },
+              {
+                label: "GST",
+                value: selectedViewReturn
+                  ? `₹${Number(selectedViewReturn.taxAmount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+                  : "—",
               },
               {
                 label: "Grand Total",

@@ -114,6 +114,7 @@ class RawMaterialService {
         store: { include: { location: true } },
         category: true,
         storeLocation: true,
+        hsnCode: { select: { id: true, code: true, gstRate: true, cessRate: true } },
       },
       orderBy: { [sortBy]: sortOrder },
     };
@@ -146,6 +147,7 @@ class RawMaterialService {
         store: true,
         category: true,
         storeLocation: true,
+        hsnCode: { select: { id: true, code: true, gstRate: true, cessRate: true } },
       },
     });
 

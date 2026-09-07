@@ -19,6 +19,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/settings/company", marker: /General Info/i },
   { path: "/company/view", marker: /Employee Code/i },
   { path: "/settings/imports", marker: /Data imports/i },
+  { path: "/settings/gst", marker: /HSN/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 

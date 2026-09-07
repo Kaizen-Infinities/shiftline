@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { FaArrowLeft, FaPrint, FaDownload, FaCircleNotch } from "react-icons/fa";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import { GST_STATES } from "@shiftline/shared";
 import { useSelector, useDispatch } from "react-redux";
 import { salesInvoiceService } from "../../services/salesInvoiceService";
 import { useSocketSync } from "../../hooks/useSocketSync";
@@ -10,6 +11,9 @@ import CustomButton from "../../components/ui/Button/Button";
 import SearchInput from "../../components/ui/SearchInput/SearchInput";
 import { fetchCompany } from "../../features/company/companySlice";
 import { customerService } from "../../services/customerService";
+
+const stateName = (code?: string | null) =>
+    GST_STATES.find((st) => st.code === code)?.name ?? code ?? "";
 
 // ─── Formatting helpers ─────────────────────────────────────────────────
 const formatMoney = (val: string | number | null | undefined) => {
@@ -171,10 +175,12 @@ const SalesInvoiceView: React.FC = () => {
     }, [invoicesList, searchTerm]);
 
     // ─── Tax calculations per item (CGST/SGST or IGST) ─────────────────
-    const isInterState = useMemo(() => {
+    const isInterStateByName = useMemo(() => {
         if (!invoice) return false;
         return (invoice.items || []).some((item: any) => Number(item.igstAmount) > 0);
     }, [invoice]);
+    // P1-08: the stored supply type wins; the name comparison only covers documents from before it.
+    const isInterState = invoice?.supplyType ? invoice.supplyType !== "INTRA_STATE" : isInterStateByName;
 
     const itemsWithTax = useMemo(() => {
         if (!invoice?.items) return [];
@@ -460,7 +466,13 @@ const SalesInvoiceView: React.FC = () => {
 
                                 {/* Header */}
                                 <div className="text-center border-b-[2px] border-black px-3 py-3">
-                                    <div className="text-base uppercase font-bold tracking-[3px]">Tax Invoice</div>
+                                    <div className="text-base uppercase font-bold tracking-[3px]">
+                                        {invoice.documentType === "BILL_OF_SUPPLY"
+                                            ? "Bill of Supply"
+                                            : invoice.documentType === "EXPORT_INVOICE"
+                                              ? "Export Invoice"
+                                              : "Tax Invoice"}
+                                    </div>
                                 </div>
 
                                 {/* Invoice meta block */}
@@ -469,6 +481,12 @@ const SalesInvoiceView: React.FC = () => {
                                         <MetaRow label="Invoice No." value={invoice.invoiceNo} />
                                         <MetaRow label="Dated" value={formatDate(invoice.invoiceDate)} />
                                         <MetaRow label="Due Date" value={invoice.dueDate ? formatDate(invoice.dueDate) : "—"} />
+                                        {invoice.placeOfSupply && (
+                                            <MetaRow label="Place of Supply" value={`${stateName(invoice.placeOfSupply)} (${invoice.placeOfSupply})`} />
+                                        )}
+                                        {invoice.documentType !== "BILL_OF_SUPPLY" && (
+                                            <MetaRow label="Reverse Charge" value={invoice.reverseCharge ? "Yes" : "No"} />
+                                        )}
                                     </div>
                                     <div className="flex-1 p-3 space-y-1.5">
                                         <MetaRow label="Transport" value={(invoice.transport as any)?.name || invoice.transportName || "—"} />
@@ -555,6 +573,7 @@ const SalesInvoiceView: React.FC = () => {
                                         <tr>
                                             <Th w="35px">S.N.</Th>
                                             <Th>Description of Goods</Th>
+                                            <Th w="62px">HSN/SAC</Th>
                                             <Th w="55px" align="right">Qty.</Th>
                                             <th className="border border-black px-2 py-1 text-[11px] font-bold uppercase bg-gray-100 wt-hide" style={{ width: "65px", textAlign: "right" }}>Weight(KG)</th>
                                             <Th w="60px" align="right">Price</Th>
@@ -566,6 +585,7 @@ const SalesInvoiceView: React.FC = () => {
                                             <tr key={item.id || idx} style={{ height: "30px" }}>
                                                 <Td align="center">{idx + 1}.</Td>
                                                 <Td>{item.description || item.product?.productName || "N/A"}</Td>
+                                                <Td align="center">{item.hsnCode || item.product?.hsnCode?.code || ""}</Td>
                                                 <Td align="right">{item.qty}</Td>
                                                 <td className="border border-black px-2 py-1 text-right wt-hide">{Number(item.weight || 0).toFixed(1)}</td>
                                                 <Td align="right">{item.rate.toFixed(2)}</Td>
@@ -576,6 +596,7 @@ const SalesInvoiceView: React.FC = () => {
                                             <tr key={`empty-${idx}`} style={{ height: "24px" }}>
                                                 <Td align="center"></Td>
                                                 <Td></Td>
+                                                <Td></Td>
                                                 <Td align="right"></Td>
                                                 <td className="border border-black px-2 py-1 wt-hide"></td>
                                                 <Td align="right"></Td>
@@ -584,7 +605,7 @@ const SalesInvoiceView: React.FC = () => {
                                         ))}
                                         {(!invoice.items || invoice.items.length === 0) && (
                                             <tr>
-                                                <td colSpan={6} className="border border-black px-2 py-4 text-center text-slate-500">
+                                                <td colSpan={7} className="border border-black px-2 py-4 text-center text-slate-500">
                                                     No items found for this invoice.
                                                 </td>
                                             </tr>
@@ -592,7 +613,7 @@ const SalesInvoiceView: React.FC = () => {
                                     </tbody>
                                     <tfoot>
                                         <tr>
-                                            <td colSpan={3} className="border border-black px-2 py-1 text-right font-bold">Total</td>
+                                            <td colSpan={4} className="border border-black px-2 py-1 text-right font-bold">Total</td>
                                             <td className="border border-black px-2 py-1 text-right font-bold wt-hide">{totalWeight.toFixed(1)}</td>
                                             <td className="border border-black px-2 py-1"></td>
                                             <td className="border border-black px-2 py-1 text-right font-bold">{formatMoney(totalTaxable)}</td>

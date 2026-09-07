@@ -91,6 +91,23 @@ describe("gst on documents", () => {
       expect(await documentNumberService.next("DELIVERY_CHALLAN")).toBe(`DC/${fy}/0001`);
     });
 
+    // Forms ask the API what the next save would take; peeking never consumes a number.
+    const owner = await authed("demo.owner");
+    const peek = await (
+      await api()
+    )
+      .get("/api/documents/next-number?docType=SALES_INVOICE")
+      .set(owner.auth);
+    expect(peek.status).toBe(200);
+    expect(peek.body.data.number).toMatch(seriesRe("INV"));
+    expect(
+      (await (await api()).get("/api/documents/next-number?docType=SALES_INVOICE").set(owner.auth))
+        .body.data.number
+    ).toBe(peek.body.data.number);
+    expect(
+      (await (await api()).get("/api/documents/next-number?docType=NOPE").set(owner.auth)).status
+    ).toBe(400);
+
     expect(fyCodeFor(new Date("2026-03-31T00:00:00Z"), 4)).toBe("2025-26");
     expect(fyCodeFor(new Date("2026-04-01T00:00:00Z"), 4)).toBe("2026-27");
     expect(fyCodeFor(new Date("2026-04-01T00:00:00Z"), 1)).toBe("2026");

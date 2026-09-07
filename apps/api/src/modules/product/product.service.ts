@@ -217,6 +217,7 @@ class ProductService {
           images: true,
           finishedGoodsStocks: { include: { store: true } },
           billOfMaterials: { include: { rawMaterial: true } },
+          hsnCode: { select: { id: true, code: true, gstRate: true, cessRate: true } },
         },
       });
     } catch (err: any) {
@@ -255,6 +256,7 @@ class ProductService {
       images: true,
       finishedGoodsStocks: { include: { store: true } },
       billOfMaterials: { include: { rawMaterial: true } },
+      hsnCode: { select: { id: true, code: true, gstRate: true, cessRate: true } },
       // Only the latest capacity row on list screens; the full history is on the detail endpoint.
       capacityHistories: { orderBy: { createdAt: "desc" as const }, take: 1 },
     } satisfies Prisma.ProductInclude;
@@ -293,6 +295,7 @@ class ProductService {
         images: true,
         finishedGoodsStocks: { include: { store: true } },
         billOfMaterials: { include: { rawMaterial: true } },
+        hsnCode: { select: { id: true, code: true, gstRate: true, cessRate: true } },
         capacityHistories: { orderBy: { createdAt: "desc" } },
       },
     });
@@ -575,6 +578,7 @@ class ProductService {
         images: true,
         finishedGoodsStocks: { include: { store: true } },
         billOfMaterials: { include: { rawMaterial: true } },
+        hsnCode: { select: { id: true, code: true, gstRate: true, cessRate: true } },
         capacityHistories: { orderBy: { createdAt: "desc" } },
       },
     });

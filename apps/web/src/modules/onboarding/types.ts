@@ -6,6 +6,8 @@ export interface OnboardingBusinessPlace {
   name: string;
   type: "HEAD_OFFICE" | "BRANCH_OFFICE" | "FACTORY" | "WAREHOUSE" | "RETAIL_STORE";
   gstPlaceCode: string;
+  /** GSTIN of a separately registered branch; blank means the head office's. */
+  gstin?: string | null;
   phone?: string | null;
   email?: string | null;
   isHeadOffice: boolean;

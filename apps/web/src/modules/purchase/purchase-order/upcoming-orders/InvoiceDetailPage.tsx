@@ -3,6 +3,7 @@ import { Container, Row, Col } from "react-bootstrap";
 import { FaPlus, FaTrash, FaArrowLeft, FaBoxOpen, FaFileInvoice, FaMapMarkerAlt, FaTruck, FaUser, FaCreditCard, FaHashtag } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { GST_STATES } from "@shiftline/shared";
 
 import CustomButton from "../../../../components/ui/Button/Button";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
@@ -36,6 +37,8 @@ interface GRNItem {
     qty: number;
     unitPrice: number;
     tax: number;
+    /** HSN/SAC printed on the line; defaults from the raw material master (P1-08). */
+    hsnCode: string;
     taxableAmount: number;
     cgstRate: number;
     cgstAmount: number;
@@ -53,6 +56,7 @@ const emptyItem = (): GRNItem => ({
     qty: 1,
     unitPrice: 0,
     tax: 0,
+    hsnCode: "",
     taxableAmount: 0,
     cgstRate: 0,
     cgstAmount: 0,
@@ -134,13 +138,24 @@ const InvoiceDetailPage: React.FC = () => {
         referenceNumber: "",
         paymentDate: "",
         updateStock: true,
+        // Tax payable by us under reverse charge (unregistered supplier, notified goods/services).
+        reverseCharge: false,
     });
 
     const [items, setItems] = useState<GRNItem[]>([]);
+    // GST nature of the inward supply (P1-08): state codes (GSTIN prefix), state names only as a fallback.
+    const stateCodeOf = (code?: string | null, gstin?: string | null, stateName?: string | null) =>
+        code ||
+        (gstin && /^\d{2}/.test(gstin) ? gstin.slice(0, 2) : "") ||
+        GST_STATES.find((st) => st.name.toLowerCase() === String(stateName ?? "").trim().toLowerCase())?.code ||
+        "";
     const isInterState = useMemo(() => {
-        if (!companyState || !form.billingState) return false;
-        return companyState.toLowerCase().trim() !== form.billingState.toLowerCase().trim();
-    }, [companyState, form.billingState]);
+        const supplier = (suppliers || []).find((sp: any) => String(sp.id) === String(form.supplierId));
+        const from = stateCodeOf(supplier?.stateCode, supplier?.gstin, supplier?.billingState || form.billingState);
+        const to = stateCodeOf(company?.stateCode, company?.gstin, companyState);
+        if (!from || !to) return false;
+        return from !== to;
+    }, [suppliers, form.supplierId, form.billingState, company, companyState]);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     // ── Fetch on mount ────────────────────────────────────────────────────────────
@@ -208,6 +223,7 @@ const InvoiceDetailPage: React.FC = () => {
                         roundingAdjust: Number(invoice.roundingAdjust) || 0,
                         paymentStatus: invoice.paymentStatus || "Unpaid",
                         updateStock: invoice.updateStock ?? true,
+                        reverseCharge: Boolean(invoice.reverseCharge),
                     }));
 
                     const mappedItems = (invoice.items || []).map((item: any) => {
@@ -236,6 +252,7 @@ const InvoiceDetailPage: React.FC = () => {
 
                         return {
                             productId: item.productId || "",
+                            hsnCode: item.hsnCode || "",
                             description: materialName,
                             uom: item.uom || "",
                             qty,
@@ -597,8 +614,9 @@ const InvoiceDetailPage: React.FC = () => {
 
     const grandTotal = useMemo(() => {
         const rounding = roundingSign === "+" ? Number(form.roundingAdjust || 0) : -Number(form.roundingAdjust || 0);
-        return subtotal - discountAmount + totalTax + rounding;
-    }, [subtotal, discountAmount, totalTax, form.roundingAdjust, roundingSign]);
+        // Under reverse charge the supplier is paid without GST; the tax goes to the government.
+        return subtotal - discountAmount + (form.reverseCharge ? 0 : totalTax) + rounding;
+    }, [subtotal, discountAmount, totalTax, form.roundingAdjust, roundingSign, form.reverseCharge]);
 
     const totalPaid = useMemo(() => payments.reduce((sum, p) => sum + Number(p.amount || 0), 0), [payments]);
     const balanceDue = useMemo(() => Math.max(0, grandTotal - totalPaid), [grandTotal, totalPaid]);
@@ -796,6 +814,7 @@ const InvoiceDetailPage: React.FC = () => {
             payload.append("grnDate", form.grnDate);
             payload.append("supplierId", String(form.supplierId));
             payload.append("storeId", form.storeId);
+            payload.append("reverseCharge", form.reverseCharge ? "true" : "false");
             payload.append("billingAddressLine1", form.billingAddressLine1);
             payload.append("billingCountry", form.billingCountry || "India");
             payload.append("billingCity", form.billingCity);
@@ -859,6 +878,7 @@ const InvoiceDetailPage: React.FC = () => {
                         quantity: Number(item.qty),
                         unitPrice: Number(item.unitPrice),
                         tax: Number(item.tax || 0),
+                        hsnCode: item.hsnCode || undefined,
                         taxableAmount: item.taxableAmount || 0,
                         cgstRate: item.cgstRate || 0,
                         cgstAmount: item.cgstAmount || 0,
@@ -935,6 +955,10 @@ const InvoiceDetailPage: React.FC = () => {
                                 <DatePickerCalendar label="GRN Date" name="grnDate" value={form.grnDate} onChange={(e) => setForm(p => ({ ...p, grnDate: e.target.value }))} required error={errors.grnDate} disabled={isEditMode} />
                                 <SelectInput label="Supplier" name="supplierId" value={form.supplierId} options={supplierOptions} onChange={handleChange} required disabled={isEditMode || isPOSelected} searchable error={errors.supplierId} />
                                 <SelectInput label="Store" name="storeId" value={form.storeId} options={storeOptions} onChange={handleChange} required disabled={isEditMode || isPOSelected} searchable error={errors.storeId} />
+                                <label className="flex items-center gap-2 self-end pb-2 text-[11px] font-semibold text-ink-muted">
+                                    <input type="checkbox" checked={form.reverseCharge} onChange={(e) => setForm((p) => ({ ...p, reverseCharge: e.target.checked }))} disabled={isEditMode} />
+                                    Reverse charge (GST payable by us)
+                                </label>
                             </div>
                         </div>
 
@@ -981,6 +1005,7 @@ const InvoiceDetailPage: React.FC = () => {
                                         <tr>
                                             <th className="px-2 py-1.5 text-center text-[10px] font-extrabold text-ink-subtle uppercase w-8">#</th>
                                             <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">Product</th>
+                                            <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase w-24">HSN</th>
                                             <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase min-w-[160px]">Qty & UOM</th>
                                             <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">Unit Price (₹)</th>
                                             <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">Tax %</th>
@@ -1001,8 +1026,11 @@ const InvoiceDetailPage: React.FC = () => {
                                                         {isPOSelected || isEditMode ? (
                                                             <span className="font-semibold text-ink text-[11px]">{materialName}</span>
                                                         ) : (
-                                                            <SelectInput label="" noMargin={true} value={item.productId ? String(item.productId) : ""} options={[{ value: "", label: "-- Select Material --" }, ...(rawMaterials || []).map((rm: any) => ({ value: String(rm.rawMaterialId), label: rm.materialName || rm.productName || String(rm.rawMaterialId) }))]} error={errors[`items.${idx}.productId`]} onChange={(e) => { const selId = e.target.value; const selectedRm = rawMaterials.find((rm: any) => String(rm.rawMaterialId) === String(selId)); if (selectedRm) { const matName = selectedRm.materialName || selectedRm.productName || ""; const uPrice = Number(selectedRm.unitPrice) || 0; const gRate = Number(selectedRm.gstRate) || 0; const baseUomVal = selectedRm.baseUom ? selectedRm.baseUom.split(",")[0].trim() : ""; setItems((prev) => { const updated = [...prev]; updated[idx] = { ...updated[idx], productId: selId, description: matName, unitPrice: uPrice, tax: gRate, uom: baseUomVal || updated[idx].uom }; const lineSubtotal = updated[idx].qty * uPrice; const totalGstAmount = (lineSubtotal * gRate) / 100; updated[idx].taxableAmount = lineSubtotal; updated[idx].netAmount = lineSubtotal + totalGstAmount; return updated; }); } else { setItems((prev) => { const updated = [...prev]; updated[idx] = { ...updated[idx], productId: "", description: "" }; return updated; }); } setErrors((prev) => { const next = { ...prev }; delete next[`items.${idx}.productId`]; delete next[`items.${idx}.description`]; if (selectedRm && Number(selectedRm.unitPrice) > 0) { delete next[`items.${idx}.unitPrice`]; } return next; }); }} />
+                                                            <SelectInput label="" noMargin={true} value={item.productId ? String(item.productId) : ""} options={[{ value: "", label: "-- Select Material --" }, ...(rawMaterials || []).map((rm: any) => ({ value: String(rm.rawMaterialId), label: rm.materialName || rm.productName || String(rm.rawMaterialId) }))]} error={errors[`items.${idx}.productId`]} onChange={(e) => { const selId = e.target.value; const selectedRm = rawMaterials.find((rm: any) => String(rm.rawMaterialId) === String(selId)); if (selectedRm) { const matName = selectedRm.materialName || selectedRm.productName || ""; const uPrice = Number(selectedRm.unitPrice) || 0; const gRate = selectedRm.gstRate !== null && selectedRm.gstRate !== undefined && selectedRm.gstRate !== "" ? Number(selectedRm.gstRate) : Number(selectedRm.hsnCode?.gstRate ?? 0); const hsn = selectedRm.hsnCode?.code || ""; const baseUomVal = selectedRm.baseUom ? selectedRm.baseUom.split(",")[0].trim() : ""; setItems((prev) => { const updated = [...prev]; updated[idx] = { ...updated[idx], productId: selId, description: matName, unitPrice: uPrice, tax: gRate, hsnCode: hsn, uom: baseUomVal || updated[idx].uom }; const lineSubtotal = updated[idx].qty * uPrice; const totalGstAmount = (lineSubtotal * gRate) / 100; updated[idx].taxableAmount = lineSubtotal; updated[idx].netAmount = lineSubtotal + totalGstAmount; return updated; }); } else { setItems((prev) => { const updated = [...prev]; updated[idx] = { ...updated[idx], productId: "", description: "" }; return updated; }); } setErrors((prev) => { const next = { ...prev }; delete next[`items.${idx}.productId`]; delete next[`items.${idx}.description`]; if (selectedRm && Number(selectedRm.unitPrice) > 0) { delete next[`items.${idx}.unitPrice`]; } return next; }); }} />
                                                         )}
+                                                    </td>
+                                                    <td className="px-2 py-1">
+                                                        <TextInput label="" name={`items[${idx}].hsnCode`} value={item.hsnCode || ""} placeholder="HSN" onChange={(e) => updateItem(idx, "hsnCode", e.target.value.replace(/\D/g, "").slice(0, 8))} disabled={isEditMode} />
                                                     </td>
                                                     <td className="px-2 py-1">
                                                         <QuantityInput label="" name={`items[${idx}].qty`} value={item.qty} baseUoms={baseUoms} uom={item.uom} onUomChange={(newUom) => updateItem(idx, "uom", newUom)} disabled={isEditMode} error={errors[`items.${idx}.qty`]} onChange={(e) => updateItem(idx, "qty", Number(e.target.value))} />
@@ -1021,7 +1049,7 @@ const InvoiceDetailPage: React.FC = () => {
                                             );
                                         })}
                                         {items.length === 0 && (
-                                            <tr><td colSpan={7} className="text-center text-ink-subtle py-4 text-[11px]">No items added</td></tr>
+                                            <tr><td colSpan={8} className="text-center text-ink-subtle py-4 text-[11px]">No items added</td></tr>
                                         )}
                                     </tbody>
                                 </table>

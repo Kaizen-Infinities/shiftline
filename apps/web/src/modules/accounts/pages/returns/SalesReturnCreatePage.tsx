@@ -59,6 +59,8 @@ export const SalesReturnCreatePage: React.FC = () => {
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [salesProductsList, setSalesProductsList] = useState<any[]>([]);
   const [narration, setNarration] = useState<string>("");
+  // A price adjustment raises the credit note without a goods movement (P1-08).
+  const [kind, setKind] = useState<"GOODS_RETURN" | "PRICE_ADJUSTMENT">("GOODS_RETURN");
   const [returnRows, setReturnRows] = useState<FormReturnRow[]>([]);
   const [originalReturnNo, setOriginalReturnNo] = useState<string>("");
 
@@ -85,6 +87,7 @@ export const SalesReturnCreatePage: React.FC = () => {
           if (ret) {
             setCustomerId(ret.customerId);
             setNarration(ret.narration || "");
+            setKind(ret.kind === "PRICE_ADJUSTMENT" ? "PRICE_ADJUSTMENT" : "GOODS_RETURN");
             setOriginalReturnNo(ret.returnNo || "");
 
             if (ret.items && ret.items.length > 0) {
@@ -495,7 +498,8 @@ export const SalesReturnCreatePage: React.FC = () => {
 
     const payload = {
       customerId,
-      reason: "Sales Return",
+      kind,
+      reason: kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Sales Return",
       narration,
       companyId: company.id,
       items: expandedItems,
@@ -742,6 +746,22 @@ export const SalesReturnCreatePage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Kind (P1-08): goods return or price adjustment */}
+          <div className="w-full sm:w-1/3 mt-3">
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              Kind
+            </label>
+            <select
+              value={kind}
+              onChange={(e) => setKind(e.target.value as "GOODS_RETURN" | "PRICE_ADJUSTMENT")}
+              className="w-full px-2 py-1.5 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary"
+              aria-label="Return kind"
+            >
+              <option value="GOODS_RETURN">Goods return</option>
+              <option value="PRICE_ADJUSTMENT">Price adjustment (credit note only)</option>
+            </select>
           </div>
 
           {/* Narration */}

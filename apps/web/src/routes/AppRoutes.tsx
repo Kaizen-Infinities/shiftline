@@ -20,6 +20,7 @@ const LoginPage = lazy(() => import("../modules/login/pages/LoginPage"));
 const AcceptInvitationPage = lazy(() => import("../modules/login/pages/AcceptInvitationPage"));
 const OnboardingWizard = lazy(() => import("../modules/onboarding/pages/OnboardingWizard"));
 const ImportsPage = lazy(() => import("../modules/imports/pages/ImportsPage"));
+const GstMastersPage = lazy(() => import("../modules/gst/pages/GstMastersPage"));
 const NotificationsPage = lazy(() => import("../modules/notifications/pages/NotificationsPage"));
 const UpgradePage = lazy(() => import("../modules/upgrade/pages/UpgradePage"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
@@ -405,6 +406,9 @@ const AppRoutes = () => {
                 }
               >
                 <Route path="/settings/imports" element={<ImportsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="gst_tax.view" />}>
+                <Route path="/settings/gst" element={<GstMastersPage />} />
               </Route>
 
               <Route element={<ProtectedRoute permission="profile.view" />}>

@@ -9,11 +9,19 @@ export interface SalesReturnItem {
   uom?: string | null;
   unitPrice: number;
   taxRate?: number;
+  hsnCode?: string | null;
+  taxableAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   lineTotal?: number;
   reason?: string;
   description?: string;
   product?: { id: number; productName: string };
 }
+
+/** A goods return moves stock back; a price adjustment only corrects value (credit/debit note). */
+export type ReturnKind = "GOODS_RETURN" | "PRICE_ADJUSTMENT";
 
 export interface SalesReturn {
   id: string;
@@ -22,6 +30,14 @@ export interface SalesReturn {
   customerId: string;
   salesInvoiceId?: string | null;
   reason?: string | null;
+  kind?: ReturnKind;
+  /** GST credit note number from the tenant's CN series (P1-08). */
+  creditNoteNo?: string | null;
+  supplyType?: string | null;
+  placeOfSupply?: string | null;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   subTotal?: number;
   taxAmount?: number;
   grandTotal: number;
@@ -42,9 +58,12 @@ export interface SalesReturn {
 export interface CreateSalesReturnDto {
   customerId: string;
   salesInvoiceId?: string;
+  kind?: ReturnKind;
   reason?: string;
   narration?: string;
-  companyId: string;
+  refundMode?: "CREDIT_NOTE" | "CASH" | "BANK";
+  /** Ignored by the server (the tenant comes from the session); kept for older callers. */
+  companyId?: string;
   items: {
     productId: number;
     salesInvoiceItemId?: string;
@@ -53,6 +72,7 @@ export interface CreateSalesReturnDto {
     uom?: string;
     unitPrice: number;
     taxRate?: number;
+    hsnCode?: string;
     reason?: string;
   }[];
 }
@@ -62,6 +82,12 @@ export interface PurchaseReturnItem {
   rawMaterialId: string;
   quantity: number;
   unitPrice: number;
+  taxRate?: number;
+  hsnCode?: string | null;
+  taxableAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   lineTotal?: number;
   reason?: string;
   description?: string;
@@ -76,6 +102,14 @@ export interface PurchaseReturn {
   grnInvoiceId?: string | null;
   grnInvoice?: { id: string; invoiceNo: string };
   reason?: string | null;
+  kind?: ReturnKind;
+  /** GST debit note number from the tenant's DN series (P1-08). */
+  debitNoteNo?: string | null;
+  supplyType?: string | null;
+  taxAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   grandTotal: number;
   status: string;
   narration?: string | null;
@@ -88,14 +122,17 @@ export interface CreatePurchaseReturnDto {
   supplierId: number;
   grnInvoiceId?: string;
   storeId?: string;
+  kind?: ReturnKind;
   refundMode?: "CREDIT_NOTE" | "CASH" | "BANK";
   reason?: string;
   narration?: string;
-  companyId: string;
+  companyId?: string;
   items: {
     rawMaterialId: string;
     quantity: number;
     unitPrice: number;
+    taxRate?: number;
+    hsnCode?: string;
     reason?: string;
   }[];
 }
