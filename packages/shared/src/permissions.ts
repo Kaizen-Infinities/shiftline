@@ -68,6 +68,16 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "generate", "cancel", "settings"],
     description: "E-invoicing (IRN, signed QR, cancellation, GSP credentials)",
   },
+  {
+    module: "eway-bill",
+    actions: ["view", "generate", "update", "cancel"],
+    description: "E-way bills (generate, Part B, extend, cancel, consolidate)",
+  },
+  {
+    module: "transporters",
+    actions: ["view", "create", "edit", "delete"],
+    description: "Transporter master",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {

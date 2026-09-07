@@ -8,6 +8,7 @@ import { eodSnapshotFanoutHandler, eodSnapshotHandler } from "./eod-snapshot.job
 import { backupHandler } from "./backup.job";
 import { accountExportHandler } from "./account-export.job";
 import { eInvoiceHandler } from "./e-invoice.job";
+import { ewayBillExpiryHandler } from "./eway-bill.job";
 import { heartbeatHandler } from "./heartbeat.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 
@@ -55,6 +56,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.BACKUP_DAILY, work, each(backupHandler));
   await boss.work(QUEUES.ACCOUNT_EXPORT, work, each(accountExportHandler));
   await boss.work(QUEUES.E_INVOICE, work, each(eInvoiceHandler));
+  await boss.work(QUEUES.EWB_EXPIRY, work, each(ewayBillExpiryHandler));
 };
 
 /**
@@ -68,4 +70,5 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.RETENTION_FANOUT, "0 2 1 * *", { dryRun: false }, { tz: IST });
   await boss.schedule(QUEUES.HEARTBEAT, "* * * * *", {}, { tz: IST });
   await boss.schedule(QUEUES.BACKUP_DAILY, "30 1 * * *", { triggeredBy: "schedule" }, { tz: IST });
+  await boss.schedule(QUEUES.EWB_EXPIRY, "15 * * * *", {}, { tz: IST });
 };

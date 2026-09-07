@@ -69,7 +69,9 @@ input leaks, secrets, error text → human review and merge → hand-off note.
 - E-invoice (`modules/e-invoice`): IRNs are raised only through `eInvoiceService.request()` and
   cancelled through `eInvoiceService.cancel()`; portals are reached only via an `EInvoiceProvider`
   (`providers/`), never with a direct HTTP call; GSP secrets are encrypted with `encryptText` and
-  never returned. Any cancel path for a tax document calls `assertDocumentCancellable(docType, id, tx)`.
+  never returned. Any cancel path for a tax document calls `assertDocumentCancellable(docType, id, tx)`. E-way bills
+  (`modules/eway-bill`) follow the same shape: `ewayBillService` only, providers behind `EwayBillProvider`,
+  one live bill per document, validity from `validUptoFor`.
 - Books are never deleted (P1-09): cancel through `cancellationService` (status `CANCELLED`
   plus a `REVERSAL` journal) and gate every posting date with
   `periodService.assertPostingAllowed()`; `safeCreateVoucher` already does both checks. Lookups

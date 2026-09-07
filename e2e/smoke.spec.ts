@@ -34,6 +34,8 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/status", marker: /All systems operational|Some systems degraded/ },
   { path: "/compliance/e-invoices", marker: /E-invoice Register/ },
   { path: "/settings/e-invoice", marker: /E-invoicing/ },
+  { path: "/compliance/eway-bills", marker: /E-way Bills/ },
+  { path: "/settings/transporters", marker: /Transporters/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 

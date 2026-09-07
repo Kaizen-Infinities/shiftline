@@ -158,6 +158,13 @@ export const API_PATHS = {
     base: "/e-invoice",
     settings: "/e-invoice/settings",
   },
+  ewayBill: {
+    base: "/eway-bills",
+    consolidated: "/eway-bills/consolidated",
+  },
+  transporters: {
+    base: "/transporters",
+  },
   status: "/status",
   notifications: {
     base: "/notifications",

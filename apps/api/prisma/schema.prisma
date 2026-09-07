@@ -670,6 +670,9 @@ model Company {
   gstRates                    GstRate[]                    @relation("CompanyGstRate")
   /// Books are frozen on and before this date (set after filing); postings are refused (P1-09).
   booksFrozenUpTo             DateTime?                    @map("books_frozen_up_to") @db.Date
+  transporters                Transporter[]                @relation("CompanyTransporter")
+  ewayBills                   EwayBill[]                   @relation("CompanyEwayBill")
+  consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
 
   @@map("companies")
 }
@@ -3735,4 +3738,115 @@ model EInvoice {
   @@unique([companyId, irn])
   @@index([companyId, status])
   @@map("e_invoices")
+}
+
+// ─── E-way bills (P1-12) ──────────────────────────────────────────────────────
+
+enum EwayBillStatus {
+  PENDING
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+/// Transporter master: who carries the goods; the transporter id (GSTIN or TRANSIN) goes on
+/// the e-way bill when the transporter, not the consignor, updates Part B.
+model Transporter {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code          String   @db.VarChar(20)
+  name          String   @db.VarChar(120)
+  transporterId String?  @map("transporter_id") @db.VarChar(15)
+  phone         String?  @db.VarChar(20)
+  email         String?  @db.VarChar(120)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyTransporter", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("transporters")
+}
+
+/// One e-way bill per movement of a document: generated from the IRN when there is one, else
+/// standalone; Part B (vehicle) and extension history in `updates`. Audited.
+model EwayBill {
+  id              String         @id @default(uuid()) @db.Uuid
+  companyId       String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// INV (tax invoice) | CHL (delivery challan: goods dispatch)
+  docType         String         @map("doc_type") @db.VarChar(3)
+  /// The document's primary key as text (invoices are uuid, dispatches bigint).
+  docRef          String         @map("doc_ref") @db.VarChar(40)
+  docNo           String         @map("doc_no") @db.VarChar(30)
+  docDate         DateTime       @map("doc_date") @db.Date
+  eInvoiceId      String?        @map("e_invoice_id") @db.Uuid
+  irn             String?        @db.VarChar(64)
+  ewbNo           String?        @map("ewb_no") @db.VarChar(12)
+  ewbDate         DateTime?      @map("ewb_date") @db.Timestamptz(6)
+  validUpto       DateTime?      @map("valid_upto") @db.Timestamptz(6)
+  status          EwayBillStatus @default(PENDING)
+  fromGstin       String         @map("from_gstin") @db.VarChar(15)
+  fromPincode     String         @map("from_pincode") @db.VarChar(6)
+  fromStateCode   String         @map("from_state_code") @db.VarChar(2)
+  toGstin         String?        @map("to_gstin") @db.VarChar(15)
+  toPincode       String         @map("to_pincode") @db.VarChar(6)
+  toStateCode     String         @map("to_state_code") @db.VarChar(2)
+  distanceKm      Int            @default(0) @map("distance_km")
+  /// 1 road, 2 rail, 3 air, 4 ship
+  transMode       String         @default("1") @map("trans_mode") @db.VarChar(1)
+  transporterId   String?        @map("transporter_id") @db.VarChar(15)
+  transporterName String?        @map("transporter_name") @db.VarChar(120)
+  transDocNo      String?        @map("trans_doc_no") @db.VarChar(30)
+  transDocDate    DateTime?      @map("trans_doc_date") @db.Date
+  vehicleNo       String?        @map("vehicle_no") @db.VarChar(15)
+  /// R regular, O over-dimensional cargo
+  vehicleType     String         @default("R") @map("vehicle_type") @db.VarChar(1)
+  totalValue      Decimal        @default(0) @map("total_value") @db.Decimal(14, 2)
+  request         Json
+  response        Json?
+  error           String?        @db.VarChar(1000)
+  attempts        Int            @default(0)
+  /// Part B updates and extensions as they happened.
+  updates         Json           @default("[]")
+  extensions      Int            @default(0)
+  consolidatedNo  String?        @map("consolidated_no") @db.VarChar(12)
+  cancelledAt     DateTime?      @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?        @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?        @map("cancel_reason") @db.VarChar(1)
+  cancelRemarks   String?        @map("cancel_remarks") @db.VarChar(100)
+  requestedBy     String?        @map("requested_by") @db.VarChar(36)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyEwayBill", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, ewbNo])
+  @@index([companyId, docType, docRef])
+  @@index([companyId, status, validUpto])
+  @@map("eway_bills")
+}
+
+/// A trip sheet: several e-way bills moving on one vehicle.
+model ConsolidatedEwayBill {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  cewbNo        String   @map("cewb_no") @db.VarChar(12)
+  cewbDate      DateTime @map("cewb_date") @db.Timestamptz(6)
+  vehicleNo     String   @map("vehicle_no") @db.VarChar(15)
+  fromPlace     String   @map("from_place") @db.VarChar(50)
+  fromStateCode String   @map("from_state_code") @db.VarChar(2)
+  transMode     String   @default("1") @map("trans_mode") @db.VarChar(1)
+  transDocNo    String?  @map("trans_doc_no") @db.VarChar(30)
+  ewbNos        Json     @map("ewb_nos")
+  request       Json
+  response      Json?
+  createdBy     String?  @map("created_by") @db.VarChar(36)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyConsolidatedEwayBill", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, cewbNo])
+  @@map("consolidated_eway_bills")
 }

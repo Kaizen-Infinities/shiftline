@@ -68,6 +68,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["insights"]),
       // E-invoicing (P1-11): the accountant raises and cancels IRNs and keeps the GSP setup.
       ...keysFor(["e-invoice"]),
+      ...keysFor(["eway-bill", "transporters"]),
     ],
   },
   {
@@ -87,6 +88,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       "products",
       "categories",
       "uoms",
+      "eway-bill",
+      "transporters",
     ]),
   },
   {

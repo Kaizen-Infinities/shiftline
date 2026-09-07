@@ -12,6 +12,7 @@ import SearchInput from "../../components/ui/SearchInput/SearchInput";
 import { fetchCompany } from "../../features/company/companySlice";
 import { customerService } from "../../services/customerService";
 import EInvoicePanel from "../compliance/components/EInvoicePanel";
+import EwayBillPanel from "../compliance/components/EwayBillPanel";
 
 const stateName = (code?: string | null) =>
   GST_STATES.find((st) => st.code === code)?.name ?? code ?? "";
@@ -529,6 +530,13 @@ const SalesInvoiceView: React.FC = () => {
                 buyerGstin={invoice.customerGstin ?? invoice.customer?.gstin}
                 documentCancelled={Boolean(invoice.cancelledAt)}
               />
+              <div className="mt-3">
+                <EwayBillPanel
+                  docType="INV"
+                  docRef={invoice.id}
+                  documentCancelled={Boolean(invoice.cancelledAt)}
+                />
+              </div>
             </div>
 
             {/* Print + screen overrides — invoice card always white/black regardless of theme */}

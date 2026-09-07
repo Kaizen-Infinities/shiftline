@@ -224,6 +224,8 @@ const DevicesPage = lazy(() => import("../modules/settings/pages/DevicesPage"));
 const AccountExportPage = lazy(() => import("../modules/settings/pages/AccountExportPage"));
 const FilingApprovalsPage = lazy(() => import("../modules/compliance/pages/FilingApprovalsPage"));
 const EInvoicesPage = lazy(() => import("../modules/compliance/pages/EInvoicesPage"));
+const EwayBillsPage = lazy(() => import("../modules/compliance/pages/EwayBillsPage"));
+const TransportersPage = lazy(() => import("../modules/settings/pages/TransportersPage"));
 const EInvoiceSettingsPage = lazy(() => import("../modules/settings/pages/EInvoiceSettingsPage"));
 const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
 
@@ -553,6 +555,12 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="e-invoice.settings" />}>
                 <Route path="/settings/e-invoice" element={<EInvoiceSettingsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="eway-bill.view" />}>
+                <Route path="/compliance/eway-bills" element={<EwayBillsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="transporters.view" />}>
+                <Route path="/settings/transporters" element={<TransportersPage />} />
               </Route>
 
               {/* ---------- Sales ---------- */}

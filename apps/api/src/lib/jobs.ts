@@ -32,6 +32,8 @@ export const QUEUES = {
   ACCOUNT_EXPORT: "platform.account-export",
   /** One IRN request per document (P1-11); retried on transient portal errors. */
   E_INVOICE: "gst.e-invoice",
+  /** Hourly: expire e-way bills past validity and warn before they lapse (P1-12). */
+  EWB_EXPIRY: "gst.eway-bill.expiry",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

@@ -62,6 +62,11 @@ describe("e-invoice", () => {
     const supervisor = await authed("demo.production");
     const client = await api();
     expect((await client.get("/api/e-invoice/settings").set(supervisor.auth)).status).toBe(403);
+    // Other suites on this database may have switched it on; start from off.
+    await client
+      .put("/api/e-invoice/settings")
+      .set(owner.auth)
+      .send({ provider: "FIXTURE", enabled: false });
     const initial = await client.get("/api/e-invoice/settings").set(owner.auth);
     expect(initial.status).toBe(200);
     expect(initial.body.data).toMatchObject({
