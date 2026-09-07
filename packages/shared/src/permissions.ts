@@ -58,6 +58,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "manage"],
     description: "Field App (sync, collections, route planning)",
   },
+  {
+    module: "insights",
+    actions: ["view"],
+    description: "Insights API (companion app, TV wall, integrations)",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {

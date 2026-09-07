@@ -16,6 +16,7 @@ const OeeDashboard = lazy(() => import("../modules/dashboard/pages/OeeDashboard"
 const TvDashboard = lazy(() => import("../modules/dashboard/tv/TvDashboard"));
 const NotFoundPage = lazy(() => import("../modules/not-found/pages/NotFoundPage"));
 const UnauthorizedPage = lazy(() => import("../modules/unauthorized/pages/UnauthorizedPage"));
+const StatusPage = lazy(() => import("../modules/status/pages/StatusPage"));
 const LoginPage = lazy(() => import("../modules/login/pages/LoginPage"));
 const AcceptInvitationPage = lazy(() => import("../modules/login/pages/AcceptInvitationPage"));
 const OnboardingWizard = lazy(() => import("../modules/onboarding/pages/OnboardingWizard"));
@@ -960,6 +961,9 @@ const AppRoutes = () => {
           {/* Reset Route */}
           <Route path="/reset" element={<ResetPassword />} />
         </Route>
+
+        {/* Public status page (P1-05): no sign-in, no layout */}
+        <Route path="/status" element={<StatusPage />} />
 
         {/* 403 — Access Denied (outside BaseLayout so it's full-page) */}
         <Route path="/unauthorized" element={<UnauthorizedPage />} />

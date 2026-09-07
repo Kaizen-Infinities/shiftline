@@ -65,6 +65,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["year-end"], ["view", "prepare"]),
       // Filings (P1-04): the accountant prepares and files; the owner approves.
       ...keysFor(["filings"], ["view", "prepare", "submit"]),
+      ...keysFor(["insights"]),
     ],
   },
   {
@@ -103,6 +104,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
       "oee",
       "products",
       "raw_materials",
+      "insights",
     ]),
   },
   {
@@ -112,6 +114,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
     keys: [
       ...keysFor(["customers", "sales-orders", "quotations", "dash-overview"], ["view", "create"]),
       ...keysFor(["mobile-app"], ["view", "create"]),
+      ...keysFor(["insights"]),
     ],
   },
   {

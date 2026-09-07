@@ -19,6 +19,24 @@ describe("health and readiness", () => {
     expect(res.body.migration.expected).toMatch(/^\d{14}_/);
   });
 
+  it("GET /api/status publishes coarse component states without auth or internals", async () => {
+    const res = await (await api()).get("/api/status");
+    expect(res.status).toBe(200);
+    expect(["operational", "degraded"]).toContain(res.body.overall);
+    expect(res.body.components.database).toMatchObject({ state: "ok" });
+    expect(res.body.components.migrations).toMatchObject({ state: "ok" });
+    expect(Object.keys(res.body.components).sort()).toEqual([
+      "api",
+      "backups",
+      "database",
+      "migrations",
+      "worker",
+    ]);
+    // Nothing that names a migration, a host or a version leaks out.
+    expect(JSON.stringify(res.body)).not.toMatch(/\d{14}_|localhost|postgres/i);
+    expect(res.headers["cache-control"]).toContain("max-age=30");
+  });
+
   it("every response carries a request id, echoing a sane incoming one", async () => {
     const minted = await (await api()).get("/health");
     expect(minted.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);

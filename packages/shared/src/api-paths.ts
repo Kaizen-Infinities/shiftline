@@ -151,6 +151,10 @@ export const API_PATHS = {
     registry: "/filings/registry",
     approvals: "/filings/approvals",
   },
+  insights: {
+    base: "/v1/insights",
+  },
+  status: "/status",
   notifications: {
     base: "/notifications",
   },

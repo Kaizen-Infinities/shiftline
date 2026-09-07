@@ -31,6 +31,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/settings/devices", marker: /Field Devices/ },
   { path: "/settings/export", marker: /Account Export/ },
   { path: "/compliance/approvals", marker: /Filing Approvals/ },
+  { path: "/status", marker: /All systems operational|Some systems degraded/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 

@@ -1,36 +1,12 @@
-import { readdirSync } from "node:fs";
-import path from "node:path";
 import { Router } from "express";
 
-import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { isJobsStarted } from "../lib/jobs";
-import { withoutTenant } from "../lib/tenant-context";
+import { latestMigration, runChecks, statusReport } from "../modules/status/status.service";
 import { asyncHandler } from "../utils/asyncHandler";
 
 const router = Router();
 const startedAt = Date.now();
-
-/** Newest migration folder in the repo; `/ready` checks the database has it. */
-const latestMigration = (() => {
-  try {
-    const dir = path.resolve(__dirname, "../../prisma/migrations");
-    return (
-      readdirSync(dir, { withFileTypes: true })
-        .filter((d) => d.isDirectory())
-        .map((d) => d.name)
-        .sort()
-        .pop() ?? null
-    );
-  } catch {
-    return null;
-  }
-})();
-
-/** Worker liveness: the heartbeat job completes every minute; older than 5 minutes is stale. */
-const WORKER_STALE_MS = 5 * 60 * 1000;
-
-type Check = "ok" | "fail" | "behind" | "stale" | "unknown";
 
 /** Liveness: the process answers. Never touches the database. */
 router.get("/health", (_req, res) => {
@@ -50,61 +26,33 @@ router.get("/health", (_req, res) => {
 router.get(
   "/ready",
   asyncHandler(async (_req, res) => {
-    const checks: Record<string, Check> = {
-      db: "unknown",
-      migrations: "unknown",
-      worker: "unknown",
+    const c = await runChecks();
+    const checks = {
+      db: c.db,
+      migrations: c.db === "ok" ? c.migrations : "unknown",
+      worker: c.worker,
     };
-    let workerLastSeen: string | null = null;
-
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-      checks.db = "ok";
-    } catch {
-      checks.db = "fail";
-    }
-
-    if (checks.db === "ok") {
-      try {
-        const rows = await prisma.$queryRaw<{ migration_name: string }[]>`
-          SELECT migration_name FROM _prisma_migrations
-          WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
-          ORDER BY migration_name DESC LIMIT 1
-        `;
-        const applied = rows[0]?.migration_name ?? null;
-        checks.migrations =
-          latestMigration === null || applied === latestMigration ? "ok" : "behind";
-      } catch {
-        checks.migrations = "fail";
-      }
-
-      try {
-        const rows = await withoutTenant(() =>
-          prisma.$queryRawUnsafe<{ last: Date | null }[]>(
-            `SELECT max(completed_on) AS last FROM ${env.PGBOSS_SCHEMA}.job WHERE name = 'platform.heartbeat'`
-          )
-        );
-        const last = rows[0]?.last ? new Date(rows[0].last) : null;
-        workerLastSeen = last?.toISOString() ?? null;
-        checks.worker = !last
-          ? "unknown"
-          : Date.now() - last.getTime() > WORKER_STALE_MS
-            ? "stale"
-            : "ok";
-      } catch {
-        // pg-boss schema not created yet (worker never ran against this database).
-        checks.worker = "unknown";
-      }
-    }
-
     const ready = checks.db === "ok" && checks.migrations === "ok";
     res.status(ready ? 200 : 503).json({
       status: ready ? "ready" : "not-ready",
       checks,
-      worker: { lastHeartbeatAt: workerLastSeen, embedded: isJobsStarted() },
+      worker: { lastHeartbeatAt: c.workerLastSeen, embedded: isJobsStarted() },
       migration: { expected: latestMigration },
       timestamp: new Date().toISOString(),
     });
+  })
+);
+
+/**
+ * Public status (P1-05): what the status page shows. Coarse component states and one plain
+ * sentence each; no versions, migration names, hosts or tenant data. Cached for 30 seconds.
+ */
+router.get(
+  "/api/status",
+  asyncHandler(async (_req, res) => {
+    const report = await statusReport();
+    res.setHeader("Cache-Control", "public, max-age=30");
+    res.status(report.overall === "down" ? 503 : 200).json(report);
   })
 );
 
