@@ -48,12 +48,19 @@ router.post("/repair-opening-vouchers", requirePermission("accounts.edit"), (req
 router.get("/payable", requirePermission("payable.view"), (req, res, next) =>
   accountsController.getPayableSummaries(req, res, next)
 );
+// Ageing (P1-10) is declared before the `:id` routes so "ageing" is never read as an id.
+router.get("/payable/ageing", requirePermission("payable.view"), (req, res, next) =>
+  accountsController.getPayableAgeing(req, res, next)
+);
 router.get("/payable/:supplierId", requirePermission("payable.view"), (req, res, next) =>
   accountsController.getSupplierPayableDetail(req, res, next)
 );
 
 router.get("/receivable", requirePermission("receivable.view"), (req, res, next) =>
   accountsController.getReceivableSummaries(req, res, next)
+);
+router.get("/receivable/ageing", requirePermission("receivable.view"), (req, res, next) =>
+  accountsController.getReceivableAgeing(req, res, next)
 );
 router.get("/receivable/:customerId", requirePermission("receivable.view"), (req, res, next) =>
   accountsController.getCustomerReceivableDetail(req, res, next)

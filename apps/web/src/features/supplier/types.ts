@@ -31,6 +31,8 @@ export interface Supplier {
   stateCode: string;
   openingBalance?: number | string | null;
   openingBalanceType?: string | null;
+  /** Days after the bill date a bill falls due (P1-10). */
+  creditDays?: number | null;
   status: string;
   addresses?: SupplierAddress[];
   materialPrices?: SupplierMaterialPrice[];
@@ -61,7 +63,7 @@ export interface CreateSupplierDto {
   addresses?: SupplierAddress[];
 }
 
-export interface UpdateSupplierDto extends Partial<CreateSupplierDto> { }
+export interface UpdateSupplierDto extends Partial<CreateSupplierDto> {}
 
 export interface SupplierState {
   suppliers: Supplier[];

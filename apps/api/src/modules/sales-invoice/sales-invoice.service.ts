@@ -18,6 +18,7 @@ import {
 } from "../gst/gst.context";
 import { stateNameToCode } from "../imports/imports.types";
 import { periodService } from "../accounts/period.service";
+import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
 
 type SaleItemInput = CreateSalesInvoiceInput["items"][number];
@@ -277,7 +278,9 @@ class SalesInvoiceService {
           data: {
             invoiceNo,
             invoiceDate: new Date(data.invoiceDate),
-            dueDate: data.dueDate ? new Date(data.dueDate) : null,
+            dueDate: data.dueDate
+              ? new Date(data.dueDate)
+              : dueDateFrom(new Date(data.invoiceDate), customer.creditDays),
             customerId: data.customerId,
             storeId: data.storeId,
             notes: data.notes,
@@ -894,7 +897,9 @@ class SalesInvoiceService {
           data: {
             customerId: data.customerId,
             invoiceDate: new Date(data.invoiceDate),
-            dueDate: data.dueDate ? new Date(data.dueDate) : null,
+            dueDate: data.dueDate
+              ? new Date(data.dueDate)
+              : dueDateFrom(new Date(data.invoiceDate), customer.creditDays),
             notes: data.notes,
             narration: (data as any).narration || null,
             transport: (data as any).transport || null,

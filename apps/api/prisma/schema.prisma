@@ -374,10 +374,12 @@ model CustomerGrade {
 }
 
 model Customer {
-  email       String? @db.VarChar(120)
-  gstin       String? @db.VarChar(15)
-  creditLimit Decimal @default(0) @db.Decimal(14, 2)
-  creditDays  Int?    @map("credit_days")
+  email               String?  @db.VarChar(120)
+  gstin               String?  @db.VarChar(15)
+  creditLimit         Decimal  @default(0) @db.Decimal(14, 2)
+  creditDays          Int?     @map("credit_days")
+  /// Annual % charged on overdue balances (P1-10); null means no interest.
+  overdueInterestRate Decimal? @map("overdue_interest_rate") @db.Decimal(5, 2)
 
   transports Json? @map("transports")
 
@@ -711,6 +713,8 @@ model Supplier {
   whatsapp            String?                 @map("whatsapp") @db.VarChar(15)
   openingBalance      Decimal                 @default(0) @map("opening_balance") @db.Decimal(14, 2)
   openingBalanceType  String                  @default("CREDIT") @map("opening_balance_type") @db.VarChar(10)
+  /// Days after the bill date a supplier bill falls due (P1-10); sets GrnInvoice.billDueDate.
+  creditDays          Int?                    @map("credit_days")
   id                  Int                     @id @default(autoincrement())
   companyId           String                  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   materialPrices      SupplierMaterialPrice[]

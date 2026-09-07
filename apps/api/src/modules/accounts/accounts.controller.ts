@@ -2,6 +2,7 @@ import { getCurrentCompanyId } from "../../utils/companyContext";
 import { Request, Response, NextFunction } from "express";
 import { accountsService } from "./accounts.service";
 import { payableService } from "./payable.service";
+import { ageingService } from "./ageing.service";
 import { receivableService } from "./receivable.service";
 import { periodService } from "./period.service";
 import {
@@ -154,6 +155,36 @@ export class AccountsController {
         page: result.page,
         totalPages: result.totalPages,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** Unpaid supplier bills by days past due (P1-10); `supplierId` adds the bills themselves. */
+  async getPayableAgeing(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { asOnDate, supplierId, search } = req.query;
+      const report = await ageingService.payable({
+        asOnDate: asOnDate ? String(asOnDate) : undefined,
+        supplierId: supplierId ? String(supplierId) : undefined,
+        search: search ? String(search) : undefined,
+      });
+      res.json({ success: true, data: report });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** Unpaid customer invoices by days past due (P1-10); `customerId` adds the invoices. */
+  async getReceivableAgeing(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { asOnDate, customerId, search } = req.query;
+      const report = await ageingService.receivable({
+        asOnDate: asOnDate ? String(asOnDate) : undefined,
+        customerId: customerId ? String(customerId) : undefined,
+        search: search ? String(search) : undefined,
+      });
+      res.json({ success: true, data: report });
     } catch (error) {
       next(error);
     }

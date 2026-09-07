@@ -51,6 +51,8 @@ export interface Customer {
   stateCode?: string;
   creditLimit?: number | string | null;
   creditDays?: number | null;
+  /** Annual % on overdue balances (P1-10). */
+  overdueInterestRate?: number | string | null;
   openingBalance?: number | string | null;
   openingBalanceType?: string | null;
   priceList?: string | null;

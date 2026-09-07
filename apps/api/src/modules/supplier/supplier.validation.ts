@@ -90,6 +90,8 @@ export const createSupplierSchema = z.object({
     // Opening balance — set once at creation, never editable
     openingBalance: z.number().min(0, "Opening balance cannot be negative").optional().default(0),
     openingBalanceType: z.enum(["CREDIT", "DEBIT"]).optional().default("CREDIT"),
+    /** Days after the bill date a bill falls due (P1-10); blank means due on the bill date. */
+    creditDays: z.number().int().min(0).max(365).nullable().optional(),
     addresses: z.array(supplierAddressInputSchema).optional(),
   }),
 });

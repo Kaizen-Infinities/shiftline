@@ -45,6 +45,8 @@ export const createCustomerSchema = z.object({
 
   creditLimit: z.number().optional(),
   creditDays: z.number().nullable().optional(),
+  /** Annual % on overdue balances (P1-10); blank means no interest is charged. */
+  overdueInterestRate: z.number().min(0).max(100).nullable().optional(),
 
   transports: z
     .array(

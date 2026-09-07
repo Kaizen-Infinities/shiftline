@@ -13,10 +13,14 @@ import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/Dat
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { DATE_RANGE_OPTIONS } from "../../../../constants/selectOption";
-import { receivableService, type CustomerReceivableSummary } from "../../../../services/receivableService";
+import {
+  receivableService,
+  type CustomerReceivableSummary,
+} from "../../../../services/receivableService";
 import { customerService } from "../../../../services/customerService";
 import { useListCache, prefetchCache } from "../../../../hooks/useListCache";
 import { usePermission } from "../../../../hooks/usePermission";
+import AgeingTable from "../../components/AgeingTable";
 
 type ColumnKey =
   | "index"
@@ -49,6 +53,8 @@ export const AmountReceivablePage: React.FC = () => {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [asOnDate, setAsOnDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  // P1-10: balances (ledger view) or ageing (unpaid documents by days past due)
+  const [view, setView] = useState<"balances" | "ageing">("balances");
   const [customerId, setCustomerId] = useState<string>("");
   const [search, setSearch] = useState<string>("");
 
@@ -95,7 +101,7 @@ export const AmountReceivablePage: React.FC = () => {
     const loadCustomers = async () => {
       try {
         const res = await customerService.fetchAll({ limit: 10000 });
-        const list = Array.isArray(res) ? res : (res?.customers || []);
+        const list = Array.isArray(res) ? res : res?.customers || [];
         setCustomersList(list);
       } catch (err) {
         console.error("Failed to load customers dropdown", err);
@@ -133,13 +139,21 @@ export const AmountReceivablePage: React.FC = () => {
     for (const c of list) {
       const detailKey = `accounts:customer-breakdown-${c.customerId}::`;
       prefetchCache(detailKey, async () => {
-        const data = await receivableService.getCustomerDetail(c.customerId, { startDate: "", endDate: "" });
+        const data = await receivableService.getCustomerDetail(c.customerId, {
+          startDate: "",
+          endDate: "",
+        });
         return { data: data ? [data] : [], total: data ? 1 : 0 };
       });
     }
   }, []);
 
-  const { data: receivables, loading, refreshing, refresh } = useListCache<CustomerReceivableSummary>({
+  const {
+    data: receivables,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<CustomerReceivableSummary>({
     cacheKey,
     socketModule: "voucher",
     fetcher,
@@ -202,8 +216,9 @@ export const AmountReceivablePage: React.FC = () => {
     // NOT a receivable — they've already paid. Hide them so this page only
     // shows real dues. If the user needs to see credit-balance customers,
     // that's a separate "Customer Advances" report.
-    const list = (Array.isArray(receivables) ? receivables : [])
-      .filter((c) => Number(c.balanceAsOnDate || 0) > 0.005);
+    const list = (Array.isArray(receivables) ? receivables : []).filter(
+      (c) => Number(c.balanceAsOnDate || 0) > 0.005
+    );
     if (sortBy === "activity") {
       list.sort((a, b) => {
         const aAct = (a.totalBilled || 0) + (a.totalPaid || 0);
@@ -228,8 +243,14 @@ export const AmountReceivablePage: React.FC = () => {
   const totals = useMemo(() => {
     return filteredCustomers.reduce(
       (acc, curr) => {
-        const d = curr.debit !== undefined ? curr.debit : (curr.openingBalance || 0) + (curr.totalBilled || 0);
-        const c = curr.credit !== undefined ? curr.credit : (curr.totalPaid || 0) + (curr.totalReturned || 0);
+        const d =
+          curr.debit !== undefined
+            ? curr.debit
+            : (curr.openingBalance || 0) + (curr.totalBilled || 0);
+        const c =
+          curr.credit !== undefined
+            ? curr.credit
+            : (curr.totalPaid || 0) + (curr.totalReturned || 0);
         acc.totalOpening += curr.openingBalance || 0;
         acc.totalBilled += curr.totalBilled || 0;
         acc.totalPaid += curr.totalPaid || 0;
@@ -239,7 +260,15 @@ export const AmountReceivablePage: React.FC = () => {
         if (curr.isOverdue) acc.overdueCount += 1;
         return acc;
       },
-      { totalOpening: 0, totalBilled: 0, totalPaid: 0, totalDebit: 0, totalCredit: 0, totalNetBalance: 0, overdueCount: 0 }
+      {
+        totalOpening: 0,
+        totalBilled: 0,
+        totalPaid: 0,
+        totalDebit: 0,
+        totalCredit: 0,
+        totalNetBalance: 0,
+        overdueCount: 0,
+      }
     );
   }, [filteredCustomers]);
 
@@ -272,11 +301,12 @@ export const AmountReceivablePage: React.FC = () => {
   return (
     <div className="p-3 flex gap-3 w-full items-start font-sans text-ink">
       <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
-
         {/* Single-row header — filters + actions */}
         <div className="bg-card rounded-md border border-line shadow-sm px-3 py-2 flex flex-wrap items-end gap-2">
           <div className="w-[130px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Range</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              Range
+            </label>
             <SelectInput
               name="dateRangePreset"
               value={dateRangePreset}
@@ -288,25 +318,37 @@ export const AmountReceivablePage: React.FC = () => {
           </div>
 
           <div className="w-[120px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">From</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              From
+            </label>
             <DatePickerCalendar
               name="draftStartDate"
               value={draftStartDate}
-              onChange={(e) => { setDraftStartDate(e.target.value); setDateRangePreset("custom"); }}
+              onChange={(e) => {
+                setDraftStartDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
             />
           </div>
 
           <div className="w-[120px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">To</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              To
+            </label>
             <DatePickerCalendar
               name="draftEndDate"
               value={draftEndDate}
-              onChange={(e) => { setDraftEndDate(e.target.value); setDateRangePreset("custom"); }}
+              onChange={(e) => {
+                setDraftEndDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
             />
           </div>
 
           <div className="w-[220px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Search</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              Search
+            </label>
             <input
               type="text"
               className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none"
@@ -317,11 +359,16 @@ export const AmountReceivablePage: React.FC = () => {
           </div>
 
           <div className="w-[160px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Customer</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              Customer
+            </label>
             <SelectInput
               name="draftCustomerId"
               value={draftCustomerId}
-              options={customersList.map(c => ({ label: c.firmName || c.displayName || c.customerCode, value: c.id }))}
+              options={customersList.map((c) => ({
+                label: c.firmName || c.displayName || c.customerCode,
+                value: c.id,
+              }))}
               defaultOptionLabel="All Customers"
               hideLabel
               searchable
@@ -344,6 +391,14 @@ export const AmountReceivablePage: React.FC = () => {
 
           <div className="flex items-center gap-1.5 ml-auto">
             <button
+              type="button"
+              onClick={() => setView(view === "ageing" ? "balances" : "ageing")}
+              className={`px-2 py-1.5 rounded text-xs font-semibold border border-line ${view === "ageing" ? "bg-blue-600 text-white border-blue-600" : "bg-card-2 hover:bg-line text-ink-muted"}`}
+              title="Unpaid documents by days past due"
+            >
+              {view === "ageing" ? "Balances" : "Ageing"}
+            </button>
+            <button
               onClick={refresh}
               className="flex items-center gap-1 px-2 py-1.5 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
               title="Refresh"
@@ -361,17 +416,29 @@ export const AmountReceivablePage: React.FC = () => {
           </div>
         </div>
 
+        {view === "ageing" && (
+          <AgeingTable
+            kind="receivable"
+            asOnDate={asOnDate}
+            partyId={customerId || undefined}
+            search={search || undefined}
+            onOpenParty={(id) => navigate(`/accounts/receivable/${id}`)}
+          />
+        )}
         {/* Table card — Busy density */}
         <div
           className="bg-card border border-line rounded-md overflow-hidden shadow-sm flex flex-col"
           style={{ height: "calc(100vh - 240px)" }}
+          hidden={view === "ageing"}
         >
           {/* Table toolbar row */}
           <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between gap-2 shrink-0">
             <h2 className="text-xs font-semibold text-ink">Customer Receivables</h2>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">Sort:</label>
+                <label className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+                  Sort:
+                </label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -422,7 +489,9 @@ export const AmountReceivablePage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <span className="text-[11px] text-ink-subtle font-mono">Total: {filteredCustomers.length}</span>
+              <span className="text-[11px] text-ink-subtle font-mono">
+                Total: {filteredCustomers.length}
+              </span>
             </div>
           </div>
 
@@ -442,22 +511,45 @@ export const AmountReceivablePage: React.FC = () => {
               <table className="w-full text-left text-[11px] text-ink-muted border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
-                    {isVisible("index") && <th className="px-2 py-1.5 border-r border-line w-10 text-center">#</th>}
-                    {isVisible("code") && <th className="px-2 py-1.5 border-r border-line w-24">Code</th>}
-                    {isVisible("customer") && <th className="px-2 py-1.5 border-r border-line">Customer</th>}
-                    {isVisible("invoiced") && <th className="px-2 py-1.5 border-r border-line w-28 text-right">Invoiced</th>}
-                    {isVisible("paid") && <th className="px-2 py-1.5 border-r border-line w-28 text-right">Paid</th>}
-                    {isVisible("debit") && <th className="px-2 py-1.5 border-r border-line w-28 text-right">Debit</th>}
-                    {isVisible("credit") && <th className="px-2 py-1.5 border-r border-line w-28 text-right">Credit</th>}
-                    {isVisible("netBalance") && <th className="px-2 py-1.5 border-r border-line w-32 text-right">Net Balance</th>}
-                    {isVisible("action") && <th className="px-2 py-1.5 w-20 text-center">Action</th>}
+                    {isVisible("index") && (
+                      <th className="px-2 py-1.5 border-r border-line w-10 text-center">#</th>
+                    )}
+                    {isVisible("code") && (
+                      <th className="px-2 py-1.5 border-r border-line w-24">Code</th>
+                    )}
+                    {isVisible("customer") && (
+                      <th className="px-2 py-1.5 border-r border-line">Customer</th>
+                    )}
+                    {isVisible("invoiced") && (
+                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Invoiced</th>
+                    )}
+                    {isVisible("paid") && (
+                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Paid</th>
+                    )}
+                    {isVisible("debit") && (
+                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Debit</th>
+                    )}
+                    {isVisible("credit") && (
+                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Credit</th>
+                    )}
+                    {isVisible("netBalance") && (
+                      <th className="px-2 py-1.5 border-r border-line w-32 text-right">
+                        Net Balance
+                      </th>
+                    )}
+                    {isVisible("action") && (
+                      <th className="px-2 py-1.5 w-20 text-center">Action</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCustomers.map((item: any, rowIdx: number) => {
                     const isSelected = selectedRow === item.customerId;
                     const bal = Number(item.balanceAsOnDate || 0);
-                    const balAbs = Math.abs(bal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const balAbs = Math.abs(bal).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    });
                     return (
                       <tr
                         key={item.customerId}
@@ -482,30 +574,50 @@ export const AmountReceivablePage: React.FC = () => {
                         )}
                         {isVisible("customer") && (
                           <td className="px-2 py-1 border-r border-line-soft">
-                            <div className="font-bold text-ink uppercase truncate">{item.firmName}</div>
+                            <div className="font-bold text-ink uppercase truncate">
+                              {item.firmName}
+                            </div>
                             {item.gstin && (
-                              <div className="text-[10px] text-ink-subtle font-mono">GST: {item.gstin}</div>
+                              <div className="text-[10px] text-ink-subtle font-mono">
+                                GST: {item.gstin}
+                              </div>
                             )}
                           </td>
                         )}
                         {isVisible("invoiced") && (
                           <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
-                            ₹{(item.totalBilled || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₹
+                            {(item.totalBilled || 0).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </td>
                         )}
                         {isVisible("paid") && (
                           <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
-                            ₹{(item.totalPaid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₹
+                            {(item.totalPaid || 0).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </td>
                         )}
                         {isVisible("debit") && (
                           <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold text-blue-700">
-                            ₹{(item.debit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₹
+                            {(item.debit || 0).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </td>
                         )}
                         {isVisible("credit") && (
                           <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
-                            ₹{(item.credit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₹
+                            {(item.credit || 0).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
                           </td>
                         )}
                         {isVisible("netBalance") && (
@@ -513,9 +625,14 @@ export const AmountReceivablePage: React.FC = () => {
                             {Math.abs(bal) < 0.005 ? (
                               <span className="text-ink">₹0.00</span>
                             ) : bal > 0 ? (
-                              <span className="text-ink">₹{balAbs} <span className="text-[10px] text-ink-subtle">Dr</span></span>
+                              <span className="text-ink">
+                                ₹{balAbs} <span className="text-[10px] text-ink-subtle">Dr</span>
+                              </span>
                             ) : (
-                              <span className="text-emerald-500">₹{balAbs} <span className="text-[10px] text-emerald-500/70">Cr</span></span>
+                              <span className="text-emerald-500">
+                                ₹{balAbs}{" "}
+                                <span className="text-[10px] text-emerald-500/70">Cr</span>
+                              </span>
                             )}
                           </td>
                         )}
@@ -536,19 +653,37 @@ export const AmountReceivablePage: React.FC = () => {
                     );
                   })}
                   {/* Busy-style empty filler rows */}
-                  {Array.from({ length: Math.max(0, 25 - filteredCustomers.length) }).map((_, i) => (
-                    <tr key={`empty-${i}`} className="border-b border-line-soft">
-                      {isVisible("index") && <td className="px-2 py-1 border-r border-line-soft">&nbsp;</td>}
-                      {isVisible("code") && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                      {isVisible("customer") && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                      {isVisible("invoiced") && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                      {isVisible("paid") && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                      {isVisible("debit") && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                      {isVisible("credit") && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                      {isVisible("netBalance") && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                      {isVisible("action") && <td className="px-2 py-1"></td>}
-                    </tr>
-                  ))}
+                  {Array.from({ length: Math.max(0, 25 - filteredCustomers.length) }).map(
+                    (_, i) => (
+                      <tr key={`empty-${i}`} className="border-b border-line-soft">
+                        {isVisible("index") && (
+                          <td className="px-2 py-1 border-r border-line-soft">&nbsp;</td>
+                        )}
+                        {isVisible("code") && (
+                          <td className="px-2 py-1 border-r border-line-soft"></td>
+                        )}
+                        {isVisible("customer") && (
+                          <td className="px-2 py-1 border-r border-line-soft"></td>
+                        )}
+                        {isVisible("invoiced") && (
+                          <td className="px-2 py-1 border-r border-line-soft"></td>
+                        )}
+                        {isVisible("paid") && (
+                          <td className="px-2 py-1 border-r border-line-soft"></td>
+                        )}
+                        {isVisible("debit") && (
+                          <td className="px-2 py-1 border-r border-line-soft"></td>
+                        )}
+                        {isVisible("credit") && (
+                          <td className="px-2 py-1 border-r border-line-soft"></td>
+                        )}
+                        {isVisible("netBalance") && (
+                          <td className="px-2 py-1 border-r border-line-soft"></td>
+                        )}
+                        {isVisible("action") && <td className="px-2 py-1"></td>}
+                      </tr>
+                    )
+                  )}
                 </tbody>
                 {/* Sticky footer with grand totals */}
                 <tfoot className="sticky bottom-0 z-10 bg-card-2 border-t-2 border-line">
@@ -565,28 +700,50 @@ export const AmountReceivablePage: React.FC = () => {
                     </td>
                     {isVisible("invoiced") && (
                       <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
-                        ₹{totals.totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₹
+                        {totals.totalBilled.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
                     )}
                     {isVisible("paid") && (
                       <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
-                        ₹{totals.totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₹
+                        {totals.totalPaid.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
                     )}
                     {isVisible("debit") && (
                       <td className="px-2 py-1.5 text-right font-mono font-bold text-blue-700 border-r border-line">
-                        ₹{totals.totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₹
+                        {totals.totalDebit.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
                     )}
                     {isVisible("credit") && (
                       <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
-                        ₹{totals.totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₹
+                        {totals.totalCredit.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
                     )}
                     {isVisible("netBalance") && (
                       <td className="px-2 py-1.5 text-right font-mono font-bold text-blue-600 border-r border-line">
-                        ₹{Math.abs(totals.totalNetBalance).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        <span className="text-[10px] ml-1">{totals.totalNetBalance >= 0 ? "Dr" : "Cr"}</span>
+                        ₹
+                        {Math.abs(totals.totalNetBalance).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                        <span className="text-[10px] ml-1">
+                          {totals.totalNetBalance >= 0 ? "Dr" : "Cr"}
+                        </span>
                       </td>
                     )}
                     {isVisible("action") && <td></td>}
@@ -600,20 +757,31 @@ export const AmountReceivablePage: React.FC = () => {
           <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle shrink-0">
             <div className="flex gap-4">
               <span>
-                Entry No: <b className="text-ink">{filteredCustomers.length > 0 ? 1 : 0} / {filteredCustomers.length}</b>
+                Entry No:{" "}
+                <b className="text-ink">
+                  {filteredCustomers.length > 0 ? 1 : 0} / {filteredCustomers.length}
+                </b>
               </span>
               <span>
-                Row No: <b className="text-ink">
+                Row No:{" "}
+                <b className="text-ink">
                   {selectedRow
                     ? filteredCustomers.findIndex((v: any) => v.customerId === selectedRow) + 1
-                    : (filteredCustomers.length > 0 ? 1 : 0)}
-                  {" / "}{filteredCustomers.length}
+                    : filteredCustomers.length > 0
+                      ? 1
+                      : 0}
+                  {" / "}
+                  {filteredCustomers.length}
                 </b>
               </span>
             </div>
             <div className="flex gap-3 uppercase tracking-wide">
-              <span>Customers: <b className="text-ink">{filteredCustomers.length}</b></span>
-              <span>Overdue: <b className="text-amber-600">{totals.overdueCount}</b></span>
+              <span>
+                Customers: <b className="text-ink">{filteredCustomers.length}</b>
+              </span>
+              <span>
+                Overdue: <b className="text-amber-600">{totals.overdueCount}</b>
+              </span>
             </div>
           </div>
         </div>
@@ -633,12 +801,21 @@ export const AmountReceivablePage: React.FC = () => {
             </div>
             {(() => {
               const bal = Number(totals.totalNetBalance || 0);
-              const abs = Math.abs(bal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const abs = Math.abs(bal).toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
               if (Math.abs(bal) < 0.005) {
-                return <div className="text-sm font-mono font-bold text-ink break-all leading-tight">₹0.00</div>;
+                return (
+                  <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
+                    ₹0.00
+                  </div>
+                );
               }
               return (
-                <div className={`text-sm font-mono font-bold break-all leading-tight ${bal >= 0 ? "text-blue-600" : "text-emerald-500"}`}>
+                <div
+                  className={`text-sm font-mono font-bold break-all leading-tight ${bal >= 0 ? "text-blue-600" : "text-emerald-500"}`}
+                >
                   ₹{abs} <span className="text-[9px] font-sans">{bal >= 0 ? "Dr" : "Cr"}</span>
                 </div>
               );
@@ -650,7 +827,9 @@ export const AmountReceivablePage: React.FC = () => {
               <FaUserFriends className="text-indigo-600 text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Customers</span>
             </div>
-            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">{filteredCustomers.length}</div>
+            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
+              {filteredCustomers.length}
+            </div>
           </div>
 
           <div className="px-3 py-2">
@@ -658,7 +837,9 @@ export const AmountReceivablePage: React.FC = () => {
               <FaExclamationTriangle className="text-amber-600 text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Overdue</span>
             </div>
-            <div className="text-sm font-mono font-bold text-amber-600 break-all leading-tight">{totals.overdueCount}</div>
+            <div className="text-sm font-mono font-bold text-amber-600 break-all leading-tight">
+              {totals.overdueCount}
+            </div>
           </div>
 
           <div className="px-3 py-2">
@@ -667,7 +848,11 @@ export const AmountReceivablePage: React.FC = () => {
               <span className="text-[11px] font-semibold text-ink-muted">Total Debit</span>
             </div>
             <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
-              ₹{totals.totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹
+              {totals.totalDebit.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
           </div>
         </div>

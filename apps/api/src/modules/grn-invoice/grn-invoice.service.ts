@@ -9,6 +9,7 @@ import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
 import { documentNumberService } from "../documents/document-number.service";
 import { periodService } from "../accounts/period.service";
+import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
 import { splitGst } from "../gst/gst.calc";
 import {
@@ -262,7 +263,14 @@ class GrnInvoiceService {
             sameAsBilling,
 
             receiveDate: data.receiveDate ? new Date(data.receiveDate) : null,
-            billDueDate: data.billDueDate ? new Date(data.billDueDate) : null,
+            billDueDate: data.billDueDate
+              ? new Date(data.billDueDate)
+              : dueDateFrom(
+                  data.supplierInvoiceDate
+                    ? new Date(data.supplierInvoiceDate)
+                    : new Date(data.grnDate),
+                  supplier.creditDays
+                ),
             challanNo: data.challanNo || null,
             transport: data.transport || null,
             eWayBill: data.eWayBill || null,
@@ -742,7 +750,17 @@ class GrnInvoiceService {
           updateStock: updateStockEnabled,
 
           receiveDate: data.receiveDate ? new Date(data.receiveDate) : existing.receiveDate,
-          billDueDate: data.billDueDate ? new Date(data.billDueDate) : existing.billDueDate,
+          billDueDate: data.billDueDate
+            ? new Date(data.billDueDate)
+            : (existing.billDueDate ??
+              dueDateFrom(
+                data.supplierInvoiceDate
+                  ? new Date(data.supplierInvoiceDate)
+                  : data.grnDate
+                    ? new Date(data.grnDate)
+                    : existing.grnDate,
+                supplier.creditDays
+              )),
           challanNo: data.challanNo !== undefined ? data.challanNo : existing.challanNo,
           transport: data.transport !== undefined ? data.transport : existing.transport,
           eWayBill: data.eWayBill !== undefined ? data.eWayBill : existing.eWayBill,
