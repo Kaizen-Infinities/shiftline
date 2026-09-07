@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
 import Decimal from "decimal.js";
+import { byCode } from "../../lib/prisma";
 
 export class StockAdjustmentService {
   static async getNextAdjustmentNumber(): Promise<string> {
@@ -273,7 +274,7 @@ export class StockAdjustmentService {
     // Prevent editing PMI after production started
     if (existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE" && existing.productionOrderId) {
       const po = await prisma.productionOrder.findUnique({
-        where: { productionOrderId: existing.productionOrderId },
+        where: byCode("productionOrderId", existing.productionOrderId),
         select: { status: true },
       });
       if (po && ["IN_PROGRESS", "COMPLETED"].includes(po.status)) {
@@ -356,7 +357,7 @@ export class StockAdjustmentService {
           if (item.itemType === "RAW_MATERIAL" && item.rawMaterialId) {
             // Update RM Stock
             const rm = await tx.rawMaterial.findUnique({
-              where: { rawMaterialId: item.rawMaterialId },
+              where: byCode("rawMaterialId", item.rawMaterialId),
             });
             if (!rm) throw new ApiError(404, `Raw Material ${item.rawMaterialId} not found`);
 
@@ -366,7 +367,7 @@ export class StockAdjustmentService {
                 : Number(rm.reservedQty);
 
             await tx.rawMaterial.update({
-              where: { rawMaterialId: item.rawMaterialId },
+              where: byCode("rawMaterialId", item.rawMaterialId),
               data: {
                 onHandQty: { increment: item.difference },
                 reservedQty: updatedReservedQty,
@@ -436,7 +437,7 @@ export class StockAdjustmentService {
         // If this is a PMI approval, update the production order status
         if (existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE" && existing.productionOrderId) {
           await tx.productionOrder.update({
-            where: { productionOrderId: existing.productionOrderId },
+            where: byCode("productionOrderId", existing.productionOrderId),
             data: { status: "MATERIAL_ISSUED", updatedBy: userId },
           });
         }
@@ -527,7 +528,7 @@ export class StockAdjustmentService {
         const enrichedRMs = await Promise.all(
           draftRMs.map(async (rm: any) => {
             const stock = await prisma.rawMaterial.findUnique({
-              where: { rawMaterialId: rm.rawMaterialId },
+              where: byCode("rawMaterialId", rm.rawMaterialId),
               select: { materialName: true, onHandQty: true, reservedQty: true },
             });
 

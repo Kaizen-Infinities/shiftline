@@ -1,6 +1,10 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateFinishedGoodsTransactionInput, UpdateFinishedGoodsTransactionInput } from "./finished-goods-transaction.validation";
+import {
+  CreateFinishedGoodsTransactionInput,
+  UpdateFinishedGoodsTransactionInput,
+} from "./finished-goods-transaction.validation";
+import { byCode } from "../../lib/prisma";
 
 class FinishedGoodsTransactionService {
   async create(data: CreateFinishedGoodsTransactionInput, userId?: string) {
@@ -8,7 +12,7 @@ class FinishedGoodsTransactionService {
 
     // Verify store exists
     const store = await prisma.store.findUnique({
-      where: { storeId: data.storeId },
+      where: byCode("storeId", data.storeId),
     });
     if (!store) {
       throw new ApiError(404, `Store with ID ${data.storeId} not found`);
@@ -25,7 +29,7 @@ class FinishedGoodsTransactionService {
     // Verify production order exists if provided
     if (data.productionOrderId) {
       const productionOrder = await prisma.productionOrder.findUnique({
-        where: { productionOrderId: data.productionOrderId },
+        where: byCode("productionOrderId", data.productionOrderId),
       });
       if (!productionOrder) {
         throw new ApiError(404, `Production Order with ID ${data.productionOrderId} not found`);
@@ -130,7 +134,9 @@ class FinishedGoodsTransactionService {
     // If quantity or storeId or productItemId changes, we must adjust stocks.
     // To keep it simple and robust, we reverse the old transaction qty, and apply the new qty.
     const newStoreId = data.storeId ?? existing.storeId;
-    const newProductItemId = data.productItemId ? BigInt(data.productItemId) : existing.productItemId;
+    const newProductItemId = data.productItemId
+      ? BigInt(data.productItemId)
+      : existing.productItemId;
     const newQty = data.qty ?? Number(existing.qty);
 
     return prisma.$transaction(async (tx) => {

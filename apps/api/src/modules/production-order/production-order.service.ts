@@ -8,6 +8,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { StatusSyncService } from "../../utils/status-sync.util";
 import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
 
 /** Normalize UOM aliases to canonical short form */
 function normalizeUom(uom: string): string {
@@ -141,7 +142,7 @@ class ProductionOrderService {
       : null;
 
     const existing = await prisma.productionOrder.findUnique({
-      where: { productionOrderId: data.productionOrderId },
+      where: byCode("productionOrderId", data.productionOrderId),
     });
     if (existing) {
       throw new ApiError(409, `Production Order with ID ${data.productionOrderId} already exists`);
@@ -190,19 +191,21 @@ class ProductionOrderService {
     }
 
     if (data.sourceStoreId) {
-      const store = await prisma.store.findUnique({ where: { storeId: data.sourceStoreId } });
+      const store = await prisma.store.findUnique({ where: byCode("storeId", data.sourceStoreId) });
       if (!store) throw new ApiError(404, `Source Store with ID ${data.sourceStoreId} not found`);
     }
 
     if (data.destinationStoreId) {
-      const store = await prisma.store.findUnique({ where: { storeId: data.destinationStoreId } });
+      const store = await prisma.store.findUnique({
+        where: byCode("storeId", data.destinationStoreId),
+      });
       if (!store)
         throw new ApiError(404, `Destination Store with ID ${data.destinationStoreId} not found`);
     }
 
     if (data.machineMachineId) {
       const machine = await prisma.machine.findUnique({
-        where: { machineId: data.machineMachineId },
+        where: byCode("machineId", data.machineMachineId),
       });
       if (!machine) throw new ApiError(404, `Machine with ID ${data.machineMachineId} not found`);
     }
@@ -272,7 +275,7 @@ class ProductionOrderService {
       }
       // Return the updated order with the new status
       const updatedOrder = await prisma.productionOrder.findUnique({
-        where: { productionOrderId: result.productionOrderId },
+        where: byCode("productionOrderId", result.productionOrderId),
         include: { productItem: true },
       });
       return updatedOrder || result;
@@ -288,7 +291,7 @@ class ProductionOrderService {
   //         → WAITING_FOR_MATERIAL (some materials insufficient)
   async checkMaterialAvailability(productionOrderId: string, userId?: string) {
     const order = (await prisma.productionOrder.findUnique({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
       include: {
         productItem: {
           include: { billOfMaterials: { include: { rawMaterial: true } } },
@@ -340,7 +343,7 @@ class ProductionOrderService {
 
     for (const rm of rawMaterialsToCheck) {
       const stock = await prisma.rawMaterial.findUnique({
-        where: { rawMaterialId: rm.rawMaterialId },
+        where: byCode("rawMaterialId", rm.rawMaterialId),
       });
       const available = stock ? Number(stock.onHandQty) - Number(stock.reservedQty) : 0;
       const required = Number(rm.requiredQty);
@@ -362,7 +365,7 @@ class ProductionOrderService {
     await prisma.$transaction(
       async (tx) => {
         await tx.productionOrder.update({
-          where: { productionOrderId },
+          where: byCode("productionOrderId", productionOrderId),
           data: { status: newStatus },
         });
         await this.addHistory(
@@ -490,7 +493,7 @@ class ProductionOrderService {
   // ── Find By ID ────────────────────────────────────────────────────────────
   async findById(productionOrderId: string) {
     const order = (await prisma.productionOrder.findUnique({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
       include: {
         productItem: { include: { uom: true } },
         finishedGoodsTransactions: true,
@@ -732,7 +735,9 @@ class ProductionOrderService {
 
       if (data.sourceStoreId !== undefined) {
         if (data.sourceStoreId) {
-          const store = await prisma.store.findUnique({ where: { storeId: data.sourceStoreId } });
+          const store = await prisma.store.findUnique({
+            where: byCode("storeId", data.sourceStoreId),
+          });
           if (!store)
             throw new ApiError(404, `Source Store with ID ${data.sourceStoreId} not found`);
         }
@@ -742,7 +747,7 @@ class ProductionOrderService {
       if (data.destinationStoreId !== undefined) {
         if (data.destinationStoreId) {
           const store = await prisma.store.findUnique({
-            where: { storeId: data.destinationStoreId },
+            where: byCode("storeId", data.destinationStoreId),
           });
           if (!store)
             throw new ApiError(
@@ -787,7 +792,7 @@ class ProductionOrderService {
     const updatedOrder = await prisma.$transaction(
       async (tx) => {
         const resultOrder = await tx.productionOrder.update({
-          where: { productionOrderId },
+          where: byCode("productionOrderId", productionOrderId),
           data: updateData,
           include: { productItem: true },
         });
@@ -827,7 +832,7 @@ class ProductionOrderService {
   // - Set status to IN_PRODUCTION
   async startProduction(productionOrderId: string, userId?: string, dailyPlanId?: string) {
     const order = (await prisma.productionOrder.findUnique({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
     })) as any;
 
     if (!order) {
@@ -856,7 +861,7 @@ class ProductionOrderService {
 
     if (dailyPlanId) {
       const dailyPlan = await prisma.dailyProductionPlan.findUnique({
-        where: { dailyPlanId },
+        where: byCode("dailyPlanId", dailyPlanId),
         select: { plannedQty: true },
       });
       if (dailyPlan) {
@@ -874,7 +879,7 @@ class ProductionOrderService {
           const updated = await prisma.$transaction(
             async (tx) => {
               const result = await tx.productionOrder.update({
-                where: { productionOrderId },
+                where: byCode("productionOrderId", productionOrderId),
                 data: { status: "IN_PRODUCTION", updatedBy: userId },
               });
               await this.addHistory(
@@ -907,7 +912,7 @@ class ProductionOrderService {
         const updated = await prisma.$transaction(
           async (tx) => {
             const result = await tx.productionOrder.update({
-              where: { productionOrderId },
+              where: byCode("productionOrderId", productionOrderId),
               data: { status: "IN_PRODUCTION", updatedBy: userId },
             });
             await this.addHistory(
@@ -940,7 +945,7 @@ class ProductionOrderService {
       return await prisma.$transaction(
         async (tx) => {
           const result = await tx.productionOrder.update({
-            where: { productionOrderId },
+            where: byCode("productionOrderId", productionOrderId),
             data: { status: "IN_PRODUCTION", updatedBy: userId },
           });
           await this.addHistory(
@@ -992,7 +997,7 @@ class ProductionOrderService {
           if (!rawMaterialId || qty <= 0) continue;
 
           const stock = await tx.rawMaterial.findUnique({
-            where: { rawMaterialId },
+            where: byCode("rawMaterialId", rawMaterialId),
             include: { store: true },
           });
 
@@ -1016,7 +1021,7 @@ class ProductionOrderService {
 
           // 3. Deduct raw material stock
           await tx.rawMaterial.update({
-            where: { rawMaterialId },
+            where: byCode("rawMaterialId", rawMaterialId),
             data: {
               onHandQty: newOnHand,
               reservedQty: newReserved,
@@ -1057,7 +1062,7 @@ class ProductionOrderService {
 
         // 6. Update production order status to IN_PRODUCTION
         const result = await tx.productionOrder.update({
-          where: { productionOrderId },
+          where: byCode("productionOrderId", productionOrderId),
           data: { status: "IN_PRODUCTION", updatedBy: userId },
           include: { productItem: true },
         });
@@ -1092,7 +1097,7 @@ class ProductionOrderService {
   // STEP 7 → STEP 8 gate: Only after all post-production steps done
   async completePostProduction(productionOrderId: string, producedQty: number, userId?: string) {
     const order = await prisma.productionOrder.findUnique({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
     });
 
     if (!order) throw new ApiError(404, `Production Order ${productionOrderId} not found`);
@@ -1107,7 +1112,7 @@ class ProductionOrderService {
     return prisma.$transaction(
       async (tx) => {
         const result = await tx.productionOrder.update({
-          where: { productionOrderId },
+          where: byCode("productionOrderId", productionOrderId),
           data: {
             status: "READY_FOR_DISPATCH",
             producedQty,
@@ -1154,7 +1159,7 @@ class ProductionOrderService {
     const { items } = data;
 
     const order = await prisma.productionOrder.findUnique({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
     });
     if (!order) throw new ApiError(404, `Production Order with ID ${productionOrderId} not found`);
 
@@ -1253,7 +1258,9 @@ class ProductionOrderService {
         for (const item of items) {
           const { rawMaterialId, storeId, qty, selectedUom, remarks } = item;
 
-          const rm = await tx.rawMaterial.findUnique({ where: { rawMaterialId } });
+          const rm = await tx.rawMaterial.findUnique({
+            where: byCode("rawMaterialId", rawMaterialId),
+          });
           if (!rm) throw new ApiError(404, `Raw Material with ID ${rawMaterialId} not found`);
 
           // Convert qty from the user's selected UOM to the raw material's base UOM.
@@ -1266,7 +1273,7 @@ class ProductionOrderService {
           const newReserved = Math.max(0, Number(rm.reservedQty) - convertedQty);
 
           await tx.rawMaterial.update({
-            where: { rawMaterialId },
+            where: byCode("rawMaterialId", rawMaterialId),
             data: { onHandQty: newOnHand, reservedQty: newReserved, updatedBy: userId },
           });
 
@@ -1339,7 +1346,7 @@ class ProductionOrderService {
     }
 
     await prisma.productionOrder.update({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
       data: { status: "CANCELLED" },
     });
 

@@ -1,7 +1,12 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateGoodsDispatchInput, GateApproveInput, StoreReceiveInput } from "./goods-dispatch.validation";
+import {
+  CreateGoodsDispatchInput,
+  GateApproveInput,
+  StoreReceiveInput,
+} from "./goods-dispatch.validation";
 import { StockAdjustmentService } from "../stock-adjustment/stock-adjustment.service";
+import { byCode } from "../../lib/prisma";
 
 export class GoodsDispatchService {
   // ── Generate next dispatch number ──────────────────────────────────────────
@@ -35,7 +40,15 @@ export class GoodsDispatchService {
     const where: any = {
       // Dispatch is only allowed after production is fully completed
       // POST_PRODUCTION is still in-progress — dispatch only from READY_FOR_DISPATCH onwards
-      status: { in: ["READY_FOR_DISPATCH", "COMPLETED", "PARTIAL_COMPLETED", "COMPLETED_WITH_SHORTFALL", "CLOSED"] },
+      status: {
+        in: [
+          "READY_FOR_DISPATCH",
+          "COMPLETED",
+          "PARTIAL_COMPLETED",
+          "COMPLETED_WITH_SHORTFALL",
+          "CLOSED",
+        ],
+      },
     };
 
     if (filters.productItemId) where.productItemId = BigInt(filters.productItemId);
@@ -59,7 +72,18 @@ export class GoodsDispatchService {
         ...where,
         // ✅ Eligible for dispatch: production started and at least some qty produced
         // IN_PROGRESS is set by syncProductionOrderQuantities when target not yet met
-        status: { in: ["IN_PROGRESS", "IN_PRODUCTION", "POST_PRODUCTION", "READY_FOR_DISPATCH", "COMPLETED", "PARTIAL_COMPLETED", "COMPLETED_WITH_SHORTFALL", "CLOSED"] },
+        status: {
+          in: [
+            "IN_PROGRESS",
+            "IN_PRODUCTION",
+            "POST_PRODUCTION",
+            "READY_FOR_DISPATCH",
+            "COMPLETED",
+            "PARTIAL_COMPLETED",
+            "COMPLETED_WITH_SHORTFALL",
+            "CLOSED",
+          ],
+        },
       },
       include: {
         productItem: true,
@@ -81,64 +105,72 @@ export class GoodsDispatchService {
           select: {
             status: true,
             hourlyProductions: {
-              select: { qtyProduced: true }
-            }
-          }
-        }
+              select: { qtyProduced: true },
+            },
+          },
+        },
       },
       orderBy: { orderDate: "desc" },
     });
 
-    return orders.map((o) => {
-      const totalDispatched = o.goodsDispatchItems.reduce(
-        (sum, item) => sum + Number(item.dispatchQty),
-        0
-      );
+    return orders
+      .map((o) => {
+        const totalDispatched = o.goodsDispatchItems.reduce(
+          (sum, item) => sum + Number(item.dispatchQty),
+          0
+        );
 
-      // Net qty after removing scrap and defects
-      const scrapQty = Number(o.scrapQty || 0);
-      const rejectedQty = Number(o.rejectedQty || 0);
-      const netProducedQty = Math.max(0, Number(o.producedQty) - scrapQty - rejectedQty);
+        // Net qty after removing scrap and defects
+        const scrapQty = Number(o.scrapQty || 0);
+        const rejectedQty = Number(o.rejectedQty || 0);
+        const netProducedQty = Math.max(0, Number(o.producedQty) - scrapQty - rejectedQty);
 
-      // Calculate dispatchable produced qty (net of scrap/defects)
-      let dispatchableProducedQty = netProducedQty;
+        // Calculate dispatchable produced qty (net of scrap/defects)
+        let dispatchableProducedQty = netProducedQty;
 
-      if (["PARTIAL_COMPLETED", "COMPLETED_WITH_SHORTFALL", "CLOSED"].includes(o.status)) {
-        const dispatchablePlans = o.dailyProductionPlans.filter((p: any) => {
-          if (p.status === "COMPLETED" || p.status === "SHORT_CLOSED") return true;
-          if (p.status === "STOPPED") {
-            const planProduced = p.hourlyProductions.reduce((s: number, h: any) => s + Number(h.qtyProduced), 0);
-            const planPlanned = Number(p.plannedQty || 0);
-            return planProduced >= planPlanned && planPlanned > 0;
-          }
-          return false;
-        });
-        let planSum = dispatchablePlans.reduce((sum: number, p: any) => {
-          return sum + p.hourlyProductions.reduce((hSum: number, h: any) => hSum + Number(h.qtyProduced), 0);
-        }, 0);
-        // Fallback to netProducedQty if no dispatchable plans found
-        if (planSum === 0 && netProducedQty > 0) planSum = netProducedQty;
-        // Safety: never exceed net produced qty
-        dispatchableProducedQty = Math.min(planSum, netProducedQty);
-      }
+        if (["PARTIAL_COMPLETED", "COMPLETED_WITH_SHORTFALL", "CLOSED"].includes(o.status)) {
+          const dispatchablePlans = o.dailyProductionPlans.filter((p: any) => {
+            if (p.status === "COMPLETED" || p.status === "SHORT_CLOSED") return true;
+            if (p.status === "STOPPED") {
+              const planProduced = p.hourlyProductions.reduce(
+                (s: number, h: any) => s + Number(h.qtyProduced),
+                0
+              );
+              const planPlanned = Number(p.plannedQty || 0);
+              return planProduced >= planPlanned && planPlanned > 0;
+            }
+            return false;
+          });
+          let planSum = dispatchablePlans.reduce((sum: number, p: any) => {
+            return (
+              sum +
+              p.hourlyProductions.reduce((hSum: number, h: any) => hSum + Number(h.qtyProduced), 0)
+            );
+          }, 0);
+          // Fallback to netProducedQty if no dispatchable plans found
+          if (planSum === 0 && netProducedQty > 0) planSum = netProducedQty;
+          // Safety: never exceed net produced qty
+          dispatchableProducedQty = Math.min(planSum, netProducedQty);
+        }
 
-      const pendingQty = Math.max(0, dispatchableProducedQty - totalDispatched);
-      return {
-        productionOrderId: o.productionOrderId,
-        orderDate: o.orderDate,
-        dueDate: o.dueDate,
-        batchNo: o.batchNo,
-        lotNo: o.lotNo,
-        uom: o.uom,
-        status: o.status,
-        producedQty: dispatchableProducedQty, // Provide the dispatchable qty instead of raw producedQty
-        totalDispatchedQty: totalDispatched,
-        pendingDispatchQty: pendingQty,
-        productItem: o.productItem,
-        machine: o.Machine,
-        destinationStoreId: o.destinationStoreId,
-      };
-    }).filter(o => o.pendingDispatchQty > 0);
+        const pendingQty = Math.max(0, dispatchableProducedQty - totalDispatched);
+        return {
+          productionOrderId: o.productionOrderId,
+          orderDate: o.orderDate,
+          dueDate: o.dueDate,
+          batchNo: o.batchNo,
+          lotNo: o.lotNo,
+          uom: o.uom,
+          status: o.status,
+          producedQty: dispatchableProducedQty, // Provide the dispatchable qty instead of raw producedQty
+          totalDispatchedQty: totalDispatched,
+          pendingDispatchQty: pendingQty,
+          productItem: o.productItem,
+          machine: o.Machine,
+          destinationStoreId: o.destinationStoreId,
+        };
+      })
+      .filter((o) => o.pendingDispatchQty > 0);
   }
 
   // ── Create Dispatch ─────────────────────────────────────────────────────────
@@ -146,7 +178,7 @@ export class GoodsDispatchService {
     // Validate each item
     for (const item of data.items) {
       const po = await prisma.productionOrder.findUnique({
-        where: { productionOrderId: item.productionOrderId },
+        where: byCode("productionOrderId", item.productionOrderId),
         include: {
           goodsDispatchItems: {
             where: {
@@ -166,11 +198,19 @@ export class GoodsDispatchService {
       }
 
       // ✅ STEP 7–8: IN_PRODUCTION and later statuses can be dispatched
-      if (!['READY_FOR_DISPATCH', 'COMPLETED', 'PARTIAL_COMPLETED', 'COMPLETED_WITH_SHORTFALL', 'CLOSED'].includes(po.status)) {
+      if (
+        ![
+          "READY_FOR_DISPATCH",
+          "COMPLETED",
+          "PARTIAL_COMPLETED",
+          "COMPLETED_WITH_SHORTFALL",
+          "CLOSED",
+        ].includes(po.status)
+      ) {
         throw new ApiError(
           400,
           `Production Order ${item.productionOrderId} is not eligible for dispatch. ` +
-          `Production must be fully completed before dispatch. Current status: ${po.status}`
+            `Production must be fully completed before dispatch. Current status: ${po.status}`
         );
       }
 
@@ -369,7 +409,10 @@ export class GoodsDispatchService {
     });
     if (!dispatch) throw new ApiError(404, "Goods Dispatch not found");
     if (dispatch.status !== "PENDING_STORE_RECEIPT") {
-      throw new ApiError(400, `Cannot process store receipt for dispatch with status: ${dispatch.status}`);
+      throw new ApiError(
+        400,
+        `Cannot process store receipt for dispatch with status: ${dispatch.status}`
+      );
     }
 
     if (data.action === "REJECT") {
@@ -447,7 +490,7 @@ export class GoodsDispatchService {
       for (const item of dispatch.items) {
         const receivedQty =
           receivedItemsMap.size > 0
-            ? receivedItemsMap.get(Number(item.id)) ?? Number(item.dispatchQty)
+            ? (receivedItemsMap.get(Number(item.id)) ?? Number(item.dispatchQty))
             : Number(item.dispatchQty);
 
         // Update received qty on item
@@ -507,7 +550,7 @@ export class GoodsDispatchService {
         // ✅ STEP 8 FINAL: Mark Production Order status (DISPATCHED if target met, PARTIAL_COMPLETED if partial)
         if (item.productionOrderId) {
           const poRecord = await tx.productionOrder.findUnique({
-            where: { productionOrderId: item.productionOrderId },
+            where: byCode("productionOrderId", item.productionOrderId),
           });
           if (poRecord) {
             const targetQty = Number(poRecord.targetQty || 0);
@@ -521,15 +564,18 @@ export class GoodsDispatchService {
             const totalDispatched = Number(allDispatches._sum.dispatchQty || 0);
 
             const isShortClosed = ["COMPLETED_WITH_SHORTFALL", "CLOSED"].includes(poRecord.status);
-            const isFullyDispatched = targetQty > 0 && (
-              totalDispatched >= targetQty ||
-              (producedQty > 0 && totalDispatched >= producedQty)
-            );
-            const newPoStatus = isFullyDispatched ? "DISPATCHED" : (isShortClosed ? poRecord.status : "PARTIAL_COMPLETED");
+            const isFullyDispatched =
+              targetQty > 0 &&
+              (totalDispatched >= targetQty || (producedQty > 0 && totalDispatched >= producedQty));
+            const newPoStatus = isFullyDispatched
+              ? "DISPATCHED"
+              : isShortClosed
+                ? poRecord.status
+                : "PARTIAL_COMPLETED";
 
             if (poRecord.status !== newPoStatus) {
               await tx.productionOrder.update({
-                where: { productionOrderId: item.productionOrderId },
+                where: byCode("productionOrderId", item.productionOrderId),
                 data: { status: newPoStatus, updatedBy: userId },
               });
               await tx.productionOrderHistory.create({

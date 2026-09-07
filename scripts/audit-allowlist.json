@@ -5,7 +5,7 @@
       "id": "GHSA-ggr8-5vv4-36mx",
       "package": "deepmerge-ts (via prisma > @prisma/config)",
       "severity": "high",
-      "reason": "Reachable only while the Prisma CLI loads prisma.config.ts at migrate time; no request path merges attacker-controlled objects. Fixed upstream in Prisma 8.1; the upgrade is scheduled with the surrogate-key work in P1-00.",
+      "reason": "Reachable only while the Prisma CLI loads prisma.config.ts at migrate time; no request path merges attacker-controlled objects. Prisma 7.10 still pins deepmerge-ts 7.1.5; the 8.x line drops the @prisma/config chain. Verify on 8.0 GA; see docs/decisions/2026-09-07-prisma-7-8.md.",
       "expires": "2026-12-31",
       "owner": "platform"
     },

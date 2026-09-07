@@ -2,11 +2,12 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { Prisma } from "@prisma/client";
 import { CreateMachineInput, UpdateMachineInput } from "./machine.validation";
+import { byCode } from "../../lib/prisma";
 
 class MachineService {
   async create(data: CreateMachineInput) {
     const existing = await prisma.machine.findUnique({
-      where: { machineId: data.machineId },
+      where: byCode("machineId", data.machineId),
     });
 
     if (existing) {
@@ -24,7 +25,7 @@ class MachineService {
           modelNumber: data.modelNumber,
           cycleTime: data.cycleTime,
           operatorId: data.operatorId,
-          machineStatus: data.machineStatus as any || "IDLE",
+          machineStatus: (data.machineStatus as any) || "IDLE",
           isActive: data.isActive ?? true,
           description: data.description,
           targetTemperature: data.targetTemperature,
@@ -33,11 +34,14 @@ class MachineService {
       });
     } catch (error: any) {
       if (
-        (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2020') ||
-        error?.message?.includes('numeric field overflow') ||
-        error?.code === '22003'
+        (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2020") ||
+        error?.message?.includes("numeric field overflow") ||
+        error?.code === "22003"
       ) {
-        throw new ApiError(400, "Target temperature value is too large. Maximum allowed is 999.99°C");
+        throw new ApiError(
+          400,
+          "Target temperature value is too large. Maximum allowed is 999.99°C"
+        );
       }
       throw error;
     }
@@ -74,7 +78,7 @@ class MachineService {
 
   async findById(machineId: string) {
     const machine = await prisma.machine.findUnique({
-      where: { machineId },
+      where: byCode("machineId", machineId),
     });
 
     if (!machine) {
@@ -88,7 +92,7 @@ class MachineService {
     await this.findById(machineId);
 
     return prisma.machine.update({
-      where: { machineId },
+      where: byCode("machineId", machineId),
       data,
     });
   }
@@ -96,7 +100,16 @@ class MachineService {
   async delete(machineId: string) {
     await this.findById(machineId);
 
-    const [weeklyPrograms, productionOrders, assignments, dailyPlans, hourlyProds, oeeSnaps, wastages, shiftRecs] = await Promise.all([
+    const [
+      weeklyPrograms,
+      productionOrders,
+      assignments,
+      dailyPlans,
+      hourlyProds,
+      oeeSnaps,
+      wastages,
+      shiftRecs,
+    ] = await Promise.all([
       prisma.weeklyMachineProgram.count({ where: { machineId } }),
       prisma.productionOrder.count({ where: { machineMachineId: machineId } }),
       prisma.machineOperationAssignment.count({ where: { machineId } }),
@@ -107,7 +120,17 @@ class MachineService {
       prisma.productShiftRecord.count({ where: { machineId } }),
     ]);
 
-    if (weeklyPrograms + productionOrders + assignments + dailyPlans + hourlyProds + oeeSnaps + wastages + shiftRecs > 0) {
+    if (
+      weeklyPrograms +
+        productionOrders +
+        assignments +
+        dailyPlans +
+        hourlyProds +
+        oeeSnaps +
+        wastages +
+        shiftRecs >
+      0
+    ) {
       throw new ApiError(
         400,
         "Unable to delete this machine because it is linked to other records in the system."
@@ -116,10 +139,10 @@ class MachineService {
 
     try {
       return await prisma.machine.delete({
-        where: { machineId },
+        where: byCode("machineId", machineId),
       });
     } catch (error: any) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
         throw new ApiError(
           400,
           "Unable to delete this machine because it is linked to other records in the system."

@@ -5,6 +5,7 @@ import { CreateDailyPlanInput, UpdateDailyPlanInput } from "./daily-plan.validat
 import { StatusSyncService } from "../../utils/status-sync.util";
 import { MachineOperationAssignmentService } from "../machine-operation-assignment/machine-operation-assignment.service";
 import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
 
 class DailyPlanService {
   async generateNextDailyPlanId(tx?: any): Promise<string> {
@@ -31,7 +32,7 @@ class DailyPlanService {
 
     // 1. Validation: Weekly Plan must exist
     const weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
-      where: { weeklyProgramId: data.weeklyProgramId },
+      where: byCode("weeklyProgramId", data.weeklyProgramId),
     });
     if (!weeklyProgram) {
       throw new ApiError(404, `Weekly Program with ID ${data.weeklyProgramId} not found`);
@@ -39,7 +40,7 @@ class DailyPlanService {
 
     // 2. Validation: Production Order must exist
     const productionOrder = await prisma.productionOrder.findUnique({
-      where: { productionOrderId: data.productionOrderId },
+      where: byCode("productionOrderId", data.productionOrderId),
     });
     if (!productionOrder) {
       throw new ApiError(404, `Production Order with ID ${data.productionOrderId} not found`);
@@ -75,7 +76,7 @@ class DailyPlanService {
 
     // 3. Validation: Machine must exist
     const machine = await prisma.machine.findUnique({
-      where: { machineId: data.machineId },
+      where: byCode("machineId", data.machineId),
     });
     if (!machine) {
       throw new ApiError(404, `Machine with ID ${data.machineId} not found`);
@@ -83,7 +84,7 @@ class DailyPlanService {
 
     // 4. Validation: Shift must exist
     const shift = await prisma.shift.findUnique({
-      where: { shiftCode: data.shiftId },
+      where: byCode("shiftCode", data.shiftId),
     });
     if (!shift) {
       throw new ApiError(404, `Shift with ID ${data.shiftId} not found`);
@@ -141,7 +142,7 @@ class DailyPlanService {
     // 6. Carry-forward guard: a source plan can only be carried forward ONCE
     if (data.carryForwardFromPlanId) {
       const sourcePlan = await prisma.dailyProductionPlan.findUnique({
-        where: { dailyPlanId: data.carryForwardFromPlanId },
+        where: byCode("dailyPlanId", data.carryForwardFromPlanId),
         include: { carryForwardTo: { select: { dailyPlanId: true } } },
       });
       if (!sourcePlan) {
@@ -201,7 +202,7 @@ class DailyPlanService {
           productionOrder.status === "SCHEDULED"
         ) {
           await tx.productionOrder.update({
-            where: { productionOrderId: data.productionOrderId },
+            where: byCode("productionOrderId", data.productionOrderId),
             data: { status: "DAILY_PLANNED" },
           });
           await StatusSyncService.logHistory(
@@ -250,7 +251,7 @@ class DailyPlanService {
 
     // 1. Verify Weekly Plan exists
     const weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
-      where: { weeklyProgramId: checkWeeklyProgramId },
+      where: byCode("weeklyProgramId", checkWeeklyProgramId),
     });
     if (!weeklyProgram) {
       throw new ApiError(404, `Weekly Program with ID ${checkWeeklyProgramId} not found`);
@@ -258,7 +259,7 @@ class DailyPlanService {
 
     // 2. Verify Production Order exists
     const productionOrder = await prisma.productionOrder.findUnique({
-      where: { productionOrderId: checkProductionOrderId },
+      where: byCode("productionOrderId", checkProductionOrderId),
     });
     if (!productionOrder) {
       throw new ApiError(404, `Production Order with ID ${checkProductionOrderId} not found`);
@@ -266,7 +267,7 @@ class DailyPlanService {
 
     // 3. Verify Machine exists
     const machine = await prisma.machine.findUnique({
-      where: { machineId: checkMachineId },
+      where: byCode("machineId", checkMachineId),
     });
     if (!machine) {
       throw new ApiError(404, `Machine with ID ${checkMachineId} not found`);
@@ -274,7 +275,7 @@ class DailyPlanService {
 
     // 4. Verify Shift exists
     const shift = await prisma.shift.findUnique({
-      where: { shiftCode: checkShiftId },
+      where: byCode("shiftCode", checkShiftId),
     });
     if (!shift) {
       throw new ApiError(404, `Shift with ID ${checkShiftId} not found`);
@@ -398,7 +399,7 @@ class DailyPlanService {
           data.status === "POST_PRODUCTION"
         ) {
           const productionOrderFull = await tx.productionOrder.findUnique({
-            where: { productionOrderId: checkProductionOrderId },
+            where: byCode("productionOrderId", checkProductionOrderId),
             include: {
               productItem: { include: { productionSteps: { orderBy: { stepOrder: "asc" } } } },
             },
@@ -431,7 +432,7 @@ class DailyPlanService {
                   // ── PERMANENT STOP ──────────────────────────────────────────
                   // 1. Close this weekly program
                   await tx.weeklyMachineProgram.update({
-                    where: { weeklyProgramId: checkWeeklyProgramId },
+                    where: byCode("weeklyProgramId", checkWeeklyProgramId),
                     data: { status: "COMPLETED" },
                   });
                   // 2. Mark PO status — READY_FOR_DISPATCH if target met/exceeded, COMPLETED_WITH_SHORTFALL if under-produced
@@ -442,7 +443,7 @@ class DailyPlanService {
                       ? "READY_FOR_DISPATCH"
                       : "COMPLETED_WITH_SHORTFALL";
                   await tx.productionOrder.update({
-                    where: { productionOrderId: checkProductionOrderId },
+                    where: byCode("productionOrderId", checkProductionOrderId),
                     data: { status: permanentStopStatus },
                   });
                   // 3. Cascade-stop ALL other active DPs for this PO
@@ -455,13 +456,13 @@ class DailyPlanService {
                   });
                   for (const dp of otherActiveDPs) {
                     await tx.dailyProductionPlan.update({
-                      where: { dailyPlanId: dp.dailyPlanId },
+                      where: byCode("dailyPlanId", dp.dailyPlanId),
                       data: { status: "STOPPED" },
                     });
                     // Also lock that plan's weekly program
                     if (dp.weeklyProgramId) {
                       await tx.weeklyMachineProgram.update({
-                        where: { weeklyProgramId: dp.weeklyProgramId },
+                        where: byCode("weeklyProgramId", dp.weeklyProgramId),
                         data: { status: "COMPLETED" },
                       });
                     }
@@ -499,7 +500,7 @@ class DailyPlanService {
                   );
                 } else {
                   await tx.productionOrder.update({
-                    where: { productionOrderId: checkProductionOrderId },
+                    where: byCode("productionOrderId", checkProductionOrderId),
                     data: { status: "POST_PRODUCTION" },
                   });
                   await StatusSyncService.logHistory(
@@ -515,7 +516,7 @@ class DailyPlanService {
               } else if (data.shortClosePO) {
                 // PO is already in POST_PRODUCTION or PARTIAL_COMPLETED/COMPLETED_WITH_SHORTFALL — still close the weekly program and cascade-stop active DPs
                 await tx.weeklyMachineProgram.update({
-                  where: { weeklyProgramId: checkWeeklyProgramId },
+                  where: byCode("weeklyProgramId", checkWeeklyProgramId),
                   data: { status: "COMPLETED" },
                 });
                 const otherActiveDPs2 = await tx.dailyProductionPlan.findMany({
@@ -527,12 +528,12 @@ class DailyPlanService {
                 });
                 for (const dp of otherActiveDPs2) {
                   await tx.dailyProductionPlan.update({
-                    where: { dailyPlanId: dp.dailyPlanId },
+                    where: byCode("dailyPlanId", dp.dailyPlanId),
                     data: { status: "STOPPED" },
                   });
                   if (dp.weeklyProgramId) {
                     await tx.weeklyMachineProgram.update({
-                      where: { weeklyProgramId: dp.weeklyProgramId },
+                      where: byCode("weeklyProgramId", dp.weeklyProgramId),
                       data: { status: "COMPLETED" },
                     });
                   }
@@ -553,7 +554,7 @@ class DailyPlanService {
                       ? "READY_FOR_DISPATCH"
                       : "COMPLETED_WITH_SHORTFALL";
                   await tx.productionOrder.update({
-                    where: { productionOrderId: checkProductionOrderId },
+                    where: byCode("productionOrderId", checkProductionOrderId),
                     data: { status: fallbackStopStatus },
                   });
                 }
@@ -613,7 +614,7 @@ class DailyPlanService {
                   // Normal flow: came from POST_PRODUCTION
                   if (isTargetMet && productionOrderFull.status !== "READY_FOR_DISPATCH") {
                     await tx.productionOrder.update({
-                      where: { productionOrderId: checkProductionOrderId },
+                      where: byCode("productionOrderId", checkProductionOrderId),
                       data: { status: "READY_FOR_DISPATCH" },
                     });
                     await StatusSyncService.logHistory(
@@ -633,7 +634,7 @@ class DailyPlanService {
                     productionOrderFull.status !== "READY_FOR_DISPATCH"
                   ) {
                     await tx.productionOrder.update({
-                      where: { productionOrderId: checkProductionOrderId },
+                      where: byCode("productionOrderId", checkProductionOrderId),
                       data: { status: "PARTIAL_COMPLETED" },
                     });
                     await StatusSyncService.logHistory(
@@ -653,7 +654,7 @@ class DailyPlanService {
                   ) {
                     // Short-closed but target qty is met: advance PO directly to READY_FOR_DISPATCH
                     await tx.productionOrder.update({
-                      where: { productionOrderId: checkProductionOrderId },
+                      where: byCode("productionOrderId", checkProductionOrderId),
                       data: { status: "READY_FOR_DISPATCH" },
                     });
                     await StatusSyncService.logHistory(
@@ -678,11 +679,11 @@ class DailyPlanService {
                   ) {
                     // Short-closed and target NOT met (Force Complete Stop): close the PO and Weekly Program
                     await tx.productionOrder.update({
-                      where: { productionOrderId: checkProductionOrderId },
+                      where: byCode("productionOrderId", checkProductionOrderId),
                       data: { status: "COMPLETED_WITH_SHORTFALL" },
                     });
                     await tx.weeklyMachineProgram.update({
-                      where: { weeklyProgramId: checkWeeklyProgramId },
+                      where: byCode("weeklyProgramId", checkWeeklyProgramId),
                       data: { status: "COMPLETED" },
                     });
                     await StatusSyncService.logHistory(
@@ -745,11 +746,11 @@ class DailyPlanService {
 
     if (remainingPlans === 0) {
       const po = await prisma.productionOrder.findUnique({
-        where: { productionOrderId: existingPlan.productionOrderId },
+        where: byCode("productionOrderId", existingPlan.productionOrderId),
       });
       if (po && po.status === "DAILY_PLANNED") {
         await prisma.productionOrder.update({
-          where: { productionOrderId: existingPlan.productionOrderId },
+          where: byCode("productionOrderId", existingPlan.productionOrderId),
           data: { status: "WEEKLY_SCHEDULED" },
         });
       }

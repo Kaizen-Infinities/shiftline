@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { byCode } from "../../lib/prisma";
 
 export class DailyPlanRepository {
   async create(data: any, tx?: any) {
@@ -11,18 +12,20 @@ export class DailyPlanRepository {
           include: {
             productItem: {
               include: {
-                productionSteps: { orderBy: { stepOrder: 'asc' } }
-              }
+                productionSteps: { orderBy: { stepOrder: "asc" } },
+              },
             },
           },
         },
         machine: true,
         shift: true,
         hourlyProductions: {
-          select: { qtyProduced: true, hourIndex: true, rejectQty: true, scrapQty: true }
+          select: { qtyProduced: true, hourIndex: true, rejectQty: true, scrapQty: true },
         },
         carryForwardFrom: { select: { dailyPlanId: true } },
-        carryForwardTo: { select: { dailyPlanId: true, productionDate: true, shiftId: true, status: true } },
+        carryForwardTo: {
+          select: { dailyPlanId: true, productionDate: true, shiftId: true, status: true },
+        },
       },
     });
   }
@@ -38,18 +41,20 @@ export class DailyPlanRepository {
           include: {
             productItem: {
               include: {
-                productionSteps: { orderBy: { stepOrder: 'asc' } }
-              }
+                productionSteps: { orderBy: { stepOrder: "asc" } },
+              },
             },
           },
         },
         machine: true,
         shift: true,
         hourlyProductions: {
-          select: { qtyProduced: true, hourIndex: true, rejectQty: true, scrapQty: true }
+          select: { qtyProduced: true, hourIndex: true, rejectQty: true, scrapQty: true },
         },
         carryForwardFrom: { select: { dailyPlanId: true } },
-        carryForwardTo: { select: { dailyPlanId: true, productionDate: true, shiftId: true, status: true } },
+        carryForwardTo: {
+          select: { dailyPlanId: true, productionDate: true, shiftId: true, status: true },
+        },
       },
     });
   }
@@ -63,15 +68,15 @@ export class DailyPlanRepository {
 
   async findById(dailyPlanId: string) {
     return prisma.dailyProductionPlan.findUnique({
-      where: { dailyPlanId },
+      where: byCode("dailyPlanId", dailyPlanId),
       include: {
         weeklyMachineProgram: true,
         productionOrder: {
           include: {
             productItem: {
               include: {
-                productionSteps: { orderBy: { stepOrder: 'asc' } }
-              }
+                productionSteps: { orderBy: { stepOrder: "asc" } },
+              },
             },
           },
         },
@@ -125,24 +130,26 @@ export class DailyPlanRepository {
           include: {
             productItem: {
               include: {
-                productionSteps: { orderBy: { stepOrder: 'asc' } }
-              }
+                productionSteps: { orderBy: { stepOrder: "asc" } },
+              },
             },
             goodsDispatchItems: {
               where: {
-                dispatch: { status: { notIn: ["GATE_REJECTED", "STORE_REJECTED"] } }
+                dispatch: { status: { notIn: ["GATE_REJECTED", "STORE_REJECTED"] } },
               },
-              select: { dispatchQty: true }
+              select: { dispatchQty: true },
             },
           },
         },
         machine: true,
         shift: true,
         hourlyProductions: {
-          select: { qtyProduced: true, hourIndex: true, rejectQty: true, scrapQty: true }
+          select: { qtyProduced: true, hourIndex: true, rejectQty: true, scrapQty: true },
         },
         carryForwardFrom: { select: { dailyPlanId: true } },
-        carryForwardTo: { select: { dailyPlanId: true, productionDate: true, shiftId: true, status: true } },
+        carryForwardTo: {
+          select: { dailyPlanId: true, productionDate: true, shiftId: true, status: true },
+        },
       },
     };
 
@@ -167,7 +174,11 @@ export class DailyPlanRepository {
     };
   }
 
-  async sumPlannedQtyForWeeklyProgram(weeklyProgramId: string, excludeDailyPlanId?: string, tx?: any) {
+  async sumPlannedQtyForWeeklyProgram(
+    weeklyProgramId: string,
+    excludeDailyPlanId?: string,
+    tx?: any
+  ) {
     const client = tx || prisma;
     const aggregate = await client.dailyProductionPlan.aggregate({
       where: {
@@ -182,7 +193,14 @@ export class DailyPlanRepository {
     return Number(aggregate._sum.plannedQty || 0);
   }
 
-  async existsByDateMachineShift(productionDate: Date, machineId: string, shiftId: string, productionOrderId: string, excludeDailyPlanId?: string, tx?: any) {
+  async existsByDateMachineShift(
+    productionDate: Date,
+    machineId: string,
+    shiftId: string,
+    productionOrderId: string,
+    excludeDailyPlanId?: string,
+    tx?: any
+  ) {
     const client = tx || prisma;
     const count = await client.dailyProductionPlan.count({
       where: {

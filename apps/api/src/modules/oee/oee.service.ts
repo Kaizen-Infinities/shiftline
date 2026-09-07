@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { byCode } from "../../lib/prisma";
 
 // --- OEE Calculation Utilities -------------------------------------------------
 //
@@ -42,10 +43,19 @@ export function calculateOeeMetrics(params: {
   oeePercent: number;
   goodQty: number;
 } {
-  const { plannedRunTimeMinutes, totalRuntimeMinutes, totalDowntimeMinutes, totalProduced, totalReject, totalScrap, cycleTimeSeconds } = params;
+  const {
+    plannedRunTimeMinutes,
+    totalRuntimeMinutes,
+    totalDowntimeMinutes,
+    totalProduced,
+    totalReject,
+    totalScrap,
+    cycleTimeSeconds,
+  } = params;
 
   const actualRunTime = Math.max(0, totalRuntimeMinutes - totalDowntimeMinutes);
-  const availability = plannedRunTimeMinutes > 0 ? Math.min(100, (actualRunTime / plannedRunTimeMinutes) * 100) : 0;
+  const availability =
+    plannedRunTimeMinutes > 0 ? Math.min(100, (actualRunTime / plannedRunTimeMinutes) * 100) : 0;
 
   let performance = 100;
   if (cycleTimeSeconds && cycleTimeSeconds > 0 && actualRunTime > 0) {
@@ -77,13 +87,27 @@ class OeeService {
     const [yyyy, mm, dd] = productionDate.split("-").map(Number);
     const prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
 
-    const machine = await prisma.machine.findUnique({ where: { machineId }, select: { cycleTime: true } });
-    const shift = await (prisma as any).shift.findFirst({ where: { shiftCode: shiftId }, select: { startTime: true, endTime: true, breakDuration: true } });
-    const shiftMinutes = shift ? shiftDurationMinutes(shift.startTime, shift.endTime) - (Number(shift.breakDuration) || 0) : 480;
+    const machine = await prisma.machine.findUnique({
+      where: byCode("machineId", machineId),
+      select: { cycleTime: true },
+    });
+    const shift = await (prisma as any).shift.findFirst({
+      where: { shiftCode: shiftId },
+      select: { startTime: true, endTime: true, breakDuration: true },
+    });
+    const shiftMinutes = shift
+      ? shiftDurationMinutes(shift.startTime, shift.endTime) - (Number(shift.breakDuration) || 0)
+      : 480;
 
     const hourlyAgg = await prisma.hourlyProduction.aggregate({
       where: { machineId, shiftId, productionDate: prodDate },
-      _sum: { qtyProduced: true, rejectQty: true, scrapQty: true, downtime: true, runtimeMinutes: true },
+      _sum: {
+        qtyProduced: true,
+        rejectQty: true,
+        scrapQty: true,
+        downtime: true,
+        runtimeMinutes: true,
+      },
     });
 
     const totalProduced = Number(hourlyAgg._sum.qtyProduced || 0);
@@ -145,7 +169,7 @@ class OeeService {
     const prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
 
     const machine = await prisma.machine.findUnique({
-      where: { machineId },
+      where: byCode("machineId", machineId),
       select: { machineName: true, machineStatus: true, cycleTime: true, operatorId: true },
     });
     if (!machine) throw new ApiError(404, `Machine ${machineId} not found`);
@@ -159,11 +183,16 @@ class OeeService {
       where: { machineId, productionDate: prodDate },
       include: {
         shift: { select: { shiftName: true, startTime: true, endTime: true } },
-        productionOrder: { select: { productionOrderId: true, targetQty: true, producedQty: true } },
+        productionOrder: {
+          select: { productionOrderId: true, targetQty: true, producedQty: true },
+        },
       },
     });
 
-    const totalPlannedHours = todayPlans.reduce((sum: number, p: any) => sum + Number(p.plannedHours || 0), 0);
+    const totalPlannedHours = todayPlans.reduce(
+      (sum: number, p: any) => sum + Number(p.plannedHours || 0),
+      0
+    );
 
     const latestSnapshot = snapshots[0] ?? null;
     const avgOee = latestSnapshot
@@ -180,7 +209,9 @@ class OeeService {
       _sum: { downtime: true, runtimeMinutes: true },
     });
 
-    const runningOrdersCount = todayPlans.filter((p: any) => p.status === "IN_PROGRESS" || p.status === "APPROVED").length;
+    const runningOrdersCount = todayPlans.filter(
+      (p: any) => p.status === "IN_PROGRESS" || p.status === "APPROVED"
+    ).length;
 
     return {
       machineId,
@@ -197,14 +228,20 @@ class OeeService {
 
   async getProductionOrderOeeSummary(productionOrderId: string) {
     const order = await prisma.productionOrder.findUnique({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
       include: { productItem: true },
     });
     if (!order) throw new ApiError(404, `Production Order ${productionOrderId} not found`);
 
     const hourlyAgg = await prisma.hourlyProduction.aggregate({
       where: { productionOrderId },
-      _sum: { qtyProduced: true, rejectQty: true, scrapQty: true, downtime: true, runtimeMinutes: true },
+      _sum: {
+        qtyProduced: true,
+        rejectQty: true,
+        scrapQty: true,
+        downtime: true,
+        runtimeMinutes: true,
+      },
     });
 
     const totalProduced = Number(hourlyAgg._sum.qtyProduced || 0);
@@ -221,7 +258,11 @@ class OeeService {
 
     const totalPlannedMinutes = dailyPlans.reduce((sum: number, p: any) => {
       if (p.shift) {
-        return sum + shiftDurationMinutes(p.shift.startTime, p.shift.endTime) - (Number(p.shift.breakDuration) || 0);
+        return (
+          sum +
+          shiftDurationMinutes(p.shift.startTime, p.shift.endTime) -
+          (Number(p.shift.breakDuration) || 0)
+        );
       }
       return sum + Number(p.plannedHours || 0) * 60;
     }, 0);
@@ -278,11 +319,23 @@ class OeeService {
         operatorId: true,
         dailyProductionPlans: {
           where: { productionDate: prodDate },
-          select: { dailyPlanId: true, status: true, plannedHours: true, productionOrderId: true, shift: { select: { shiftName: true } } },
+          select: {
+            dailyPlanId: true,
+            status: true,
+            plannedHours: true,
+            productionOrderId: true,
+            shift: { select: { shiftName: true } },
+          },
         },
         oeeSnapshots: {
           where: { productionDate: prodDate },
-          select: { oeePercent: true, availability: true, performance: true, quality: true, shiftId: true },
+          select: {
+            oeePercent: true,
+            availability: true,
+            performance: true,
+            quality: true,
+            shiftId: true,
+          },
           orderBy: { calculatedAt: "desc" },
           take: 1,
         },
@@ -291,7 +344,9 @@ class OeeService {
 
     return machines.map((m: any) => {
       const latestOee = m.oeeSnapshots?.[0] ?? null;
-      const activePlan = m.dailyProductionPlans?.find((p: any) => p.status === "IN_PROGRESS" || p.status === "APPROVED");
+      const activePlan = m.dailyProductionPlans?.find(
+        (p: any) => p.status === "IN_PROGRESS" || p.status === "APPROVED"
+      );
       return {
         machineId: m.machineId,
         machineName: m.machineName,
@@ -303,7 +358,10 @@ class OeeService {
         activeProductionOrderId: activePlan?.productionOrderId ?? null,
         activePlanStatus: activePlan?.status ?? null,
         currentShift: activePlan?.shift?.shiftName ?? null,
-        todayPlannedHours: m.dailyProductionPlans?.reduce((sum: number, p: any) => sum + Number(p.plannedHours || 0), 0),
+        todayPlannedHours: m.dailyProductionPlans?.reduce(
+          (sum: number, p: any) => sum + Number(p.plannedHours || 0),
+          0
+        ),
       };
     });
   }

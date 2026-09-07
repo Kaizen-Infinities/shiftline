@@ -9,6 +9,7 @@ import oeeService from "../oee/oee.service";
 import { MachineOperationAssignmentService } from "../machine-operation-assignment/machine-operation-assignment.service";
 import { emitToTenant } from "../../lib/realtime";
 import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
 
 /** Normalize UOM aliases to canonical short form (mirrors frontend normalizeUom) */
 function normalizeUom(uom: string): string {
@@ -144,7 +145,7 @@ class HourlyProductionService {
   async validateHourlyEntry(data: any, excludeId?: bigint) {
     // 1. Verify production order exists
     const order = await prisma.productionOrder.findUnique({
-      where: { productionOrderId: data.productionOrderId },
+      where: byCode("productionOrderId", data.productionOrderId),
     });
     if (!order) {
       throw new ApiError(404, `Production Order with ID ${data.productionOrderId} not found`);
@@ -159,7 +160,7 @@ class HourlyProductionService {
     let dailyPlan = null;
     if (data.dailyPlanId) {
       dailyPlan = await prisma.dailyProductionPlan.findUnique({
-        where: { dailyPlanId: data.dailyPlanId },
+        where: byCode("dailyPlanId", data.dailyPlanId),
       });
       if (!dailyPlan) {
         throw new ApiError(404, `Daily Production Plan with ID ${data.dailyPlanId} not found`);
@@ -232,7 +233,7 @@ class HourlyProductionService {
     let weeklyProgram = null;
     if (dailyPlan && dailyPlan.weeklyProgramId) {
       weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
-        where: { weeklyProgramId: dailyPlan.weeklyProgramId },
+        where: byCode("weeklyProgramId", dailyPlan.weeklyProgramId),
       });
     }
 
@@ -522,7 +523,7 @@ class HourlyProductionService {
 
           // Calculate if this is the last hour of the shift
           const shift = await tx.shift.findUnique({
-            where: { shiftCode: data.shiftId },
+            where: byCode("shiftCode", data.shiftId),
           });
 
           let totalHours = 8;
@@ -570,7 +571,7 @@ class HourlyProductionService {
 
             if (dailyPlan?.dailyPlanId && dailyPlan.status !== "COMPLETED") {
               await tx.dailyProductionPlan.update({
-                where: { dailyPlanId: dailyPlan.dailyPlanId },
+                where: byCode("dailyPlanId", dailyPlan.dailyPlanId),
                 data: { status: "POST_PRODUCTION" },
               });
             }
@@ -578,7 +579,7 @@ class HourlyProductionService {
             // Ensure status is IN_PROGRESS if not the last hour
             if (weeklyProgram.status !== "COMPLETED" && weeklyProgram.status !== "IN_PROGRESS") {
               await tx.weeklyMachineProgram.update({
-                where: { weeklyProgramId: weeklyProgram.weeklyProgramId },
+                where: byCode("weeklyProgramId", weeklyProgram.weeklyProgramId),
                 data: { status: "IN_PROGRESS" },
               });
             }
@@ -650,7 +651,7 @@ class HourlyProductionService {
               });
 
               const targetProduct = await tx.rawMaterial.findUnique({
-                where: { rawMaterialId: wastage.targetWastageProductId },
+                where: byCode("rawMaterialId", wastage.targetWastageProductId),
               });
 
               if (targetProduct) {
@@ -669,7 +670,7 @@ class HourlyProductionService {
                 const newOnHand = currentQty + convertedQty;
 
                 await tx.rawMaterial.update({
-                  where: { rawMaterialId: wastage.targetWastageProductId },
+                  where: byCode("rawMaterialId", wastage.targetWastageProductId),
                   data: {
                     onHandQty: { increment: convertedQty },
                     lastMovementAt: new Date(),
@@ -706,7 +707,7 @@ class HourlyProductionService {
             // 2. Process Raw Material Returns under single saRecord
             for (const rm of validRmReturns) {
               const targetProduct = await tx.rawMaterial.findUnique({
-                where: { rawMaterialId: rm.rawMaterialId },
+                where: byCode("rawMaterialId", rm.rawMaterialId),
               });
 
               if (targetProduct) {
@@ -719,7 +720,7 @@ class HourlyProductionService {
                 const newOnHand = currentQty + convertedQty;
 
                 await tx.rawMaterial.update({
-                  where: { rawMaterialId: rm.rawMaterialId },
+                  where: byCode("rawMaterialId", rm.rawMaterialId),
                   data: {
                     onHandQty: { increment: convertedQty },
                     lastMovementAt: new Date(),
@@ -865,7 +866,7 @@ class HourlyProductionService {
 
         if (log.dailyPlanId) {
           const dailyPlan = await prisma.dailyProductionPlan.findUnique({
-            where: { dailyPlanId: log.dailyPlanId },
+            where: byCode("dailyPlanId", log.dailyPlanId),
           });
           if (dailyPlan) {
             shiftPlannedQty = Number(dailyPlan.plannedQty);
@@ -884,7 +885,7 @@ class HourlyProductionService {
             const wpNum = absVal >= 10000 ? absVal - 10000 : absVal;
             const decodedWpId = `WP${String(wpNum).padStart(4, "0")}`;
             weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
-              where: { weeklyProgramId: decodedWpId },
+              where: byCode("weeklyProgramId", decodedWpId),
             });
           }
 
@@ -1043,7 +1044,7 @@ class HourlyProductionService {
           const prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
           const dailyPlan = merged.dailyPlanId
             ? await tx.dailyProductionPlan.findUnique({
-                where: { dailyPlanId: merged.dailyPlanId },
+                where: byCode("dailyPlanId", merged.dailyPlanId),
               })
             : null;
 

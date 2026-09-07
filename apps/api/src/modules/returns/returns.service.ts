@@ -7,6 +7,7 @@ import { voucherPostingService } from "../accounts/voucherPosting.service";
 import rawMaterialStockService from "../raw-material-stock/raw-material-stock.service";
 import { vouchersService } from "../vouchers/vouchers.service";
 import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
 
 class ReturnsService {
   private generateReturnNo(prefix: string): string {
@@ -341,7 +342,7 @@ class ReturnsService {
         if (!storeIdForDeduction) {
           // If no GRN storeId and no data.storeId, check if raw material has storeId or throw error
           const firstRm = await tx.rawMaterial.findUnique({
-            where: { rawMaterialId: data.items[0].rawMaterialId },
+            where: byCode("rawMaterialId", data.items[0].rawMaterialId),
           });
           if (firstRm && firstRm.storeId) {
             storeIdForDeduction = firstRm.storeId;
@@ -435,7 +436,7 @@ class ReturnsService {
 
         for (const item of data.items) {
           const rm = await tx.rawMaterial.findUnique({
-            where: { rawMaterialId: item.rawMaterialId },
+            where: byCode("rawMaterialId", item.rawMaterialId),
           });
           const currentQty = Number(rm?.onHandQty || 0) + Number(item.quantity); // qty before deduction
           const adjustedQty = Number(rm?.onHandQty || 0); // qty after deduction

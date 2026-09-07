@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { ApiError } from "../utils/ApiError";
 import { getRequestId } from "./request-context";
-import { getTenant, tenantStorage, type TenantContext } from "./tenant-context";
+import { getTenant, requireTenantId, tenantStorage, type TenantContext } from "./tenant-context";
 
 /**
  * The one Prisma client. A query extension scopes every operation on a tenant
@@ -58,19 +58,69 @@ const FILTER_OPS = new Set([
 ]);
 const UNIQUE_OPS = new Set(["findUnique", "findUniqueOrThrow", "update", "delete", "upsert"]);
 
+/**
+ * Models whose business code is unique per tenant, not globally (P1-00f). Their
+ * primary key is a uuid; the code plus companyId is a `@@unique`, so
+ * `where: { storeId }` alone is no longer a unique selector. The extension
+ * rewrites such selectors to the composite key at runtime and `byCode()` does the
+ * same for the type checker.
+ */
+export const CODE_KEYS = {
+  Store: "storeId",
+  Machine: "machineId",
+  RawMaterial: "rawMaterialId",
+  ProductionOrder: "productionOrderId",
+  WeeklyMachineProgram: "weeklyProgramId",
+  DailyProductionPlan: "dailyPlanId",
+  Location: "locationId",
+  Shift: "shiftCode",
+} as const;
+
+type CodeKeyWhere = {
+  storeId: Prisma.StoreWhereUniqueInput;
+  machineId: Prisma.MachineWhereUniqueInput;
+  rawMaterialId: Prisma.RawMaterialWhereUniqueInput;
+  productionOrderId: Prisma.ProductionOrderWhereUniqueInput;
+  weeklyProgramId: Prisma.WeeklyMachineProgramWhereUniqueInput;
+  dailyPlanId: Prisma.DailyProductionPlanWhereUniqueInput;
+  locationId: Prisma.LocationWhereUniqueInput;
+  shiftCode: Prisma.ShiftWhereUniqueInput;
+};
+
+/**
+ * Unique selector for a code-keyed model in the current tenant:
+ * `prisma.store.findUnique({ where: byCode("storeId", "ST-RM") })`.
+ */
+export function byCode<K extends keyof CodeKeyWhere>(field: K, value: string): CodeKeyWhere[K] {
+  return {
+    [`companyId_${field}`]: { companyId: requireTenantId(), [field]: value },
+  } as unknown as CodeKeyWhere[K];
+}
+
+/** `{ storeId: "X" }` → `{ companyId_storeId: { companyId, storeId: "X" } }` for unique operations. */
+const compositeCodeWhere = (model: string, where: any, companyId: string): any => {
+  const code = (CODE_KEYS as Record<string, string>)[model];
+  if (!code || !where || typeof where !== "object") return where;
+  const value = where[code];
+  if (typeof value !== "string" || where.id !== undefined || where[`companyId_${code}`])
+    return where;
+  const { [code]: _drop, ...rest } = where;
+  return { ...rest, [`companyId_${code}`]: { companyId, [code]: value } };
+};
+
 const withCompany = (data: any, companyId: string) =>
   data && typeof data === "object" && !Array.isArray(data) && data.companyId === undefined
     ? { ...data, companyId }
     : data;
 
 /** Adds the tenant predicate / default to Prisma args for one operation. */
-export const scopeArgs = (operation: string, args: any, companyId: string): any => {
+export const scopeArgs = (operation: string, args: any, companyId: string, model = ""): any => {
   const a = { ...(args ?? {}) };
   if (FILTER_OPS.has(operation)) {
     a.where = a.where ? { AND: [a.where, { companyId }] } : { companyId };
   } else if (UNIQUE_OPS.has(operation)) {
     // Prisma 5+ accepts extra filters next to the unique key (extendedWhereUnique).
-    a.where = { ...(a.where ?? {}), companyId };
+    a.where = { ...compositeCodeWhere(model, a.where ?? {}, companyId), companyId };
     if (operation === "upsert") a.create = withCompany(a.create, companyId);
   } else if (operation === "create") {
     a.data = withCompany(a.data, companyId);
@@ -133,7 +183,7 @@ const extended = base.$extends({
         if (!ctx?.companyId) {
           throw new ApiError(500, `Tenant-scoped ${operation} on ${model} without tenant context`);
         }
-        const scoped = scopeArgs(operation, args, ctx.companyId);
+        const scoped = scopeArgs(operation, args, ctx.companyId, model);
         if (ctx.inTx) {
           return query(scoped); // set_config already ran in this transaction
         }

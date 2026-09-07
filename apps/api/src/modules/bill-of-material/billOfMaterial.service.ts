@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { byCode } from "../../lib/prisma";
 
 class BillOfMaterialService {
   private mapToGroupedBom(boms: any[]) {
@@ -40,24 +41,16 @@ class BillOfMaterialService {
     });
 
     if (existing) {
-      throw new ApiError(
-        400,
-        "Bill Of Material already exists for this product"
-      );
+      throw new ApiError(400, "Bill Of Material already exists for this product");
     }
 
     for (const item of data.items) {
       const rawMaterial = await prisma.rawMaterial.findUnique({
-        where: {
-          rawMaterialId: item.rawMaterialId,
-        },
+        where: byCode("rawMaterialId", item.rawMaterialId),
       });
 
       if (!rawMaterial) {
-        throw new ApiError(
-          404,
-          `Raw Material ${item.rawMaterialId} not found`
-        );
+        throw new ApiError(404, `Raw Material ${item.rawMaterialId} not found`);
       }
     }
 
@@ -148,10 +141,7 @@ class BillOfMaterialService {
     });
 
     if (!boms || boms.length === 0) {
-      throw new ApiError(
-        404,
-        "Bill Of Material not found"
-      );
+      throw new ApiError(404, "Bill Of Material not found");
     }
 
     return this.mapToGroupedBom(boms);
@@ -192,7 +182,7 @@ class BillOfMaterialService {
       return this.mapToGroupedBom(boms);
     });
   }
-  
+
   async delete(productId: number) {
     await this.findById(productId);
 

@@ -1,12 +1,16 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateRawMaterialTransactionInput, UpdateRawMaterialTransactionInput } from "./raw-material-transaction.validation";
+import {
+  CreateRawMaterialTransactionInput,
+  UpdateRawMaterialTransactionInput,
+} from "./raw-material-transaction.validation";
+import { byCode } from "../../lib/prisma";
 
 class RawMaterialTransactionService {
   async create(data: CreateRawMaterialTransactionInput) {
     // Verify store exists
     const store = await prisma.store.findUnique({
-      where: { storeId: data.storeId },
+      where: byCode("storeId", data.storeId),
     });
     if (!store) {
       throw new ApiError(404, `Store with ID ${data.storeId} not found`);
@@ -14,7 +18,7 @@ class RawMaterialTransactionService {
 
     // Verify raw material exists
     const rawMaterial = await prisma.rawMaterial.findUnique({
-      where: { rawMaterialId: data.rawMaterialId },
+      where: byCode("rawMaterialId", data.rawMaterialId),
     });
     if (!rawMaterial) {
       throw new ApiError(404, `Raw Material with ID ${data.rawMaterialId} not found`);
@@ -41,12 +45,12 @@ class RawMaterialTransactionService {
 
       // 2. Update the corresponding Raw Material Stock (which is the RawMaterial itself)
       await tx.rawMaterial.update({
-        where: { rawMaterialId: data.rawMaterialId },
+        where: byCode("rawMaterialId", data.rawMaterialId),
         data: {
           onHandQty: {
             increment: data.qty,
           },
-          lastMovementAt: new Date()
+          lastMovementAt: new Date(),
         },
       });
 
@@ -93,22 +97,22 @@ class RawMaterialTransactionService {
     return prisma.$transaction(async (tx) => {
       // 1. Reverse old stock level
       await tx.rawMaterial.update({
-        where: { rawMaterialId: existing.rawMaterialId },
+        where: byCode("rawMaterialId", existing.rawMaterialId),
         data: {
           onHandQty: {
-            decrement: Number(existing.qty)
-          }
+            decrement: Number(existing.qty),
+          },
         },
       });
 
       // 2. Apply new stock level
       await tx.rawMaterial.update({
-        where: { rawMaterialId: newRawMaterialId },
+        where: byCode("rawMaterialId", newRawMaterialId),
         data: {
           onHandQty: {
-            increment: newQty
+            increment: newQty,
           },
-          lastMovementAt: new Date()
+          lastMovementAt: new Date(),
         },
       });
 
@@ -137,12 +141,12 @@ class RawMaterialTransactionService {
     return prisma.$transaction(async (tx) => {
       // Reverse stock level on delete
       await tx.rawMaterial.update({
-        where: { rawMaterialId: existing.rawMaterialId },
+        where: byCode("rawMaterialId", existing.rawMaterialId),
         data: {
           onHandQty: {
-            decrement: Number(existing.qty)
+            decrement: Number(existing.qty),
           },
-          lastMovementAt: new Date()
+          lastMovementAt: new Date(),
         },
       });
 

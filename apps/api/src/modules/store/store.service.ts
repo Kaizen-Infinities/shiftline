@@ -1,11 +1,12 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { CreateStoreInput, UpdateStoreInput } from "./store.validation";
+import { byCode } from "../../lib/prisma";
 
 class StoreService {
   async create(data: CreateStoreInput, userId?: string) {
     const existing = await prisma.store.findUnique({
-      where: { storeId: data.storeId },
+      where: byCode("storeId", data.storeId),
     });
 
     if (existing) {
@@ -19,7 +20,10 @@ class StoreService {
     });
 
     if (existingName) {
-      throw new ApiError(409, `Store Name "${data.storeName}" already exists. Please use a unique Store Name.`);
+      throw new ApiError(
+        409,
+        `Store Name "${data.storeName}" already exists. Please use a unique Store Name.`
+      );
     }
 
     return prisma.store.create({
@@ -40,15 +44,17 @@ class StoreService {
     });
   }
 
-  async findAll(params: {
-    search?: string;
-    storeCategory?: string;
-    isActive?: boolean;
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-  } = {}) {
+  async findAll(
+    params: {
+      search?: string;
+      storeCategory?: string;
+      isActive?: boolean;
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+    } = {}
+  ) {
     const {
       search,
       storeCategory,
@@ -143,7 +149,7 @@ class StoreService {
 
   async findById(storeId: string) {
     const store = await prisma.store.findUnique({
-      where: { storeId },
+      where: byCode("storeId", storeId),
       include: {
         location: true,
         incharge: {
@@ -178,16 +184,16 @@ class StoreService {
     // If the user is trying to deactivate the store, check for positive stock
     if (data.isActive === false || data.status === "Inactive") {
       const activeRawMaterialStock = await prisma.rawMaterial.findFirst({
-        where: { 
+        where: {
           storeId,
-          onHandQty: { gt: 0 }
+          onHandQty: { gt: 0 },
         },
       });
 
       const activeFinishedGoodsStock = await prisma.finishedGoodsStock.findFirst({
-        where: { 
+        where: {
           storeId,
-          onHandQty: { gt: 0 }
+          onHandQty: { gt: 0 },
         },
       });
 
@@ -208,19 +214,25 @@ class StoreService {
       });
 
       if (existingName) {
-        throw new ApiError(409, `Store Name "${data.storeName}" already exists. Please use a unique Store Name.`);
+        throw new ApiError(
+          409,
+          `Store Name "${data.storeName}" already exists. Please use a unique Store Name.`
+        );
       }
     }
 
     return prisma.store.update({
-      where: { storeId },
+      where: byCode("storeId", storeId),
       data: {
         ...data,
         storeCategory: (data.storeCategory as any) || undefined,
         locationId: data.locationId || undefined,
         storeCode: data.storeCode || undefined,
         locationDesc: data.locationDesc || undefined,
-        inchargeId: data.inchargeId !== undefined && data.inchargeId !== null && data.inchargeId !== "" ? BigInt(data.inchargeId) : undefined,
+        inchargeId:
+          data.inchargeId !== undefined && data.inchargeId !== null && data.inchargeId !== ""
+            ? BigInt(data.inchargeId)
+            : undefined,
         costMethod: data.costMethod || undefined,
         gstPlace: data.gstPlace || undefined,
         status: data.status || undefined,
@@ -241,18 +253,18 @@ class StoreService {
     });
 
     if (rawMaterialCount > 0 || finishedGoodsCount > 0) {
-      throw new ApiError(
-        400,
-        "Cannot delete this store because it is already assigned to stock."
-      );
+      throw new ApiError(400, "Cannot delete this store because it is already assigned to stock.");
     }
 
     try {
       return await prisma.store.delete({
-        where: { storeId },
+        where: byCode("storeId", storeId),
       });
     } catch (error: any) {
-      if (error.code === 'P2003' || (error.message && error.message.includes('foreign key constraint'))) {
+      if (
+        error.code === "P2003" ||
+        (error.message && error.message.includes("foreign key constraint"))
+      ) {
         throw new ApiError(
           400,
           "Cannot delete this store because it is currently in use by other records."

@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
 
 export class MachineOperationAssignmentService {
   /**
@@ -210,7 +211,7 @@ export class MachineOperationAssignmentService {
 
     // 1. Validate Machine existence and active status
     const machine = await prisma.machine.findUnique({
-      where: { machineId },
+      where: byCode("machineId", machineId),
     });
     if (!machine) {
       throw new ApiError(404, `Machine ${machineId} not found`);
@@ -693,7 +694,7 @@ export class MachineOperationAssignmentService {
     const targetDate = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
 
     const shift = await prisma.shift.findUnique({
-      where: { shiftCode },
+      where: byCode("shiftCode", shiftCode),
     });
     if (!shift) {
       throw new ApiError(404, `Shift with code ${shiftCode} not found`);

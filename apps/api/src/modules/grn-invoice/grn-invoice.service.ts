@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
 
 function getUomMultiplier(uom: string = "", baseUom: string = ""): number {
   const u = (uom || "").trim().toLowerCase();
@@ -172,7 +173,7 @@ class GrnInvoiceService {
 
     // Validate store
     const store = await prisma.store.findUnique({
-      where: { storeId: data.storeId },
+      where: byCode("storeId", data.storeId),
     });
     if (!store) {
       throw new ApiError(404, "Store not found");
@@ -333,7 +334,7 @@ class GrnInvoiceService {
 
           for (const item of itemsWithTotals) {
             const rawMaterial = await tx.rawMaterial.findUnique({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
             });
             if (!rawMaterial) {
               throw new ApiError(404, `Raw Material ${item.productId} not found`);
@@ -343,7 +344,7 @@ class GrnInvoiceService {
             if (!itemTypeStr) {
               itemTypeStr = "Raw Material";
               await tx.rawMaterial.update({
-                where: { rawMaterialId: item.productId },
+                where: byCode("rawMaterialId", item.productId),
                 data: {
                   itemType: "Raw Material",
                   flaggedForReview: true,
@@ -381,7 +382,7 @@ class GrnInvoiceService {
             });
 
             await tx.rawMaterial.update({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
               data: {
                 onHandQty: {
                   increment: receivedQtyNum,
@@ -439,7 +440,7 @@ class GrnInvoiceService {
           for (const poItem of po.items) {
             const item = itemsWithTotals.find((i) => i.productId === poItem.productId);
             const poRawMaterial = await tx.rawMaterial.findUnique({
-              where: { rawMaterialId: poItem.productId },
+              where: byCode("rawMaterialId", poItem.productId),
             });
             const currentRec = Number(poItem.receivedQty) || 0;
             const mult = item ? getUomMultiplier(item.uom, poRawMaterial?.baseUom) : 1;
@@ -809,7 +810,7 @@ class GrnInvoiceService {
 
         for (const item of existing.items) {
           const rawMaterial = await tx.rawMaterial.findUnique({
-            where: { rawMaterialId: item.productId },
+            where: byCode("rawMaterialId", item.productId),
           });
           if (!rawMaterial) continue;
 
@@ -844,7 +845,7 @@ class GrnInvoiceService {
           });
 
           await tx.rawMaterial.update({
-            where: { rawMaterialId: item.productId },
+            where: byCode("rawMaterialId", item.productId),
             data: {
               onHandQty: {
                 decrement: revertQtyNum,
@@ -892,7 +893,7 @@ class GrnInvoiceService {
 
         for (const item of itemsToCreate) {
           const rawMaterial = await tx.rawMaterial.findUnique({
-            where: { rawMaterialId: item.productId },
+            where: byCode("rawMaterialId", item.productId),
           });
           if (!rawMaterial) {
             throw new ApiError(404, `Raw Material ${item.productId} not found`);
@@ -902,7 +903,7 @@ class GrnInvoiceService {
           if (!itemTypeStr) {
             itemTypeStr = "Raw Material";
             await tx.rawMaterial.update({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
               data: {
                 itemType: "Raw Material",
                 flaggedForReview: true,
@@ -940,7 +941,7 @@ class GrnInvoiceService {
           });
 
           await tx.rawMaterial.update({
-            where: { rawMaterialId: item.productId },
+            where: byCode("rawMaterialId", item.productId),
             data: {
               onHandQty: {
                 increment: newQtyNum,
@@ -1014,7 +1015,7 @@ class GrnInvoiceService {
 
           for (const item of existing.items) {
             const rawMaterial = await tx.rawMaterial.findUnique({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
             });
             if (!rawMaterial) continue;
 
@@ -1049,7 +1050,7 @@ class GrnInvoiceService {
             });
 
             await tx.rawMaterial.update({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
               data: {
                 onHandQty: {
                   decrement: revertQtyNum,
@@ -1097,7 +1098,7 @@ class GrnInvoiceService {
 
           for (const item of itemsToCreate) {
             const rawMaterial = await tx.rawMaterial.findUnique({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
             });
             if (!rawMaterial) {
               throw new ApiError(404, `Raw Material ${item.productId} not found`);
@@ -1107,7 +1108,7 @@ class GrnInvoiceService {
             if (!itemTypeStr) {
               itemTypeStr = "Raw Material";
               await tx.rawMaterial.update({
-                where: { rawMaterialId: item.productId },
+                where: byCode("rawMaterialId", item.productId),
                 data: {
                   itemType: "Raw Material",
                   flaggedForReview: true,
@@ -1145,7 +1146,7 @@ class GrnInvoiceService {
             });
 
             await tx.rawMaterial.update({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
               data: {
                 onHandQty: {
                   increment: newQtyNum,
@@ -1225,7 +1226,7 @@ class GrnInvoiceService {
 
           for (const item of existing.items) {
             const rawMaterial = await tx.rawMaterial.findUnique({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
             });
             if (!rawMaterial) continue;
 
@@ -1260,7 +1261,7 @@ class GrnInvoiceService {
             });
 
             await tx.rawMaterial.update({
-              where: { rawMaterialId: item.productId },
+              where: byCode("rawMaterialId", item.productId),
               data: {
                 onHandQty: {
                   decrement: revertQtyNum,

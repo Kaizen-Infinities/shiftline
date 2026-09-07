@@ -21,6 +21,7 @@ import rawMaterialService from "../raw-material/raw-material.service";
 import supplierService from "../supplier/supplier.service";
 import { notify } from "../notifications/notify";
 import { normaliseHeader, parseCsv, toCsv } from "./imports.csv";
+import { byCode } from "../../lib/prisma";
 import {
   IMPORT_TYPE_DEFS,
   MAX_ROWS,
@@ -730,14 +731,14 @@ class ImportsService {
     } else {
       await prisma.$transaction(async (tx) => {
         const current = await tx.rawMaterial.findUniqueOrThrow({
-          where: { rawMaterialId: d.itemCode },
+          where: byCode("rawMaterialId", d.itemCode),
         });
         const data: Prisma.RawMaterialUpdateInput = {
           onHandQty: { increment: qty },
           lastMovementAt: date,
         };
-        if (!current.storeId) data.store = { connect: { storeId: d.store } };
-        await tx.rawMaterial.update({ where: { rawMaterialId: d.itemCode }, data });
+        if (!current.storeId) data.store = { connect: byCode("storeId", d.store) };
+        await tx.rawMaterial.update({ where: byCode("rawMaterialId", d.itemCode), data });
         await tx.rawMaterialTransaction.create({
           data: {
             storeId: d.store,

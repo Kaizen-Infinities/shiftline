@@ -1,12 +1,16 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateRawMaterialStockInput, UpdateRawMaterialStockInput } from "./raw-material-stock.validation";
+import {
+  CreateRawMaterialStockInput,
+  UpdateRawMaterialStockInput,
+} from "./raw-material-stock.validation";
+import { byCode } from "../../lib/prisma";
 
 class RawMaterialStockService {
   async create(data: CreateRawMaterialStockInput) {
     // Verify store exists
     const store = await prisma.store.findUnique({
-      where: { storeId: data.storeId },
+      where: byCode("storeId", data.storeId),
     });
     if (!store) {
       throw new ApiError(404, `Store with ID ${data.storeId} not found`);
@@ -14,7 +18,7 @@ class RawMaterialStockService {
 
     // Verify raw material exists
     const rawMaterial = await prisma.rawMaterial.findUnique({
-      where: { rawMaterialId: data.rawMaterialId },
+      where: byCode("rawMaterialId", data.rawMaterialId),
     });
     if (!rawMaterial) {
       throw new ApiError(404, `Raw Material with ID ${data.rawMaterialId} not found`);
@@ -22,7 +26,7 @@ class RawMaterialStockService {
 
     // In the updated schema, raw material stock is part of the RawMaterial model itself
     return prisma.rawMaterial.update({
-      where: { rawMaterialId: data.rawMaterialId },
+      where: byCode("rawMaterialId", data.rawMaterialId),
       data: {
         storeId: data.storeId,
         locationId: data.locationId ?? rawMaterial.locationId,
@@ -80,9 +84,9 @@ class RawMaterialStockService {
     if (query?.search) {
       andConditions.push({
         OR: [
-          { materialName: { contains: query.search, mode: 'insensitive' } },
-          { rawMaterialId: { contains: query.search, mode: 'insensitive' } },
-          { batchNo: { contains: query.search, mode: 'insensitive' } },
+          { materialName: { contains: query.search, mode: "insensitive" } },
+          { rawMaterialId: { contains: query.search, mode: "insensitive" } },
+          { batchNo: { contains: query.search, mode: "insensitive" } },
         ],
       });
     }
@@ -120,18 +124,15 @@ class RawMaterialStockService {
 
   async findById(id: string) {
     const stock = await prisma.rawMaterial.findUnique({
-      where: { rawMaterialId: id },
+      where: byCode("rawMaterialId", id),
       include: {
         store: true,
-        category: true
+        category: true,
       },
     });
 
     if (!stock) {
-      throw new ApiError(
-        404,
-        `Raw Material with ID ${id} not found`
-      );
+      throw new ApiError(404, `Raw Material with ID ${id} not found`);
     }
 
     return stock;
@@ -141,7 +142,7 @@ class RawMaterialStockService {
     const existing = await this.findById(id);
 
     return prisma.rawMaterial.update({
-      where: { rawMaterialId: id },
+      where: byCode("rawMaterialId", id),
       data: {
         onHandQty: data.onHandQty ?? existing.onHandQty,
         reservedQty: data.reservedQty ?? existing.reservedQty,
@@ -162,12 +163,12 @@ class RawMaterialStockService {
 
     // Instead of deleting the raw material, we zero out its stock fields
     return prisma.rawMaterial.update({
-      where: { rawMaterialId: id },
+      where: byCode("rawMaterialId", id),
       data: {
         onHandQty: 0,
         reservedQty: 0,
-        lastMovementAt: new Date()
-      }
+        lastMovementAt: new Date(),
+      },
     });
   }
   async deductForPurchaseReturn(
@@ -213,7 +214,6 @@ class RawMaterialStockService {
           remarks: `Deducted ${item.quantity} units for Purchase Return ${refDocNo}`,
         },
       });
-
     }
   }
 }

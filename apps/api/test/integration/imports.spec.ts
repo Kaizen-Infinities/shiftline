@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
 import { asDemoTenant } from "../factories";
+import { byCode } from "../../src/lib/prisma";
 
 /**
  * CSV imports (P1-00 part 3): templates, dry-run validation with row-level
@@ -244,7 +245,7 @@ describe("csv imports", () => {
       expect(product.finishedGoodsStocks).toHaveLength(1);
       expect(Number(product.finishedGoodsStocks[0].onHandQty)).toBe(5000);
       const rm = await prisma.rawMaterial.findUniqueOrThrow({
-        where: { rawMaterialId: `IR${sfx}-1` },
+        where: byCode("rawMaterialId", `IR${sfx}-1`),
       });
       expect(Number(rm.onHandQty)).toBe(1200);
       expect(rm.storeId).toBe(rmStore);
@@ -338,7 +339,8 @@ describe("csv imports", () => {
     }));
     const beforeRm = await asDemoTenant(async () =>
       Number(
-        (await prisma.rawMaterial.findUniqueOrThrow({ where: { rawMaterialId: rmId } })).onHandQty
+        (await prisma.rawMaterial.findUniqueOrThrow({ where: byCode("rawMaterialId", rmId) }))
+          .onHandQty
       )
     );
 
@@ -374,7 +376,9 @@ describe("csv imports", () => {
           where: { productItemId: product.id, storeId: fgStore, txnType: "OPENING_STOCK" },
         })
       ).toBe(1);
-      const rm = await prisma.rawMaterial.findUniqueOrThrow({ where: { rawMaterialId: rmId } });
+      const rm = await prisma.rawMaterial.findUniqueOrThrow({
+        where: byCode("rawMaterialId", rmId),
+      });
       expect(Number(rm.onHandQty)).toBe(beforeRm + 750);
     });
 

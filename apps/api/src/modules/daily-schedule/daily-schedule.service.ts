@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { GetDailyScheduleQueryInput } from "./daily-schedule.validation";
+import { byCode } from "../../lib/prisma";
 
 class DailyScheduleService {
   async getDailySchedule(query: GetDailyScheduleQueryInput) {
@@ -8,7 +9,7 @@ class DailyScheduleService {
 
     // Verify machine exists
     const machine = await prisma.machine.findUnique({
-      where: { machineId },
+      where: byCode("machineId", machineId),
     });
 
     if (!machine) {
@@ -64,17 +65,23 @@ class DailyScheduleService {
     };
 
     // Grouping structure
-    const scheduleMap = new Map<number, {
-      dayOfWeek: number;
-      dayName: string;
-      shiftsMap: Map<string, {
-        shiftId: string;
-        shiftName: string;
-        startTime: string;
-        endTime: string;
-        items: any[];
-      }>;
-    }>();
+    const scheduleMap = new Map<
+      number,
+      {
+        dayOfWeek: number;
+        dayName: string;
+        shiftsMap: Map<
+          string,
+          {
+            shiftId: string;
+            shiftName: string;
+            startTime: string;
+            endTime: string;
+            items: any[];
+          }
+        >;
+      }
+    >();
 
     for (const prog of programs) {
       const dayNum = prog.dayOfWeek;
@@ -113,7 +120,10 @@ class DailyScheduleService {
         productionOrderId: prog.productionOrderId,
         productName: prog.productionOrder?.productItem?.productName || "Unknown Product",
         plannedQty: Number(prog.plannedQty),
-        plannedHours: prog.plannedHours !== null && prog.plannedHours !== undefined ? Number(prog.plannedHours) : null,
+        plannedHours:
+          prog.plannedHours !== null && prog.plannedHours !== undefined
+            ? Number(prog.plannedHours)
+            : null,
         priority: prog.priority,
         status: prog.status,
         machineId: machine.machineId,

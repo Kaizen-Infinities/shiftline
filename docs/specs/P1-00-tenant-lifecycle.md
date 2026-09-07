@@ -166,7 +166,41 @@ state and 404 across users; unread filter and read-all; everyone-except and expl
 admin ids skipped; cursor paging; invitation acceptance notifies the inviter; import commit leaves
 a record. 126 API tests.
 
-## Part 3c — surrogate keys (planned)
+## Part 3c — tenant-scoped business codes and the Prisma decision (2026-09-07)
 
-uuid primary keys for the seven code-keyed models; Prisma 8 upgrade evaluation; retire the legacy
-password-by-email user creation.
+**Problem.** Store, Machine, RawMaterial, ProductionOrder, WeeklyMachineProgram, DailyProductionPlan
+and Location used their business code as the primary key, and Shift had a global unique on
+`shiftCode`. A primary key is unique across the whole database, so tenant B could not create machine
+`M-01` once tenant A had one, and every foreign key to these rows pointed at a global code.
+
+**Change** (migration `20260907030000_tenant_scoped_codes`). Each of the eight models now has a
+uuid primary key (`id`, `gen_random_uuid()` at the database so existing rows fill in) and
+`@@unique([companyId, <code>])`. All 47 relations that pointed at a code now pair it with
+`companyId` on both sides (`fields: [companyId, storeId], references: [companyId, storeId]`), so a
+row can only reference a store, machine, order, program, plan, material, location or shift in its
+own tenant, enforced by the database as well as by RLS. Column names, API paths (`/stores/:storeId`)
+and payloads are unchanged: codes remain what users type and what the web app sends; responses
+carry the extra `id`.
+
+**Code.** `where: { storeId }` is no longer a unique selector. `byCode("storeId", value)` in
+`lib/prisma.ts` returns the composite selector for the current tenant and is used at the 176 unique
+lookups a tsc-driven codemod rewrote; the tenant extension also rewrites the legacy shape at
+runtime (`CODE_KEYS`), so untyped callers keep working. Nested `connect: { storeId }` became
+`connect: byCode(...)`. The audit trigger on `raw_materials` records the uuid as `entityId` now.
+`RawMaterial.create` also stopped using `connect` for its foreign keys (part 3a), which the
+tenancy extension could not combine with the injected `companyId`.
+
+**Tests.** `tenant-codes.spec.ts` (4): a second tenant reuses the demo tenant's store, machine,
+shift and raw-material codes and its material resolves to its own store; typed and legacy lookups
+stay inside the caller's tenant; the API serves each tenant its own row for the same code; a
+reference to another tenant's store code fails on the composite foreign key. 133 API tests; the leak
+suite's tenant B no longer needs prefixed codes (kept for readability).
+
+**Prisma 7/8.** Evaluated in `docs/decisions/2026-09-07-prisma-7-8.md`: stay on 6.19.x through
+Phase 1; Prisma 7.10 still ships the allowlisted deepmerge-ts, and 7+ removes the runtime DMMF the
+tenancy extension and the RLS/audit generators rely on. The move is scheduled as its own package
+after Gate 1 with a checklist.
+
+**Left for later.** `POST /api/users` with an emailed password is still mounted; the Users screen
+gains an Invite button and the legacy path is removed together (P1-02 admin console work touches
+that screen).

@@ -9,6 +9,7 @@ export { ROLE_DEFS };
 import { prisma } from "../src/config/prisma";
 import { hashPassword } from "../src/utils/hashPassword";
 import { runAsTenant, withoutTenant } from "../src/lib/tenant-context";
+import { byCode } from "../src/lib/prisma";
 
 export interface SeedTenantOptions {
   companyCode: string;
@@ -152,7 +153,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
         gracePeriod: 10,
       },
     ]) {
-      await prisma.shift.upsert({ where: { shiftCode: s.shiftCode }, update: {}, create: s });
+      await prisma.shift.upsert({ where: byCode("shiftCode", s.shiftCode), update: {}, create: s });
     }
     const shiftA = await prisma.shift.findFirstOrThrow({ where: { shiftCode: `${P}A` } });
     for (const u of [
@@ -224,7 +225,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       },
     ]) {
       await prisma.store.upsert({
-        where: { storeId: s.storeId },
+        where: byCode("storeId", s.storeId),
         update: {},
         create: { ...s, businessPlaceId: factory.id, createdBy: owner },
       });
@@ -249,7 +250,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       },
     ]) {
       await prisma.rawMaterial.upsert({
-        where: { rawMaterialId: r.rawMaterialId },
+        where: byCode("rawMaterialId", r.rawMaterialId),
         update: {},
         create: {
           ...r,
@@ -371,7 +372,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       },
     ]) {
       await prisma.machine.upsert({
-        where: { machineId: m.machineId },
+        where: byCode("machineId", m.machineId),
         update: {},
         create: {
           ...m,

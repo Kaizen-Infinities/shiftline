@@ -100,7 +100,7 @@ model Employee {
   stores                     Store[]
   user                       User?
   role                       Role?                        @relation(fields: [roleId], references: [id])
-  shift                      Shift?                       @relation(fields: [shiftId], references: [shiftCode])
+  shift                      Shift?                       @relation(fields: [companyId, shiftId], references: [companyId, shiftCode])
   payrollConfig              EmployeePayrollConfig?
   payrollResults             PayrollResult[]
   salaryAdvances             SalaryAdvance[]
@@ -723,7 +723,7 @@ model SupplierAddress {
 model Shift {
   id                   Int                          @id @default(autoincrement())
   companyId            String                       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  shiftCode            String                       @unique
+  shiftCode            String
   shiftName            String
   startTime            String
   endTime              String
@@ -744,6 +744,7 @@ model Shift {
   company Company @relation("CompanyShift", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, shiftName])
+  @@unique([companyId, shiftCode])
   @@map("shifts")
 }
 
@@ -846,7 +847,7 @@ model SalesProductStock {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   salesProduct SalesProduct @relation(fields: [salesProductId], references: [id], onDelete: Cascade)
-  store        Store        @relation(fields: [storeId], references: [storeId])
+  store        Store        @relation(fields: [companyId, storeId], references: [companyId, storeId])
 
   company Company @relation("CompanySalesProductStock", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -914,7 +915,8 @@ model UnitOfMeasure {
 }
 
 model Location {
-  locationId   String   @id @map("location_id") @db.VarChar(20)
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  locationId   String   @map("location_id") @db.VarChar(20)
   companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   locationCode String   @map("location_code") @db.VarChar(30)
   locationName String   @map("location_name") @db.VarChar(100)
@@ -933,13 +935,15 @@ model Location {
   company Company @relation("CompanyLocation", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, locationCode])
+  @@unique([companyId, locationId])
   @@index([locationCode])
   @@index([isActive])
   @@map("locations")
 }
 
 model Machine {
-  machineId             String                       @id @map("machine_id") @db.VarChar(20)
+  id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  machineId             String                       @map("machine_id") @db.VarChar(20)
   companyId             String                       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   machineName           String                       @map("machine_name") @db.VarChar(100)
   technologyType        TechnologyType?
@@ -968,12 +972,14 @@ model Machine {
 
   company Company @relation("CompanyMachine", fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, machineId])
   @@index([companyId])
   @@map("machines")
 }
 
 model Store {
-  storeId                   String                     @id @map("store_id") @db.VarChar(20)
+  id                        String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  storeId                   String                     @map("store_id") @db.VarChar(20)
   companyId                 String                     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   storeName                 String                     @map("store_name") @db.VarChar(120)
   storeCategory             StoreCategory?             @map("store_category")
@@ -1004,11 +1010,12 @@ model Store {
   storeLocations            StoreLocation[]
   businessPlace             BusinessPlace?             @relation(fields: [businessPlaceId], references: [id])
   incharge                  Employee?                  @relation(fields: [inchargeId], references: [id])
-  location                  Location?                  @relation(fields: [locationId], references: [locationId])
+  location                  Location?                  @relation(fields: [companyId, locationId], references: [companyId, locationId])
 
   company Company @relation("CompanyStore", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, storeCode])
+  @@unique([companyId, storeId])
   @@index([isActive])
   @@index([locationId])
   @@map("stores")
@@ -1027,7 +1034,7 @@ model StoreLocation {
   RawMaterial  RawMaterial[]
   parent       StoreLocation?  @relation("StoreLocationToParent", fields: [parentId], references: [id])
   children     StoreLocation[] @relation("StoreLocationToParent")
-  store        Store           @relation(fields: [storeId], references: [storeId], onDelete: Cascade)
+  store        Store           @relation(fields: [companyId, storeId], references: [companyId, storeId], onDelete: Cascade)
 
   company Company @relation("CompanyStoreLocation", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1036,7 +1043,8 @@ model StoreLocation {
 }
 
 model RawMaterial {
-  rawMaterialId           String                   @id @map("raw_material_id") @db.VarChar(20)
+  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rawMaterialId           String                   @map("raw_material_id") @db.VarChar(20)
   companyId               String                   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   materialName            String                   @map("material_name") @db.VarChar(100)
   baseUom                 String                   @map("base_uom") @db.VarChar(50)
@@ -1066,12 +1074,13 @@ model RawMaterial {
   rawMaterialTransactions RawMaterialTransaction[]
   storeLocation           StoreLocation?           @relation(fields: [locationId], references: [id])
   purchaseReturnItems     PurchaseReturnItem[]
-  store                   Store?                   @relation("StoreToRawMaterial", fields: [storeId], references: [storeId])
+  store                   Store?                   @relation("StoreToRawMaterial", fields: [companyId, storeId], references: [companyId, storeId])
   StockAdjustmentItem     StockAdjustmentItem[]
   category                Category?                @relation(fields: [categoryId], references: [id])
 
   company Company @relation("CompanyRawMaterial", fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, rawMaterialId])
   @@index([storeId])
   @@index([locationId])
   @@index([isActive])
@@ -1091,7 +1100,7 @@ model BillOfMaterial {
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
   product          Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  rawMaterial      RawMaterial @relation(fields: [rawMaterialId], references: [rawMaterialId])
+  rawMaterial      RawMaterial @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId])
 
   company Company @relation("CompanyBillOfMaterial", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1109,7 +1118,7 @@ model FinishedGoodsStock {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   product       Product  @relation(fields: [productItemId], references: [id])
-  store         Store    @relation(fields: [storeId], references: [storeId])
+  store         Store    @relation(fields: [companyId, storeId], references: [companyId, storeId])
 
   company Company @relation("CompanyFinishedGoodsStock", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1136,8 +1145,8 @@ model FinishedGoodsTransaction {
   createdAt         DateTime         @default(now()) @map("created_at")
   createdBy         String?          @map("created_by") @db.VarChar(36)
   product           Product          @relation(fields: [productItemId], references: [id])
-  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [productionOrderId])
-  store             Store            @relation(fields: [storeId], references: [storeId])
+  productionOrder   ProductionOrder? @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId])
+  store             Store            @relation(fields: [companyId, storeId], references: [companyId, storeId])
 
   company Company @relation("CompanyFinishedGoodsTransaction", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1150,7 +1159,8 @@ model FinishedGoodsTransaction {
 }
 
 model ProductionOrder {
-  productionOrderId         String                     @id @map("production_order_id") @db.VarChar(20)
+  id                        String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productionOrderId         String                     @map("production_order_id") @db.VarChar(20)
   companyId                 String                     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   orderDate                 DateTime                   @map("order_date")
   productItemId             BigInt                     @map("product_item_id")
@@ -1189,7 +1199,7 @@ model ProductionOrder {
   goodsDispatchItems        GoodsDispatchItem[]
   hourlyProductions         HourlyProduction[]
   productionOrderHistories  ProductionOrderHistory[]
-  Machine                   Machine?                   @relation(fields: [machineMachineId], references: [machineId])
+  Machine                   Machine?                   @relation(fields: [companyId, machineMachineId], references: [companyId, machineId])
   productItem               Product                    @relation(fields: [productItemId], references: [id])
   productionWastages        ProductionWastage[]
   rawMaterialTransactions   RawMaterialTransaction[]
@@ -1199,6 +1209,7 @@ model ProductionOrder {
 
   company Company @relation("CompanyProductionOrder", fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, productionOrderId])
   @@index([orderDate])
   @@index([dueDate])
   @@index([productItemId])
@@ -1231,7 +1242,7 @@ model GoodsDispatch {
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   items              GoodsDispatchItem[]
-  store              Store?              @relation(fields: [destinationStoreId], references: [storeId])
+  store              Store?              @relation(fields: [companyId, destinationStoreId], references: [companyId, storeId])
 
   company Company @relation("CompanyGoodsDispatch", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1258,8 +1269,8 @@ model MachineOperationAssignment {
   operators          MachineAssignmentOperator[]
   inchargeEmployee   Employee?                   @relation("InchargeEmployeeAssignments", fields: [inchargeEmployeeId], references: [id])
   inchargeRole       Role?                       @relation("InchargeRoleAssignments", fields: [inchargeRoleId], references: [id])
-  machine            Machine                     @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
-  shift              Shift?                      @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+  machine            Machine                     @relation(fields: [companyId, machineId], references: [companyId, machineId], onDelete: Cascade)
+  shift              Shift?                      @relation(fields: [companyId, shiftId], references: [companyId, shiftCode], onDelete: Cascade)
 
   company Company @relation("CompanyMachineOperationAssignment", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1302,7 +1313,7 @@ model GoodsDispatchItem {
   remarks           String?         @db.VarChar(255)
   dispatch          GoodsDispatch   @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
   product           Product         @relation(fields: [productItemId], references: [id])
-  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [productionOrderId])
+  productionOrder   ProductionOrder @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId])
 
   company Company @relation("CompanyGoodsDispatchItem", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1313,7 +1324,8 @@ model GoodsDispatchItem {
 }
 
 model WeeklyMachineProgram {
-  weeklyProgramId      String                @id @map("weekly_program_id") @db.VarChar(20)
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  weeklyProgramId      String                @map("weekly_program_id") @db.VarChar(20)
   companyId            String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   weekStartDate        DateTime              @map("week_start_date") @db.Date
   weekEndDate          DateTime              @map("week_end_date") @db.Date
@@ -1336,14 +1348,15 @@ model WeeklyMachineProgram {
   sequenceNo           Int                   @default(1) @map("sequence_no")
   setupHours           Decimal?              @map("setup_hours") @db.Decimal(10, 2)
   dailyProductionPlans DailyProductionPlan[]
-  machine              Machine?              @relation(fields: [machineId], references: [machineId])
+  machine              Machine?              @relation(fields: [companyId, machineId], references: [companyId, machineId])
   Product              Product?              @relation("ProductWeeklyPrograms", fields: [productId], references: [id])
-  productionOrder      ProductionOrder       @relation(fields: [productionOrderId], references: [productionOrderId])
-  shift                Shift?                @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+  productionOrder      ProductionOrder       @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId])
+  shift                Shift?                @relation(fields: [companyId, shiftId], references: [companyId, shiftCode], onDelete: Cascade)
 
   company Company @relation("CompanyWeeklyMachineProgram", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, machineId, shiftId, weekStartDate, dayOfWeek, sequenceNo])
+  @@unique([companyId, weeklyProgramId])
   @@index([productionOrderId])
   @@index([machineId])
   @@index([shiftId])
@@ -1373,10 +1386,10 @@ model HourlyProduction {
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
   dailyPlanId        String?              @map("daily_plan_id") @db.VarChar(50)
-  dailyPlan          DailyProductionPlan? @relation(fields: [dailyPlanId], references: [dailyPlanId])
-  machine            Machine              @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
-  productionOrder    ProductionOrder      @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
-  shift              Shift                @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
+  dailyPlan          DailyProductionPlan? @relation(fields: [companyId, dailyPlanId], references: [companyId, dailyPlanId])
+  machine            Machine              @relation(fields: [companyId, machineId], references: [companyId, machineId], onDelete: Cascade)
+  productionOrder    ProductionOrder      @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId], onDelete: Cascade)
+  shift              Shift                @relation(fields: [companyId, shiftId], references: [companyId, shiftCode], onDelete: Cascade)
   productionWastages ProductionWastage[]
 
   company Company @relation("CompanyHourlyProduction", fields: [companyId], references: [id], onDelete: Restrict)
@@ -1390,7 +1403,8 @@ model HourlyProduction {
 }
 
 model DailyProductionPlan {
-  dailyPlanId            String                @id @map("daily_plan_id") @db.VarChar(50)
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dailyPlanId            String                @map("daily_plan_id") @db.VarChar(50)
   companyId              String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   weeklyProgramId        String                @map("weekly_program_id") @db.VarChar(20)
   productionOrderId      String                @map("production_order_id") @db.VarChar(20)
@@ -1410,16 +1424,17 @@ model DailyProductionPlan {
   updatedAt              DateTime              @updatedAt @map("updated_at")
   createdBy              String?               @map("created_by") @db.VarChar(36)
   updatedBy              String?               @map("updated_by") @db.VarChar(36)
-  carryForwardFrom       DailyProductionPlan?  @relation("CarryForwardChain", fields: [carryForwardFromPlanId], references: [dailyPlanId])
+  carryForwardFrom       DailyProductionPlan?  @relation("CarryForwardChain", fields: [companyId, carryForwardFromPlanId], references: [companyId, dailyPlanId])
   carryForwardTo         DailyProductionPlan[] @relation("CarryForwardChain")
-  machine                Machine               @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
-  productionOrder        ProductionOrder       @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
-  shift                  Shift                 @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
-  weeklyMachineProgram   WeeklyMachineProgram  @relation(fields: [weeklyProgramId], references: [weeklyProgramId], onDelete: Cascade)
+  machine                Machine               @relation(fields: [companyId, machineId], references: [companyId, machineId], onDelete: Cascade)
+  productionOrder        ProductionOrder       @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId], onDelete: Cascade)
+  shift                  Shift                 @relation(fields: [companyId, shiftId], references: [companyId, shiftCode], onDelete: Cascade)
+  weeklyMachineProgram   WeeklyMachineProgram  @relation(fields: [companyId, weeklyProgramId], references: [companyId, weeklyProgramId], onDelete: Cascade)
   hourlyProductions      HourlyProduction[]
 
   company Company @relation("CompanyDailyProductionPlan", fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, dailyPlanId])
   @@index([weeklyProgramId])
   @@index([productionOrderId])
   @@index([machineId])
@@ -1442,9 +1457,9 @@ model RawMaterialTransaction {
   remarks           String?          @map("remarks") @db.VarChar(255)
   createdAt         DateTime         @default(now()) @map("created_at")
   productionOrderId String?          @map("production_order_id") @db.VarChar(20)
-  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [productionOrderId])
-  rawMaterial       RawMaterial      @relation(fields: [rawMaterialId], references: [rawMaterialId], onDelete: Cascade)
-  store             Store            @relation(fields: [storeId], references: [storeId], onDelete: Cascade)
+  productionOrder   ProductionOrder? @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId])
+  rawMaterial       RawMaterial      @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId], onDelete: Cascade)
+  store             Store            @relation(fields: [companyId, storeId], references: [companyId, storeId], onDelete: Cascade)
 
   company Company @relation("CompanyRawMaterialTransaction", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1662,7 +1677,7 @@ model GrnInvoice {
   items                GrnInvoiceItem[]
   paymentRecords       GrnInvoicePayment[]
   purchaseOrder        PurchaseOrder?      @relation(fields: [poId], references: [id])
-  store                Store               @relation(fields: [storeId], references: [storeId])
+  store                Store               @relation(fields: [companyId, storeId], references: [companyId, storeId])
   supplier             Supplier            @relation(fields: [supplierId], references: [id])
   purchaseReturns      PurchaseReturn[]
 
@@ -1698,7 +1713,7 @@ model GrnInvoiceItem {
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
   grnInvoice     GrnInvoice  @relation(fields: [grnInvoiceId], references: [id], onDelete: Cascade)
-  rawMaterial    RawMaterial @relation(fields: [productId], references: [rawMaterialId])
+  rawMaterial    RawMaterial @relation(fields: [companyId, productId], references: [companyId, rawMaterialId])
 
   company Company @relation("CompanyGrnInvoiceItem", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1761,13 +1776,13 @@ model ProductionWastage {
   storeId                String?           @map("store_id") @db.VarChar(20)
   categoryId             Int?              @map("category_id")
   hourlyProduction       HourlyProduction? @relation(fields: [hourlyProductionId], references: [hourlyProductionId])
-  machine                Machine           @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
+  machine                Machine           @relation(fields: [companyId, machineId], references: [companyId, machineId], onDelete: Cascade)
   product                Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productionOrder        ProductionOrder   @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
-  rawMaterial            RawMaterial?      @relation(fields: [rawMaterialId], references: [rawMaterialId])
-  shift                  Shift             @relation(fields: [shiftId], references: [shiftCode], onDelete: Cascade)
-  store                  Store?            @relation(fields: [storeId], references: [storeId])
-  targetWastageProduct   RawMaterial?      @relation("TargetWastageProduct", fields: [targetWastageProductId], references: [rawMaterialId])
+  productionOrder        ProductionOrder   @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId], onDelete: Cascade)
+  rawMaterial            RawMaterial?      @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId])
+  shift                  Shift             @relation(fields: [companyId, shiftId], references: [companyId, shiftCode], onDelete: Cascade)
+  store                  Store?            @relation(fields: [companyId, storeId], references: [companyId, storeId])
+  targetWastageProduct   RawMaterial?      @relation("TargetWastageProduct", fields: [companyId, targetWastageProductId], references: [companyId, rawMaterialId])
   category               Category?         @relation(fields: [categoryId], references: [id])
 
   company Company @relation("CompanyProductionWastage", fields: [companyId], references: [id], onDelete: Restrict)
@@ -1802,7 +1817,7 @@ model StockAdjustment {
   type              String?               @map("type") @db.VarChar(50)
   productionOrderId String?               @map("production_order_id") @db.VarChar(20)
   items             StockAdjustmentItem[]
-  productionOrder   ProductionOrder?      @relation(fields: [productionOrderId], references: [productionOrderId])
+  productionOrder   ProductionOrder?      @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId])
 
   company Company @relation("CompanyStockAdjustment", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1829,9 +1844,9 @@ model StockAdjustmentItem {
   unitCost          Decimal?         @map("unit_cost") @db.Decimal(14, 2)
   batchNo           String?          @map("batch_no") @db.VarChar(40)
   product           Product?         @relation(fields: [productItemId], references: [id])
-  rawMaterial       RawMaterial?     @relation(fields: [rawMaterialId], references: [rawMaterialId])
+  rawMaterial       RawMaterial?     @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId])
   stockAdjustment   StockAdjustment  @relation(fields: [stockAdjustmentId], references: [id], onDelete: Cascade)
-  store             Store            @relation(fields: [storeId], references: [storeId])
+  store             Store            @relation(fields: [companyId, storeId], references: [companyId, storeId])
 
   company Company @relation("CompanyStockAdjustmentItem", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1852,7 +1867,7 @@ model ProductionOrderHistory {
   remarks           String?         @db.VarChar(500)
   action            String?         @map("action") @db.VarChar(100)
   metadata          Json?           @map("metadata")
-  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [productionOrderId], onDelete: Cascade)
+  productionOrder   ProductionOrder @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId], onDelete: Cascade)
 
   company Company @relation("CompanyProductionOrderHistory", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1939,7 +1954,7 @@ model SalesInvoice {
   paymentRecords       SalesInvoicePayment[]
   customer             Customer              @relation(fields: [customerId], references: [id])
   salesOrder           SalesOrder?           @relation(fields: [salesOrderId], references: [id])
-  store                Store?                @relation(fields: [storeId], references: [storeId])
+  store                Store?                @relation(fields: [companyId, storeId], references: [companyId, storeId])
   salesReturns         SalesReturn[]
 
   company Company @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
@@ -2027,7 +2042,7 @@ model MachineOeeSnapshot {
   quality        Decimal  @map("quality") @db.Decimal(5, 2)
   oeePercent     Decimal  @map("oee_percent") @db.Decimal(5, 2)
   calculatedAt   DateTime @default(now()) @map("calculated_at")
-  machine        Machine  @relation(fields: [machineId], references: [machineId], onDelete: Cascade)
+  machine        Machine  @relation(fields: [companyId, machineId], references: [companyId, machineId], onDelete: Cascade)
 
   company Company @relation("CompanyMachineOeeSnapshot", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2088,9 +2103,9 @@ model ProductShiftRecord {
   isHighest         Boolean         @default(true) @map("is_highest")
   createdAt         DateTime        @default(now()) @map("created_at")
   product           Product         @relation(fields: [productId], references: [id])
-  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [productionOrderId])
-  machine           Machine         @relation(fields: [machineId], references: [machineId])
-  shift             Shift           @relation(fields: [shiftId], references: [shiftCode])
+  productionOrder   ProductionOrder @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId])
+  machine           Machine         @relation(fields: [companyId, machineId], references: [companyId, machineId])
+  shift             Shift           @relation(fields: [companyId, shiftId], references: [companyId, shiftCode])
 
   company Company @relation("CompanyProductShiftRecord", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2588,7 +2603,7 @@ model PurchaseReturnItem {
   lineTotal        Decimal        @db.Decimal(14, 2)
   reason           String?        @db.VarChar(255)
   purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
-  rawMaterial      RawMaterial    @relation(fields: [rawMaterialId], references: [rawMaterialId])
+  rawMaterial      RawMaterial    @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId])
 
   company Company @relation("CompanyPurchaseReturnItem", fields: [companyId], references: [id], onDelete: Restrict)
 

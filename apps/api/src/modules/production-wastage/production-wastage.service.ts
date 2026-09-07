@@ -1,13 +1,17 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateProductionWastageInput, UpdateProductionWastageInput } from "./production-wastage.validation";
+import {
+  CreateProductionWastageInput,
+  UpdateProductionWastageInput,
+} from "./production-wastage.validation";
+import { byCode } from "../../lib/prisma";
 
 class ProductionWastageService {
   private async enrichWithApprovedByUser(wastage: any) {
     if (!wastage || !wastage.approvedBy) return wastage;
     const user = await prisma.user.findUnique({
       where: { userId: wastage.approvedBy },
-      select: { userId: true, fullName: true, username: true }
+      select: { userId: true, fullName: true, username: true },
     });
     return { ...wastage, approvedByUser: user ?? null };
   }
@@ -17,12 +21,12 @@ class ProductionWastageService {
     if (userIds.length === 0) return wastages;
     const users = await prisma.user.findMany({
       where: { userId: { in: userIds } },
-      select: { userId: true, fullName: true, username: true }
+      select: { userId: true, fullName: true, username: true },
     });
     const userMap = new Map(users.map((u) => [u.userId, u]));
     return wastages.map((w: any) => ({
       ...w,
-      approvedByUser: w.approvedBy ? (userMap.get(w.approvedBy) ?? null) : null
+      approvedByUser: w.approvedBy ? (userMap.get(w.approvedBy) ?? null) : null,
     }));
   }
 
@@ -63,7 +67,7 @@ class ProductionWastageService {
 
     // 1. Verify Production Order
     const po = await prisma.productionOrder.findUnique({
-      where: { productionOrderId: data.productionOrderId }
+      where: byCode("productionOrderId", data.productionOrderId),
     });
     if (!po) {
       throw new ApiError(404, `Production Order with ID ${data.productionOrderId} not found`);
@@ -71,11 +75,11 @@ class ProductionWastageService {
 
     // 1b. Verify no duplicate wastage for this Production Order and Shift on this date
     const existingWastage = await prisma.productionWastage.findFirst({
-      where: { 
+      where: {
         productionOrderId: data.productionOrderId,
         shiftId: data.shiftId,
-        wastageDate: wDate
-      }
+        wastageDate: wDate,
+      },
     });
     if (existingWastage) {
       throw new ApiError(409, `A wastage log already exists for this shift on ${data.wastageDate}`);
@@ -83,7 +87,7 @@ class ProductionWastageService {
 
     // 2. Verify Machine
     const machine = await prisma.machine.findUnique({
-      where: { machineId: data.machineId }
+      where: byCode("machineId", data.machineId),
     });
     if (!machine) {
       throw new ApiError(404, `Machine with ID ${data.machineId} not found`);
@@ -91,7 +95,7 @@ class ProductionWastageService {
 
     // 3. Verify Shift
     const shift = await prisma.shift.findUnique({
-      where: { shiftCode: data.shiftId }
+      where: byCode("shiftCode", data.shiftId),
     });
     if (!shift) {
       throw new ApiError(404, `Shift with Code ${data.shiftId} not found`);
@@ -99,7 +103,7 @@ class ProductionWastageService {
 
     // 4. Verify Product
     const product = await prisma.product.findUnique({
-      where: { id: BigInt(data.productId) }
+      where: { id: BigInt(data.productId) },
     });
     if (!product) {
       throw new ApiError(404, `Product with ID ${data.productId} not found`);
@@ -108,7 +112,7 @@ class ProductionWastageService {
     // 5. Verify Raw Material (Optional)
     if (data.rawMaterialId) {
       const rm = await prisma.rawMaterial.findUnique({
-        where: { rawMaterialId: data.rawMaterialId }
+        where: byCode("rawMaterialId", data.rawMaterialId),
       });
       if (!rm) {
         throw new ApiError(404, `Raw Material with ID ${data.rawMaterialId} not found`);
@@ -120,7 +124,7 @@ class ProductionWastageService {
     if (finalEstimatedValue === null) {
       if (data.rawMaterialId) {
         const rm = await prisma.rawMaterial.findUnique({
-          where: { rawMaterialId: data.rawMaterialId }
+          where: byCode("rawMaterialId", data.rawMaterialId),
         });
         if (rm?.rate) {
           finalEstimatedValue = Number(rm.rate) * data.quantity;
@@ -166,7 +170,7 @@ class ProductionWastageService {
         product: { include: { category: true } },
         rawMaterial: { include: { category: true } },
         category: true,
-      }
+      },
     });
   }
 
@@ -196,8 +200,8 @@ class ProductionWastageService {
       include: {
         productionOrder: {
           include: {
-            productItem: true
-          }
+            productItem: true,
+          },
         },
         machine: true,
         shift: true,
@@ -206,8 +210,8 @@ class ProductionWastageService {
         category: true,
       },
       orderBy: {
-        createdAt: "desc"
-      }
+        createdAt: "desc",
+      },
     };
 
     if (page !== undefined && limit !== undefined) {
@@ -234,15 +238,15 @@ class ProductionWastageService {
       include: {
         productionOrder: {
           include: {
-            productItem: true
-          }
+            productItem: true,
+          },
         },
         machine: true,
         shift: true,
         product: { include: { category: true } },
         rawMaterial: { include: { category: true } },
         category: true,
-      }
+      },
     });
 
     if (!record) {
@@ -260,7 +264,7 @@ class ProductionWastageService {
     }
 
     const updatedData: any = {
-      updatedBy: userId
+      updatedBy: userId,
     };
 
     if (data.wastageDate) {
@@ -268,12 +272,16 @@ class ProductionWastageService {
       updatedData.wastageDate = new Date(Date.UTC(yyyy, mm - 1, dd));
     }
     if (data.productionOrderId) updatedData.productionOrderId = data.productionOrderId;
-    if (data.hourlyProductionId !== undefined) updatedData.hourlyProductionId = data.hourlyProductionId ? BigInt(data.hourlyProductionId) : null;
+    if (data.hourlyProductionId !== undefined)
+      updatedData.hourlyProductionId = data.hourlyProductionId
+        ? BigInt(data.hourlyProductionId)
+        : null;
     if (data.machineId) updatedData.machineId = data.machineId;
     if (data.shiftId) updatedData.shiftId = data.shiftId;
     if (data.productId) updatedData.productId = BigInt(data.productId);
     if (data.rawMaterialId !== undefined) updatedData.rawMaterialId = data.rawMaterialId ?? null;
-    if (data.targetWastageProductId !== undefined) updatedData.targetWastageProductId = data.targetWastageProductId ?? null;
+    if (data.targetWastageProductId !== undefined)
+      updatedData.targetWastageProductId = data.targetWastageProductId ?? null;
     if (data.storeId !== undefined) updatedData.storeId = data.storeId ?? null;
     if (data.wastageType) updatedData.wastageType = data.wastageType;
     if (data.quantity !== undefined) updatedData.quantity = data.quantity;
@@ -296,7 +304,7 @@ class ProductionWastageService {
         product: { include: { category: true } },
         rawMaterial: { include: { category: true } },
         category: true,
-      }
+      },
     });
   }
 
@@ -308,7 +316,7 @@ class ProductionWastageService {
     }
 
     return prisma.productionWastage.delete({
-      where: { id }
+      where: { id },
     });
   }
 
@@ -326,7 +334,7 @@ class ProductionWastageService {
         data: {
           status: "APPROVED",
           approvedBy: userId,
-          approvedAt: new Date()
+          approvedAt: new Date(),
         },
         include: {
           productionOrder: true,
@@ -336,24 +344,24 @@ class ProductionWastageService {
           rawMaterial: { include: { category: true } },
           targetWastageProduct: true,
           category: true,
-        }
+        },
       });
 
       // 2. Increase Stock for Target Wastage Product
       if (existing.targetWastageProductId) {
         const targetProduct = await tx.rawMaterial.findUnique({
-          where: { rawMaterialId: existing.targetWastageProductId }
+          where: byCode("rawMaterialId", existing.targetWastageProductId),
         });
 
         if (targetProduct) {
           const qty = existing.quantity;
 
           await tx.rawMaterial.update({
-            where: { rawMaterialId: existing.targetWastageProductId },
+            where: byCode("rawMaterialId", existing.targetWastageProductId),
             data: {
               onHandQty: { increment: qty },
-              lastMovementAt: new Date()
-            }
+              lastMovementAt: new Date(),
+            },
           });
 
           // 3. Record Stock Ledger Transaction
@@ -365,7 +373,7 @@ class ProductionWastageService {
               qty: qty,
               remarks: `Received from Wastage Audit Log #${existing.wastageNo}`,
               productionOrderId: existing.productionOrderId,
-            }
+            },
           });
         }
       }
@@ -386,7 +394,7 @@ class ProductionWastageService {
       data: {
         status: "REJECTED",
         approvedBy: userId,
-        approvedAt: new Date()
+        approvedAt: new Date(),
       },
       include: {
         productionOrder: true,
@@ -395,7 +403,7 @@ class ProductionWastageService {
         product: { include: { category: true } },
         rawMaterial: { include: { category: true } },
         category: true,
-      }
+      },
     });
     return this.enrichWithApprovedByUser(updated);
   }

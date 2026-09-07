@@ -3,11 +3,12 @@ import { ApiError } from "../../utils/ApiError";
 import { CreateWeeklyProgramInput, UpdateWeeklyProgramInput } from "./weekly-program.validation";
 import { StatusSyncService } from "../../utils/status-sync.util";
 import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
 
 class WeeklyProgramService {
   async create(data: CreateWeeklyProgramInput, userId?: string) {
     const existingId = await prisma.weeklyMachineProgram.findUnique({
-      where: { weeklyProgramId: data.weeklyProgramId },
+      where: byCode("weeklyProgramId", data.weeklyProgramId),
     });
 
     if (existingId) {
@@ -53,9 +54,7 @@ class WeeklyProgramService {
       }
     }
     const productionOrder = await prisma.productionOrder.findUnique({
-      where: {
-        productionOrderId: data.productionOrderId,
-      },
+      where: byCode("productionOrderId", data.productionOrderId),
       include: {
         productItem: {
           include: { billOfMaterials: { include: { rawMaterial: true } } },
@@ -77,7 +76,7 @@ class WeeklyProgramService {
       orderProducedQtyCheck < orderTargetQtyCheck
     ) {
       await prisma.productionOrder.update({
-        where: { productionOrderId: data.productionOrderId },
+        where: byCode("productionOrderId", data.productionOrderId),
         data: { status: "PARTIAL_COMPLETED" },
       });
       (productionOrder as any).status = "PARTIAL_COMPLETED";
@@ -150,9 +149,7 @@ class WeeklyProgramService {
 
     if (data.machineId) {
       const machine = await prisma.machine.findUnique({
-        where: {
-          machineId: data.machineId,
-        },
+        where: byCode("machineId", data.machineId),
       });
 
       if (!machine) {
@@ -162,9 +159,7 @@ class WeeklyProgramService {
 
     if (data.shiftId) {
       const shift = await prisma.shift.findUnique({
-        where: {
-          shiftCode: data.shiftId,
-        },
+        where: byCode("shiftCode", data.shiftId),
       });
 
       if (!shift) {
@@ -231,11 +226,11 @@ class WeeklyProgramService {
             if (reserveAmount > 0 && rm.rawMaterialId) {
               try {
                 const stock = await tx.rawMaterial.findUnique({
-                  where: { rawMaterialId: String(rm.rawMaterialId) },
+                  where: byCode("rawMaterialId", String(rm.rawMaterialId)),
                 });
                 if (stock) {
                   await tx.rawMaterial.update({
-                    where: { rawMaterialId: String(rm.rawMaterialId) },
+                    where: byCode("rawMaterialId", String(rm.rawMaterialId)),
                     data: {
                       reservedQty: { increment: reserveAmount },
                     },
@@ -318,7 +313,7 @@ class WeeklyProgramService {
 
   async findById(weeklyProgramId: string) {
     const weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
-      where: { weeklyProgramId },
+      where: byCode("weeklyProgramId", weeklyProgramId),
       include: {
         productionOrder: {
           include: {
@@ -359,7 +354,7 @@ class WeeklyProgramService {
       data.plannedQty !== undefined ? Number(data.plannedQty) : Number(existingProgram.plannedQty);
 
     const productionOrder = await prisma.productionOrder.findUnique({
-      where: { productionOrderId: checkProductionOrderId },
+      where: byCode("productionOrderId", checkProductionOrderId),
     });
 
     if (!productionOrder) {
@@ -422,7 +417,7 @@ class WeeklyProgramService {
       }
 
       const res = await tx.weeklyMachineProgram.update({
-        where: { weeklyProgramId },
+        where: byCode("weeklyProgramId", weeklyProgramId),
         data: updateData,
         include: {
           productionOrder: true,
@@ -785,7 +780,7 @@ class WeeklyProgramService {
       async (tx) => {
         // 1. Un-reserve raw materials
         const productionOrder = await tx.productionOrder.findUnique({
-          where: { productionOrderId: weeklyProgram.productionOrderId },
+          where: byCode("productionOrderId", weeklyProgram.productionOrderId),
           include: {
             productItem: {
               include: { billOfMaterials: { include: { rawMaterial: true } } },
@@ -814,12 +809,12 @@ class WeeklyProgramService {
               if (reserveAmount > 0 && rm.rawMaterialId) {
                 try {
                   const stock = await tx.rawMaterial.findUnique({
-                    where: { rawMaterialId: String(rm.rawMaterialId) },
+                    where: byCode("rawMaterialId", String(rm.rawMaterialId)),
                   });
                   if (stock) {
                     const newReserved = Math.max(0, Number(stock.reservedQty) - reserveAmount);
                     await tx.rawMaterial.update({
-                      where: { rawMaterialId: String(rm.rawMaterialId) },
+                      where: byCode("rawMaterialId", String(rm.rawMaterialId)),
                       data: { reservedQty: newReserved },
                     });
                   }
@@ -833,7 +828,7 @@ class WeeklyProgramService {
 
         // 2. Delete the program
         await tx.weeklyMachineProgram.delete({
-          where: { weeklyProgramId },
+          where: byCode("weeklyProgramId", weeklyProgramId),
         });
 
         // 3. Sync Production Order Status (reverts to READY_FOR_PLANNING if no schedules left)

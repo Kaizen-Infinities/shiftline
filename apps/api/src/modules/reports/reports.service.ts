@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { byCode } from "../../lib/prisma";
 
 class ReportsService {
   /**
@@ -72,10 +73,7 @@ class ReportsService {
         return sum + orderSum;
       }, 0);
 
-      const totalTargetQty = productionOrders.reduce(
-        (sum, po) => sum + Number(po.targetQty),
-        0
-      );
+      const totalTargetQty = productionOrders.reduce((sum, po) => sum + Number(po.targetQty), 0);
 
       // Determine machine status
       let status = "IDLE";
@@ -126,12 +124,15 @@ class ReportsService {
     const end = endDate ? new Date(endDate) : undefined;
 
     const weeklyPrograms = await prisma.weeklyMachineProgram.findMany({
-      where: start && end ? {
-        weekStartDate: {
-          gte: start,
-          lte: end,
-        }
-      } : undefined,
+      where:
+        start && end
+          ? {
+              weekStartDate: {
+                gte: start,
+                lte: end,
+              },
+            }
+          : undefined,
       orderBy: { weekStartDate: "desc" },
       include: {
         machine: true,
@@ -145,9 +146,11 @@ class ReportsService {
     });
 
     return weeklyPrograms.map((wp) => {
-      const totalActualQty = wp.productionOrder ? wp.productionOrder.hourlyProductions.reduce((sum: number, hp: any) => {
-        return sum + Number(hp.qtyProduced);
-      }, 0) : 0;
+      const totalActualQty = wp.productionOrder
+        ? wp.productionOrder.hourlyProductions.reduce((sum: number, hp: any) => {
+            return sum + Number(hp.qtyProduced);
+          }, 0)
+        : 0;
 
       const plannedQty = Number(wp.plannedQty);
 
@@ -163,9 +166,7 @@ class ReportsService {
         plannedQty,
         totalActualQty,
         progressPercentage:
-          plannedQty > 0
-            ? parseFloat(((totalActualQty / plannedQty) * 100).toFixed(2))
-            : 0,
+          plannedQty > 0 ? parseFloat(((totalActualQty / plannedQty) * 100).toFixed(2)) : 0,
         productionOrdersCount: wp.productionOrder ? 1 : 0,
         status: wp.status,
         remarks: wp.remarks,
@@ -178,7 +179,7 @@ class ReportsService {
    */
   async getProductionOrderReport(productionOrderId: string) {
     const order = await prisma.productionOrder.findUnique({
-      where: { productionOrderId },
+      where: byCode("productionOrderId", productionOrderId),
       include: {
         Machine: true,
         productItem: true,
@@ -222,15 +223,15 @@ class ReportsService {
       uom: order.uom,
       weeklyProgramId: null,
       sourceSalesOrderId: order.sourceSalesOrderId,
-      sourceSalesOrderLineId: order.sourceSalesOrderLineId ? order.sourceSalesOrderLineId.toString() : null,
+      sourceSalesOrderLineId: order.sourceSalesOrderLineId
+        ? order.sourceSalesOrderLineId.toString()
+        : null,
       status: order.status,
       remarks: order.remarks,
       totalQtyProduced,
       remainingQty: Math.max(0, targetQty - totalQtyProduced),
       progressPercentage:
-        targetQty > 0
-          ? parseFloat(((totalQtyProduced / targetQty) * 100).toFixed(2))
-          : 0,
+        targetQty > 0 ? parseFloat(((totalQtyProduced / targetQty) * 100).toFixed(2)) : 0,
       hourlyBreakdown,
     };
   }
@@ -260,11 +261,12 @@ class ReportsService {
       if (end) whereClause.orderDate.lte = end;
     }
 
-    if (orderNo) whereClause.orderNo = { contains: orderNo, mode: 'insensitive' };
+    if (orderNo) whereClause.orderNo = { contains: orderNo, mode: "insensitive" };
     if (customerId) whereClause.customerId = customerId;
     if (status) whereClause.status = status;
-    if (salesPersonName) whereClause.salesPersonName = { contains: salesPersonName, mode: 'insensitive' };
-    if (orderType) whereClause.orderType = { contains: orderType, mode: 'insensitive' };
+    if (salesPersonName)
+      whereClause.salesPersonName = { contains: salesPersonName, mode: "insensitive" };
+    if (orderType) whereClause.orderType = { contains: orderType, mode: "insensitive" };
     if (productionStatus) whereClause.productionStatus = productionStatus;
 
     const skip = (page - 1) * limit;
@@ -282,17 +284,17 @@ class ReportsService {
               displayName: true,
               firmName: true,
               customerCode: true,
-            }
+            },
           },
           items: {
             include: {
               product: {
-                select: { productName: true, productCode: true }
-              }
-            }
+                select: { productName: true, productCode: true },
+              },
+            },
           },
         },
-      })
+      }),
     ]);
 
     const mappedData = salesOrders.map((so) => {
@@ -313,10 +315,10 @@ class ReportsService {
         totalSgst: Number(so.totalSgst || 0),
         totalIgst: Number(so.totalIgst || 0),
         items: so.items.map((item: any) => ({
-          productName: item.product?.productName || 'Unknown',
+          productName: item.product?.productName || "Unknown",
           quantity: Number(item.quantity || 0),
-          uom: item.product?.uomId || ''
-        }))
+          uom: item.product?.uomId || "",
+        })),
       };
     });
 
@@ -324,7 +326,7 @@ class ReportsService {
       data: mappedData,
       total,
       page,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -348,7 +350,7 @@ class ReportsService {
       if (end) whereClause.poDate.lte = end;
     }
 
-    if (poNumber) whereClause.poNumber = { contains: poNumber, mode: 'insensitive' };
+    if (poNumber) whereClause.poNumber = { contains: poNumber, mode: "insensitive" };
     if (supplierId) whereClause.supplierId = supplierId;
     if (status) whereClause.status = status;
 
@@ -367,11 +369,11 @@ class ReportsService {
               displayName: true,
               legalName: true,
               supplierCode: true,
-            }
+            },
           },
           items: true,
         },
-      })
+      }),
     ]);
 
     const mappedData = purchaseOrders.map((po) => {
@@ -382,13 +384,15 @@ class ReportsService {
         expectedDeliveryDate: po.expectedDeliveryDate,
         supplierName: po.supplier?.displayName || po.supplier?.legalName || "Unknown",
         supplierCode: po.supplier?.supplierCode || "Unknown",
-        billingAddress: `${po.billingAddressLine1 || ''} ${po.billingCity || ''} ${po.billingState || ''} ${po.billingPincode || ''}`.trim(),
-        shippingAddress: `${po.shippingAddressLine1 || ''} ${po.shippingCity || ''} ${po.shippingState || ''} ${po.shippingPincode || ''}`.trim(),
+        billingAddress:
+          `${po.billingAddressLine1 || ""} ${po.billingCity || ""} ${po.billingState || ""} ${po.billingPincode || ""}`.trim(),
+        shippingAddress:
+          `${po.shippingAddressLine1 || ""} ${po.shippingCity || ""} ${po.shippingState || ""} ${po.shippingPincode || ""}`.trim(),
         itemsCount: po.items.length,
         items: po.items.map((item: any) => ({
           productId: item.productId,
           quantity: Number(item.quantity || 0),
-          uom: item.uom || ''
+          uom: item.uom || "",
         })),
         totalDiscount: Number(po.totalDiscount || 0),
         totalTax: Number(po.totalTax || 0),
@@ -404,7 +408,7 @@ class ReportsService {
       data: mappedData,
       total,
       page,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 }

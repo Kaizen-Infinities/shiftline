@@ -2,11 +2,12 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { executeDeleteWithValidation } from "../../utils/deleteValidation";
 import { CreateRawMaterialInput, UpdateRawMaterialInput } from "./raw-material.validation";
+import { byCode } from "../../lib/prisma";
 
 class RawMaterialService {
   async create(data: CreateRawMaterialInput, userId?: string) {
     const existingId = await prisma.rawMaterial.findUnique({
-      where: { rawMaterialId: data.rawMaterialId },
+      where: byCode("rawMaterialId", data.rawMaterialId),
     });
 
     if (existingId) {
@@ -138,7 +139,7 @@ class RawMaterialService {
 
   async findById(rawMaterialId: string) {
     const rawMaterial = await prisma.rawMaterial.findUnique({
-      where: { rawMaterialId },
+      where: byCode("rawMaterialId", rawMaterialId),
       include: {
         store: true,
         category: true,
@@ -183,12 +184,12 @@ class RawMaterialService {
       if (storeId === null) {
         updateData.store = { disconnect: true };
       } else {
-        updateData.store = { connect: { storeId: storeId } };
+        updateData.store = { connect: byCode("storeId", storeId) };
       }
     }
 
     return prisma.rawMaterial.update({
-      where: { rawMaterialId },
+      where: byCode("rawMaterialId", rawMaterialId),
       data: updateData,
     });
   }
@@ -209,7 +210,7 @@ class RawMaterialService {
 
     // Hard Delete with Prisma error boundary
     return executeDeleteWithValidation(
-      () => prisma.rawMaterial.delete({ where: { rawMaterialId } }),
+      () => prisma.rawMaterial.delete({ where: byCode("rawMaterialId", rawMaterialId) }),
       "Raw Material"
     );
   }

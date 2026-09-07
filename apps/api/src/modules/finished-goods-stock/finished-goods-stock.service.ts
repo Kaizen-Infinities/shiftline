@@ -1,6 +1,10 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateFinishedGoodsStockInput, UpdateFinishedGoodsStockInput } from "./finished-goods-stock.validation";
+import {
+  CreateFinishedGoodsStockInput,
+  UpdateFinishedGoodsStockInput,
+} from "./finished-goods-stock.validation";
+import { byCode } from "../../lib/prisma";
 
 class FinishedGoodsStockService {
   async create(data: CreateFinishedGoodsStockInput) {
@@ -8,7 +12,7 @@ class FinishedGoodsStockService {
 
     // Verify store exists
     const store = await prisma.store.findUnique({
-      where: { storeId: data.storeId },
+      where: byCode("storeId", data.storeId),
     });
     if (!store) {
       throw new ApiError(404, `Store with ID ${data.storeId} not found`);
@@ -51,7 +55,13 @@ class FinishedGoodsStockService {
     });
   }
 
-  async findAll(query?: { page?: number; limit?: number; storeId?: string; search?: string; categoryId?: string }) {
+  async findAll(query?: {
+    page?: number;
+    limit?: number;
+    storeId?: string;
+    search?: string;
+    categoryId?: string;
+  }) {
     const page = query?.page;
     const limit = query?.limit;
     const storeId = query?.storeId;
@@ -75,8 +85,8 @@ class FinishedGoodsStockService {
       whereClause.product = {
         ...(whereClause.product || {}),
         OR: [
-          { productName: { contains: search, mode: 'insensitive' } },
-          { productCode: { contains: search, mode: 'insensitive' } },
+          { productName: { contains: search, mode: "insensitive" } },
+          { productCode: { contains: search, mode: "insensitive" } },
         ],
       };
     }
