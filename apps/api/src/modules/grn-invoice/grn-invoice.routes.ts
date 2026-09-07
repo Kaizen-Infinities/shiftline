@@ -63,4 +63,12 @@ router.delete(
   grnInvoiceController.delete
 );
 
+router.post(
+  "/:id/cancel",
+  authMiddleware,
+  requireFeature("purchase"),
+  validateMiddleware(grnInvoiceIdRequestSchema),
+  grnInvoiceController.delete
+);
+
 export default router;

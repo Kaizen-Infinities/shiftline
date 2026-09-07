@@ -2,6 +2,8 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { logger } from "../../lib/logger";
 import { computeExpenseTax } from "./expense.tax";
+import { periodService } from "../accounts/period.service";
+import { cancellationService } from "../accounts/cancellation.service";
 
 const TAX_KEYS = [
   "businessPlaceId",
@@ -35,6 +37,7 @@ class ExpenseService {
       );
     }
 
+    await periodService.assertPostingAllowed(new Date(data.date), currentUser);
     const tax = await computeExpenseTax(prisma, { ...data, amount: Number(data.amount) });
     const newExpense = await prisma.expense.create({
       data: {
@@ -177,6 +180,9 @@ class ExpenseService {
    */
   async updateExpense(id: string, data: any, companyId: string) {
     const expense = await this.getExpenseById(id, companyId);
+    if (expense.cancelledAt) throw new ApiError(409, "Cancelled expenses cannot be edited");
+    await periodService.assertPostingAllowed(expense.date);
+    if (data.date) await periodService.assertPostingAllowed(new Date(data.date));
 
     if (data.expenseNumber && data.expenseNumber !== expense.expenseNumber) {
       const existing = await prisma.expense.findFirst({
@@ -228,14 +234,13 @@ class ExpenseService {
       },
     });
 
-    // Delete old EXPENSE voucher and re-post with updated data
+    // Cancel (reverse) the old EXPENSE voucher and post a fresh one for the updated figures (P1-09).
     try {
       const oldVoucher = await prisma.voucher.findFirst({
-        where: { refDocType: "EXPENSE", refDocId: id },
+        where: { refDocType: "EXPENSE", refDocId: id, status: "POSTED" },
       });
       if (oldVoucher) {
-        await prisma.journalItem.deleteMany({ where: { voucherId: oldVoucher.id } });
-        await prisma.voucher.delete({ where: { id: oldVoucher.id } });
+        await cancellationService.cancelVoucher(oldVoucher.id, { reason: "Expense edited" });
       }
       const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postExpenseVoucher(id, updatedExpense.paymentMethod);
@@ -267,35 +272,55 @@ class ExpenseService {
   /**
    * Deletes an expense by ID.
    */
-  async deleteExpense(id: string, companyId: string) {
+  /**
+   * P1-09: an expense is cancelled, never deleted. Its voucher is reversed and the mirrored
+   * petty-cash entry is cancelled with it.
+   */
+  async cancelExpense(
+    id: string,
+    companyId: string,
+    actor: { userId?: string; isSuperAdmin?: boolean } = {},
+    reason?: string | null
+  ) {
     const expense = await this.getExpenseById(id, companyId);
-
-    // Delete associated EXPENSE voucher and its journal items
-    try {
-      const voucher = await prisma.voucher.findFirst({
-        where: { refDocType: "EXPENSE", refDocId: id },
-      });
-      if (voucher) {
-        await prisma.journalItem.deleteMany({ where: { voucherId: voucher.id } });
-        await prisma.voucher.delete({ where: { id: voucher.id } });
-      }
-    } catch (voucherErr) {
-      logger.error({ err: voucherErr }, "[Expense Voucher Delete Error]:");
+    if (expense.cancelledAt) {
+      throw new ApiError(
+        409,
+        `Expense ${expense.expenseNumber} is already cancelled`,
+        "ALREADY_CANCELLED"
+      );
     }
-
-    // Delete corresponding petty cash entry if exists
-    try {
-      const pcEntryNo = `PC-EXP-${expense.expenseNumber}`;
-      await prisma.pettyCashEntry.deleteMany({
-        where: { entryNo: pcEntryNo },
+    return prisma.$transaction(async (tx) => {
+      await cancellationService.cancelVouchersFor(["EXPENSE"], [id], { reason, actor }, tx);
+      await tx.pettyCashEntry.updateMany({
+        where: { entryNo: `PC-EXP-${expense.expenseNumber}`, cancelledAt: null },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelledBy: actor.userId ?? null,
+          cancelReason: reason?.trim() || `Expense ${expense.expenseNumber} cancelled`,
+        },
       });
-    } catch (pcErr) {
-      logger.error({ err: pcErr }, "[Petty Cash Delete Error]:");
-    }
-
-    return prisma.expense.delete({
-      where: { id },
+      return tx.expense.update({
+        where: { id },
+        data: {
+          status: "Cancelled",
+          cancelledAt: new Date(),
+          cancelledBy: actor.userId ?? null,
+          cancelReason: reason?.trim() || null,
+        },
+      });
     });
+  }
+
+  /** Kept for the DELETE route: deleting an expense now means cancelling it. */
+  async deleteExpense(
+    id: string,
+    companyId: string,
+    actor: { userId?: string; isSuperAdmin?: boolean } = {},
+    reason?: string | null
+  ) {
+    return this.cancelExpense(id, companyId, actor, reason);
   }
 
   /**

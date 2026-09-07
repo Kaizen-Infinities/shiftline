@@ -8,6 +8,8 @@ import crypto from "crypto";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
 import { documentNumberService } from "../documents/document-number.service";
+import { periodService } from "../accounts/period.service";
+import { cancellationService } from "../accounts/cancellation.service";
 import { splitGst } from "../gst/gst.calc";
 import {
   cessOn,
@@ -163,6 +165,7 @@ class GrnInvoiceService {
       throw new ApiError(404, "Store not found");
     }
 
+    await periodService.assertPostingAllowed(new Date(data.grnDate), currentUser);
     const gst = await purchaseGstContext(prisma, data, supplier);
     const discountType = data.discountType || "PERCENT";
     const discountValue = Number(data.discountValue) || 0;
@@ -581,6 +584,9 @@ class GrnInvoiceService {
     if (!existing) {
       throw new ApiError(404, "GRN Invoice not found");
     }
+    if (existing.cancelledAt) throw new ApiError(409, "Cancelled GRNs cannot be edited");
+    await periodService.assertPostingAllowed(existing.grnDate);
+    if (data.grnDate) await periodService.assertPostingAllowed(new Date(data.grnDate));
 
     const items = data.items
       ? typeof data.items === "string"
@@ -1216,8 +1222,21 @@ class GrnInvoiceService {
     return updated;
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
-  async deleteGrnInvoice(id: string) {
+  /** Kept for the DELETE route: deleting a GRN now means cancelling it. */
+  async deleteGrnInvoice(
+    id: string,
+    actor: { userId?: string; isSuperAdmin?: boolean } = {},
+    reason?: string | null
+  ) {
+    return this.cancelGrnInvoice(id, actor, reason);
+  }
+
+  // ── Cancel (P1-09: a GRN is never deleted; it is cancelled and its vouchers reversed) ──
+  async cancelGrnInvoice(
+    id: string,
+    actor: { userId?: string; isSuperAdmin?: boolean } = {},
+    reason?: string | null
+  ) {
     const existing = await prisma.grnInvoice.findUnique({
       where: { id },
       include: { items: true },
@@ -1226,9 +1245,25 @@ class GrnInvoiceService {
     if (!existing) {
       throw new ApiError(404, "GRN Invoice not found");
     }
+    if (existing.cancelledAt) {
+      throw new ApiError(
+        409,
+        `GRN ${existing.grnNumber} is already cancelled`,
+        "ALREADY_CANCELLED"
+      );
+    }
 
     return prisma.$transaction(
       async (tx) => {
+        const payments: any[] = Array.isArray(existing.payments)
+          ? (existing.payments as any[])
+          : [];
+        await cancellationService.cancelVouchersFor(
+          ["GRN_INVOICE", "GRN_PAYMENT"],
+          [existing.id, ...payments.map((p) => String(p.id)).filter(Boolean)],
+          { reason, actor },
+          tx
+        );
         if (existing.updateStock) {
           const revAdjustmentNumber = `ADJ-REV-${existing.grnNumber}`;
           const revAdjustmentItems = [];
@@ -1266,7 +1301,7 @@ class GrnInvoiceService {
               difference: -revertQtyNum,
               unitCost: Number(item.unitPrice),
               batchNo: rawMaterial.batchNo || null,
-              remarks: `Reversal of GRN ${existing.grnNumber} due to deletion`,
+              remarks: `Reversal of GRN ${existing.grnNumber} on cancellation`,
             });
 
             await tx.rawMaterial.update({
@@ -1285,7 +1320,7 @@ class GrnInvoiceService {
                 txnType: "STOCK_ADJUSTMENT_OUT",
                 qty: revertQtyNum,
                 txnDateTime: new Date(),
-                remarks: `GRN Deleted: ${existing.grnNumber}`,
+                remarks: `GRN cancelled: ${existing.grnNumber}`,
               },
             });
           }
@@ -1295,7 +1330,7 @@ class GrnInvoiceService {
               data: {
                 adjustmentNumber: revAdjustmentNumber,
                 adjustmentDate: new Date(),
-                reason: `Auto-generated Reversal on Deletion of Bill: ${existing.invoiceNo}`,
+                reason: `Reversal on cancellation of bill: ${existing.invoiceNo}`,
                 status: "APPROVED",
                 approvedBy: existing.createdBy,
                 approvedAt: new Date(),
@@ -1358,8 +1393,14 @@ class GrnInvoiceService {
         }
 
         // Delete the invoice (items will Cascade delete)
-        await tx.grnInvoice.delete({
+        await tx.grnInvoice.update({
           where: { id },
+          data: {
+            status: "CANCELLED",
+            cancelledAt: new Date(),
+            cancelledBy: actor.userId ?? null,
+            cancelReason: reason?.trim() || null,
+          },
         });
       },
       { timeout: 30000, maxWait: 10000 }

@@ -1,12 +1,6 @@
 import { prisma } from "../../config/prisma";
 
-export const createRole = async (
-  data: {
-    code: string;
-    name: string;
-    description?: string;
-  }
-) => {
+export const createRole = async (data: { code: string; name: string; description?: string }) => {
   return prisma.role.create({
     data,
   });
@@ -25,10 +19,12 @@ export const getAllRoles = async (page?: number, limit?: number, search?: string
   if (search) {
     where.AND = [
       { NOT: SUPER_ADMIN_FILTER },
-      { OR: [
-        { code: { contains: search, mode: "insensitive" } },
-        { name: { contains: search, mode: "insensitive" } },
-      ]},
+      {
+        OR: [
+          { code: { contains: search, mode: "insensitive" } },
+          { name: { contains: search, mode: "insensitive" } },
+        ],
+      },
     ];
     delete where.NOT; // replaced by AND above
   }
@@ -56,9 +52,7 @@ export const getAllRoles = async (page?: number, limit?: number, search?: string
   return { roles, total: roles.length };
 };
 
-export const getRoleById = async (
-  id: number
-) => {
+export const getRoleById = async (id: number) => {
   return prisma.role.findUnique({
     where: {
       id,
@@ -73,6 +67,7 @@ export const updateRole = async (
     name?: string;
     description?: string;
     status?: "active" | "inactive";
+    backdateDays?: number | null;
   }
 ) => {
   return prisma.role.update({
@@ -83,14 +78,14 @@ export const updateRole = async (
   });
 };
 
-export const deleteRole = async (
-  id: number
-) => {
+export const deleteRole = async (id: number) => {
   const assignedUsers = await prisma.user.findFirst({ where: { roleId: id } });
-  if (assignedUsers) throw new Error("Cannot delete role because it is assigned to one or more users.");
+  if (assignedUsers)
+    throw new Error("Cannot delete role because it is assigned to one or more users.");
 
   const assignedAdmins = await prisma.admin.findFirst({ where: { roleId: id } });
-  if (assignedAdmins) throw new Error("Cannot delete role because it is assigned to one or more admins.");
+  if (assignedAdmins)
+    throw new Error("Cannot delete role because it is assigned to one or more admins.");
 
   return prisma.role.delete({
     where: {

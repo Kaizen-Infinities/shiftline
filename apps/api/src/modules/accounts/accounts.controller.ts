@@ -4,7 +4,12 @@ import { accountsService } from "./accounts.service";
 import { payableService } from "./payable.service";
 import { receivableService } from "./receivable.service";
 import { periodService } from "./period.service";
-import { createLedgerSchema, updateLedgerSchema, getLedgersQuerySchema, ledgerStatementQuerySchema } from "./accounts.types";
+import {
+  createLedgerSchema,
+  updateLedgerSchema,
+  getLedgersQuerySchema,
+  ledgerStatementQuerySchema,
+} from "./accounts.types";
 
 export class AccountsController {
   async getLedgers(req: Request, res: Response, next: NextFunction) {
@@ -331,6 +336,36 @@ export class AccountsController {
     }
   }
 
+  /** P1-09: freeze date, periods and role backdating allowances in one read. */
+  async getPeriodControl(_req: Request, res: Response, next: NextFunction) {
+    try {
+      res.json({ success: true, data: await periodService.periodControl() });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async setPeriodControl(req: Request, res: Response, next: NextFunction) {
+    try {
+      const body = req.body ?? {};
+      if (
+        body.booksFrozenUpTo !== undefined &&
+        body.booksFrozenUpTo !== null &&
+        typeof body.booksFrozenUpTo !== "string"
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: "booksFrozenUpTo must be a date string or null" });
+      }
+      const data = await periodService.setFreezeDate(body.booksFrozenUpTo ?? null, {
+        allowBack: Boolean(body.allowBack),
+      });
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async reopenPeriod(req: Request, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id as string, 10);
@@ -343,4 +378,3 @@ export class AccountsController {
 }
 
 export const accountsController = new AccountsController();
-

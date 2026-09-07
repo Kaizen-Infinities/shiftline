@@ -102,11 +102,19 @@ class GrnInvoiceController {
   delete = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id as string;
 
-    await grnInvoiceService.deleteGrnInvoice(id);
+    const reason =
+      typeof req.body?.reason === "string"
+        ? req.body.reason
+        : (req.query.reason as string | undefined);
+    await grnInvoiceService.cancelGrnInvoice(
+      id,
+      { userId: (req as any).user?.userId, isSuperAdmin: !!(req as any).user?.isSuperAdmin },
+      reason
+    );
 
     emitToTenant("grnInvoice:deleted", { id });
 
-    return res.status(200).json(new ApiResponse("GRN / Invoice deleted successfully"));
+    return res.status(200).json(new ApiResponse("GRN / Invoice cancelled"));
   });
 }
 

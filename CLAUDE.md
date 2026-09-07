@@ -66,6 +66,10 @@ input leaks, secrets, error text → human review and merge → hand-off note.
   `documentNumberService.next(docType, { date, businessPlaceId, tx })` (`modules/documents`),
   one series per type, branch and financial year; never build a number from `count()` or the
   last row. Returns raise credit/debit notes; reverse charge posts to the `RCM-*` ledgers.
+- Books are never deleted (P1-09): cancel through `cancellationService` (status `CANCELLED`
+  plus a `REVERSAL` journal) and gate every posting date with
+  `periodService.assertPostingAllowed()`; `safeCreateVoucher` already does both checks. Lookups
+  for "the voucher of this document" must filter `status: "POSTED"`.
 - Field app sync (`modules/mobile`): the server enforces the conflict policy in
   `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
   by field, device headers on writes). Never let a device overwrite a server-owned row.

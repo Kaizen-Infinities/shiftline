@@ -14,4 +14,8 @@ router.post("/", requirePermission("petty-cash.create"), (req, res, next) =>
   pettyCashController.createEntry(req, res, next)
 );
 
+router.post("/:id/cancel", requirePermission("petty-cash.delete"), (req, res, next) =>
+  pettyCashController.cancelEntry(req, res, next)
+);
+
 export default router;

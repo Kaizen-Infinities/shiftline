@@ -5,6 +5,8 @@ import { ApiError } from "../../utils/ApiError";
 import { CreatePettyCashInput, GetPettyCashQueryInput } from "./petty-cash.types";
 import { logger } from "../../lib/logger";
 import { companyGstProfile, resolveIssuingPlace } from "../gst/gst.context";
+import { periodService } from "../accounts/period.service";
+import { cancellationService } from "../accounts/cancellation.service";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
@@ -67,6 +69,10 @@ class PettyCashService {
     // Map explicit petty cash entries
     entries.forEach((e) => {
       const amt = Number(e.amount);
+      if (e.cancelledAt) {
+        formattedEntries.push({ ...e, amount: amt });
+        return;
+      }
       if (e.type === "IN") {
         totalIn += amt;
       } else {
@@ -125,6 +131,7 @@ class PettyCashService {
     const companyId = await getCurrentCompanyId();
     const entryNo = this.generateEntryNo();
     const entryDate = data.entryDate ? new Date(data.entryDate) : new Date();
+    await periodService.assertPostingAllowed(entryDate);
 
     const place = await resolveIssuingPlace(data.businessPlaceId, await companyGstProfile());
     const gstRate = data.type === "OUT" ? (data.gstRate ?? 0) : 0;
@@ -173,6 +180,36 @@ class PettyCashService {
     }
 
     return entry;
+  }
+
+  /** P1-09: an entry is cancelled, never deleted; its voucher is reversed. */
+  async cancelEntry(
+    id: number,
+    actor: { userId?: string; isSuperAdmin?: boolean } = {},
+    reason?: string | null
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const entry = await tx.pettyCashEntry.findUnique({ where: { id } });
+      if (!entry) throw new ApiError(404, "Petty cash entry not found");
+      if (entry.cancelledAt) {
+        throw new ApiError(409, `Entry ${entry.entryNo} is already cancelled`, "ALREADY_CANCELLED");
+      }
+      await cancellationService.cancelVouchersFor(
+        ["PETTY_CASH"],
+        [String(entry.id)],
+        { reason, actor },
+        tx
+      );
+      return tx.pettyCashEntry.update({
+        where: { id },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelledBy: actor.userId ?? null,
+          cancelReason: reason?.trim() || null,
+        },
+      });
+    });
   }
 }
 

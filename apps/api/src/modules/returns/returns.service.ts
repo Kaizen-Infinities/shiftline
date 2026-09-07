@@ -11,6 +11,8 @@ import { documentNumberService } from "../documents/document-number.service";
 import { splitGst } from "../gst/gst.calc";
 import { productTaxDefaults, purchaseGstContext, rawMaterialTaxDefaults } from "../gst/gst.context";
 import { saleGstContext } from "../sales-invoice/sales-invoice.service";
+import { periodService } from "../accounts/period.service";
+import { cancellationService } from "../accounts/cancellation.service";
 
 const D = (n: number | string) => new Prisma.Decimal(n);
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -185,6 +187,7 @@ class ReturnsService {
           customer
         );
         const returnDate = data.returnDate ? new Date(data.returnDate) : new Date();
+        await periodService.assertPostingAllowed(returnDate, undefined, tx);
         const numbering = { date: returnDate, businessPlaceId: gst.place.id, tx };
         const returnNo = await documentNumberService.next("SALES_RETURN", numbering);
         const creditNoteNo = await documentNumberService.next("CREDIT_NOTE", numbering);
@@ -255,7 +258,11 @@ class ReturnsService {
     });
     if (!customer) throw new ApiError(404, "Customer not found");
 
+    if (existing.cancelledAt) throw new ApiError(409, "Cancelled returns cannot be edited");
     const updated = await prisma.$transaction(async (tx) => {
+      await periodService.assertPostingAllowed(existing.returnDate, undefined, tx);
+      if (data.returnDate)
+        await periodService.assertPostingAllowed(new Date(data.returnDate), undefined, tx);
       await tx.salesReturnItem.deleteMany({ where: { salesReturnId: id } });
       const { gst, supplyType, itemsData, totals } = await this.buildSalesReturnLines(
         tx,
@@ -430,6 +437,7 @@ class ReturnsService {
         });
 
         const returnDate = data.returnDate ? new Date(data.returnDate) : new Date();
+        await periodService.assertPostingAllowed(returnDate, undefined, tx);
         const numbering = { date: returnDate, businessPlaceId: gst.place.id, tx };
         const returnNo = await documentNumberService.next("PURCHASE_RETURN", numbering);
         const debitNoteNo = await documentNumberService.next("DEBIT_NOTE", numbering);
@@ -542,6 +550,115 @@ class ReturnsService {
     }
 
     return purchaseReturn;
+  }
+
+  // --- CANCELLATION (P1-09): returns stay on file; their notes' vouchers are reversed ---
+  async cancelSalesReturn(
+    id: string,
+    actor: { userId?: string; isSuperAdmin?: boolean } = {},
+    reason?: string | null
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const ret = await tx.salesReturn.findUnique({ where: { id } });
+      if (!ret) throw new ApiError(404, "Sales return not found");
+      if (ret.cancelledAt) {
+        throw new ApiError(409, `Return ${ret.returnNo} is already cancelled`, "ALREADY_CANCELLED");
+      }
+      await cancellationService.cancelVouchersFor(
+        ["SALES_RETURN", "SALES_RETURN_REFUND"],
+        [ret.id],
+        { reason, actor },
+        tx
+      );
+      return tx.salesReturn.update({
+        where: { id },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelledBy: actor.userId ?? null,
+          cancelReason: reason?.trim() || null,
+        },
+      });
+    });
+  }
+
+  async cancelPurchaseReturn(
+    id: string,
+    actor: { userId?: string; isSuperAdmin?: boolean } = {},
+    reason?: string | null
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const ret = await tx.purchaseReturn.findUnique({ where: { id }, include: { items: true } });
+      if (!ret) throw new ApiError(404, "Purchase return not found");
+      if (ret.cancelledAt) {
+        throw new ApiError(409, `Return ${ret.returnNo} is already cancelled`, "ALREADY_CANCELLED");
+      }
+      await cancellationService.cancelVouchersFor(
+        ["PURCHASE_RETURN"],
+        [ret.id],
+        { reason, actor },
+        tx
+      );
+
+      // Goods that left with the return come back; a price adjustment moved none.
+      if (ret.kind === "GOODS_RETURN") {
+        const adjustment = await tx.stockAdjustment.findFirst({
+          where: { sourceDocument: "PURCHASE_RETURN", sourceDocId: ret.id },
+          include: { items: true },
+        });
+        for (const item of ret.items) {
+          await tx.rawMaterial.update({
+            where: byCode("rawMaterialId", item.rawMaterialId),
+            data: { onHandQty: { increment: item.quantity }, lastMovementAt: new Date() },
+          });
+        }
+        if (adjustment) {
+          const reversal = await tx.stockAdjustment.create({
+            data: {
+              adjustmentNumber: `ADJ-CANCEL-${ret.returnNo}`.slice(0, 50),
+              adjustmentDate: new Date(),
+              adjustmentType: "PURCHASE_RETURN_CANCEL",
+              reason: `Cancellation of purchase return ${ret.returnNo}${reason ? `: ${reason}` : ""}`,
+              status: "APPROVED",
+              approvedBy: actor.userId || "SYSTEM",
+              approvedAt: new Date(),
+              createdBy: actor.userId || "SYSTEM",
+              updatedBy: actor.userId || "SYSTEM",
+              autoGenerated: true,
+              sourceDocument: "PURCHASE_RETURN_CANCEL",
+              sourceDocId: ret.id,
+            },
+          });
+          for (const line of adjustment.items) {
+            if (!line.rawMaterialId) continue;
+            const qty = Math.abs(Number(line.difference));
+            await tx.stockAdjustmentItem.create({
+              data: {
+                stockAdjustmentId: reversal.id,
+                itemType: "RAW_MATERIAL",
+                rawMaterialId: line.rawMaterialId,
+                storeId: line.storeId,
+                currentQty: line.adjustedQty,
+                adjustedQty: Number(line.adjustedQty) + qty,
+                difference: qty,
+                unitCost: line.unitCost,
+                remarks: `Purchase return ${ret.returnNo} cancelled`,
+              },
+            });
+          }
+        }
+      }
+
+      return tx.purchaseReturn.update({
+        where: { id },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelledBy: actor.userId ?? null,
+          cancelReason: reason?.trim() || null,
+        },
+      });
+    });
   }
 }
 

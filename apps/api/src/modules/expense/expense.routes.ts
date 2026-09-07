@@ -48,4 +48,12 @@ router.delete(
   expenseController.delete
 );
 
+router.post(
+  "/:id/cancel",
+  authMiddleware,
+  requireFeature("purchase"),
+  validateMiddleware(expenseIdRequestSchema),
+  expenseController.delete
+);
+
 export default router;

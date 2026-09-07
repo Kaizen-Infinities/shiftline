@@ -51,6 +51,14 @@ router.delete(
 );
 
 router.post(
+  "/:id/cancel",
+  authMiddleware,
+  requirePermission("sales-invoices.delete"),
+  validateMiddleware(salesInvoiceIdRequestSchema),
+  salesInvoiceController.delete
+);
+
+router.post(
   "/:id/email-invoice",
   authMiddleware,
   requirePermission("sales-invoices.whatsapp-email"),

@@ -3,6 +3,8 @@ import { VoucherType, Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
 import { CreateVoucherInput, GetVouchersQueryInput } from "./vouchers.types";
 import { logger } from "../../lib/logger";
+import { periodService } from "../accounts/period.service";
+import { cancellationService } from "../accounts/cancellation.service";
 
 class VouchersService {
   private readonly prefixMap: Record<VoucherType, string> = {
@@ -65,29 +67,56 @@ class VouchersService {
     return `${prefix}-${Date.now().toString().slice(-6)}`;
   }
 
-  async deleteVoucher(id: number) {
+  /**
+   * P1-09: vouchers are never deleted. A voucher raised by a document (invoice, GRN, return,
+   * expense, petty cash, payment) is cancelled with that document; a manual voucher is
+   * cancelled here and reversed.
+   */
+  async cancelVoucher(
+    id: number,
+    reason?: string | null,
+    actor?: { userId?: string; isSuperAdmin?: boolean }
+  ) {
     const voucher = await prisma.voucher.findUnique({
       where: { id },
-      select: { id: true, type: true, refDocType: true },
+      select: { id: true, type: true, refDocType: true, status: true },
     });
     if (!voucher) throw new ApiError(404, "Voucher not found");
-
-    // Block deletion of system-generated vouchers (opening balance JVs, invoice-linked vouchers)
-    const blockedRefDocTypes = [
-      "LEDGER_OPENING_BALANCE",
-      "CUSTOMER_OPENING_BALANCE",
-      "SUPPLIER_OPENING_BALANCE",
-    ];
-    if (voucher.refDocType && blockedRefDocTypes.includes(voucher.refDocType)) {
-      throw new ApiError(400, "System-generated vouchers cannot be deleted");
+    const documentTypes = new Set([
+      "SALES_INVOICE",
+      "SALES_PAYMENT",
+      "GRN_INVOICE",
+      "GRN_PAYMENT",
+      "SALES_RETURN",
+      "SALES_RETURN_REFUND",
+      "PURCHASE_RETURN",
+      "EXPENSE",
+      "PETTY_CASH",
+    ]);
+    if (voucher.refDocType && documentTypes.has(voucher.refDocType)) {
+      throw new ApiError(
+        400,
+        "This voucher was posted from a document; cancel the document and its vouchers go with it",
+        "CANCEL_DOCUMENT_INSTEAD",
+        { refDocType: voucher.refDocType }
+      );
     }
+    const result = await cancellationService.cancelVoucher(id, { reason, actor });
+    return {
+      cancelled: true,
+      id,
+      reversalId: result.reversal.id,
+      reversalNo: result.reversal.voucherNo,
+    };
+  }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.journalItem.deleteMany({ where: { voucherId: id } });
-      await tx.voucher.delete({ where: { id } });
-    });
-
-    return { deleted: true, id };
+  /** Kept for the DELETE route: deleting a voucher now means cancelling it. */
+  async deleteVoucher(
+    id: number,
+    reason?: string | null,
+    actor?: { userId?: string; isSuperAdmin?: boolean }
+  ) {
+    return this.cancelVoucher(id, reason, actor);
   }
 
   private async enrichVouchers(vouchers: any[]) {
@@ -316,6 +345,7 @@ class VouchersService {
   async createVoucher(data: CreateVoucherInput, createdBy?: string) {
     const voucherNo = data.voucherNo || (await this.generateVoucherNo(data.type));
     const voucherDate = data.date ? new Date(data.date) : new Date();
+    await periodService.assertPostingAllowed(voucherDate);
 
     let totalDebit = 0;
     let totalCredit = 0;

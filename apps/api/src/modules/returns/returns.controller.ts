@@ -4,7 +4,34 @@ import { returnsService } from "./returns.service";
 import { createSalesReturnSchema, createPurchaseReturnSchema } from "./returns.types";
 import { logger } from "../../lib/logger";
 
+const actorOf = (req: Request) => ({
+  userId: (req as any).user?.userId as string | undefined,
+  isSuperAdmin: Boolean((req as any).user?.isSuperAdmin),
+});
+const reasonOf = (req: Request) =>
+  typeof req.body?.reason === "string" ? req.body.reason : (req.query.reason as string | undefined);
+
 class ReturnsController {
+  async cancelSalesReturn(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const data = await returnsService.cancelSalesReturn(id, actorOf(req), reasonOf(req));
+      return res.status(200).json({ success: true, message: "Sales return cancelled", data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async cancelPurchaseReturn(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const data = await returnsService.cancelPurchaseReturn(id, actorOf(req), reasonOf(req));
+      return res.status(200).json({ success: true, message: "Purchase return cancelled", data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getSalesReturns(req: Request, res: Response, next: NextFunction) {
     try {
       const companyId = await getCurrentCompanyId();

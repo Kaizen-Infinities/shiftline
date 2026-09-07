@@ -69,11 +69,36 @@ const DEFAULT_SEED_LEDGERS = [
   { code: "IGST-REC-001", name: "IGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
   { code: "EQ-001", name: "Opening Balance Equity", type: LedgerType.EQUITY, group: "Equity" },
   // GST reverse charge, cess and TDS (P1-08)
-  { code: "RCM-LIA-001", name: "GST Payable under Reverse Charge", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
-  { code: "RCM-REC-001", name: "GST Input Credit (Reverse Charge)", type: LedgerType.ASSET, group: "Tax Assets" },
-  { code: "CESS-LIA-001", name: "GST Cess Payable", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
-  { code: "CESS-REC-001", name: "GST Cess Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
-  { code: "TDS-LIA-001", name: "TDS Payable", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
+  {
+    code: "RCM-LIA-001",
+    name: "GST Payable under Reverse Charge",
+    type: LedgerType.LIABILITY,
+    group: "Tax Liabilities",
+  },
+  {
+    code: "RCM-REC-001",
+    name: "GST Input Credit (Reverse Charge)",
+    type: LedgerType.ASSET,
+    group: "Tax Assets",
+  },
+  {
+    code: "CESS-LIA-001",
+    name: "GST Cess Payable",
+    type: LedgerType.LIABILITY,
+    group: "Tax Liabilities",
+  },
+  {
+    code: "CESS-REC-001",
+    name: "GST Cess Input Credit",
+    type: LedgerType.ASSET,
+    group: "Tax Assets",
+  },
+  {
+    code: "TDS-LIA-001",
+    name: "TDS Payable",
+    type: LedgerType.LIABILITY,
+    group: "Tax Liabilities",
+  },
 ];
 
 class AccountsService {
@@ -1564,7 +1589,10 @@ class AccountsService {
     const bankLedgerIds = new Set(bankLedgers.map((l) => l.id));
 
     const vouchers = await prisma.voucher.findMany({
-      where: { refDocType: { in: ["CUSTOMER_OPENING_BALANCE", "SUPPLIER_OPENING_BALANCE"] } },
+      where: {
+        refDocType: { in: ["CUSTOMER_OPENING_BALANCE", "SUPPLIER_OPENING_BALANCE"] },
+        status: "POSTED",
+      },
       include: { items: { select: { debitLedgerId: true, creditLedgerId: true } } },
     });
 
@@ -1579,9 +1607,16 @@ class AccountsService {
       .map((v) => v.id);
 
     if (badVoucherIds.length > 0) {
+      // P1-09: never delete; cancel with a reversal so the trail shows the repair.
+      const { cancellationService } = await import("./cancellation.service.js");
       await prisma.$transaction(async (tx) => {
-        await tx.journalItem.deleteMany({ where: { voucherId: { in: badVoucherIds } } });
-        await tx.voucher.deleteMany({ where: { id: { in: badVoucherIds } } });
+        for (const id of badVoucherIds) {
+          await cancellationService.cancelVoucher(
+            id,
+            { reason: "Opening balance repair: contra side was a bank/cash ledger", force: true },
+            tx
+          );
+        }
       });
     }
 

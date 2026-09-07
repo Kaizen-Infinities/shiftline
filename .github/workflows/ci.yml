@@ -82,6 +82,10 @@ jobs:
           if [ -n "$hits" ]; then echo "::error::new PrismaClient outside the shared client:"; echo "$hits"; exit 1; fi
       - name: No session-scoped SET app.* variables
         run: |
+      - name: No hard deletes on books of account (P1-09 — cancel and reverse instead)
+        run: |
+          if grep -rnE "\b(voucher|journalItem|salesInvoice|grnInvoice|salesReturn|purchaseReturn|expense|pettyCashEntry)\.(delete|deleteMany)\(" apps/api/src/modules --include=*.ts | grep -v "/retention/" | grep -v "salesInvoiceItem\|grnInvoiceItem\|salesReturnItem\|purchaseReturnItem"; then
+            echo "Books-of-account rows must be cancelled, not deleted"; exit 1; fi
           if grep -rEn "SET (SESSION )?app\." apps/api/src --include=*.ts; then echo "::error::use set_config(..., true) inside a transaction"; exit 1; fi
 
   test-api:

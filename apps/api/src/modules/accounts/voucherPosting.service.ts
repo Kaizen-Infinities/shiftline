@@ -4,7 +4,9 @@ import { accountsService } from "./accounts.service";
 import { extractPaymentsArray } from "../../utils/payments";
 import crypto from "crypto";
 import { logger } from "../../lib/logger";
+import { ApiError } from "../../utils/ApiError";
 import { companyGstProfile, stateOfGstin } from "../gst/gst.context";
+import { periodService } from "./period.service";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 type JournalLine = {
@@ -127,6 +129,16 @@ function deriveStablePaymentRefId(parentId: string, prefix: string, p: any, inde
  * }
  */
 
+/** The number itself when unused, else the first free `<number>-R<n>` (voucherNo is unique per tenant). */
+export async function freeVoucherNo(db: Db, voucherNo: string): Promise<string> {
+  if ((await db.voucher.count({ where: { voucherNo } })) === 0) return voucherNo;
+  for (let n = 1; n < 100; n++) {
+    const candidate = `${voucherNo.slice(0, 26)}-R${n}`;
+    if ((await db.voucher.count({ where: { voucherNo: candidate } })) === 0) return candidate;
+  }
+  throw new ApiError(409, `No free voucher number left for ${voucherNo}`);
+}
+
 /**
  * Helper to safely create a voucher and gracefully handle concurrent creation / unique constraint races.
  * NOTE: Duplicate protection relies on the unique constraint `@@unique([refDocType, refDocId])` on the Voucher model in schema.prisma.
@@ -143,6 +155,12 @@ async function safeCreateVoucher(
   refDocType: string,
   refDocId: string
 ) {
+  // Period control (P1-09): every posting path ends here, so this is where the gates apply.
+  const postingDate = data.date instanceof Date ? data.date : new Date(String(data.date));
+  await periodService.assertPostingAllowed(postingDate, undefined, db);
+  // A document posted again after its voucher was cancelled keeps its number with an -R suffix.
+  data.voucherNo = await freeVoucherNo(db, String(data.voucherNo));
+
   const savepointName = `sp_vch_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
   const isTx = "$executeRawUnsafe" in db && typeof (db as any).$executeRawUnsafe === "function";
 
@@ -183,7 +201,7 @@ async function safeCreateVoucher(
         }
       }
       const existing = await db.voucher.findFirst({
-        where: { refDocType, refDocId },
+        where: { refDocType, refDocId, status: "POSTED" },
         include: { items: true },
       });
       if (existing) return existing;
@@ -255,6 +273,7 @@ class VoucherPostingService {
       where: {
         refDocType: "GRN_INVOICE",
         refDocId: grnInvoice.id,
+        status: "POSTED",
       },
     });
 
@@ -399,6 +418,7 @@ class VoucherPostingService {
         where: {
           refDocType: "GRN_PAYMENT",
           refDocId: refDocId,
+          status: "POSTED",
         },
       });
 
@@ -516,6 +536,7 @@ class VoucherPostingService {
       where: {
         refDocType: "SALES_INVOICE",
         refDocId: salesInvoice.id,
+        status: "POSTED",
       },
     });
 
@@ -699,6 +720,7 @@ class VoucherPostingService {
         where: {
           refDocType: "SALES_PAYMENT",
           refDocId: refDocId,
+          status: "POSTED",
         },
       });
 
@@ -817,7 +839,7 @@ class VoucherPostingService {
     }
 
     const existing = await db.voucher.findFirst({
-      where: { refDocType: "SALES_RETURN", refDocId: salesReturn.id },
+      where: { refDocType: "SALES_RETURN", refDocId: salesReturn.id, status: "POSTED" },
     });
     if (existing) return existing;
 
@@ -966,7 +988,7 @@ class VoucherPostingService {
     }
 
     const existing = await db.voucher.findFirst({
-      where: { refDocType: "PURCHASE_RETURN", refDocId: purchaseReturn.id },
+      where: { refDocType: "PURCHASE_RETURN", refDocId: purchaseReturn.id, status: "POSTED" },
     });
     if (existing) return existing;
 
@@ -1035,6 +1057,7 @@ class VoucherPostingService {
       where: {
         refDocType: "PETTY_CASH",
         refDocId: String(entry.id),
+        status: "POSTED",
       },
     });
 
@@ -1183,6 +1206,7 @@ class VoucherPostingService {
       where: {
         refDocType: "EXPENSE",
         refDocId: expense.id,
+        status: "POSTED",
       },
     });
 
@@ -1346,31 +1370,35 @@ class VoucherPostingService {
       ] = await withNeonRetry(() =>
         Promise.all([
           prisma.voucher.findMany({
-            where: { refDocType: "GRN_INVOICE" },
+            where: { refDocType: "GRN_INVOICE", status: "POSTED" },
             select: { refDocId: true },
           }),
           prisma.voucher.findMany({
-            where: { refDocType: "SALES_INVOICE" },
+            where: { refDocType: "SALES_INVOICE", status: "POSTED" },
             select: { refDocId: true },
           }),
           prisma.voucher.findMany({
-            where: { refDocType: "PURCHASE_RETURN" },
+            where: { refDocType: "PURCHASE_RETURN", status: "POSTED" },
             select: { refDocId: true },
           }),
           prisma.voucher.findMany({
-            where: { refDocType: "SALES_RETURN" },
+            where: { refDocType: "SALES_RETURN", status: "POSTED" },
             select: { refDocId: true },
           }),
           prisma.voucher.findMany({
-            where: { refDocType: "PETTY_CASH" },
+            where: { refDocType: "PETTY_CASH", status: "POSTED" },
             select: { refDocId: true },
           }),
-          prisma.grnInvoice.findMany({ select: { id: true } }),
-          prisma.salesInvoice.findMany({ select: { id: true } }),
-          prisma.purchaseReturn.findMany({ select: { id: true } }),
-          prisma.salesReturn.findMany({ select: { id: true } }),
-          prisma.pettyCashEntry.findMany({ select: { id: true, entryNo: true } }),
+          prisma.grnInvoice.findMany({ where: { cancelledAt: null }, select: { id: true } }),
+          prisma.salesInvoice.findMany({ where: { cancelledAt: null }, select: { id: true } }),
+          prisma.purchaseReturn.findMany({ where: { cancelledAt: null }, select: { id: true } }),
+          prisma.salesReturn.findMany({ where: { cancelledAt: null }, select: { id: true } }),
+          prisma.pettyCashEntry.findMany({
+            where: { cancelledAt: null },
+            select: { id: true, entryNo: true },
+          }),
           prisma.expense.findMany({
+            where: { cancelledAt: null },
             include: { supplier: true },
           }),
         ])
@@ -1799,11 +1827,11 @@ class VoucherPostingService {
     const [existingCustomerVouchers, existingSupplierVouchers, customers, suppliers] = txClient
       ? await Promise.all([
           db.voucher.findMany({
-            where: { refDocType: "CUSTOMER_OPENING_BALANCE" },
+            where: { refDocType: "CUSTOMER_OPENING_BALANCE", status: "POSTED" },
             select: { refDocId: true },
           }),
           db.voucher.findMany({
-            where: { refDocType: "SUPPLIER_OPENING_BALANCE" },
+            where: { refDocType: "SUPPLIER_OPENING_BALANCE", status: "POSTED" },
             select: { refDocId: true },
           }),
           db.customer.findMany({ where: { openingBalance: { gt: 0 } } }),
@@ -1812,11 +1840,11 @@ class VoucherPostingService {
       : await prisma.$transaction(async (tx) =>
           Promise.all([
             tx.voucher.findMany({
-              where: { refDocType: "CUSTOMER_OPENING_BALANCE" },
+              where: { refDocType: "CUSTOMER_OPENING_BALANCE", status: "POSTED" },
               select: { refDocId: true },
             }),
             tx.voucher.findMany({
-              where: { refDocType: "SUPPLIER_OPENING_BALANCE" },
+              where: { refDocType: "SUPPLIER_OPENING_BALANCE", status: "POSTED" },
               select: { refDocId: true },
             }),
             tx.customer.findMany({ where: { openingBalance: { gt: 0 } } }),

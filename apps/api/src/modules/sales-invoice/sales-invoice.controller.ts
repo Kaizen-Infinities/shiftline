@@ -96,7 +96,15 @@ class SalesInvoiceController {
     const companyId = company.id;
 
     const id = req.params.id as string;
-    await salesInvoiceService.deleteSalesInvoice(id, companyId);
+    const reason =
+      typeof req.body?.reason === "string"
+        ? req.body.reason
+        : (req.query.reason as string | undefined);
+    await salesInvoiceService.cancelSalesInvoice(
+      id,
+      { userId: (req as any).user?.userId, isSuperAdmin: !!(req as any).user?.isSuperAdmin },
+      reason
+    );
 
     emitToTenant("salesInvoice:deleted", { id });
     try {
@@ -105,7 +113,7 @@ class SalesInvoiceController {
       emitToTenant("accountLedger:updated", { source: "salesInvoice" });
     } catch (e) {}
 
-    return res.status(200).json(new ApiResponse("Sales Invoice deleted successfully"));
+    return res.status(200).json(new ApiResponse("Sales Invoice cancelled"));
   });
 
   update = asyncHandler(async (req: Request, res: Response) => {

@@ -86,11 +86,20 @@ class ExpenseController {
     const id = req.params.id as string;
     const companyId = await this.getCompanyId();
 
-    await expenseService.deleteExpense(id, companyId);
+    const reason =
+      typeof req.body?.reason === "string"
+        ? req.body.reason
+        : (req.query.reason as string | undefined);
+    await expenseService.cancelExpense(
+      id,
+      companyId,
+      { userId: (req as any).user?.userId, isSuperAdmin: !!(req as any).user?.isSuperAdmin },
+      reason
+    );
 
     emitToTenant("expense:deleted", { id });
 
-    return res.status(200).json(new ApiResponse("Expense deleted successfully"));
+    return res.status(200).json(new ApiResponse("Expense cancelled"));
   });
 
   getNextCode = asyncHandler(async (req: Request, res: Response) => {

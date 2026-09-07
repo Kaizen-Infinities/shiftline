@@ -26,4 +26,13 @@ router.post("/purchase", requirePermission("purchase-returns.create"), (req, res
   returnsController.createPurchaseReturn(req, res, next)
 );
 
+router.post("/sales/:id/cancel", requirePermission("sales-returns.delete"), (req, res, next) =>
+  returnsController.cancelSalesReturn(req, res, next)
+);
+router.post(
+  "/purchase/:id/cancel",
+  requirePermission("purchase-returns.delete"),
+  (req, res, next) => returnsController.cancelPurchaseReturn(req, res, next)
+);
+
 export default router;

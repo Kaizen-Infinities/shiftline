@@ -69,10 +69,19 @@ class VouchersController {
       next(error);
     }
   }
+  /** DELETE and POST /:id/cancel both cancel (P1-09): the voucher stays and is reversed. */
   async deleteVoucher(req: Request, res: Response, next: NextFunction) {
     try {
       const id = parseInt(req.params.id as string, 10);
-      const result = await vouchersService.deleteVoucher(id);
+      const reason =
+        typeof req.body?.reason === "string"
+          ? req.body.reason
+          : (req.query.reason as string | undefined);
+      const actor = {
+        userId: (req as any).user?.userId,
+        isSuperAdmin: !!(req as any).user?.isSuperAdmin,
+      };
+      const result = await vouchersService.cancelVoucher(id, reason, actor);
 
       try {
         const { emitToTenant } = await import("../../lib/realtime.js");
@@ -80,7 +89,7 @@ class VouchersController {
         emitToTenant("accountLedger:updated", { source: "voucher" });
       } catch (e) {}
 
-      return res.status(200).json({ success: true, message: "Voucher deleted", data: result });
+      return res.status(200).json({ success: true, message: "Voucher cancelled", data: result });
     } catch (error) {
       next(error);
     }

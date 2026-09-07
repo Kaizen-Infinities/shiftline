@@ -20,8 +20,16 @@ export const createVoucherSchema = z.object({
 });
 
 export const getVouchersQuerySchema = z.object({
-  page: z.string().regex(/^\d+$/).optional().transform((val) => (val ? parseInt(val, 10) : 1)),
-  limit: z.string().regex(/^\d+$/).optional().transform((val) => (val ? parseInt(val, 10) : 50)),
+  page: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 1)),
+  limit: z
+    .string()
+    .regex(/^\d+$/)
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 50)),
   type: z.nativeEnum(VoucherType).optional(),
   supplierId: z.string().optional(),
   startDate: z.string().optional(),

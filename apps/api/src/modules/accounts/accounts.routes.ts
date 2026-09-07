@@ -31,6 +31,8 @@ router.get("/profit-loss", requirePermission("accounts.view"), (req, res, next) 
 router.get("/profit-loss/by-period", requirePermission("accounts.view"), (req, res, next) => accountsController.getProfitAndLossByPeriod(req, res, next));
 
 // Accounting Periods
+router.get("/period-control", requirePermission("accounts.view"), (req, res, next) => accountsController.getPeriodControl(req, res, next));
+router.put("/period-control", requirePermission("accounts.edit"), (req, res, next) => accountsController.setPeriodControl(req, res, next));
 router.get("/periods", requirePermission("accounts.view"), (req, res, next) => accountsController.listPeriods(req, res, next));
 router.post("/periods", requirePermission("accounts.edit"), (req, res, next) => accountsController.createPeriod(req, res, next));
 router.post("/periods/:id/close", requirePermission("accounts.edit"), (req, res, next) => accountsController.closePeriod(req, res, next));

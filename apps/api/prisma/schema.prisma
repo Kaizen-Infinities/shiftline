@@ -304,6 +304,8 @@ model Role {
   rolePermissions            RolePermission[]
   users                      User[]
   employees                  Employee[]
+  /// How many days back this role may post; null = no limit, 0 = today only (P1-09).
+  backdateDays               Int?                         @map("backdate_days")
 
   company Company @relation("CompanyRole", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -572,6 +574,8 @@ model Company {
   featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
   hsnCodes                    HsnCode[]                    @relation("CompanyHsnCode")
   gstRates                    GstRate[]                    @relation("CompanyGstRate")
+  /// Books are frozen on and before this date (set after filing); postings are refused (P1-09).
+  booksFrozenUpTo             DateTime?                    @map("books_frozen_up_to") @db.Date
 
   @@map("companies")
 }
@@ -1717,6 +1721,11 @@ model GrnInvoice {
   supplier             Supplier            @relation(fields: [supplierId], references: [id])
   purchaseReturns      PurchaseReturn[]
   businessPlace        BusinessPlace?      @relation("GrnInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt          DateTime?           @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy          String?             @map("cancelled_by") @db.VarChar(36)
+  cancelReason         String?             @map("cancel_reason") @db.VarChar(255)
+  status               String              @default("POSTED") @db.VarChar(20)
 
   company Company @relation("CompanyGrnInvoice", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1953,6 +1962,10 @@ model Expense {
   user            User?          @relation("ExpenseCreatedBy", fields: [createdBy], references: [userId])
   supplier        Supplier?      @relation(fields: [supplierId], references: [id])
   businessPlace   BusinessPlace? @relation("ExpenseBusinessPlace", fields: [businessPlaceId], references: [id])
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt     DateTime?      @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?        @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?        @map("cancel_reason") @db.VarChar(255)
 
   company Company @relation("CompanyExpense", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2022,6 +2035,10 @@ model SalesInvoice {
   store                Store?                @relation(fields: [companyId, storeId], references: [companyId, storeId])
   salesReturns         SalesReturn[]
   businessPlace        BusinessPlace?        @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt          DateTime?             @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy          String?               @map("cancelled_by") @db.VarChar(36)
+  cancelReason         String?               @map("cancel_reason") @db.VarChar(255)
 
   company Company @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2413,6 +2430,11 @@ enum LedgerType {
   EQUITY
 }
 
+enum VoucherStatus {
+  POSTED
+  CANCELLED
+}
+
 enum VoucherType {
   PAYMENT
   RECEIPT
@@ -2702,10 +2724,20 @@ model Voucher {
   items           JournalItem[]
   businessPlaceId BigInt?        @map("business_place_id")
   businessPlace   BusinessPlace? @relation("VoucherBusinessPlace", fields: [businessPlaceId], references: [id])
+  /// P1-09: a cancelled voucher stays on file and is netted by its reversal.
+  status          VoucherStatus  @default(POSTED)
+  cancelledAt     DateTime?      @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?        @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?        @map("cancel_reason") @db.VarChar(255)
+  reversalOfId    Int?           @unique @map("reversal_of_id")
+  /// 0 while posted; set to the voucher's own id on cancellation so a document can be posted again.
+  cancelSeq       Int            @default(0) @map("cancel_seq")
+  reversalOf      Voucher?       @relation("VoucherReversal", fields: [reversalOfId], references: [id])
+  reversedBy      Voucher?       @relation("VoucherReversal")
 
   company Company @relation("CompanyVoucher", fields: [companyId], references: [id], onDelete: Restrict)
 
-  @@unique([companyId, refDocType, refDocId])
+  @@unique([companyId, refDocType, refDocId, cancelSeq])
   @@unique([companyId, voucherNo])
   @@index([refDocType, refDocId])
   @@map("vouchers")
@@ -2764,6 +2796,10 @@ model SalesReturn {
   salesInvoice    SalesInvoice?     @relation(fields: [salesInvoiceId], references: [id])
   items           SalesReturnItem[]
   businessPlace   BusinessPlace?    @relation("SalesReturnBusinessPlace", fields: [businessPlaceId], references: [id])
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt     DateTime?         @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?           @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?           @map("cancel_reason") @db.VarChar(255)
 
   company Company @relation("CompanySalesReturn", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2834,6 +2870,10 @@ model PurchaseReturn {
   grnInvoice      GrnInvoice?          @relation(fields: [grnInvoiceId], references: [id])
   items           PurchaseReturnItem[]
   businessPlace   BusinessPlace?       @relation("PurchaseReturnBusinessPlace", fields: [businessPlaceId], references: [id])
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt     DateTime?            @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?              @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?              @map("cancel_reason") @db.VarChar(255)
 
   company Company @relation("CompanyPurchaseReturn", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2890,6 +2930,11 @@ model PettyCashEntry {
   createdBy       String?        @db.VarChar(36)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt     DateTime?      @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?        @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?        @map("cancel_reason") @db.VarChar(255)
+  status          String         @default("POSTED") @db.VarChar(20)
 
   company Company @relation("CompanyPettyCashEntry", fields: [companyId], references: [id], onDelete: Restrict)
 
