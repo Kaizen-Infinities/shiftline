@@ -3,13 +3,27 @@ SHELL := /bin/bash
 API := npm run --workspace @shiftline/api
 WEB := npm run --workspace @shiftline/web
 
-.PHONY: help install db db-down dev api worker web seed reset typecheck lint test e2e format backup restore
+.PHONY: help install env up down logs db db-down dev api worker web seed reset typecheck lint test e2e format backup restore
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 install: ## npm install (builds @shiftline/shared, installs git hooks)
 	npm install
+
+env: ## create apps/api/.env and apps/web/.env from the examples (development values) if missing
+	@test -f apps/api/.env || cp apps/api/.env.example apps/api/.env
+	@test -f apps/web/.env || cp apps/web/.env.example apps/web/.env
+	@echo "env files ready (apps/api/.env, apps/web/.env)"
+
+up: ## run the whole stack in docker (postgres, api with migrations + seed, worker, web) on :5173 and :5000
+	docker compose --profile full up --build
+
+down: ## stop the whole stack (add -v to `docker compose --profile full down` to drop the database)
+	docker compose --profile full down
+
+logs: ## follow api and worker logs
+	docker compose --profile full logs -f api worker
 
 db: ## start PostgreSQL (docker) and wait for it
 	docker compose up -d postgres

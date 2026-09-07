@@ -17,17 +17,38 @@ docs/runbooks   operational procedures
 
 ## Run locally
 
-Requirements: Node 22 (`.nvmrc`), Docker.
+Requirements: Docker (everything in containers) or Docker + Node 22 (`.nvmrc`) to run the
+api and web on the host.
+
+**Everything in Docker** (first start builds the images and takes a few minutes):
+
+```bash
+make up            # = docker compose --profile full up --build
+```
+
+The api container applies the migrations and seeds the demo tenant before it listens, so the
+stack is ready when http://localhost:5173 shows the login page. Development credentials come
+from `docker/api.env` (placeholders, never for anything reachable from the internet):
+
+| Who                                                     | Login                                                                           | Password          |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------- |
+| Demo tenant owner                                       | `owner@demo.shiftline.local` (or `demo.owner`)                                  | `Demo@12345678`   |
+| Accountant / storekeeper / supervisor / sales / auditor | `accounts@`, `stores@`, `production@`, `sales@`, `auditor@demo.shiftline.local` | `Demo@12345678`   |
+| Platform admin                                          | `admin@dev.shiftline.local`                                                     | `DevAdmin#2026!!` |
+
+`make down` stops the stack; `docker compose --profile full down -v` also drops the database.
+`apps/api/.env` (gitignored) overrides anything in `docker/api.env`.
+
+**Api and web on the host** (faster reloads):
 
 ```bash
 npm install
-cp apps/api/.env.example apps/api/.env      # fill in JWT_ACCESS_SECRET and ADMIN_*
-cp apps/web/.env.example apps/web/.env
+make env                                    # apps/api/.env and apps/web/.env from the examples
 docker compose up -d postgres               # or `make db`
 npm run -w @shiftline/api prisma:generate
-npm run dev --workspace @shiftline/api      # or EMBED_WORKER=true to skip the next line
-npm run worker --workspace @shiftline/api   # pg-boss worker: EOD snapshots, retention sweeps
-npm run dev --workspace @shiftline/web
+npx -w @shiftline/api prisma migrate deploy
+npm run -w @shiftline/api db:seed           # or `make seed`
+make dev                                    # api (embedded worker) + web
 ```
 
 `npm run typecheck`, `npm run lint`, `npm run test` run across all workspaces; `npm run e2e`
