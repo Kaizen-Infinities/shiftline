@@ -214,6 +214,8 @@ const ProductionReportsCenter = lazy(
 );
 const AuditTrailPage = lazy(() => import("../modules/reports/pages/AuditTrailPage"));
 const YearEndPage = lazy(() => import("../modules/accounts/pages/year-end/YearEndPage"));
+const BooksPage = lazy(() => import("../modules/accounts/pages/books/BooksPage"));
+const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
 
 // ===========================================================================
 // SALES
@@ -604,6 +606,10 @@ const AppRoutes = () => {
                 <Route path="/accounts/trial-balance" element={<TrialBalancePage />} />
                 <Route path="/accounts/balance-sheet" element={<BalanceSheetPage />} />
                 <Route path="/accounts/profit-loss" element={<ProfitLossPage />} />
+                <Route path="/accounts/day-book" element={<BooksPage />} />
+                <Route path="/accounts/cash-book" element={<BooksPage />} />
+                <Route path="/accounts/bank-book" element={<BooksPage />} />
+                <Route path="/accounts/cash-flow" element={<CashFlowPage />} />
               </Route>
             </Route>
             {/* ================= end of PageContainer group ==================== */}

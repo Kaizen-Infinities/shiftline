@@ -14,6 +14,9 @@ import {
   updateLedgerGroupSchema,
 } from "./accounts.types";
 import { ledgerGroupService } from "./ledgerGroup.service";
+import { booksService } from "./books.service";
+import { cashFlowService } from "./cash-flow.service";
+import { booksQuerySchema, cashFlowQuerySchema } from "./books.types";
 
 export class AccountsController {
   async getLedgers(req: Request, res: Response, next: NextFunction) {
@@ -440,6 +443,52 @@ export class AccountsController {
       const id = parseInt(req.params.id as string, 10);
       const data = await periodService.reopenPeriod(id);
       res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ── Books of prime entry and cash flow (P1-10b) ──
+  async getDayBook(req: Request, res: Response, next: NextFunction) {
+    try {
+      res.json({
+        success: true,
+        data: await booksService.dayBook(booksQuerySchema.parse(req.query)),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getCashBook(req: Request, res: Response, next: NextFunction) {
+    try {
+      res.json({
+        success: true,
+        data: await booksService.cashBook(booksQuerySchema.parse(req.query)),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getBankBook(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query = booksQuerySchema.parse({
+        ...req.query,
+        ...(req.params.ledgerId && { ledgerId: req.params.ledgerId }),
+      });
+      res.json({ success: true, data: await booksService.bankBook(query) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getCashFlow(req: Request, res: Response, next: NextFunction) {
+    try {
+      res.json({
+        success: true,
+        data: await cashFlowService.statement(cashFlowQuerySchema.parse(req.query)),
+      });
     } catch (error) {
       next(error);
     }

@@ -66,6 +66,23 @@ router.get("/receivable/:customerId", requirePermission("receivable.view"), (req
   accountsController.getCustomerReceivableDetail(req, res, next)
 );
 
+// Books of prime entry and cash flow (P1-10b)
+router.get("/day-book", requirePermission("accounts.view"), (req, res, next) =>
+  accountsController.getDayBook(req, res, next)
+);
+router.get("/cash-book", requirePermission("accounts.view"), (req, res, next) =>
+  accountsController.getCashBook(req, res, next)
+);
+router.get("/bank-book", requirePermission("accounts.view"), (req, res, next) =>
+  accountsController.getBankBook(req, res, next)
+);
+router.get("/bank-book/:ledgerId", requirePermission("accounts.view"), (req, res, next) =>
+  accountsController.getBankBook(req, res, next)
+);
+router.get("/cash-flow", requirePermission("accounts.view"), (req, res, next) =>
+  accountsController.getCashFlow(req, res, next)
+);
+
 // Reports
 router.get("/balance-sheet", requirePermission("accounts.view"), (req, res, next) =>
   accountsController.getBalanceSheet(req, res, next)

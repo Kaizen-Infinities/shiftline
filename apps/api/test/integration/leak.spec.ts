@@ -203,6 +203,7 @@ describe("cross-tenant leak suite", () => {
       employeeId: idsB.employees,
       supplierId: idsB.suppliers,
       customerId: idsB.customers,
+      ledgerId: idsB["accounts/ledgers"],
       roleId: idsB.roles,
       dataClass: "SESSIONS",
       type: "customers",

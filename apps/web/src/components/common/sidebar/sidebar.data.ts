@@ -580,6 +580,7 @@ export const sidebarItems: SidebarItem[] = [
           { title: "Balance Sheet", path: "/accounts/balance-sheet", permission: "accounts.view" },
           { title: "Profit & Loss", path: "/accounts/profit-loss", permission: "accounts.view" },
           { title: "Trial Balance", path: "/accounts/trial-balance", permission: "accounts.view" },
+          { title: "Cash Flow", path: "/accounts/cash-flow", permission: "accounts.view" },
         ],
       },
       // ── Account Books & Ledgers ──
@@ -597,6 +598,9 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/ledger-statement/merged",
             permission: "accounts.view",
           },
+          { title: "Day Book", path: "/accounts/day-book", permission: "accounts.view" },
+          { title: "Cash Book", path: "/accounts/cash-book", permission: "accounts.view" },
+          { title: "Bank Book", path: "/accounts/bank-book", permission: "accounts.view" },
         ],
       },
       // ── Outstanding Analysis ──
@@ -660,6 +664,10 @@ export const sidebarItems: SidebarItem[] = [
       "/accounts/trial-balance",
       "/accounts/profit-loss",
       "/accounts/balance-sheet",
+      "/accounts/cash-flow",
+      "/accounts/day-book",
+      "/accounts/cash-book",
+      "/accounts/bank-book",
       "/accounts/ledger-statement",
       "/accounts/ledger-statement/merged",
       "/accounts/payable",

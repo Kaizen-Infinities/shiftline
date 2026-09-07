@@ -137,6 +137,12 @@ export const API_PATHS = {
     prepare: "/year-end/prepare",
     periodControl: "/accounts/period-control",
   },
+  books: {
+    dayBook: "/accounts/day-book",
+    cashBook: "/accounts/cash-book",
+    bankBook: "/accounts/bank-book",
+    cashFlow: "/accounts/cash-flow",
+  },
   notifications: {
     base: "/notifications",
   },
