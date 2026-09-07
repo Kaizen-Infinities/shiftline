@@ -416,9 +416,11 @@ class EwayBillService {
 
   /** A trip sheet for several live bills on one vehicle. */
   async consolidate(input: z.infer<typeof consolidateSchema>, actor: Actor) {
-    const rows = await prisma.ewayBill.findMany({ where: { id: { in: input.ewbIds } } });
-    if (rows.length !== input.ewbIds.length)
+    const found = await prisma.ewayBill.findMany({ where: { id: { in: input.ewbIds } } });
+    if (found.length !== input.ewbIds.length)
       throw new ApiError(404, "One or more e-way bills were not found");
+    // In the order the caller listed them: the trip sheet and its numbers keep that order.
+    const rows = input.ewbIds.map((id) => found.find((r) => r.id === id)!);
     const dead = rows.filter((r) => r.status !== "ACTIVE" || !r.ewbNo);
     if (dead.length) {
       throw new ApiError(
