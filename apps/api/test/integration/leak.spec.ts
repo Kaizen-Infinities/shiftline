@@ -48,6 +48,8 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "CustomerAddress",
   "DailyProductionPlan",
   "EmailConfig",
+  "EInvoice",
+  "EInvoiceConfig",
   "EmployeePayrollConfig",
   "FilingApproval",
   "EmployeePermanentDeduction",

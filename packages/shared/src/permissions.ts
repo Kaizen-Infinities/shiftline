@@ -63,6 +63,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view"],
     description: "Insights API (companion app, TV wall, integrations)",
   },
+  {
+    module: "e-invoice",
+    actions: ["view", "generate", "cancel", "settings"],
+    description: "E-invoicing (IRN, signed QR, cancellation, GSP credentials)",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {

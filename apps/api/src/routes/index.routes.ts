@@ -70,6 +70,7 @@ import platformConsoleRoutes from "../modules/platform/console.routes";
 import accountExportRoutes from "../modules/account-export/account-export.routes";
 import filingsRoutes from "../modules/filings/filings.routes";
 import insightsRoutes from "../modules/insights/insights.routes";
+import eInvoiceRoutes from "../modules/e-invoice/e-invoice.routes";
 import gstRoutes from "../modules/gst/gst.routes";
 import documentsRoutes from "../modules/documents/documents.routes";
 import auditTrailRoutes from "../modules/audit-trail/audit-trail.routes";
@@ -153,6 +154,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/account-export", router: accountExportRoutes },
   { path: "/filings", router: filingsRoutes },
   { path: "/v1/insights", router: insightsRoutes },
+  { path: "/e-invoice", router: eInvoiceRoutes },
   { path: "/gst", router: gstRoutes },
   { path: "/documents", router: documentsRoutes },
   { path: "/audit-trail", router: auditTrailRoutes },

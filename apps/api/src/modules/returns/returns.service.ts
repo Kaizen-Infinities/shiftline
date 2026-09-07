@@ -1,3 +1,4 @@
+import { eInvoiceService } from "../e-invoice/e-invoice.service";
 import { prisma } from "../../config/prisma";
 import { Prisma, SupplyType } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
@@ -609,6 +610,7 @@ class ReturnsService {
       if (ret.cancelledAt) {
         throw new ApiError(409, `Return ${ret.returnNo} is already cancelled`, "ALREADY_CANCELLED");
       }
+      await eInvoiceService.assertDocumentCancellable("CRN", ret.id, tx);
       await cancellationService.cancelVouchersFor(
         ["SALES_RETURN", "SALES_RETURN_REFUND"],
         [ret.id],
@@ -638,6 +640,7 @@ class ReturnsService {
       if (ret.cancelledAt) {
         throw new ApiError(409, `Return ${ret.returnNo} is already cancelled`, "ALREADY_CANCELLED");
       }
+      await eInvoiceService.assertDocumentCancellable("DBN", ret.id, tx);
       await cancellationService.cancelVouchersFor(
         ["PURCHASE_RETURN"],
         [ret.id],

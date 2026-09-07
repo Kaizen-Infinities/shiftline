@@ -1,165 +1,239 @@
-export const generateInvoiceHtml = (invoice: any, company: any): string => {
-    const formatDate = (dateStr: string | null | undefined) => {
-        if (!dateStr) return "N/A";
-        const d = new Date(dateStr);
-        return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+export interface InvoicePrintExtras {
+  /** IRN block (P1-11); absent when the document has no e-invoice. */
+  eInvoice?: {
+    irn: string;
+    ackNo: string | null;
+    ackDate: string | null;
+    qrDataUrl: string;
+    cancelled: boolean;
+  } | null;
+}
+
+export const generateInvoiceHtml = (
+  invoice: any,
+  company: any,
+  extras: InvoicePrintExtras = {}
+): string => {
+  const eInv = extras.eInvoice ?? null;
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "N/A";
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+
+  const formatMoney = (amount: number | null | undefined) => {
+    if (amount == null) return "0.00";
+    return amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const numberToWords = (num: number): string => {
+    const a = [
+      "",
+      "One ",
+      "Two ",
+      "Three ",
+      "Four ",
+      "Five ",
+      "Six ",
+      "Seven ",
+      "Eight ",
+      "Nine ",
+      "Ten ",
+      "Eleven ",
+      "Twelve ",
+      "Thirteen ",
+      "Fourteen ",
+      "Fifteen ",
+      "Sixteen ",
+      "Seventeen ",
+      "Eighteen ",
+      "Nineteen ",
+    ];
+    const b = [
+      "",
+      "",
+      "Twenty",
+      "Thirty",
+      "Forty",
+      "Fifty",
+      "Sixty",
+      "Seventy",
+      "Eighty",
+      "Ninety",
+    ];
+
+    if (num === 0) return "Zero";
+    if (num < 0) return "Minus " + numberToWords(Math.abs(num));
+
+    let str = "";
+    if (num >= 10000000) {
+      str += numberToWords(Math.floor(num / 10000000)) + "Crore ";
+      num %= 10000000;
+    }
+    if (num >= 100000) {
+      str += numberToWords(Math.floor(num / 100000)) + "Lakh ";
+      num %= 100000;
+    }
+    if (num >= 1000) {
+      str += numberToWords(Math.floor(num / 1000)) + "Thousand ";
+      num %= 1000;
+    }
+    if (num >= 100) {
+      str += numberToWords(Math.floor(num / 100)) + "Hundred ";
+      num %= 100;
+    }
+    if (num > 0) {
+      if (str !== "") str += "and ";
+      if (num < 20) {
+        str += a[num];
+      } else {
+        str += b[Math.floor(num / 10)] + " ";
+        if (num % 10 > 0) {
+          str += a[num % 10];
+        }
+      }
+    }
+    return str.trim() + " Only";
+  };
+
+  const customerState: string = invoice.customer?.addresses?.[0]?.address?.state || "";
+  // Detect inter-state from actual item data (more reliable than address comparison)
+  const hasIgst = (invoice.items || []).some(
+    (i: any) => Number(i.igstRate || 0) > 0 || Number(i.igstAmount || 0) > 0
+  );
+  const hasCgstSgst = (invoice.items || []).some(
+    (i: any) => Number(i.cgstRate || 0) > 0 || Number(i.sgstRate || 0) > 0
+  );
+  const isInterState =
+    hasIgst && !hasCgstSgst
+      ? true
+      : customerState && company?.state && customerState !== company.state;
+
+  // ── Parse additional charges from narration ───────────────────────────────
+  const CHARGE_META: Record<string, { label: string; sign: 1 | -1 }> = {
+    LORRY_FREIGHT: { label: "Lorry Freight", sign: 1 },
+    LORRY_FREIGHT_MINUS: { label: "Lorry Freight", sign: -1 },
+    OTHERS_PLUS: { label: "Others", sign: 1 },
+    OTHERS_MINUS: { label: "Others", sign: -1 },
+    ROUND_OFF_PLUS: { label: "Round Off", sign: 1 },
+    ROUND_OFF_MINUS: { label: "Round Off", sign: -1 },
+    TDS: { label: "TDS on Pymt./Purc. of Goods", sign: -1 },
+  };
+
+  let chargeRows: { label: string; sign: 1 | -1; amount: number }[] = [];
+  try {
+    const raw = invoice.narration || "";
+    if (raw.startsWith("{")) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.__chargeRows__) {
+        chargeRows = (parsed.__chargeRows__ as { type: string; amount: number }[])
+          .filter((r) => Number(r.amount) > 0)
+          .map((r) => ({
+            label: CHARGE_META[r.type]?.label || r.type,
+            sign: CHARGE_META[r.type]?.sign ?? 1,
+            amount: Number(r.amount),
+          }));
+      }
+    }
+  } catch {
+    /* ignore bad JSON */
+  }
+
+  const itemsWithTax = (invoice.items || []).map((item: any) => {
+    const qty = item.dispatchedQuantity || item.quantity || 0;
+    const rate = item.unitPrice || 0;
+    const amount = qty * rate;
+
+    const cgstRate = Number(item.cgstRate || (item.gstRate || 0) / 2) || 0;
+    const sgstRate = Number(item.sgstRate || (item.gstRate || 0) / 2) || 0;
+    const igstRate = Number(item.igstRate || item.gstRate) || 0;
+
+    const cgstAmount = Number(item.cgstAmount || (amount * cgstRate) / 100) || 0;
+    const sgstAmount = Number(item.sgstAmount || (amount * sgstRate) / 100) || 0;
+    const igstAmount = Number(item.igstAmount || (amount * igstRate) / 100) || 0;
+    const totalAmount = amount + cgstAmount + sgstAmount + igstAmount;
+
+    return {
+      ...item,
+      qty,
+      rate,
+      amount,
+      unit: item.product?.uom?.uomName || item.unit || "Pcs.",
+      cgstRate,
+      sgstRate,
+      igstRate,
+      cgstAmount,
+      sgstAmount,
+      igstAmount,
+      totalAmount,
     };
+  });
 
-    const formatMoney = (amount: number | null | undefined) => {
-        if (amount == null) return "0.00";
-        return amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const totalCgst = itemsWithTax.reduce((s: number, i: any) => s + i.cgstAmount, 0);
+  const totalSgst = itemsWithTax.reduce((s: number, i: any) => s + i.sgstAmount, 0);
+  const totalIgst = itemsWithTax.reduce((s: number, i: any) => s + i.igstAmount, 0);
+  const totalTaxable = itemsWithTax.reduce((s: number, i: any) => s + i.amount, 0);
+  const totalTax = totalCgst + totalSgst + totalIgst;
+  const invoiceDiscount = Number(invoice.totalDiscount || 0);
+  const discountValue = Number(invoice.discountValue || 0);
+  const discountType = invoice.discountType || "";
+  const itemsSubTotal = totalTaxable + totalTax;
+  const grandTotal = Number(invoice.grandTotal ?? itemsSubTotal);
+
+  const map = new Map<
+    number,
+    {
+      taxRate: number;
+      taxableAmt: number;
+      cgstAmt: number;
+      sgstAmt: number;
+      igstAmt: number;
+      totalTax: number;
+    }
+  >();
+  itemsWithTax.forEach((item: any) => {
+    const rate = item.cgstRate + item.sgstRate + item.igstRate;
+    const existing = map.get(rate) || {
+      taxRate: rate,
+      taxableAmt: 0,
+      cgstAmt: 0,
+      sgstAmt: 0,
+      igstAmt: 0,
+      totalTax: 0,
     };
+    existing.taxableAmt += item.amount;
+    existing.cgstAmt += item.cgstAmount;
+    existing.sgstAmt += item.sgstAmount;
+    existing.igstAmt += item.igstAmount;
+    existing.totalTax += item.cgstAmount + item.sgstAmount + item.igstAmount;
+    map.set(rate, existing);
+  });
+  const taxSummary = Array.from(map.values());
 
-    const numberToWords = (num: number): string => {
-        const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
-        const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const amountInWords = numberToWords(Math.round(grandTotal));
 
-        if (num === 0) return 'Zero';
-        if (num < 0) return 'Minus ' + numberToWords(Math.abs(num));
+  const getTransportStation = (customer: any, transportName: string | undefined) => {
+    if (!transportName) return "—";
+    return customer?.shippingCity || customer?.billingCity || "—";
+  };
 
-        let str = '';
-        if (num >= 10000000) {
-            str += numberToWords(Math.floor(num / 10000000)) + 'Crore ';
-            num %= 10000000;
-        }
-        if (num >= 100000) {
-            str += numberToWords(Math.floor(num / 100000)) + 'Lakh ';
-            num %= 100000;
-        }
-        if (num >= 1000) {
-            str += numberToWords(Math.floor(num / 1000)) + 'Thousand ';
-            num %= 1000;
-        }
-        if (num >= 100) {
-            str += numberToWords(Math.floor(num / 100)) + 'Hundred ';
-            num %= 100;
-        }
-        if (num > 0) {
-            if (str !== '') str += 'and ';
-            if (num < 20) {
-                str += a[num];
-            } else {
-                str += b[Math.floor(num / 10)] + ' ';
-                if (num % 10 > 0) {
-                    str += a[num % 10];
-                }
-            }
-        }
-        return str.trim() + ' Only';
-    };
-
-    const customerState: string = invoice.customer?.addresses?.[0]?.address?.state || '';
-    // Detect inter-state from actual item data (more reliable than address comparison)
-    const hasIgst = (invoice.items || []).some((i: any) => Number(i.igstRate || 0) > 0 || Number(i.igstAmount || 0) > 0);
-    const hasCgstSgst = (invoice.items || []).some((i: any) => Number(i.cgstRate || 0) > 0 || Number(i.sgstRate || 0) > 0);
-    const isInterState = hasIgst && !hasCgstSgst ? true : (customerState && company?.state && customerState !== company.state);
-
-    // ── Parse additional charges from narration ───────────────────────────────
-    const CHARGE_META: Record<string, { label: string; sign: 1 | -1 }> = {
-        LORRY_FREIGHT: { label: 'Lorry Freight', sign: 1 },
-        LORRY_FREIGHT_MINUS: { label: 'Lorry Freight', sign: -1 },
-        OTHERS_PLUS: { label: 'Others', sign: 1 },
-        OTHERS_MINUS: { label: 'Others', sign: -1 },
-        ROUND_OFF_PLUS: { label: 'Round Off', sign: 1 },
-        ROUND_OFF_MINUS: { label: 'Round Off', sign: -1 },
-        TDS: { label: 'TDS on Pymt./Purc. of Goods', sign: -1 },
-    };
-
-    let chargeRows: { label: string; sign: 1 | -1; amount: number }[] = [];
-    try {
-        const raw = invoice.narration || '';
-        if (raw.startsWith('{')) {
-            const parsed = JSON.parse(raw);
-            if (parsed?.__chargeRows__) {
-                chargeRows = (parsed.__chargeRows__ as { type: string; amount: number }[])
-                    .filter(r => Number(r.amount) > 0)
-                    .map(r => ({
-                        label: CHARGE_META[r.type]?.label || r.type,
-                        sign: CHARGE_META[r.type]?.sign ?? 1,
-                        amount: Number(r.amount),
-                    }));
-            }
-        }
-    } catch { /* ignore bad JSON */ }
-
-    const itemsWithTax = (invoice.items || []).map((item: any) => {
-        const qty = item.dispatchedQuantity || item.quantity || 0;
-        const rate = item.unitPrice || 0;
-        const amount = qty * rate;
-
-        const cgstRate = Number(item.cgstRate || (item.gstRate || 0) / 2) || 0;
-        const sgstRate = Number(item.sgstRate || (item.gstRate || 0) / 2) || 0;
-        const igstRate = Number(item.igstRate || item.gstRate) || 0;
-
-        const cgstAmount = Number(item.cgstAmount || (amount * cgstRate) / 100) || 0;
-        const sgstAmount = Number(item.sgstAmount || (amount * sgstRate) / 100) || 0;
-        const igstAmount = Number(item.igstAmount || (amount * igstRate) / 100) || 0;
-        const totalAmount = amount + cgstAmount + sgstAmount + igstAmount;
-
-        return {
-            ...item,
-            qty,
-            rate,
-            amount,
-            unit: item.product?.uom?.uomName || item.unit || "Pcs.",
-            cgstRate,
-            sgstRate,
-            igstRate,
-            cgstAmount,
-            sgstAmount,
-            igstAmount,
-            totalAmount,
-        };
-    });
-
-    const totalCgst = itemsWithTax.reduce((s: number, i: any) => s + i.cgstAmount, 0);
-    const totalSgst = itemsWithTax.reduce((s: number, i: any) => s + i.sgstAmount, 0);
-    const totalIgst = itemsWithTax.reduce((s: number, i: any) => s + i.igstAmount, 0);
-    const totalTaxable = itemsWithTax.reduce((s: number, i: any) => s + i.amount, 0);
-    const totalTax = totalCgst + totalSgst + totalIgst;
-    const invoiceDiscount = Number(invoice.totalDiscount || 0);
-    const discountValue = Number(invoice.discountValue || 0);
-    const discountType = invoice.discountType || "";
-    const itemsSubTotal = totalTaxable + totalTax;
-    const grandTotal = Number(invoice.grandTotal ?? itemsSubTotal);
-
-    const map = new Map<number, { taxRate: number; taxableAmt: number; cgstAmt: number; sgstAmt: number; igstAmt: number; totalTax: number }>();
-    itemsWithTax.forEach((item: any) => {
-        const rate = item.cgstRate + item.sgstRate + item.igstRate;
-        const existing = map.get(rate) || { taxRate: rate, taxableAmt: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, totalTax: 0 };
-        existing.taxableAmt += item.amount;
-        existing.cgstAmt += item.cgstAmount;
-        existing.sgstAmt += item.sgstAmount;
-        existing.igstAmt += item.igstAmount;
-        existing.totalTax += item.cgstAmount + item.sgstAmount + item.igstAmount;
-        map.set(rate, existing);
-    });
-    const taxSummary = Array.from(map.values());
-
-    const amountInWords = numberToWords(Math.round(grandTotal));
-
-    const getTransportStation = (customer: any, transportName: string | undefined) => {
-        if (!transportName) return "—";
-        return customer?.shippingCity || customer?.billingCity || "—";
-    };
-
-    let itemsHtml = '';
-    itemsWithTax.forEach((item: any, idx: number) => {
-        let taxHtml = '';
-        if (isInterState) {
-            taxHtml = `
+  let itemsHtml = "";
+  itemsWithTax.forEach((item: any, idx: number) => {
+    let taxHtml = "";
+    if (isInterState) {
+      taxHtml = `
                 <td class="border border-black px-2 py-1 align-middle text-center">${item.igstRate}%</td>
                 <td class="border border-black px-2 py-1 align-middle text-right">${item.igstAmount.toFixed(2)}</td>
             `;
-        } else {
-            taxHtml = `
+    } else {
+      taxHtml = `
                 <td class="border border-black px-2 py-1 align-middle text-center">${item.cgstRate}%</td>
                 <td class="border border-black px-2 py-1 align-middle text-right">${item.cgstAmount.toFixed(2)}</td>
                 <td class="border border-black px-2 py-1 align-middle text-center">${item.sgstRate}%</td>
                 <td class="border border-black px-2 py-1 align-middle text-right">${item.sgstAmount.toFixed(2)}</td>
             `;
-        }
-        itemsHtml += `
+    }
+    itemsHtml += `
             <tr>
                 <td class="border border-black px-2 py-1 align-middle text-center">${idx + 1}.</td>
                 <td class="border border-black px-2 py-1 align-middle text-left">${item.description || item.product?.productName || "N/A"}</td>
@@ -170,57 +244,59 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                 <td class="border border-black px-2 py-1 align-middle text-right">${item.amount.toFixed(2)}</td>
             </tr>
         `;
-    });
+  });
 
-    if (itemsWithTax.length === 0) {
-        itemsHtml += `
+  if (itemsWithTax.length === 0) {
+    itemsHtml += `
             <tr>
                 <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-4 text-center text-slate-500">
                     No items found for this invoice.
                 </td>
             </tr>
         `;
-    }
+  }
 
-    let taxSummaryHtml = '';
-    if (taxSummary.length > 0) {
-        taxSummaryHtml += `
+  let taxSummaryHtml = "";
+  if (taxSummary.length > 0) {
+    taxSummaryHtml += `
             <table class="w-full border-collapse text-[13px] mt-2">
                 <thead>
                     <tr>
                         <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-left" style="width: 60px;">Tax Rate</th>
                         <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right">Taxable Amt.</th>
-                        ${isInterState ?
-                `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right">IGST Amt.</th>` :
-                `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right">CGST Amt.</th>
+                        ${
+                          isInterState
+                            ? `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right">IGST Amt.</th>`
+                            : `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right">CGST Amt.</th>
                              <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right">SGST Amt.</th>`
-            }
+                        }
                         <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right">Total Tax</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
-        taxSummary.forEach(row => {
-            taxSummaryHtml += `
+    taxSummary.forEach((row) => {
+      taxSummaryHtml += `
                 <tr>
                     <td class="border border-black px-2 py-1 align-middle text-center">${row.taxRate}%</td>
                     <td class="border border-black px-2 py-1 align-middle text-right">${row.taxableAmt.toFixed(2)}</td>
-                    ${isInterState ?
-                    `<td class="border border-black px-2 py-1 align-middle text-right">${row.igstAmt.toFixed(2)}</td>` :
-                    `<td class="border border-black px-2 py-1 align-middle text-right">${row.cgstAmt.toFixed(2)}</td>
+                    ${
+                      isInterState
+                        ? `<td class="border border-black px-2 py-1 align-middle text-right">${row.igstAmt.toFixed(2)}</td>`
+                        : `<td class="border border-black px-2 py-1 align-middle text-right">${row.cgstAmt.toFixed(2)}</td>
                          <td class="border border-black px-2 py-1 align-middle text-right">${row.sgstAmt.toFixed(2)}</td>`
-                }
+                    }
                     <td class="border border-black px-2 py-1 align-middle text-right">${row.totalTax.toFixed(2)}</td>
                 </tr>
             `;
-        });
-        taxSummaryHtml += `
+    });
+    taxSummaryHtml += `
                 </tbody>
             </table>
         `;
-    }
+  }
 
-    return `
+  return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -239,6 +315,17 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                 <div>GSTIN : ${company?.gstin || "-"}</div>
                 <div class="italic">Triplicate Copy</div>
             </div>
+            ${
+              eInv
+                ? `<div class="flex justify-between items-start gap-3 px-3 pt-1 pb-2 text-[11px] border-b-[1.5px] border-black">
+                <div class="space-y-0.5 break-all">
+                    <div><span class="font-bold">IRN</span> : ${eInv.irn}${eInv.cancelled ? ' <span class="font-bold text-red-700">(CANCELLED)</span>' : ""}</div>
+                    <div><span class="font-bold">Ack No.</span> : ${eInv.ackNo || "-"} &nbsp; <span class="font-bold">Ack Date</span> : ${eInv.ackDate || "-"}</div>
+                </div>
+                <img src="${eInv.qrDataUrl}" alt="e-invoice QR" width="96" height="96" class="shrink-0" />
+            </div>`
+                : ""
+            }
 
             <!-- Header -->
             <div class="text-center border-b-[1.5px] border-black px-3 pb-2">
@@ -247,10 +334,10 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                     ${company?.legalName || company?.companyName || "Company Name"}
                 </h1>
                 <div class="text-[13px] mt-1">
-                    ${company?.addressLine1 || ''}
-                    ${company?.city ? `, ${company.city}` : ''}
-                    ${company?.state ? `, ${company.state}` : ''}
-                    ${company?.pincode ? ` - ${company.pincode}` : ''}
+                    ${company?.addressLine1 || ""}
+                    ${company?.city ? `, ${company.city}` : ""}
+                    ${company?.state ? `, ${company.state}` : ""}
+                    ${company?.pincode ? ` - ${company.pincode}` : ""}
                 </div>
             </div>
 
@@ -269,7 +356,7 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">Vehicle No</span><span>: —</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">Station</span><span>: ${getTransportStation(invoice.customer, invoice.salesOrder?.transportName)}</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">E-way Bill no</span><span>: —</span></div>
-                    ${invoice.salesOrder?.orderNo ? `<div class="flex text-[13px]"><span class="w-[110px] font-bold">Ref. Order No.</span><span>: ${invoice.salesOrder.orderNo}</span></div>` : ''}
+                    ${invoice.salesOrder?.orderNo ? `<div class="flex text-[13px]"><span class="w-[110px] font-bold">Ref. Order No.</span><span>: ${invoice.salesOrder.orderNo}</span></div>` : ""}
                 </div>
             </div>
 
@@ -279,17 +366,17 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                     <div class="font-bold mb-1">Billed to :</div>
                     <div class="font-semibold">${invoice.customer?.displayName || invoice.customer?.firmName || "N/A"}</div>
                     <div class="font-semibold">
-                        ${invoice.customer?.addresses?.[0]?.address?.addressLine1 || ''}<br />
-                        ${invoice.customer?.addresses?.[0]?.address?.city || ''}, ${invoice.customer?.addresses?.[0]?.address?.state || ''} - ${invoice.customer?.addresses?.[0]?.address?.pincode || ''}
+                        ${invoice.customer?.addresses?.[0]?.address?.addressLine1 || ""}<br />
+                        ${invoice.customer?.addresses?.[0]?.address?.city || ""}, ${invoice.customer?.addresses?.[0]?.address?.state || ""} - ${invoice.customer?.addresses?.[0]?.address?.pincode || ""}
                     </div>
-                    ${invoice.customer?.gstin ? `<div class="mt-1">GSTIN / UIN : ${invoice.customer.gstin}</div>` : ''}
+                    ${invoice.customer?.gstin ? `<div class="mt-1">GSTIN / UIN : ${invoice.customer.gstin}</div>` : ""}
                 </div>
                 <div class="flex-1 p-2">
                     <div class="font-bold mb-1">Shipped to :</div>
                     <div class="font-semibold">${invoice.customer?.displayName || invoice.customer?.firmName || "N/A"}</div>
                     <div class="font-semibold">
-                        ${invoice.salesOrder?.shippingAddressLine1 || invoice.customer?.addresses?.[0]?.address?.addressLine1 || ''}<br />
-                        ${invoice.salesOrder?.shippingCity || invoice.customer?.addresses?.[0]?.address?.city || ''}, ${invoice.salesOrder?.shippingState || invoice.customer?.addresses?.[0]?.address?.state || ''} - ${invoice.salesOrder?.shippingPincode || invoice.customer?.addresses?.[0]?.address?.pincode || ''}
+                        ${invoice.salesOrder?.shippingAddressLine1 || invoice.customer?.addresses?.[0]?.address?.addressLine1 || ""}<br />
+                        ${invoice.salesOrder?.shippingCity || invoice.customer?.addresses?.[0]?.address?.city || ""}, ${invoice.salesOrder?.shippingState || invoice.customer?.addresses?.[0]?.address?.state || ""} - ${invoice.salesOrder?.shippingPincode || invoice.customer?.addresses?.[0]?.address?.pincode || ""}
                     </div>
                 </div>
             </div>
@@ -303,14 +390,15 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                         <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right" style="width: 55px;">Qty.</th>
                         <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-left" style="width: 45px;">Unit</th>
                         <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right" style="width: 60px;">Price</th>
-                        ${isInterState ?
-            `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-left" style="width: 50px;">IGST Rate</th>
-                             <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right" style="width: 65px;">IGST Amt</th>` :
-            `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-left" style="width: 50px;">CGST Rate</th>
+                        ${
+                          isInterState
+                            ? `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-left" style="width: 50px;">IGST Rate</th>
+                             <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right" style="width: 65px;">IGST Amt</th>`
+                            : `<th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-left" style="width: 50px;">CGST Rate</th>
                              <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right" style="width: 65px;">CGST Amt</th>
                              <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-left" style="width: 50px;">SGST Rate</th>
                              <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right" style="width: 65px;">SGST Amt</th>`
-        }
+                        }
                         <th class="border border-black px-2 py-1 font-bold bg-[#f7f7f7] text-right" style="width: 70px;">Amount(Rs.)</th>
                     </tr>
                 </thead>
@@ -322,10 +410,12 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right font-bold">Sub Total</td>
                         <td class="border border-black px-2 py-1 text-right font-bold">${formatMoney(totalTaxable)}</td>
                     </tr>
-                    ${invoiceDiscount > 0 ? `
+                    ${
+                      invoiceDiscount > 0
+                        ? `
                     <tr>
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px] text-red-600">
-                            Discount ${discountValue > 0 ? `(${discountValue}${discountType === "PERCENT" ? '%' : ' Flat'})` : ''} (-)
+                            Discount ${discountValue > 0 ? `(${discountValue}${discountType === "PERCENT" ? "%" : " Flat"})` : ""} (-)
                         </td>
                         <td class="border border-black px-2 py-1 text-right text-[13px] text-red-600">- ${formatMoney(invoiceDiscount)}</td>
                     </tr>
@@ -333,13 +423,19 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px]">Taxable Amount</td>
                         <td class="border border-black px-2 py-1 text-right text-[13px]">${formatMoney(totalTaxable - invoiceDiscount)}</td>
                     </tr>
-                    ` : ''}
-                    ${totalTax > 0 ? (isInterState ? `
+                    `
+                        : ""
+                    }
+                    ${
+                      totalTax > 0
+                        ? isInterState
+                          ? `
                     <tr>
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px]">IGST</td>
                         <td class="border border-black px-2 py-1 text-right text-[13px]">+ ${formatMoney(totalIgst)}</td>
                     </tr>
-                    ` : `
+                    `
+                          : `
                     <tr>
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px]">CGST</td>
                         <td class="border border-black px-2 py-1 text-right text-[13px]">+ ${formatMoney(totalCgst)}</td>
@@ -348,16 +444,22 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px]">SGST</td>
                         <td class="border border-black px-2 py-1 text-right text-[13px]">+ ${formatMoney(totalSgst)}</td>
                     </tr>
-                    `) : ''}
-                    ${chargeRows.map(cr => `
+                    `
+                        : ""
+                    }
+                    ${chargeRows
+                      .map(
+                        (cr) => `
                     <tr>
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px]">
-                            ${cr.label} ${cr.sign === 1 ? '(+)' : '(-)'}
+                            ${cr.label} ${cr.sign === 1 ? "(+)" : "(-)"}
                         </td>
                         <td class="border border-black px-2 py-1 text-right text-[13px]">
-                            ${cr.sign === 1 ? '+' : '-'}&nbsp;${formatMoney(cr.amount)}
+                            ${cr.sign === 1 ? "+" : "-"}&nbsp;${formatMoney(cr.amount)}
                         </td>
-                    </tr>`).join('')}
+                    </tr>`
+                      )
+                      .join("")}
                     <tr>
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right font-bold">Grand Total</td>
                         <td class="border border-black px-2 py-1 text-right font-bold">${formatMoney(grandTotal)}</td>
@@ -381,7 +483,7 @@ export const generateInvoiceHtml = (invoice: any, company: any): string => {
             </div>
 
             <!-- Notes -->
-            ${invoice.notes ? `<div class="px-2 py-2 border-t border-black text-[13px]"><span class="font-bold">Notes :</span> ${invoice.notes}</div>` : ''}
+            ${invoice.notes ? `<div class="px-2 py-2 border-t border-black text-[13px]"><span class="font-bold">Notes :</span> ${invoice.notes}</div>` : ""}
 
             <!-- Footer: Terms + Signature -->
             <div class="flex border-t-[1.5px] border-black text-[13px]">

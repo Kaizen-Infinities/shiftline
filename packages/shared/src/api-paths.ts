@@ -154,6 +154,10 @@ export const API_PATHS = {
   insights: {
     base: "/v1/insights",
   },
+  eInvoice: {
+    base: "/e-invoice",
+    settings: "/e-invoice/settings",
+  },
   status: "/status",
   notifications: {
     base: "/notifications",

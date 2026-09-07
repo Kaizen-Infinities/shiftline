@@ -30,6 +30,8 @@ export const QUEUES = {
   BACKUP_DAILY: "platform.backup.daily",
   /** Per-tenant full account export (P1-03); one at a time per tenant. */
   ACCOUNT_EXPORT: "platform.account-export",
+  /** One IRN request per document (P1-11); retried on transient portal errors. */
+  E_INVOICE: "gst.e-invoice",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

@@ -1,3 +1,4 @@
+import { eInvoiceService } from "../e-invoice/e-invoice.service";
 import type { SalesDocumentType, SupplyType } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
@@ -642,6 +643,8 @@ class SalesInvoiceService {
             "ALREADY_CANCELLED"
           );
         }
+        // P1-11: a live IRN is cancelled on the portal before the invoice leaves the books.
+        await eInvoiceService.assertDocumentCancellable("INV", invoice.id, tx);
 
         const payments = invoice.payments
           ? ((typeof invoice.payments === "string"

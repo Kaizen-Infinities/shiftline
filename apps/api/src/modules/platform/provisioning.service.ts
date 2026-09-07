@@ -66,6 +66,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       // Filings (P1-04): the accountant prepares and files; the owner approves.
       ...keysFor(["filings"], ["view", "prepare", "submit"]),
       ...keysFor(["insights"]),
+      // E-invoicing (P1-11): the accountant raises and cancels IRNs and keeps the GSP setup.
+      ...keysFor(["e-invoice"]),
     ],
   },
   {
@@ -404,12 +406,23 @@ class ProvisioningService {
     return { company, roles, fyCode: fy.code, created: !existing };
   }
 
-  /** The plan catalogue from the shared registry; existing rows keep their edited values. */
+  /**
+   * The plan catalogue from the shared registry. Existing rows keep their edited limits and
+   * prices, but a feature added to a tier in the registry (a new package shipping) reaches
+   * every database on the next start, otherwise tenants on that tier would be refused it.
+   */
   async ensurePlans() {
     for (const tier of PLAN_TIERS) {
+      const existing = await prisma.plan.findUnique({
+        where: { code: tier.code },
+        select: { features: true },
+      });
+      const merged = existing
+        ? [...new Set([...existing.features, ...tier.features])]
+        : [...tier.features];
       await prisma.plan.upsert({
         where: { code: tier.code },
-        update: {},
+        update: existing && merged.length !== existing.features.length ? { features: merged } : {},
         create: {
           code: tier.code,
           name: tier.name,

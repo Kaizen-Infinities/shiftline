@@ -118,6 +118,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/compliance/approvals",
             permission: "filings.view",
           },
+          {
+            title: "E-invoice Register",
+            path: "/compliance/e-invoices",
+            permission: "e-invoice.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──
@@ -201,6 +206,7 @@ export const sidebarItems: SidebarItem[] = [
           },
           { title: "Data Imports", path: "/settings/imports", permission: "company-settings.view" },
           { title: "GST & HSN", path: "/settings/gst", permission: "gst_tax.view" },
+          { title: "E-invoicing", path: "/settings/e-invoice", permission: "e-invoice.settings" },
           { title: "Field Devices", path: "/settings/devices", permission: "mobile-app.manage" },
           { title: "Account Export", path: "/settings/export", permission: "account-export.view" },
         ],
@@ -242,6 +248,7 @@ export const sidebarItems: SidebarItem[] = [
       "/settings/invoice",
       "/settings/imports",
       "/settings/gst",
+      "/settings/e-invoice",
       "/settings/devices",
       "/settings/export",
       "/roles",

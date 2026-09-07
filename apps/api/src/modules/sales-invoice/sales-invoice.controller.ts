@@ -1,3 +1,4 @@
+import { eInvoicePrintBlock } from "../e-invoice/e-invoice.print";
 import { requireTenantId } from "../../lib/tenant-context";
 import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
@@ -171,7 +172,9 @@ class SalesInvoiceController {
       return res.status(404).json(new ApiResponse("Invoice not found"));
     }
 
-    const htmlContent = generateInvoiceHtml(invoice, company);
+    const htmlContent = generateInvoiceHtml(invoice, company, {
+      eInvoice: await eInvoicePrintBlock("INV", invoice.id),
+    });
     const pdfBuffer = await generatePdfFromHtml(htmlContent);
 
     await sendEmail({
@@ -207,7 +210,9 @@ class SalesInvoiceController {
     }
 
     // 1. Generate PDF buffer
-    const htmlContent = generateInvoiceHtml(invoice, company);
+    const htmlContent = generateInvoiceHtml(invoice, company, {
+      eInvoice: await eInvoicePrintBlock("INV", invoice.id),
+    });
     const pdfBuffer = await generatePdfFromHtml(htmlContent);
 
     const filename = `Invoice-${invoice.invoiceNo}.pdf`;

@@ -662,8 +662,10 @@ model Company {
   featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
   hsnCodes                    HsnCode[]                    @relation("CompanyHsnCode")
   ledgerGroups                LedgerGroup[]                @relation("CompanyLedgerGroup")
-  filingApprovals      FilingApproval[]      @relation("CompanyFilingApproval")
-  accountExports       AccountExport[]       @relation("CompanyAccountExport")
+  filingApprovals             FilingApproval[]             @relation("CompanyFilingApproval")
+  eInvoices                   EInvoice[]                   @relation("CompanyEInvoice")
+  eInvoiceConfigs             EInvoiceConfig[]             @relation("CompanyEInvoiceConfig")
+  accountExports              AccountExport[]              @relation("CompanyAccountExport")
   yearEndClosings             YearEndClosing[]             @relation("CompanyYearEndClosing")
   gstRates                    GstRate[]                    @relation("CompanyGstRate")
   /// Books are frozen on and before this date (set after filing); postings are refused (P1-09).
@@ -3656,4 +3658,81 @@ model Invitation {
 
   @@index([companyId, email])
   @@map("invitations")
+}
+
+// ─── E-invoicing (P1-11) ──────────────────────────────────────────────────────
+
+enum EInvoiceStatus {
+  PENDING
+  GENERATED
+  FAILED
+  CANCELLED
+}
+
+/// Per-tenant e-invoice setup: which provider, whether it is on, from when, and the GSP
+/// credentials (secrets encrypted with DATA_ENCRYPTION_KEY, never returned to the client).
+model EInvoiceConfig {
+  id             String    @id @default(uuid()) @db.Uuid
+  companyId      String    @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// FIXTURE (recorded responses, tests and demos) | GSP (a GST Suvidha Provider over HTTPS)
+  provider       String    @default("FIXTURE") @db.VarChar(20)
+  enabled        Boolean   @default(false)
+  /// Documents dated on or after this day need an IRN.
+  applicableFrom DateTime? @map("applicable_from") @db.Date
+  /// Aggregate annual turnover in crore; at 10 and above the IRN must be raised within 30 days.
+  aatoCrore      Decimal?  @map("aato_crore") @db.Decimal(10, 2)
+  baseUrl        String?   @map("base_url") @db.VarChar(200)
+  clientId       String?   @map("client_id") @db.VarChar(200)
+  clientSecret   String?   @map("client_secret") @db.VarChar(500)
+  username       String?   @db.VarChar(200)
+  password       String?   @db.VarChar(500)
+  lastVerifiedAt DateTime? @map("last_verified_at") @db.Timestamptz(6)
+  updatedBy      String?   @map("updated_by") @db.VarChar(36)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyEInvoiceConfig", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("e_invoice_configs")
+}
+
+/// One row per document sent to the Invoice Registration Portal: the request as sent, the
+/// IRN, acknowledgement and signed QR that came back, and the cancellation if any. Audited.
+model EInvoice {
+  id            String         @id @default(uuid()) @db.Uuid
+  companyId     String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// INV (tax invoice) | CRN (credit note) | DBN (debit note)
+  docType       String         @map("doc_type") @db.VarChar(3)
+  docId         String         @map("doc_id") @db.Uuid
+  docNo         String         @map("doc_no") @db.VarChar(30)
+  docDate       DateTime       @map("doc_date") @db.Date
+  sellerGstin   String         @map("seller_gstin") @db.VarChar(15)
+  buyerGstin    String         @map("buyer_gstin") @db.VarChar(15)
+  status        EInvoiceStatus @default(PENDING)
+  irn           String?        @db.VarChar(64)
+  ackNo         String?        @map("ack_no") @db.VarChar(30)
+  ackDate       DateTime?      @map("ack_date") @db.Timestamptz(6)
+  signedInvoice String?        @map("signed_invoice")
+  signedQr      String?        @map("signed_qr")
+  ewbNo         String?        @map("ewb_no") @db.VarChar(20)
+  ewbDate       DateTime?      @map("ewb_date") @db.Timestamptz(6)
+  ewbValidTill  DateTime?      @map("ewb_valid_till") @db.Timestamptz(6)
+  request       Json
+  response      Json?
+  error         String?        @db.VarChar(1000)
+  attempts      Int            @default(0)
+  requestedBy   String?        @map("requested_by") @db.VarChar(36)
+  cancelledAt   DateTime?      @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy   String?        @map("cancelled_by") @db.VarChar(36)
+  cancelReason  String?        @map("cancel_reason") @db.VarChar(2)
+  cancelRemarks String?        @map("cancel_remarks") @db.VarChar(100)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyEInvoice", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, docType, docId])
+  @@unique([companyId, irn])
+  @@index([companyId, status])
+  @@map("e_invoices")
 }
