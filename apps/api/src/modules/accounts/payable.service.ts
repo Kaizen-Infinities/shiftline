@@ -77,7 +77,6 @@ export interface SupplierPayableDetail {
   }>;
 }
 
-
 class PayableService {
   /**
    * List all suppliers with calculated outstanding balances as on date.
@@ -214,7 +213,10 @@ class PayableService {
       let totalReturned = 0;
 
       for (const item of journalItems) {
-        if (item.voucher.refDocType === "SUPPLIER_OPENING_BALANCE" || item.narration?.includes("Opening balance")) {
+        if (
+          item.voucher.refDocType === "SUPPLIER_OPENING_BALANCE" ||
+          item.narration?.includes("Opening balance")
+        ) {
           continue;
         }
 
@@ -266,7 +268,10 @@ class PayableService {
 
       const dueDays = isOverdue
         ? earliestUnpaidDueDate
-          ? Math.max(0, Math.floor((cutoffDate.getTime() - earliestUnpaidDueDate.getTime()) / 86400000))
+          ? Math.max(
+              0,
+              Math.floor((cutoffDate.getTime() - earliestUnpaidDueDate.getTime()) / 86400000)
+            )
           : null
         : 0;
 
@@ -299,7 +304,10 @@ class PayableService {
   /**
    * Per-supplier invoice breakdown + payment history + statement.
    */
-  async getSupplierPayableDetail(supplierId: number, options?: { startDate?: string; endDate?: string }): Promise<SupplierPayableDetail> {
+  async getSupplierPayableDetail(
+    supplierId: number,
+    options?: { startDate?: string; endDate?: string }
+  ): Promise<SupplierPayableDetail> {
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
     });
@@ -318,7 +326,9 @@ class PayableService {
     });
 
     const invoices = grnInvoices.map((grn: any) => {
-      const amount = Number(grn.netAmount || grn.subtotal || grn.grandTotal || grn.totalAmount || 0);
+      const amount = Number(
+        grn.netAmount || grn.subtotal || grn.grandTotal || grn.totalAmount || 0
+      );
       const pList = extractPaymentsArray(grn.payments);
       const paidAmount = Math.max(
         pList.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0),
@@ -337,8 +347,14 @@ class PayableService {
         id: grn.id,
         invoiceNo: grn.invoiceNo || grn.grnNumber || `INV-${grn.id}`,
         grnNumber: grn.grnNumber,
-        date: grn.grnDate ? new Date(grn.grnDate).toISOString().split("T")[0] : (grn.createdAt ? new Date(grn.createdAt).toISOString().split("T")[0] : ""),
-        dueDate: grn.billDueDate ? new Date(grn.billDueDate).toISOString().split("T")[0] : undefined,
+        date: grn.grnDate
+          ? new Date(grn.grnDate).toISOString().split("T")[0]
+          : grn.createdAt
+            ? new Date(grn.createdAt).toISOString().split("T")[0]
+            : "",
+        dueDate: grn.billDueDate
+          ? new Date(grn.billDueDate).toISOString().split("T")[0]
+          : undefined,
         amount,
         paidAmount,
         balance,
@@ -397,7 +413,9 @@ class PayableService {
             if (
               entry.refDocId === paymentId ||
               entry.refDocId === `${grn.id}_pay_${idx}` ||
-              (p.referenceNumber && entry.referenceNo === p.referenceNumber && Math.abs(entry.amount - Number(p.amount || 0)) < 0.01)
+              (p.referenceNumber &&
+                entry.referenceNo === p.referenceNumber &&
+                Math.abs(entry.amount - Number(p.amount || 0)) < 0.01)
             ) {
               matchedVoucherKey = key;
               break;
@@ -417,7 +435,11 @@ class PayableService {
           paymentHistoryMap.set(unpostedKey, {
             id: unpostedKey,
             voucherNo: p.referenceNumber || grn.grnNumber || `PAY-GRN-${grn.id}`,
-            date: p.paymentDate ? new Date(p.paymentDate).toISOString().split("T")[0] : (grn.createdAt ? new Date(grn.createdAt).toISOString().split("T")[0] : ""),
+            date: p.paymentDate
+              ? new Date(p.paymentDate).toISOString().split("T")[0]
+              : grn.createdAt
+                ? new Date(grn.createdAt).toISOString().split("T")[0]
+                : "",
             amount: Number(p.amount || 0),
             paymentMode: p.paymentMethod || undefined,
             referenceNo: p.referenceNumber || undefined,
@@ -435,7 +457,12 @@ class PayableService {
     let totalReturned = 0;
 
     statement.entries.forEach((e) => {
-      if (e.voucherType === "OPENING" || /opening balance/i.test(e.narration) || (e as any).refDocType === "SUPPLIER_OPENING_BALANCE") return;
+      if (
+        e.voucherType === "OPENING" ||
+        /opening balance/i.test(e.narration) ||
+        (e as any).refDocType === "SUPPLIER_OPENING_BALANCE"
+      )
+        return;
       if (e.voucherType === VoucherType.PURCHASE_RETURN) {
         totalReturned += e.debit || e.credit;
       } else if (e.voucherType === VoucherType.PURCHASE) {
@@ -452,7 +479,8 @@ class PayableService {
     // owes us (advance), so closingBalance treats it as a negative liability.
     const rawOpBalDetail = Number(supplier.openingBalance || 0);
     const opTypeDetail = ((supplier as any).openingBalanceType || "CREDIT").toUpperCase();
-    const signedOpeningDetail = opTypeDetail === "DEBIT" ? -Math.abs(rawOpBalDetail) : Math.abs(rawOpBalDetail);
+    const signedOpeningDetail =
+      opTypeDetail === "DEBIT" ? -Math.abs(rawOpBalDetail) : Math.abs(rawOpBalDetail);
     const closingBalance = signedOpeningDetail + totalBilled - totalPaid - totalReturned;
 
     return {

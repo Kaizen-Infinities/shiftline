@@ -9,7 +9,10 @@ import {
   updateLedgerSchema,
   getLedgersQuerySchema,
   ledgerStatementQuerySchema,
+  createLedgerGroupSchema,
+  updateLedgerGroupSchema,
 } from "./accounts.types";
+import { ledgerGroupService } from "./ledgerGroup.service";
 
 export class AccountsController {
   async getLedgers(req: Request, res: Response, next: NextFunction) {
@@ -330,6 +333,41 @@ export class AccountsController {
       const id = parseInt(req.params.id as string, 10);
       const closedBy = (req as any).user?.userId;
       const data = await periodService.closePeriod(id, closedBy);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ── Ledger groups (P1-09c) ───────────────────────────────────────────────
+  async listLedgerGroups(req: Request, res: Response, next: NextFunction) {
+    try {
+      const flat = req.query.flat === "true";
+      const includeInactive = req.query.includeInactive === "true";
+      const data = flat
+        ? await ledgerGroupService.flat()
+        : await ledgerGroupService.tree({ includeInactive });
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createLedgerGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const input = createLedgerGroupSchema.parse(req.body);
+      const data = await ledgerGroupService.create(input);
+      res.status(201).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateLedgerGroup(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = parseInt(String(req.params.id), 10);
+      const input = updateLedgerGroupSchema.parse(req.body);
+      const data = await ledgerGroupService.update(id, input);
       res.json({ success: true, data });
     } catch (error) {
       next(error);

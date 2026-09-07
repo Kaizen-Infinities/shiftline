@@ -129,7 +129,9 @@ class ReceivableService {
       where: { customerId: { in: customerIds } },
     });
     const ledgerMap = new Map<string, any>();
-    existingLedgers.forEach((l) => { if (l.customerId) ledgerMap.set(l.customerId, l); });
+    existingLedgers.forEach((l) => {
+      if (l.customerId) ledgerMap.set(l.customerId, l);
+    });
 
     // Ensure missing ledgers (batch, sequential to avoid pool exhaustion)
     const missingCustomers = customers.filter((c) => !ledgerMap.has(c.id));
@@ -197,7 +199,10 @@ class ReceivableService {
       let totalReturned = 0;
 
       for (const item of journalItems) {
-        if (item.voucher.refDocType === "CUSTOMER_OPENING_BALANCE" || item.narration?.includes("Opening balance")) {
+        if (
+          item.voucher.refDocType === "CUSTOMER_OPENING_BALANCE" ||
+          item.narration?.includes("Opening balance")
+        ) {
           continue;
         }
 
@@ -227,7 +232,8 @@ class ReceivableService {
       const netAsset = openingBalance + totalBilled - totalPaid - totalReturned;
       // Opening balance (DEBIT) counts as debit, negative opening (CREDIT) counts as credit
       const debit = totalBilled + (openingBalance > 0 ? openingBalance : 0);
-      const credit = totalPaid + totalReturned + (openingBalance < 0 ? Math.abs(openingBalance) : 0);
+      const credit =
+        totalPaid + totalReturned + (openingBalance < 0 ? Math.abs(openingBalance) : 0);
       const balanceAsOnDate = netAsset;
       const isOverdue = balanceAsOnDate > 0;
 
@@ -244,7 +250,10 @@ class ReceivableService {
 
       const dueDays = isOverdue
         ? earliestUnpaidDueDate
-          ? Math.max(0, Math.floor((cutoffDate.getTime() - earliestUnpaidDueDate.getTime()) / 86400000))
+          ? Math.max(
+              0,
+              Math.floor((cutoffDate.getTime() - earliestUnpaidDueDate.getTime()) / 86400000)
+            )
           : null
         : 0;
 
@@ -274,7 +283,10 @@ class ReceivableService {
   /**
    * Per-customer invoice breakdown + collection history + statement.
    */
-  async getCustomerReceivableDetail(customerId: string, options?: { startDate?: string; endDate?: string }): Promise<CustomerReceivableDetail> {
+  async getCustomerReceivableDetail(
+    customerId: string,
+    options?: { startDate?: string; endDate?: string }
+  ): Promise<CustomerReceivableDetail> {
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
     });
@@ -311,7 +323,11 @@ class ReceivableService {
       return {
         id: inv.id,
         invoiceNo: inv.invoiceNo || `INV-${inv.id}`,
-        date: inv.invoiceDate ? new Date(inv.invoiceDate).toISOString().split("T")[0] : (inv.createdAt ? new Date(inv.createdAt).toISOString().split("T")[0] : ""),
+        date: inv.invoiceDate
+          ? new Date(inv.invoiceDate).toISOString().split("T")[0]
+          : inv.createdAt
+            ? new Date(inv.createdAt).toISOString().split("T")[0]
+            : "",
         dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split("T")[0] : undefined,
         amount,
         paidAmount,
@@ -371,7 +387,9 @@ class ReceivableService {
             if (
               entry.refDocId === paymentId ||
               entry.refDocId === `${inv.id}_pay_${idx}` ||
-              (p.referenceNumber && entry.referenceNo === p.referenceNumber && Math.abs(entry.amount - Number(p.amount || 0)) < 0.01)
+              (p.referenceNumber &&
+                entry.referenceNo === p.referenceNumber &&
+                Math.abs(entry.amount - Number(p.amount || 0)) < 0.01)
             ) {
               matchedVoucherKey = key;
               break;
@@ -391,7 +409,11 @@ class ReceivableService {
           collectionHistoryMap.set(unpostedKey, {
             id: unpostedKey,
             voucherNo: p.referenceNumber || inv.invoiceNo || `RCT-INV-${inv.id}`,
-            date: p.paymentDate ? new Date(p.paymentDate).toISOString().split("T")[0] : (inv.createdAt ? new Date(inv.createdAt).toISOString().split("T")[0] : ""),
+            date: p.paymentDate
+              ? new Date(p.paymentDate).toISOString().split("T")[0]
+              : inv.createdAt
+                ? new Date(inv.createdAt).toISOString().split("T")[0]
+                : "",
             amount: Number(p.amount || 0),
             paymentMode: p.paymentMethod || undefined,
             referenceNo: p.referenceNumber || undefined,
@@ -409,7 +431,12 @@ class ReceivableService {
     let totalReturned = 0;
 
     statement.entries.forEach((e) => {
-      if (e.voucherType === "OPENING" || /opening balance/i.test(e.narration) || (e as any).refDocType === "CUSTOMER_OPENING_BALANCE") return;
+      if (
+        e.voucherType === "OPENING" ||
+        /opening balance/i.test(e.narration) ||
+        (e as any).refDocType === "CUSTOMER_OPENING_BALANCE"
+      )
+        return;
       if (e.voucherType === VoucherType.SALES_RETURN) {
         totalReturned += e.credit || e.debit;
       } else if (e.voucherType === VoucherType.SALES) {
@@ -428,7 +455,8 @@ class ReceivableService {
     // (mirror of the payable bug we fixed earlier).
     const rawOpBalDetail = Number(customer.openingBalance || 0);
     const opTypeDetail = ((customer as any).openingBalanceType || "DEBIT").toUpperCase();
-    const signedOpeningDetail = opTypeDetail === "CREDIT" ? -Math.abs(rawOpBalDetail) : Math.abs(rawOpBalDetail);
+    const signedOpeningDetail =
+      opTypeDetail === "CREDIT" ? -Math.abs(rawOpBalDetail) : Math.abs(rawOpBalDetail);
     const closingBalance = signedOpeningDetail + totalBilled - totalPaid - totalReturned;
 
     return {

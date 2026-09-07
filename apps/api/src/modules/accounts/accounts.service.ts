@@ -4,6 +4,8 @@ import { LedgerType, VoucherType, Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
 import { CreateLedgerInput, UpdateLedgerInput } from "./accounts.types";
 import { logger } from "../../lib/logger";
+import { ledgerGroupService } from "./ledgerGroup.service";
+import { BALANCE_SHEET_LAYOUT, PROFIT_AND_LOSS_LAYOUT } from "./ledgerGroups";
 
 /**
  * Default seed ledgers — created once when the DB has zero ledger rows.
@@ -186,6 +188,9 @@ class AccountsService {
         });
       }
     }
+
+    // P1-09c: the chart-of-accounts tree, and every ledger filed under a node of it.
+    await ledgerGroupService.ensureLedgerGroups(db);
   }
 
   async getLedgers(params: {
@@ -194,6 +199,7 @@ class AccountsService {
     search?: string;
     type?: LedgerType;
     group?: string;
+    groupId?: number;
     grouped?: boolean;
   }) {
     const page = params.page || 1;
@@ -215,6 +221,7 @@ class AccountsService {
       true;
     const where: Prisma.AccountLedgerWhereInput = {
       ...(params.type && { type: params.type }),
+      ...(params.groupId && { groupId: params.groupId }),
       ...(params.group && {
         OR: [
           { group: { equals: params.group, mode: "insensitive" } },
@@ -250,6 +257,9 @@ class AccountsService {
             },
           },
           supplier: { select: { id: true, legalName: true, supplierCode: true } },
+          ledgerGroup: {
+            select: { id: true, code: true, name: true, scheduleHead: true, parentId: true },
+          },
         },
       }),
       prisma.accountLedger.count({ where }),
@@ -280,6 +290,9 @@ class AccountsService {
             },
           },
           supplier: { select: { id: true, legalName: true, supplierCode: true } },
+          ledgerGroup: {
+            select: { id: true, code: true, name: true, scheduleHead: true, parentId: true },
+          },
         },
       });
       const buckets: Record<string, typeof ledgers> = {};
@@ -425,12 +438,19 @@ class AccountsService {
       throw new ApiError(409, `Ledger with code '${data.code}' already exists`);
     }
 
+    const { groupId, groupName } = await ledgerGroupService.resolveGroupId({
+      groupId: data.groupId,
+      group: data.group,
+      code: data.code,
+      type: data.type,
+    });
     const ledger = await prisma.accountLedger.create({
       data: {
         code: data.code,
         name: data.name,
         type: data.type,
-        group: data.group,
+        group: groupName,
+        groupId,
         isActive: data.isActive ?? true,
         customerId: data.customerId || null,
         supplierId: data.supplierId || null,
@@ -472,13 +492,27 @@ class AccountsService {
       throw new ApiError(404, "Account ledger not found");
     }
 
+    const type = data.type ?? existing.type;
+    const regroup =
+      data.groupId !== undefined ||
+      data.group !== undefined ||
+      (data.type && data.type !== existing.type);
+    const grouping = regroup
+      ? await ledgerGroupService.resolveGroupId({
+          groupId: data.groupId ?? undefined,
+          group: data.group ?? (data.groupId ? undefined : existing.group),
+          code: existing.code,
+          type,
+        })
+      : null;
+
     return prisma.accountLedger.update({
       where: { id },
       data: {
-        ...(data.name && { name: data.name }),
-        ...(data.type && { type: data.type }),
-        ...(data.group && { group: data.group }),
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.type !== undefined && { type: data.type }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(grouping && { group: grouping.groupName, groupId: grouping.groupId }),
       },
     });
   }
@@ -1024,6 +1058,7 @@ class AccountsService {
             name: true,
             type: true,
             group: true,
+            ledgerGroup: { select: { code: true, name: true, scheduleHead: true } },
             customer: { select: { openingBalance: true, openingBalanceType: true } },
             supplier: { select: { openingBalance: true, openingBalanceType: true } },
           },
@@ -1087,7 +1122,9 @@ class AccountsService {
         code: ledger.code,
         name: ledger.name,
         type: ledger.type,
-        group: ledger.group,
+        group: ledger.ledgerGroup?.name ?? ledger.group,
+        groupCode: ledger.ledgerGroup?.code ?? null,
+        scheduleHead: ledger.ledgerGroup?.scheduleHead ?? null,
         openingBalance,
         totalDebit,
         totalCredit,
@@ -1168,6 +1205,8 @@ class AccountsService {
         code: row.code,
         name: row.name,
         group: row.group,
+        groupCode: row.groupCode,
+        scheduleHead: row.scheduleHead,
         balance: row.closingBalance,
       };
       if (row.type === "ASSET") assets.push(item);
@@ -1182,6 +1221,8 @@ class AccountsService {
         code: "NET-PNL",
         name: "Net Profit / (Loss)",
         group: "Profit & Loss",
+        groupCode: "RESERVES_SURPLUS",
+        scheduleHead: "Reserves and surplus",
         balance: pnl.netProfit,
       });
     }
@@ -1214,10 +1255,73 @@ class AccountsService {
         }));
     };
 
+    // Schedule III (P1-09c): sections → heads → groups → ledgers, in statutory order.
+    type BsItem = {
+      code: string;
+      name: string;
+      group: string;
+      groupCode: string | null;
+      scheduleHead: string | null;
+      balance: number;
+    };
+    const byHead = (items: BsItem[], heads: readonly string[]) =>
+      heads.map((head) => {
+        const inHead = items.filter((i) => (i.scheduleHead ?? "Other") === head);
+        const groups = new Map<
+          string,
+          { code: string | null; name: string; items: BsItem[]; total: number }
+        >();
+        for (const it of inHead) {
+          const key = it.groupCode ?? it.group ?? "Others";
+          const g = groups.get(key) ?? {
+            code: it.groupCode,
+            name: it.group || "Others",
+            items: [],
+            total: 0,
+          };
+          g.items.push(it);
+          g.total += it.balance;
+          groups.set(key, g);
+        }
+        return {
+          head,
+          groups: [...groups.values()],
+          total: inHead.reduce((s, i) => s + i.balance, 0),
+        };
+      });
+    const layoutSide = (
+      items: BsItem[],
+      sections: readonly { section: string; heads: readonly string[] }[]
+    ) => {
+      const covered = new Set<string>(sections.flatMap((s) => s.heads));
+      const built = sections.map((sec) => {
+        const heads = byHead(items, sec.heads);
+        return { section: sec.section, heads, total: heads.reduce((s, h) => s + h.total, 0) };
+      });
+      const stray = items.filter((i) => !covered.has(i.scheduleHead ?? "Other"));
+      if (stray.length) {
+        const heads = byHead(stray, [...new Set(stray.map((i) => i.scheduleHead ?? "Other"))]);
+        built.push({
+          section: "Unclassified",
+          heads,
+          total: heads.reduce((s, h) => s + h.total, 0),
+        });
+      }
+      return built;
+    };
+    const scheduleIII = {
+      equityAndLiabilities: layoutSide(
+        [...equity, ...liabilities] as BsItem[],
+        BALANCE_SHEET_LAYOUT.equityAndLiabilities
+      ),
+      assets: layoutSide(assets as BsItem[], BALANCE_SHEET_LAYOUT.assets),
+    };
+
     return {
       assets,
       liabilities,
       equity,
+      scheduleIII,
       groupedAssets: options.groupByCategory ? groupSection(assets) : null,
       groupedLiabilities: options.groupByCategory ? groupSection(liabilities) : null,
       groupedEquity: options.groupByCategory ? groupSection(equity) : null,
@@ -1252,7 +1356,14 @@ class AccountsService {
     const { ledgers, debitSums, creditSums } = await prisma.$transaction(async (tx) => {
       const ledgersList = await tx.accountLedger.findMany({
         where: { type: { in: [LedgerType.INCOME, LedgerType.EXPENSE] } },
-        select: { id: true, code: true, name: true, type: true, group: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          type: true,
+          group: true,
+          ledgerGroup: { select: { code: true, name: true, scheduleHead: true } },
+        },
         orderBy: { code: "asc" },
       });
       const ledgerIds = ledgersList.map((l) => l.id);
@@ -1295,7 +1406,9 @@ class AccountsService {
         ledgerId: ledger.id,
         code: ledger.code,
         name: ledger.name,
-        group: ledger.group,
+        group: ledger.ledgerGroup?.name ?? ledger.group,
+        groupCode: ledger.ledgerGroup?.code ?? null,
+        scheduleHead: ledger.ledgerGroup?.scheduleHead ?? null,
         totalDebit,
         totalCredit,
         netAmount,
@@ -1307,6 +1420,28 @@ class AccountsService {
         expenseAccounts.push(item);
       }
     }
+
+    // Schedule III statement of profit and loss (P1-09c): heads in statutory order.
+    const headTotals = (rows: typeof incomeAccounts, heads: readonly string[]) => {
+      const known = heads.map((head) => ({
+        head,
+        items: rows.filter((r) => r.scheduleHead === head),
+        total: rows.filter((r) => r.scheduleHead === head).reduce((s, r) => s + r.netAmount, 0),
+      }));
+      const stray = rows.filter((r) => !heads.includes(r.scheduleHead ?? ""));
+      if (stray.length) {
+        known.push({
+          head: "Other",
+          items: stray,
+          total: stray.reduce((s, r) => s + r.netAmount, 0),
+        });
+      }
+      return known;
+    };
+    const scheduleIII = {
+      income: headTotals(incomeAccounts, PROFIT_AND_LOSS_LAYOUT.income),
+      expenses: headTotals(expenseAccounts, PROFIT_AND_LOSS_LAYOUT.expenses),
+    };
 
     // Apply zero balance filter
     const filteredIncome = options.showZeroBalance
@@ -1328,6 +1463,7 @@ class AccountsService {
       totalIncome,
       totalExpense,
       netProfit,
+      scheduleIII,
       isProfit: netProfit >= 0,
     };
   }
@@ -1536,12 +1672,17 @@ class AccountsService {
       ? `${prefix}-${party.code}-${Date.now().toString().slice(-4)}`
       : ledgerCode;
 
+    const groupId = await ledgerGroupService.idOf(
+      isCustomer ? "SUNDRY_DEBTORS" : "SUNDRY_CREDITORS",
+      db
+    );
     return db.accountLedger.create({
       data: {
         code: finalCode,
         name: party.name,
         type: isCustomer ? LedgerType.ASSET : LedgerType.LIABILITY,
         group: isCustomer ? "Sundry Debtors" : "Sundry Creditors",
+        groupId,
         customerId: isCustomer ? String(party.id) : null,
         supplierId: !isCustomer ? Number(party.id) : null,
       },

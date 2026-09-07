@@ -1,12 +1,37 @@
 import apiClient from "../api/apiClient";
 import config from "../api/config";
 
+/** A node of the chart-of-accounts tree (P1-09c). */
+export interface LedgerGroupNode {
+  id: number;
+  code: string;
+  name: string;
+  nature: "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE" | "EQUITY";
+  parentId: number | null;
+  scheduleHead: string | null;
+  isSystem: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  ledgerCount: number;
+  children: LedgerGroupNode[];
+  /** Only on the flat listing: "Current Assets › Bank Accounts". */
+  path?: string;
+}
+
 export interface AccountLedger {
   id: number;
   code: string;
   name: string;
   type: "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE" | "EQUITY";
   group: string;
+  groupId?: number | null;
+  ledgerGroup?: {
+    id: number;
+    code: string;
+    name: string;
+    scheduleHead: string | null;
+    parentId: number | null;
+  } | null;
   isActive: boolean;
   customerId?: string | null;
   supplierId?: number | null;
@@ -26,7 +51,9 @@ export interface CreateLedgerDto {
   code: string;
   name: string;
   type: "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE" | "EQUITY";
-  group: string;
+  /** Group id from the tree; `group` (a name) is accepted for older callers. */
+  groupId?: number | null;
+  group?: string;
   isActive?: boolean;
   openingBalance?: number;
   openingBalanceType?: "DEBIT" | "CREDIT";
@@ -70,13 +97,16 @@ export interface MultiLedgerStatementResult {
   entries: LedgerStatementEntry[];
   // Per-account opening / closing balances keyed by account name — used to
   // render Busy-style "Closing Balance" rows per account section.
-  accountBalances?: Record<string, {
-    name: string;
-    opening: number;
-    openingSide: "Dr" | "Cr";
-    closing: number;
-    closingSide: "Dr" | "Cr";
-  }>;
+  accountBalances?: Record<
+    string,
+    {
+      name: string;
+      opening: number;
+      openingSide: "Dr" | "Cr";
+      closing: number;
+      closingSide: "Dr" | "Cr";
+    }
+  >;
 }
 
 export const accountService = {
@@ -115,6 +145,23 @@ export const accountService = {
     return response.data?.data || response.data;
   },
 
+  /** Chart-of-accounts tree (P1-09c); `flat` returns every node with its path. */
+  fetchGroups: async (flat = false): Promise<LedgerGroupNode[]> => {
+    const response = await apiClient.get("/accounts/groups", {
+      params: flat ? { flat: "true" } : {},
+    });
+    return response.data?.data ?? [];
+  },
+
+  createGroup: async (data: {
+    name: string;
+    parentId: number;
+    code?: string;
+  }): Promise<LedgerGroupNode> => {
+    const response = await apiClient.post("/accounts/groups", data);
+    return response.data?.data;
+  },
+
   createLedger: async (data: CreateLedgerDto): Promise<AccountLedger> => {
     const response = await apiClient.post("/accounts/ledgers", data);
     return response.data?.data || response.data;
@@ -130,8 +177,13 @@ export const accountService = {
    * The backend posts an idempotent JV against Opening Balance Equity —
    * customer / supplier ledgers are never touched.
    */
-  setBankOpeningBalance: async (id: number, openingBalance: number): Promise<{ ledgerId: number; openingBalance: number }> => {
-    const response = await apiClient.post(`/accounts/ledgers/${id}/opening-balance`, { openingBalance });
+  setBankOpeningBalance: async (
+    id: number,
+    openingBalance: number
+  ): Promise<{ ledgerId: number; openingBalance: number }> => {
+    const response = await apiClient.post(`/accounts/ledgers/${id}/opening-balance`, {
+      openingBalance,
+    });
     return response.data?.data || response.data;
   },
 

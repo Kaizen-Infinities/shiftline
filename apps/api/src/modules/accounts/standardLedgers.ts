@@ -84,7 +84,11 @@ export async function expandAggregateLedger(
       select: { id: true },
     });
     const ids = [ledger.id, ...supplierLedgers.map((l) => l.id)];
-    return { ledgerIds: ids, isAggregate: true, label: `${ledger.name} (${supplierLedgers.length} suppliers)` };
+    return {
+      ledgerIds: ids,
+      isAggregate: true,
+      label: `${ledger.name} (${supplierLedgers.length} suppliers)`,
+    };
   }
 
   if (ledger.code === STANDARD_LEDGER_CODES.SUNDRY_DEBTORS) {
@@ -93,7 +97,11 @@ export async function expandAggregateLedger(
       select: { id: true },
     });
     const ids = [ledger.id, ...customerLedgers.map((l) => l.id)];
-    return { ledgerIds: ids, isAggregate: true, label: `${ledger.name} (${customerLedgers.length} customers)` };
+    return {
+      ledgerIds: ids,
+      isAggregate: true,
+      label: `${ledger.name} (${customerLedgers.length} customers)`,
+    };
   }
 
   return { ledgerIds: [ledger.id], isAggregate: false, label: ledger.name };
@@ -132,8 +140,10 @@ export function foldChildrenIntoAggregate<T extends AggregatableRow>(
   const outRows: T[] = [];
 
   for (const row of rows) {
-    if (row.code === STANDARD_LEDGER_CODES.SUNDRY_CREDITORS ||
-        row.code === STANDARD_LEDGER_CODES.SUNDRY_DEBTORS) {
+    if (
+      row.code === STANDARD_LEDGER_CODES.SUNDRY_CREDITORS ||
+      row.code === STANDARD_LEDGER_CODES.SUNDRY_DEBTORS
+    ) {
       parents.set(row.code, row);
     }
   }

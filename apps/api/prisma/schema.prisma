@@ -573,6 +573,7 @@ model Company {
   subscription                Subscription?                @relation("CompanySubscription")
   featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
   hsnCodes                    HsnCode[]                    @relation("CompanyHsnCode")
+  ledgerGroups                LedgerGroup[]                @relation("CompanyLedgerGroup")
   gstRates                    GstRate[]                    @relation("CompanyGstRate")
   /// Books are frozen on and before this date (set after filing); postings are refused (P1-09).
   booksFrozenUpTo             DateTime?                    @map("books_frozen_up_to") @db.Date
@@ -2478,6 +2479,32 @@ model Category {
   @@map("categories")
 }
 
+/// Chart-of-accounts tree (P1-09c): primary groups by nature, Schedule III head per group.
+model LedgerGroup {
+  id           Int             @id @default(autoincrement())
+  companyId    String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code         String          @db.VarChar(40)
+  name         String          @db.VarChar(120)
+  nature       LedgerType
+  parentId     Int?            @map("parent_id")
+  /// Schedule III line the group rolls up to on the balance sheet or P&L.
+  scheduleHead String?         @map("schedule_head") @db.VarChar(80)
+  isSystem     Boolean         @default(false) @map("is_system")
+  isActive     Boolean         @default(true) @map("is_active")
+  sortOrder    Int             @default(0) @map("sort_order")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  parent       LedgerGroup?    @relation("LedgerGroupTree", fields: [parentId], references: [id])
+  children     LedgerGroup[]   @relation("LedgerGroupTree")
+  ledgers      AccountLedger[]
+
+  company Company @relation("CompanyLedgerGroup", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@map("ledger_groups")
+}
+
 model AccountLedger {
   id          Int           @id @default(autoincrement())
   companyId   String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
@@ -2485,6 +2512,8 @@ model AccountLedger {
   name        String        @db.VarChar(160)
   type        LedgerType
   group       String        @db.VarChar(80)
+  groupId     Int?          @map("group_id")
+  ledgerGroup LedgerGroup?  @relation(fields: [groupId], references: [id])
   isActive    Boolean       @default(true)
   customerId  String?       @unique @db.Uuid
   supplierId  Int?          @unique

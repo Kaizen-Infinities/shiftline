@@ -12,7 +12,11 @@ import {
 import { toast } from "react-toastify";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
-import { accountService, type AccountLedger } from "../../../../services/accountService";
+import {
+  accountService,
+  type AccountLedger,
+  type LedgerGroupNode,
+} from "../../../../services/accountService";
 import { useListCache, prependToListCacheByPrefix } from "../../../../hooks/useListCache";
 import { usePermission } from "../../../../hooks/usePermission";
 
@@ -35,8 +39,26 @@ export const ChartOfAccountsPage: React.FC = () => {
     name: "",
     type: "ASSET" as "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE" | "EQUITY",
     group: "",
+    groupId: "" as string,
   });
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Chart-of-accounts tree (P1-09c): the group picker and the "Group" column read from it.
+  const [groups, setGroups] = useState<LedgerGroupNode[]>([]);
+  React.useEffect(() => {
+    accountService
+      .fetchGroups(true)
+      .then(setGroups)
+      .catch(() => setGroups([]));
+  }, []);
+  const groupOptions = useMemo(
+    () =>
+      groups
+        .filter((g) => g.nature === formData.type)
+        .map((g) => ({ value: String(g.id), label: g.path ?? g.name })),
+    [groups, formData.type]
+  );
+  const groupPath = useMemo(() => new Map(groups.map((g) => [g.id, g.path ?? g.name])), [groups]);
 
   const cacheKey = `accounts:chart-of-accounts`;
 
@@ -51,7 +73,12 @@ export const ChartOfAccountsPage: React.FC = () => {
     }
   }, []);
 
-  const { data: ledgers, loading, refreshing, refresh } = useListCache<AccountLedger>({
+  const {
+    data: ledgers,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<AccountLedger>({
     cacheKey,
     socketModule: "accountLedger",
     fetcher,
@@ -83,7 +110,7 @@ export const ChartOfAccountsPage: React.FC = () => {
 
   const handleCreateLedger = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.code || !formData.name || !formData.group) {
+    if (!formData.code || !formData.name || (!formData.groupId && !formData.group)) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -94,7 +121,8 @@ export const ChartOfAccountsPage: React.FC = () => {
         code: formData.code,
         name: formData.name,
         type: formData.type,
-        group: formData.group,
+        groupId: formData.groupId ? Number(formData.groupId) : undefined,
+        group: formData.groupId ? undefined : formData.group,
         isActive: true,
       });
       // Optimistic list update — new ledger appears instantly.
@@ -103,7 +131,7 @@ export const ChartOfAccountsPage: React.FC = () => {
       }
       toast.success("Account ledger created successfully");
       setShowModal(false);
-      setFormData({ code: "", name: "", type: "ASSET", group: "" });
+      setFormData({ code: "", name: "", type: "ASSET", group: "", groupId: "" });
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || "Failed to create ledger");
     } finally {
@@ -141,10 +169,13 @@ export const ChartOfAccountsPage: React.FC = () => {
           item.customer
             ? `Customer: ${item.customer.firmName} (${item.customer.customerCode})`
             : item.supplier
-            ? `Supplier: ${item.supplier.legalName} (${item.supplier.supplierCode})`
-            : "General System Ledger",
+              ? `Supplier: ${item.supplier.legalName} (${item.supplier.supplierCode})`
+              : "General System Ledger",
       },
-      { header: "Status", accessor: (item: AccountLedger) => (item.isActive ? "Active" : "Inactive") },
+      {
+        header: "Status",
+        accessor: (item: AccountLedger) => (item.isActive ? "Active" : "Inactive"),
+      },
     ];
 
     return {
@@ -162,10 +193,14 @@ export const ChartOfAccountsPage: React.FC = () => {
       active: 0,
       inactive: 0,
       groups: new Set<string>(),
-      byType: { ASSET: 0, LIABILITY: 0, INCOME: 0, EXPENSE: 0, EQUITY: 0 } as Record<string, number>,
+      byType: { ASSET: 0, LIABILITY: 0, INCOME: 0, EXPENSE: 0, EQUITY: 0 } as Record<
+        string,
+        number
+      >,
     };
     for (const l of ledgers) {
-      if (l.isActive) s.active++; else s.inactive++;
+      if (l.isActive) s.active++;
+      else s.inactive++;
       if (l.group) s.groups.add(l.group);
       if (s.byType[l.type] !== undefined) s.byType[l.type]++;
     }
@@ -181,11 +216,9 @@ export const ChartOfAccountsPage: React.FC = () => {
   return (
     <div className="flex gap-3 w-full items-start font-sans text-ink">
       <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
-
         {/* Single-row header — filters + actions */}
         <div className="bg-card rounded-md border border-line shadow-sm px-3 py-2 flex flex-wrap items-end gap-2">
           <div className="w-[220px]">
-            
             <div className="relative">
               <input
                 type="text"
@@ -199,7 +232,6 @@ export const ChartOfAccountsPage: React.FC = () => {
           </div>
 
           <div className="w-[180px]">
-            
             <SelectInput
               name="draftSelectedType"
               value={draftSelectedType}
@@ -321,13 +353,18 @@ export const ChartOfAccountsPage: React.FC = () => {
                           {item.name}
                         </td>
                         <td className="px-2 py-1 border-r border-line-soft text-center">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${getTypeBadgeClass(item.type)}`}>
+                          <span
+                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${getTypeBadgeClass(item.type)}`}
+                          >
                             {item.type}
                           </span>
                         </td>
                         <td className="px-2 py-1 border-r border-line-soft">
                           <span className="flex items-center gap-1 text-ink-muted text-[11px]">
-                            <FaFolder className="text-slate-500 text-[9px] shrink-0" /> {item.group}
+                            <FaFolder className="text-slate-500 text-[9px] shrink-0" />{" "}
+                            {(item.groupId && groupPath.get(item.groupId)) ||
+                              item.ledgerGroup?.name ||
+                              item.group}
                           </span>
                         </td>
                         <td className="px-2 py-1 border-r border-line-soft">
@@ -340,7 +377,9 @@ export const ChartOfAccountsPage: React.FC = () => {
                               Supplier: {item.supplier.legalName} ({item.supplier.supplierCode})
                             </span>
                           ) : (
-                            <span className="text-[11px] text-ink-subtle italic">General System Ledger</span>
+                            <span className="text-[11px] text-ink-subtle italic">
+                              General System Ledger
+                            </span>
                           )}
                         </td>
                         <td className="px-2 py-1 text-center">
@@ -378,20 +417,31 @@ export const ChartOfAccountsPage: React.FC = () => {
           <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle shrink-0">
             <div className="flex gap-4">
               <span>
-                Entry No: <b className="text-ink">{filteredLedgers.length > 0 ? 1 : 0} / {filteredLedgers.length}</b>
+                Entry No:{" "}
+                <b className="text-ink">
+                  {filteredLedgers.length > 0 ? 1 : 0} / {filteredLedgers.length}
+                </b>
               </span>
               <span>
-                Row No: <b className="text-ink">
+                Row No:{" "}
+                <b className="text-ink">
                   {selectedRow
                     ? filteredLedgers.findIndex((v) => v.id === selectedRow) + 1
-                    : (filteredLedgers.length > 0 ? 1 : 0)}
-                  {" / "}{filteredLedgers.length}
+                    : filteredLedgers.length > 0
+                      ? 1
+                      : 0}
+                  {" / "}
+                  {filteredLedgers.length}
                 </b>
               </span>
             </div>
             <div className="flex gap-3 uppercase tracking-wide">
-              <span>Ledgers: <b className="text-ink">{ledgers.length}</b></span>
-              <span>Groups: <b className="text-ink">{summary.groupsCount}</b></span>
+              <span>
+                Ledgers: <b className="text-ink">{ledgers.length}</b>
+              </span>
+              <span>
+                Groups: <b className="text-ink">{summary.groupsCount}</b>
+              </span>
             </div>
           </div>
         </div>
@@ -512,7 +562,9 @@ export const ChartOfAccountsPage: React.FC = () => {
                   required
                   searchable={false}
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, type: e.target.value as any, groupId: "" })
+                  }
                   options={[
                     { value: "ASSET", label: "ASSET" },
                     { value: "LIABILITY", label: "LIABILITY" },
@@ -525,16 +577,34 @@ export const ChartOfAccountsPage: React.FC = () => {
 
               <div>
                 <label className="block mb-0.5 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
-                  Group Name <span className="text-red-500">*</span>
+                  Group <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={formData.group}
-                  onChange={(e) => setFormData({ ...formData, group: e.target.value })}
-                  placeholder="e.g. Administrative Expenses, Bank Accounts"
-                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-slate-500/40 focus:border-slate-500"
-                  required
-                />
+                {groupOptions.length > 0 ? (
+                  <SelectInput
+                    label="Group"
+                    hideLabel
+                    noMargin
+                    required
+                    searchable
+                    value={formData.groupId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, groupId: e.target.value, group: "" })
+                    }
+                    options={[{ value: "", label: "Select a group" }, ...groupOptions]}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.group}
+                    onChange={(e) => setFormData({ ...formData, group: e.target.value })}
+                    placeholder="e.g. Administrative Expenses, Bank Accounts"
+                    className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-slate-500/40 focus:border-slate-500"
+                    required
+                  />
+                )}
+                <p className="mt-1 text-[10px] text-ink-subtle">
+                  Groups follow Schedule III; the balance sheet and P&amp;L roll up from them.
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">

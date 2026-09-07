@@ -18,6 +18,7 @@ export const AUDITED_MODELS = [
   "Voucher",
   "JournalItem",
   "AccountLedger",
+  "LedgerGroup",
   "AccountingPeriod",
   "BankAccount",
   "OpeningBalance",

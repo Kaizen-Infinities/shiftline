@@ -38,12 +38,34 @@ a screen; ledgers sit in a Schedule III group tree; and a financial year can be 
 - `POST /:id/cancel { reason }` is the explicit form; `DELETE /:id` maps to it so the existing web
   keeps working. Cancelling twice is a 409.
 
-## Part C — ledger group tree (planned)
+## Part C — ledger group tree (2026-09-07)
 
-`LedgerGroup` (tenant, code, name, parent, nature ASSET/LIABILITY/EQUITY/INCOME/EXPENSE, Schedule
-III head, system flag) seeded per tenant; `AccountLedger.groupId` with a migration that maps the
-free-text `group` onto the tree; balance sheet and P&L grouped by the tree with Schedule III heads;
-web chart-of-accounts tree.
+- `LedgerGroup` (tenant, RLS, audited): `code`, `name`, `nature` (ASSET, LIABILITY, EQUITY, INCOME,
+  EXPENSE), `parentId`, `scheduleHead` (the Schedule III line it rolls up to), `isSystem`,
+  `isActive`, `sortOrder`. `AccountLedger.groupId` points at a node; the free-text `group` stays as
+  the node's name for older screens.
+- The standard tree (`ledgerGroups.ts`) is Tally-shaped: Fixed Assets, Investments, Current Assets
+  (Cash in Hand, Bank Accounts, Sundry Debtors, Stock-in-Hand, Loans & Advances, Deposits, Tax
+  Assets, Other), Misc. Expenses (Asset); Loans (Secured, Unsecured, Bank OD), Current Liabilities
+  (Sundry Creditors, Duties & Taxes, Provisions, Other), Suspense; Capital, Reserves & Surplus;
+  Sales Accounts, Direct Income, Indirect Income; Purchase Accounts, Direct Expenses, Indirect
+  Expenses, Employee Benefits, Finance Costs, Depreciation. Each carries its Schedule III head.
+- `ledgerGroupService.ensureLedgerGroups()` runs with `ensureSystemLedgersExist()` (provisioning
+  and every posting path), so every tenant has the tree and every ledger is filed: system ledgers
+  by code, party ledgers under Sundry Debtors/Creditors, others by `legacyGroupCode()` (name
+  match, then keywords, then a default per nature).
+- API: `GET /accounts/groups` (tree; `?flat=true` for a picker with paths), `POST /accounts/groups`
+  (custom group under a parent, nature and head inherited), `PATCH /accounts/groups/:id` (rename,
+  move within the same nature, deactivate when empty; system groups cannot move or deactivate).
+  Ledger create/update take `groupId` or a group name; the nature must match.
+- Reports: trial balance rows carry `groupCode` and `scheduleHead`; the balance sheet returns
+  `scheduleIII` (Shareholders' funds, Non-current liabilities, Current liabilities; Non-current
+  assets, Current assets → heads → groups → ledgers, net profit under Reserves and surplus); the
+  P&L returns `scheduleIII.income` and `.expenses` by head in statutory order. The web layouts that
+  read these are P1-10.
+- Web: the chart-of-accounts form picks a group from the tree (filtered by ledger type) and the
+  list shows the group path.
+- Migration `20260907080000_ledger_groups`; `ledger-groups.spec.ts` (3).
 
 ## Part D — audit trail viewer and auditor role (planned)
 
