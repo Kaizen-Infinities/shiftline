@@ -131,6 +131,12 @@ export const API_PATHS = {
     filters: "/audit-trail/filters",
     export: "/audit-trail/export",
   },
+  yearEnd: {
+    base: "/year-end",
+    preview: "/year-end/preview",
+    prepare: "/year-end/prepare",
+    periodControl: "/accounts/period-control",
+  },
   notifications: {
     base: "/notifications",
   },

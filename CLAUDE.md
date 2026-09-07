@@ -70,6 +70,9 @@ input leaks, secrets, error text → human review and merge → hand-off note.
   plus a `REVERSAL` journal) and gate every posting date with
   `periodService.assertPostingAllowed()`; `safeCreateVoucher` already does both checks. Lookups
   for "the voucher of this document" must filter `status: "POSTED"`.
+- Year-end (`modules/year-end`): closing is prepared then approved; the closing JV carries
+  `refDocType "YEAR_END"`, the P&L statement excludes it and the balance sheet includes it. Never post
+  or cancel it by hand; the freeze date moves with the closing.
 - Field app sync (`modules/mobile`): the server enforces the conflict policy in
   `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
   by field, device headers on writes). Never let a device overwrite a server-owned row.

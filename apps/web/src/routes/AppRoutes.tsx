@@ -213,6 +213,7 @@ const ProductionReportsCenter = lazy(
   () => import("../modules/reports/pages/ProductionReportsCenter")
 );
 const AuditTrailPage = lazy(() => import("../modules/reports/pages/AuditTrailPage"));
+const YearEndPage = lazy(() => import("../modules/accounts/pages/year-end/YearEndPage"));
 
 // ===========================================================================
 // SALES
@@ -528,6 +529,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="audit-reports.view" />}>
                 <Route path="/reports/audit" element={<AuditTrailPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="year-end.view" />}>
+                <Route path="/accounts/year-end" element={<YearEndPage />} />
               </Route>
 
               {/* ---------- Sales ---------- */}

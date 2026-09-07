@@ -423,5 +423,11 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "POST /api/whatsapp/send",
   "GET /api/whatsapp/webhook",
   "POST /api/whatsapp/webhook",
+  "GET /api/year-end",
+  "POST /api/year-end/:id/approve",
+  "POST /api/year-end/:id/discard",
+  "POST /api/year-end/:id/reverse",
+  "POST /api/year-end/prepare",
+  "GET /api/year-end/preview",
 ]
 `;

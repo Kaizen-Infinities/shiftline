@@ -108,6 +108,11 @@ export const sidebarItems: SidebarItem[] = [
             permission: "chart-of-accounts.view",
             badge: "Alt+N",
           },
+          {
+            title: "Year-End Closing",
+            path: "/accounts/year-end",
+            permission: "year-end.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

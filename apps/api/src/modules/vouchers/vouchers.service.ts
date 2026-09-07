@@ -93,6 +93,13 @@ class VouchersService {
       "EXPENSE",
       "PETTY_CASH",
     ]);
+    if (voucher.refDocType === "YEAR_END") {
+      throw new ApiError(
+        400,
+        "This is a year-end closing entry; reverse the closing from Year-End Closing instead",
+        "REVERSE_YEAR_END_INSTEAD"
+      );
+    }
     if (voucher.refDocType && documentTypes.has(voucher.refDocType)) {
       throw new ApiError(
         400,

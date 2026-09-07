@@ -133,6 +133,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "petty-cash",
       "chart-of-accounts",
       "audit-reports",
+      "year-end",
     ],
   },
   {

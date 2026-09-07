@@ -5,6 +5,13 @@ import { ApiError } from "../../utils/ApiError";
 import { CreateLedgerInput, UpdateLedgerInput } from "./accounts.types";
 import { logger } from "../../lib/logger";
 import { ledgerGroupService } from "./ledgerGroup.service";
+import { YEAR_END_REF } from "../year-end/year-end.constants";
+
+/** Voucher filter that leaves out year-end closing entries (P1-09e) but keeps manual ones. */
+const NOT_YEAR_END: Prisma.VoucherWhereInput[] = [
+  { refDocType: null },
+  { refDocType: { not: YEAR_END_REF } },
+];
 import { BALANCE_SHEET_LAYOUT, PROFIT_AND_LOSS_LAYOUT } from "./ledgerGroups";
 
 /**
@@ -70,6 +77,13 @@ const DEFAULT_SEED_LEDGERS = [
   { code: "SGST-REC-001", name: "SGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
   { code: "IGST-REC-001", name: "IGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
   { code: "EQ-001", name: "Opening Balance Equity", type: LedgerType.EQUITY, group: "Equity" },
+  // P1-09e: the year-end closing moves each year's result here.
+  {
+    code: "EQ-002",
+    name: "Retained Earnings",
+    type: LedgerType.EQUITY,
+    group: "Reserves & Surplus",
+  },
   // GST reverse charge, cess and TDS (P1-08)
   {
     code: "RCM-LIA-001",
@@ -1215,7 +1229,8 @@ class AccountsService {
     }
 
     // Get P&L net profit up to asOnDate and add to equity
-    const pnl = await this.getProfitAndLoss({ endDate: options.asOnDate });
+    // After a year-end closing the result sits in Retained Earnings, so count the closing here.
+    const pnl = await this.getProfitAndLoss({ endDate: options.asOnDate, includeClosing: true });
     if (pnl.netProfit !== 0) {
       equity.push({
         code: "NET-PNL",
@@ -1337,6 +1352,8 @@ class AccountsService {
     startDate?: string;
     endDate?: string;
     showZeroBalance?: boolean;
+    /** Count the year-end closing entries too (the balance sheet does; the statement does not). */
+    includeClosing?: boolean;
   }) {
     await this.ensureSystemLedgersExist();
 
@@ -1347,6 +1364,9 @@ class AccountsService {
         ...(options.endDate && { lte: new Date(options.endDate) }),
       };
     }
+    // P1-09e: the closing journal nets the year to zero; the statement shows the year as earned.
+    // (`NOT` alone would also drop manual vouchers, whose refDocType is null.)
+    if (!options.includeClosing) dateFilter.OR = NOT_YEAR_END;
 
     // Same fast-path as getTrialBalance — 1 ledger query + 2 groupBy sums
     // instead of a mega-include that pulls every journalItem + voucher row.
@@ -1559,11 +1579,11 @@ class AccountsService {
       where: { type: { in: [LedgerType.INCOME, LedgerType.EXPENSE] } },
       include: {
         debitItems: {
-          where: { voucher: dateFilter },
+          where: { voucher: { ...dateFilter, OR: NOT_YEAR_END } },
           include: { voucher: { select: { date: true } } },
         },
         creditItems: {
-          where: { voucher: dateFilter },
+          where: { voucher: { ...dateFilter, OR: NOT_YEAR_END } },
           include: { voucher: { select: { date: true } } },
         },
       },

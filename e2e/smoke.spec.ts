@@ -22,6 +22,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/settings/gst", marker: /HSN/ },
   { path: "/accounts/chart-of-accounts", marker: /Chart of Accounts/ },
   { path: "/reports/audit", marker: /Audit Trail/ },
+  { path: "/accounts/year-end", marker: /Year-End Closing/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 

@@ -574,6 +574,7 @@ model Company {
   featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
   hsnCodes                    HsnCode[]                    @relation("CompanyHsnCode")
   ledgerGroups                LedgerGroup[]                @relation("CompanyLedgerGroup")
+  yearEndClosings             YearEndClosing[]             @relation("CompanyYearEndClosing")
   gstRates                    GstRate[]                    @relation("CompanyGstRate")
   /// Books are frozen on and before this date (set after filing); postings are refused (P1-09).
   booksFrozenUpTo             DateTime?                    @map("books_frozen_up_to") @db.Date
@@ -2505,6 +2506,48 @@ model LedgerGroup {
   @@map("ledger_groups")
 }
 
+/// P1-09e: one row per financial year closed; the closing journal moves the year's result to Retained Earnings.
+enum YearEndStatus {
+  PREPARED
+  APPROVED
+  REVERSED
+  DISCARDED
+}
+
+model YearEndClosing {
+  id                       Int           @id @default(autoincrement())
+  companyId                String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  fyCode                   String        @map("fy_code") @db.VarChar(10)
+  fyStart                  DateTime      @map("fy_start") @db.Date
+  fyEnd                    DateTime      @map("fy_end") @db.Date
+  status                   YearEndStatus @default(PREPARED)
+  totalIncome              Decimal       @default(0) @map("total_income") @db.Decimal(14, 2)
+  totalExpense             Decimal       @default(0) @map("total_expense") @db.Decimal(14, 2)
+  netProfit                Decimal       @default(0) @map("net_profit") @db.Decimal(14, 2)
+  /// Closing lines as previewed at preparation: ledger, side and amount.
+  lines                    Json
+  /// Hash of the lines; approval refuses when the books moved since preparation.
+  payloadHash              String        @map("payload_hash") @db.VarChar(64)
+  retainedEarningsLedgerId Int           @map("retained_earnings_ledger_id")
+  notes                    String?       @db.VarChar(255)
+  preparedBy               String?       @map("prepared_by") @db.VarChar(36)
+  preparedAt               DateTime      @default(now()) @map("prepared_at") @db.Timestamptz(6)
+  approvedBy               String?       @map("approved_by") @db.VarChar(36)
+  approvedAt               DateTime?     @map("approved_at") @db.Timestamptz(6)
+  reversedBy               String?       @map("reversed_by") @db.VarChar(36)
+  reversedAt               DateTime?     @map("reversed_at") @db.Timestamptz(6)
+  reverseReason            String?       @map("reverse_reason") @db.VarChar(255)
+  closingVoucherId         Int?          @unique @map("closing_voucher_id")
+  closingVoucher           Voucher?      @relation("YearEndClosingVoucher", fields: [closingVoucherId], references: [id])
+  createdAt                DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyYearEndClosing", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, fyCode])
+  @@map("year_end_closings")
+}
+
 model AccountLedger {
   id          Int           @id @default(autoincrement())
   companyId   String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
@@ -2739,30 +2782,31 @@ model GstRate {
 }
 
 model Voucher {
-  id              Int            @id @default(autoincrement())
-  companyId       String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  voucherNo       String         @db.VarChar(30)
+  id              Int             @id @default(autoincrement())
+  companyId       String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  voucherNo       String          @db.VarChar(30)
   type            VoucherType
-  date            DateTime       @db.Date
-  narration       String?        @db.VarChar(500)
-  refDocType      String?        @db.VarChar(30)
-  refDocId        String?        @db.VarChar(36)
-  createdBy       String?        @db.VarChar(36)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  date            DateTime        @db.Date
+  narration       String?         @db.VarChar(500)
+  refDocType      String?         @db.VarChar(30)
+  refDocId        String?         @db.VarChar(36)
+  createdBy       String?         @db.VarChar(36)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   items           JournalItem[]
-  businessPlaceId BigInt?        @map("business_place_id")
-  businessPlace   BusinessPlace? @relation("VoucherBusinessPlace", fields: [businessPlaceId], references: [id])
+  businessPlaceId BigInt?         @map("business_place_id")
+  businessPlace   BusinessPlace?  @relation("VoucherBusinessPlace", fields: [businessPlaceId], references: [id])
   /// P1-09: a cancelled voucher stays on file and is netted by its reversal.
-  status          VoucherStatus  @default(POSTED)
-  cancelledAt     DateTime?      @map("cancelled_at") @db.Timestamptz(6)
-  cancelledBy     String?        @map("cancelled_by") @db.VarChar(36)
-  cancelReason    String?        @map("cancel_reason") @db.VarChar(255)
-  reversalOfId    Int?           @unique @map("reversal_of_id")
+  status          VoucherStatus   @default(POSTED)
+  cancelledAt     DateTime?       @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?         @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?         @map("cancel_reason") @db.VarChar(255)
+  reversalOfId    Int?            @unique @map("reversal_of_id")
   /// 0 while posted; set to the voucher's own id on cancellation so a document can be posted again.
-  cancelSeq       Int            @default(0) @map("cancel_seq")
-  reversalOf      Voucher?       @relation("VoucherReversal", fields: [reversalOfId], references: [id])
-  reversedBy      Voucher?       @relation("VoucherReversal")
+  cancelSeq       Int             @default(0) @map("cancel_seq")
+  reversalOf      Voucher?        @relation("VoucherReversal", fields: [reversalOfId], references: [id])
+  reversedBy      Voucher?        @relation("VoucherReversal")
+  yearEndClosing  YearEndClosing? @relation("YearEndClosingVoucher")
 
   company Company @relation("CompanyVoucher", fields: [companyId], references: [id], onDelete: Restrict)
 

@@ -94,10 +94,45 @@ Tests: actor and diff on a voucher's posting and cancellation; user/action/date 
 pagination; 403 without the permission, auditor reads and cannot post; another tenant's rows never
 appear; CSV export.
 
-## Part E — year-end closing (planned)
+## Part E — year-end closing
 
-Closing JV transferring income and expense balances to Retained Earnings on the FY's last day,
-periods for the new year, freeze date moved to the year end; prepare/approve two-step with a preview.
+`modules/year-end` closes a financial year in two steps, each behind its own key (`year-end.view`,
+`year-end.prepare`, `year-end.approve`; the Accounts role prepares, the Owner approves, the Auditor
+reads):
+
+- `GET /api/year-end/preview?fyCode=YYYY-YY` (default: the year that ended most recently) shows the
+  closing journal as the books stand: each income and expense ledger's balance for the year on the
+  opposite side, and the net result to Retained Earnings (system ledger `EQ-002`, group Reserves &
+  Surplus). It also lists blockers (year not ended, already closed, books frozen up to or past the
+  year end) and whether an existing preparation has gone stale.
+- `POST /api/year-end/prepare` snapshots the lines and their hash into `YearEndClosing`
+  (`PREPARED`); one live closing per year (`409 YEAR_END_EXISTS`).
+- `POST /api/year-end/:id/approve` recomputes the journal and refuses if the hash moved
+  (`409 YEAR_END_STALE`), then in one transaction: posts the closing `JOURNAL` voucher dated the
+  year's last day (`refDocType YEAR_END`, number from the year's JV series), closes every open
+  accounting period ending on or before the year end, creates the next year's period and its
+  head-office numbering series (`SEQUENCED_DOC_TYPES`), moves the freeze date forward to the year
+  end, and rolls `InvoiceSetting`'s financial year forward. Closed periods and the freeze date still
+  gate the posting; the approve permission stands in for a role's backdating allowance.
+- `POST /api/year-end/:id/reverse` (reason required) cancels the closing voucher with a reversal
+  and marks the row `REVERSED`; it refuses while the books are frozen up to or past the year end
+  (`409 BOOKS_FROZEN`), so the freeze date is moved back first, deliberately. Periods stay closed
+  until reopened. `POST /:id/discard` drops a preparation (`DISCARDED`). Nothing is deleted.
+- Reports: the statement of profit and loss leaves `YEAR_END` vouchers out, so the year still reads
+  as earned; the trial balance and balance sheet include them, so after closing income and expense
+  stand at zero and the result sits once in Retained Earnings (the balance sheet's `NET-PNL` line
+  counts the closing too and disappears for a closed year).
+- `Voucher` cancel refuses a `YEAR_END` entry (`REVERSE_YEAR_END_INSTEAD`).
+- Web `/accounts/year-end` ("Year-End Closing" under Accounts): freeze-date card (move back needs a
+  tick), year picker, preview table with blockers and stale warning, prepare / approve / discard /
+  reverse buttons per permission, and the history of closings.
+- Migration `20260907100000_year_end_closing` (RLS, audit trigger); `YearEndClosing` audited.
+
+Tests: stale preparation refused then re-prepared and approved; a full close of FY 2024-25
+(post-closing trial balance, P&L still earned, balance sheet once, periods, next-year sequence,
+freeze date, refused backdated posting, 409 on a second preparation); reverse only after the
+freeze date moves back, closing voucher cancelled, direct voucher cancel refused; current year
+refused; permissions.
 
 ## Done means
 
@@ -105,3 +140,4 @@ Postings into a closed or frozen period are refused on every path (tests per pat
 invoice leaves a reversal and the trial balance still balances; nothing on a books table is
 hard-deleted by the API any more (grep gate in CI); the audit log has a screen; the balance sheet
 reads by Schedule III heads; a year can be closed and the next year's numbering starts from 1.
+All five parts shipped (A–E, 2026-09-07).

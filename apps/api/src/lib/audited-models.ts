@@ -14,6 +14,7 @@ export const AUDITED_MODELS = [
   "AccountingPeriod",
   "BankAccount",
   "OpeningBalance",
+  "YearEndClosing",
   // documents
   "SalesInvoice",
   "SalesInvoiceItem",
