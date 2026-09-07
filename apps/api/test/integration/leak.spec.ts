@@ -203,6 +203,7 @@ describe("cross-tenant leak suite", () => {
       customerId: idsB.customers,
       roleId: idsB.roles,
       dataClass: "SESSIONS",
+      type: "customers",
     };
     if (param !== "id") return named[param];
     const afterApi = route.path.replace(/^\/api\//, "");

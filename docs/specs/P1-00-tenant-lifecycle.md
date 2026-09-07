@@ -90,8 +90,49 @@ a tenant, the owner accepts and completes all six steps in the browser and reach
 113 API tests, 15 browser tests. The leak suite's seed-coverage check is now a subset assertion
 against a documented list, so other suites sharing a worker database cannot make it flap.
 
-## Part 3 — CSV imports, notifications, surrogate keys (planned)
+## Part 3a — CSV imports with dry run (2026-09-07)
 
-Dry-run CSV imports for customers, suppliers, products, raw materials, opening balances and
-opening stock; `Notification` model and in-app centre; uuid primary keys for the seven
-code-keyed models; Prisma 8 upgrade evaluation.
+**Module** `modules/imports`, mounted at `/api/imports`. Six import types, each with a column
+list (template, header matching, docs), a zod row schema and the permission that allows it:
+
+| Type               | Permission (any of)                                                         | Creates                                                                                                                                            |
+| ------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `customers`        | `customers.create`                                                          | Customer, default address, ledger under Sundry Debtors, opening receivable/payable voucher; customer type and grade by name (created when missing) |
+| `suppliers`        | `suppliers.create`                                                          | Supplier, ledger under Sundry Creditors, opening voucher; `stateCode` from the column, the GSTIN or the state name                                 |
+| `products`         | `products.create`                                                           | Product (category by code, type PRODUCT), opening finished-goods stock in a named store                                                            |
+| `raw-materials`    | `raw_materials.create`                                                      | Raw material (category by code, store by id), opening quantity with an `OPENING_STOCK` movement                                                    |
+| `opening-balances` | `accounts.create`, `chart-of-accounts.create`                               | Opening journal per ledger (`LEDGER_OPENING_BALANCE`, contra Opening Balance Equity); new ledgers from name, type and group; party ledgers refused |
+| `opening-stock`    | `finished_goods_stocks.create`, `raw_material_stocks.create`, `stores.edit` | `OPENING_STOCK` movement and on-hand increment per item and store, once                                                                            |
+
+Routes: `GET /types` (types the caller may run, with columns), `GET /templates/:type` (CSV with
+header and example row), `POST /:type?dryRun=true|false` (multipart `file`, 5 MB, 5,000 rows).
+Headers match case- and punctuation-insensitively (`Customer Code`, `customer_code`,
+`customerCode`); unknown columns are reported as ignored; a missing required column is a 400.
+Cells are coerced (`"1,25,000.50"`, `yes/no`, `DR/CR`, `;`-separated phones); GSTINs are
+check-digit validated. The dry run returns a report with every row's status (`ok`, `exists`,
+`error`) and messages; duplicates within the file are errors, rows whose code already exists are
+skipped. A commit with any error row is a 400 carrying the report; otherwise rows are created
+sequentially through the module services (so ledgers, vouchers and movements follow the same
+paths as the screens), and an unexpected failure stops the run and reports the row (207). Opening
+entries and movements are dated `BOOKS_BEGIN_ON` from onboarding, else the financial-year start.
+A small RFC 4180 parser (`imports.csv.ts`) avoids a new dependency.
+
+Fix on the way: `rawMaterialService.create` used `connect` for store, category and location, which
+the tenant extension breaks by adding `companyId` to `data`; it now writes scalar foreign keys.
+
+**Web.** `/settings/imports` (Configuration → Data Imports): type picker limited to what the user
+may run, column reference, template download, file pick triggers the dry run, filterable row
+report, Import button enabled only for a clean report. Added to the browser smoke suite.
+
+**Tests.** `imports.spec.ts` (8): type listing by permission and templates; customer dry run
+(bad check digit, in-file duplicate, existing code, missing code) writes nothing and a commit with
+errors is refused; customer commit creates ledgers, types, grades, addresses and opening
+vouchers and is idempotent; supplier state code derivation and mismatch; products and raw
+materials with reference errors and opening quantities; opening balances for existing and new
+ledgers dated the FY start, refused for party ledgers, `exists` on re-run; opening stock
+increments once; permissions per type. 121 API tests.
+
+## Part 3b — notifications, surrogate keys (planned)
+
+`Notification` model and in-app centre; uuid primary keys for the seven code-keyed models;
+Prisma 8 upgrade evaluation; retire the legacy password-by-email user creation.

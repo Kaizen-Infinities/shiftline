@@ -19,6 +19,7 @@ const UnauthorizedPage = lazy(() => import("../modules/unauthorized/pages/Unauth
 const LoginPage = lazy(() => import("../modules/login/pages/LoginPage"));
 const AcceptInvitationPage = lazy(() => import("../modules/login/pages/AcceptInvitationPage"));
 const OnboardingWizard = lazy(() => import("../modules/onboarding/pages/OnboardingWizard"));
+const ImportsPage = lazy(() => import("../modules/imports/pages/ImportsPage"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
 
 // ===========================================================================
@@ -382,6 +383,25 @@ const AppRoutes = () => {
               <Route path="/whatsapp" element={<WhatsappSettings />} />
               <Route path="/email-config" element={<EmailConfigPage />} />
               <Route path="/settings/invoice" element={<InvoiceSettings />} />
+              <Route
+                element={
+                  <ProtectedRoute
+                    permissionAny={[
+                      "customers.create",
+                      "suppliers.create",
+                      "products.create",
+                      "raw_materials.create",
+                      "accounts.create",
+                      "chart-of-accounts.create",
+                      "finished_goods_stocks.create",
+                      "raw_material_stocks.create",
+                      "stores.edit",
+                    ]}
+                  />
+                }
+              >
+                <Route path="/settings/imports" element={<ImportsPage />} />
+              </Route>
 
               <Route element={<ProtectedRoute permission="profile.view" />}>
                 <Route path="/profile" element={<ProfilePage />} />

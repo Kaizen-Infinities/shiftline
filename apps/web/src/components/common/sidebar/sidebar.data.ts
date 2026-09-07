@@ -1,11 +1,5 @@
 import type { SidebarItem } from "./sidebar.types";
-import {
-  FiPieChart,
-  FiSettings,
-  FiBarChart2,
-  FiClock,
-  FiRepeat,
-} from "react-icons/fi";
+import { FiPieChart, FiSettings, FiBarChart2, FiClock, FiRepeat } from "react-icons/fi";
 
 export const sidebarItems: SidebarItem[] = [
   // ── 1. Dashboard (Direct Top-Level Link) ──────────────────────────────────
@@ -83,8 +77,16 @@ export const sidebarItems: SidebarItem[] = [
             title: "Machine Assignments",
             permission: "machine-assignments.view",
             children: [
-              { title: "Add", path: "/machines/assignments/create", permission: "machine-assignments.create" },
-              { title: "List", path: "/machines/assignments", permission: "machine-assignments.view" },
+              {
+                title: "Add",
+                path: "/machines/assignments/create",
+                permission: "machine-assignments.create",
+              },
+              {
+                title: "List",
+                path: "/machines/assignments",
+                permission: "machine-assignments.view",
+              },
             ],
           },
           {
@@ -175,10 +177,19 @@ export const sidebarItems: SidebarItem[] = [
         title: "Configuration",
         permission: "company-settings.view",
         children: [
-          { title: "Company Settings", path: "/settings/company", permission: "company-settings.view" },
+          {
+            title: "Company Settings",
+            path: "/settings/company",
+            permission: "company-settings.view",
+          },
           { title: "WhatsApp Settings", path: "/whatsapp", permission: "whatsapp.view" },
           { title: "Email Configuration", path: "/email-config", permission: "email-config.view" },
-          { title: "Invoice Settings", path: "/settings/invoice", permission: "invoice-settings.view" },
+          {
+            title: "Invoice Settings",
+            path: "/settings/invoice",
+            permission: "invoice-settings.view",
+          },
+          { title: "Data Imports", path: "/settings/imports", permission: "company-settings.view" },
         ],
       },
       // ── 4. Users & Roles ──
@@ -202,7 +213,11 @@ export const sidebarItems: SidebarItem[] = [
               { title: "List", path: "/departments", permission: "departments.view" },
             ],
           },
-          { title: "Permissions Mapping", path: "/role-permissions", permission: "role-permissions.view" },
+          {
+            title: "Permissions Mapping",
+            path: "/role-permissions",
+            permission: "role-permissions.view",
+          },
           { title: "User Management", path: "/users", permission: "users.view" },
         ],
       },
@@ -212,6 +227,7 @@ export const sidebarItems: SidebarItem[] = [
       "/whatsapp",
       "/email-config",
       "/settings/invoice",
+      "/settings/imports",
       "/roles",
       "/role-permissions",
       "/departments",
@@ -258,7 +274,7 @@ export const sidebarItems: SidebarItem[] = [
     ],
   },
 
-  // ── 3. Transactions (Busy ERP Style: Sales, Purchase, Vouchers, Production) 
+  // ── 3. Transactions (Busy ERP Style: Sales, Purchase, Vouchers, Production)
   {
     title: "Transactions",
     icon: FiRepeat,
@@ -277,7 +293,12 @@ export const sidebarItems: SidebarItem[] = [
         title: "Sales Order",
         permission: "sales-orders.view",
         children: [
-          { title: "Add", path: "/sales-order/create", permission: "sales-orders.create", badge: "Ctrl+O" },
+          {
+            title: "Add",
+            path: "/sales-order/create",
+            permission: "sales-orders.create",
+            badge: "Ctrl+O",
+          },
           { title: "List", path: "/sales-order", permission: "sales-orders.view" },
         ],
       },
@@ -286,7 +307,12 @@ export const sidebarItems: SidebarItem[] = [
         title: "Purchase Order",
         permission: "purchaseOrders.view",
         children: [
-          { title: "Add", path: "/purchase-orders/create", permission: "purchaseOrders.create", badge: "Ctrl+X" },
+          {
+            title: "Add",
+            path: "/purchase-orders/create",
+            permission: "purchaseOrders.create",
+            badge: "Ctrl+X",
+          },
           { title: "List", path: "/purchase-orders", permission: "purchaseOrders.view" },
         ],
       },
@@ -295,8 +321,18 @@ export const sidebarItems: SidebarItem[] = [
         title: "Sales",
         permission: "sales-invoices.view",
         children: [
-          { title: "Add", path: "/sales-invoices/create", permission: "sales-invoices.create", badge: "Ctrl+1" },
-          { title: "List", path: "/sales-invoices", permission: "sales-invoices.view", badge: "Ctrl+6" },
+          {
+            title: "Add",
+            path: "/sales-invoices/create",
+            permission: "sales-invoices.create",
+            badge: "Ctrl+1",
+          },
+          {
+            title: "List",
+            path: "/sales-invoices",
+            permission: "sales-invoices.view",
+            badge: "Ctrl+6",
+          },
         ],
       },
       // ── Purchase (GRN) ──
@@ -331,7 +367,12 @@ export const sidebarItems: SidebarItem[] = [
         title: "Payment",
         permission: "vouchers.view",
         children: [
-          { title: "Add", path: "/accounts/payment-voucher/add", permission: "vouchers.create", badge: "Ctrl+P" },
+          {
+            title: "Add",
+            path: "/accounts/payment-voucher/add",
+            permission: "vouchers.create",
+            badge: "Ctrl+P",
+          },
           { title: "List", path: "/accounts/payment-voucher", permission: "vouchers.view" },
         ],
       },
@@ -340,7 +381,12 @@ export const sidebarItems: SidebarItem[] = [
         title: "Receipt",
         permission: "vouchers.view",
         children: [
-          { title: "Add", path: "/accounts/receipt-voucher/add", permission: "vouchers.create", badge: "Ctrl+R" },
+          {
+            title: "Add",
+            path: "/accounts/receipt-voucher/add",
+            permission: "vouchers.create",
+            badge: "Ctrl+R",
+          },
           { title: "List", path: "/accounts/receipt-voucher", permission: "vouchers.view" },
         ],
       },
@@ -349,7 +395,12 @@ export const sidebarItems: SidebarItem[] = [
         title: "Journal",
         permission: "vouchers.view",
         children: [
-          { title: "Add", path: "/accounts/journal-entry/add", permission: "vouchers.create", badge: "Ctrl+J" },
+          {
+            title: "Add",
+            path: "/accounts/journal-entry/add",
+            permission: "vouchers.create",
+            badge: "Ctrl+J",
+          },
           { title: "List", path: "/accounts/journal-entry", permission: "vouchers.view" },
         ],
       },
@@ -368,7 +419,12 @@ export const sidebarItems: SidebarItem[] = [
         permission: "quotations.view",
         children: [
           { title: "Add", path: "/quatation-order/create", permission: "quotations.create" },
-          { title: "List", path: "/quatation-order", permission: "quotations.view", badge: "Ctrl+Q" },
+          {
+            title: "List",
+            path: "/quatation-order",
+            permission: "quotations.view",
+            badge: "Ctrl+Q",
+          },
         ],
       },
       // ── Production ──
@@ -376,15 +432,52 @@ export const sidebarItems: SidebarItem[] = [
         title: "Production",
         permission: "production_orders.view",
         children: [
-          { title: "Add Production Order", path: "/production-orders/create", permission: "production_orders.create" },
-          { title: "Production Orders List", path: "/production-orders", permission: "production_orders.view", badge: "P" },
-          { title: "Order History", path: "/allproduction-orders", permission: "production_orders.view" },
-          { title: "Daily Machine Planning", path: "/daily-machine-planning", permission: "daily-machine-planning.view" },
-          { title: "Hourly Work Reports", path: "/hourly-work-reports", permission: "hourly_productions.view" },
-          { title: "Production Wastages", path: "/production-wastages", permission: "production-wastages.view" },
-          { title: "Weekly Schedules", path: "/weekly-machine-schedules", permission: "weekly_programs.view" },
-          { title: "Goods Dispatch", path: "/production/goods-dispatch", permission: "goods-dispatch.view" },
-          { title: "Shift Execution Board", path: "/shift-execution", permission: "shift-execution.view" },
+          {
+            title: "Add Production Order",
+            path: "/production-orders/create",
+            permission: "production_orders.create",
+          },
+          {
+            title: "Production Orders List",
+            path: "/production-orders",
+            permission: "production_orders.view",
+            badge: "P",
+          },
+          {
+            title: "Order History",
+            path: "/allproduction-orders",
+            permission: "production_orders.view",
+          },
+          {
+            title: "Daily Machine Planning",
+            path: "/daily-machine-planning",
+            permission: "daily-machine-planning.view",
+          },
+          {
+            title: "Hourly Work Reports",
+            path: "/hourly-work-reports",
+            permission: "hourly_productions.view",
+          },
+          {
+            title: "Production Wastages",
+            path: "/production-wastages",
+            permission: "production-wastages.view",
+          },
+          {
+            title: "Weekly Schedules",
+            path: "/weekly-machine-schedules",
+            permission: "weekly_programs.view",
+          },
+          {
+            title: "Goods Dispatch",
+            path: "/production/goods-dispatch",
+            permission: "goods-dispatch.view",
+          },
+          {
+            title: "Shift Execution Board",
+            path: "/shift-execution",
+            permission: "shift-execution.view",
+          },
         ],
       },
       // ── Inventory / Stock ──
@@ -392,8 +485,16 @@ export const sidebarItems: SidebarItem[] = [
         title: "Inventory",
         permission: "stock-adjustments.view",
         children: [
-          { title: "Add Stock Adjustment", path: "/inventory/stock-adjustments/create", permission: "stock-adjustments.create" },
-          { title: "Stock Adjustments List", path: "/inventory/stock-adjustments", permission: "stock-adjustments.view" },
+          {
+            title: "Add Stock Adjustment",
+            path: "/inventory/stock-adjustments/create",
+            permission: "stock-adjustments.create",
+          },
+          {
+            title: "Stock Adjustments List",
+            path: "/inventory/stock-adjustments",
+            permission: "stock-adjustments.view",
+          },
           { title: "Petty Cash", path: "/accounts/petty-cash", permission: "petty-cash.view" },
         ],
       },
@@ -444,7 +545,7 @@ export const sidebarItems: SidebarItem[] = [
     ],
   },
 
-  // ── 4. Display (Busy ERP Style: Final Results, Outstanding, Stock, Reports) 
+  // ── 4. Display (Busy ERP Style: Final Results, Outstanding, Stock, Reports)
   {
     title: "Display",
     icon: FiBarChart2,
@@ -479,8 +580,16 @@ export const sidebarItems: SidebarItem[] = [
         title: "Account Books",
         permission: "accounts.view",
         children: [
-          { title: "Account-Wise Ledger", path: "/accounts/ledger-statement", permission: "accounts.view" },
-          { title: "Merged Accounts Ledger", path: "/accounts/ledger-statement/merged", permission: "accounts.view" },
+          {
+            title: "Account-Wise Ledger",
+            path: "/accounts/ledger-statement",
+            permission: "accounts.view",
+          },
+          {
+            title: "Merged Accounts Ledger",
+            path: "/accounts/ledger-statement/merged",
+            permission: "accounts.view",
+          },
         ],
       },
       // ── Outstanding Analysis ──
@@ -488,8 +597,16 @@ export const sidebarItems: SidebarItem[] = [
         title: "Outstanding Analysis",
         permission: "payable.view",
         children: [
-          { title: "Amount Payable (Outstanding)", path: "/accounts/payable", permission: "payable.view" },
-          { title: "Amount Receivable (Outstanding)", path: "/accounts/receivable", permission: "receivable.view" },
+          {
+            title: "Amount Payable (Outstanding)",
+            path: "/accounts/payable",
+            permission: "payable.view",
+          },
+          {
+            title: "Amount Receivable (Outstanding)",
+            path: "/accounts/receivable",
+            permission: "receivable.view",
+          },
         ],
       },
       // ── Stock Status ──
@@ -498,7 +615,11 @@ export const sidebarItems: SidebarItem[] = [
         permission: "raw_material_stocks.view",
         children: [
           { title: "Raw Material Stock", path: "/stock", permission: "raw_material_stocks.view" },
-          { title: "Finished Goods Stock", path: "/finished-stock", permission: "finished_goods_stocks.view" },
+          {
+            title: "Finished Goods Stock",
+            path: "/finished-stock",
+            permission: "finished_goods_stocks.view",
+          },
           { title: "Wastage Stock", path: "/wastage-stock", permission: "wastage-stock.view" },
         ],
       },
@@ -508,9 +629,21 @@ export const sidebarItems: SidebarItem[] = [
         permission: "sales-reports.view",
         children: [
           { title: "Sales Reports", path: "/reports/sales", permission: "sales-reports.view" },
-          { title: "Purchase Reports", path: "/reports/purchase", permission: "purchase-reports.view" },
-          { title: "Inventory Reports", path: "/reports/inventory", permission: "inventory-reports.view" },
-          { title: "Production Reports", path: "/reports/production", permission: "production-reports.view" },
+          {
+            title: "Purchase Reports",
+            path: "/reports/purchase",
+            permission: "purchase-reports.view",
+          },
+          {
+            title: "Inventory Reports",
+            path: "/reports/inventory",
+            permission: "inventory-reports.view",
+          },
+          {
+            title: "Production Reports",
+            path: "/reports/production",
+            permission: "production-reports.view",
+          },
           { title: "Audit Reports", path: "/reports/audit", permission: "audit-reports.view" },
         ],
       },
@@ -567,8 +700,16 @@ export const sidebarItems: SidebarItem[] = [
       { title: "Attendance", path: "/payroll/attendance", permission: "payroll-attendance.view" },
       { title: "Salary Advances", path: "/payroll/advance", permission: "payroll-advance.view" },
       { title: "Payroll Settings", path: "/payroll/settings", permission: "payroll-settings.view" },
-      { title: "Weekly Payroll Report", path: "/payroll/weekly-report", permission: "payroll.view" },
-      { title: "Monthly Payroll Report", path: "/payroll/monthly-report", permission: "payroll.view" },
+      {
+        title: "Weekly Payroll Report",
+        path: "/payroll/weekly-report",
+        permission: "payroll.view",
+      },
+      {
+        title: "Monthly Payroll Report",
+        path: "/payroll/monthly-report",
+        permission: "payroll.view",
+      },
     ],
     activePaths: [
       "/payroll",

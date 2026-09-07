@@ -13,52 +13,50 @@ class RawMaterialService {
       throw new ApiError(409, `Raw Material with ID ${data.rawMaterialId} already exists`);
     }
 
-
-
     return prisma.$transaction(async (tx) => {
       const rawMaterial = await tx.rawMaterial.create({
         data: {
           rawMaterialId: data.rawMaterialId,
           materialName: data.materialName,
-          ...(data.categoryId ? { category: { connect: { id: data.categoryId } } } : {}),
+          // Scalar foreign keys, not `connect`: the tenant extension adds `companyId` to
+          // `data`, which Prisma only accepts alongside scalar (unchecked) relation fields.
+          categoryId: data.categoryId ?? null,
           minimumStock: data.minimumStock,
           baseUom: data.baseUom,
           reorderLevel: data.reorderLevel,
           rate: data.rate,
-          ...(data.storeId ? { store: { connect: { storeId: data.storeId } } } : {}),
+          storeId: data.storeId ?? null,
           isActive: data.isActive ?? true,
           createdBy: userId,
-          ...(data.locationId ? { storeLocation: { connect: { id: data.locationId } } } : {}),
+          locationId: data.locationId ?? null,
           batchNo: data.batchNo ?? null,
           onHandQty: data.onHandQty ?? 0,
           reservedQty: data.reservedQty ?? 0,
           narration: data.narration ?? null,
-          lastMovementAt: data.lastMovementAt
-            ? new Date(data.lastMovementAt)
-            : null,
+          lastMovementAt: data.lastMovementAt ? new Date(data.lastMovementAt) : null,
           status: data.status ?? "Active",
           itemType: data.itemType ?? "RAW_MATERIAL",
-        }
+        },
       });
-
-
 
       return rawMaterial;
     });
   }
 
-  async findAll(params: {
-    search?: string;
-    storeId?: string;
-    isActive?: boolean;
-    itemType?: string;
-    categoryId?: string;
-    status?: string;
-    page?: number;
-    limit?: number;
-    sortBy?: string;
-    sortOrder?: "asc" | "desc";
-  } = {}) {
+  async findAll(
+    params: {
+      search?: string;
+      storeId?: string;
+      isActive?: boolean;
+      itemType?: string;
+      categoryId?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+      sortBy?: string;
+      sortOrder?: "asc" | "desc";
+    } = {}
+  ) {
     const {
       search,
       storeId,
@@ -157,7 +155,6 @@ class RawMaterialService {
 
   async update(rawMaterialId: string, data: UpdateRawMaterialInput, userId?: string) {
     await this.findById(rawMaterialId);
-
 
     const { categoryId, storeId, locationId, ...restData } = data;
 

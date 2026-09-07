@@ -116,6 +116,9 @@ export const API_PATHS = {
   onboarding: {
     base: "/onboarding",
   },
+  imports: {
+    base: "/imports",
+  },
   company: {
     base: "/companies",
   },

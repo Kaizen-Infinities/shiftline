@@ -61,6 +61,7 @@ import platformBackupsRoutes from "../modules/platform/backups.routes";
 import platformTenantsRoutes from "../modules/platform/tenants.routes";
 import invitationRoutes from "../modules/users/invitation.routes";
 import onboardingRoutes from "../modules/onboarding/onboarding.routes";
+import importsRoutes from "../modules/imports/imports.routes";
 
 const router = Router();
 
@@ -131,6 +132,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/platform/tenants", router: platformTenantsRoutes },
   { path: "/invitations", router: invitationRoutes },
   { path: "/onboarding", router: onboardingRoutes },
+  { path: "/imports", router: importsRoutes },
 ];
 
 for (const { path, router: moduleRouter } of API_MOUNTS) {
