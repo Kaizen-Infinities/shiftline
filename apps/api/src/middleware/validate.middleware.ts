@@ -21,10 +21,20 @@ export const validateMiddleware =
         if (parsed.body !== undefined) req.body = parsed.body;
         // Express 5 exposes query and params as getters; redefine them with the parsed values.
         if (parsed.query !== undefined) {
-          Object.defineProperty(req, "query", { value: parsed.query, writable: true, configurable: true, enumerable: true });
+          Object.defineProperty(req, "query", {
+            value: parsed.query,
+            writable: true,
+            configurable: true,
+            enumerable: true,
+          });
         }
         if (parsed.params !== undefined) {
-          Object.defineProperty(req, "params", { value: parsed.params, writable: true, configurable: true, enumerable: true });
+          Object.defineProperty(req, "params", {
+            value: parsed.params,
+            writable: true,
+            configurable: true,
+            enumerable: true,
+          });
         }
       }
       next();

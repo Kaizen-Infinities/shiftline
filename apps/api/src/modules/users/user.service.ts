@@ -7,6 +7,7 @@ import { prisma } from "../../config/prisma";
 import bcrypt from "bcrypt";
 import { sendEmail } from "../../utils/mailer";
 import { generateWelcomeEmailHtml } from "../../templates/welcomeEmailTemplate";
+import { entitlementService } from "../entitlements/entitlement.service";
 import { logger } from "../../lib/logger";
 export class UserService {
   async getProfile(userId: string): Promise<UserResponse> {
@@ -102,6 +103,9 @@ export class UserService {
       finalEmployeeId = employee.id;
     }
 
+    // Plan seats (P1-01): active users plus pending invitations.
+    await entitlementService.assertSeatAvailable();
+
     const user = await userRepository.createUser({
       username: data.username,
       fullName: data.fullName,
@@ -113,6 +117,7 @@ export class UserService {
       mustChangePw: false,
       createdBy: "ADMIN",
     });
+    entitlementService.invalidate();
 
     if (data.email) {
       try {

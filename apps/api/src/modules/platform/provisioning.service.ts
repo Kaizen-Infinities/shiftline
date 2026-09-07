@@ -6,13 +6,14 @@
  * modules expect. Idempotent, so the development seed and the platform API
  * share it and re-running never duplicates rows.
  */
-import { PERMISSION_REGISTRY } from "@shiftline/shared";
+import { DEFAULT_PLAN_CODE, PERMISSION_REGISTRY, PLAN_TIERS, TRIAL_DAYS } from "@shiftline/shared";
 import type { Company } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
+import { entitlementService } from "../entitlements/entitlement.service";
 
 const keysFor = (modules: string[], actions?: string[]) =>
   PERMISSION_REGISTRY.filter((m) => modules.includes(m.module)).flatMap((m) =>
@@ -154,6 +155,10 @@ export interface ProvisionInput {
   /** First day of the financial year to open; defaults to the current Indian FY (1 April). */
   fyStart?: Date;
   isOnboarded?: boolean;
+  /** Plan code from the catalogue; defaults to the Starter trial. */
+  planCode?: string;
+  /** Subscription status to start in; defaults to TRIALING for the default plan, ACTIVE otherwise when set. */
+  subscriptionStatus?: "TRIALING" | "ACTIVE";
   createdBy?: string;
 }
 
@@ -216,7 +221,30 @@ class ProvisioningService {
         })
       ));
 
+    await this.ensurePlans();
+    const planCode = input.planCode ?? DEFAULT_PLAN_CODE;
+    const plan = await prisma.plan.findUnique({ where: { code: planCode } });
+    if (!plan || !plan.isActive) throw new ApiError(400, `Unknown plan ${planCode}`);
+    const status =
+      input.subscriptionStatus ??
+      (input.planCode && input.planCode !== DEFAULT_PLAN_CODE ? "ACTIVE" : "TRIALING");
+
     const roles = await runAsTenant(company.id, async () => {
+      if (!(await prisma.subscription.findUnique({ where: { companyId: company.id } }))) {
+        await prisma.subscription.create({
+          data: {
+            planId: plan.id,
+            status,
+            trialEndsAt:
+              status === "TRIALING"
+                ? new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000)
+                : null,
+            currentPeriodStart: new Date(),
+            createdBy: input.createdBy,
+          },
+        });
+        entitlementService.invalidate(company.id);
+      }
       await accountsService.ensureSystemLedgersExist();
 
       if ((await prisma.businessPlace.count()) === 0) {
@@ -318,6 +346,26 @@ class ProvisioningService {
     return { company, roles, fyCode: fy.code, created: !existing };
   }
 
+  /** The plan catalogue from the shared registry; existing rows keep their edited values. */
+  async ensurePlans() {
+    for (const tier of PLAN_TIERS) {
+      await prisma.plan.upsert({
+        where: { code: tier.code },
+        update: {},
+        create: {
+          code: tier.code,
+          name: tier.name,
+          description: tier.description,
+          features: [...tier.features],
+          seatLimit: tier.seatLimit,
+          apiLimit: tier.apiLimit,
+          priceInrMonthly: tier.priceInrMonthly,
+          sortOrder: tier.sortOrder,
+        },
+      });
+    }
+  }
+
   /** Platform view: every tenant with a few counters. */
   async listTenants() {
     return withoutTenant(async () => {
@@ -334,11 +382,24 @@ class ProvisioningService {
           onboardingStep: true,
           tosAcceptedAt: true,
           createdAt: true,
+          subscription: {
+            select: {
+              status: true,
+              seats: true,
+              trialEndsAt: true,
+              currentPeriodEnd: true,
+              plan: { select: { code: true, name: true } },
+            },
+          },
           _count: { select: { users: true, invitations: true } },
         },
       });
-      return companies.map(({ _count, ...c }) => ({
+      return companies.map(({ _count, subscription, ...c }) => ({
         ...c,
+        plan: subscription?.plan ?? null,
+        subscriptionStatus: subscription?.status ?? null,
+        seats: subscription?.seats ?? null,
+        trialEndsAt: subscription?.trialEndsAt ?? null,
         users: _count.users,
         pendingInvitations: _count.invitations,
       }));

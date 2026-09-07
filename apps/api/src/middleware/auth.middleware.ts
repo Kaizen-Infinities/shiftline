@@ -6,8 +6,9 @@ import { env } from "../config/env";
 import { JwtPayload } from "../types/auth.types";
 import { prisma } from "../config/prisma";
 import { tenantStorage, withoutTenant } from "../lib/tenant-context";
+import { enforceTenantApiCap } from "../lib/tenant-rate-limit";
 
-export const authMiddleware = async (req: Request, _res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     let token: string | undefined;
 
@@ -104,7 +105,10 @@ export const authMiddleware = async (req: Request, _res: Response, next: NextFun
         userId: decoded.userId,
         isSuperAdmin: !!decoded.isSuperAdmin,
       },
-      () => next()
+      () => {
+        // Plan API cap (P1-01) counts every authenticated request of the tenant.
+        enforceTenantApiCap(req, res).then(() => next(), next);
+      }
     );
   } catch (err) {
     if (err instanceof ApiError) return next(err);

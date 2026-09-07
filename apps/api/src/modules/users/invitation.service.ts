@@ -16,6 +16,7 @@ import { hashPassword } from "../../utils/hashPassword";
 import { sendEmail } from "../../utils/mailer";
 import { authService } from "../auth/auth.service";
 import { notify } from "../notifications/notify";
+import { entitlementService } from "../entitlements/entitlement.service";
 
 export const INVITATION_TTL_DAYS = 7;
 
@@ -53,6 +54,12 @@ class InvitationService {
     if (!role) throw new ApiError(404, "Role not found");
     const existingUser = await withoutTenant(() => prisma.user.findFirst({ where: { email } }));
     if (existingUser) throw new ApiError(409, "A user with this email already exists");
+    // A pending invitation for the same email is replaced below, so it does not count twice.
+    if (
+      !(await prisma.invitation.findFirst({ where: { email, acceptedAt: null, revokedAt: null } }))
+    ) {
+      await entitlementService.assertSeatAvailable(companyId);
+    }
 
     // One live invitation per email per tenant: earlier pending ones are revoked.
     await prisma.invitation.updateMany({
@@ -73,6 +80,7 @@ class InvitationService {
       },
     });
 
+    entitlementService.invalidate(companyId);
     const acceptUrl = acceptUrlFor(raw);
     const companyName =
       opts.companyName ??

@@ -21,6 +21,7 @@ const AcceptInvitationPage = lazy(() => import("../modules/login/pages/AcceptInv
 const OnboardingWizard = lazy(() => import("../modules/onboarding/pages/OnboardingWizard"));
 const ImportsPage = lazy(() => import("../modules/imports/pages/ImportsPage"));
 const NotificationsPage = lazy(() => import("../modules/notifications/pages/NotificationsPage"));
+const UpgradePage = lazy(() => import("../modules/upgrade/pages/UpgradePage"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
 
 // ===========================================================================
@@ -351,6 +352,7 @@ const AppRoutes = () => {
         <Route element={<ProtectedRoute />}>
           {/* Onboarding wizard (rendered without BaseLayout) */}
           <Route path="/onboarding" element={<OnboardingWizard />} />
+          <Route path="/upgrade" element={<UpgradePage />} />
 
           {/* TV Dashboard — full-screen, no navbar/footer */}
           <Route path="/tv-dashboard" element={<TvDashboard />} />

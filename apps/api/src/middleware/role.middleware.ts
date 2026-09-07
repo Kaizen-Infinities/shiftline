@@ -1,8 +1,4 @@
-import {
-  Request,
-  Response,
-  NextFunction
-} from "express";
+import { Request, Response, NextFunction } from "express";
 
 import { ApiError } from "../utils/ApiError";
 
@@ -11,38 +7,19 @@ import { ApiError } from "../utils/ApiError";
  */
 export const roleMiddleware =
   (...allowedRoles: string[]) =>
-  (
-    req: Request,
-    _res: Response,
-    next: NextFunction
-  ) => {
-
+  (req: Request, _res: Response, next: NextFunction) => {
     // User must be authenticated
     if (!req.user) {
-      return next(
-        new ApiError(
-          401,
-          "Unauthorized"
-        )
-      );
+      return next(new ApiError(401, "Unauthorized"));
     }
 
-    const userRole =
-      req.user.roleId;
+    const userRole = req.user.roleId;
 
     // Verify user role is allowed to access the resource
-    const isAllowed =
-      userRole !== null && allowedRoles.includes(
-        userRole
-      );
+    const isAllowed = userRole !== null && allowedRoles.includes(userRole);
 
     if (!isAllowed) {
-      return next(
-        new ApiError(
-          403,
-          "Access Denied"
-        )
-      );
+      return next(new ApiError(403, "Access Denied"));
     }
 
     next();

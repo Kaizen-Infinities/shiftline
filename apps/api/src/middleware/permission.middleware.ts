@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
+import { assertFeature, featureOf } from "./feature.middleware";
 
 /**
  * Returns true when the authenticated user is a Super Admin and
@@ -55,7 +56,8 @@ export function requirePermission(permission: string) {
       return next(new ApiError(403, `Access Denied: "${permission}" permission required`));
     }
 
-    return next();
+    // A permission is only usable when the tenant's plan includes its feature (P1-01).
+    assertFeature(req, featureOf(permission)).then(() => next(), next);
   };
 }
 
@@ -76,16 +78,27 @@ export function requireAnyPermission(...permissions: string[]) {
     }
 
     const hasAny =
-      Array.isArray(user.permissions) &&
-      permissions.some((p) => user.permissions.includes(p));
+      Array.isArray(user.permissions) && permissions.some((p) => user.permissions.includes(p));
 
     if (!hasAny) {
-      return next(
-        new ApiError(403, `Access Denied: one of [${permissions.join(", ")}] required`)
-      );
+      return next(new ApiError(403, `Access Denied: one of [${permissions.join(", ")}] required`));
     }
 
-    return next();
+    // Any held permission whose feature the plan includes lets the request through.
+    const held = permissions.filter((p) => user.permissions.includes(p));
+    Promise.all(
+      held.map((p) =>
+        assertFeature(req, featureOf(p)).then(
+          () => true,
+          () => false
+        )
+      )
+    )
+      .then((oks) => {
+        if (oks.some(Boolean)) return next();
+        return assertFeature(req, featureOf(held[0])).then(() => next(), next);
+      })
+      .catch(next);
   };
 }
 
@@ -106,13 +119,10 @@ export function requireAllPermissions(...permissions: string[]) {
     }
 
     const hasAll =
-      Array.isArray(user.permissions) &&
-      permissions.every((p) => user.permissions.includes(p));
+      Array.isArray(user.permissions) && permissions.every((p) => user.permissions.includes(p));
 
     if (!hasAll) {
-      return next(
-        new ApiError(403, `Access Denied: all of [${permissions.join(", ")}] required`)
-      );
+      return next(new ApiError(403, `Access Denied: all of [${permissions.join(", ")}] required`));
     }
 
     return next();

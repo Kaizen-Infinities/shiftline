@@ -20,10 +20,25 @@ export interface UserResponseDto {
   photoUrl?: string | null;
 }
 
+export interface Entitlements {
+  plan: { code: string; name: string } | null;
+  status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELLED" | "NONE";
+  features: string[];
+  seatLimit: number | null;
+  seatsUsed: number;
+  apiLimit: number | null;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  readOnly: boolean;
+  pastDue: boolean;
+}
+
 export interface ProfileResponseDto {
   user: UserResponseDto;
   permissions: string[];
   isSuperAdmin?: boolean;
+  /** Plan features, seats and status of the tenant (P1-01); absent for platform admins. */
+  entitlements?: Entitlements;
 }
 
 export interface AuthState {
@@ -35,4 +50,6 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isInitialized: boolean;
+  /** Null until the profile loads; platform admins keep it null. */
+  entitlements: Entitlements | null;
 }

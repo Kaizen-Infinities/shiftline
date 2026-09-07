@@ -122,6 +122,14 @@ export const API_PATHS = {
   notifications: {
     base: "/notifications",
   },
+  entitlements: {
+    base: "/entitlements",
+  },
+  platform: {
+    tenants: "/platform/tenants",
+    plans: "/platform/plans",
+    backups: "/platform/backups",
+  },
   company: {
     base: "/companies",
   },

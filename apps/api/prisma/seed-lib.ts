@@ -44,6 +44,8 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
     zipcode: "600001",
     country: "India",
     isOnboarded: true,
+    planCode: "ENTERPRISE",
+    subscriptionStatus: "ACTIVE",
   });
   const company = provisioned.company;
   const roles = provisioned.roles;

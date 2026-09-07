@@ -12,6 +12,9 @@ type ErrorBody = {
   success: false;
   message: string;
   errors: unknown[];
+  /** Machine-readable reason (FEATURE_NOT_IN_PLAN, SEAT_LIMIT_REACHED, ...). */
+  code?: string;
+  details?: Record<string, unknown>;
   /** Correlates the response with server logs and audit rows. */
   requestId?: string;
   /** Diagnostic detail, development only. Never sent in production. */
@@ -23,9 +26,12 @@ const send = (
   status: number,
   message: string,
   errors: unknown[] = [],
-  detail?: string
+  detail?: string,
+  extra?: { code?: string; details?: Record<string, unknown> }
 ) => {
   const body: ErrorBody = { success: false, message, errors };
+  if (extra?.code) body.code = extra.code;
+  if (extra?.details) body.details = extra.details;
   const requestId = getRequestId();
   if (requestId) body.requestId = requestId;
   if (!isProduction && detail) body.detail = detail;
@@ -51,7 +57,10 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
       logger.error({ err, method: req.method, url: req.originalUrl }, "API error");
       captureError(err, { method: req.method, url: req.originalUrl });
     }
-    return send(res, err.statusCode, err.message);
+    return send(res, err.statusCode, err.message, [], undefined, {
+      code: err.code,
+      details: err.details,
+    });
   }
 
   if (err instanceof ZodError) {

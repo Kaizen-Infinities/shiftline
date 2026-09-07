@@ -29,6 +29,7 @@ const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   isInitialized: false,
+  entitlements: null,
 };
 
 // Async Thunks
@@ -110,6 +111,7 @@ const authSlice = createSlice({
     },
     clearUser: (state) => {
       state.user = null;
+      state.entitlements = null;
       state.accessToken = null;
       state.accessTokenExpiresAt = null;
       state.permissions = [];
@@ -142,6 +144,7 @@ const authSlice = createSlice({
       (state, action: PayloadAction<ProfileResponseDto>) => {
         state.user = action.payload.user;
         state.permissions = action.payload.permissions;
+        state.entitlements = action.payload.entitlements ?? null;
         state.isAuthenticated = true;
       }
     );

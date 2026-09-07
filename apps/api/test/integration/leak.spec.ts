@@ -54,6 +54,7 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "Expense",
   "FinishedGoodsStock",
   "FinishedGoodsTransaction",
+  "FeatureFlagOverride",
   "GoodsDispatch",
   "GoodsDispatchItem",
   "GrnInvoice",

@@ -563,6 +563,8 @@ model Company {
   agentPositions              AgentPosition[]              @relation("CompanyAgentPosition")
   bankAccounts                BankAccount[]                @relation("CompanyBankAccount")
   notifications               Notification[]               @relation("CompanyNotification")
+  subscription                Subscription?                @relation("CompanySubscription")
+  featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
 
   @@map("companies")
 }
@@ -2465,6 +2467,81 @@ model Notification {
 
   @@index([companyId, userId, readAt, createdAt])
   @@map("notifications")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+/// Platform catalogue (global, no tenant). Features and limits live in the row so a tier
+/// can change without a deploy; `@shiftline/shared` PLAN_TIERS is the seed.
+model Plan {
+  id              String         @id @default(uuid()) @db.Uuid
+  code            String         @unique @db.VarChar(30)
+  name            String         @db.VarChar(80)
+  description     String?        @db.VarChar(255)
+  /// Feature keys from the shared registry.
+  features        String[]
+  /// Active users plus pending invitations; null means unlimited.
+  seatLimit       Int?           @map("seat_limit")
+  /// API requests per tenant per 15 minutes; null means the platform default.
+  apiLimit        Int?           @map("api_limit")
+  priceInrMonthly Decimal?       @map("price_inr_monthly") @db.Decimal(12, 2)
+  isActive        Boolean        @default(true) @map("is_active")
+  sortOrder       Int            @default(0) @map("sort_order")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  subscriptions   Subscription[]
+
+  @@map("plans")
+}
+
+/// One subscription per tenant (history is in the audit trail). Seats and the API cap may
+/// override the plan; overrides of individual features live in FeatureFlagOverride.
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  companyId          String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  planId             String             @map("plan_id") @db.Uuid
+  status             SubscriptionStatus @default(TRIALING)
+  seats              Int?
+  apiLimit           Int?               @map("api_limit")
+  trialEndsAt        DateTime?          @map("trial_ends_at") @db.Timestamptz(6)
+  currentPeriodStart DateTime?          @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd   DateTime?          @map("current_period_end") @db.Timestamptz(6)
+  cancelledAt        DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  notes              String?            @db.VarChar(500)
+  createdBy          String?            @map("created_by") @db.VarChar(36)
+  updatedBy          String?            @map("updated_by") @db.VarChar(36)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  company Company @relation("CompanySubscription", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId])
+  @@map("subscriptions")
+}
+
+/// Per-tenant switch for one feature on top of the plan (a pilot, a paid add-on, a kill switch).
+model FeatureFlagOverride {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  feature   String    @db.VarChar(40)
+  enabled   Boolean
+  reason    String?   @db.VarChar(255)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.VarChar(36)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyFeatureFlagOverride", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, feature])
+  @@map("feature_flag_overrides")
 }
 
 model Voucher {

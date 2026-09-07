@@ -8,30 +8,25 @@ import {
   expenseIdRequestSchema,
 } from "./expense.validation";
 
+import { requireFeature } from "../../middleware/feature.middleware";
 const router = Router();
 
 router.post(
   "/",
   authMiddleware,
+  requireFeature("purchase"),
   validateMiddleware(createExpenseSchema),
   expenseController.create
 );
 
-router.get(
-  "/",
-  authMiddleware,
-  expenseController.findAll
-);
+router.get("/", authMiddleware, requireFeature("purchase"), expenseController.findAll);
 
-router.get(
-  "/next-code",
-  authMiddleware,
-  expenseController.getNextCode
-);
+router.get("/next-code", authMiddleware, requireFeature("purchase"), expenseController.getNextCode);
 
 router.get(
   "/:id",
   authMiddleware,
+  requireFeature("purchase"),
   validateMiddleware(expenseIdRequestSchema),
   expenseController.findOne
 );
@@ -39,6 +34,7 @@ router.get(
 router.put(
   "/:id",
   authMiddleware,
+  requireFeature("purchase"),
   validateMiddleware(expenseIdRequestSchema),
   validateMiddleware(updateExpenseSchema),
   expenseController.update
@@ -47,6 +43,7 @@ router.put(
 router.delete(
   "/:id",
   authMiddleware,
+  requireFeature("purchase"),
   validateMiddleware(expenseIdRequestSchema),
   expenseController.delete
 );

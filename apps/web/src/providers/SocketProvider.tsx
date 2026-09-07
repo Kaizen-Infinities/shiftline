@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { useAppSelector } from "../hooks/reduxHooks";
+import { useAppDispatch, useAppSelector } from "../hooks/reduxHooks";
+import { getCurrentUser } from "../features/auth/authSlice";
 import AccountsRealtimeSync from "./AccountsRealtimeSync";
 import AccountsPrefetcher from "./AccountsPrefetcher";
 
@@ -24,6 +25,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const accessToken = useAppSelector((state) => state.auth.accessToken);
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     // SEC-05: the server rejects unauthenticated handshakes, so connect only once signed in
@@ -34,7 +36,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       return;
     }
     // Get base URL without /api path (e.g. http://localhost:5000)
-    const baseUrl = import.meta.env.VITE_IMAGE_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000";
+    const baseUrl =
+      import.meta.env.VITE_IMAGE_URL ||
+      import.meta.env.VITE_API_URL?.replace("/api", "") ||
+      "http://localhost:5000";
 
     // Initialize Socket.io connection.
     // Perf tuning:
@@ -72,6 +77,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       setIsConnected(true);
     });
 
+    // Plan or override changed by the platform: reload permissions and entitlements (P1-01).
+    socketInstance.on("entitlements:updated", () => {
+      void dispatch(getCurrentUser());
+    });
+
     socketInstance.on("connect_error", (err) => {
       console.warn("⚠️ Socket connect error:", err?.message ?? err);
       setIsConnected(false);
@@ -90,7 +100,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     return () => {
       socketInstance.disconnect();
     };
-  }, [accessToken]);
+  }, [accessToken, dispatch]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

@@ -50,6 +50,9 @@ export const AUDITED_MODELS = [
   "RetentionPolicy",
   "MobileCollection",
   "Invitation",
+  "Plan",
+  "Subscription",
+  "FeatureFlagOverride",
 ];
 
 const models = Prisma.dmmf.datamodel.models;

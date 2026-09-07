@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { ApiResponse } from "../../utils/ApiResponse";
+import { entitlementService } from "../entitlements/entitlement.service";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { getCurrentCompany } from "../../utils/companyContext";
 import { receivableService } from "../accounts/receivable.service";
@@ -110,6 +111,10 @@ class MobileController {
           email: company.email,
         },
         device: info ? { deviceId: info.deviceId } : null,
+        entitlements: await (async () => {
+          const e = await entitlementService.resolve();
+          return { plan: e.plan, status: e.status, features: e.features, readOnly: e.readOnly };
+        })(),
         settings: {
           orderStatusOnSubmit: await mobileOrderStatus(),
           paymentModes: PAYMENT_MODES,

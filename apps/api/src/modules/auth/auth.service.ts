@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { entitlementService } from "../entitlements/entitlement.service";
 import { authRepository } from "./auth.repository";
 import { hashPassword, comparePassword } from "../../utils/hashPassword";
 import { generateAccessToken } from "../../utils/generateAccessToken";
@@ -611,6 +612,7 @@ export class AuthService {
       user: this.formatUserResponse(user, false),
       permissions,
       isSuperAdmin: false,
+      entitlements: await entitlementService.resolve(),
     };
   }
 

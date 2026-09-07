@@ -4,11 +4,13 @@ import { authMiddleware } from "../../middleware/auth.middleware";
 import { validateMiddleware } from "../../middleware/validate.middleware";
 import { productIdSchema, machineIdSchema } from "./product-capacity-history.validation";
 
+import { requireFeature } from "../../middleware/feature.middleware";
 const router = Router();
 
 router.get(
   "/product/:productId",
   authMiddleware,
+  requireFeature("production"),
   validateMiddleware(productIdSchema),
   productCapacityHistoryController.findByProduct
 );
@@ -16,6 +18,7 @@ router.get(
 router.get(
   "/product/:productId/machine/:machineId",
   authMiddleware,
+  requireFeature("production"),
   validateMiddleware(productIdSchema),
   validateMiddleware(machineIdSchema),
   productCapacityHistoryController.getLatestByProductAndMachine
@@ -24,6 +27,7 @@ router.get(
 router.post(
   "/manual",
   authMiddleware,
+  requireFeature("production"),
   productCapacityHistoryController.manualChange
 );
 

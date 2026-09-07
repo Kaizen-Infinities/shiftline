@@ -86,6 +86,8 @@ export interface ProfileResponseDto {
   user: UserResponseDto;
   permissions: string[];
   isSuperAdmin?: boolean;
+  /** Plan features, seats and status of the caller's tenant (P1-01); absent for platform admins. */
+  entitlements?: import("../modules/entitlements/entitlement.service").Entitlements;
 }
 
 export interface AuthTokens {

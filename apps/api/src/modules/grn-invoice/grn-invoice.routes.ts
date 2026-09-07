@@ -3,61 +3,64 @@ import grnInvoiceController from "./grn-invoice.controller";
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { validateMiddleware } from "../../middleware/validate.middleware";
 import {
-    createGrnInvoiceRequestSchema,
-    updateGrnInvoiceRequestSchema,
-    grnInvoiceIdRequestSchema,
+  createGrnInvoiceRequestSchema,
+  updateGrnInvoiceRequestSchema,
+  grnInvoiceIdRequestSchema,
 } from "./grn-invoice.validation";
 import { uploadInvoiceImage } from "../../middleware/upload.middleware";
 
+import { requireFeature } from "../../middleware/feature.middleware";
 const router = Router();
 
 router.post(
-    "/",
-    authMiddleware,
-    uploadInvoiceImage.single("invoiceImage"),
-    validateMiddleware(createGrnInvoiceRequestSchema),
-    grnInvoiceController.create
+  "/",
+  authMiddleware,
+  requireFeature("purchase"),
+  uploadInvoiceImage.single("invoiceImage"),
+  validateMiddleware(createGrnInvoiceRequestSchema),
+  grnInvoiceController.create
 );
 
 router.put(
-    "/:id",
-    authMiddleware,
-    uploadInvoiceImage.single("invoiceImage"),
-    validateMiddleware(updateGrnInvoiceRequestSchema),
-    grnInvoiceController.update
+  "/:id",
+  authMiddleware,
+  requireFeature("purchase"),
+  uploadInvoiceImage.single("invoiceImage"),
+  validateMiddleware(updateGrnInvoiceRequestSchema),
+  grnInvoiceController.update
+);
+
+router.get("/", authMiddleware, requireFeature("purchase"), grnInvoiceController.findAll);
+
+router.get(
+  "/next-code",
+  authMiddleware,
+  requireFeature("purchase"),
+  grnInvoiceController.getNextCode
 );
 
 router.get(
-    "/",
-    authMiddleware,
-    grnInvoiceController.findAll
-);
-
-router.get(
-    "/next-code",
-    authMiddleware,
-    grnInvoiceController.getNextCode
-);
-
-router.get(
-    "/:id",
-    authMiddleware,
-    validateMiddleware(grnInvoiceIdRequestSchema),
-    grnInvoiceController.findOne
+  "/:id",
+  authMiddleware,
+  requireFeature("purchase"),
+  validateMiddleware(grnInvoiceIdRequestSchema),
+  grnInvoiceController.findOne
 );
 
 router.put(
-    "/:id",
-    authMiddleware,
-    validateMiddleware(updateGrnInvoiceRequestSchema),
-    grnInvoiceController.update
+  "/:id",
+  authMiddleware,
+  requireFeature("purchase"),
+  validateMiddleware(updateGrnInvoiceRequestSchema),
+  grnInvoiceController.update
 );
 
 router.delete(
-    "/:id",
-    authMiddleware,
-    validateMiddleware(grnInvoiceIdRequestSchema),
-    grnInvoiceController.delete
+  "/:id",
+  authMiddleware,
+  requireFeature("purchase"),
+  validateMiddleware(grnInvoiceIdRequestSchema),
+  grnInvoiceController.delete
 );
 
 export default router;
