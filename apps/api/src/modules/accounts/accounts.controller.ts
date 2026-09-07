@@ -17,6 +17,12 @@ import { ledgerGroupService } from "./ledgerGroup.service";
 import { booksService } from "./books.service";
 import { cashFlowService } from "./cash-flow.service";
 import { booksQuerySchema, cashFlowQuerySchema } from "./books.types";
+import {
+  sendStatementSchema,
+  statementQuerySchema,
+  statementService,
+  type PartyType,
+} from "./statement.service";
 
 export class AccountsController {
   async getLedgers(req: Request, res: Response, next: NextFunction) {
@@ -489,6 +495,52 @@ export class AccountsController {
         success: true,
         data: await cashFlowService.statement(cashFlowQuerySchema.parse(req.query)),
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ── Statements of account (P1-10c) ──
+  private partyType(req: Request): PartyType {
+    return req.path.includes("/supplier/") ? "supplier" : "customer";
+  }
+
+  async getStatement(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await statementService.statement(
+        this.partyType(req),
+        String(req.params.id),
+        statementQuerySchema.parse(req.query)
+      );
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getStatementPdf(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { buffer, filename } = await statementService.pdf(
+        this.partyType(req),
+        String(req.params.id),
+        statementQuerySchema.parse(req.query)
+      );
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+      res.send(buffer);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async sendStatement(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await statementService.send(
+        this.partyType(req),
+        String(req.params.id),
+        sendStatementSchema.parse(req.body)
+      );
+      res.json({ success: true, data: result, message: `Statement sent by ${result.channel}` });
     } catch (error) {
       next(error);
     }

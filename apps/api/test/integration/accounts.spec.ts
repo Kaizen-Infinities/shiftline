@@ -11,7 +11,7 @@ describe("accounts", () => {
 
   it("lists system ledgers seeded by ensureSystemLedgersExist", async () => {
     const { auth } = await authed("demo.accounts");
-    const res = await (await api()).get("/api/accounts/ledgers").set(auth);
+    const res = await (await api()).get("/api/accounts/ledgers").query({ limit: "500" }).set(auth);
     expect(res.status).toBe(200);
     const codes = (res.body.data?.data ?? res.body.data ?? []).map((l: { code: string }) => l.code);
     expect(codes).toEqual(

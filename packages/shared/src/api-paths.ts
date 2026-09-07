@@ -142,6 +142,7 @@ export const API_PATHS = {
     cashBook: "/accounts/cash-book",
     bankBook: "/accounts/bank-book",
     cashFlow: "/accounts/cash-flow",
+    statements: "/accounts/statements",
   },
   notifications: {
     base: "/notifications",

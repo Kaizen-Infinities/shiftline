@@ -209,6 +209,8 @@ describe("cross-tenant leak suite", () => {
       type: "customers",
     };
     if (param !== "id") return named[param];
+    if (route.path.includes("/statements/customer/")) return idsB.customers;
+    if (route.path.includes("/statements/supplier/")) return idsB.suppliers;
     const afterApi = route.path.replace(/^\/api\//, "");
     const twoSeg = afterApi.split("/").slice(0, 2).join("/");
     const oneSeg = afterApi.split("/")[0];

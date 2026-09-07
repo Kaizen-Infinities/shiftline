@@ -54,7 +54,11 @@ function notifyDetail(key: string) {
   const set = subscribers.get(key);
   if (!set) return;
   Array.from(set).forEach((cb) => {
-    try { cb(); } catch (err) { console.error("[useDetailCache] subscriber error:", err); }
+    try {
+      cb();
+    } catch (err) {
+      console.error("[useDetailCache] subscriber error:", err);
+    }
   });
 }
 
@@ -70,7 +74,9 @@ function write<T>(key: string, data: T) {
   detailCache.set(key, entry);
   try {
     sessionStorage.setItem(SESSION_PREFIX + key, JSON.stringify(entry));
-  } catch { /* quota exceeded — memory cache still works */ }
+  } catch {
+    /* quota exceeded — memory cache still works */
+  }
   notifyDetail(key);
 }
 
@@ -81,7 +87,7 @@ function read<T>(key: string): DetailCacheEntry<T> | undefined {
     const raw = sessionStorage.getItem(SESSION_PREFIX + key);
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as DetailCacheEntry<T>;
-    detailCache.set(key, parsed);          // restore to memory for next read
+    detailCache.set(key, parsed); // restore to memory for next read
     return parsed;
   } catch {
     return undefined;
@@ -90,7 +96,9 @@ function read<T>(key: string): DetailCacheEntry<T> | undefined {
 
 function del(key: string) {
   detailCache.delete(key);
-  try { sessionStorage.removeItem(SESSION_PREFIX + key); } catch {}
+  try {
+    sessionStorage.removeItem(SESSION_PREFIX + key);
+  } catch {}
   notifyDetail(key);
 }
 
@@ -129,75 +137,98 @@ export function useDetailCache<T = any>({
   ttl = 60_000,
   maxRetries = 3,
 }: UseDetailCacheOptions<T>): UseDetailCacheResult<T> {
-
   const hit = read<T>(cacheKey);
 
-  const [data,       setData]       = useState<T | null>(hit?.data ?? null);
-  const [loading,    setLoading]    = useState<boolean>(!hit);
+  const [data, setData] = useState<T | null>(hit?.data ?? null);
+  const [loading, setLoading] = useState<boolean>(!hit);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  const abortRef       = useRef<AbortController | null>(null);
-  const { socket }     = useSocket();
-  const fetcherRef     = useRef(fetcher);
-  const enabledRef     = useRef(enabled);
-  const cacheKeyRef    = useRef(cacheKey);
+  const abortRef = useRef<AbortController | null>(null);
+  const { socket } = useSocket();
+  const fetcherRef = useRef(fetcher);
+  const enabledRef = useRef(enabled);
+  const cacheKeyRef = useRef(cacheKey);
   const socketMatchRef = useRef(socketMatchId);
 
-  useEffect(() => { fetcherRef.current     = fetcher;       }, [fetcher]);
-  useEffect(() => { enabledRef.current     = enabled;       }, [enabled]);
-  useEffect(() => { cacheKeyRef.current    = cacheKey;      }, [cacheKey]);
-  useEffect(() => { socketMatchRef.current = socketMatchId; }, [socketMatchId]);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+  useEffect(() => {
+    cacheKeyRef.current = cacheKey;
+  }, [cacheKey]);
+  useEffect(() => {
+    socketMatchRef.current = socketMatchId;
+  }, [socketMatchId]);
 
-  const doFetch = useCallback(async (silent: boolean, attempt = 0): Promise<void> => {
-    if (!enabledRef.current) return;
+  const doFetch = useCallback(
+    async (silent: boolean, attempt = 0): Promise<void> => {
+      if (!enabledRef.current) return;
 
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
 
-    const key       = cacheKeyRef.current;
-    const hasCached = detailCache.has(key) || !!sessionStorage.getItem(SESSION_PREFIX + key);
+      const key = cacheKeyRef.current;
+      const hasCached = detailCache.has(key) || !!sessionStorage.getItem(SESSION_PREFIX + key);
 
-    if (!hasCached && !silent) setLoading(true);
-    else if (hasCached)        setRefreshing(true);
+      if (!hasCached && !silent) setLoading(true);
+      else if (hasCached) setRefreshing(true);
 
-    try {
-      // If another caller is already fetching this key, wait on their
-      // Promise instead of firing a second network request.
-      let pending = inflight.get(key) as Promise<T> | undefined;
-      if (!pending) {
-        pending = fetcherRef.current(ctrl.signal);
-        inflight.set(key, pending);
-        pending.finally(() => {
-          // Only clear if this Promise is still the one registered
-          if (inflight.get(key) === pending) inflight.delete(key);
-        });
+      try {
+        // If another caller is already fetching this key, wait on their
+        // Promise instead of firing a second network request.
+        let pending = inflight.get(key) as Promise<T> | undefined;
+        if (!pending) {
+          pending = fetcherRef.current(ctrl.signal);
+          inflight.set(key, pending);
+          // Clear on settle either way. (`finally` would create a second, uncaught
+          // rejection when the request is aborted, which the smoke suite flags.)
+          const clear = () => {
+            if (inflight.get(key) === pending) inflight.delete(key);
+          };
+          pending.then(clear, clear);
+        }
+        const result = await pending;
+        if (ctrl.signal.aborted) return;
+        write(key, result);
+        setData(result);
+      } catch (err: any) {
+        if (ctrl.signal.aborted) return;
+        if (attempt < maxRetries) {
+          setTimeout(() => doFetch(true, attempt + 1), Math.min(1000 * 2 ** attempt, 8000));
+          return;
+        }
+        console.error(`[useDetailCache] "${cacheKeyRef.current}" failed:`, err?.message ?? err);
+      } finally {
+        if (!ctrl.signal.aborted) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
-      const result = await pending;
-      if (ctrl.signal.aborted) return;
-      write(key, result);
-      setData(result);
-    } catch (err: any) {
-      if (ctrl.signal.aborted) return;
-      if (attempt < maxRetries) {
-        setTimeout(() => doFetch(true, attempt + 1), Math.min(1000 * 2 ** attempt, 8000));
-        return;
-      }
-      console.error(`[useDetailCache] "${cacheKeyRef.current}" failed:`, err?.message ?? err);
-    } finally {
-      if (!ctrl.signal.aborted) { setLoading(false); setRefreshing(false); }
-    }
-  }, [maxRetries]);
+    },
+    [maxRetries]
+  );
 
   // Load on mount / cacheKey change
   useEffect(() => {
-    if (!enabled) { setLoading(false); return; }
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     const entry = read<T>(cacheKey);
-    const fresh = entry && (Date.now() - entry.timestamp) < ttl;
-    if (entry) { setData(entry.data); setLoading(false); }
+    const fresh = entry && Date.now() - entry.timestamp < ttl;
+    if (entry) {
+      setData(entry.data);
+      setLoading(false);
+    }
     // Fetch only if no cache or stale — never background-refresh fresh data
     if (!fresh) doFetch(!entry);
-    return () => { abortRef.current?.abort(); };
+    return () => {
+      abortRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey, enabled]);
 
@@ -220,7 +251,10 @@ export function useDetailCache<T = any>({
       const e = detailCache.get(cacheKeyRef.current);
       if (e) detailCache.set(cacheKeyRef.current, { ...e, timestamp: 0 });
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => { debounceTimer = null; doFetch(true); }, 50);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        doFetch(true);
+      }, 50);
     };
     const onDeleted = (payload: any) => {
       const mid = socketMatchRef.current;
@@ -275,54 +309,61 @@ export function useModalDetail<T = any>(
   moduleKey: string,
   fetcher: (id: number | string, signal: AbortSignal) => Promise<T>
 ): UseModalDetailResult<T> {
-
-  const [modalData,    setModalData]    = useState<T | null>(null);
+  const [modalData, setModalData] = useState<T | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const fetcherRef = useRef(fetcher);
-  useEffect(() => { fetcherRef.current = fetcher; }, [fetcher]);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
 
-  const openModal = useCallback(async (id: number | string) => {
-    const key = `${moduleKey}-${id}`;
+  const openModal = useCallback(
+    async (id: number | string) => {
+      const key = `${moduleKey}-${id}`;
 
-    // ── Cache hit: instant open, no spinner ──────────────────────
-    const cached = read<T>(key);
-    if (cached) {
-      setModalData(cached.data);
-      // Silent background refresh to keep it fresh
+      // ── Cache hit: instant open, no spinner ──────────────────────
+      const cached = read<T>(key);
+      if (cached) {
+        setModalData(cached.data);
+        // Silent background refresh to keep it fresh
+        abortRef.current?.abort();
+        const ctrl = new AbortController();
+        abortRef.current = ctrl;
+        fetcherRef
+          .current(id, ctrl.signal)
+          .then((fresh) => {
+            if (ctrl.signal.aborted) return;
+            write(key, fresh);
+            setModalData(fresh);
+          })
+          .catch(() => {
+            /* silent */
+          });
+        return;
+      }
+
+      // ── Cache miss: show spinner, fetch ──────────────────────────
+      setModalLoading(true);
+      setModalData(null);
       abortRef.current?.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      fetcherRef.current(id, ctrl.signal)
-        .then((fresh) => {
-          if (ctrl.signal.aborted) return;
-          write(key, fresh);
-          setModalData(fresh);
-        })
-        .catch(() => { /* silent */ });
-      return;
-    }
 
-    // ── Cache miss: show spinner, fetch ──────────────────────────
-    setModalLoading(true);
-    setModalData(null);
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    try {
-      const result = await fetcherRef.current(id, ctrl.signal);
-      if (ctrl.signal.aborted) return;
-      write(key, result);
-      setModalData(result);
-    } catch (err: any) {
-      if (!ctrl.signal.aborted) {
-        console.error(`[useModalDetail] Failed to load ${key}:`, err?.message ?? err);
+      try {
+        const result = await fetcherRef.current(id, ctrl.signal);
+        if (ctrl.signal.aborted) return;
+        write(key, result);
+        setModalData(result);
+      } catch (err: any) {
+        if (!ctrl.signal.aborted) {
+          console.error(`[useModalDetail] Failed to load ${key}:`, err?.message ?? err);
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setModalLoading(false);
       }
-    } finally {
-      if (!ctrl.signal.aborted) setModalLoading(false);
-    }
-  }, [moduleKey]);
+    },
+    [moduleKey]
+  );
 
   const closeModal = useCallback(() => {
     abortRef.current?.abort();
@@ -357,13 +398,13 @@ export function markDetailStaleByPrefix(prefix: string): void {
       detailCache.set(key, stale);
       try {
         sessionStorage.setItem(SESSION_PREFIX + key, JSON.stringify(stale));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
   try {
-    const ssKeys = Object.keys(sessionStorage).filter(
-      (k) => k.startsWith(SESSION_PREFIX + prefix)
-    );
+    const ssKeys = Object.keys(sessionStorage).filter((k) => k.startsWith(SESSION_PREFIX + prefix));
     ssKeys.forEach((k) => {
       try {
         const raw = sessionStorage.getItem(k);
@@ -371,9 +412,13 @@ export function markDetailStaleByPrefix(prefix: string): void {
         const parsed = JSON.parse(raw);
         parsed.timestamp = 0;
         sessionStorage.setItem(k, JSON.stringify(parsed));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Clear all cache entries whose key starts with `prefix` (memory + sessionStorage). */
@@ -382,11 +427,11 @@ export function invalidateDetailCacheByPrefix(prefix: string): void {
     if (key.startsWith(prefix)) del(key);
   }
   try {
-    const ssKeys = Object.keys(sessionStorage).filter(
-      (k) => k.startsWith(SESSION_PREFIX + prefix)
-    );
+    const ssKeys = Object.keys(sessionStorage).filter((k) => k.startsWith(SESSION_PREFIX + prefix));
     ssKeys.forEach((k) => sessionStorage.removeItem(k));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 // ─── Delta helpers — opt-in, safe to call from save/edit/delete handlers ─────
@@ -404,10 +449,7 @@ export function updateDetailCache<T = any>(key: string, data: T): void {
  * Merge a partial patch into the cached record: `{ ...cached, ...patch }`.
  * No-op if nothing is cached — we don't guess the shape.
  */
-export function patchDetailCache<T extends object = any>(
-  key: string,
-  patch: Partial<T>
-): void {
+export function patchDetailCache<T extends object = any>(key: string, patch: Partial<T>): void {
   const entry = read<T>(key);
   if (!entry) return;
   write(key, { ...entry.data, ...patch });
@@ -433,5 +475,7 @@ export async function prefetchDetail<T>(
   try {
     const ctrl = new AbortController();
     write(key, await fetcher(ctrl.signal));
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }

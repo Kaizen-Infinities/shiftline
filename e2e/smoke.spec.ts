@@ -25,6 +25,8 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/accounts/year-end", marker: /Year-End Closing/ },
   { path: "/accounts/day-book", marker: /Day Book/ },
   { path: "/accounts/cash-flow", marker: /Cash Flow Statement/ },
+  { path: "/accounts/balance-sheet", marker: /Balance Sheet/ },
+  { path: "/accounts/profit-loss", marker: /Profit & Loss/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 

@@ -83,6 +83,22 @@ router.get("/cash-flow", requirePermission("accounts.view"), (req, res, next) =>
   accountsController.getCashFlow(req, res, next)
 );
 
+// Statements of account (P1-10c): JSON, PDF, send by email or WhatsApp
+for (const [party, perm] of [
+  ["customer", "receivable.view"],
+  ["supplier", "payable.view"],
+] as const) {
+  router.get(`/statements/${party}/:id`, requirePermission(perm), (req, res, next) =>
+    accountsController.getStatement(req, res, next)
+  );
+  router.get(`/statements/${party}/:id/pdf`, requirePermission(perm), (req, res, next) =>
+    accountsController.getStatementPdf(req, res, next)
+  );
+  router.post(`/statements/${party}/:id/send`, requirePermission(perm), (req, res, next) =>
+    accountsController.sendStatement(req, res, next)
+  );
+}
+
 // Reports
 router.get("/balance-sheet", requirePermission("accounts.view"), (req, res, next) =>
   accountsController.getBalanceSheet(req, res, next)

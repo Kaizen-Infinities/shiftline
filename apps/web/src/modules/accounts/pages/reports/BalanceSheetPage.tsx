@@ -17,6 +17,10 @@ import {
 } from "react-icons/fa";
 import apiClient from "../../../../api/apiClient";
 import { useDetailCache } from "../../../../hooks/useDetailCache";
+import {
+  ScheduleIIIBalanceSheet,
+  type BalanceSheetScheduleIII,
+} from "../../components/ScheduleIII";
 
 interface BSItem {
   code: string;
@@ -34,6 +38,7 @@ interface BalanceSheetData {
   totalEquity: number;
   totalLiabilitiesAndEquity: number;
   isBalanced: boolean;
+  scheduleIII?: BalanceSheetScheduleIII;
 }
 
 type BSVariant =
@@ -42,15 +47,30 @@ type BSVariant =
   | "vertical-summary"
   | "vertical-detailed"
   | "grouped-hierarchical"
-  | "flat-alphabetical";
+  | "flat-alphabetical"
+  | "schedule-iii-summary"
+  | "schedule-iii-detailed";
 
-const VARIANT_MAP: Record<BSVariant, { label: string; layout: "horizontal" | "vertical" | "hierarchical" | "flat"; detailed: boolean }> = {
+const VARIANT_MAP: Record<
+  BSVariant,
+  {
+    label: string;
+    layout: "horizontal" | "vertical" | "hierarchical" | "flat" | "schedule";
+    detailed: boolean;
+  }
+> = {
   "horizontal-summary": { label: "Horizontal · Summary", layout: "horizontal", detailed: false },
   "horizontal-detailed": { label: "Horizontal · Detailed", layout: "horizontal", detailed: true },
   "vertical-summary": { label: "Vertical · Summary", layout: "vertical", detailed: false },
   "vertical-detailed": { label: "Vertical · Detailed", layout: "vertical", detailed: true },
-  "grouped-hierarchical": { label: "Hierarchical · Grouped", layout: "hierarchical", detailed: true },
+  "grouped-hierarchical": {
+    label: "Hierarchical · Grouped",
+    layout: "hierarchical",
+    detailed: true,
+  },
   "flat-alphabetical": { label: "Flat · Alphabetical", layout: "flat", detailed: true },
+  "schedule-iii-summary": { label: "Schedule III · Summary", layout: "schedule", detailed: false },
+  "schedule-iii-detailed": { label: "Schedule III · Detailed", layout: "schedule", detailed: true },
 };
 
 const fmt = (n: number) =>
@@ -130,8 +150,18 @@ const BalanceSheetPage: React.FC = () => {
     lines.push(["As on:", asOnDate]);
     lines.push([]);
     ["Assets", "Liabilities", "Equity"].forEach((section) => {
-      const items = section === "Assets" ? view.assets : section === "Liabilities" ? view.liabilities : view.equity;
-      const total = section === "Assets" ? view.totalAssets : section === "Liabilities" ? view.totalLiabilities : view.totalEquity;
+      const items =
+        section === "Assets"
+          ? view.assets
+          : section === "Liabilities"
+            ? view.liabilities
+            : view.equity;
+      const total =
+        section === "Assets"
+          ? view.totalAssets
+          : section === "Liabilities"
+            ? view.totalLiabilities
+            : view.totalEquity;
       lines.push([section.toUpperCase()]);
       lines.push(["Name", "Group", "Amount"]);
       items.forEach((it) => lines.push([it.name, it.group, it.balance.toFixed(2)]));
@@ -154,7 +184,9 @@ const BalanceSheetPage: React.FC = () => {
       key={v}
       onClick={() => handleVariantClick(v)}
       className={`w-full text-left px-2 py-1 text-[11px] flex items-center gap-2 rounded transition-colors ${
-        variant === v ? "bg-teal-500/15 text-teal-400 font-semibold" : "text-ink-muted hover:bg-card-2/60"
+        variant === v
+          ? "bg-teal-500/15 text-teal-400 font-semibold"
+          : "text-ink-muted hover:bg-card-2/60"
       }`}
     >
       <span className="text-[9px] opacity-70">{icon}</span>
@@ -162,12 +194,19 @@ const BalanceSheetPage: React.FC = () => {
     </button>
   );
 
-  const renderSectionTable = (title: string, items: BSItem[], total: number, accentColor: string) => {
+  const renderSectionTable = (
+    title: string,
+    items: BSItem[],
+    total: number,
+    accentColor: string
+  ) => {
     if (activeConfig.detailed) {
       const groups = groupItems(items);
       return (
         <div className="bg-card border border-line rounded-lg overflow-hidden">
-          <div className={`px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between`}>
+          <div
+            className={`px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between`}
+          >
             <h3 className={`text-xs font-bold uppercase tracking-wide ${accentColor}`}>{title}</h3>
             <span className={`text-sm font-mono font-bold ${accentColor}`}>₹{fmt(total)}</span>
           </div>
@@ -182,47 +221,70 @@ const BalanceSheetPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-soft">
-                {Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([gname, gitems]) => {
-                  const gtotal = gitems.reduce((s, i) => s + i.balance, 0);
-                  // Profit & Loss row: green if profit (positive), red if loss (negative)
-                  const isPnlGroup = /profit.*loss|net profit/i.test(gname);
-                  const gtotalClass = isPnlGroup
-                    ? (gtotal >= 0 ? "text-emerald-500" : "text-red-500")
-                    : "text-ink";
-                  return (
-                    <React.Fragment key={gname}>
-                      {activeConfig.layout === "hierarchical" && (
-                        <tr className="bg-card-2/60">
-                          <td className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${isPnlGroup ? gtotalClass : "text-ink"}`}>{gname}</td>
-                          <td className={`px-3 py-1 text-right text-[11px] font-mono font-bold ${gtotalClass}`}>
-                            {isPnlGroup && gtotal < 0 ? "-" : ""}₹{fmt(Math.abs(gtotal))}
-                          </td>
-                        </tr>
-                      )}
-                      {gitems.map((it) => {
-                        const isPnlItem = /net profit|profit.*loss/i.test(it.name || "") || it.code === "NET-PNL";
-                        const itClass = isPnlItem
-                          ? (it.balance >= 0 ? "text-emerald-500" : "text-red-500")
-                          : "text-ink";
-                        return (
-                          <tr key={it.code} className="hover:bg-card-2 transition-colors">
-                            <td className={`py-1 text-xs ${itClass} ${activeConfig.layout === "hierarchical" ? "pl-6 pr-3" : "px-3"}`}>
-                              {isPnlItem ? (it.balance >= 0 ? "Net Profit" : "Net Loss") : it.name}
+                {Object.entries(groups)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([gname, gitems]) => {
+                    const gtotal = gitems.reduce((s, i) => s + i.balance, 0);
+                    // Profit & Loss row: green if profit (positive), red if loss (negative)
+                    const isPnlGroup = /profit.*loss|net profit/i.test(gname);
+                    const gtotalClass = isPnlGroup
+                      ? gtotal >= 0
+                        ? "text-emerald-500"
+                        : "text-red-500"
+                      : "text-ink";
+                    return (
+                      <React.Fragment key={gname}>
+                        {activeConfig.layout === "hierarchical" && (
+                          <tr className="bg-card-2/60">
+                            <td
+                              className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${isPnlGroup ? gtotalClass : "text-ink"}`}
+                            >
+                              {gname}
                             </td>
-                            <td className={`px-3 py-1 text-right text-xs font-mono ${itClass}`}>
-                              {isPnlItem && it.balance < 0 ? "-" : ""}₹{fmt(Math.abs(it.balance))}
+                            <td
+                              className={`px-3 py-1 text-right text-[11px] font-mono font-bold ${gtotalClass}`}
+                            >
+                              {isPnlGroup && gtotal < 0 ? "-" : ""}₹{fmt(Math.abs(gtotal))}
                             </td>
                           </tr>
-                        );
-                      })}
-                    </React.Fragment>
-                  );
-                })}
+                        )}
+                        {gitems.map((it) => {
+                          const isPnlItem =
+                            /net profit|profit.*loss/i.test(it.name || "") || it.code === "NET-PNL";
+                          const itClass = isPnlItem
+                            ? it.balance >= 0
+                              ? "text-emerald-500"
+                              : "text-red-500"
+                            : "text-ink";
+                          return (
+                            <tr key={it.code} className="hover:bg-card-2 transition-colors">
+                              <td
+                                className={`py-1 text-xs ${itClass} ${activeConfig.layout === "hierarchical" ? "pl-6 pr-3" : "px-3"}`}
+                              >
+                                {isPnlItem
+                                  ? it.balance >= 0
+                                    ? "Net Profit"
+                                    : "Net Loss"
+                                  : it.name}
+                              </td>
+                              <td className={`px-3 py-1 text-right text-xs font-mono ${itClass}`}>
+                                {isPnlItem && it.balance < 0 ? "-" : ""}₹{fmt(Math.abs(it.balance))}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
               </tbody>
               <tfoot>
                 <tr className="bg-card-2 border-t-2 border-line font-bold">
-                  <td className="px-3 py-1.5 text-xs uppercase tracking-wide text-ink">Total {title}</td>
-                  <td className={`px-3 py-1.5 text-right text-sm font-mono ${accentColor}`}>₹{fmt(total)}</td>
+                  <td className="px-3 py-1.5 text-xs uppercase tracking-wide text-ink">
+                    Total {title}
+                  </td>
+                  <td className={`px-3 py-1.5 text-right text-sm font-mono ${accentColor}`}>
+                    ₹{fmt(total)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
@@ -244,28 +306,40 @@ const BalanceSheetPage: React.FC = () => {
         ) : (
           <table className="w-full text-left border-collapse">
             <tbody className="divide-y divide-line-soft">
-              {Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([gname, gitems]) => {
-                const gtotal = gitems.reduce((s, i) => s + i.balance, 0);
-                // Profit & Loss row: green if profit, red if loss
-                const isPnl = /profit.*loss|net profit/i.test(gname);
-                const cls = isPnl
-                  ? (gtotal >= 0 ? "text-emerald-500 font-bold" : "text-red-500 font-bold")
-                  : "text-ink";
-                const label = isPnl ? (gtotal >= 0 ? "Profit & Loss (Net Profit)" : "Profit & Loss (Net Loss)") : gname;
-                return (
-                  <tr key={gname} className="hover:bg-card-2 transition-colors">
-                    <td className={`px-3 py-1.5 text-xs font-semibold ${cls}`}>{label}</td>
-                    <td className={`px-3 py-1.5 text-right text-xs font-mono ${cls}`}>
-                      {isPnl && gtotal < 0 ? "-" : ""}₹{fmt(Math.abs(gtotal))}
-                    </td>
-                  </tr>
-                );
-              })}
+              {Object.entries(groups)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([gname, gitems]) => {
+                  const gtotal = gitems.reduce((s, i) => s + i.balance, 0);
+                  // Profit & Loss row: green if profit, red if loss
+                  const isPnl = /profit.*loss|net profit/i.test(gname);
+                  const cls = isPnl
+                    ? gtotal >= 0
+                      ? "text-emerald-500 font-bold"
+                      : "text-red-500 font-bold"
+                    : "text-ink";
+                  const label = isPnl
+                    ? gtotal >= 0
+                      ? "Profit & Loss (Net Profit)"
+                      : "Profit & Loss (Net Loss)"
+                    : gname;
+                  return (
+                    <tr key={gname} className="hover:bg-card-2 transition-colors">
+                      <td className={`px-3 py-1.5 text-xs font-semibold ${cls}`}>{label}</td>
+                      <td className={`px-3 py-1.5 text-right text-xs font-mono ${cls}`}>
+                        {isPnl && gtotal < 0 ? "-" : ""}₹{fmt(Math.abs(gtotal))}
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
             <tfoot>
               <tr className="bg-card-2 border-t-2 border-line font-bold">
-                <td className="px-3 py-1.5 text-xs uppercase tracking-wide text-ink">Total {title}</td>
-                <td className={`px-3 py-1.5 text-right text-sm font-mono ${accentColor}`}>₹{fmt(total)}</td>
+                <td className="px-3 py-1.5 text-xs uppercase tracking-wide text-ink">
+                  Total {title}
+                </td>
+                <td className={`px-3 py-1.5 text-right text-sm font-mono ${accentColor}`}>
+                  ₹{fmt(total)}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -282,7 +356,10 @@ const BalanceSheetPage: React.FC = () => {
     ].sort((a, b) => a.name.localeCompare(b.name));
 
     return (
-      <div className="bg-card border border-line rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 200px)" }}>
+      <div
+        className="bg-card border border-line rounded-lg overflow-hidden flex flex-col"
+        style={{ maxHeight: "calc(100vh - 200px)" }}
+      >
         <div className="px-3 py-1.5 border-b border-line bg-card-2/50 text-[11px] shrink-0 flex items-center justify-between">
           <span className="text-ink-subtle">Flat alphabetical view · {all.length} accounts</span>
         </div>
@@ -298,21 +375,33 @@ const BalanceSheetPage: React.FC = () => {
             </thead>
             <tbody>
               {all.map((it) => {
-                const isPnl = /net profit|profit.*loss/i.test(it.name || "") || it.code === "NET-PNL";
+                const isPnl =
+                  /net profit|profit.*loss/i.test(it.name || "") || it.code === "NET-PNL";
                 const cls = isPnl
-                  ? (it.balance >= 0 ? "text-emerald-500 font-bold" : "text-red-500 font-bold")
+                  ? it.balance >= 0
+                    ? "text-emerald-500 font-bold"
+                    : "text-red-500 font-bold"
                   : "text-ink";
                 return (
-                  <tr key={`${it.section}-${it.code}`} className="hover:bg-card-2/50 border-b border-line-soft">
+                  <tr
+                    key={`${it.section}-${it.code}`}
+                    className="hover:bg-card-2/50 border-b border-line-soft"
+                  >
                     <td className={`px-3 py-1 text-xs ${cls}`}>
                       {isPnl ? (it.balance >= 0 ? "Net Profit" : "Net Loss") : it.name}
                     </td>
                     <td className="px-3 py-1 text-[11px]">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                        it.section === "Asset" ? "bg-blue-500/10 text-blue-500" :
-                        it.section === "Liability" ? "bg-red-500/10 text-red-500" :
-                        "bg-purple-500/10 text-purple-500"
-                      }`}>{it.section}</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                          it.section === "Asset"
+                            ? "bg-blue-500/10 text-blue-500"
+                            : it.section === "Liability"
+                              ? "bg-red-500/10 text-red-500"
+                              : "bg-purple-500/10 text-purple-500"
+                        }`}
+                      >
+                        {it.section}
+                      </span>
                     </td>
                     <td className="px-3 py-1 text-[11px] text-ink-muted">{it.group}</td>
                     <td className={`px-3 py-1 text-right text-xs font-mono ${cls}`}>
@@ -336,13 +425,20 @@ const BalanceSheetPage: React.FC = () => {
           <FaBalanceScale className="text-teal-500 text-xs" />
           <h2 className="text-xs font-bold text-ink">Balance Sheet</h2>
         </div>
-        <div className="p-2 space-y-2 text-xs overflow-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
+        <div
+          className="p-2 space-y-2 text-xs overflow-auto"
+          style={{ maxHeight: "calc(100vh - 160px)" }}
+        >
           <div>
             <button
               onClick={() => setExpandSection((x) => !x)}
               className="w-full flex items-center gap-1.5 text-[11px] font-bold text-ink px-1 py-1 hover:bg-card-2/60 rounded"
             >
-              {expandSection ? <FaChevronDown className="text-[9px] text-ink-subtle" /> : <FaChevronRight className="text-[9px] text-ink-subtle" />}
+              {expandSection ? (
+                <FaChevronDown className="text-[9px] text-ink-subtle" />
+              ) : (
+                <FaChevronRight className="text-[9px] text-ink-subtle" />
+              )}
               <FaFolderOpen className="text-[10px] text-teal-400" />
               Report Variants
             </button>
@@ -354,6 +450,8 @@ const BalanceSheetPage: React.FC = () => {
                 {menuItem("vertical-detailed", <FaListUl />)}
                 {menuItem("grouped-hierarchical", <FaSitemap />)}
                 {menuItem("flat-alphabetical", <FaFileAlt />)}
+                {menuItem("schedule-iii-summary", <FaBalanceScale />)}
+                {menuItem("schedule-iii-detailed", <FaBalanceScale />)}
               </div>
             )}
           </div>
@@ -378,7 +476,9 @@ const BalanceSheetPage: React.FC = () => {
           </h3>
 
           <div className="flex items-center gap-1.5">
-            <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">As on Date</label>
+            <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              As on Date
+            </label>
             <input
               type="date"
               value={asOnDate}
@@ -388,8 +488,12 @@ const BalanceSheetPage: React.FC = () => {
           </div>
 
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)}
-              className="w-3.5 h-3.5 accent-teal-500" />
+            <input
+              type="checkbox"
+              checked={showZeroBalance}
+              onChange={(e) => setShowZeroBalance(e.target.checked)}
+              className="w-3.5 h-3.5 accent-teal-500"
+            />
             <span className="text-xs text-ink-muted">Show Zero Balance</span>
           </label>
 
@@ -400,16 +504,25 @@ const BalanceSheetPage: React.FC = () => {
           )}
 
           <div className="flex items-center gap-1.5 ml-auto">
-            <button onClick={handlePrint} disabled={!data}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
+            <button
+              onClick={handlePrint}
+              disabled={!data}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
+            >
               <FaPrint /> Print
             </button>
-            <button onClick={exportCSV} disabled={!data}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
+            <button
+              onClick={exportCSV}
+              disabled={!data}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
+            >
               <FaDownload /> Export
             </button>
-            <button onClick={refresh} disabled={refreshing}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
+            <button
+              onClick={refresh}
+              disabled={refreshing}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
+            >
               <FaSync className={refreshing ? "animate-spin text-teal-500" : ""} /> Refresh
             </button>
           </div>
@@ -419,8 +532,12 @@ const BalanceSheetPage: React.FC = () => {
         {!view && !loading && (
           <div className="bg-card border border-line rounded-lg p-12 text-center text-xs text-ink-subtle">
             <FaBalanceScale className="text-teal-500/40 text-3xl mx-auto mb-2" />
-            <div className="text-sm text-ink-muted font-semibold mb-1">No data for the selected variant</div>
-            <div className="text-[11px]">Selected: <b>{activeConfig.label}</b></div>
+            <div className="text-sm text-ink-muted font-semibold mb-1">
+              No data for the selected variant
+            </div>
+            <div className="text-[11px]">
+              Selected: <b>{activeConfig.label}</b>
+            </div>
           </div>
         )}
 
@@ -428,20 +545,36 @@ const BalanceSheetPage: React.FC = () => {
           <>
             {/* Meta banner */}
             <div className="text-[11px] text-ink-muted px-1">
-              As on <b className="text-ink">{new Date(asOnDate).toLocaleDateString("en-IN")}</b> · <b className="text-ink">{activeConfig.label}</b>
+              As on <b className="text-ink">{new Date(asOnDate).toLocaleDateString("en-IN")}</b> ·{" "}
+              <b className="text-ink">{activeConfig.label}</b>
             </div>
 
             {/* Body renders based on layout */}
-            {activeConfig.layout === "flat" ? (
+            {activeConfig.layout === "schedule" && data?.scheduleIII ? (
+              <ScheduleIIIBalanceSheet
+                data={data.scheduleIII}
+                asOnDate={asOnDate}
+                detailed={activeConfig.detailed}
+              />
+            ) : activeConfig.layout === "flat" ? (
               renderFlatAlphabetical(view)
             ) : activeConfig.layout === "vertical" ? (
               <div className="space-y-3">
                 {renderSectionTable("Assets", view.assets, view.totalAssets, "text-blue-500")}
-                {renderSectionTable("Liabilities", view.liabilities, view.totalLiabilities, "text-red-500")}
+                {renderSectionTable(
+                  "Liabilities",
+                  view.liabilities,
+                  view.totalLiabilities,
+                  "text-red-500"
+                )}
                 {renderSectionTable("Equity", view.equity, view.totalEquity, "text-purple-500")}
                 <div className="bg-card border border-line rounded-lg px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wide text-ink">Total Liabilities + Equity</span>
-                  <span className="text-sm font-mono font-bold text-ink">₹{fmt(view.totalLiabilitiesAndEquity)}</span>
+                  <span className="text-xs font-bold uppercase tracking-wide text-ink">
+                    Total Liabilities + Equity
+                  </span>
+                  <span className="text-sm font-mono font-bold text-ink">
+                    ₹{fmt(view.totalLiabilitiesAndEquity)}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -451,11 +584,20 @@ const BalanceSheetPage: React.FC = () => {
                   {renderSectionTable("Assets", view.assets, view.totalAssets, "text-blue-500")}
                 </div>
                 <div className="space-y-3">
-                  {renderSectionTable("Liabilities", view.liabilities, view.totalLiabilities, "text-red-500")}
+                  {renderSectionTable(
+                    "Liabilities",
+                    view.liabilities,
+                    view.totalLiabilities,
+                    "text-red-500"
+                  )}
                   {renderSectionTable("Equity", view.equity, view.totalEquity, "text-purple-500")}
                   <div className="bg-card border border-line rounded-lg px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wide text-ink">Total Liabilities + Equity</span>
-                    <span className="text-sm font-mono font-bold text-ink">₹{fmt(view.totalLiabilitiesAndEquity)}</span>
+                    <span className="text-xs font-bold uppercase tracking-wide text-ink">
+                      Total Liabilities + Equity
+                    </span>
+                    <span className="text-sm font-mono font-bold text-ink">
+                      ₹{fmt(view.totalLiabilitiesAndEquity)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -466,11 +608,13 @@ const BalanceSheetPage: React.FC = () => {
               <span className="text-xs font-semibold text-ink">Balance Check</span>
               {view.isBalanced ? (
                 <span className="flex items-center gap-1.5 text-[11px] text-teal-500 font-semibold">
-                  <FaCheckCircle /> Balanced — Assets = Liabilities + Equity (₹{fmt(view.totalAssets)})
+                  <FaCheckCircle /> Balanced — Assets = Liabilities + Equity (₹
+                  {fmt(view.totalAssets)})
                 </span>
               ) : (
                 <span className="flex items-center gap-1.5 text-[11px] text-red-500 font-semibold">
-                  <FaExclamationTriangle /> Not balanced · Diff: ₹{fmt(Math.abs(view.totalAssets - view.totalLiabilitiesAndEquity))}
+                  <FaExclamationTriangle /> Not balanced · Diff: ₹
+                  {fmt(Math.abs(view.totalAssets - view.totalLiabilitiesAndEquity))}
                 </span>
               )}
             </div>
@@ -505,7 +649,9 @@ const BalanceSheetPage: React.FC = () => {
               </div>
             </div>
             <div className="px-3 py-2">
-              <div className="text-[11px] font-semibold text-ink-muted mb-1">Liabilities + Equity</div>
+              <div className="text-[11px] font-semibold text-ink-muted mb-1">
+                Liabilities + Equity
+              </div>
               <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
                 ₹{fmt(view.totalLiabilitiesAndEquity)}
               </div>

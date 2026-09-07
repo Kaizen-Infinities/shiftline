@@ -55,11 +55,27 @@ in the P1-09 hand-offs. Built in four parts.
   each section, the tie to cash, the day book totals and filters, cancellation visibility, the
   cash and bank books, refusals and permissions.
 
-## Part C — Schedule III web layouts, statements of account (planned)
+## Part C — Schedule III web layouts, statements of account
 
-Balance sheet and P&L pages render the `scheduleIII` structures (toggle with the grouped view);
-`GET /accounts/statements/:partyType/:id.pdf` and `POST …/send` (email or WhatsApp) for a period
-statement with opening, lines, closing and ageing.
+- Balance sheet and P&L pages gain **Schedule III · Summary / Detailed** variants that render the
+  `scheduleIII` structures the API already returns (sections → heads → groups → ledgers, in
+  statutory order, with Roman numerals and bracketed negatives) through
+  `modules/accounts/components/ScheduleIII.tsx`. The other variants are unchanged.
+- `GET /api/accounts/statements/customer/:id` and `…/supplier/:id` (`startDate?`, `endDate?`,
+  default up to today; `statement.service.ts`): company block, party block (code, name, GSTIN,
+  email, phone), the party ledger's opening, entries and closing for the period, and the
+  ageing of what is still unpaid as on the end date (buckets, overdue, interest, documents).
+  `…/pdf` renders the same through `templates/statementTemplate.ts` and the PDF generator;
+  `POST …/send { channel: email|whatsapp, to?, startDate?, endDate?, message? }` attaches the
+  PDF and sends it to the given contact or the party's own email / WhatsApp number. Delivery
+  failures come back as a sanitised 502; nothing about SMTP or Meta reaches the client. Customer
+  routes need `receivable.view`, supplier routes `payable.view`.
+- Web: a **Statement** button on the customer and supplier breakdown pages opens
+  `StatementPanel` (period, opening / closing / overdue summary, Open PDF, Email, WhatsApp with
+  the party's contact pre-filled).
+- Tests: customer statement ties to the invoice and the ageing; supplier statement; unknown
+  parties, inverted dates, permissions; send validation (channel, missing or malformed contact)
+  before anything is generated. Balance sheet and P&L screens join the smoke suite.
 
 ## Part D — hygiene (planned)
 

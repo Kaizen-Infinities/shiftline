@@ -12,6 +12,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import StatementPanel from "../../components/StatementPanel";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
@@ -24,6 +25,7 @@ import { useListCache } from "../../../../hooks/useListCache";
 
 export const SupplierBreakdownPage: React.FC = () => {
   const { supplierId } = useParams<{ supplierId: string }>();
+  const [showStatement, setShowStatement] = useState(false);
   const navigate = useNavigate();
 
   // Applied filter state
@@ -38,13 +40,7 @@ export const SupplierBreakdownPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"invoices" | "payments" | "statement">("invoices");
 
   // Columns & Column Toggle for Invoices tab
-  const DEFAULT_INVOICE_COLUMNS = [
-    "#",
-    "INVOICE NO",
-    "DATE",
-    "DUE DATE",
-    "INVOICE AMOUNT"
-  ];
+  const DEFAULT_INVOICE_COLUMNS = ["#", "INVOICE NO", "DATE", "DUE DATE", "INVOICE AMOUNT"];
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("supplierBreakdownVisibleColumns");
@@ -81,7 +77,12 @@ export const SupplierBreakdownPage: React.FC = () => {
     [supplierId, startDate, endDate]
   );
 
-  const { data: supplierDetailList, loading, refreshing, refresh } = useListCache<SupplierPayableDetail>({
+  const {
+    data: supplierDetailList,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<SupplierPayableDetail>({
     cacheKey,
     socketModule: "voucher",
     fetcher,
@@ -138,7 +139,8 @@ export const SupplierBreakdownPage: React.FC = () => {
 
   // CSV Export Configuration based on active tab
   const { csvData, csvColumns, csvFilename } = useMemo(() => {
-    if (!supplierDetail) return { csvData: [], csvColumns: [], csvFilename: "Supplier_Statement.csv" };
+    if (!supplierDetail)
+      return { csvData: [], csvColumns: [], csvFilename: "Supplier_Statement.csv" };
 
     const legalName = supplierDetail.supplier?.legalName || "Supplier";
 
@@ -203,13 +205,19 @@ export const SupplierBreakdownPage: React.FC = () => {
     },
     {
       header: "DUE DATE",
-      render: (item: any) => <span className="text-ink-subtle font-mono">{item.dueDate || "-"}</span>,
+      render: (item: any) => (
+        <span className="text-ink-subtle font-mono">{item.dueDate || "-"}</span>
+      ),
     },
     {
       header: "INVOICE AMOUNT",
       render: (item: any) => (
         <div className="text-right font-mono font-semibold text-ink">
-          ₹ {item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ₹{" "}
+          {item.amount.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </div>
       ),
     },
@@ -251,17 +259,25 @@ export const SupplierBreakdownPage: React.FC = () => {
       header: "AMOUNT PAID",
       render: (item: any) => (
         <div className="text-right font-mono font-semibold text-emerald-600">
-          ₹ {item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ₹{" "}
+          {item.amount.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </div>
       ),
     },
     {
       header: "REFERENCE NO",
-      render: (item: any) => <span className="text-ink-muted font-mono text-[11px]">{item.referenceNo || "-"}</span>,
+      render: (item: any) => (
+        <span className="text-ink-muted font-mono text-[11px]">{item.referenceNo || "-"}</span>
+      ),
     },
     {
       header: "NARRATION",
-      render: (item: any) => <span className="text-ink-muted text-[11px]">{item.narration || "-"}</span>,
+      render: (item: any) => (
+        <span className="text-ink-muted text-[11px]">{item.narration || "-"}</span>
+      ),
     },
   ];
 
@@ -282,13 +298,17 @@ export const SupplierBreakdownPage: React.FC = () => {
     },
     {
       header: "PARTICULARS",
-      render: (item: any) => <span className="text-ink text-[11px] font-medium">{item.particulars}</span>,
+      render: (item: any) => (
+        <span className="text-ink text-[11px] font-medium">{item.particulars}</span>
+      ),
     },
     {
       header: "DEBIT (DR)",
       render: (item: any) => (
         <div className="text-right font-mono text-ink-muted">
-          {item.debit > 0 ? `₹ ${item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}
+          {item.debit > 0
+            ? `₹ ${item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : "-"}
         </div>
       ),
     },
@@ -296,7 +316,9 @@ export const SupplierBreakdownPage: React.FC = () => {
       header: "CREDIT (CR)",
       render: (item: any) => (
         <div className="text-right font-mono text-ink-muted">
-          {item.credit > 0 ? `₹ ${item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}
+          {item.credit > 0
+            ? `₹ ${item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : "-"}
         </div>
       ),
     },
@@ -304,7 +326,11 @@ export const SupplierBreakdownPage: React.FC = () => {
       header: "RUNNING BALANCE",
       render: (item: any) => (
         <div className="text-right font-mono font-semibold text-orange-600">
-          ₹ {item.runningBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ₹{" "}
+          {item.runningBalance.toLocaleString("en-IN", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </div>
       ),
     },
@@ -324,7 +350,9 @@ export const SupplierBreakdownPage: React.FC = () => {
             </button>
             <h1 className="text-sm font-bold text-ink flex items-center gap-2 min-w-0 truncate">
               <FaBuilding className="text-orange-600 text-sm shrink-0" />
-              <span className="truncate">{supplierDetail?.supplier.legalName || "Supplier Breakdown"}</span>
+              <span className="truncate">
+                {supplierDetail?.supplier.legalName || "Supplier Breakdown"}
+              </span>
               {refreshing && <FaSync className="animate-spin text-orange-600 text-[10px]" />}
             </h1>
             {supplierDetail?.supplier.supplierCode && (
@@ -342,6 +370,14 @@ export const SupplierBreakdownPage: React.FC = () => {
             >
               <FaSync className={refreshing ? "animate-spin text-orange-600" : ""} /> Refresh
             </button>
+            <button
+              type="button"
+              onClick={() => setShowStatement((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line"
+              title="Statement of account"
+            >
+              <FaFileInvoice /> Statement
+            </button>
             <ExportCSVButton
               data={csvData}
               columns={csvColumns}
@@ -350,11 +386,22 @@ export const SupplierBreakdownPage: React.FC = () => {
             />
           </div>
         </div>
+        {showStatement && supplierId && (
+          <div className="px-3 py-2 border-b border-line">
+            <StatementPanel
+              partyType="supplier"
+              partyId={supplierId}
+              onClose={() => setShowStatement(false)}
+            />
+          </div>
+        )}
 
         {/* Filter Row - single compact row */}
         <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
           <div className="w-[140px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Range</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              Range
+            </label>
             <SelectInput
               name="dateRangePreset"
               value={dateRangePreset}
@@ -365,20 +412,30 @@ export const SupplierBreakdownPage: React.FC = () => {
           </div>
 
           <div className="w-[130px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">From</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              From
+            </label>
             <DatePickerCalendar
               name="draftStartDate"
               value={draftStartDate}
-              onChange={(e) => { setDraftStartDate(e.target.value); setDateRangePreset("custom"); }}
+              onChange={(e) => {
+                setDraftStartDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
             />
           </div>
 
           <div className="w-[130px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">To</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+              To
+            </label>
             <DatePickerCalendar
               name="draftEndDate"
               value={draftEndDate}
-              onChange={(e) => { setDraftEndDate(e.target.value); setDateRangePreset("custom"); }}
+              onChange={(e) => {
+                setDraftEndDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
             />
           </div>
 
@@ -413,44 +470,68 @@ export const SupplierBreakdownPage: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div className="bg-card border border-line rounded-lg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Opening</span>
+              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                Opening
+              </span>
               <FaMoneyBillWave className="text-ink-muted text-xs" />
             </div>
             <div className="text-lg font-mono font-bold text-ink mt-1">
-              ₹ {supplierDetail.summary.openingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{" "}
+              {supplierDetail.summary.openingBalance.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
             <div className="text-[10px] text-ink-subtle mt-0.5">Starting liability</div>
           </div>
 
           <div className="bg-card border border-line rounded-lg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Invoiced</span>
+              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                Invoiced
+              </span>
               <FaBuilding className="text-orange-600 text-xs" />
             </div>
             <div className="text-lg font-mono font-bold text-ink mt-1">
-              ₹ {supplierDetail.summary.totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{" "}
+              {supplierDetail.summary.totalBilled.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
             <div className="text-[10px] text-ink-subtle mt-0.5">GRN bills posted</div>
           </div>
 
           <div className="bg-card border border-line rounded-lg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Paid</span>
+              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                Paid
+              </span>
               <FaCheckCircle className="text-emerald-600 text-xs" />
             </div>
             <div className="text-lg font-mono font-bold text-emerald-600 mt-1">
-              ₹ {supplierDetail.summary.totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{" "}
+              {supplierDetail.summary.totalPaid.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
             <div className="text-[10px] text-ink-subtle mt-0.5">Payments settled</div>
           </div>
 
           <div className="bg-card border border-line rounded-lg p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Outstanding</span>
+              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                Outstanding
+              </span>
               <FaExclamationTriangle className="text-amber-600 text-xs" />
             </div>
             <div className="text-lg font-mono font-bold text-orange-600 mt-1">
-              ₹ {supplierDetail.summary.closingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{" "}
+              {supplierDetail.summary.closingBalance.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
             <div className="text-[10px] text-ink-subtle mt-0.5">Net balance due</div>
           </div>
@@ -468,7 +549,8 @@ export const SupplierBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaFileInvoice className="text-[10px]" /> Invoices ({supplierDetail?.invoices?.length || 0})
+            <FaFileInvoice className="text-[10px]" /> Invoices (
+            {supplierDetail?.invoices?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab("payments")}
@@ -478,7 +560,8 @@ export const SupplierBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaHistory className="text-[10px]" /> Payments ({supplierDetail?.paymentHistory?.length || 0})
+            <FaHistory className="text-[10px]" /> Payments (
+            {supplierDetail?.paymentHistory?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab("statement")}
@@ -488,13 +571,16 @@ export const SupplierBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaList className="text-[10px]" /> Ledger ({supplierDetail?.statementEntries?.length || 0})
+            <FaList className="text-[10px]" /> Ledger (
+            {supplierDetail?.statementEntries?.length || 0})
           </button>
         </div>
 
         {activeTab === "invoices" && (
           <DataTable
-            columns={invoiceColumns.filter(c => typeof c.header === 'string' && visibleColumns.includes(c.header))}
+            columns={invoiceColumns.filter(
+              (c) => typeof c.header === "string" && visibleColumns.includes(c.header)
+            )}
             data={invoices}
             rowKey={(item: any) => item.id}
             loading={tableLoading}
