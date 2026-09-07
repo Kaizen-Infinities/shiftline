@@ -6,6 +6,9 @@ import { logger } from "../../lib/logger";
 import { periodService } from "../accounts/period.service";
 import { cancellationService } from "../accounts/cancellation.service";
 
+/** Ledger groups that hold money (P1-09c tree codes). */
+const CASH_BANK_GROUP_CODES = new Set(["CASH_IN_HAND", "BANK_ACCOUNTS", "BANK_OD"]);
+
 class VouchersService {
   private readonly prefixMap: Record<VoucherType, string> = {
     PAYMENT: "PAY",
@@ -402,13 +405,22 @@ class VouchersService {
       if (partyIds.length > 0) {
         const ledgers = await prisma.accountLedger.findMany({
           where: { id: { in: partyIds } },
-          select: { id: true, code: true, name: true, group: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            group: true,
+            ledgerGroup: { select: { code: true } },
+          },
         });
-        const bankOrCash = (g: string | null | undefined) => {
-          const gg = (g || "").toLowerCase();
+        // P1-10d: the chart-of-accounts group decides (CASH_IN_HAND, BANK_ACCOUNTS, BANK_OD);
+        // the legacy name test only covers ledgers that were never attached to the tree.
+        const bankOrCash = (l: { group: string | null; ledgerGroup: { code: string } | null }) => {
+          if (l.ledgerGroup) return CASH_BANK_GROUP_CODES.has(l.ledgerGroup.code);
+          const gg = (l.group || "").toLowerCase();
           return gg.includes("cash") || gg.includes("bank");
         };
-        const wrongSide = ledgers.find((l) => !bankOrCash(l.group));
+        const wrongSide = ledgers.find((l) => !bankOrCash(l));
         if (wrongSide) {
           const side = data.type === "PAYMENT" ? '"Paid From"' : '"Received In"';
           throw new ApiError(

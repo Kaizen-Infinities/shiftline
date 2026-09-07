@@ -67,5 +67,16 @@ export const createPurchaseReturnSchema = z.object({
   items: z.array(purchaseReturnItemSchema).min(1, "At least one item is required"),
 });
 
+/** P1-10d: a purchase return's lines move stock, so only the header is editable in place. */
+export const updatePurchaseReturnSchema = z.object({
+  returnDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Dates are YYYY-MM-DD")
+    .optional(),
+  reason: z.string().max(255).optional().nullable(),
+  narration: z.string().max(500).optional().nullable(),
+});
+export type UpdatePurchaseReturnInput = z.infer<typeof updatePurchaseReturnSchema>;
+
 export type CreateSalesReturnInput = z.infer<typeof createSalesReturnSchema>;
 export type CreatePurchaseReturnInput = z.infer<typeof createPurchaseReturnSchema>;

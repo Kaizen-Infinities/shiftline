@@ -77,11 +77,34 @@ in the P1-09 hand-offs. Built in four parts.
   parties, inverted dates, permissions; send validation (channel, missing or malformed contact)
   before anything is generated. Balance sheet and P&L screens join the smoke suite.
 
-## Part D — hygiene (planned)
+## Part D — hygiene
 
-Web `/expenses` route restored; expense claims with approval; `PUT /returns/purchase/:id`;
-vouchers' cash/bank side guard by `groupCode`; cancel-with-reason dialogs and CANCELLED badges;
-"History" links to `/reports/audit`.
+- **Expense claims.** `Expense.status` is a workflow: Draft → Pending (`POST /expenses/:id/submit`,
+  `expenses.edit`) → Approved (`…/approve`, `expenses.approve`, not by the claimant) or Rejected
+  (`…/reject { reason }`). The EXPENSE voucher is posted on approval (or at creation when the
+  record is created already Approved, a paid-and-filed bill); drafts, pending and rejected claims
+  are not in the books. `PUT` refuses status changes. Columns `approved_by`, `approved_at`,
+  `reject_reason` (migration `20260907120000_expense_approval`). Every expense route now carries a
+  `requirePermission`; `expenses.approve` joins the registry (the ACCOUNTS role gets it).
+- **Web `/expenses`** is routed again (`expenses.view`) with a sidebar entry under Transactions;
+  the list shows the status, Submit / Approve / Reject buttons by status and permission, and the
+  reject dialog asks for the reason the claimant will see.
+- **`PUT /returns/purchase/:id`** (`purchase-returns.edit`): header only (`returnDate`, `reason`,
+  `narration`); lines move stock and carry the debit note's tax, so a wrong line is cancelled and
+  re-raised. A new date reverses and re-posts the voucher on that date, both dates gated by
+  period control.
+- **Cash/bank guard by group.** The payment/receipt side guard in `vouchers.service` and the bank
+  selector (`getBankAccounts`) read the chart-of-accounts group (`CASH_IN_HAND`, `BANK_ACCOUNTS`,
+  `BANK_OD`); the name test only remains for ledgers never attached to the tree.
+- **Cancel with reason on the web.** `CancelReasonModal` replaces the delete confirmations on the
+  sales invoice list, the GRN list and view page, the contra voucher page and the expenses list;
+  the services call `POST …/:id/cancel { reason }`. Cancelled rows show a CANCELLED badge and lose
+  their edit and cancel buttons. `HistoryLink` (for `audit-reports.view`) opens
+  `/reports/audit?entity=<table>&entityId=<id>` from invoice, GRN, expense and voucher rows.
+- Tests: `hygiene.spec.ts` — claim lifecycle (no voucher until approval, self-approval refused,
+  double approval refused, cancel reverses), reject with reason and resubmit, purchase-return
+  header update and re-dating, the guard accepting an oddly named ledger under Cash-in-Hand and
+  refusing a party ledger.
 
 ## Done means
 

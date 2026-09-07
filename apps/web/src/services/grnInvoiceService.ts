@@ -22,6 +22,11 @@ export const grnInvoiceService = {
     return response.data?.data || response.data;
   },
 
+  /** Books are never deleted: cancel with a reason (P1-09/P1-10d). */
+  cancel: async (id: string, reason: string): Promise<void> => {
+    await apiClient.post(`${config.grnInvoice.base}/${id}/cancel`, { reason });
+  },
+
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`${config.grnInvoice.base}/${id}`);
   },

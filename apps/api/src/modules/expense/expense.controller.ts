@@ -102,6 +102,44 @@ class ExpenseController {
     return res.status(200).json(new ApiResponse("Expense cancelled"));
   });
 
+  private actor(req: Request) {
+    return {
+      userId: (req as any).user?.userId as string | undefined,
+      isSuperAdmin: !!(req as any).user?.isSuperAdmin,
+    };
+  }
+
+  submit = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = await this.getCompanyId();
+    const expense = await expenseService.submitExpense(req.params.id as string, companyId);
+    emitToTenant("expense:updated", expense);
+    return res.status(200).json(new ApiResponse("Expense submitted for approval", expense));
+  });
+
+  approve = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = await this.getCompanyId();
+    const expense = await expenseService.approveExpense(
+      req.params.id as string,
+      companyId,
+      this.actor(req)
+    );
+    emitToTenant("expense:updated", expense);
+    emitToTenant("voucher:created", { source: "expense" });
+    return res.status(200).json(new ApiResponse("Expense approved and posted", expense));
+  });
+
+  reject = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = await this.getCompanyId();
+    const expense = await expenseService.rejectExpense(
+      req.params.id as string,
+      companyId,
+      this.actor(req),
+      String(req.body.reason)
+    );
+    emitToTenant("expense:updated", expense);
+    return res.status(200).json(new ApiResponse("Expense rejected", expense));
+  });
+
   getNextCode = asyncHandler(async (req: Request, res: Response) => {
     const companyId = await this.getCompanyId();
     const nextCode = await expenseService.getNextExpenseNumber(companyId);

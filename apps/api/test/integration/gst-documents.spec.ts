@@ -424,6 +424,7 @@ describe("gst on documents", () => {
       .set(owner.auth)
       .send({
         expenseNumber: `EXP-${sfx}-1`,
+        status: "Approved",
         expenseCategory: "Professional Fees",
         date: "2026-09-07",
         expense: "Statutory audit",
@@ -461,6 +462,7 @@ describe("gst on documents", () => {
       .set(owner.auth)
       .send({
         expenseNumber: `EXP-${sfx}-2`,
+        status: "Approved",
         expenseCategory: "Freight",
         date: "2026-09-07",
         expense: "Inward freight (GTA)",
@@ -484,6 +486,7 @@ describe("gst on documents", () => {
       .set(owner.auth)
       .send({
         expenseNumber: `EXP-${sfx}-3`,
+        status: "Approved",
         expenseCategory: "Staff Welfare",
         date: "2026-09-07",
         expense: "Team lunch",
@@ -505,6 +508,7 @@ describe("gst on documents", () => {
       .set(owner.auth)
       .send({
         expenseNumber: `EXP-${sfx}-4`,
+        status: "Approved",
         expenseCategory: "Misc",
         date: "2026-09-07",
         expense: "Bad GSTIN",

@@ -1962,6 +1962,10 @@ model Expense {
   tdsSection      String?        @map("tds_section") @db.VarChar(10)
   tdsRate         Decimal        @default(0) @map("tds_rate") @db.Decimal(5, 2)
   tdsAmount       Decimal        @default(0) @map("tds_amount") @db.Decimal(12, 2)
+  /// Expense claims (P1-10d): who approved or rejected, and why it was rejected.
+  approvedBy      String?        @map("approved_by") @db.VarChar(36)
+  approvedAt      DateTime?      @map("approved_at") @db.Timestamptz(6)
+  rejectReason    String?        @map("reject_reason") @db.VarChar(255)
   createdBy       String?
   createdAt       DateTime       @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime       @updatedAt @db.Timestamptz(6)

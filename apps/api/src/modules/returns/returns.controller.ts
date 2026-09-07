@@ -1,7 +1,11 @@
 import { getCurrentCompanyId } from "../../utils/companyContext";
 import { Request, Response, NextFunction } from "express";
 import { returnsService } from "./returns.service";
-import { createSalesReturnSchema, createPurchaseReturnSchema } from "./returns.types";
+import {
+  createSalesReturnSchema,
+  createPurchaseReturnSchema,
+  updatePurchaseReturnSchema,
+} from "./returns.types";
 import { logger } from "../../lib/logger";
 
 const actorOf = (req: Request) => ({
@@ -92,6 +96,24 @@ class ReturnsController {
       }
 
       return res.status(200).json({ success: true, message: "Sales return updated", data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updatePurchaseReturn(req: Request, res: Response, next: NextFunction) {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const input = updatePurchaseReturnSchema.parse(req.body);
+      const data = await returnsService.updatePurchaseReturn(id, input);
+      try {
+        const { emitToTenant } = await import("../../lib/realtime.js");
+        emitToTenant("purchaseReturn:updated", data);
+        emitToTenant("voucher:created", { source: "purchaseReturn" });
+      } catch (sErr) {
+        logger.error({ err: sErr }, "[Socket Emit Error] purchaseReturn:updated");
+      }
+      return res.status(200).json({ success: true, message: "Purchase return updated", data });
     } catch (error) {
       next(error);
     }

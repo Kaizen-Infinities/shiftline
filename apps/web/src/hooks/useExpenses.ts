@@ -57,18 +57,35 @@ export const useExpenses = () => {
     }
   }, []);
 
-  const removeExpense = useCallback(async (id: string) => {
+  /** Cancels the expense (P1-09): it stays in the books as Cancelled; the reason is audited. */
+  const removeExpense = useCallback(async (id: string, reason?: string) => {
     setError(null);
     try {
-      const response = await apiClient.delete(`/expenses/${id}`);
+      const response = await apiClient.post(`/expenses/${id}/cancel`, { reason });
       if (response.data && response.data.success) {
         return true;
       }
-      throw new Error(response.data?.message || "Failed to delete expense");
+      throw new Error(response.data?.message || "Failed to cancel expense");
     } catch (err: any) {
       throw new Error(err.response?.data?.message || err.message);
     }
   }, []);
+
+  /** Expense claims (P1-10d): submit, approve (posts the voucher) or reject with a reason. */
+  const transitionExpense = useCallback(
+    async (id: string, action: "submit" | "approve" | "reject", reason?: string) => {
+      try {
+        const response = await apiClient.post(
+          `/expenses/${id}/${action}`,
+          reason ? { reason } : {}
+        );
+        return response.data?.data;
+      } catch (err: any) {
+        throw new Error(err.response?.data?.message || err.message);
+      }
+    },
+    []
+  );
 
   const fetchNextExpenseCode = useCallback(async () => {
     try {
@@ -91,6 +108,7 @@ export const useExpenses = () => {
     addExpense,
     editExpense,
     removeExpense,
+    transitionExpense,
     fetchNextExpenseCode,
   };
 };

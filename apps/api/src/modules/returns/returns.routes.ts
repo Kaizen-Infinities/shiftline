@@ -25,6 +25,9 @@ router.get("/purchase", requirePermission("purchase-returns.view"), (req, res, n
 router.post("/purchase", requirePermission("purchase-returns.create"), (req, res, next) =>
   returnsController.createPurchaseReturn(req, res, next)
 );
+router.put("/purchase/:id", requirePermission("purchase-returns.edit"), (req, res, next) =>
+  returnsController.updatePurchaseReturn(req, res, next)
+);
 
 router.post("/sales/:id/cancel", requirePermission("sales-returns.delete"), (req, res, next) =>
   returnsController.cancelSalesReturn(req, res, next)

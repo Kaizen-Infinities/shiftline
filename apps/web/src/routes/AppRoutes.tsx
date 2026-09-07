@@ -567,6 +567,10 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="invoice.view" />}>
                 <Route path="/invoice" element={<InvoiceList />} />
               </Route>
+              {/* Expenses (P1-10d): list with claims approval; the create form lives inside the list. */}
+              <Route element={<ProtectedRoute permission="expenses.view" />}>
+                <Route path="/expenses" element={<ExpensesList />} />
+              </Route>
               <Route
                 element={
                   <ProtectedRoute

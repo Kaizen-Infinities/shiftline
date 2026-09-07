@@ -45,7 +45,7 @@ export const createExpenseSchema = z.object({
     amount: numberish,
     description: z.string().optional().nullable(),
     paymentMethod: z.string().min(1, "Payment method is required").max(50),
-    status: z.string().optional().default("Draft"),
+    status: z.enum(["Draft", "Pending", "Approved"]).optional().default("Draft"),
     notes: z.string().optional().nullable(),
     receiptInvoice: z.string().optional().nullable(),
     supplierId: z
@@ -66,7 +66,7 @@ export const updateExpenseSchema = z.object({
     amount: optionalNumber,
     description: z.string().optional().nullable(),
     paymentMethod: z.string().max(50).optional(),
-    status: z.string().optional(),
+    status: z.enum(["Draft", "Pending", "Approved", "Rejected"]).optional(),
     notes: z.string().optional().nullable(),
     receiptInvoice: z.string().optional().nullable(),
     supplierId: z
@@ -81,5 +81,11 @@ export const updateExpenseSchema = z.object({
 export const expenseIdRequestSchema = z.object({
   params: z.object({
     id: z.string().uuid("Invalid expense ID format"),
+  }),
+});
+
+export const rejectExpenseSchema = z.object({
+  body: z.object({
+    reason: z.string().trim().min(3, "Say why the claim is rejected").max(255),
   }),
 });

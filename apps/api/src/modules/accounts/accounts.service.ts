@@ -377,11 +377,15 @@ class AccountsService {
       "CASH IN HAND",
     ];
 
+    // P1-10d: the tree group decides; the name list only catches ledgers never attached to it.
     const ledgers = await prisma.accountLedger.findMany({
       where: {
         type: LedgerType.ASSET,
-        group: { in: bankGroups, mode: "insensitive" },
         isActive: true,
+        OR: [
+          { ledgerGroup: { code: { in: ["CASH_IN_HAND", "BANK_ACCOUNTS"] } } },
+          { groupId: null, group: { in: bankGroups, mode: "insensitive" } },
+        ],
       },
       orderBy: { name: "asc" },
     });

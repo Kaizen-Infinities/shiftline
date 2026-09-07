@@ -1,7 +1,11 @@
 import { prisma } from "../../config/prisma";
 import { Prisma, SupplyType } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
-import { CreateSalesReturnInput, CreatePurchaseReturnInput } from "./returns.types";
+import {
+  CreateSalesReturnInput,
+  CreatePurchaseReturnInput,
+  UpdatePurchaseReturnInput,
+} from "./returns.types";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 import rawMaterialStockService from "../raw-material-stock/raw-material-stock.service";
 import { logger } from "../../lib/logger";
@@ -301,6 +305,47 @@ class ReturnsService {
       );
     }
 
+    return updated;
+  }
+
+  /**
+   * P1-10d: header-only update. Lines move stock and carry the debit note's tax, so a wrong line
+   * is cancelled and re-raised rather than edited. A new date re-posts the voucher on that date.
+   */
+  async updatePurchaseReturn(id: string, data: UpdatePurchaseReturnInput) {
+    const existing = await prisma.purchaseReturn.findUnique({ where: { id } });
+    if (!existing) throw new ApiError(404, "Purchase return not found");
+    if (existing.cancelledAt) throw new ApiError(409, "Cancelled returns cannot be edited");
+    const newDate = data.returnDate ? new Date(`${data.returnDate}T00:00:00.000Z`) : null;
+    const dateChanged = newDate !== null && newDate.getTime() !== existing.returnDate.getTime();
+    const updated = await prisma.$transaction(async (tx) => {
+      if (dateChanged) {
+        await periodService.assertPostingAllowed(existing.returnDate, undefined, tx);
+        await periodService.assertPostingAllowed(newDate!, undefined, tx);
+      }
+      return tx.purchaseReturn.update({
+        where: { id },
+        data: {
+          ...(dateChanged && { returnDate: newDate! }),
+          ...(data.reason !== undefined && { reason: data.reason || null }),
+          ...(data.narration !== undefined && { narration: data.narration || null }),
+        },
+        include: { items: true, supplier: true },
+      });
+    });
+    if (dateChanged) {
+      await cancellationService.cancelVouchersFor(
+        ["PURCHASE_RETURN"],
+        [id],
+        { reason: "Purchase return re-dated" },
+        prisma
+      );
+      try {
+        await voucherPostingService.postPurchaseReturnVoucher(id);
+      } catch (vErr) {
+        logger.error({ err: vErr }, "[Auto-Post Voucher Error] purchase return update");
+      }
+    }
     return updated;
   }
 

@@ -18,8 +18,18 @@ export interface JournalItem {
   debitAmount: number;
   creditAmount: number;
   narration?: string | null;
-  debitLedger?: { id: number; name: string; code: string; group?: { id?: number; name?: string } | null } | null;
-  creditLedger?: { id: number; name: string; code: string; group?: { id?: number; name?: string } | null } | null;
+  debitLedger?: {
+    id: number;
+    name: string;
+    code: string;
+    group?: { id?: number; name?: string } | null;
+  } | null;
+  creditLedger?: {
+    id: number;
+    name: string;
+    code: string;
+    group?: { id?: number; name?: string } | null;
+  } | null;
 }
 
 export interface VoucherDocItem {
@@ -108,6 +118,11 @@ export const voucherService = {
 
   deleteVoucher: async (id: number): Promise<void> => {
     await apiClient.delete(`/vouchers/${id}`);
+  },
+
+  /** Cancels (reverses) a voucher with a reason kept in the audit trail (P1-10d). */
+  cancelVoucher: async (id: number, reason: string): Promise<void> => {
+    await apiClient.post(`/vouchers/${id}/cancel`, { reason });
   },
 };
 

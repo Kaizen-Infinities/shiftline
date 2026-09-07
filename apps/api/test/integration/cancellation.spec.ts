@@ -265,6 +265,7 @@ describe("cancellation", () => {
       .set(owner.auth)
       .send({
         expenseNumber: `EXP-V-${Date.now().toString().slice(-6)}`,
+        status: "Approved",
         expenseCategory: "Misc",
         date: "2026-09-07",
         expense: "Courier",
@@ -300,6 +301,7 @@ describe("cancellation", () => {
     const number = `EXP-C-${Date.now().toString().slice(-6)}`;
     const created = await (await api()).post("/api/expenses").set(owner.auth).send({
       expenseNumber: number,
+      status: "Approved",
       expenseCategory: "Repairs",
       date: "2026-09-07",
       expense: "Machine repair",

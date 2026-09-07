@@ -10,7 +10,9 @@ import ViewButton from "../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../components/ui/DeleteButton/DeleteButton";
 import CustomButton from "../../components/ui/Button/Button";
-import CommonConfirmModal from "../../components/ui/CommonConfirmModal/CommonConfirmModal";
+import CancelReasonModal from "../../components/ui/CancelReasonModal/CancelReasonModal";
+import HistoryLink from "../../components/ui/HistoryLink/HistoryLink";
+import { usePermission } from "../../hooks/usePermission";
 import CommonViewModal from "../../components/ui/CommonViewModal/CommonViewModal";
 import ExpensesCreate from "./Expensescreate";
 import { useExpenses } from "../../hooks/useExpenses";
@@ -32,10 +34,14 @@ interface Expense {
   status: string;
   notes: string;
   receiptInvoice: string;
+  rejectReason?: string | null;
 }
 
 const ExpensesList: React.FC = () => {
-  const { expenses, loading, error, total, loadExpenses, removeExpense } = useExpenses();
+  const { expenses, loading, error, total, loadExpenses, removeExpense, transitionExpense } =
+    useExpenses();
+  const { can } = usePermission();
+  const [rejecting, setRejecting] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<"list" | "create" | "edit">("list");
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -49,7 +55,10 @@ const ExpensesList: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
 
-  usePageShortcuts({ onRefresh: () => fetchExpenseData(), onDelete: () => setShowDeleteModal(true) });
+  usePageShortcuts({
+    onRefresh: () => fetchExpenseData(),
+    onDelete: () => setShowDeleteModal(true),
+  });
 
   const fetchExpenseData = useCallback(() => {
     loadExpenses({
@@ -96,11 +105,43 @@ const ExpensesList: React.FC = () => {
     setShowDeleteModal(true);
   }, []);
 
-  const handleDeleteConfirm = async () => {
+  const reload = () =>
+    loadExpenses({
+      page: currentPage,
+      limit: ITEMS_PER_PAGE,
+      search: searchTerm || undefined,
+      category: filterCategory || undefined,
+      status: filterStatus || undefined,
+    });
+
+  // Expense claims (P1-10d): Draft → Pending → Approved (posts the voucher) / Rejected.
+  const transition = async (id: string, action: "submit" | "approve", label: string) => {
+    try {
+      await transitionExpense(id, action);
+      toast.success(label);
+      reload();
+    } catch (err: any) {
+      toast.error(err.message || "Could not update the expense");
+    }
+  };
+  const handleRejectConfirm = async (reason: string) => {
+    if (!rejecting) return;
+    try {
+      await transitionExpense(rejecting, "reject", reason);
+      toast.success("Expense rejected");
+      reload();
+    } catch (err: any) {
+      toast.error(err.message || "Could not reject the expense");
+    } finally {
+      setRejecting(null);
+    }
+  };
+
+  const handleDeleteConfirm = async (reason: string) => {
     if (expenseToDelete !== null) {
       try {
-        await removeExpense(expenseToDelete);
-        toast.success("Expense deleted successfully!");
+        await removeExpense(expenseToDelete, reason);
+        toast.success("Expense cancelled; its ledger entries were reversed.");
         loadExpenses({
           page: currentPage,
           limit: ITEMS_PER_PAGE,
@@ -109,7 +150,7 @@ const ExpensesList: React.FC = () => {
           status: filterStatus || undefined,
         });
       } catch (err: any) {
-        toast.error(err.message || "Failed to delete expense.");
+        toast.error(err.message || "Failed to cancel expense.");
       } finally {
         setShowDeleteModal(false);
         setExpenseToDelete(null);
@@ -145,9 +186,9 @@ const ExpensesList: React.FC = () => {
     "Salaries",
     "Rent",
     "Marketing",
-    "Others"
+    "Others",
   ];
-  const statuses = ["Draft", "Pending", "Approved", "Rejected"];
+  const statuses = ["Draft", "Pending", "Approved", "Rejected", "Cancelled"];
 
   const formatDateString = (isoString: string) => {
     if (!isoString) return "N/A";
@@ -202,11 +243,7 @@ const ExpensesList: React.FC = () => {
                 </option>
               ))}
             </select>
-            <CustomButton
-              text="Add Expense"
-              icon={FaPlus}
-              onClick={() => setViewMode("create")}
-            />
+            <CustomButton text="Add Expense" icon={FaPlus} onClick={() => setViewMode("create")} />
           </div>
         </div>
 
@@ -252,14 +289,74 @@ const ExpensesList: React.FC = () => {
             },
             { header: "PAYMENT METHOD", accessor: "paymentMethod" },
             {
+              header: "STATUS",
+              render: (item) => {
+                const s = String(item.status || "Draft");
+                const cls =
+                  s === "Approved"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : s === "Pending"
+                      ? "bg-amber-100 text-amber-800"
+                      : s === "Rejected"
+                        ? "bg-rose-100 text-rose-800"
+                        : s === "Cancelled"
+                          ? "bg-slate-200 text-slate-700 line-through"
+                          : "bg-card-2 text-ink-muted";
+                return (
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-semibold ${cls}`}
+                    title={item.rejectReason || undefined}
+                  >
+                    {s === "Pending" ? "Pending approval" : s}
+                  </span>
+                );
+              },
+            },
+            {
               header: "ACTIONS",
-              render: (item) => (
-                <div className="flex items-center gap-2">
-                  <ViewButton onClick={() => handleView(item)} />
-                  <EditButton onClick={() => handleEdit(item)} />
-                  <DeleteButton onClick={() => triggerDelete(item.id)} />
-                </div>
-              ),
+              render: (item) => {
+                const s = String(item.status || "Draft");
+                const open = s !== "Cancelled";
+                return (
+                  <div className="flex items-center gap-2">
+                    <ViewButton onClick={() => handleView(item)} />
+                    {open && s !== "Approved" && can("expenses.edit") && (
+                      <EditButton onClick={() => handleEdit(item)} />
+                    )}
+                    {(s === "Draft" || s === "Rejected") && can("expenses.edit") && (
+                      <button
+                        type="button"
+                        className="rounded border border-line px-2 py-1 text-[11px] font-semibold text-ink hover:bg-card-2"
+                        onClick={() => transition(item.id, "submit", "Sent for approval")}
+                      >
+                        Submit
+                      </button>
+                    )}
+                    {(s === "Pending" || s === "Draft") && can("expenses.approve") && (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded border border-emerald-300 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
+                          onClick={() => transition(item.id, "approve", "Approved and posted")}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded border border-rose-300 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50"
+                          onClick={() => setRejecting(item.id)}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {open && can("expenses.delete") && (
+                      <DeleteButton onClick={() => triggerDelete(item.id)} />
+                    )}
+                    <HistoryLink entity="expenses" entityId={item.id} />
+                  </div>
+                );
+              },
             },
           ]}
         />
@@ -275,103 +372,129 @@ const ExpensesList: React.FC = () => {
           sections={
             selectedExpense
               ? [
-                {
-                  fields: [
-                    { label: "Expense Number", value: selectedExpense.expenseNumber },
-                    { label: "Category", value: selectedExpense.expenseCategory },
-                    { label: "Expense Date", value: formatDateString(selectedExpense.date) },
-                    { label: "Expense Name", value: selectedExpense.expense },
-                  ],
-                },
-                {
-                  fields: [
-                    {
-                      label: "Amount",
-                      value: `₹${parseFloat(selectedExpense.amount).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                      })}`,
-                    },
-                    { label: "Supplier", value: selectedExpense.supplier?.legalName || selectedExpense.supplier || "N/A" },
-                    { label: "Payment Method", value: selectedExpense.paymentMethod },
-                    { label: "Status", value: selectedExpense.status === "Pending" ? "Pending Approval" : selectedExpense.status },
-                  ],
-                },
-                {
-                  title: "Additional Information",
-                  fields: [
-                    { label: "Description", value: selectedExpense.description || "N/A" },
-                    { label: "Internal Notes", value: selectedExpense.notes || "N/A" },
-                  ],
-                },
-                {
-                  title: "Attachment",
-                  fields: [
-                    {
-                      label: "Receipt / Invoice",
-                      value: selectedExpense.receiptInvoice ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-                          {selectedExpense.receiptInvoice.toLowerCase().endsWith(".pdf") ? (
-                            <a
-                              href={selectedExpense.receiptInvoice}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn btn-outline-primary btn-sm"
-                              style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "fit-content" }}
-                            >
-                              <FaFilePdf /> View PDF Document
-                            </a>
-                          ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                              <img
-                                src={selectedExpense.receiptInvoice}
-                                alt="Receipt Copy"
-                                style={{
-                                  maxWidth: "100%",
-                                  maxHeight: "300px",
-                                  objectFit: "contain",
-                                  border: "1px solid var(--color-border)",
-                                  borderRadius: "6px",
-                                }}
-                                onError={(e: any) => {
-                                  e.target.style.display = 'none';
-                                  e.target.nextSibling.style.display = 'block';
-                                }}
-                              />
+                  {
+                    fields: [
+                      { label: "Expense Number", value: selectedExpense.expenseNumber },
+                      { label: "Category", value: selectedExpense.expenseCategory },
+                      { label: "Expense Date", value: formatDateString(selectedExpense.date) },
+                      { label: "Expense Name", value: selectedExpense.expense },
+                    ],
+                  },
+                  {
+                    fields: [
+                      {
+                        label: "Amount",
+                        value: `₹${parseFloat(selectedExpense.amount).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                        })}`,
+                      },
+                      {
+                        label: "Supplier",
+                        value:
+                          selectedExpense.supplier?.legalName || selectedExpense.supplier || "N/A",
+                      },
+                      { label: "Payment Method", value: selectedExpense.paymentMethod },
+                      {
+                        label: "Status",
+                        value:
+                          selectedExpense.status === "Pending"
+                            ? "Pending Approval"
+                            : selectedExpense.status,
+                      },
+                    ],
+                  },
+                  {
+                    title: "Additional Information",
+                    fields: [
+                      { label: "Description", value: selectedExpense.description || "N/A" },
+                      { label: "Internal Notes", value: selectedExpense.notes || "N/A" },
+                    ],
+                  },
+                  {
+                    title: "Attachment",
+                    fields: [
+                      {
+                        label: "Receipt / Invoice",
+                        value: selectedExpense.receiptInvoice ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "8px",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {selectedExpense.receiptInvoice.toLowerCase().endsWith(".pdf") ? (
                               <a
                                 href={selectedExpense.receiptInvoice}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="btn btn-link btn-sm text-decoration-none p-0 text-start"
-                                style={{ width: "fit-content" }}
+                                className="btn btn-outline-primary btn-sm"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  width: "fit-content",
+                                }}
                               >
-                                Open in New Tab
+                                <FaFilePdf /> View PDF Document
                               </a>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        "No attachment"
-                      ),
-                    },
-                  ],
-                },
-              ]
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <img
+                                  src={selectedExpense.receiptInvoice}
+                                  alt="Receipt Copy"
+                                  style={{
+                                    maxWidth: "100%",
+                                    maxHeight: "300px",
+                                    objectFit: "contain",
+                                    border: "1px solid var(--color-border)",
+                                    borderRadius: "6px",
+                                  }}
+                                  onError={(e: any) => {
+                                    e.target.style.display = "none";
+                                    e.target.nextSibling.style.display = "block";
+                                  }}
+                                />
+                                <a
+                                  href={selectedExpense.receiptInvoice}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-link btn-sm text-decoration-none p-0 text-start"
+                                  style={{ width: "fit-content" }}
+                                >
+                                  Open in New Tab
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          "No attachment"
+                        ),
+                      },
+                    ],
+                  },
+                ]
               : []
           }
         />
 
-        {/* Delete Modal */}
-        <CommonConfirmModal
+        {/* Cancel with reason (P1-10d): the expense stays in the books as Cancelled. */}
+        <CancelReasonModal
           show={showDeleteModal}
           onHide={() => setShowDeleteModal(false)}
           onConfirm={handleDeleteConfirm}
-          title="Confirm Delete"
-          message="Are you sure you want to delete this expense?"
-          confirmText="Delete"
-          confirmVariant="danger"
+          title="Cancel this expense?"
+          confirmText="Cancel expense"
         />
-
-
+        <CancelReasonModal
+          show={rejecting !== null}
+          onHide={() => setRejecting(null)}
+          onConfirm={handleRejectConfirm}
+          title="Reject this expense claim?"
+          message="The claimant sees the reason and can correct and resubmit the claim."
+          confirmText="Reject claim"
+        />
       </div>
     </div>
   );

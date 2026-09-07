@@ -16,10 +16,15 @@ import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/Dat
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { DATE_RANGE_OPTIONS } from "../../../../constants/selectOption";
-import { voucherService, type Voucher, type VoucherType } from "../../../../services/voucherService";
+import {
+  voucherService,
+  type Voucher,
+  type VoucherType,
+} from "../../../../services/voucherService";
 import { useListCache } from "../../../../hooks/useListCache";
 import { useSocketSync } from "../../../../hooks/useSocketSync";
 import { usePermission } from "../../../../hooks/usePermission";
+import HistoryLink from "../../../../components/ui/HistoryLink/HistoryLink";
 
 export const VoucherListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,7 +67,13 @@ export const VoucherListPage: React.FC = () => {
     [typeFilter, startDate, endDate, searchTerm]
   );
 
-  const { data: vouchers, total, loading, refreshing, refresh } = useListCache<Voucher>({
+  const {
+    data: vouchers,
+    total,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<Voucher>({
     cacheKey,
     socketModule: "voucher",
     fetcher,
@@ -169,12 +180,18 @@ export const VoucherListPage: React.FC = () => {
     if (v.refDoc?.customerName && v.refDoc.customerName !== "-") return v.refDoc.customerName;
 
     const debitParty = v.items.find(
-      (i) => i.debitLedger && (i.debitLedger.group?.name === "Sundry Debtors" || i.debitLedger.group?.name === "Sundry Creditors")
+      (i) =>
+        i.debitLedger &&
+        (i.debitLedger.group?.name === "Sundry Debtors" ||
+          i.debitLedger.group?.name === "Sundry Creditors")
     )?.debitLedger?.name;
     if (debitParty) return debitParty;
 
     const creditParty = v.items.find(
-      (i) => i.creditLedger && (i.creditLedger.group?.name === "Sundry Debtors" || i.creditLedger.group?.name === "Sundry Creditors")
+      (i) =>
+        i.creditLedger &&
+        (i.creditLedger.group?.name === "Sundry Debtors" ||
+          i.creditLedger.group?.name === "Sundry Creditors")
     )?.creditLedger?.name;
     if (creditParty) return creditParty;
 
@@ -192,7 +209,12 @@ export const VoucherListPage: React.FC = () => {
       if (match && match[0]) return match[0];
     }
 
-    if (v.refDocId && (/^[0-9a-f-]{30,}$/i.test(v.refDocId) || v.refDocId.includes("_rcpt_") || v.refDocId.includes("_pay_"))) {
+    if (
+      v.refDocId &&
+      (/^[0-9a-f-]{30,}$/i.test(v.refDocId) ||
+        v.refDocId.includes("_rcpt_") ||
+        v.refDocId.includes("_pay_"))
+    ) {
       return "-";
     }
 
@@ -210,7 +232,9 @@ export const VoucherListPage: React.FC = () => {
       {
         header: "Amount (₹)",
         accessor: (v: Voucher) =>
-          Math.max(...v.items.map((i) => Math.max(Number(i.debitAmount || 0), Number(i.creditAmount || 0)))),
+          Math.max(
+            ...v.items.map((i) => Math.max(Number(i.debitAmount || 0), Number(i.creditAmount || 0)))
+          ),
       },
       { header: "Status", accessor: (v: Voucher) => v.status || "POSTED" },
       { header: "Narration", accessor: (v: Voucher) => v.narration || "-" },
@@ -233,20 +257,26 @@ export const VoucherListPage: React.FC = () => {
         </h2>
 
         <div className="flex items-center gap-1.5">
-          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Type</label>
+          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+            Type
+          </label>
           <select
             value={typeFilter}
             onChange={(e) => handleTypeChange(e.target.value)}
             className="w-[130px] px-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none"
           >
             {["ALL", "PURCHASE", "SALES", "PAYMENT", "RECEIPT", "JOURNAL", "CONTRA"].map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Range</label>
+          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+            Range
+          </label>
           <div className="w-[130px]">
             <SelectInput
               name="dateRangePreset"
@@ -259,23 +289,33 @@ export const VoucherListPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5">
-          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">From</label>
+          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+            From
+          </label>
           <div className="w-[130px]">
             <DatePickerCalendar
               name="draftStartDate"
               value={draftStartDate}
-              onChange={(e) => { setDraftStartDate(e.target.value); setDateRangePreset("custom"); }}
+              onChange={(e) => {
+                setDraftStartDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
             />
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">To</label>
+          <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+            To
+          </label>
           <div className="w-[130px]">
             <DatePickerCalendar
               name="draftEndDate"
               value={draftEndDate}
-              onChange={(e) => { setDraftEndDate(e.target.value); setDateRangePreset("custom"); }}
+              onChange={(e) => {
+                setDraftEndDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
             />
           </div>
         </div>
@@ -334,7 +374,11 @@ export const VoucherListPage: React.FC = () => {
         </div>
 
         {vouchers.length === 0 ? (
-          loading ? null : <div className="p-8 text-center text-xs text-ink-subtle">No vouchers matching your filter criteria.</div>
+          loading ? null : (
+            <div className="p-8 text-center text-xs text-ink-subtle">
+              No vouchers matching your filter criteria.
+            </div>
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-ink-muted">
@@ -353,14 +397,25 @@ export const VoucherListPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-line-soft">
                 {vouchers.map((v) => {
-                  const debitItem = v.items.find((i) => i.debitLedger) || v.items.find((i) => Number(i.debitAmount) > 0) || v.items[0];
-                  const creditItem = v.items.find((i) => i.creditLedger) || v.items.find((i) => Number(i.creditAmount) > 0) || v.items[1] || v.items[0];
+                  const debitItem =
+                    v.items.find((i) => i.debitLedger) ||
+                    v.items.find((i) => Number(i.debitAmount) > 0) ||
+                    v.items[0];
+                  const creditItem =
+                    v.items.find((i) => i.creditLedger) ||
+                    v.items.find((i) => Number(i.creditAmount) > 0) ||
+                    v.items[1] ||
+                    v.items[0];
 
-                  const debitLedgerName = debitItem?.debitLedger?.name || debitItem?.creditLedger?.name || "-";
-                  const creditLedgerName = creditItem?.creditLedger?.name || creditItem?.debitLedger?.name || "-";
+                  const debitLedgerName =
+                    debitItem?.debitLedger?.name || debitItem?.creditLedger?.name || "-";
+                  const creditLedgerName =
+                    creditItem?.creditLedger?.name || creditItem?.debitLedger?.name || "-";
 
                   const amount = Math.max(
-                    ...v.items.map((i) => Math.max(Number(i.debitAmount || 0), Number(i.creditAmount || 0)))
+                    ...v.items.map((i) =>
+                      Math.max(Number(i.debitAmount || 0), Number(i.creditAmount || 0))
+                    )
                   );
 
                   return (
@@ -389,12 +444,17 @@ export const VoucherListPage: React.FC = () => {
                       <td className="px-3 py-1.5 font-semibold text-ink">{debitLedgerName}</td>
                       <td className="px-3 py-1.5 text-ink-muted">{creditLedgerName}</td>
                       <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink whitespace-nowrap">
-                        ₹{(amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₹
+                        {(amount || 0).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
-                      <td className="px-3 py-1.5 text-center">
-                        {renderStatusBadge(v.status)}
-                      </td>
-                      <td className="px-3 py-1.5 text-ink-subtle max-w-xs truncate" title={v.narration || ""}>
+                      <td className="px-3 py-1.5 text-center">{renderStatusBadge(v.status)}</td>
+                      <td
+                        className="px-3 py-1.5 text-ink-subtle max-w-xs truncate"
+                        title={v.narration || ""}
+                      >
                         {v.narration || "-"}
                       </td>
                       {typeFilter !== "PAYMENT" && (
@@ -402,7 +462,12 @@ export const VoucherListPage: React.FC = () => {
                           {v.type === "PURCHASE" ? (
                             <button
                               onClick={() => {
-                                const targetId = v.refDoc?.id || v.refDoc?.grnId || (v.refDocId && v.refDocId.includes("_pay_") ? v.refDocId.split("_pay_")[0] : v.refDocId);
+                                const targetId =
+                                  v.refDoc?.id ||
+                                  v.refDoc?.grnId ||
+                                  (v.refDocId && v.refDocId.includes("_pay_")
+                                    ? v.refDocId.split("_pay_")[0]
+                                    : v.refDocId);
                                 if (targetId) {
                                   navigate(`/invoice/details/${targetId}`);
                                 } else {
@@ -418,7 +483,11 @@ export const VoucherListPage: React.FC = () => {
                           ) : v.type === "SALES" ? (
                             <button
                               onClick={() => {
-                                const targetId = v.refDoc?.id || (v.refDocId && v.refDocId.includes("_rcpt_") ? v.refDocId.split("_rcpt_")[0] : v.refDocId);
+                                const targetId =
+                                  v.refDoc?.id ||
+                                  (v.refDocId && v.refDocId.includes("_rcpt_")
+                                    ? v.refDocId.split("_rcpt_")[0]
+                                    : v.refDocId);
                                 if (targetId) {
                                   navigate(`/sales-invoices/details/${targetId}`);
                                 } else {
@@ -434,6 +503,7 @@ export const VoucherListPage: React.FC = () => {
                           ) : (
                             <span className="text-ink-subtle text-[11px]">—</span>
                           )}
+                          <HistoryLink entity="vouchers" entityId={String(v.id)} className="ml-1" />
                         </td>
                       )}
                     </tr>
@@ -443,7 +513,6 @@ export const VoucherListPage: React.FC = () => {
             </table>
           </div>
         )}
-
       </div>
 
       {/* Modal - View Voucher Details (compact) */}
@@ -454,14 +523,21 @@ export const VoucherListPage: React.FC = () => {
             <div className="px-3 py-2 border-b border-line bg-card-2 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-bold font-mono text-ink">{selectedVoucher.voucherNo}</h2>
+                  <h2 className="text-sm font-bold font-mono text-ink">
+                    {selectedVoucher.voucherNo}
+                  </h2>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/20 text-blue-500 border border-blue-500/30">
                     {selectedVoucher.type}
                   </span>
                   {renderStatusBadge(selectedVoucher.status)}
                 </div>
                 <p className="text-[11px] text-ink-subtle mt-0.5">
-                  Date: {new Date(selectedVoucher.date).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}
+                  Date:{" "}
+                  {new Date(selectedVoucher.date).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </p>
               </div>
               <button
@@ -477,15 +553,25 @@ export const VoucherListPage: React.FC = () => {
               {/* Ref Document Info */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 bg-card-2 p-2 rounded border border-line">
                 <div>
-                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">Invoice Number</span>
-                  <span className="font-bold text-ink text-xs">{selectedVoucher.refDoc?.invoiceNo || "-"}</span>
+                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">
+                    Invoice Number
+                  </span>
+                  <span className="font-bold text-ink text-xs">
+                    {selectedVoucher.refDoc?.invoiceNo || "-"}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">GRN / PO Ref</span>
-                  <span className="font-mono font-medium text-ink text-xs">{getGrnRef(selectedVoucher)}</span>
+                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">
+                    GRN / PO Ref
+                  </span>
+                  <span className="font-mono font-medium text-ink text-xs">
+                    {getGrnRef(selectedVoucher)}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">Supplier / Customer</span>
+                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">
+                    Supplier / Customer
+                  </span>
                   <span className="font-bold text-blue-600 flex items-center gap-1 mt-0.5 text-xs">
                     <FaBuilding className="text-ink-subtle text-[10px]" />
                     {getPartyName(selectedVoucher)}
@@ -497,7 +583,8 @@ export const VoucherListPage: React.FC = () => {
               {selectedVoucher.refDoc?.items && selectedVoucher.refDoc.items.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-ink mb-1.5 flex items-center gap-1.5">
-                    <FaReceipt className="text-blue-600 text-[10px]" /> Item Description & Quantities
+                    <FaReceipt className="text-blue-600 text-[10px]" /> Item Description &
+                    Quantities
                   </h3>
                   <div className="border border-line rounded overflow-hidden">
                     <table className="w-full text-left text-xs">
@@ -516,11 +603,16 @@ export const VoucherListPage: React.FC = () => {
                           <tr key={idx} className="hover:bg-card-2">
                             <td className="px-3 py-1.5 font-medium text-ink">{item.description}</td>
                             <td className="px-3 py-1.5 text-center">{item.uom || "-"}</td>
-                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">{item.quantity}</td>
-                            <td className="px-3 py-1.5 text-right font-mono">₹{item.unitPrice.toFixed(2)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
+                              {item.quantity}
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono">
+                              ₹{item.unitPrice.toFixed(2)}
+                            </td>
                             <td className="px-3 py-1.5 text-right">{item.tax || 0}%</td>
                             <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
-                              ₹{item.lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              ₹
+                              {item.lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                             </td>
                           </tr>
                         ))}
@@ -533,7 +625,8 @@ export const VoucherListPage: React.FC = () => {
               {/* Journal Postings */}
               <div>
                 <h3 className="text-xs font-semibold text-ink mb-1.5 flex items-center gap-1.5">
-                  <FaInfoCircle className="text-ink-subtle text-[10px]" /> Journal Postings (Debit / Credit Ledgers)
+                  <FaInfoCircle className="text-ink-subtle text-[10px]" /> Journal Postings (Debit /
+                  Credit Ledgers)
                 </h3>
                 <div className="border border-line rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
@@ -549,10 +642,14 @@ export const VoucherListPage: React.FC = () => {
                       {selectedVoucher.items.map((item, idx) => (
                         <tr key={idx} className="hover:bg-card-2">
                           <td className="px-3 py-1.5 font-medium text-ink">
-                            {item.debitLedger?.name ? `${item.debitLedger.name} (${item.debitLedger.code})` : "-"}
+                            {item.debitLedger?.name
+                              ? `${item.debitLedger.name} (${item.debitLedger.code})`
+                              : "-"}
                           </td>
                           <td className="px-3 py-1.5 font-medium text-ink">
-                            {item.creditLedger?.name ? `${item.creditLedger.name} (${item.creditLedger.code})` : "-"}
+                            {item.creditLedger?.name
+                              ? `${item.creditLedger.name} (${item.creditLedger.code})`
+                              : "-"}
                           </td>
                           <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
                             {Number(item.debitAmount) > 0
@@ -574,7 +671,9 @@ export const VoucherListPage: React.FC = () => {
               {/* Narration */}
               {selectedVoucher.narration && (
                 <div className="bg-card-2 p-2 rounded border border-line">
-                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block mb-0.5">Narration</span>
+                  <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block mb-0.5">
+                    Narration
+                  </span>
                   <p className="text-ink-muted italic text-xs">{selectedVoucher.narration}</p>
                 </div>
               )}

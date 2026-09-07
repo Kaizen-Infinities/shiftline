@@ -5,6 +5,13 @@ import { computeExpenseTax } from "./expense.tax";
 import { periodService } from "../accounts/period.service";
 import { cancellationService } from "../accounts/cancellation.service";
 
+/** Expense claim statuses (P1-10d). */
+const DRAFT = "Draft";
+const PENDING = "Pending";
+const APPROVED = "Approved";
+const REJECTED = "Rejected";
+export const EXPENSE_STATUSES = [DRAFT, PENDING, APPROVED, REJECTED, "Cancelled"] as const;
+
 const TAX_KEYS = [
   "businessPlaceId",
   "vendorGstin",
@@ -54,15 +61,18 @@ class ExpenseService {
       },
     });
 
-    // Post a direct EXPENSE voucher to the correct Cash/Bank ledger
-    try {
-      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-      await voucherPostingService.postExpenseVoucher(newExpense.id, data.paymentMethod);
-    } catch (voucherErr) {
-      logger.error(
-        { err: voucherErr },
-        "[Expense Voucher Posting Error]: Failed to post expense voucher"
-      );
+    // P1-10d: an expense claim reaches the books only once it is approved. A record created
+    // straight as Approved (a paid-and-filed bill) posts its EXPENSE voucher at once.
+    if (newExpense.status === APPROVED) {
+      try {
+        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
+        await voucherPostingService.postExpenseVoucher(newExpense.id, data.paymentMethod);
+      } catch (voucherErr) {
+        logger.error(
+          { err: voucherErr },
+          "[Expense Voucher Posting Error]: Failed to post expense voucher"
+        );
+      }
     }
 
     // Also create a Petty Cash entry for petty cash tracking (record-keeping only, no voucher posting)
@@ -181,6 +191,9 @@ class ExpenseService {
   async updateExpense(id: string, data: any, companyId: string) {
     const expense = await this.getExpenseById(id, companyId);
     if (expense.cancelledAt) throw new ApiError(409, "Cancelled expenses cannot be edited");
+    if (data.status !== undefined && data.status !== expense.status) {
+      throw new ApiError(400, "Use submit, approve or reject to change an expense's status");
+    }
     await periodService.assertPostingAllowed(expense.date);
     if (data.date) await periodService.assertPostingAllowed(new Date(data.date));
 
@@ -235,17 +248,20 @@ class ExpenseService {
     });
 
     // Cancel (reverse) the old EXPENSE voucher and post a fresh one for the updated figures (P1-09).
-    try {
-      const oldVoucher = await prisma.voucher.findFirst({
-        where: { refDocType: "EXPENSE", refDocId: id, status: "POSTED" },
-      });
-      if (oldVoucher) {
-        await cancellationService.cancelVoucher(oldVoucher.id, { reason: "Expense edited" });
+    // Unapproved claims have no voucher yet, so nothing to re-post.
+    if (updatedExpense.status === APPROVED) {
+      try {
+        const oldVoucher = await prisma.voucher.findFirst({
+          where: { refDocType: "EXPENSE", refDocId: id, status: "POSTED" },
+        });
+        if (oldVoucher) {
+          await cancellationService.cancelVoucher(oldVoucher.id, { reason: "Expense edited" });
+        }
+        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
+        await voucherPostingService.postExpenseVoucher(id, updatedExpense.paymentMethod);
+      } catch (voucherErr) {
+        logger.error({ err: voucherErr }, "[Expense Voucher Update Error]:");
       }
-      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-      await voucherPostingService.postExpenseVoucher(id, updatedExpense.paymentMethod);
-    } catch (voucherErr) {
-      logger.error({ err: voucherErr }, "[Expense Voucher Update Error]:");
     }
 
     // Update corresponding petty cash entry if exists
@@ -267,6 +283,78 @@ class ExpenseService {
     }
 
     return updatedExpense;
+  }
+
+  /**
+   * P1-10d approval: Draft → Pending (submit) → Approved (posts the voucher) or Rejected.
+   * Approval is the moment the claim enters the books, so it is gated by the posting date.
+   */
+  async submitExpense(id: string, companyId: string) {
+    const expense = await this.getExpenseById(id, companyId);
+    if (expense.cancelledAt) throw new ApiError(409, "Cancelled expenses cannot be submitted");
+    if (![DRAFT, REJECTED].includes(expense.status)) {
+      throw new ApiError(
+        409,
+        `Only draft or rejected expenses can be submitted (is ${expense.status})`
+      );
+    }
+    return prisma.expense.update({
+      where: { id },
+      data: { status: PENDING, rejectReason: null },
+      include: { supplier: true },
+    });
+  }
+
+  async approveExpense(
+    id: string,
+    companyId: string,
+    actor: { userId?: string; isSuperAdmin?: boolean }
+  ) {
+    const expense = await this.getExpenseById(id, companyId);
+    if (expense.cancelledAt) throw new ApiError(409, "Cancelled expenses cannot be approved");
+    if (![DRAFT, PENDING].includes(expense.status)) {
+      throw new ApiError(409, `Only pending expenses can be approved (is ${expense.status})`);
+    }
+    if (actor.userId && expense.createdBy === actor.userId && !actor.isSuperAdmin) {
+      throw new ApiError(403, "An expense cannot be approved by the person who claimed it");
+    }
+    await periodService.assertPostingAllowed(expense.date, actor);
+    const approved = await prisma.expense.update({
+      where: { id },
+      data: {
+        status: APPROVED,
+        approvedBy: actor.userId ?? null,
+        approvedAt: new Date(),
+        rejectReason: null,
+      },
+      include: { supplier: true },
+    });
+    const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
+    await voucherPostingService.postExpenseVoucher(id, approved.paymentMethod);
+    return approved;
+  }
+
+  async rejectExpense(
+    id: string,
+    companyId: string,
+    actor: { userId?: string; isSuperAdmin?: boolean },
+    reason: string
+  ) {
+    const expense = await this.getExpenseById(id, companyId);
+    if (expense.cancelledAt) throw new ApiError(409, "Cancelled expenses cannot be rejected");
+    if (![DRAFT, PENDING].includes(expense.status)) {
+      throw new ApiError(409, `Only pending expenses can be rejected (is ${expense.status})`);
+    }
+    return prisma.expense.update({
+      where: { id },
+      data: {
+        status: REJECTED,
+        approvedBy: actor.userId ?? null,
+        approvedAt: new Date(),
+        rejectReason: reason,
+      },
+      include: { supplier: true },
+    });
   }
 
   /**

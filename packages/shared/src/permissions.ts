@@ -161,7 +161,7 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   },
   {
     module: "expenses",
-    actions: ["view", "create", "edit", "delete", "export"],
+    actions: ["view", "create", "edit", "delete", "export", "approve"],
     description: "Expenses",
   },
   {

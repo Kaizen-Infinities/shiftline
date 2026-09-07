@@ -351,6 +351,12 @@ export const sidebarItems: SidebarItem[] = [
           { title: "List", path: "/invoice", permission: "invoice.view", badge: "Ctrl+G" },
         ],
       },
+      // ── Expenses ──
+      {
+        title: "Expenses",
+        permission: "expenses.view",
+        children: [{ title: "List & Claims", path: "/expenses", permission: "expenses.view" }],
+      },
       // ── Sales Return (Cr. Note) ──
       {
         title: "Sales Return (Cr. Note)",
@@ -511,6 +517,7 @@ export const sidebarItems: SidebarItem[] = [
       "/quatation-order",
       "/sales-invoices",
       "/sales-returns",
+      "/expenses",
       "/purchase-orders",
       "/invoice",
       "/purchase-returns",

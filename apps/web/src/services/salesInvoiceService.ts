@@ -26,11 +26,21 @@ export const salesInvoiceService = {
     return response.data?.data || response.data;
   },
 
+  /** Books are never deleted: cancel with a reason (P1-09/P1-10d). */
+  cancel: async (id: string, reason: string): Promise<void> => {
+    await apiClient.post(`${getBaseUrl()}/${id}/cancel`, { reason });
+  },
+
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`${getBaseUrl()}/${id}`);
   },
 
-  emailInvoice: async (id: string, recipientEmail: string, subject: string, message: string): Promise<any> => {
+  emailInvoice: async (
+    id: string,
+    recipientEmail: string,
+    subject: string,
+    message: string
+  ): Promise<any> => {
     const response = await apiClient.post(`${getBaseUrl()}/${id}/email-invoice`, {
       recipientEmail,
       subject,
