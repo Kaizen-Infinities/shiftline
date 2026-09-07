@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
 import { asDemoTenant, createCustomer, createProduct } from "../factories";
+import { resetPeriodControl } from "../helpers/books";
 
 /**
  * Period control (P1-09a): a closed period, the company freeze date and a role's backdating
@@ -15,6 +16,9 @@ const invoiceBody = (customerId: string, productId: bigint, invoiceDate: string)
 });
 
 describe("period control", () => {
+  beforeAll(resetPeriodControl);
+  afterAll(resetPeriodControl);
+
   it("refuses documents and vouchers dated inside a closed period, and allows them again after reopening", async () => {
     const owner = await authed("demo.owner");
     const customer = await createCustomer({ stateCode: "33" });

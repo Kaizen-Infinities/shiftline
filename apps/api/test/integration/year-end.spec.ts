@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
 import { asDemoTenant } from "../factories";
+import { resetPeriodControl } from "../helpers/books";
 
 /**
  * Year-end closing (P1-09e): the closing journal moves the year's result to Retained Earnings,
@@ -55,6 +56,10 @@ const tbRow = async (auth: Auth, asOnDate: string, code: string) => {
 };
 
 describe("year-end closing", () => {
+  // Closing a year freezes the books and closes periods; other specs must not inherit that.
+  beforeAll(resetPeriodControl);
+  afterAll(resetPeriodControl);
+
   it("refuses to approve a preparation the books have moved past, then closes after re-preparing", async () => {
     const owner = await authed("demo.owner");
     const client = await api();
