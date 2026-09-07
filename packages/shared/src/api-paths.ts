@@ -165,6 +165,11 @@ export const API_PATHS = {
   transporters: {
     base: "/transporters",
   },
+  gstReturns: {
+    base: "/gst-returns",
+    gstins: "/gst-returns/gstins",
+    gstr1: "/gst-returns/gstr1",
+  },
   status: "/status",
   notifications: {
     base: "/notifications",

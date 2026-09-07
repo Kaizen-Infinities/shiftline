@@ -78,6 +78,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "edit", "delete"],
     description: "Transporter master",
   },
+  {
+    module: "gst-returns",
+    actions: ["view", "prepare", "file"],
+    description: "GST returns from the books (GSTR-1, 3B, 2B, IMS, GSTR-9)",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {

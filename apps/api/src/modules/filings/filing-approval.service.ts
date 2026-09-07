@@ -76,7 +76,8 @@ const placeId = (v: BusinessPlaceRef): bigint | null =>
   v === null || v === undefined ? null : BigInt(v);
 
 class FilingApprovalService {
-  private async find(filingType: string, periodKey: string, businessPlaceId?: BusinessPlaceRef) {
+  /** The gate row of a filing period, if registered. */
+  async find(filingType: string, periodKey: string, businessPlaceId?: BusinessPlaceRef) {
     return prisma.filingApproval.findFirst({
       where: { filingType, periodKey, businessPlaceId: placeId(businessPlaceId) },
     });

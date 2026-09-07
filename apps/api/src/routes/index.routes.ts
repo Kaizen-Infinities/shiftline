@@ -73,6 +73,7 @@ import insightsRoutes from "../modules/insights/insights.routes";
 import eInvoiceRoutes from "../modules/e-invoice/e-invoice.routes";
 import ewayBillRoutes from "../modules/eway-bill/eway-bill.routes";
 import transporterRoutes from "../modules/eway-bill/transporter.routes";
+import gstReturnsRoutes from "../modules/gst-returns/gst-returns.routes";
 import gstRoutes from "../modules/gst/gst.routes";
 import documentsRoutes from "../modules/documents/documents.routes";
 import auditTrailRoutes from "../modules/audit-trail/audit-trail.routes";
@@ -159,6 +160,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/e-invoice", router: eInvoiceRoutes },
   { path: "/eway-bills", router: ewayBillRoutes },
   { path: "/transporters", router: transporterRoutes },
+  { path: "/gst-returns", router: gstReturnsRoutes },
   { path: "/gst", router: gstRoutes },
   { path: "/documents", router: documentsRoutes },
   { path: "/audit-trail", router: auditTrailRoutes },
