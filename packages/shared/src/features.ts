@@ -34,6 +34,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "email-config",
       "invoice-settings",
       "retention",
+      "account-export",
       "employees",
       "shifts",
       "customers",

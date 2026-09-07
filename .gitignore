@@ -18,6 +18,8 @@ coverage/
 # runtime artefacts
 uploads/
 backups/
+exports/
+archives/
 logs/
 *.log
 test-results/
@@ -35,4 +37,3 @@ Thumbs.db
 CLAUDE.local.md
 
 # retention archives written by the worker
-archives/

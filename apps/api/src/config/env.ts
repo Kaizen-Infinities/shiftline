@@ -49,6 +49,8 @@ const envSchema = z
       .default("pgboss"),
     /** Local directory for retention archives (NDJSON.gz per sweep). */
     ARCHIVE_DIR: z.string().min(1).default("./archives"),
+    /** Full account exports (P1-03), one folder per tenant, files live 24 hours. */
+    EXPORT_DIR: z.string().min(1).default("./exports"),
     /** Daily pg_dump destination and rotation (MCA Rule 3(5)). */
     BACKUP_DIR: z.string().min(1).default("./backups"),
     BACKUP_KEEP_DAYS: z.coerce.number().int().min(1).max(3650).default(30),

@@ -197,6 +197,7 @@ export const sidebarItems: SidebarItem[] = [
           { title: "Data Imports", path: "/settings/imports", permission: "company-settings.view" },
           { title: "GST & HSN", path: "/settings/gst", permission: "gst_tax.view" },
           { title: "Field Devices", path: "/settings/devices", permission: "mobile-app.manage" },
+          { title: "Account Export", path: "/settings/export", permission: "account-export.view" },
         ],
       },
       // ── 4. Users & Roles ──
@@ -237,6 +238,7 @@ export const sidebarItems: SidebarItem[] = [
       "/settings/imports",
       "/settings/gst",
       "/settings/devices",
+      "/settings/export",
       "/roles",
       "/role-permissions",
       "/departments",

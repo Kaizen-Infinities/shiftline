@@ -3,6 +3,11 @@
 exports[`route inventory > lists every mounted route (snapshot doubles as documentation) 1`] = `
 [
   "GET /api",
+  "GET /api/account-export",
+  "POST /api/account-export",
+  "GET /api/account-export/:id",
+  "GET /api/account-export/:id/download",
+  "GET /api/account-export/:id/file",
   "GET /api/accounts/balance-sheet",
   "GET /api/accounts/bank-accounts",
   "GET /api/accounts/bank-book",

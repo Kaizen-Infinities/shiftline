@@ -187,6 +187,34 @@ model User {
 
 /// A platform admin acting as a tenant user for a bounded window (P1-02). Platform data:
 /// not tenant-scoped, never deleted; audit rows written meanwhile carry `impersonated_by`.
+/// Full account export (P1-03): one archive per request, downloadable for 24 hours.
+model AccountExport {
+  id               String    @id @default(uuid()) @db.Uuid
+  companyId        String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// QUEUED | RUNNING | READY | FAILED | EXPIRED
+  status           String    @default("QUEUED") @db.VarChar(12)
+  requestedBy      String?   @map("requested_by") @db.VarChar(36)
+  requestedAt      DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  startedAt        DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  expiresAt        DateTime? @map("expires_at") @db.Timestamptz(6)
+  fileName         String?   @map("file_name") @db.VarChar(160)
+  sizeBytes        BigInt?   @map("size_bytes")
+  sha256           String?   @db.VarChar(64)
+  tableCounts      Json?     @map("table_counts")
+  attachmentCount  Int       @default(0) @map("attachment_count")
+  /// sha256 of the signed-link token; cleared on expiry.
+  tokenHash        String?   @map("token_hash") @db.VarChar(64)
+  downloads        Int       @default(0)
+  lastDownloadedAt DateTime? @map("last_downloaded_at") @db.Timestamptz(6)
+  error            String?   @db.VarChar(500)
+
+  company Company @relation("CompanyAccountExport", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, requestedAt])
+  @@map("account_exports")
+}
+
 model ImpersonationSession {
   id             String    @id @default(uuid()) @db.Uuid
   adminId        BigInt    @map("admin_id")
@@ -598,6 +626,7 @@ model Company {
   featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
   hsnCodes                    HsnCode[]                    @relation("CompanyHsnCode")
   ledgerGroups                LedgerGroup[]                @relation("CompanyLedgerGroup")
+  accountExports       AccountExport[]       @relation("CompanyAccountExport")
   yearEndClosings             YearEndClosing[]             @relation("CompanyYearEndClosing")
   gstRates                    GstRate[]                    @relation("CompanyGstRate")
   /// Books are frozen on and before this date (set after filing); postings are refused (P1-09).

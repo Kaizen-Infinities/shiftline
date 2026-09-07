@@ -144,6 +144,9 @@ export const API_PATHS = {
     cashFlow: "/accounts/cash-flow",
     statements: "/accounts/statements",
   },
+  accountExport: {
+    base: "/account-export",
+  },
   notifications: {
     base: "/notifications",
   },

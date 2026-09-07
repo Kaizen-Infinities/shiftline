@@ -6,6 +6,7 @@ import { withRequestContext } from "../lib/request-context";
 import { captureError } from "../lib/sentry";
 import { eodSnapshotFanoutHandler, eodSnapshotHandler } from "./eod-snapshot.job";
 import { backupHandler } from "./backup.job";
+import { accountExportHandler } from "./account-export.job";
 import { heartbeatHandler } from "./heartbeat.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 
@@ -51,6 +52,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.RETENTION_SWEEP, work, each(retentionSweepHandler));
   await boss.work(QUEUES.HEARTBEAT, work, each(heartbeatHandler));
   await boss.work(QUEUES.BACKUP_DAILY, work, each(backupHandler));
+  await boss.work(QUEUES.ACCOUNT_EXPORT, work, each(accountExportHandler));
 };
 
 /**

@@ -109,6 +109,7 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "WeeklyMachineProgram",
   "WhatsappConfig",
   "YearEndClosing",
+  "AccountExport",
 ]);
 
 describe("cross-tenant leak suite", () => {

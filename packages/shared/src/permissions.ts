@@ -52,6 +52,7 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   { module: "email-config", actions: ["view", "edit"], description: "Email Config" },
   { module: "invoice-settings", actions: ["view", "edit"], description: "Invoice Settings" },
   { module: "retention", actions: ["view", "edit"], description: "Data Retention" },
+  { module: "account-export", actions: ["view", "create"], description: "Account Export" },
   {
     module: "mobile-app",
     actions: ["view", "create", "manage"],

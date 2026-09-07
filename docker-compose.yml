@@ -42,6 +42,7 @@ services:
       FRONTEND_URL: http://localhost:5173
       BACKEND_URL: http://localhost:5000
       EMBED_WORKER: "false"
+      EXPORT_DIR: /app/exports
     env_file:
       - docker/api.env
       - path: apps/api/.env
@@ -54,6 +55,7 @@ services:
       # Only the sources: the built packages/shared/dist stays in the image (it is
       # gitignored on the host, so mounting ./packages would hide it).
       - ./packages/shared/src:/app/packages/shared/src
+      - ./exports:/app/exports
     healthcheck:
       test:
         [
@@ -80,6 +82,7 @@ services:
       DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@postgres:5432/shiftline
       ARCHIVE_DIR: /app/archives
       BACKUP_DIR: /app/backups
+      EXPORT_DIR: /app/exports
     env_file:
       - docker/api.env
       - path: apps/api/.env
@@ -92,6 +95,7 @@ services:
       - ./packages/shared/src:/app/packages/shared/src
       - ./archives:/app/archives
       - ./backups:/app/backups
+      - ./exports:/app/exports
     # Waits for the api's /ready (migrations applied, seed done) so pg-boss and the job
     # handlers never see a half-initialised database.
     depends_on:

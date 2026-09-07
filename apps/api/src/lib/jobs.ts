@@ -28,12 +28,18 @@ export const QUEUES = {
   HEARTBEAT: "platform.heartbeat",
   /** Daily pg_dump (01:30 IST, before the monthly retention sweep). */
   BACKUP_DAILY: "platform.backup.daily",
+  /** Per-tenant full account export (P1-03); one at a time per tenant. */
+  ACCOUNT_EXPORT: "platform.account-export",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
 /** Queues whose jobs carry a companyId and de-duplicate per tenant. */
-const TENANT_QUEUES: ReadonlySet<string> = new Set([QUEUES.EOD_SNAPSHOT, QUEUES.RETENTION_SWEEP]);
+const TENANT_QUEUES: ReadonlySet<string> = new Set([
+  QUEUES.EOD_SNAPSHOT,
+  QUEUES.RETENTION_SWEEP,
+  QUEUES.ACCOUNT_EXPORT,
+]);
 
 let boss: PgBoss | undefined;
 

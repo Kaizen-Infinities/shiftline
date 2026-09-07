@@ -220,6 +220,7 @@ const TenantsPage = lazy(() => import("../modules/platform/pages/TenantsPage"));
 const TenantDetailPage = lazy(() => import("../modules/platform/pages/TenantDetailPage"));
 const PlansPage = lazy(() => import("../modules/platform/pages/PlansPage"));
 const DevicesPage = lazy(() => import("../modules/settings/pages/DevicesPage"));
+const AccountExportPage = lazy(() => import("../modules/settings/pages/AccountExportPage"));
 const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
 
 // ===========================================================================
@@ -629,6 +630,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="mobile-app.manage" />}>
                 <Route path="/settings/devices" element={<DevicesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="account-export.view" />}>
+                <Route path="/settings/export" element={<AccountExportPage />} />
               </Route>
             </Route>
             {/* ================= end of PageContainer group ==================== */}
