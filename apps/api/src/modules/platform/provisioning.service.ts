@@ -108,6 +108,50 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["mobile-app"], ["view", "create"]),
     ],
   },
+  {
+    // P1-09d: the statutory auditor reads everything about the books and changes nothing.
+    code: "AUDITOR",
+    name: "Auditor",
+    description: "Read-only access to books, documents, reports and the audit trail",
+    keys: [
+      ...keysFor(
+        [
+          "accounts",
+          "payable",
+          "receivable",
+          "vouchers",
+          "petty-cash",
+          "chart-of-accounts",
+          "sales-invoices",
+          "sales-returns",
+          "purchaseOrders",
+          "invoice",
+          "purchase-returns",
+          "expenses",
+          "customers",
+          "suppliers",
+          "products",
+          "raw_materials",
+          "raw_material_stocks",
+          "finished_goods_stocks",
+          "stock-adjustments",
+          "sales-reports",
+          "purchase-reports",
+          "inventory-reports",
+          "production-reports",
+          "dash-overview",
+          "invoice-settings",
+          "gst_tax",
+          "company-settings",
+          "payroll",
+          "payroll-run",
+          "profile",
+        ],
+        ["view"]
+      ),
+      ...keysFor(["audit-reports"], ["view", "export"]),
+    ],
+  },
 ];
 
 /** Document types that get a numbering series per financial year from day one. */

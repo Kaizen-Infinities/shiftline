@@ -67,10 +67,32 @@ a screen; ledgers sit in a Schedule III group tree; and a financial year can be 
   list shows the group path.
 - Migration `20260907080000_ledger_groups`; `ledger-groups.spec.ts` (3).
 
-## Part D — audit trail viewer and auditor role (planned)
+## Part D — audit trail viewer and auditor role
 
-`GET /api/audit-trail` (entity, id, user, action, date range; paginated) behind `audit-reports.view`;
-`/reports/audit` page with before/after diff; `AUDITOR` default role with view-only keys.
+The trigger-written `audit_log` (P0-13) gets a reader. `modules/audit-trail`:
+
+- `GET /api/audit-trail` behind `audit-reports.view`: filters `entity` (table name), `entityId`,
+  `action` (CREATE/UPDATE/DELETE), `userId`, `requestId`, `from`/`to` (YYYY-MM-DD, inclusive);
+  `page`/`pageSize` (max 200), newest first. Each entry carries the entity label, the actor
+  (user, platform admin or system, with `impersonatedBy`), the request id, `changes` (field,
+  before, after) for updates, and the redacted before/after rows.
+- `GET /api/audit-trail/filters`: the audited entities (from `AUDITED_MODELS`, now in
+  `src/lib/audited-models.ts`) and the tenant's users.
+- `GET /api/audit-trail/export` behind `audit-reports.export`: CSV of the same filter, capped at
+  10,000 rows (`X-Truncated` header when cut).
+- Secrets: the trigger drops password hashes, session/refresh tokens, MFA secrets and invitation
+  token hashes (migration `20260907090000_audit_trail_redaction`); the reader additionally hides
+  any key that looks like a password, secret, token or hash.
+- Tenancy: rows are scoped by the Prisma extension and RLS; the reader never writes.
+- Web `/reports/audit` ("Audit Trail" under Display → MIS Reports): filter bar, table, expandable
+  before/after diff, CSV export, deep-linkable through the query string (`?entity=&entityId=`).
+- Default role `AUDITOR` ("Auditor"): view keys on books, documents, stock, reports, GST, payroll
+  and settings plus `audit-reports.view/export`; nothing that creates, edits or deletes. The demo
+  seed adds `demo.auditor`.
+
+Tests: actor and diff on a voucher's posting and cancellation; user/action/date filters and
+pagination; 403 without the permission, auditor reads and cannot post; another tenant's rows never
+appear; CSV export.
 
 ## Part E — year-end closing (planned)
 

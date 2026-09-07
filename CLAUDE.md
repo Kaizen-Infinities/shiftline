@@ -46,7 +46,7 @@ input leaks, secrets, error text → human review and merge → hand-off note.
   in the API. Every request has a request id (`lib/request-context.ts`) that appears in logs,
   error bodies and audit rows; jobs get a synthetic one.
 - Books, documents, payroll and master tables are audited by database trigger
-  (`scripts/gen-audit-migration.ts`, `AUDITED_MODELS`). Add new models of that kind to the list
+  (`AUDITED_MODELS` in `src/lib/audited-models.ts`, migration from `scripts/gen-audit-migration.ts`). Add new models of that kind to the list
   and generate a new migration; never write to `audit_log` by hand and never delete from it.
 - Auth: 15-minute access tokens in memory on the client; the httpOnly refresh cookie rotates on
   every use (`modules/auth/refresh-token.ts`). New clients call `POST /api/auth/refresh` on 401.

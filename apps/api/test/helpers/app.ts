@@ -19,7 +19,7 @@ export const ADMIN = { email: "admin@test.shiftline.local", password: "TestAdmin
 
 const tokenCache = new Map<string, string>();
 
-/** Logs in a seeded user (demo.owner, demo.accounts, demo.stores, demo.production, demo.sales) and returns a bearer token. */
+/** Logs in a seeded user (demo.owner, demo.accounts, demo.stores, demo.production, demo.sales, demo.auditor) and returns a bearer token. */
 export const loginAs = async (username: string, password = SEED_PASSWORD): Promise<string> => {
   const key = `${username}:${password}`;
   const hit = tokenCache.get(key);

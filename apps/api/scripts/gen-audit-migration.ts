@@ -12,51 +12,9 @@
  */
 import { Prisma } from "@prisma/client";
 
-/** Books of account, tax documents, payroll and the masters they depend on. */
-export const AUDITED_MODELS = [
-  // books
-  "Voucher",
-  "JournalItem",
-  "AccountLedger",
-  "LedgerGroup",
-  "AccountingPeriod",
-  "BankAccount",
-  "OpeningBalance",
-  // documents
-  "SalesInvoice",
-  "SalesInvoiceItem",
-  "SalesInvoicePayment",
-  "GrnInvoice",
-  "GrnInvoiceItem",
-  "SalesReturn",
-  "PurchaseReturn",
-  "Expense",
-  "PettyCashEntry",
-  "StockAdjustment",
-  // payroll
-  "PayrollRun",
-  "Payslip",
-  "EmployeePayrollConfig",
-  // masters
-  "Company",
-  "BusinessPlace",
-  "InvoiceSetting",
-  "Customer",
-  "Supplier",
-  "Product",
-  "RawMaterial",
-  "User",
-  "Role",
-  "RolePermission",
-  "RetentionPolicy",
-  "MobileCollection",
-  "Invitation",
-  "Plan",
-  "Subscription",
-  "FeatureFlagOverride",
-  "HsnCode",
-  "GstRate",
-];
+import { AUDITED_MODELS } from "../src/lib/audited-models";
+
+export { AUDITED_MODELS };
 
 const models = Prisma.dmmf.datamodel.models;
 const tables = AUDITED_MODELS.filter((name) => {
@@ -111,10 +69,10 @@ out.push(`    v_company := v_id::uuid;`);
 out.push(`  END IF;`);
 out.push(`  -- Secrets never enter the trail.`);
 out.push(
-  `  v_old := v_old - 'passwordHash' - 'password_hash' - 'sessionToken' - 'accessToken' - 'refreshToken';`
+  `  v_old := v_old - 'passwordHash' - 'password_hash' - 'sessionToken' - 'accessToken' - 'refreshToken' - 'mfaSecret' - 'mfa_secret' - 'tokenHash' - 'token_hash' - 'prev_token_hash';`
 );
 out.push(
-  `  v_new := v_new - 'passwordHash' - 'password_hash' - 'sessionToken' - 'accessToken' - 'refreshToken';`
+  `  v_new := v_new - 'passwordHash' - 'password_hash' - 'sessionToken' - 'accessToken' - 'refreshToken' - 'mfaSecret' - 'mfa_secret' - 'tokenHash' - 'token_hash' - 'prev_token_hash';`
 );
 out.push(
   `  INSERT INTO audit_log (company_id, "entityName", "entityId", action, "oldValues", "newValues",`

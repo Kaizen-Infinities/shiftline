@@ -29,7 +29,7 @@ async function main() {
     log,
   });
   log(
-    "users demo.owner, demo.accounts, demo.stores, demo.production, demo.sales (password: SEED_PASSWORD)"
+    "users demo.owner, demo.accounts, demo.stores, demo.production, demo.sales, demo.auditor (password: SEED_PASSWORD)"
   );
   log("done");
 }

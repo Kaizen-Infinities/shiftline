@@ -646,7 +646,7 @@ export const sidebarItems: SidebarItem[] = [
             path: "/reports/production",
             permission: "production-reports.view",
           },
-          { title: "Audit Reports", path: "/reports/audit", permission: "audit-reports.view" },
+          { title: "Audit Trail", path: "/reports/audit", permission: "audit-reports.view" },
         ],
       },
     ],

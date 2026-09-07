@@ -212,6 +212,7 @@ const InventoryReportsCenter = lazy(
 const ProductionReportsCenter = lazy(
   () => import("../modules/reports/pages/ProductionReportsCenter")
 );
+const AuditTrailPage = lazy(() => import("../modules/reports/pages/AuditTrailPage"));
 
 // ===========================================================================
 // SALES
@@ -524,6 +525,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="production-reports.view" />}>
                 <Route path="/reports/production" element={<ProductionReportsCenter />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="audit-reports.view" />}>
+                <Route path="/reports/audit" element={<AuditTrailPage />} />
               </Route>
 
               {/* ---------- Sales ---------- */}

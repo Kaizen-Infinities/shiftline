@@ -126,6 +126,11 @@ export const API_PATHS = {
     base: "/documents",
     nextNumber: "/documents/next-number",
   },
+  auditTrail: {
+    base: "/audit-trail",
+    filters: "/audit-trail/filters",
+    export: "/audit-trail/export",
+  },
   notifications: {
     base: "/notifications",
   },

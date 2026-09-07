@@ -85,6 +85,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       { key: "stores", fullName: "Storekeeper", role: "STORES" },
       { key: "production", fullName: "Supervisor", role: "PRODUCTION" },
       { key: "sales", fullName: "Sales Executive", role: "SALES_EXEC" },
+      { key: "auditor", fullName: "Auditor", role: "AUDITOR" },
     ]) {
       const username = `${opts.slug}.${u.key}`;
       const user = await withoutTenant(() =>

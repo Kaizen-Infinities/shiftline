@@ -53,7 +53,7 @@ describe("tenant provisioning and invitations", () => {
     const prisma = await getPrisma();
     const { runAsTenant } = await import("../../src/lib/tenant-context");
     await runAsTenant(companyId, async () => {
-      expect(await prisma.role.count()).toBe(5);
+      expect(await prisma.role.count()).toBe(6);
       expect(
         await prisma.accountLedger.count({ where: { code: { in: ["CASH-001", "BANK-001"] } } })
       ).toBe(2);
@@ -83,7 +83,7 @@ describe("tenant provisioning and invitations", () => {
     // The re-run replaced the pending owner invitation; use the live link from here on.
     ownerAcceptUrl = again.body.data.ownerInvitation.acceptUrl;
     await runAsTenant(companyId, async () => {
-      expect(await prisma.role.count()).toBe(5);
+      expect(await prisma.role.count()).toBe(6);
       expect(await prisma.accountingPeriod.count()).toBe(1);
       // The earlier pending invitation was replaced, not duplicated.
       expect(await prisma.invitation.count({ where: { revokedAt: null } })).toBe(1);

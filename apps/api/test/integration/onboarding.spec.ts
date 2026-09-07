@@ -71,6 +71,7 @@ describe("onboarding wizard", () => {
     ]);
     expect(state.body.data.roles.map((r: { code: string }) => r.code).sort()).toEqual([
       "ACCOUNTS",
+      "AUDITOR",
       "OWNER",
       "PRODUCTION",
       "SALES_EXEC",

@@ -67,6 +67,7 @@ import entitlementsRoutes from "../modules/entitlements/entitlements.routes";
 import platformPlansRoutes from "../modules/platform/plans.routes";
 import gstRoutes from "../modules/gst/gst.routes";
 import documentsRoutes from "../modules/documents/documents.routes";
+import auditTrailRoutes from "../modules/audit-trail/audit-trail.routes";
 
 const router = Router();
 
@@ -143,6 +144,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/platform/plans", router: platformPlansRoutes },
   { path: "/gst", router: gstRoutes },
   { path: "/documents", router: documentsRoutes },
+  { path: "/audit-trail", router: auditTrailRoutes },
 ];
 
 for (const { path, router: moduleRouter } of API_MOUNTS) {
