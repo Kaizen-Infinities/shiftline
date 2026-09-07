@@ -87,8 +87,11 @@ test("a new tenant's owner completes onboarding and reaches the dashboard", asyn
   await page.getByLabel("PIN code").fill("600001");
   await page.getByRole("button", { name: "Save and continue" }).click();
 
-  // 2. GST: a check-digit-valid placeholder GSTIN fills the head office state.
+  // 2. GST: a tenant provisioned without a GSTIN starts as "Not registered"; picking
+  //    "Regular" reveals the GSTIN box, and a check-digit-valid placeholder fills the head
+  //    office state.
   await expect(page.getByRole("heading", { name: "GST and places of business" })).toBeVisible();
+  await page.getByRole("radio", { name: /^Regular/ }).check();
   await page.getByRole("textbox", { name: /^GSTIN/ }).fill("33AAAAA0000A1Z9");
   await expect(page.getByText(/Valid · Tamil Nadu/)).toBeVisible();
   await page.getByRole("button", { name: "+ Add a place" }).click();

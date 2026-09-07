@@ -1,119 +1,142 @@
 import { z } from "zod";
 
+const blankToUndefined = (val: unknown) =>
+  val === "" || val === null || val === "null" || val === "undefined" ? undefined : val;
+
 const ItemSchema = z.object({
-    productId: z.string().min(1, "Product ID is required"),
-    description: z.string().min(1, "Description is required"),
-    uom: z.string().min(1, "UOM is required"),
-    quantity: z.coerce.number().min(0.001, "Qty must be > 0"),
-    unitPrice: z.coerce.number().min(0, "Price must be ≥ 0"),
-    discountAmount: z.coerce.number().min(0).default(0).optional(),
-    tax: z.coerce.number().min(0).max(100).optional(),
-    taxableAmount: z.coerce.number().min(0).optional(),
-    cgstRate: z.coerce.number().min(0).optional(),
-    cgstAmount: z.coerce.number().min(0).optional(),
-    sgstRate: z.coerce.number().min(0).optional(),
-    sgstAmount: z.coerce.number().min(0).optional(),
-    igstRate: z.coerce.number().min(0).optional(),
-    igstAmount: z.coerce.number().min(0).optional(),
+  productId: z.string().min(1, "Product ID is required"),
+  description: z.string().min(1, "Description is required"),
+  uom: z.string().min(1, "UOM is required"),
+  quantity: z.coerce.number().min(0.001, "Qty must be > 0"),
+  unitPrice: z.coerce.number().min(0, "Price must be ≥ 0"),
+  discountAmount: z.coerce.number().min(0).default(0).optional(),
+  /** GST rate for the line; when absent the material's own rate or its HSN default applies. */
+  tax: z.preprocess(blankToUndefined, z.coerce.number().min(0).max(100).optional()),
+  hsnCode: z.preprocess(
+    blankToUndefined,
+    z
+      .string()
+      .regex(/^\d{4,8}$/, "HSN must be 4–8 digits")
+      .optional()
+  ),
+  cessRate: z.preprocess(blankToUndefined, z.coerce.number().min(0).max(300).optional()),
+  taxableAmount: z.coerce.number().min(0).optional(),
+  cgstRate: z.coerce.number().min(0).optional(),
+  cgstAmount: z.coerce.number().min(0).optional(),
+  sgstRate: z.coerce.number().min(0).optional(),
+  sgstAmount: z.coerce.number().min(0).optional(),
+  igstRate: z.coerce.number().min(0).optional(),
+  igstAmount: z.coerce.number().min(0).optional(),
 });
 
 const PaymentSchema = z.object({
-    amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
-    paymentMethod: z.string().min(1, "Payment method is required"),
-    referenceNumber: z.string().optional().nullable(),
-    paymentDate: z.string().refine((val) => {
-        const d = new Date(val);
-        return !isNaN(d.getTime()) && d <= new Date(new Date().setHours(23, 59, 59, 999));
-    }, "Payment date must be a valid date and not in the future"),
+  amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
+  paymentMethod: z.string().min(1, "Payment method is required"),
+  referenceNumber: z.string().optional().nullable(),
+  paymentDate: z.string().refine((val) => {
+    const d = new Date(val);
+    return !isNaN(d.getTime()) && d <= new Date(new Date().setHours(23, 59, 59, 999));
+  }, "Payment date must be a valid date and not in the future"),
 });
 
 export const CreateGrnInvoiceSchema = z.object({
-    poId: z.preprocess(
-        (val) => (val === "" || val === "null" || val === "undefined" ? null : val),
-        z.string().uuid("Invalid PO ID").optional().nullable()
-    ),
-    invoiceNo: z.string().min(1, "Invoice number is required"),
-    grnDate: z.string().min(1, "GRN Date is required"),
-    supplierId: z.coerce.number().min(1, "Supplier is required"),
-    storeId: z.string().min(1, "Store is required"),
-    billingAddressLine1: z.string().min(1, "Billing Address Line 1 is required"),
-    billingCity: z.string().min(1, "Billing City is required"),
-    billingState: z.string().min(1, "Billing State is required"),
-    billingPincode: z.string().min(1, "Billing Pincode is required"),
-    billingCountry: z.string().optional().nullable(),
+  poId: z.preprocess(
+    (val) => (val === "" || val === "null" || val === "undefined" ? null : val),
+    z.string().uuid("Invalid PO ID").optional().nullable()
+  ),
+  invoiceNo: z.string().min(1, "Invoice number is required"),
+  grnDate: z.string().min(1, "GRN Date is required"),
+  supplierInvoiceDate: z.preprocess(blankToUndefined, z.string().optional()),
+  supplierId: z.coerce.number().min(1, "Supplier is required"),
+  storeId: z.string().min(1, "Store is required"),
+  /** Receiving branch; defaults to the head office. */
+  businessPlaceId: z.preprocess(blankToUndefined, z.union([z.string(), z.number()]).optional()),
+  /** Tax is payable by us under reverse charge (unregistered supplier, notified goods or services). */
+  reverseCharge: z.preprocess((val) => val === true || val === "true", z.boolean().optional()),
+  billingAddressLine1: z.string().min(1, "Billing Address Line 1 is required"),
+  billingCity: z.string().min(1, "Billing City is required"),
+  billingState: z.string().min(1, "Billing State is required"),
+  billingPincode: z.string().min(1, "Billing Pincode is required"),
+  billingCountry: z.string().optional().nullable(),
 
-    shippingAddressLine1: z.string().min(1, "Shipping Address Line 1 is required"),
-    shippingCity: z.string().min(1, "Shipping City is required"),
-    shippingState: z.string().min(1, "Shipping State is required"),
-    shippingPincode: z.string().min(1, "Shipping Pincode is required"),
-    shippingCountry: z.string().optional().nullable(),
-    sameAsBilling: z.preprocess(
-        (val) => val === "true" || val === true,
-        z.boolean().optional()
-    ),
-    updateStock: z.preprocess(
-        (val) => val === "true" || val === true,
-        z.boolean().optional()
-    ),
+  shippingAddressLine1: z.string().min(1, "Shipping Address Line 1 is required"),
+  shippingCity: z.string().min(1, "Shipping City is required"),
+  shippingState: z.string().min(1, "Shipping State is required"),
+  shippingPincode: z.string().min(1, "Shipping Pincode is required"),
+  shippingCountry: z.string().optional().nullable(),
+  sameAsBilling: z.preprocess((val) => val === "true" || val === true, z.boolean().optional()),
+  updateStock: z.preprocess((val) => val === "true" || val === true, z.boolean().optional()),
 
-    receiveDate: z.preprocess((val) => (val === "" || val === "null" ? null : val), z.string().optional().nullable()),
-    billDueDate: z.preprocess((val) => (val === "" || val === "null" ? null : val), z.string().optional().nullable()),
-    challanNo: z.string().optional().nullable(),
-    transport: z.string().optional().nullable(),
-    eWayBill: z.string().optional().nullable(),
-    invoiceImage: z.string().optional().nullable(),
-    remarks: z.string().optional().nullable(),
+  receiveDate: z.preprocess(
+    (val) => (val === "" || val === "null" ? null : val),
+    z.string().optional().nullable()
+  ),
+  billDueDate: z.preprocess(
+    (val) => (val === "" || val === "null" ? null : val),
+    z.string().optional().nullable()
+  ),
+  challanNo: z.string().optional().nullable(),
+  transport: z.string().optional().nullable(),
+  eWayBill: z.string().optional().nullable(),
+  invoiceImage: z.string().optional().nullable(),
+  remarks: z.string().optional().nullable(),
 
-    discountType: z.enum(["PERCENT", "FLAT"]).optional(),
-    discountValue: z.coerce.number().min(0).optional(),
-    roundingAdjust: z.coerce.number().optional(),
+  discountType: z.enum(["PERCENT", "FLAT"]).optional(),
+  discountValue: z.coerce.number().min(0).optional(),
+  roundingAdjust: z.coerce.number().optional(),
 
-    paymentStatus: z.string().optional(),
-    paymentMethod: z.string().optional().nullable(),
-    referenceNumber: z.string().optional().nullable(),
-    paymentDate: z.preprocess((val) => (val === "" || val === "null" ? null : val), z.string().optional().nullable()),
+  paymentStatus: z.string().optional(),
+  paymentMethod: z.string().optional().nullable(),
+  referenceNumber: z.string().optional().nullable(),
+  paymentDate: z.preprocess(
+    (val) => (val === "" || val === "null" ? null : val),
+    z.string().optional().nullable()
+  ),
 
-    payments: z.preprocess((value) => {
-        if (typeof value === "string") {
-            try {
-                return JSON.parse(value);
-            } catch {
-                return value;
-            }
-        }
+  payments: z.preprocess((value) => {
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value);
+      } catch {
         return value;
-    }, z.array(PaymentSchema).optional().default([])),
+      }
+    }
+    return value;
+  }, z.array(PaymentSchema).optional().default([])),
 
-    items: z.preprocess((value) => {
-        if (typeof value === "string") {
-            try {
-                return JSON.parse(value);
-            } catch {
-                return value;
-            }
+  items: z.preprocess(
+    (value) => {
+      if (typeof value === "string") {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
         }
-        return value;
-    }, z.array(ItemSchema).min(1, "At least one item is required")),
+      }
+      return value;
+    },
+    z.array(ItemSchema).min(1, "At least one item is required")
+  ),
 });
 
 export const UpdateGrnInvoiceSchema = CreateGrnInvoiceSchema.partial();
 
 export const GrnInvoiceIdSchema = z.object({
-    id: z.string().uuid("Invalid GRN Invoice ID"),
+  id: z.string().uuid("Invalid GRN Invoice ID"),
 });
 
 // Request-level schemas
 export const createGrnInvoiceRequestSchema = z.object({
-    body: CreateGrnInvoiceSchema,
+  body: CreateGrnInvoiceSchema,
 });
 
 export const updateGrnInvoiceRequestSchema = z.object({
-    params: GrnInvoiceIdSchema,
-    body: UpdateGrnInvoiceSchema,
+  params: GrnInvoiceIdSchema,
+  body: UpdateGrnInvoiceSchema,
 });
 
 export const grnInvoiceIdRequestSchema = z.object({
-    params: GrnInvoiceIdSchema,
+  params: GrnInvoiceIdSchema,
 });
 
 export type CreateGrnInvoiceInput = z.infer<typeof CreateGrnInvoiceSchema>;

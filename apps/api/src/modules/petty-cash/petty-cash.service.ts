@@ -1,10 +1,12 @@
 import { getCurrentCompanyId } from "../../utils/companyContext";
 import { prisma } from "../../config/prisma";
-import { Prisma, VoucherType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
 import { CreatePettyCashInput, GetPettyCashQueryInput } from "./petty-cash.types";
-import { accountsService } from "../accounts/accounts.service";
 import { logger } from "../../lib/logger";
+import { companyGstProfile, resolveIssuingPlace } from "../gst/gst.context";
+
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 class PettyCashService {
   private generateEntryNo(): string {
@@ -124,6 +126,22 @@ class PettyCashService {
     const entryNo = this.generateEntryNo();
     const entryDate = data.entryDate ? new Date(data.entryDate) : new Date();
 
+    const place = await resolveIssuingPlace(data.businessPlaceId, await companyGstProfile());
+    const gstRate = data.type === "OUT" ? (data.gstRate ?? 0) : 0;
+    const vendorGstin = data.vendorGstin ? data.vendorGstin : null;
+    // The amount is the bill total; GST inside it is only credited back against a GSTIN-bearing bill.
+    const taxAmount =
+      data.type !== "OUT"
+        ? 0
+        : data.taxAmount !== undefined
+          ? round2(data.taxAmount)
+          : gstRate > 0 && vendorGstin
+            ? round2(data.amount - data.amount / (1 + gstRate / 100))
+            : 0;
+    if (taxAmount > data.amount) throw new ApiError(400, "GST cannot exceed the amount");
+    const tdsAmount = data.type === "OUT" ? round2(data.tdsAmount ?? 0) : 0;
+    if (tdsAmount > data.amount) throw new ApiError(400, "TDS cannot exceed the amount");
+
     const entry = await prisma.pettyCashEntry.create({
       data: {
         entryNo,
@@ -134,6 +152,12 @@ class PettyCashService {
         type: data.type,
         paidTo: data.paidTo || null,
         receiptNo: data.receiptNo || null,
+        businessPlaceId: place.id,
+        vendorGstin,
+        hsnCode: data.hsnCode || null,
+        gstRate: new Prisma.Decimal(gstRate),
+        taxAmount: new Prisma.Decimal(taxAmount),
+        tdsAmount: new Prisma.Decimal(tdsAmount),
         companyId,
         createdBy: createdBy || null,
       },

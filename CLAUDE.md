@@ -60,6 +60,12 @@ input leaks, secrets, error text → human review and merge → hand-off note.
   location, shift) are unique per tenant, not globally: the primary key is a uuid and the code is
   `@@unique([companyId, code])`. Look rows up with `byCode("storeId", code)` from `lib/prisma.ts`,
   never `where: { storeId }`; relations to these models pair the code with `companyId`.
+- GST on documents (`modules/gst/gst.calc.ts`, `gst.context.ts`): the tax split comes from the
+  issuing business place's state code against the place of supply, never from state names; HSN
+  and rate default from the item master and are copied onto the line. Document numbers come from
+  `documentNumberService.next(docType, { date, businessPlaceId, tx })` (`modules/documents`),
+  one series per type, branch and financial year; never build a number from `count()` or the
+  last row. Returns raise credit/debit notes; reverse charge posts to the `RCM-*` ledgers.
 - Field app sync (`modules/mobile`): the server enforces the conflict policy in
   `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
   by field, device headers on writes). Never let a device overwrite a server-owned row.

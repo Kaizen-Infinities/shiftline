@@ -4,6 +4,68 @@ import { accountsService } from "./accounts.service";
 import { extractPaymentsArray } from "../../utils/payments";
 import crypto from "crypto";
 import { logger } from "../../lib/logger";
+import { companyGstProfile, stateOfGstin } from "../gst/gst.context";
+
+type Db = Prisma.TransactionClient | typeof prisma;
+type JournalLine = {
+  debitLedgerId?: number;
+  creditLedgerId?: number;
+  debitAmount: Prisma.Decimal;
+  creditAmount: Prisma.Decimal;
+  narration: string;
+};
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+const debit = (ledgerId: number, amount: number, narration: string): JournalLine => ({
+  debitLedgerId: ledgerId,
+  debitAmount: new Prisma.Decimal(round2(amount)),
+  creditAmount: new Prisma.Decimal(0),
+  narration,
+});
+const credit = (ledgerId: number, amount: number, narration: string): JournalLine => ({
+  creditLedgerId: ledgerId,
+  debitAmount: new Prisma.Decimal(0),
+  creditAmount: new Prisma.Decimal(round2(amount)),
+  narration,
+});
+const ledgerByCode = (db: Db, code: string) => db.accountLedger.findFirst({ where: { code } });
+
+/** Input-credit or output-liability lines for a CGST/SGST/IGST split, skipping zero amounts. */
+async function gstLines(
+  db: Db,
+  side: "debit" | "credit",
+  kind: "REC" | "LIA",
+  split: { cgst: number; sgst: number; igst: number; cess?: number },
+  label: string
+): Promise<JournalLine[]> {
+  const parts: [string, number, string][] = [
+    [`CGST-${kind}-001`, split.cgst, `CGST ${label}`],
+    [`SGST-${kind}-001`, split.sgst, `SGST ${label}`],
+    [`IGST-${kind}-001`, split.igst, `IGST ${label}`],
+    [`CESS-${kind}-001`, split.cess ?? 0, `GST Cess ${label}`],
+  ];
+  const lines: JournalLine[] = [];
+  for (const [code, amount, narration] of parts) {
+    if (amount <= 0) continue;
+    const ledger = await ledgerByCode(db, code);
+    if (!ledger) {
+      logger.error(`[Auto-Post Voucher Error] Missing system ledger ${code}`);
+      continue;
+    }
+    lines.push(
+      side === "debit" ? debit(ledger.id, amount, narration) : credit(ledger.id, amount, narration)
+    );
+  }
+  return lines;
+}
+
+/** Splits a tax amount between CGST/SGST (same state) or IGST for the vendor's GSTIN state. */
+async function splitByVendorState(db: Db, tax: number, vendorGstin: string | null) {
+  const ours = (await companyGstProfile(db)).stateCode;
+  const theirs = stateOfGstin(vendorGstin);
+  if (ours && theirs && ours !== theirs) return { cgst: 0, sgst: 0, igst: tax };
+  const half = round2(tax / 2);
+  return { cgst: half, sgst: round2(tax - half), igst: 0 };
+}
 
 /**
  * Neon serverless goes idle after ~5 min. First query after idle can fail with
@@ -77,7 +139,7 @@ function deriveStablePaymentRefId(parentId: string, prefix: string, p: any, inde
  */
 async function safeCreateVoucher(
   db: Prisma.TransactionClient | typeof prisma,
-  data: Prisma.VoucherCreateInput,
+  data: Prisma.XOR<Prisma.VoucherCreateInput, Prisma.VoucherUncheckedCreateInput>,
   refDocType: string,
   refDocId: string
 ) {
@@ -197,90 +259,67 @@ class VoucherPostingService {
     });
 
     if (!voucher) {
-      const g: any = grnInvoice;
-      const netAmountNum = Number(g.netAmount || g.subtotal || g.grandTotal || g.totalAmount || 0);
+      const g = grnInvoice;
+      const netAmountNum = Number(g.netAmount || 0);
       const totalCgst = Number(g.totalCgst || 0);
       const totalSgst = Number(g.totalSgst || 0);
       const totalIgst = Number(g.totalIgst || 0);
+      const totalCess = Number(g.totalCess || 0);
       const totalGst = totalCgst + totalSgst + totalIgst;
+      const reverseCharge = Boolean(g.reverseCharge);
 
-      // Validation: Ensure total GST does not exceed the net invoice amount.
-      // If total GST > netAmountNum (due to inconsistent/corrupted source data), the purchase base
-      // would be negative and posting a voucher would result in unbalanced debits and credits.
-      if (totalGst > netAmountNum) {
+      // Forward charge: the supplier's bill (netAmount) includes tax and cess.
+      // Reverse charge: it excludes them; we owe the tax to the government and claim it back.
+      const purchaseBase = reverseCharge ? netAmountNum : netAmountNum - totalGst - totalCess;
+      if (purchaseBase < 0) {
         logger.error(
-          `[Auto-Post Voucher Error] Inconsistent GST data on GRN Invoice ${grnInvoice.id}: ` +
-            `Total GST (${totalGst}) exceeds Net Amount (${netAmountNum}). Voucher posting aborted.`
+          `[Auto-Post Voucher Error] Inconsistent GST data on GRN Invoice ${g.id}: ` +
+            `tax (${totalGst + totalCess}) exceeds net amount (${netAmountNum}). Voucher posting aborted.`
         );
         return null;
       }
 
-      const purchaseBase = netAmountNum - totalGst;
-      const voucherNo = `PUR-${grnInvoice.grnNumber || grnInvoice.id.slice(-6)}`;
-      const date = grnInvoice.grnDate || grnInvoice.createdAt;
+      const voucherNo = `PUR-${g.grnNumber || g.id.slice(-6)}`;
+      const date = g.grnDate || g.createdAt;
+      const lines: JournalLine[] = [];
 
-      const journalItemsToCreate: any[] = [];
-
-      // Only include Purchase Ledger debit line if purchaseBase is strictly > 0 (avoid 0-amount lines when GST equals full total)
       if (purchaseBase > 0) {
-        journalItemsToCreate.push({
-          debitLedgerId: purchaseLedger.id,
-          debitAmount: new Prisma.Decimal(purchaseBase),
-          creditAmount: new Prisma.Decimal(0),
-          narration: `Purchase of raw materials / goods (base excl. GST)`,
-        });
+        lines.push(
+          debit(
+            purchaseLedger.id,
+            purchaseBase,
+            "Purchase of raw materials / goods (base excl. GST)"
+          )
+        );
       }
-
-      // Add GST input credit entries if GST breakdown is available
-      if (totalCgst > 0 || totalSgst > 0 || totalIgst > 0) {
-        if (totalCgst > 0) {
-          const cgstRecLedger = await db.accountLedger.findFirst({
-            where: { code: "CGST-REC-001" },
-          });
-          if (cgstRecLedger) {
-            journalItemsToCreate.push({
-              debitLedgerId: cgstRecLedger.id,
-              debitAmount: new Prisma.Decimal(totalCgst),
-              creditAmount: new Prisma.Decimal(0),
-              narration: `CGST Input Tax Credit`,
-            });
+      if (reverseCharge) {
+        const rcmTax = totalGst + totalCess;
+        if (rcmTax > 0) {
+          const rcmRec = await ledgerByCode(db, "RCM-REC-001");
+          const rcmLia = await ledgerByCode(db, "RCM-LIA-001");
+          if (rcmRec && rcmLia) {
+            lines.push(debit(rcmRec.id, rcmTax, "GST input credit under reverse charge"));
+            lines.push(credit(rcmLia.id, rcmTax, "GST payable under reverse charge"));
+          } else {
+            logger.error(
+              "[Auto-Post Voucher Error] Missing reverse-charge ledgers RCM-REC-001 / RCM-LIA-001"
+            );
           }
         }
-        if (totalSgst > 0) {
-          const sgstRecLedger = await db.accountLedger.findFirst({
-            where: { code: "SGST-REC-001" },
-          });
-          if (sgstRecLedger) {
-            journalItemsToCreate.push({
-              debitLedgerId: sgstRecLedger.id,
-              debitAmount: new Prisma.Decimal(totalSgst),
-              creditAmount: new Prisma.Decimal(0),
-              narration: `SGST Input Tax Credit`,
-            });
-          }
-        }
-        if (totalIgst > 0) {
-          const igstRecLedger = await db.accountLedger.findFirst({
-            where: { code: "IGST-REC-001" },
-          });
-          if (igstRecLedger) {
-            journalItemsToCreate.push({
-              debitLedgerId: igstRecLedger.id,
-              debitAmount: new Prisma.Decimal(totalIgst),
-              creditAmount: new Prisma.Decimal(0),
-              narration: `IGST Input Tax Credit`,
-            });
-          }
-        }
+      } else {
+        lines.push(
+          ...(await gstLines(
+            db,
+            "debit",
+            "REC",
+            { cgst: totalCgst, sgst: totalSgst, igst: totalIgst, cess: totalCess },
+            "Input Tax Credit"
+          ))
+        );
       }
-
-      // Credit supplier ledger for full net amount
-      journalItemsToCreate.push({
-        creditLedgerId: supplierLedger.id,
-        debitAmount: new Prisma.Decimal(0),
-        creditAmount: new Prisma.Decimal(netAmountNum),
-        narration: `Liability payable to ${grnInvoice.supplier.legalName}`,
-      });
+      lines.push(
+        credit(supplierLedger.id, netAmountNum, `Liability payable to ${g.supplier.legalName}`)
+      );
 
       voucher = await safeCreateVoucher(
         db,
@@ -288,13 +327,14 @@ class VoucherPostingService {
           voucherNo,
           type: VoucherType.PURCHASE,
           date,
-          narration: `Purchase invoice posted for GRN ${grnInvoice.grnNumber || grnInvoice.invoiceNo}`,
+          narration: `Purchase invoice posted for GRN ${g.grnNumber || g.invoiceNo}${reverseCharge ? " (reverse charge)" : ""}`,
           refDocType: "GRN_INVOICE",
-          refDocId: grnInvoice.id,
-          items: { create: journalItemsToCreate },
+          refDocId: g.id,
+          businessPlaceId: g.businessPlaceId ?? undefined,
+          items: { create: lines },
         },
         "GRN_INVOICE",
-        grnInvoice.id
+        g.id
       );
     }
 
@@ -491,6 +531,7 @@ class VoucherPostingService {
       const totalSgst = items.reduce((s: number, i: any) => s + Number(i.sgstAmount || 0), 0);
       const totalIgst = items.reduce((s: number, i: any) => s + Number(i.igstAmount || 0), 0);
       const totalGst = totalCgst + totalSgst + totalIgst;
+      const cessTotal = Number((salesInvoice as any).cessTotal || 0);
 
       // Validation: Ensure total GST does not exceed the grand total amount.
       // If total GST > grandTotalNum (due to inconsistent/corrupted source data), the sales base
@@ -503,7 +544,7 @@ class VoucherPostingService {
         return null;
       }
 
-      const salesBase = grandTotalNum - totalGst;
+      const salesBase = grandTotalNum - totalGst - cessTotal;
 
       const salesJournalItems: any[] = [
         // Debit Customer for full grand total
@@ -568,6 +609,18 @@ class VoucherPostingService {
         }
       }
 
+      if (cessTotal > 0) {
+        salesJournalItems.push(
+          ...(await gstLines(
+            db,
+            "credit",
+            "LIA",
+            { cgst: 0, sgst: 0, igst: 0, cess: cessTotal },
+            "Payable"
+          ))
+        );
+      }
+
       voucher = await safeCreateVoucher(
         db,
         {
@@ -577,6 +630,7 @@ class VoucherPostingService {
           narration: `Sales invoice posted for ${salesInvoice.invoiceNo}`,
           refDocType: "SALES_INVOICE",
           refDocId: salesInvoice.id,
+          businessPlaceId: (salesInvoice as any).businessPlaceId ?? undefined,
           items: { create: salesJournalItems },
         },
         "SALES_INVOICE",
@@ -769,6 +823,26 @@ class VoucherPostingService {
 
     const grandTotal = new Prisma.Decimal(salesReturn.grandTotal);
     const voucherNo = `SRT-${salesReturn.returnNo}`;
+    const split = {
+      cgst: Number(salesReturn.cgstAmount || 0),
+      sgst: Number(salesReturn.sgstAmount || 0),
+      igst: Number(salesReturn.igstAmount || 0),
+    };
+    // Credit note: the goods value reverses sales, the tax reverses output liability.
+    const returnBase = Number(grandTotal) - split.cgst - split.sgst - split.igst;
+    const lines: JournalLine[] = [
+      debit(
+        salesReturnLedger.id,
+        returnBase,
+        `Sales return — goods returned by ${salesReturn.customer.firmName}`
+      ),
+      ...(await gstLines(db, "debit", "LIA", split, "Output Tax reversed")),
+      credit(
+        customerLedger.id,
+        Number(grandTotal),
+        `Receivable reduced for ${salesReturn.customer.firmName}`
+      ),
+    ];
 
     const voucher = await safeCreateVoucher(
       db,
@@ -776,25 +850,11 @@ class VoucherPostingService {
         voucherNo,
         type: VoucherType.SALES_RETURN,
         date: salesReturn.returnDate,
-        narration: `Sales return posted for ${salesReturn.returnNo}${salesReturn.salesInvoiceId ? ` against invoice ${salesReturn.salesInvoiceId}` : ""}`,
+        narration: `Sales return posted for ${salesReturn.returnNo}${salesReturn.creditNoteNo ? ` (credit note ${salesReturn.creditNoteNo})` : ""}${salesReturn.salesInvoiceId ? ` against invoice ${salesReturn.salesInvoiceId}` : ""}`,
         refDocType: "SALES_RETURN",
         refDocId: salesReturn.id,
-        items: {
-          create: [
-            {
-              debitLedgerId: salesReturnLedger.id,
-              debitAmount: grandTotal,
-              creditAmount: new Prisma.Decimal(0),
-              narration: `Sales return — goods returned by ${salesReturn.customer.firmName}`,
-            },
-            {
-              creditLedgerId: customerLedger.id,
-              debitAmount: new Prisma.Decimal(0),
-              creditAmount: grandTotal,
-              narration: `Receivable reduced for ${salesReturn.customer.firmName}`,
-            },
-          ],
-        },
+        businessPlaceId: salesReturn.businessPlaceId ?? undefined,
+        items: { create: lines },
       },
       "SALES_RETURN",
       salesReturn.id
@@ -910,8 +970,28 @@ class VoucherPostingService {
     });
     if (existing) return existing;
 
-    const grandTotal = new Prisma.Decimal(purchaseReturn.grandTotal);
+    const grandTotal = Number(purchaseReturn.grandTotal);
     const voucherNo = `PRT-${purchaseReturn.returnNo}`;
+    const split = {
+      cgst: Number(purchaseReturn.cgstAmount || 0),
+      sgst: Number(purchaseReturn.sgstAmount || 0),
+      igst: Number(purchaseReturn.igstAmount || 0),
+    };
+    // Debit note: the goods value reverses purchases, the tax reverses input credit.
+    const returnBase = grandTotal - split.cgst - split.sgst - split.igst;
+    const lines: JournalLine[] = [
+      debit(
+        supplierLedger.id,
+        grandTotal,
+        `Payable reduced for ${purchaseReturn.supplier.legalName}`
+      ),
+      credit(
+        purchaseReturnLedger.id,
+        returnBase,
+        `Purchase return — goods returned to ${purchaseReturn.supplier.legalName}`
+      ),
+      ...(await gstLines(db, "credit", "REC", split, "Input Tax Credit reversed")),
+    ];
 
     const voucher = await safeCreateVoucher(
       db,
@@ -919,25 +999,11 @@ class VoucherPostingService {
         voucherNo,
         type: VoucherType.PURCHASE_RETURN,
         date: purchaseReturn.returnDate,
-        narration: `Purchase return posted for ${purchaseReturn.returnNo}${purchaseReturn.grnInvoiceId ? ` against GRN invoice ${purchaseReturn.grnInvoiceId}` : ""}`,
+        narration: `Purchase return posted for ${purchaseReturn.returnNo}${purchaseReturn.debitNoteNo ? ` (debit note ${purchaseReturn.debitNoteNo})` : ""}${purchaseReturn.grnInvoiceId ? ` against GRN invoice ${purchaseReturn.grnInvoiceId}` : ""}`,
         refDocType: "PURCHASE_RETURN",
         refDocId: purchaseReturn.id,
-        items: {
-          create: [
-            {
-              debitLedgerId: supplierLedger.id,
-              debitAmount: grandTotal,
-              creditAmount: new Prisma.Decimal(0),
-              narration: `Payable reduced for ${purchaseReturn.supplier.legalName}`,
-            },
-            {
-              creditLedgerId: purchaseReturnLedger.id,
-              debitAmount: new Prisma.Decimal(0),
-              creditAmount: grandTotal,
-              narration: `Purchase return — goods returned to ${purchaseReturn.supplier.legalName}`,
-            },
-          ],
-        },
+        businessPlaceId: purchaseReturn.businessPlaceId ?? undefined,
+        items: { create: lines },
       },
       "PURCHASE_RETURN",
       purchaseReturn.id
@@ -989,6 +1055,28 @@ class VoucherPostingService {
     const entryDate = entry.entryDate || new Date();
 
     if (entry.type === "OUT") {
+      const total = Number(entry.amount);
+      const tax = Number(entry.taxAmount || 0);
+      const tds = Number(entry.tdsAmount || 0);
+      // Input credit needs a tax invoice: only a bill carrying the vendor's GSTIN qualifies.
+      const claimItc = tax > 0 && tax < total && Boolean(entry.vendorGstin);
+      const lines: JournalLine[] = [
+        debit(
+          expenseLedger.id,
+          claimItc ? total - tax : total,
+          `${entry.category}: ${entry.description || ""}`
+        ),
+      ];
+      if (claimItc) {
+        const split = await splitByVendorState(db, tax, entry.vendorGstin);
+        lines.push(...(await gstLines(db, "debit", "REC", split, "Input Tax Credit")));
+      }
+      if (tds > 0) {
+        const tdsLedger = await ledgerByCode(db, "TDS-LIA-001");
+        if (tdsLedger) lines.push(credit(tdsLedger.id, tds, "TDS deducted at source"));
+      }
+      lines.push(credit(pcashLedger.id, total - tds, "Petty cash disbursed"));
+
       return safeCreateVoucher(
         db,
         {
@@ -998,22 +1086,8 @@ class VoucherPostingService {
           narration: `Petty cash payment: ${entry.description || entry.category}${entry.paidTo ? ` to ${entry.paidTo}` : ""}`,
           refDocType: "PETTY_CASH",
           refDocId: String(entry.id),
-          items: {
-            create: [
-              {
-                debitLedgerId: expenseLedger.id,
-                debitAmount: amount,
-                creditAmount: new Prisma.Decimal(0),
-                narration: `${entry.category}: ${entry.description || ""}`,
-              },
-              {
-                creditLedgerId: pcashLedger.id,
-                debitAmount: new Prisma.Decimal(0),
-                creditAmount: amount,
-                narration: `Petty cash disbursed`,
-              },
-            ],
-          },
+          businessPlaceId: entry.businessPlaceId ?? undefined,
+          items: { create: lines },
         },
         "PETTY_CASH",
         String(entry.id)
@@ -1129,9 +1203,68 @@ class VoucherPostingService {
       return null;
     }
 
-    const amount = new Prisma.Decimal(expense.amount);
     const voucherNo = `EXP-${expense.expenseNumber}`;
     const entryDate = expense.date || new Date();
+    const total = Number(expense.amount);
+    const split = {
+      cgst: Number(expense.cgstAmount || 0),
+      sgst: Number(expense.sgstAmount || 0),
+      igst: Number(expense.igstAmount || 0),
+    };
+    const gst = split.cgst + split.sgst + split.igst;
+    const tds = Number(expense.tdsAmount || 0);
+    const reverseCharge = Boolean(expense.reverseCharge);
+    // Forward charge: the bill (amount) includes GST. Reverse charge: it excludes GST, which we owe.
+    const taxable =
+      expense.taxableAmount !== null && expense.taxableAmount !== undefined
+        ? Number(expense.taxableAmount)
+        : reverseCharge
+          ? total
+          : total - gst;
+    const claimItc = gst > 0 && expense.itcEligible;
+    if (taxable < 0 || tds > total) {
+      logger.error(
+        `[Auto-Post Expense Voucher] Inconsistent tax data on expense ${expense.id}: taxable ${taxable}, TDS ${tds}, amount ${total}`
+      );
+      return null;
+    }
+
+    const lines: JournalLine[] = [
+      // Blocked or unclaimed credit is part of the expense.
+      debit(
+        expenseLedger.id,
+        claimItc ? taxable : taxable + gst,
+        `${expense.expenseCategory}: ${expense.expense}`
+      ),
+    ];
+    if (gst > 0 && reverseCharge) {
+      const rcmLia = await ledgerByCode(db, "RCM-LIA-001");
+      const rcmRec = await ledgerByCode(db, "RCM-REC-001");
+      if (rcmLia) lines.push(credit(rcmLia.id, gst, "GST payable under reverse charge"));
+      if (claimItc && rcmRec)
+        lines.push(debit(rcmRec.id, gst, "GST input credit under reverse charge"));
+    } else if (claimItc) {
+      lines.push(...(await gstLines(db, "debit", "REC", split, "Input Tax Credit")));
+    }
+    if (tds > 0) {
+      const tdsLedger = await ledgerByCode(db, "TDS-LIA-001");
+      if (tdsLedger) {
+        lines.push(
+          credit(
+            tdsLedger.id,
+            tds,
+            `TDS deducted${expense.tdsSection ? ` u/s ${expense.tdsSection}` : ""}`
+          )
+        );
+      }
+    }
+    lines.push(
+      credit(
+        creditLedger.id,
+        total - tds,
+        `Paid via ${paymentMethod || expense.paymentMethod || "Cash"}`
+      )
+    );
 
     return safeCreateVoucher(
       db,
@@ -1142,22 +1275,8 @@ class VoucherPostingService {
         narration: `Expense: ${expense.expense}${expense.supplier ? ` — ${expense.supplier.legalName}` : ""}`,
         refDocType: "EXPENSE",
         refDocId: expense.id,
-        items: {
-          create: [
-            {
-              debitLedgerId: expenseLedger.id,
-              debitAmount: amount,
-              creditAmount: new Prisma.Decimal(0),
-              narration: `${expense.expenseCategory}: ${expense.expense}`,
-            },
-            {
-              creditLedgerId: creditLedger.id,
-              debitAmount: new Prisma.Decimal(0),
-              creditAmount: amount,
-              narration: `Paid via ${paymentMethod || expense.paymentMethod || "Cash"}`,
-            },
-          ],
-        },
+        businessPlaceId: expense.businessPlaceId ?? undefined,
+        items: { create: lines },
       },
       "EXPENSE",
       expense.id

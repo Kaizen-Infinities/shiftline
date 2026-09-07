@@ -1,21 +1,26 @@
 import { prisma } from "../../config/prisma";
-import { Prisma, VoucherType } from "@prisma/client";
+import { Prisma, SupplyType } from "@prisma/client";
 import { ApiError } from "../../utils/ApiError";
 import { CreateSalesReturnInput, CreatePurchaseReturnInput } from "./returns.types";
-import { accountsService } from "../accounts/accounts.service";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
 import rawMaterialStockService from "../raw-material-stock/raw-material-stock.service";
-import { vouchersService } from "../vouchers/vouchers.service";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
+import type { Db } from "../../lib/prisma";
+import { documentNumberService } from "../documents/document-number.service";
+import { splitGst } from "../gst/gst.calc";
+import { productTaxDefaults, purchaseGstContext, rawMaterialTaxDefaults } from "../gst/gst.context";
+import { saleGstContext } from "../sales-invoice/sales-invoice.service";
 
+const D = (n: number | string) => new Prisma.Decimal(n);
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * Returns and the credit/debit notes they raise (P1-08b). Every return carries
+ * the tax split of the original supply so the note lands in GSTR-1 CDNR and the
+ * output/input tax reverses on the books. A `PRICE_ADJUSTMENT` moves no stock.
+ */
 class ReturnsService {
-  private generateReturnNo(prefix: string): string {
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(1000 + Math.random() * 9000);
-    return `${prefix}-${timestamp}-${random}`;
-  }
-
   // --- SALES RETURN ---
   async getSalesReturns(companyId?: string) {
     return prisma.salesReturn.findMany({
@@ -37,126 +42,180 @@ class ReturnsService {
     });
   }
 
+  /** Validates return quantities against the invoice and computes the taxed lines. */
+  private async buildSalesReturnLines(
+    tx: Db,
+    data: Omit<CreateSalesReturnInput, "businessPlaceId"> & {
+      businessPlaceId?: string | number | bigint | null;
+    },
+    customer: Prisma.CustomerGetPayload<{ include: { addresses: true } }>,
+    excludeReturnId?: string
+  ) {
+    let invoice: Prisma.SalesInvoiceGetPayload<{ include: { items: true } }> | null = null;
+    if (data.salesInvoiceId) {
+      invoice = await tx.salesInvoice.findUnique({
+        where: { id: data.salesInvoiceId },
+        include: { items: true },
+      });
+      if (!invoice) throw new ApiError(404, "Original sales invoice not found");
+      if (invoice.customerId !== data.customerId) {
+        throw new ApiError(400, "Sales invoice does not belong to the selected customer");
+      }
+
+      const previousReturns = await tx.salesReturn.findMany({
+        where: {
+          salesInvoiceId: data.salesInvoiceId,
+          status: { not: "CANCELLED" },
+          ...(excludeReturnId ? { id: { not: excludeReturnId } } : {}),
+        },
+        include: { items: true },
+      });
+      const returnedQtyMap = new Map<string, number>();
+      for (const ret of previousReturns) {
+        for (const item of ret.items) {
+          if (item.salesInvoiceItemId) {
+            const current = returnedQtyMap.get(item.salesInvoiceItemId) || 0;
+            returnedQtyMap.set(item.salesInvoiceItemId, current + Number(item.quantity));
+          }
+        }
+      }
+      for (const itemInput of data.items) {
+        if (!itemInput.salesInvoiceItemId) continue;
+        const invItem = invoice.items.find((i) => i.id === itemInput.salesInvoiceItemId);
+        if (!invItem) {
+          throw new ApiError(
+            400,
+            `Invoice item ${itemInput.salesInvoiceItemId} not found in invoice ${data.salesInvoiceId}`
+          );
+        }
+        const alreadyReturned = returnedQtyMap.get(itemInput.salesInvoiceItemId) || 0;
+        const originalQty = Number(invItem.quantity);
+        const remainingReturnable = originalQty - alreadyReturned;
+        if (itemInput.quantity > remainingReturnable) {
+          throw new ApiError(
+            400,
+            `Cannot return ${itemInput.quantity} units of product item ${itemInput.productId}. Original qty: ${originalQty}, already returned: ${alreadyReturned}, max returnable: ${remainingReturnable}.`
+          );
+        }
+      }
+    }
+
+    // The note mirrors the original supply: same branch, place of supply and tax nature.
+    const gst = await saleGstContext(
+      tx,
+      {
+        businessPlaceId: data.businessPlaceId ?? invoice?.businessPlaceId ?? undefined,
+        placeOfSupply: data.placeOfSupply ?? invoice?.placeOfSupply ?? undefined,
+      },
+      customer
+    );
+    const supplyType: SupplyType = invoice?.supplyType ?? gst.supplyType;
+    const chargeable = invoice ? invoice.documentType !== "BILL_OF_SUPPLY" : gst.chargeable;
+    const defaults = await productTaxDefaults(
+      data.items.map((i) => i.productId),
+      tx
+    );
+
+    let subTotal = 0;
+    let taxAmount = 0;
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
+    const itemsData = data.items.map((item) => {
+      const invItem = item.salesInvoiceItemId
+        ? invoice?.items.find((i) => i.id === item.salesInvoiceItemId)
+        : undefined;
+      const def = defaults.get(String(item.productId));
+      const taxable = round2(item.quantity * item.unitPrice);
+      const taxRate = chargeable
+        ? (item.taxRate ?? (invItem ? Number(invItem.tax) : undefined) ?? def?.gstRate ?? 0)
+        : 0;
+      const split = splitGst(taxable, taxRate, supplyType);
+      subTotal += taxable;
+      taxAmount += split.taxAmount;
+      cgst += split.cgstAmount;
+      sgst += split.sgstAmount;
+      igst += split.igstAmount;
+      return {
+        productId: BigInt(item.productId),
+        salesInvoiceItemId: item.salesInvoiceItemId || null,
+        quantity: D(item.quantity),
+        weight: item.weight ? D(item.weight) : null,
+        uom: item.uom || null,
+        unitPrice: D(item.unitPrice),
+        taxRate: D(taxRate),
+        hsnCode: item.hsnCode ?? invItem?.hsnCode ?? def?.hsnCode ?? null,
+        taxableAmount: D(taxable),
+        cgstAmount: D(split.cgstAmount),
+        sgstAmount: D(split.sgstAmount),
+        igstAmount: D(split.igstAmount),
+        lineTotal: D(taxable + split.taxAmount),
+        reason: item.reason || data.reason || null,
+      };
+    });
+
+    return {
+      invoice,
+      gst,
+      supplyType,
+      itemsData,
+      totals: {
+        subTotal: D(subTotal),
+        taxAmount: D(round2(taxAmount)),
+        cgstAmount: D(round2(cgst)),
+        sgstAmount: D(round2(sgst)),
+        igstAmount: D(round2(igst)),
+        grandTotal: D(round2(subTotal + taxAmount)),
+      },
+    };
+  }
+
   async createSalesReturn(data: CreateSalesReturnInput, createdBy?: string) {
-    const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
+    const customer = await prisma.customer.findUnique({
+      where: { id: data.customerId },
+      include: { addresses: true },
+    });
     if (!customer) throw new ApiError(404, "Customer not found");
 
     const salesReturn = await prisma.$transaction(
       async (tx) => {
-        let storeIdForRestock = "MAIN_STORE";
+        const { gst, supplyType, itemsData, totals } = await this.buildSalesReturnLines(
+          tx,
+          data,
+          customer
+        );
+        const returnDate = data.returnDate ? new Date(data.returnDate) : new Date();
+        const numbering = { date: returnDate, businessPlaceId: gst.place.id, tx };
+        const returnNo = await documentNumberService.next("SALES_RETURN", numbering);
+        const creditNoteNo = await documentNumberService.next("CREDIT_NOTE", numbering);
 
-        // 1. Validate against sales invoice if provided
-        if (data.salesInvoiceId) {
-          const invoice = await tx.salesInvoice.findUnique({
-            where: { id: data.salesInvoiceId },
-            include: { items: true },
-          });
-          if (!invoice) throw new ApiError(404, "Original sales invoice not found");
-          if (invoice.customerId !== data.customerId) {
-            throw new ApiError(400, "Sales invoice does not belong to the selected customer");
-          }
-          if (invoice.storeId) storeIdForRestock = invoice.storeId;
-
-          // Check previously returned quantities for this invoice
-          const previousReturns = await tx.salesReturn.findMany({
-            where: { salesInvoiceId: data.salesInvoiceId, status: { not: "CANCELLED" } },
-            include: { items: true },
-          });
-
-          const returnedQtyMap = new Map<string, number>();
-          for (const ret of previousReturns) {
-            for (const item of ret.items) {
-              if (item.salesInvoiceItemId) {
-                const current = returnedQtyMap.get(item.salesInvoiceItemId) || 0;
-                returnedQtyMap.get(item.salesInvoiceItemId);
-                returnedQtyMap.set(item.salesInvoiceItemId, current + Number(item.quantity));
-              }
-            }
-          }
-
-          // Validate each item
-          for (const itemInput of data.items) {
-            if (itemInput.salesInvoiceItemId) {
-              const invItem = invoice.items.find((i) => i.id === itemInput.salesInvoiceItemId);
-              if (!invItem) {
-                throw new ApiError(
-                  400,
-                  `Invoice item ${itemInput.salesInvoiceItemId} not found in invoice ${data.salesInvoiceId}`
-                );
-              }
-              const alreadyReturned = returnedQtyMap.get(itemInput.salesInvoiceItemId) || 0;
-              const originalQty = Number(invItem.quantity);
-              const remainingReturnable = originalQty - alreadyReturned;
-
-              if (itemInput.quantity > remainingReturnable) {
-                throw new ApiError(
-                  400,
-                  `Cannot return ${itemInput.quantity} units of product item ${itemInput.productId}. Original qty: ${originalQty}, already returned: ${alreadyReturned}, max returnable: ${remainingReturnable}.`
-                );
-              }
-            }
-          }
-        }
-
-        // 2. Compute totals
-        let subTotal = 0;
-        let taxAmount = 0;
-
-        const itemsData = data.items.map((item) => {
-          const lineSubtotal = item.quantity * item.unitPrice;
-          const lineTax = (lineSubtotal * (item.taxRate || 0)) / 100;
-          const lineTotal = lineSubtotal + lineTax;
-
-          subTotal += lineSubtotal;
-          taxAmount += lineTax;
-
-          return {
-            productId: BigInt(item.productId),
-            salesInvoiceItemId: item.salesInvoiceItemId || null,
-            quantity: new Prisma.Decimal(item.quantity),
-            weight: item.weight ? new Prisma.Decimal(item.weight) : null,
-            uom: item.uom || null,
-            unitPrice: new Prisma.Decimal(item.unitPrice),
-            taxRate: new Prisma.Decimal(item.taxRate || 0),
-            lineTotal: new Prisma.Decimal(lineTotal),
-            reason: item.reason || data.reason || null,
-          };
-        });
-
-        const grandTotal = subTotal + taxAmount;
-        const returnNo = this.generateReturnNo("SRT");
-
-        // 3. Create SalesReturn + Items
-        const salesReturn = await tx.salesReturn.create({
+        return tx.salesReturn.create({
           data: {
             returnNo,
-            returnDate: new Date(),
+            creditNoteNo,
+            kind: data.kind,
+            returnDate,
             customerId: data.customerId,
             salesInvoiceId: data.salesInvoiceId || null,
             reason: data.reason || null,
-            subTotal: new Prisma.Decimal(subTotal),
-            taxAmount: new Prisma.Decimal(taxAmount),
-            grandTotal: new Prisma.Decimal(grandTotal),
+            refundMode: data.refundMode ?? "CREDIT_NOTE",
+            businessPlaceId: gst.place.id,
+            placeOfSupply: gst.placeOfSupply,
+            supplyType,
+            customerGstin: customer.gstin ?? null,
+            ...totals,
             status: "APPROVED",
             narration: data.narration || null,
-            companyId: data.companyId,
             createdBy: createdBy || null,
-            items: {
-              create: itemsData,
-            },
+            items: { create: itemsData },
           },
-          include: {
-            items: true,
-            customer: true,
-          },
+          include: { items: true, customer: true },
         });
-
-        return salesReturn;
       },
       { maxWait: 10000, timeout: 30000 }
     );
 
-    // 4. Post Double-Entry Accounting Voucher(s) after return transaction has committed
+    // Post the accounting voucher after the return has committed.
     try {
       await voucherPostingService.postSalesReturnVoucher(salesReturn.id);
     } catch (vErr) {
@@ -190,63 +249,40 @@ class ReturnsService {
     });
     if (!existing) throw new ApiError(404, "Sales return not found");
 
-    const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
+    const customer = await prisma.customer.findUnique({
+      where: { id: data.customerId },
+      include: { addresses: true },
+    });
     if (!customer) throw new ApiError(404, "Customer not found");
 
     const updated = await prisma.$transaction(async (tx) => {
-      // 1. Delete previous items
       await tx.salesReturnItem.deleteMany({ where: { salesReturnId: id } });
-
-      // 2. Compute totals
-      let subTotal = 0;
-      let taxAmount = 0;
-
-      const itemsData = data.items.map((item) => {
-        const lineSubtotal = item.quantity * item.unitPrice;
-        const lineTax = (lineSubtotal * (item.taxRate || 0)) / 100;
-        const lineTotal = lineSubtotal + lineTax;
-
-        subTotal += lineSubtotal;
-        taxAmount += lineTax;
-
-        return {
-          productId: BigInt(item.productId),
-          salesInvoiceItemId: item.salesInvoiceItemId || null,
-          quantity: new Prisma.Decimal(item.quantity),
-          weight: item.weight ? new Prisma.Decimal(item.weight) : null,
-          uom: item.uom || null,
-          unitPrice: new Prisma.Decimal(item.unitPrice),
-          taxRate: new Prisma.Decimal(item.taxRate || 0),
-          lineTotal: new Prisma.Decimal(lineTotal),
-          reason: item.reason || data.reason || null,
-        };
-      });
-
-      const grandTotal = subTotal + taxAmount;
-
-      const record = await tx.salesReturn.update({
+      const { gst, supplyType, itemsData, totals } = await this.buildSalesReturnLines(
+        tx,
+        { ...data, businessPlaceId: data.businessPlaceId ?? existing.businessPlaceId },
+        customer,
+        id
+      );
+      return tx.salesReturn.update({
         where: { id },
         data: {
           customerId: data.customerId,
           salesInvoiceId: data.salesInvoiceId || null,
+          kind: data.kind,
+          returnDate: data.returnDate ? new Date(data.returnDate) : existing.returnDate,
           reason: data.reason || null,
-          subTotal: new Prisma.Decimal(subTotal),
-          taxAmount: new Prisma.Decimal(taxAmount),
-          grandTotal: new Prisma.Decimal(grandTotal),
+          refundMode: data.refundMode ?? existing.refundMode,
+          businessPlaceId: gst.place.id,
+          placeOfSupply: gst.placeOfSupply,
+          supplyType,
+          customerGstin: customer.gstin ?? null,
+          ...totals,
           status: "APPROVED",
           narration: data.narration || null,
-          companyId: data.companyId,
-          items: {
-            create: itemsData,
-          },
+          items: { create: itemsData },
         },
-        include: {
-          items: true,
-          customer: true,
-        },
+        include: { items: true, customer: true },
       });
-
-      return record;
     });
 
     try {
@@ -279,14 +315,16 @@ class ReturnsService {
   async createPurchaseReturn(data: CreatePurchaseReturnInput, createdBy?: string) {
     const supplier = await prisma.supplier.findUnique({ where: { id: data.supplierId } });
     if (!supplier) throw new ApiError(404, "Supplier not found");
+    const movesStock = data.kind !== "PRICE_ADJUSTMENT";
 
     const purchaseReturn = await prisma.$transaction(
       async (tx) => {
-        let storeIdForDeduction: string | null = (data as any).storeId || null;
+        let storeIdForDeduction: string | null = data.storeId || null;
+        let grnInvoice: Prisma.GrnInvoiceGetPayload<{ include: { items: true } }> | null = null;
 
         // 1. Determine store & validate against GRN invoice if provided
         if (data.grnInvoiceId) {
-          const grnInvoice = await (tx as any).grnInvoice.findUnique({
+          grnInvoice = await tx.grnInvoice.findUnique({
             where: { id: data.grnInvoiceId },
             include: { items: true },
           });
@@ -294,16 +332,12 @@ class ReturnsService {
           if (grnInvoice.supplierId !== data.supplierId) {
             throw new ApiError(400, "GRN invoice does not belong to the selected supplier");
           }
-          if (grnInvoice.storeId) {
-            storeIdForDeduction = grnInvoice.storeId;
-          }
+          if (grnInvoice.storeId) storeIdForDeduction = grnInvoice.storeId;
 
-          // Fetch previous purchase returns against this GRN invoice
           const previousReturns = await tx.purchaseReturn.findMany({
             where: { grnInvoiceId: data.grnInvoiceId, status: { not: "CANCELLED" } },
             include: { items: true },
           });
-
           const returnedQtyMap = new Map<string, number>();
           for (const ret of previousReturns) {
             for (const item of ret.items) {
@@ -311,40 +345,31 @@ class ReturnsService {
               returnedQtyMap.set(item.rawMaterialId, current + Number(item.quantity));
             }
           }
-
-          // Validate each item against GRN invoice line items
           for (const itemInput of data.items) {
-            const grnItem = grnInvoice.items?.find(
-              (i: any) =>
-                i.productId === itemInput.rawMaterialId ||
-                i.rawMaterialId === itemInput.rawMaterialId
-            );
-            if (grnItem) {
-              const alreadyReturned = returnedQtyMap.get(itemInput.rawMaterialId) || 0;
-              const originalQty = Number(grnItem.quantity);
-              const remainingReturnable = originalQty - alreadyReturned;
-
-              if (itemInput.quantity > remainingReturnable) {
-                throw new ApiError(
-                  400,
-                  `Cannot return ${itemInput.quantity} units of raw material ${itemInput.rawMaterialId}. Original purchased qty: ${originalQty}, already returned: ${alreadyReturned}, max returnable: ${remainingReturnable}.`
-                );
-              }
-            } else {
+            const grnItem = grnInvoice.items.find((i) => i.productId === itemInput.rawMaterialId);
+            if (!grnItem) {
               throw new ApiError(
                 400,
                 `Raw material ${itemInput.rawMaterialId} was not purchased in GRN/PO ${grnInvoice.invoiceNo || grnInvoice.grnNumber}`
               );
             }
+            const alreadyReturned = returnedQtyMap.get(itemInput.rawMaterialId) || 0;
+            const originalQty = Number(grnItem.quantity);
+            const remainingReturnable = originalQty - alreadyReturned;
+            if (itemInput.quantity > remainingReturnable) {
+              throw new ApiError(
+                400,
+                `Cannot return ${itemInput.quantity} units of raw material ${itemInput.rawMaterialId}. Original purchased qty: ${originalQty}, already returned: ${alreadyReturned}, max returnable: ${remainingReturnable}.`
+              );
+            }
           }
         }
 
-        if (!storeIdForDeduction) {
-          // If no GRN storeId and no data.storeId, check if raw material has storeId or throw error
+        if (movesStock && !storeIdForDeduction) {
           const firstRm = await tx.rawMaterial.findUnique({
             where: byCode("rawMaterialId", data.items[0].rawMaterialId),
           });
-          if (firstRm && firstRm.storeId) {
+          if (firstRm?.storeId) {
             storeIdForDeduction = firstRm.storeId;
           } else {
             throw new ApiError(
@@ -354,44 +379,91 @@ class ReturnsService {
           }
         }
 
-        const returnNo = this.generateReturnNo("PRT");
-        let grandTotal = 0;
+        // 2. Tax: the debit note mirrors the original inward supply.
+        const gst = await purchaseGstContext(
+          tx,
+          {
+            businessPlaceId: data.businessPlaceId ?? grnInvoice?.businessPlaceId ?? undefined,
+            reverseCharge: grnInvoice?.reverseCharge ?? false,
+          },
+          supplier
+        );
+        const supplyType: SupplyType = grnInvoice?.supplyType ?? gst.supplyType;
+        // Tax paid under reverse charge is adjusted through GSTR-3B, not a debit note to the supplier.
+        const chargeable = gst.chargeable && !gst.reverseCharge;
+        const defaults = await rawMaterialTaxDefaults(
+          data.items.map((i) => i.rawMaterialId),
+          tx
+        );
+
+        let subTotal = 0;
+        let taxAmount = 0;
+        let cgst = 0;
+        let sgst = 0;
+        let igst = 0;
         const itemsData = data.items.map((item) => {
-          const lineTotal = item.quantity * item.unitPrice;
-          grandTotal += lineTotal;
+          const grnItem = grnInvoice?.items.find((i) => i.productId === item.rawMaterialId);
+          const def = defaults.get(item.rawMaterialId);
+          const taxable = round2(item.quantity * item.unitPrice);
+          const taxRate = chargeable
+            ? (item.taxRate ?? (grnItem ? Number(grnItem.tax) : undefined) ?? def?.gstRate ?? 0)
+            : 0;
+          const split = splitGst(taxable, taxRate, supplyType);
+          subTotal += taxable;
+          taxAmount += split.taxAmount;
+          cgst += split.cgstAmount;
+          sgst += split.sgstAmount;
+          igst += split.igstAmount;
           return {
             rawMaterialId: item.rawMaterialId,
-            quantity: new Prisma.Decimal(item.quantity),
-            unitPrice: new Prisma.Decimal(item.unitPrice),
-            lineTotal: new Prisma.Decimal(lineTotal),
+            quantity: D(item.quantity),
+            unitPrice: D(item.unitPrice),
+            hsnCode: item.hsnCode ?? grnItem?.hsnCode ?? def?.hsnCode ?? null,
+            taxRate: D(taxRate),
+            taxableAmount: D(taxable),
+            cgstAmount: D(split.cgstAmount),
+            sgstAmount: D(split.sgstAmount),
+            igstAmount: D(split.igstAmount),
+            lineTotal: D(taxable + split.taxAmount),
             reason: item.reason || data.reason || null,
           };
         });
 
-        // 2. Create PurchaseReturn + Items
+        const returnDate = data.returnDate ? new Date(data.returnDate) : new Date();
+        const numbering = { date: returnDate, businessPlaceId: gst.place.id, tx };
+        const returnNo = await documentNumberService.next("PURCHASE_RETURN", numbering);
+        const debitNoteNo = await documentNumberService.next("DEBIT_NOTE", numbering);
+
+        // 3. Create PurchaseReturn + Items
         const purchaseReturn = await tx.purchaseReturn.create({
           data: {
             returnNo,
-            returnDate: new Date(),
+            debitNoteNo,
+            kind: data.kind,
+            returnDate,
             supplierId: data.supplierId,
             grnInvoiceId: data.grnInvoiceId || null,
             reason: data.reason || null,
-            grandTotal: new Prisma.Decimal(grandTotal),
+            businessPlaceId: gst.place.id,
+            placeOfSupply: gst.placeOfSupply,
+            supplyType,
+            supplierGstin: supplier.gstin ?? null,
+            taxAmount: D(round2(taxAmount)),
+            cgstAmount: D(round2(cgst)),
+            sgstAmount: D(round2(sgst)),
+            igstAmount: D(round2(igst)),
+            grandTotal: D(round2(subTotal + taxAmount)),
             status: "APPROVED",
             narration: data.narration || null,
-            companyId: data.companyId,
             createdBy: createdBy || null,
-            items: {
-              create: itemsData,
-            },
+            items: { create: itemsData },
           },
-          include: {
-            items: true,
-            supplier: true,
-          },
+          include: { items: true, supplier: true },
         });
 
-        // 3. Deduct Raw Material Stock
+        if (!movesStock) return purchaseReturn;
+
+        // 4. Deduct raw material stock and record the adjustment
         await rawMaterialStockService.deductForPurchaseReturn(
           data.items.map((i) => ({
             rawMaterialId: i.rawMaterialId,
@@ -402,8 +474,7 @@ class ReturnsService {
           tx
         );
 
-        // 3b. Create Stock Adjustment Record & Stock Adjustment Items
-        const year = new Date().getFullYear();
+        const year = returnDate.getFullYear();
         const prefix = `ADJ-${year}-`;
         const lastAdj = await tx.stockAdjustment.findFirst({
           where: { adjustmentNumber: { startsWith: prefix } },
@@ -420,7 +491,7 @@ class ReturnsService {
         const saRecord = await tx.stockAdjustment.create({
           data: {
             adjustmentNumber,
-            adjustmentDate: new Date(),
+            adjustmentDate: returnDate,
             adjustmentType: "PURCHASE_RETURN",
             reason: `Purchase Return ${returnNo}`,
             status: "APPROVED",
@@ -440,7 +511,6 @@ class ReturnsService {
           });
           const currentQty = Number(rm?.onHandQty || 0) + Number(item.quantity); // qty before deduction
           const adjustedQty = Number(rm?.onHandQty || 0); // qty after deduction
-
           await tx.stockAdjustmentItem.create({
             data: {
               stockAdjustmentId: saRecord.id,
@@ -461,9 +531,8 @@ class ReturnsService {
       { maxWait: 10000, timeout: 30000 }
     );
 
-    // 4. Post Purchase Return Voucher (Debit: Supplier Ledger, Credit: Purchase Return Account) after return transaction commits
+    // 5. Post the debit note (Dr Supplier | Cr Purchase Return, Cr input credit reversed)
     try {
-      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
       await voucherPostingService.postPurchaseReturnVoucher(purchaseReturn.id);
     } catch (vErr) {
       logger.error(

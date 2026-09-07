@@ -1,8 +1,144 @@
+import type { SalesDocumentType, SupplyType } from "@prisma/client";
+
 import { prisma } from "../../config/prisma";
+import type { Db } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { CreateSalesInvoiceInput } from "./sales-invoice.validation";
 import crypto from "crypto";
 import { logger } from "../../lib/logger";
+import { documentNumberService } from "../documents/document-number.service";
+import { canChargeGst, salesDocumentTypeFor, splitGst, supplyTypeFor } from "../gst/gst.calc";
+import {
+  cessOn,
+  companyGstProfile,
+  productTaxDefaults,
+  resolveIssuingPlace,
+  stateOfGstin,
+  type IssuingPlace,
+} from "../gst/gst.context";
+import { stateNameToCode } from "../imports/imports.types";
+
+type SaleItemInput = CreateSalesInvoiceInput["items"][number];
+type SaleHeaderInput = {
+  businessPlaceId?: string | number | bigint | null;
+  placeOfSupply?: string | null;
+  reverseCharge?: boolean | null;
+  shippingAddress?: { state?: string | null } | null;
+};
+type SaleCustomer = {
+  gstRegType: string;
+  stateCode: string | null;
+  gstin: string | null;
+  addresses?: { is_default?: boolean; state_code?: string | null; address?: unknown }[];
+};
+
+/** GST facts for a sales document (P1-08b): where it is issued from, where it is supplied to. */
+export interface SaleGstContext {
+  place: IssuingPlace;
+  supplyType: SupplyType;
+  placeOfSupply: string | null;
+  documentType: SalesDocumentType;
+  /** False for a composition or unregistered company: a bill of supply carries no tax. */
+  chargeable: boolean;
+  /** Numbering series the document draws from. */
+  series: string;
+  reverseCharge: boolean;
+}
+
+export async function saleGstContext(
+  db: Db,
+  data: SaleHeaderInput,
+  customer: SaleCustomer
+): Promise<SaleGstContext> {
+  const profile = await companyGstProfile(db);
+  const place = await resolveIssuingPlace(data.businessPlaceId, profile, db);
+  const billing = customer.addresses?.find((a) => a.is_default) || customer.addresses?.[0];
+  const billingState = (billing?.address as { state?: string } | undefined)?.state;
+  const placeOfSupply =
+    data.placeOfSupply ||
+    customer.stateCode ||
+    stateOfGstin(customer.gstin) ||
+    stateNameToCode(data.shippingAddress?.state ?? undefined) ||
+    billing?.state_code ||
+    stateNameToCode(billingState) ||
+    null;
+  const supplyType = supplyTypeFor({
+    fromStateCode: place.stateCode,
+    toStateCode: placeOfSupply,
+    partyRegistration: customer.gstRegType,
+  });
+  const documentType = salesDocumentTypeFor(profile.registrationType, supplyType);
+  const series =
+    documentType === "BILL_OF_SUPPLY"
+      ? "BILL_OF_SUPPLY"
+      : documentType === "EXPORT_INVOICE"
+        ? "EXPORT_INVOICE"
+        : "SALES_INVOICE";
+  return {
+    place,
+    supplyType,
+    placeOfSupply,
+    documentType,
+    chargeable: canChargeGst(profile.registrationType),
+    series,
+    reverseCharge: Boolean(data.reverseCharge),
+  };
+}
+
+/** Line arithmetic: rate from the payload, else the product or its HSN; split by the supply type. */
+export async function computeSaleLines(db: Db, items: SaleItemInput[], gst: SaleGstContext) {
+  const defaults = await productTaxDefaults(
+    items.map((i) => i.productId),
+    db
+  );
+  let subTotal = 0;
+  let taxTotal = 0;
+  let cessTotal = 0;
+  const lines = items.map((item) => {
+    const qty = Number(item.qty);
+    const rate = Number(item.rate);
+    const discount = Number(item.discountAmount) || 0;
+    const lineSubtotal = qty * rate - discount;
+    const def = defaults.get(String(item.productId));
+    const taxRate = gst.chargeable ? (item.taxPercent ?? def?.gstRate ?? 0) : 0;
+    const cessRate = gst.chargeable ? (item.cessRate ?? def?.cessRate ?? 0) : 0;
+    const split = splitGst(lineSubtotal, taxRate, gst.supplyType);
+    const cessAmount = cessOn(lineSubtotal, cessRate);
+    subTotal += lineSubtotal;
+    taxTotal += split.taxAmount;
+    cessTotal += cessAmount;
+    return {
+      productId: BigInt(item.productId),
+      quantity: qty,
+      unitPrice: rate,
+      weight: Number(item.weight) || 0,
+      discountAmount: discount,
+      hsnCode: item.hsnCode ?? def?.hsnCode ?? null,
+      tax: taxRate,
+      taxableAmount: lineSubtotal,
+      cgstRate: split.cgstRate,
+      cgstAmount: split.cgstAmount,
+      sgstRate: split.sgstRate,
+      sgstAmount: split.sgstAmount,
+      igstRate: split.igstRate,
+      igstAmount: split.igstAmount,
+      cessRate,
+      cessAmount,
+      lineTotal: lineSubtotal + split.taxAmount + cessAmount,
+    };
+  });
+  return { items: lines, subTotal, taxTotal, cessTotal };
+}
+
+const gstHeader = (gst: SaleGstContext, customerGstin: string | null, cessTotal: number) => ({
+  documentType: gst.documentType,
+  businessPlaceId: gst.place.id,
+  placeOfSupply: gst.placeOfSupply,
+  supplyType: gst.supplyType,
+  customerGstin,
+  reverseCharge: gst.reverseCharge,
+  cessTotal,
+});
 
 function serializeInvoice(invoice: any) {
   if (!invoice) return invoice;
@@ -27,21 +163,7 @@ class SalesInvoiceService {
     });
     if (!customer) throw new ApiError(404, "Customer not found");
 
-    const company = await prisma.company.findUnique({ where: { id: currentUser.companyId } });
-    if (!company) throw new ApiError(404, "Company not found");
-
-    const billingAddress =
-      (customer as any).addresses?.find((a: any) => a.is_default) ||
-      (customer as any).addresses?.[0];
-    const customerState =
-      billingAddress?.state_code ||
-      (billingAddress?.address as any)?.state?.toLowerCase()?.trim() ||
-      "";
-    const isInterState = company.state?.toLowerCase().trim() !== customerState;
-
-    // Calculate items and totals
-    let subTotal = 0;
-    let taxTotal = 0;
+    const gst = await saleGstContext(prisma, data as SaleHeaderInput, customer as SaleCustomer);
 
     // Look up sales product names for invoice item descriptions
     const spIds = [...new Set(data.items.map((i) => String(i.productId)))];
@@ -58,55 +180,14 @@ class SalesInvoiceService {
       ])
     );
 
-    const invoiceItems = data.items.map((item) => {
-      const qty = Number(item.qty);
-      const rate = Number(item.rate);
-      const discount = Number(item.discountAmount) || 0;
-      const lineSubtotal = qty * rate - discount;
-
-      const taxRate = Number(item.taxPercent) || 0;
-      const lineTax = (lineSubtotal * taxRate) / 100;
-
-      let cgstRate = 0;
-      let cgstAmount = 0;
-      let sgstRate = 0;
-      let sgstAmount = 0;
-      let igstRate = 0;
-      let igstAmount = 0;
-
-      if (isInterState) {
-        igstRate = taxRate;
-        igstAmount = lineTax;
-      } else {
-        cgstRate = taxRate / 2;
-        sgstRate = taxRate / 2;
-        cgstAmount = lineTax / 2;
-        sgstAmount = lineTax / 2;
-      }
-
-      const lineTotal = lineSubtotal + lineTax;
-
-      subTotal += lineSubtotal;
-      taxTotal += lineTax;
-
-      return {
-        productId: BigInt(item.productId),
-        description: spNameMap.get(String(item.productId)) || null,
-        quantity: qty,
-        unitPrice: rate,
-        weight: Number(item.weight) || 0,
-        discountAmount: discount,
-        tax: taxRate,
-        taxableAmount: lineSubtotal,
-        cgstRate,
-        cgstAmount,
-        sgstRate,
-        sgstAmount,
-        igstRate,
-        igstAmount,
-        lineTotal,
-      };
-    });
+    const lines = await computeSaleLines(prisma, data.items, gst);
+    const invoiceItems = lines.items.map((line) => ({
+      ...line,
+      description: spNameMap.get(String(line.productId)) || null,
+    }));
+    const subTotal = lines.subTotal;
+    let taxTotal = lines.taxTotal;
+    const cessTotal = lines.cessTotal;
 
     // Discount
     const d = data as any;
@@ -156,12 +237,20 @@ class SalesInvoiceService {
     }
 
     const grandTotal =
-      taxableAmount + taxTotal + chargeAdditions - chargeDeductions + billSundryTotal;
+      taxableAmount + taxTotal + cessTotal + chargeAdditions - chargeDeductions + billSundryTotal;
 
     const computedStatus = "CONFIRMED";
 
     const invoice = await prisma.$transaction(
       async (tx) => {
+        const invoiceNo =
+          data.invoiceNo ??
+          (await documentNumberService.next(gst.series, {
+            date: new Date(data.invoiceDate),
+            businessPlaceId: gst.place.id,
+            tx,
+          }));
+
         // Increment invoice sequence number
         const settings = await tx.invoiceSetting.findUnique({
           where: { companyId: currentUser.companyId },
@@ -183,7 +272,7 @@ class SalesInvoiceService {
         // Create the invoice
         const invoice = await tx.salesInvoice.create({
           data: {
-            invoiceNo: data.invoiceNo,
+            invoiceNo,
             invoiceDate: new Date(data.invoiceDate),
             dueDate: data.dueDate ? new Date(data.dueDate) : null,
             customerId: data.customerId,
@@ -202,6 +291,7 @@ class SalesInvoiceService {
             shippingState: (data as any).shippingAddress?.state || null,
             shippingPincode: (data as any).shippingAddress?.pincode || null,
             salesOrderId: data.salesOrderId || null,
+            ...gstHeader(gst, customer.gstin ?? null, cessTotal),
             subTotal,
             discountType: d.discountType || null,
             discountValue: Number(d.discountValue) || 0,
@@ -336,7 +426,7 @@ class SalesInvoiceService {
                   adjustmentNumber,
                   adjustmentDate: new Date(data.invoiceDate),
                   adjustmentType: "SALES_INVOICE_DISPATCH",
-                  reason: `Sales Invoice ${data.invoiceNo}`,
+                  reason: `Sales Invoice ${invoiceNo}`,
                   status: "APPROVED",
                   createdBy: currentUser.userId,
                   updatedBy: currentUser.userId,
@@ -365,7 +455,7 @@ class SalesInvoiceService {
                 currentQty: fgStock.onHandQty,
                 adjustedQty: Number(fgStock.onHandQty) - qty,
                 difference: -qty,
-                remarks: `Invoice ${data.invoiceNo}`,
+                remarks: `Invoice ${invoiceNo}`,
               },
             });
 
@@ -377,7 +467,7 @@ class SalesInvoiceService {
                 txnType: "STOCK_ADJUSTMENT_OUT",
                 qty: new (require("decimal.js").Decimal)(qty),
                 relatedDocNo: adjustmentNumber,
-                remarks: `Invoice ${data.invoiceNo}`,
+                remarks: `Invoice ${invoiceNo}`,
                 createdBy: currentUser.userId,
               },
             });
@@ -627,69 +717,12 @@ class SalesInvoiceService {
         });
         if (!customer) throw new ApiError(404, "Customer not found");
 
-        const company = await tx.company.findUnique({ where: { id: currentUser.companyId } });
-        if (!company) throw new ApiError(404, "Company not found");
-
-        const billingAddr =
-          (customer as any).addresses?.find((a: any) => a.is_default) ||
-          (customer as any).addresses?.[0];
-        const custState =
-          billingAddr?.state_code ||
-          (billingAddr?.address as any)?.state?.toLowerCase()?.trim() ||
-          "";
-        const isInterState = company.state?.toLowerCase().trim() !== custState;
-
-        let subTotal = 0;
-        let taxTotal = 0;
-
-        const invoiceItems = data.items.map((item) => {
-          const qty = Number(item.qty);
-          const rate = Number(item.rate);
-          const discount = Number(item.discountAmount) || 0;
-          const lineSubtotal = qty * rate - discount;
-
-          const taxRate = Number(item.taxPercent) || 0;
-          const lineTax = (lineSubtotal * taxRate) / 100;
-
-          let cgstRate = 0;
-          let cgstAmount = 0;
-          let sgstRate = 0;
-          let sgstAmount = 0;
-          let igstRate = 0;
-          let igstAmount = 0;
-
-          if (isInterState) {
-            igstRate = taxRate;
-            igstAmount = lineTax;
-          } else {
-            cgstRate = taxRate / 2;
-            sgstRate = taxRate / 2;
-            cgstAmount = lineTax / 2;
-            sgstAmount = lineTax / 2;
-          }
-
-          const lineTotal = lineSubtotal + lineTax;
-
-          subTotal += lineSubtotal;
-          taxTotal += lineTax;
-
-          return {
-            productId: BigInt(item.productId),
-            quantity: qty,
-            unitPrice: rate,
-            weight: Number(item.weight) || 0,
-            discountAmount: discount,
-            tax: taxRate,
-            taxableAmount: lineSubtotal,
-            cgstRate,
-            cgstAmount,
-            sgstRate,
-            sgstAmount,
-            igstRate,
-            igstAmount,
-            lineTotal,
-          };
-        });
+        const gst = await saleGstContext(tx, data as SaleHeaderInput, customer as SaleCustomer);
+        const lines = await computeSaleLines(tx, data.items, gst);
+        const invoiceItems = lines.items;
+        const subTotal = lines.subTotal;
+        let taxTotal = lines.taxTotal;
+        const cessTotal = lines.cessTotal;
 
         const du = data as any;
         const updTotalDiscount = Number(du.totalDiscount) || 0;
@@ -739,6 +772,7 @@ class SalesInvoiceService {
         const grandTotal =
           updTaxableAmount +
           taxTotal +
+          cessTotal +
           updChargeAdditions -
           updChargeDeductions +
           updBillSundryTotal;
@@ -768,6 +802,7 @@ class SalesInvoiceService {
             shippingState: (data as any).shippingAddress?.state || null,
             shippingPincode: (data as any).shippingAddress?.pincode || null,
             salesOrderId: data.salesOrderId || null,
+            ...gstHeader(gst, customer.gstin ?? null, cessTotal),
             subTotal,
             discountType: du.discountType || null,
             discountValue: Number(du.discountValue) || 0,

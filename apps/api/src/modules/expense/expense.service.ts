@@ -1,6 +1,19 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { logger } from "../../lib/logger";
+import { computeExpenseTax } from "./expense.tax";
+
+const TAX_KEYS = [
+  "businessPlaceId",
+  "vendorGstin",
+  "taxableAmount",
+  "gstRate",
+  "reverseCharge",
+  "itcEligible",
+  "tdsRate",
+  "tdsAmount",
+] as const;
+const touchesTax = (data: Record<string, unknown>) => TAX_KEYS.some((k) => data[k] !== undefined);
 
 class ExpenseService {
   /**
@@ -22,9 +35,11 @@ class ExpenseService {
       );
     }
 
+    const tax = await computeExpenseTax(prisma, { ...data, amount: Number(data.amount) });
     const newExpense = await prisma.expense.create({
       data: {
         ...data,
+        ...tax,
         date: data.date ? new Date(data.date) : undefined,
         amount: data.amount !== undefined ? Number(data.amount) : undefined,
         supplierId: data.supplierId ? Number(data.supplierId) : null,
@@ -180,8 +195,24 @@ class ExpenseService {
       }
     }
 
+    // Any change to the amount or a tax field re-derives the whole GST/TDS block from the stored values.
+    const tax =
+      data.amount !== undefined || touchesTax(data)
+        ? await computeExpenseTax(prisma, {
+            amount: data.amount !== undefined ? Number(data.amount) : Number(expense.amount),
+            businessPlaceId: data.businessPlaceId ?? expense.businessPlaceId,
+            vendorGstin: data.vendorGstin !== undefined ? data.vendorGstin : expense.vendorGstin,
+            taxableAmount: data.taxableAmount,
+            gstRate: data.gstRate ?? Number(expense.gstRate),
+            reverseCharge: data.reverseCharge ?? expense.reverseCharge,
+            itcEligible: data.itcEligible ?? expense.itcEligible,
+            tdsRate: data.tdsRate ?? Number(expense.tdsRate),
+            tdsAmount: data.tdsAmount,
+          })
+        : {};
     const updateData = {
       ...data,
+      ...tax,
       ...(data.date && { date: new Date(data.date) }),
       ...(data.amount !== undefined && { amount: Number(data.amount) }),
       ...(data.supplierId !== undefined && {

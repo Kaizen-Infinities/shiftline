@@ -68,6 +68,12 @@ const DEFAULT_SEED_LEDGERS = [
   { code: "SGST-REC-001", name: "SGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
   { code: "IGST-REC-001", name: "IGST Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
   { code: "EQ-001", name: "Opening Balance Equity", type: LedgerType.EQUITY, group: "Equity" },
+  // GST reverse charge, cess and TDS (P1-08)
+  { code: "RCM-LIA-001", name: "GST Payable under Reverse Charge", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
+  { code: "RCM-REC-001", name: "GST Input Credit (Reverse Charge)", type: LedgerType.ASSET, group: "Tax Assets" },
+  { code: "CESS-LIA-001", name: "GST Cess Payable", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
+  { code: "CESS-REC-001", name: "GST Cess Input Credit", type: LedgerType.ASSET, group: "Tax Assets" },
+  { code: "TDS-LIA-001", name: "TDS Payable", type: LedgerType.LIABILITY, group: "Tax Liabilities" },
 ];
 
 class AccountsService {

@@ -1,4 +1,3 @@
-import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { CreateGrnInvoiceInput, UpdateGrnInvoiceInput } from "./grn-invoice.validation";
@@ -8,6 +7,14 @@ import path from "path";
 import crypto from "crypto";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
+import { documentNumberService } from "../documents/document-number.service";
+import { splitGst } from "../gst/gst.calc";
+import {
+  cessOn,
+  purchaseGstContext,
+  rawMaterialTaxDefaults,
+  type PurchaseGstContext,
+} from "../gst/gst.context";
 
 function getUomMultiplier(uom: string = "", baseUom: string = ""): number {
   const u = (uom || "").trim().toLowerCase();
@@ -33,35 +40,15 @@ function getUomMultiplier(uom: string = "", baseUom: string = ""): number {
 }
 
 class GrnInvoiceService {
-  // ── Generate next GRN number ───────────────────────────────────────────────
+  // ── Next GRN number (from the tenant's GRN series, not consumed until the GRN is saved) ──
   async getNextGrnNumber() {
-    const currentYear = new Date().getFullYear();
-    const prefix = `GRN-${currentYear}-`;
-    const lastGRN = await prisma.grnInvoice.findFirst({
-      where: {
-        grnNumber: {
-          startsWith: prefix,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!lastGRN) return `${prefix}001`;
-
-    const lastCode = lastGRN.grnNumber;
-    const match = lastCode.match(/(\d+)$/);
-    if (!match) return lastCode + "-001";
-
-    const numberStr = match[0];
-    const nextNumber = parseInt(numberStr, 10) + 1;
-    const paddedNumber = String(nextNumber).padStart(numberStr.length, "0");
-    return `${prefix}${paddedNumber}`;
+    return documentNumberService.peek("GRN");
   }
 
   // ── Calculate totals ────────────────────────────────────────────────────────
   private async calculateTotals(
     items: CreateGrnInvoiceInput["items"],
-    isInterState: boolean,
+    gst: PurchaseGstContext,
     discountType: "PERCENT" | "FLAT" = "PERCENT",
     discountValue: number = 0,
     roundingAdjust: number = 0
@@ -72,12 +59,14 @@ class GrnInvoiceService {
         ? await prisma.rawMaterial.findMany({ where: { rawMaterialId: { in: productIds } } })
         : [];
     const rmMap = new Map(rawMaterials.map((rm) => [String(rm.rawMaterialId), rm]));
+    const taxDefaults = await rawMaterialTaxDefaults(productIds);
 
     let subtotal = 0;
     let totalTax = 0;
     let totalCgst = 0;
     let totalSgst = 0;
     let totalIgst = 0;
+    let totalCess = 0;
 
     const itemsWithTotals = items.map((item) => {
       const qty = Number(item.quantity) || 0;
@@ -88,62 +77,56 @@ class GrnInvoiceService {
       const lineSubtotal = qty * mult * unitPrice - itemDiscountAmount;
 
       const taxableAmount = lineSubtotal;
-      const totalGstRate = Number(item.tax) || 0;
-      const totalGstAmount = (taxableAmount * totalGstRate) / 100;
+      const def = taxDefaults.get(String(item.productId));
+      const totalGstRate = gst.chargeable ? (item.tax ?? def?.gstRate ?? 0) : 0;
+      const cessRate = gst.chargeable ? (item.cessRate ?? def?.cessRate ?? 0) : 0;
+      const split = splitGst(taxableAmount, totalGstRate, gst.supplyType);
+      const cessAmount = cessOn(taxableAmount, cessRate);
 
-      let cgstRate = 0;
-      let cgstAmount = 0;
-      let sgstRate = 0;
-      let sgstAmount = 0;
-      let igstRate = 0;
-      let igstAmount = 0;
-
-      if (isInterState) {
-        igstRate = totalGstRate;
-        igstAmount = totalGstAmount;
-      } else {
-        cgstRate = totalGstRate / 2;
-        sgstRate = totalGstRate / 2;
-        cgstAmount = totalGstAmount / 2;
-        sgstAmount = totalGstAmount / 2;
-      }
-
-      const lineTotal = taxableAmount + totalGstAmount;
+      // Under reverse charge the supplier's bill carries no tax; we pay it to the government.
+      const lineTotal = gst.reverseCharge
+        ? taxableAmount
+        : taxableAmount + split.taxAmount + cessAmount;
 
       subtotal += lineSubtotal;
-      totalTax += totalGstAmount;
-      totalCgst += cgstAmount;
-      totalSgst += sgstAmount;
-      totalIgst += igstAmount;
+      totalTax += split.taxAmount;
+      totalCgst += split.cgstAmount;
+      totalSgst += split.sgstAmount;
+      totalIgst += split.igstAmount;
+      totalCess += cessAmount;
 
       return {
         ...item,
         quantity: qty,
         unitPrice: unitPrice,
         discountAmount: itemDiscountAmount,
+        hsnCode: item.hsnCode ?? def?.hsnCode ?? null,
         tax: totalGstRate,
         taxableAmount,
-        cgstRate,
-        cgstAmount,
-        sgstRate,
-        sgstAmount,
-        igstRate,
-        igstAmount,
+        cgstRate: split.cgstRate,
+        cgstAmount: split.cgstAmount,
+        sgstRate: split.sgstRate,
+        sgstAmount: split.sgstAmount,
+        igstRate: split.igstRate,
+        igstAmount: split.igstAmount,
+        cessRate,
+        cessAmount,
         lineTotal,
       };
     });
 
-    let totalDiscount = 0;
-    if (discountType === "PERCENT") {
-      totalDiscount = (subtotal * discountValue) / 100;
-    } else {
-      totalDiscount = discountValue;
-    }
+    let totalDiscount =
+      discountType === "PERCENT" ? (subtotal * discountValue) / 100 : discountValue;
     if (totalDiscount > subtotal) {
       totalDiscount = subtotal;
     }
 
-    const netAmount = subtotal - totalDiscount + totalTax + Number(roundingAdjust);
+    // What the supplier is owed: tax and cess are excluded when we pay them under reverse charge.
+    const netAmount =
+      subtotal -
+      totalDiscount +
+      (gst.reverseCharge ? 0 : totalTax + totalCess) +
+      Number(roundingAdjust);
 
     return {
       itemsWithTotals,
@@ -153,6 +136,7 @@ class GrnInvoiceService {
       totalCgst,
       totalSgst,
       totalIgst,
+      totalCess,
       netAmount,
     };
   }
@@ -179,14 +163,7 @@ class GrnInvoiceService {
       throw new ApiError(404, "Store not found");
     }
 
-    // Validate company
-    const company = await prisma.company.findUnique({
-      where: { id: currentUser.companyId },
-    });
-    const isInterState =
-      company?.state?.toLowerCase().trim() !== supplier.billingState?.toLowerCase().trim();
-
-    const grnNumber = await this.getNextGrnNumber();
+    const gst = await purchaseGstContext(prisma, data, supplier);
     const discountType = data.discountType || "PERCENT";
     const discountValue = Number(data.discountValue) || 0;
     const roundingAdjust = Number(data.roundingAdjust) || 0;
@@ -202,14 +179,9 @@ class GrnInvoiceService {
       totalCgst,
       totalSgst,
       totalIgst,
+      totalCess,
       netAmount,
-    } = await this.calculateTotals(
-      items,
-      isInterState,
-      discountType,
-      discountValue,
-      roundingAdjust
-    );
+    } = await this.calculateTotals(items, gst, discountType, discountValue, roundingAdjust);
 
     // Upload invoice image to ImageKit if provided
     let invoiceImageUrl: string | null = null;
@@ -252,14 +224,28 @@ class GrnInvoiceService {
 
     const grnInvoice = await prisma.$transaction(
       async (tx) => {
+        const grnDate = new Date(data.grnDate);
+        const grnNumber = await documentNumberService.next("GRN", {
+          date: grnDate,
+          businessPlaceId: gst.place.id,
+          tx,
+        });
         // Create GRN Invoice
         const grnInvoice = await tx.grnInvoice.create({
           data: {
             grnNumber,
             invoiceNo: data.invoiceNo,
-            grnDate: new Date(data.grnDate),
+            grnDate,
+            supplierInvoiceDate: data.supplierInvoiceDate
+              ? new Date(data.supplierInvoiceDate)
+              : null,
             supplierId: Number(data.supplierId),
             storeId: data.storeId,
+            businessPlaceId: gst.place.id,
+            placeOfSupply: gst.placeOfSupply,
+            supplyType: gst.supplyType,
+            supplierGstin: supplier.gstin ?? null,
+            reverseCharge: gst.reverseCharge,
             billingAddressLine1: data.billingAddressLine1,
             billingCity: data.billingCity,
             billingState: data.billingState,
@@ -296,6 +282,7 @@ class GrnInvoiceService {
             totalCgst,
             totalSgst,
             totalIgst,
+            totalCess,
             netAmount,
 
             companyId: currentUser.companyId,
@@ -319,6 +306,9 @@ class GrnInvoiceService {
                 sgstAmount: item.sgstAmount || 0,
                 igstRate: item.igstRate || 0,
                 igstAmount: item.igstAmount || 0,
+                hsnCode: item.hsnCode ?? null,
+                cessRate: item.cessRate || 0,
+                cessAmount: item.cessAmount || 0,
                 lineTotal: item.lineTotal,
               })),
             },
@@ -612,9 +602,14 @@ class GrnInvoiceService {
       throw new ApiError(404, "Supplier not found");
     }
 
-    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
-    const isInterState =
-      company?.state?.toLowerCase().trim() !== supplier.billingState?.toLowerCase().trim();
+    const gst = await purchaseGstContext(
+      prisma,
+      {
+        businessPlaceId: data.businessPlaceId ?? existing.businessPlaceId,
+        reverseCharge: data.reverseCharge ?? existing.reverseCharge,
+      },
+      supplier
+    );
 
     const discountType = data.discountType || existing.discountType;
     const discountValue =
@@ -656,6 +651,7 @@ class GrnInvoiceService {
       let totalCgst = Number(existing.totalCgst);
       let totalSgst = Number(existing.totalSgst);
       let totalIgst = Number(existing.totalIgst);
+      let totalCess = Number(existing.totalCess);
       let netAmount = Number(existing.netAmount);
 
       let itemsToCreate = existing.items;
@@ -663,7 +659,7 @@ class GrnInvoiceService {
       if (items) {
         const totals = await this.calculateTotals(
           items,
-          isInterState,
+          gst,
           discountType,
           discountValue,
           roundingAdjust
@@ -674,6 +670,7 @@ class GrnInvoiceService {
         totalCgst = totals.totalCgst;
         totalSgst = totals.totalSgst;
         totalIgst = totals.totalIgst;
+        totalCess = totals.totalCess;
         netAmount = totals.netAmount;
         itemsToCreate = totals.itemsWithTotals as any;
 
@@ -714,8 +711,17 @@ class GrnInvoiceService {
         data: {
           invoiceNo: data.invoiceNo || existing.invoiceNo,
           grnDate: data.grnDate ? new Date(data.grnDate) : existing.grnDate,
+          supplierInvoiceDate: data.supplierInvoiceDate
+            ? new Date(data.supplierInvoiceDate)
+            : existing.supplierInvoiceDate,
           supplierId,
           storeId,
+          businessPlaceId: gst.place.id,
+          placeOfSupply: gst.placeOfSupply,
+          supplyType: gst.supplyType,
+          supplierGstin: supplier.gstin ?? null,
+          reverseCharge: gst.reverseCharge,
+          totalCess,
           billingAddressLine1: data.billingAddressLine1 || existing.billingAddressLine1,
           billingCity: data.billingCity || existing.billingCity,
           billingState: data.billingState || existing.billingState,
@@ -792,6 +798,9 @@ class GrnInvoiceService {
                 sgstAmount: item.sgstAmount || 0,
                 igstRate: item.igstRate || 0,
                 igstAmount: item.igstAmount || 0,
+                hsnCode: item.hsnCode ?? null,
+                cessRate: item.cessRate || 0,
+                cessAmount: item.cessAmount || 0,
                 lineTotal: item.lineTotal,
               })),
             },
