@@ -289,6 +289,7 @@ const SupplierForm: React.FC = () => {
         stateCode: "TN",
         openingBalance: 0,
         openingBalanceType: "CREDIT",
+        creditDays: "",
         status: "Active",
       });
       setAddresses([
