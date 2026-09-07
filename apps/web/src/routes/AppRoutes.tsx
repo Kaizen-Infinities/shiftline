@@ -17,6 +17,7 @@ const TvDashboard = lazy(() => import("../modules/dashboard/tv/TvDashboard"));
 const NotFoundPage = lazy(() => import("../modules/not-found/pages/NotFoundPage"));
 const UnauthorizedPage = lazy(() => import("../modules/unauthorized/pages/UnauthorizedPage"));
 const LoginPage = lazy(() => import("../modules/login/pages/LoginPage"));
+const AcceptInvitationPage = lazy(() => import("../modules/login/pages/AcceptInvitationPage"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
 
 // ===========================================================================
@@ -25,7 +26,9 @@ const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPas
 const ProfilePage = lazy(() => import("../modules/profile/ProfilePage"));
 const CompanySettings = lazy(() => import("../modules/company/pages/CompanySettings"));
 const RoleList = lazy(() => import("../modules/roles/pages/RoleList"));
-const RolePermissionMapping = lazy(() => import("../modules/role-permissions/pages/RolePermissionMapping"));
+const RolePermissionMapping = lazy(
+  () => import("../modules/role-permissions/pages/RolePermissionMapping")
+);
 const DepartmentList = lazy(() => import("../modules/departments/pages/DepartmentList"));
 const WhatsappSettings = lazy(() => import("../modules/whatsapp/WhatsappCreate"));
 const EmailConfigPage = lazy(() => import("../modules/email-config/pages/EmailConfigPage"));
@@ -72,25 +75,23 @@ const SupplierFormPage = lazy(() => import("../modules/supplier/pages/SupplierFo
 
 const ProductForm = lazy(() => import("../modules/product/pages/ProductForm"));
 
-
-
 // Administration
 // const UserList = lazy(() => import("../modules/users/pages/UserList"));
 
 // const PermissionList = lazy(() => import("../modules/permissions/pages/PermissionList"));
 
-
 // HR
 
 // Product Master Attributes
 
-
-
-
 // New modules
 const MachineForm = lazy(() => import("../modules/machines/pages/MachineForm"));
-const MachineAssignmentList = lazy(() => import("../modules/machine-operation-assignments/pages/MachineAssignmentList"));
-const MachineAssignmentForm = lazy(() => import("../modules/machine-operation-assignments/pages/MachineAssignmentForm"));
+const MachineAssignmentList = lazy(
+  () => import("../modules/machine-operation-assignments/pages/MachineAssignmentList")
+);
+const MachineAssignmentForm = lazy(
+  () => import("../modules/machine-operation-assignments/pages/MachineAssignmentForm")
+);
 
 // ===========================================================================
 // STORES & LOCATIONS
@@ -102,12 +103,20 @@ const StorageStoreForm = lazy(() => import("../modules/storage-stores/pages/Stor
 // ===========================================================================
 const StockList = lazy(() => import("../modules/stock/pages/StockList"));
 const FinishedStockList = lazy(() => import("../modules/finished-stock/pages/FinishedStockList"));
-const FinishedStockCreate = lazy(() => import("../modules/finished-stock/pages/FinishedStockCreate"));
+const FinishedStockCreate = lazy(
+  () => import("../modules/finished-stock/pages/FinishedStockCreate")
+);
 const FinishedStockEdit = lazy(() => import("../modules/finished-stock/pages/FinishedStockEdit"));
 
-const StockAdjustmentList = lazy(() => import("../modules/stock-adjustments/pages/StockAdjustmentList"));
-const StockAdjustmentForm = lazy(() => import("../modules/stock-adjustments/pages/StockAdjustmentForm"));
-const StockAdjustmentView = lazy(() => import("../modules/stock-adjustments/pages/StockAdjustmentView"));
+const StockAdjustmentList = lazy(
+  () => import("../modules/stock-adjustments/pages/StockAdjustmentList")
+);
+const StockAdjustmentForm = lazy(
+  () => import("../modules/stock-adjustments/pages/StockAdjustmentForm")
+);
+const StockAdjustmentView = lazy(
+  () => import("../modules/stock-adjustments/pages/StockAdjustmentView")
+);
 
 const EodStockList = lazy(() => import("../modules/Eodstock/pages/EodStockList"));
 
@@ -118,44 +127,86 @@ const WastageStockEdit = lazy(() => import("../modules/wastage-stock/pages/Wasta
 // ===========================================================================
 // PRODUCTION & PLANNING
 // ===========================================================================
-const ProductionOrderList = lazy(() => import("../modules/production-orders/pages/ProductionOrderList"));
-const AllProductionOrderList = lazy(() => import("../modules/production-orders/pages/AllProductionOrderList"));
-const ProductionOrderCreate = lazy(() => import("../modules/production-orders/pages/ProductionOrderCreate"));
-const ProductionOrderHistoryView = lazy(() => import("../modules/production-orders/pages/ProductionOrderHistoryView"));
+const ProductionOrderList = lazy(
+  () => import("../modules/production-orders/pages/ProductionOrderList")
+);
+const AllProductionOrderList = lazy(
+  () => import("../modules/production-orders/pages/AllProductionOrderList")
+);
+const ProductionOrderCreate = lazy(
+  () => import("../modules/production-orders/pages/ProductionOrderCreate")
+);
+const ProductionOrderHistoryView = lazy(
+  () => import("../modules/production-orders/pages/ProductionOrderHistoryView")
+);
 
-const WeeklyMachineScheduleList = lazy(() => import("../modules/weekly-machine-schedules/pages/WeeklyMachineScheduleList"));
-const WeeklyMachineScheduleCreate = lazy(() => import("../modules/weekly-machine-schedules/pages/WeeklyMachineScheduleCreate"));
-const WeeklyMachineScheduleEdit = lazy(() => import("../modules/weekly-machine-schedules/pages/WeeklyMachineScheduleEdit"));
+const WeeklyMachineScheduleList = lazy(
+  () => import("../modules/weekly-machine-schedules/pages/WeeklyMachineScheduleList")
+);
+const WeeklyMachineScheduleCreate = lazy(
+  () => import("../modules/weekly-machine-schedules/pages/WeeklyMachineScheduleCreate")
+);
+const WeeklyMachineScheduleEdit = lazy(
+  () => import("../modules/weekly-machine-schedules/pages/WeeklyMachineScheduleEdit")
+);
 
-const DailyProductionPlanningPage = lazy(() => import("../modules/daily-machine-planning/pages/DailyProductionPlanningPage"));
-const DailyPlanCreate = lazy(() => import("../modules/daily-machine-planning/pages/DailyPlanCreate"));
-const DailyPlanViewPage = lazy(() => import("../modules/daily-machine-planning/pages/DailyPlanViewPage"));
-const DailyReportPage = lazy(() => import("../modules/daily-machine-planning/pages/DailyReportPage"));
+const DailyProductionPlanningPage = lazy(
+  () => import("../modules/daily-machine-planning/pages/DailyProductionPlanningPage")
+);
+const DailyPlanCreate = lazy(
+  () => import("../modules/daily-machine-planning/pages/DailyPlanCreate")
+);
+const DailyPlanViewPage = lazy(
+  () => import("../modules/daily-machine-planning/pages/DailyPlanViewPage")
+);
+const DailyReportPage = lazy(
+  () => import("../modules/daily-machine-planning/pages/DailyReportPage")
+);
 
-const HourlyWorkReportList = lazy(() => import("../modules/hourly-work-reports/pages/HourlyWorkReportList"));
-const HourlyWorkReportCreate = lazy(() => import("../modules/hourly-work-reports/pages/HourlyWorkReportCreate"));
-const HourlyWorkReportEdit = lazy(() => import("../modules/hourly-work-reports/pages/HourlyWorkReportEdit"));
+const HourlyWorkReportList = lazy(
+  () => import("../modules/hourly-work-reports/pages/HourlyWorkReportList")
+);
+const HourlyWorkReportCreate = lazy(
+  () => import("../modules/hourly-work-reports/pages/HourlyWorkReportCreate")
+);
+const HourlyWorkReportEdit = lazy(
+  () => import("../modules/hourly-work-reports/pages/HourlyWorkReportEdit")
+);
 
 const WastageList = lazy(() => import("../modules/production-wastage/pages/WastageList"));
 const WastageForm = lazy(() => import("../modules/production-wastage/pages/WastageCreate"));
 
-const ShiftExecutionBoard = lazy(() => import("../modules/shift-execution/pages/ShiftExecutionBoard"));
+const ShiftExecutionBoard = lazy(
+  () => import("../modules/shift-execution/pages/ShiftExecutionBoard")
+);
 
 // Goods Dispatch
 const GoodsDispatchList = lazy(() => import("../modules/goods-dispatch/pages/GoodsDispatchList"));
-const GoodsDispatchCreate = lazy(() => import("../modules/goods-dispatch/pages/GoodsDispatchCreate"));
+const GoodsDispatchCreate = lazy(
+  () => import("../modules/goods-dispatch/pages/GoodsDispatchCreate")
+);
 const GoodsDispatchView = lazy(() => import("../modules/goods-dispatch/pages/GoodsDispatchView"));
-const GoodsDispatchDetail = lazy(() => import("../modules/goods-dispatch/pages/GoodsDispatchDetail"));
-const GoodsDispatchGateApproval = lazy(() => import("../modules/goods-dispatch/pages/GoodsDispatchGateApproval"));
-const GoodsDispatchStoreApproval = lazy(() => import("../modules/goods-dispatch/pages/GoodsDispatchStoreApproval"));
+const GoodsDispatchDetail = lazy(
+  () => import("../modules/goods-dispatch/pages/GoodsDispatchDetail")
+);
+const GoodsDispatchGateApproval = lazy(
+  () => import("../modules/goods-dispatch/pages/GoodsDispatchGateApproval")
+);
+const GoodsDispatchStoreApproval = lazy(
+  () => import("../modules/goods-dispatch/pages/GoodsDispatchStoreApproval")
+);
 
 // ===========================================================================
 // REPORTS
 // ===========================================================================
 const SalesReportsCenter = lazy(() => import("../modules/reports/pages/SalesReportsCenter"));
 const PurchaseReportsCenter = lazy(() => import("../modules/reports/pages/PurchaseReportsCenter"));
-const InventoryReportsCenter = lazy(() => import("../modules/reports/pages/InventoryReportsCenter"));
-const ProductionReportsCenter = lazy(() => import("../modules/reports/pages/ProductionReportsCenter"));
+const InventoryReportsCenter = lazy(
+  () => import("../modules/reports/pages/InventoryReportsCenter")
+);
+const ProductionReportsCenter = lazy(
+  () => import("../modules/reports/pages/ProductionReportsCenter")
+);
 
 // ===========================================================================
 // SALES
@@ -179,21 +230,32 @@ const SalesInvoiceView = lazy(() => import("../modules/sales-order-invoice/Sales
 // ===========================================================================
 const SupplierListPage = lazy(() => import("../modules/supplier/pages/SupplierList"));
 
-const SupplierMaterialPricingList = lazy(() => import("../modules/supplier/pages/Suppliermaterialpricinglist"));
+const SupplierMaterialPricingList = lazy(
+  () => import("../modules/supplier/pages/Suppliermaterialpricinglist")
+);
 
-const PurchaseOrderListPage = lazy(() => import("../modules/purchase/purchase-order/pages/PurchaseOrderListPage"));
+const PurchaseOrderListPage = lazy(
+  () => import("../modules/purchase/purchase-order/pages/PurchaseOrderListPage")
+);
 
 // Purchase Order Module
 
-const PurchaseOrderForm = lazy(() => import("../modules/purchase/purchase-order/pages/PurchaseOrderForm"));
-
+const PurchaseOrderForm = lazy(
+  () => import("../modules/purchase/purchase-order/pages/PurchaseOrderForm")
+);
 
 const ExpensesList = lazy(() => import("../modules/expenses/ExpensesList"));
 
 const InvoiceList = lazy(() => import("../modules/purchase/purchase-order/invoice/InvoiceList"));
-const InvoiceDetail = lazy(() => import("../modules/purchase/purchase-order/upcoming-orders/InvoiceDetailPage"));
-const GrnInvoiceViewPage = lazy(() => import("../modules/purchase/purchase-order/invoice/GrnInvoiceViewPage"));
-const PoInvoicePage = lazy(() => import("../modules/purchase/purchase-order/invoice/PoInvoicePage"));
+const InvoiceDetail = lazy(
+  () => import("../modules/purchase/purchase-order/upcoming-orders/InvoiceDetailPage")
+);
+const GrnInvoiceViewPage = lazy(
+  () => import("../modules/purchase/purchase-order/invoice/GrnInvoiceViewPage")
+);
+const PoInvoicePage = lazy(
+  () => import("../modules/purchase/purchase-order/invoice/PoInvoicePage")
+);
 
 // ===========================================================================
 // ACCOUNTS & FINANCIALS
@@ -201,36 +263,68 @@ const PoInvoicePage = lazy(() => import("../modules/purchase/purchase-order/invo
 // exports only, so their lazy import has to remap the name onto `default`.
 // ===========================================================================
 const AmountPayablePage = lazy(() => import("../modules/accounts/pages/payable/AmountPayablePage"));
-const AmountReceivablePage = lazy(() => import("../modules/accounts/pages/receivable/AmountReceivablePage"));
-const SupplierBreakdownPage = lazy(() => import("../modules/accounts/pages/payable/SupplierBreakdownPage"));
-const CustomerBreakdownPage = lazy(() => import("../modules/accounts/pages/receivable/CustomerBreakdownPage"));
-const LedgerStatementPage = lazy(() => import("../modules/accounts/pages/ledger-statement/LedgerStatementPage"));
-const ChartOfAccountsPage = lazy(() => import("../modules/accounts/pages/chart-of-accounts/ChartOfAccountsPage"));
+const AmountReceivablePage = lazy(
+  () => import("../modules/accounts/pages/receivable/AmountReceivablePage")
+);
+const SupplierBreakdownPage = lazy(
+  () => import("../modules/accounts/pages/payable/SupplierBreakdownPage")
+);
+const CustomerBreakdownPage = lazy(
+  () => import("../modules/accounts/pages/receivable/CustomerBreakdownPage")
+);
+const LedgerStatementPage = lazy(
+  () => import("../modules/accounts/pages/ledger-statement/LedgerStatementPage")
+);
+const ChartOfAccountsPage = lazy(
+  () => import("../modules/accounts/pages/chart-of-accounts/ChartOfAccountsPage")
+);
 const BankAccountsPage = lazy(() => import("../modules/accounts/pages/bank/BankAccountsPage"));
 const BankStatementPage = lazy(() => import("../modules/accounts/pages/bank/BankStatementPage"));
-const PaymentVoucherPage = lazy(() => import("../modules/accounts/pages/vouchers/PaymentVoucherPage"));
-const PaymentVoucherAddPage = lazy(() => import("../modules/accounts/pages/vouchers/PaymentVoucherAddPage"));
-const ReceiptVoucherPage = lazy(() => import("../modules/accounts/pages/vouchers/ReceiptVoucherPage"));
-const ReceiptVoucherAddPage = lazy(() => import("../modules/accounts/pages/vouchers/ReceiptVoucherAddPage"));
+const PaymentVoucherPage = lazy(
+  () => import("../modules/accounts/pages/vouchers/PaymentVoucherPage")
+);
+const PaymentVoucherAddPage = lazy(
+  () => import("../modules/accounts/pages/vouchers/PaymentVoucherAddPage")
+);
+const ReceiptVoucherPage = lazy(
+  () => import("../modules/accounts/pages/vouchers/ReceiptVoucherPage")
+);
+const ReceiptVoucherAddPage = lazy(
+  () => import("../modules/accounts/pages/vouchers/ReceiptVoucherAddPage")
+);
 const JournalEntryPage = lazy(() => import("../modules/accounts/pages/vouchers/JournalEntryPage"));
-const JournalEntryAddPage = lazy(() => import("../modules/accounts/pages/vouchers/JournalEntryAddPage"));
-const ContraVoucherPage = lazy(() => import("../modules/accounts/pages/vouchers/ContraVoucherPage"));
-const ContraVoucherAddPage = lazy(() => import("../modules/accounts/pages/vouchers/ContraVoucherAddPage"));
+const JournalEntryAddPage = lazy(
+  () => import("../modules/accounts/pages/vouchers/JournalEntryAddPage")
+);
+const ContraVoucherPage = lazy(
+  () => import("../modules/accounts/pages/vouchers/ContraVoucherPage")
+);
+const ContraVoucherAddPage = lazy(
+  () => import("../modules/accounts/pages/vouchers/ContraVoucherAddPage")
+);
 const TrialBalancePage = lazy(() => import("../modules/accounts/pages/reports/TrialBalancePage"));
 const BalanceSheetPage = lazy(() => import("../modules/accounts/pages/reports/BalanceSheetPage"));
 const ProfitLossPage = lazy(() => import("../modules/accounts/pages/reports/ProfitLossPage"));
 
 const SalesReturnPage = lazy(() =>
-  import("../modules/accounts/pages/returns/SalesReturnPage").then((m) => ({ default: m.SalesReturnPage }))
+  import("../modules/accounts/pages/returns/SalesReturnPage").then((m) => ({
+    default: m.SalesReturnPage,
+  }))
 );
 const SalesReturnCreatePage = lazy(() =>
-  import("../modules/accounts/pages/returns/SalesReturnCreatePage").then((m) => ({ default: m.SalesReturnCreatePage }))
+  import("../modules/accounts/pages/returns/SalesReturnCreatePage").then((m) => ({
+    default: m.SalesReturnCreatePage,
+  }))
 );
 const PurchaseReturnPage = lazy(() =>
-  import("../modules/accounts/pages/returns/PurchaseReturnPage").then((m) => ({ default: m.PurchaseReturnPage }))
+  import("../modules/accounts/pages/returns/PurchaseReturnPage").then((m) => ({
+    default: m.PurchaseReturnPage,
+  }))
 );
 const PettyCashPage = lazy(() =>
-  import("../modules/accounts/pages/petty-cash/PettyCashPage").then((m) => ({ default: m.PettyCashPage }))
+  import("../modules/accounts/pages/petty-cash/PettyCashPage").then((m) => ({
+    default: m.PettyCashPage,
+  }))
 );
 
 // ===========================================================================
@@ -250,7 +344,6 @@ const AppRoutes = () => {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           {/* Onboarding Route (Rendered without BaseLayout) */}
@@ -260,7 +353,6 @@ const AppRoutes = () => {
           <Route path="/tv-dashboard" element={<TvDashboard />} />
 
           <Route element={<BaseLayout />}>
-
             {/* ================================================================= */}
             {/* CORE & DASHBOARD                                                  */}
             {/* ================================================================= */}
@@ -283,7 +375,6 @@ const AppRoutes = () => {
             {/* PageContainer supplies the shell those wrappers used to add.      */}
             {/* ================================================================= */}
             <Route element={<PageContainer />}>
-
               {/* ---------- Organization & Settings ---------- */}
               <Route path="/company/view" element={<ProfilePage />} />
               <Route path="/settings/company" element={<CompanySettings />} />
@@ -419,7 +510,11 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="sales-invoices.view" />}>
                 <Route path="/sales-invoices" element={<SalesInvoiceList />} />
               </Route>
-              <Route element={<ProtectedRoute permissionAny={["sales-returns.view", "sales-invoices.view"]} />}>
+              <Route
+                element={
+                  <ProtectedRoute permissionAny={["sales-returns.view", "sales-invoices.view"]} />
+                }
+              >
                 <Route path="/sales-returns" element={<SalesReturnPage />} />
               </Route>
 
@@ -433,12 +528,31 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="invoice.view" />}>
                 <Route path="/invoice" element={<InvoiceList />} />
               </Route>
-              <Route element={<ProtectedRoute permissionAny={["purchase-returns.view", "purchaseOrders.view"]} />}>
+              <Route
+                element={
+                  <ProtectedRoute
+                    permissionAny={["purchase-returns.view", "purchaseOrders.view"]}
+                  />
+                }
+              >
                 <Route path="/purchase-returns" element={<PurchaseReturnPage />} />
               </Route>
 
               {/* ---------- Accounts & Financials ---------- */}
-              <Route element={<ProtectedRoute permissionAny={["accounts.view", "payable.view", "receivable.view", "vouchers.view", "petty-cash.view", "chart-of-accounts.view"]} />}>
+              <Route
+                element={
+                  <ProtectedRoute
+                    permissionAny={[
+                      "accounts.view",
+                      "payable.view",
+                      "receivable.view",
+                      "vouchers.view",
+                      "petty-cash.view",
+                      "chart-of-accounts.view",
+                    ]}
+                  />
+                }
+              >
                 <Route path="/accounts/payable" element={<AmountPayablePage />} />
                 <Route path="/accounts/receivable" element={<AmountReceivablePage />} />
                 <Route path="/accounts/ledger-statement" element={<LedgerStatementPage />} />
@@ -454,7 +568,6 @@ const AppRoutes = () => {
                 <Route path="/accounts/balance-sheet" element={<BalanceSheetPage />} />
                 <Route path="/accounts/profit-loss" element={<ProfitLossPage />} />
               </Route>
-
             </Route>
             {/* ================= end of PageContainer group ==================== */}
 
@@ -495,7 +608,10 @@ const AppRoutes = () => {
               <Route path="/suppliers/edit/:id" element={<SupplierFormPage />} />
             </Route>
             <Route element={<ProtectedRoute permission="supplierpricelist.view" />}>
-              <Route path="/suppliers/:supplierId/material-prices" element={<SupplierMaterialPricingList />} />
+              <Route
+                path="/suppliers/:supplierId/material-prices"
+                element={<SupplierMaterialPricingList />}
+              />
             </Route>
 
             {/* ---------- Employees ---------- */}
@@ -538,10 +654,18 @@ const AppRoutes = () => {
             <Route element={<ProtectedRoute permission="machines.edit" />}>
               <Route path="/machines/edit/:id" element={<MachineForm />} />
             </Route>
-            <Route element={<ProtectedRoute permissionAny={["machine-assignments.create", "machines.create"]} />}>
+            <Route
+              element={
+                <ProtectedRoute permissionAny={["machine-assignments.create", "machines.create"]} />
+              }
+            >
               <Route path="/machines/assignments/create" element={<MachineAssignmentForm />} />
             </Route>
-            <Route element={<ProtectedRoute permissionAny={["machine-assignments.edit", "machines.edit"]} />}>
+            <Route
+              element={
+                <ProtectedRoute permissionAny={["machine-assignments.edit", "machines.edit"]} />
+              }
+            >
               <Route path="/machines/assignments/edit/:id" element={<MachineAssignmentForm />} />
             </Route>
             <Route element={<ProtectedRoute permission="shifts.create" />}>
@@ -553,13 +677,19 @@ const AppRoutes = () => {
 
             {/* ---------- Inventory ---------- */}
             <Route element={<ProtectedRoute permission="stock-adjustments.view" />}>
-              <Route path="/inventory/stock-adjustments/view/:id" element={<StockAdjustmentView />} />
+              <Route
+                path="/inventory/stock-adjustments/view/:id"
+                element={<StockAdjustmentView />}
+              />
             </Route>
             <Route element={<ProtectedRoute permission="stock-adjustments.create" />}>
               <Route path="/inventory/stock-adjustments/create" element={<StockAdjustmentForm />} />
             </Route>
             <Route element={<ProtectedRoute permission="stock-adjustments.edit" />}>
-              <Route path="/inventory/stock-adjustments/edit/:id" element={<StockAdjustmentForm />} />
+              <Route
+                path="/inventory/stock-adjustments/edit/:id"
+                element={<StockAdjustmentForm />}
+              />
             </Route>
             <Route element={<ProtectedRoute permission="wastage-stock.create" />}>
               <Route path="/wastage-stock/create" element={<WastageStockCreate />} />
@@ -576,10 +706,16 @@ const AppRoutes = () => {
 
             {/* ---------- Production ---------- */}
             <Route element={<ProtectedRoute permission="weekly_programs.create" />}>
-              <Route path="/weekly-machine-schedules/create" element={<WeeklyMachineScheduleCreate />} />
+              <Route
+                path="/weekly-machine-schedules/create"
+                element={<WeeklyMachineScheduleCreate />}
+              />
             </Route>
             <Route element={<ProtectedRoute permission="weekly_programs.edit" />}>
-              <Route path="/weekly-machine-schedules/edit/:id" element={<WeeklyMachineScheduleEdit />} />
+              <Route
+                path="/weekly-machine-schedules/edit/:id"
+                element={<WeeklyMachineScheduleEdit />}
+              />
             </Route>
             <Route element={<ProtectedRoute permission="daily-machine-planning.view" />}>
               <Route path="/daily-machine-planning/view/:id" element={<DailyPlanViewPage />} />
@@ -596,7 +732,10 @@ const AppRoutes = () => {
             </Route>
             <Route element={<ProtectedRoute permission="production_orders.view" />}>
               <Route path="/production-dashboard" element={<ProductionDashboard />} />
-              <Route path="/production-orders/history/view/:id" element={<ProductionOrderHistoryView />} />
+              <Route
+                path="/production-orders/history/view/:id"
+                element={<ProductionOrderHistoryView />}
+              />
             </Route>
             <Route element={<ProtectedRoute permission="production_orders.create" />}>
               <Route path="/production-orders/create" element={<ProductionOrderCreate />} />
@@ -620,11 +759,20 @@ const AppRoutes = () => {
             {/* ---------- Goods Dispatch ---------- */}
             <Route element={<ProtectedRoute permission="goods-dispatch.view" />}>
               <Route path="/production/goods-dispatch/view/:id" element={<GoodsDispatchView />} />
-              <Route path="/production/goods-dispatch/detail/:id" element={<GoodsDispatchDetail />} />
+              <Route
+                path="/production/goods-dispatch/detail/:id"
+                element={<GoodsDispatchDetail />}
+              />
             </Route>
             <Route element={<ProtectedRoute permission="goods-dispatch.edit" />}>
-              <Route path="/production/goods-dispatch/gate-approval/:id" element={<GoodsDispatchGateApproval />} />
-              <Route path="/production/goods-dispatch/store-approval/:id" element={<GoodsDispatchStoreApproval />} />
+              <Route
+                path="/production/goods-dispatch/gate-approval/:id"
+                element={<GoodsDispatchGateApproval />}
+              />
+              <Route
+                path="/production/goods-dispatch/store-approval/:id"
+                element={<GoodsDispatchStoreApproval />}
+              />
             </Route>
             <Route element={<ProtectedRoute permission="goods-dispatch.create" />}>
               <Route path="/production/goods-dispatch/create" element={<GoodsDispatchCreate />} />
@@ -637,7 +785,13 @@ const AppRoutes = () => {
             <Route element={<ProtectedRoute permission="sales-orders.create" />}>
               <Route path="/sales-order/create" element={<SalesOrderCreate />} />
             </Route>
-            <Route element={<ProtectedRoute permissionAny={["sales-orders.create", "sales-orders.view", "draft-orders.edit"]} />}>
+            <Route
+              element={
+                <ProtectedRoute
+                  permissionAny={["sales-orders.create", "sales-orders.view", "draft-orders.edit"]}
+                />
+              }
+            >
               <Route path="/sales-order/edit/:id" element={<SalesOrderCreate />} />
             </Route>
             <Route element={<ProtectedRoute permission="draft-orders.edit" />}>
@@ -658,7 +812,13 @@ const AppRoutes = () => {
             <Route element={<ProtectedRoute permission="sales-invoices.edit" />}>
               <Route path="/sales-invoices/edit/:id" element={<SalesInvoiceForm />} />
             </Route>
-            <Route element={<ProtectedRoute permissionAny={["sales-returns.view", "sales-invoices.view", "sales-orders.view"]} />}>
+            <Route
+              element={
+                <ProtectedRoute
+                  permissionAny={["sales-returns.view", "sales-invoices.view", "sales-orders.view"]}
+                />
+              }
+            >
               <Route path="/sales-returns/create" element={<SalesReturnCreatePage />} />
               <Route path="/sales-returns/edit/:id" element={<SalesReturnCreatePage />} />
               <Route path="/accounts/sales-returns/create" element={<SalesReturnCreatePage />} />
@@ -687,13 +847,31 @@ const AppRoutes = () => {
             </Route>
 
             {/* ---------- Accounts drill-downs ---------- */}
-            <Route element={<ProtectedRoute permissionAny={["accounts.view", "payable.view", "receivable.view"]} />}>
+            <Route
+              element={
+                <ProtectedRoute
+                  permissionAny={["accounts.view", "payable.view", "receivable.view"]}
+                />
+              }
+            >
               <Route path="/accounts/payable/:supplierId" element={<SupplierBreakdownPage />} />
               <Route path="/accounts/receivable/:customerId" element={<CustomerBreakdownPage />} />
             </Route>
 
             {/* ---------- Payroll ---------- */}
-            <Route element={<ProtectedRoute permissionAny={["payroll.view", "payroll-run.view", "payroll-settings.view", "payroll-attendance.view", "payroll-advance.view"]} />}>
+            <Route
+              element={
+                <ProtectedRoute
+                  permissionAny={[
+                    "payroll.view",
+                    "payroll-run.view",
+                    "payroll-settings.view",
+                    "payroll-attendance.view",
+                    "payroll-advance.view",
+                  ]}
+                />
+              }
+            >
               <Route path="/payroll" element={<PayrollDashboard />} />
               <Route path="/payroll/run" element={<PayrollRun />} />
               <Route path="/payroll/settings" element={<PayrollSettings />} />
@@ -702,13 +880,13 @@ const AppRoutes = () => {
               <Route path="/payroll/monthly-report" element={<MonthlyPayrollReport />} />
               <Route path="/payroll/weekly-report" element={<WeeklyPayrollReport />} />
             </Route>
-
           </Route>
         </Route>
 
         {/* Public Routes */}
         <Route element={<PublicRoute />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
           {/* Reset Route */}
           <Route path="/reset" element={<ResetPassword />} />
         </Route>
@@ -718,9 +896,8 @@ const AppRoutes = () => {
 
         {/* 404 */}
         <Route path="*" element={<NotFoundPage />} />
-
       </Routes>
-    </Suspense >
+    </Suspense>
   );
 };
 

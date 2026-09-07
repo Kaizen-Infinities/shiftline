@@ -4,11 +4,11 @@
  * tenant with the same shape). Idempotent per company.
  */
 import { Prisma, type Company } from "@prisma/client";
-import { PERMISSION_REGISTRY } from "@shiftline/shared";
+import { ROLE_DEFS, provisioningService } from "../src/modules/platform/provisioning.service";
+export { ROLE_DEFS };
 import { prisma } from "../src/config/prisma";
 import { hashPassword } from "../src/utils/hashPassword";
 import { runAsTenant, withoutTenant } from "../src/lib/tenant-context";
-import { accountsService } from "../src/modules/accounts/accounts.service";
 
 export interface SeedTenantOptions {
   companyCode: string;
@@ -23,163 +23,39 @@ export interface SeedTenantOptions {
 
 const D = (n: number | string) => new Prisma.Decimal(n);
 
-const keysFor = (modules: string[], actions?: string[]) =>
-  PERMISSION_REGISTRY.filter((m) => modules.includes(m.module)).flatMap((m) =>
-    m.actions.filter((a) => !actions || actions.includes(a)).map((a) => `${m.module}.${a}`)
-  );
-
-export const ROLE_DEFS = (): {
-  code: string;
-  name: string;
-  description: string;
-  keys: string[];
-}[] => [
-  {
-    code: "OWNER",
-    name: "Owner",
-    description: "Everything except platform administration",
-    keys: PERMISSION_REGISTRY.flatMap((m) => m.actions.map((a) => `${m.module}.${a}`)),
-  },
-  {
-    code: "ACCOUNTS",
-    name: "Accounts",
-    description: "Books, invoices, payments, reports",
-    keys: keysFor([
-      "accounts",
-      "payable",
-      "receivable",
-      "vouchers",
-      "petty-cash",
-      "chart-of-accounts",
-      "sales-invoices",
-      "purchase-orders",
-      "sales-returns",
-      "purchase-returns",
-      "customers",
-      "suppliers",
-      "reports",
-      "dash-overview",
-      "invoice-settings",
-      "gst_tax",
-      "expenses",
-    ]),
-  },
-  {
-    code: "STORES",
-    name: "Stores",
-    description: "Inventory and dispatch",
-    keys: keysFor([
-      "raw_materials",
-      "raw_material_categories",
-      "wastage-store",
-      "stores",
-      "stock-adjustments",
-      "goods-dispatch",
-      "eod-stock",
-      "inventory",
-      "dash-inventory",
-      "products",
-      "categories",
-      "uoms",
-    ]),
-  },
-  {
-    code: "PRODUCTION",
-    name: "Production",
-    description: "Planning and shop floor",
-    keys: keysFor([
-      "production-orders",
-      "weekly-programs",
-      "daily-plans",
-      "hourly-production",
-      "production-wastage",
-      "machines",
-      "machine-assignments",
-      "shifts",
-      "dash-machines",
-      "oee",
-      "products",
-      "raw_materials",
-    ]),
-  },
-  {
-    code: "SALES_EXEC",
-    name: "Sales Executive",
-    description: "Field sales via the mobile app",
-    keys: [
-      ...keysFor(["customers", "sales-orders", "quotations", "dash-overview"], ["view", "create"]),
-      ...keysFor(["mobile-app"], ["view", "create"]),
-    ],
-  },
-];
-
 export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
   const log = opts.log ?? (() => {});
   const P = opts.globalPrefix ? `${opts.globalPrefix}-` : "";
 
-  const company = await withoutTenant(() =>
-    prisma.company.upsert({
-      where: { companyCode: opts.companyCode },
-      update: {},
-      create: {
-        companyCode: opts.companyCode,
-        companyName: opts.companyName,
-        legalName: `${opts.companyName} Private Limited`,
-        shortName: opts.companyCode,
-        gstin: "33AAAAA0000A1Z5", // syntactically valid, not a real registration
-        phone: "0000000000",
-        email: `hello@${opts.slug}.shiftline.local`,
-        addressLine1: "Plot 1, Demo Industrial Estate",
-        city: "Chennai",
-        state: "Tamil Nadu",
-        zipcode: "600001",
-        country: "India",
-        isOnboarded: true,
-      },
-    })
-  );
-  log(`company ${company.companyName}`);
+  // Everything a real tenant gets on sign-up: chart of accounts, head office,
+  // roles, units, financial year, sequences, settings (modules/platform/provisioning.service.ts).
+  const provisioned = await provisioningService.provisionTenant({
+    companyCode: opts.companyCode,
+    companyName: opts.companyName,
+    legalName: `${opts.companyName} Private Limited`,
+    slug: opts.slug,
+    gstin: "33AAAAA0000A1Z5", // syntactically valid, not a real registration
+    phone: "0000000000",
+    email: `hello@${opts.slug}.shiftline.local`,
+    addressLine1: "Plot 1, Demo Industrial Estate",
+    city: "Chennai",
+    state: "Tamil Nadu",
+    zipcode: "600001",
+    country: "India",
+    isOnboarded: true,
+  });
+  const company = provisioned.company;
+  const roles = provisioned.roles;
+  log(`company ${company.companyName} provisioned`);
 
   await runAsTenant(company.id, async () => {
-    await accountsService.ensureSystemLedgersExist();
-
-    if ((await prisma.businessPlace.count()) === 0) {
-      await prisma.businessPlace.createMany({
-        data: [
-          {
-            code: "HO",
-            name: "Head Office",
-            type: "HEAD_OFFICE",
-            gstPlaceCode: "33",
-            isHeadOffice: true,
-          },
-          { code: "F1", name: "Factory 1", type: "FACTORY", gstPlaceCode: "33" },
-        ],
+    // Demo data on top of the provisioned defaults.
+    if (!(await prisma.businessPlace.findFirst({ where: { code: "F1" } }))) {
+      await prisma.businessPlace.create({
+        data: { code: "F1", name: "Factory 1", type: "FACTORY", gstPlaceCode: "33" },
       });
     }
     const factory = await prisma.businessPlace.findFirstOrThrow({ where: { code: "F1" } });
-
-    // Roles
-    const allPerms = await prisma.permission.findMany({ select: { id: true, key: true } });
-    const permByKey = new Map(allPerms.map((p) => [p.key, p.id]));
-    const roles: Record<string, number> = {};
-    for (const r of ROLE_DEFS()) {
-      const role = await prisma.role.upsert({
-        where: { companyId_code: { companyId: company.id, code: r.code } },
-        update: { name: r.name, description: r.description },
-        create: { code: r.code, name: r.name, description: r.description, isSystem: false },
-      });
-      roles[r.code] = role.id;
-      const ids = r.keys
-        .map((k) => permByKey.get(k))
-        .filter((x): x is number => typeof x === "number");
-      if (ids.length) {
-        await prisma.rolePermission.createMany({
-          data: ids.map((permissionId) => ({ roleId: role.id, permissionId })),
-          skipDuplicates: true,
-        });
-      }
-    }
 
     // Users (username/email are global uniques, hence the slug)
     const passwordHash = await hashPassword(opts.password);

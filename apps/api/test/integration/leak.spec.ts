@@ -177,6 +177,7 @@ describe("cross-tenant leak suite", () => {
     /\/pdf/,
     /whatsapp\/webhook/,
     /companies\/public/,
+    /invitations\/token/,
   ];
 
   it("no route serves tenant B's data to tenant A, and none changes it", async () => {

@@ -1,0 +1,349 @@
+/**
+ * Tenant provisioning (P1-00). Turns a company record into a working tenant:
+ * chart of accounts, head-office business place, default roles from the
+ * permission registry, units, the current financial year with its accounting
+ * period and invoice settings, document sequences and the settings other
+ * modules expect. Idempotent, so the development seed and the platform API
+ * share it and re-running never duplicates rows.
+ */
+import { PERMISSION_REGISTRY } from "@shiftline/shared";
+import type { Company } from "@prisma/client";
+
+import { prisma } from "../../config/prisma";
+import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
+import { ApiError } from "../../utils/ApiError";
+import { accountsService } from "../accounts/accounts.service";
+
+const keysFor = (modules: string[], actions?: string[]) =>
+  PERMISSION_REGISTRY.filter((m) => modules.includes(m.module)).flatMap((m) =>
+    m.actions.filter((a) => !actions || actions.includes(a)).map((a) => `${m.module}.${a}`)
+  );
+
+export interface RoleDef {
+  code: string;
+  name: string;
+  description: string;
+  keys: string[];
+}
+
+/** Default roles every tenant starts with; the owner may edit or add to them. */
+export const ROLE_DEFS = (): RoleDef[] => [
+  {
+    code: "OWNER",
+    name: "Owner",
+    description: "Everything except platform administration",
+    keys: PERMISSION_REGISTRY.flatMap((m) => m.actions.map((a) => `${m.module}.${a}`)),
+  },
+  {
+    code: "ACCOUNTS",
+    name: "Accounts",
+    description: "Books, invoices, payments, reports",
+    keys: keysFor([
+      "accounts",
+      "payable",
+      "receivable",
+      "vouchers",
+      "petty-cash",
+      "chart-of-accounts",
+      "sales-invoices",
+      "purchase-orders",
+      "sales-returns",
+      "purchase-returns",
+      "customers",
+      "suppliers",
+      "reports",
+      "dash-overview",
+      "invoice-settings",
+      "gst_tax",
+      "expenses",
+      "retention",
+    ]),
+  },
+  {
+    code: "STORES",
+    name: "Stores",
+    description: "Inventory and dispatch",
+    keys: keysFor([
+      "raw_materials",
+      "raw_material_categories",
+      "wastage-store",
+      "stores",
+      "stock-adjustments",
+      "goods-dispatch",
+      "eod-stock",
+      "inventory",
+      "dash-inventory",
+      "products",
+      "categories",
+      "uoms",
+    ]),
+  },
+  {
+    code: "PRODUCTION",
+    name: "Production",
+    description: "Planning and shop floor",
+    keys: keysFor([
+      "production-orders",
+      "weekly-programs",
+      "daily-plans",
+      "hourly-production",
+      "production-wastage",
+      "machines",
+      "machine-assignments",
+      "shifts",
+      "dash-machines",
+      "oee",
+      "products",
+      "raw_materials",
+    ]),
+  },
+  {
+    code: "SALES_EXEC",
+    name: "Sales Executive",
+    description: "Field sales via the mobile app",
+    keys: [
+      ...keysFor(["customers", "sales-orders", "quotations", "dash-overview"], ["view", "create"]),
+      ...keysFor(["mobile-app"], ["view", "create"]),
+    ],
+  },
+];
+
+/** Document types that get a numbering series per financial year from day one. */
+export const SEQUENCED_DOC_TYPES: { docType: string; prefix: string }[] = [
+  { docType: "SALES_ORDER", prefix: "SO" },
+  { docType: "SALES_INVOICE", prefix: "INV" },
+  { docType: "PURCHASE_ORDER", prefix: "PO" },
+  { docType: "GRN", prefix: "GRN" },
+  { docType: "RECEIPT", prefix: "RCT" },
+  { docType: "PAYMENT", prefix: "PMT" },
+  { docType: "JOURNAL", prefix: "JV" },
+  { docType: "CONTRA", prefix: "CTR" },
+  { docType: "CREDIT_NOTE", prefix: "CN" },
+  { docType: "DEBIT_NOTE", prefix: "DN" },
+  { docType: "DELIVERY_CHALLAN", prefix: "DC" },
+  { docType: "SALES_RETURN", prefix: "SR" },
+  { docType: "PURCHASE_RETURN", prefix: "PR" },
+];
+
+export const DEFAULT_UOMS = [
+  { uomCode: "NOS", uomName: "Numbers" },
+  { uomCode: "KG", uomName: "Kilogram" },
+  { uomCode: "G", uomName: "Gram" },
+  { uomCode: "MTR", uomName: "Metre" },
+  { uomCode: "LTR", uomName: "Litre" },
+  { uomCode: "BOX", uomName: "Box" },
+  { uomCode: "SET", uomName: "Set" },
+];
+
+export interface ProvisionInput {
+  companyCode: string;
+  companyName: string;
+  legalName?: string;
+  /** URL-safe handle, unique across tenants (login branding, invitations). */
+  slug: string;
+  email?: string;
+  phone?: string;
+  gstin?: string;
+  /** Two-digit GST state code; derived from the GSTIN when absent. */
+  stateCode?: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  zipcode?: string;
+  country?: string;
+  /** First day of the financial year to open; defaults to the current Indian FY (1 April). */
+  fyStart?: Date;
+  isOnboarded?: boolean;
+  createdBy?: string;
+}
+
+export interface ProvisionResult {
+  company: Company;
+  roles: Record<string, number>;
+  fyCode: string;
+  created: boolean;
+}
+
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/;
+
+/** Indian financial year containing `d` (1 April – 31 March). */
+export const financialYearFor = (d: Date = new Date()) => {
+  const y = d.getUTCMonth() >= 3 ? d.getUTCFullYear() : d.getUTCFullYear() - 1;
+  const start = new Date(Date.UTC(y, 3, 1));
+  const end = new Date(Date.UTC(y + 1, 2, 31));
+  const code = `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
+  return { start, end, code, periodName: `FY ${code}` };
+};
+
+class ProvisioningService {
+  async provisionTenant(input: ProvisionInput): Promise<ProvisionResult> {
+    if (!SLUG_RE.test(input.slug)) {
+      throw new ApiError(400, "slug must be 2–40 lowercase letters, digits or hyphens");
+    }
+    const stateCode = input.stateCode ?? (input.gstin ? input.gstin.slice(0, 2) : undefined);
+    const fy = financialYearFor(input.fyStart);
+
+    const existing = await withoutTenant(() =>
+      prisma.company.findFirst({
+        where: { OR: [{ companyCode: input.companyCode }, { slug: input.slug }] },
+      })
+    );
+    if (existing && existing.companyCode !== input.companyCode) {
+      throw new ApiError(409, `slug "${input.slug}" is already taken`);
+    }
+    const company =
+      existing ??
+      (await withoutTenant(() =>
+        prisma.company.create({
+          data: {
+            companyCode: input.companyCode,
+            companyName: input.companyName,
+            legalName: input.legalName ?? input.companyName,
+            shortName: input.companyCode,
+            slug: input.slug,
+            email: input.email,
+            phone: input.phone,
+            gstin: input.gstin,
+            addressLine1: input.addressLine1,
+            city: input.city,
+            state: input.state,
+            zipcode: input.zipcode,
+            country: input.country ?? "India",
+            isOnboarded: input.isOnboarded ?? false,
+            onboardingStep: input.isOnboarded ? null : "company",
+            createdBy: input.createdBy,
+          },
+        })
+      ));
+
+    const roles = await runAsTenant(company.id, async () => {
+      await accountsService.ensureSystemLedgersExist();
+
+      if ((await prisma.businessPlace.count()) === 0) {
+        await prisma.businessPlace.create({
+          data: {
+            code: "HO",
+            name: "Head Office",
+            type: "HEAD_OFFICE",
+            gstPlaceCode: stateCode ?? "",
+            isHeadOffice: true,
+          },
+        });
+      }
+
+      const permissions = await prisma.permission.findMany({ select: { id: true, key: true } });
+      const permByKey = new Map(permissions.map((p) => [p.key, p.id]));
+      const roleIds: Record<string, number> = {};
+      for (const def of ROLE_DEFS()) {
+        const role = await prisma.role.upsert({
+          where: { companyId_code: { companyId: company.id, code: def.code } },
+          update: { name: def.name, description: def.description },
+          create: {
+            code: def.code,
+            name: def.name,
+            description: def.description,
+            isSystem: false,
+          },
+        });
+        roleIds[def.code] = role.id;
+        const ids = def.keys
+          .map((k) => permByKey.get(k))
+          .filter((x): x is number => typeof x === "number");
+        if (ids.length) {
+          await prisma.rolePermission.createMany({
+            data: ids.map((permissionId) => ({ roleId: role.id, permissionId })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      for (const u of DEFAULT_UOMS) {
+        await prisma.unitOfMeasure.upsert({
+          where: { companyId_uomCode: { companyId: company.id, uomCode: u.uomCode } },
+          update: {},
+          create: u,
+        });
+      }
+
+      await prisma.invoiceSetting.upsert({
+        where: { companyId: company.id },
+        update: {},
+        create: { invoicePrefix: "INV", financialYearStart: fy.start, financialYearEnd: fy.end },
+      });
+      if (!(await prisma.accountingPeriod.findFirst({ where: { periodName: fy.periodName } }))) {
+        await prisma.accountingPeriod.create({
+          data: { periodName: fy.periodName, startDate: fy.start, endDate: fy.end },
+        });
+      }
+      for (const seq of SEQUENCED_DOC_TYPES) {
+        await prisma.documentSequence
+          .upsert({
+            where: {
+              companyId_docType_businessPlaceId_fyCode: {
+                companyId: company.id,
+                docType: seq.docType,
+                businessPlaceId: null as unknown as bigint,
+                fyCode: fy.code,
+              },
+            },
+            update: {},
+            create: { docType: seq.docType, prefix: seq.prefix, fyCode: fy.code },
+          })
+          .catch(async () => {
+            // Postgres treats NULLs as distinct in unique indexes; fall back to find-or-create.
+            const found = await prisma.documentSequence.findFirst({
+              where: { docType: seq.docType, businessPlaceId: null, fyCode: fy.code },
+            });
+            if (!found) {
+              await prisma.documentSequence.create({
+                data: { docType: seq.docType, prefix: seq.prefix, fyCode: fy.code },
+              });
+            }
+          });
+      }
+
+      for (const [key, value] of [
+        ["EOD_CUTOFF_TIME", "23:59"],
+        ["MOBILE_ORDER_STATUS", "DRAFT"],
+      ] as const) {
+        await prisma.systemSetting.upsert({
+          where: { companyId_key: { companyId: company.id, key } },
+          update: {},
+          create: { key, value },
+        });
+      }
+      return roleIds;
+    });
+
+    return { company, roles, fyCode: fy.code, created: !existing };
+  }
+
+  /** Platform view: every tenant with a few counters. */
+  async listTenants() {
+    return withoutTenant(async () => {
+      const companies = await prisma.company.findMany({
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          companyCode: true,
+          companyName: true,
+          slug: true,
+          gstin: true,
+          isActive: true,
+          isOnboarded: true,
+          onboardingStep: true,
+          tosAcceptedAt: true,
+          createdAt: true,
+          _count: { select: { users: true, invitations: true } },
+        },
+      });
+      return companies.map(({ _count, ...c }) => ({
+        ...c,
+        users: _count.users,
+        pendingInvitations: _count.invitations,
+      }));
+    });
+  }
+}
+
+export const provisioningService = new ProvisioningService();

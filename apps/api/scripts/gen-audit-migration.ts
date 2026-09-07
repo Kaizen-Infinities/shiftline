@@ -49,6 +49,7 @@ export const AUDITED_MODELS = [
   "RolePermission",
   "RetentionPolicy",
   "MobileCollection",
+  "Invitation",
 ];
 
 const models = Prisma.dmmf.datamodel.models;

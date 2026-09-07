@@ -50,6 +50,10 @@ input leaks, secrets, error text → human review and merge → hand-off note.
   and generate a new migration; never write to `audit_log` by hand and never delete from it.
 - Auth: 15-minute access tokens in memory on the client; the httpOnly refresh cookie rotates on
   every use (`modules/auth/refresh-token.ts`). New clients call `POST /api/auth/refresh` on 401.
+- New tenants come only from `provisioningService.provisionTenant()` (seed, platform API,
+  later self-signup); anything every company needs on day one belongs there, not in a seed.
+  Users join through invitations (`modules/users/invitation.service.ts`), never with a password
+  sent by email.
 - Field app sync (`modules/mobile`): the server enforces the conflict policy in
   `mobile.types.ts` (server-owned tables pull-only, documents append-only, visits merged field
   by field, device headers on writes). Never let a device overwrite a server-owned row.

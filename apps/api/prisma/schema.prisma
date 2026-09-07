@@ -306,6 +306,8 @@ model Role {
 
   company Company @relation("CompanyRole", fields: [companyId], references: [id], onDelete: Restrict)
 
+  invitations Invitation[]
+
   @@unique([companyId, code])
   @@map("roles")
 }
@@ -451,16 +453,22 @@ model Company {
   faviconUrl   String?
   addressLine1 String? @db.VarChar(255)
 
-  city        String?  @db.VarChar(100)
-  state       String?  @db.VarChar(100)
-  zipcode     String?  @db.VarChar(20)
-  country     String?  @db.VarChar(100)
-  isOnboarded Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdBy   String?  @db.Uuid
-  updatedBy   String?  @db.Uuid
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  city           String?      @db.VarChar(100)
+  state          String?      @db.VarChar(100)
+  zipcode        String?      @db.VarChar(20)
+  country        String?      @db.VarChar(100)
+  isOnboarded    Boolean      @default(false)
+  isActive       Boolean      @default(true)
+  createdBy      String?      @db.Uuid
+  updatedBy      String?      @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @db.Timestamptz(6)
+  /// URL-safe tenant handle (login branding, invitations); unique across the platform.
+  slug           String?      @unique @db.VarChar(40)
+  onboardingStep String?      @map("onboarding_step") @db.VarChar(40)
+  tosAcceptedAt  DateTime?    @map("tos_accepted_at") @db.Timestamptz(6)
+  tosAcceptedBy  String?      @map("tos_accepted_by") @db.VarChar(36)
+  invitations    Invitation[] @relation("CompanyInvitation")
 
   accountLedgers              AccountLedger[]              @relation("CompanyAccountLedger")
   accountingPeriods           AccountingPeriod[]           @relation("CompanyAccountingPeriod")
@@ -3066,4 +3074,30 @@ model BackupRun {
 
   @@index([startedAt])
   @@map("backup_runs")
+}
+
+// ─── Invitations (P1-00) ──────────────────────────────────────────────────────
+
+/// A pending user invitation. The raw token travels only in the email link;
+/// the row keeps its sha256. Accepting creates the user with the invited role.
+model Invitation {
+  id             String    @id @default(uuid()) @db.Uuid
+  companyId      String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  email          String    @db.VarChar(120)
+  fullName       String?   @map("full_name") @db.VarChar(160)
+  roleId         Int       @map("role_id")
+  tokenHash      String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz(6)
+  acceptedUserId String?   @map("accepted_user_id") @db.VarChar(36)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  invitedBy      String?   @map("invited_by") @db.VarChar(36)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyInvitation", fields: [companyId], references: [id], onDelete: Restrict)
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, email])
+  @@map("invitations")
 }
