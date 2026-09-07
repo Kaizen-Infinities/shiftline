@@ -312,6 +312,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   { module: "production-reports", actions: ["view", "export"], description: "Production Reports" },
   { module: "audit-reports", actions: ["view", "export"], description: "Audit Reports" },
   { module: "year-end", actions: ["view", "prepare", "approve"], description: "Year-End Closing" },
+  {
+    module: "filings",
+    actions: ["view", "prepare", "approve", "submit"],
+    description: "Filing Approvals",
+  },
 
   // ── Accounts ─────────────────────────────────────────────────────────────────
   {

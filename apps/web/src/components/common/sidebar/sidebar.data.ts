@@ -113,6 +113,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/year-end",
             permission: "year-end.view",
           },
+          {
+            title: "Filing Approvals",
+            path: "/compliance/approvals",
+            permission: "filings.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

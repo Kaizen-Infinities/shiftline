@@ -147,6 +147,10 @@ export const API_PATHS = {
   accountExport: {
     base: "/account-export",
   },
+  filings: {
+    registry: "/filings/registry",
+    approvals: "/filings/approvals",
+  },
   notifications: {
     base: "/notifications",
   },

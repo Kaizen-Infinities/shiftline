@@ -215,6 +215,42 @@ model AccountExport {
   @@map("account_exports")
 }
 
+/// Approval gate on a statutory filing period (P1-04, PC7). Audited by trigger; never deleted.
+model FilingApproval {
+  id                String    @id @default(uuid()) @db.Uuid
+  companyId         String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// Key from the shared filings registry (GSTR1, GSTR3B, TDS_26Q, PF_ECR, ...).
+  filingType        String    @map("filing_type") @db.VarChar(40)
+  /// 2026-08, 2026-Q2, 2026-H1 or 2026-27 by cadence.
+  periodKey         String    @map("period_key") @db.VarChar(20)
+  businessPlaceId   BigInt?   @map("business_place_id")
+  /// DRAFT | PENDING | APPROVED | REJECTED | SUBMITTED
+  status            String    @default("DRAFT") @db.VarChar(12)
+  /// sha256 of the payload the approval covers; a mismatch at submission refuses it.
+  payloadHash       String    @map("payload_hash") @db.VarChar(64)
+  summary           Json      @default("{}")
+  notes             String?   @db.VarChar(500)
+  preparedBy        String?   @map("prepared_by") @db.VarChar(36)
+  preparedAt        DateTime? @map("prepared_at") @db.Timestamptz(6)
+  sentForApprovalAt DateTime? @map("sent_for_approval_at") @db.Timestamptz(6)
+  approvedBy        String?   @map("approved_by") @db.VarChar(36)
+  approvedAt        DateTime? @map("approved_at") @db.Timestamptz(6)
+  lockedAt          DateTime? @map("locked_at") @db.Timestamptz(6)
+  rejectReason      String?   @map("reject_reason") @db.VarChar(500)
+  submittedBy       String?   @map("submitted_by") @db.VarChar(36)
+  submittedAt       DateTime? @map("submitted_at") @db.Timestamptz(6)
+  submissionRef     String?   @map("submission_ref") @db.VarChar(120)
+  history           Json      @default("[]")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyFilingApproval", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, filingType, periodKey, businessPlaceId])
+  @@index([companyId, status])
+  @@map("filing_approvals")
+}
+
 model ImpersonationSession {
   id             String    @id @default(uuid()) @db.Uuid
   adminId        BigInt    @map("admin_id")
@@ -626,6 +662,7 @@ model Company {
   featureFlagOverrides        FeatureFlagOverride[]        @relation("CompanyFeatureFlagOverride")
   hsnCodes                    HsnCode[]                    @relation("CompanyHsnCode")
   ledgerGroups                LedgerGroup[]                @relation("CompanyLedgerGroup")
+  filingApprovals      FilingApproval[]      @relation("CompanyFilingApproval")
   accountExports       AccountExport[]       @relation("CompanyAccountExport")
   yearEndClosings             YearEndClosing[]             @relation("CompanyYearEndClosing")
   gstRates                    GstRate[]                    @relation("CompanyGstRate")

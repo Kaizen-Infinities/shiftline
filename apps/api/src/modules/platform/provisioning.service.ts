@@ -63,6 +63,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ]),
       // The accountant prepares the year-end closing; the owner approves it (P1-09e).
       ...keysFor(["year-end"], ["view", "prepare"]),
+      // Filings (P1-04): the accountant prepares and files; the owner approves.
+      ...keysFor(["filings"], ["view", "prepare", "submit"]),
     ],
   },
   {

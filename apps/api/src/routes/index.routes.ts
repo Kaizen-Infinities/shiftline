@@ -68,6 +68,7 @@ import platformPlansRoutes from "../modules/platform/plans.routes";
 import platformImpersonationRoutes from "../modules/platform/impersonation.routes";
 import platformConsoleRoutes from "../modules/platform/console.routes";
 import accountExportRoutes from "../modules/account-export/account-export.routes";
+import filingsRoutes from "../modules/filings/filings.routes";
 import gstRoutes from "../modules/gst/gst.routes";
 import documentsRoutes from "../modules/documents/documents.routes";
 import auditTrailRoutes from "../modules/audit-trail/audit-trail.routes";
@@ -149,6 +150,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/platform/impersonations", router: platformImpersonationRoutes },
   { path: "/platform", router: platformConsoleRoutes },
   { path: "/account-export", router: accountExportRoutes },
+  { path: "/filings", router: filingsRoutes },
   { path: "/gst", router: gstRoutes },
   { path: "/documents", router: documentsRoutes },
   { path: "/audit-trail", router: auditTrailRoutes },

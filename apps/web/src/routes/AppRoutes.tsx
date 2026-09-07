@@ -221,6 +221,7 @@ const TenantDetailPage = lazy(() => import("../modules/platform/pages/TenantDeta
 const PlansPage = lazy(() => import("../modules/platform/pages/PlansPage"));
 const DevicesPage = lazy(() => import("../modules/settings/pages/DevicesPage"));
 const AccountExportPage = lazy(() => import("../modules/settings/pages/AccountExportPage"));
+const FilingApprovalsPage = lazy(() => import("../modules/compliance/pages/FilingApprovalsPage"));
 const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
 
 // ===========================================================================
@@ -540,6 +541,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="year-end.view" />}>
                 <Route path="/accounts/year-end" element={<YearEndPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="filings.view" />}>
+                <Route path="/compliance/approvals" element={<FilingApprovalsPage />} />
               </Route>
 
               {/* ---------- Sales ---------- */}
