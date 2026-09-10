@@ -123,6 +123,45 @@ Build them one at a time, in this order, each as its own commit and push.
 14. **P1-21 payment links and subscription billing** and **P1-22 SMS/OTP** are built against
     sandboxes only when the owner supplies Razorpay and MSG91 accounts; otherwise build the
     provider interfaces and fixture adapters and stop.
+15. **The frontend remake**, described in the next section.
+
+## The frontend remake (a full package of its own, at your discretion)
+
+The owner has commissioned a major remake of `apps/web`, and the design decisions are yours:
+information architecture, navigation, visual system, component library, page layouts,
+interaction patterns, motion, and the choice of state and data-fetching approach on top of
+the existing API. Propose the direction first in `docs/specs/P1-UI-remake.md` (why, the
+design system, the navigation model, the page inventory, the migration order) and then build
+it in slices, each slice a shippable commit that leaves every screen usable.
+
+What is fixed, whatever you choose:
+
+- The API contracts stay as they are. `apps/web/src/api/apiClient.ts` (or the RTK `baseApi`)
+  remains the only HTTP path; the 15-minute access token in memory and the rotating refresh
+  cookie stay as they are; `POST /api/auth/refresh` on 401.
+- Tailwind only. Remove Bootstrap and every Bootstrap-styled legacy screen as you rebuild it;
+  no screen may end up half in one system and half in the other.
+- Every screen is gated by the permission keys in `packages/shared/src/permissions.ts` through
+  `ProtectedRoute`, and the sidebar or its replacement is gated the same way; plan features
+  through `useEntitlement`. Platform admin screens stay behind `ProtectedRoute superAdmin`.
+- Feature parity: nothing a user can do today may disappear. Keep an inventory in the spec
+  and tick screens off as they are rebuilt. The existing panels
+  (`modules/compliance/components/ApprovalPanel.tsx`, `EInvoicePanel.tsx`,
+  `EwayBillPanel.tsx`) and the notification centre are behaviour to preserve, not markup.
+- Socket updates through `useSocketSync` per tenant, as today.
+- Responsive to 400 px, keyboard-operable, visible focus states, contrast at WCAG AA, dark and
+  light themes (the app already has a theme toggle), Indian number and date formatting
+  (`en-IN`, ₹, lakh and crore where the finance screens already do it).
+- `e2e/smoke.spec.ts` must keep passing at every slice: update markers when headings change,
+  add every new screen, never delete an entry for a screen that still exists.
+- `npm run typecheck -w @shiftline/web`, lint and the web build stay green; no new
+  dependencies without a one-line justification in the spec (icon set, headless UI primitives
+  and a chart library are reasonable; a second CSS framework is not).
+- "Sun Sea" and any origin-codebase branding must not survive the remake; company names,
+  logos and colours come from the tenant record.
+
+Sequence it as you see fit: either as one track after P1-13d, or interleaved so each
+finance package lands on its new screens. State the choice in the spec and keep it.
 
 ## The loop for every package (follow it exactly)
 
