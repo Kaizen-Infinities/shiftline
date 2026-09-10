@@ -1,5 +1,5 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Form } from "../../ui/TailwindPrimitives";
 
 import "./RadioInput.css"
 interface RadioOption {

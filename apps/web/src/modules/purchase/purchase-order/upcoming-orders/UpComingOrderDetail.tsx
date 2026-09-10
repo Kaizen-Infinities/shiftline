@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Modal } from "react-bootstrap";
+import { Container, Row, Col, Modal } from "../../../../components/ui/TailwindPrimitives";
 import { FaSave, FaInfoCircle, FaUser, FaMapMarkerAlt, FaBoxOpen, FaArrowLeft, FaEraser } from "react-icons/fa";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";

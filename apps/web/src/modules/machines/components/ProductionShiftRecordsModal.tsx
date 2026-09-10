@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Modal } from "react-bootstrap";
+import { Modal } from "../../../components/ui/TailwindPrimitives";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { fetchRecordsByProduct, clearRecords } from "../../../features/product-shift-records/productShiftRecordSlice";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";

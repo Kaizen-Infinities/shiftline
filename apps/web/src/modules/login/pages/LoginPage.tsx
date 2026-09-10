@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import Logo from "../../../assets/images/sun-sea.webp";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 import { toast } from "react-toastify";
@@ -175,7 +174,7 @@ const LoginPage = () => {
                 {/* Mobile logo */}
                 <div className="lg:hidden mb-8 flex flex-col items-center">
                     <img
-                        src={company?.logoUrl || Logo}
+                        src={company?.logoUrl || "/favicon.svg"}
                         alt={company?.companyName || "Shiftline"}
                         className="h-12 object-contain"
                     />

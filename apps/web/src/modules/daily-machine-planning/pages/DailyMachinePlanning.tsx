@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Container, Row, Col, Card, Modal, Button, Form } from "react-bootstrap";
+import { Container, Row, Col, Card, Modal, Button, Form } from "../../../components/ui/TailwindPrimitives";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";

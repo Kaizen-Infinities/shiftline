@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { Form } from 'react-bootstrap';
+import { Form } from "../../../components/ui/TailwindPrimitives";
 
 import { FaSave, FaEraser, FaInfoCircle, FaCheckCircle, FaCalendarAlt, FaCogs, FaClock, FaUsers, FaTrophy, FaCrown, FaPlus } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";

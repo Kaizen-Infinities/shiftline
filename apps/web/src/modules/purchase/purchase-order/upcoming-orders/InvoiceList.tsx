@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { Container, Row, Col } from "react-bootstrap";
+import { Container, Row, Col } from "../../../../components/ui/TailwindPrimitives";
 import { FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
