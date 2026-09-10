@@ -673,6 +673,7 @@ model Company {
   transporters                Transporter[]                @relation("CompanyTransporter")
   ewayBills                   EwayBill[]                   @relation("CompanyEwayBill")
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
+  itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
 
   @@map("companies")
 }
@@ -3849,4 +3850,57 @@ model ConsolidatedEwayBill {
 
   @@unique([companyId, cewbNo])
   @@map("consolidated_eway_bills")
+}
+
+// ─── Input tax credit ledger (P1-13b) ─────────────────────────────────────────
+
+enum ItcStatus {
+  ELIGIBLE
+  INELIGIBLE
+  REVERSED
+  RECLAIMED
+  VOID
+}
+
+/// One row per inward document carrying GST: what credit it brings, whether it may be taken
+/// (section 17(5) by HSN, or a manual call), whether it was reversed (180-day non-payment) and
+/// reclaimed. Rebuilt from the documents each time a period is computed; rows are updated,
+/// never deleted, and a cancelled document leaves a VOID row. Audited.
+model ItcEntry {
+  id              String     @id @default(uuid()) @db.Uuid
+  companyId       String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// Month the credit is availed in (2026-08).
+  periodKey       String     @map("period_key") @db.VarChar(7)
+  /// GRN | EXPENSE | PETTY_CASH
+  docType         String     @map("doc_type") @db.VarChar(12)
+  docId           String     @map("doc_id") @db.VarChar(40)
+  docNo           String     @map("doc_no") @db.VarChar(40)
+  docDate         DateTime   @map("doc_date") @db.Date
+  supplierGstin   String?    @map("supplier_gstin") @db.VarChar(15)
+  hsnCode         String?    @map("hsn_code") @db.VarChar(8)
+  /// RCM | IMPORT_GOODS | IMPORT_SERVICES | ISD | OTHER (GSTR-3B table 4A rows)
+  source          String     @default("OTHER") @db.VarChar(16)
+  taxable         Decimal    @default(0) @db.Decimal(14, 2)
+  igst            Decimal    @default(0) @db.Decimal(14, 2)
+  cgst            Decimal    @default(0) @db.Decimal(14, 2)
+  sgst            Decimal    @default(0) @db.Decimal(14, 2)
+  cess            Decimal    @default(0) @db.Decimal(14, 2)
+  status          ItcStatus  @default(ELIGIBLE)
+  /// 17(5) | 180D | MANUAL | CANCELLED
+  rule            String?    @db.VarChar(12)
+  reason          String?    @db.VarChar(255)
+  reversedPeriod  String?    @map("reversed_period") @db.VarChar(7)
+  reclaimedPeriod String?    @map("reclaimed_period") @db.VarChar(7)
+  /// A manual classification survives rebuilds.
+  manualStatus    ItcStatus? @map("manual_status")
+  manualReason    String?    @map("manual_reason") @db.VarChar(255)
+  manualBy        String?    @map("manual_by") @db.VarChar(36)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyItcEntry", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, docType, docId])
+  @@index([companyId, periodKey, status])
+  @@map("itc_entries")
 }

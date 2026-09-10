@@ -20,6 +20,7 @@ export const AUDITED_MODELS = [
   "EwayBill",
   "ConsolidatedEwayBill",
   "Transporter",
+  "ItcEntry",
   // documents
   "SalesInvoice",
   "SalesInvoiceItem",
