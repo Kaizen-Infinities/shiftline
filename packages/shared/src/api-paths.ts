@@ -169,6 +169,8 @@ export const API_PATHS = {
     base: "/gst-returns",
     gstins: "/gst-returns/gstins",
     gstr1: "/gst-returns/gstr1",
+    gstr3b: "/gst-returns/gstr3b",
+    itc: "/gst-returns/itc",
   },
   status: "/status",
   notifications: {
