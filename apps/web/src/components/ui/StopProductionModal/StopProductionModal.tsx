@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Form, Button } from "react-bootstrap";
+import { Modal, Form, Button } from "../TailwindPrimitives";
 import TextInput from "../../form/TextInput/TextInput";
 
 interface StopProductionModalProps {
@@ -27,7 +27,7 @@ const StopProductionModal: React.FC<StopProductionModalProps> = ({
     "Maintenance",
     "Shift End",
     "Production Complete",
-    "Others"
+    "Others",
   ];
 
   useEffect(() => {
@@ -44,14 +44,19 @@ const StopProductionModal: React.FC<StopProductionModalProps> = ({
 
   return (
     <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton style={{ background: "var(--color-danger, #EF4444)", color: "#fff" }}>
+      <Modal.Header
+        closeButton
+        style={{ background: "var(--color-danger, #EF4444)", color: "#fff" }}
+      >
         <Modal.Title className="fs-5 fw-bold">Stop Production Run</Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
         <Modal.Body>
           <div className="mb-3 p-3 bg-light rounded border small">
-            <strong>PO ID:</strong> {program?.productionOrderId}<br />
-            <strong>Product Name:</strong> {program?.productionOrder?.productItem?.productName}<br />
+            <strong>PO ID:</strong> {program?.productionOrderId}
+            <br />
+            <strong>Product Name:</strong> {program?.productionOrder?.productItem?.productName}
+            <br />
           </div>
 
           <Form.Group className="mb-3">
@@ -64,7 +69,9 @@ const StopProductionModal: React.FC<StopProductionModalProps> = ({
             >
               <option value="">-- Select Reason --</option>
               {stopReasons.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>
+                  {r}
+                </option>
               ))}
             </Form.Select>
           </Form.Group>

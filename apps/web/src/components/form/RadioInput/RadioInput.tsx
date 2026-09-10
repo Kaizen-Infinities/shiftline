@@ -1,7 +1,7 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Form } from "../../ui/TailwindPrimitives";
 
-import "./RadioInput.css"
+import "./RadioInput.css";
 interface RadioOption {
   label: string;
   value: string;
@@ -13,9 +13,7 @@ interface RadioGroupProps {
   value: string;
   options: RadioOption[];
   required?: boolean;
-  onChange: (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => void;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 const RadioGroup: React.FC<RadioGroupProps> = ({
@@ -31,9 +29,7 @@ const RadioGroup: React.FC<RadioGroupProps> = ({
       <Form.Label className="radio-label">
         {label}
 
-        {required && (
-          <span className="required-star">*</span>
-        )}
+        {required && <span className="required-star">*</span>}
       </Form.Label>
 
       <div className="radio-options">

@@ -1,13 +1,38 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form } from "react-bootstrap";
-import { 
-  FaPlay, FaStop, FaCheck, FaUnlock, FaLock, 
-  FaClipboardList, FaClock, FaPlus, FaTrash, FaCalculator 
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Button,
+  Table,
+  Badge,
+  Modal,
+  Form,
+} from "../../../components/ui/TailwindPrimitives";
+import {
+  FaPlay,
+  FaStop,
+  FaCheck,
+  FaUnlock,
+  FaLock,
+  FaClipboardList,
+  FaClock,
+  FaPlus,
+  FaTrash,
+  FaCalculator,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
-import { fetchProductionOrders, updateProductionOrder } from "../../../features/production-orders/productionOrderSlice";
-import { fetchHourlyProductions, createHourlyProduction, updateHourlyProduction } from "../../../features/hourly-productions/hourlyProductionSlice";
+import {
+  fetchProductionOrders,
+  updateProductionOrder,
+} from "../../../features/production-orders/productionOrderSlice";
+import {
+  fetchHourlyProductions,
+  createHourlyProduction,
+  updateHourlyProduction,
+} from "../../../features/hourly-productions/hourlyProductionSlice";
 import { fetchMachines } from "../../../features/machines/machineSlice";
 import { fetchShifts } from "../../../features/shifts/shiftSlice";
 import { createShiftRecord } from "../../../features/product-shift-records/productShiftRecordSlice";
@@ -55,7 +80,9 @@ const ShiftExecutionBoard: React.FC = () => {
   const [downtimeLogs, setDowntimeLogs] = useState<DowntimeLog[]>([]);
 
   // Hourly inputs (temp form state for 8 hours)
-  const [hourlyInputs, setHourlyInputs] = useState<Record<number, { actual: string; reject: string; scrap: string }>>({
+  const [hourlyInputs, setHourlyInputs] = useState<
+    Record<number, { actual: string; reject: string; scrap: string }>
+  >({
     1: { actual: "", reject: "", scrap: "" },
     2: { actual: "", reject: "", scrap: "" },
     3: { actual: "", reject: "", scrap: "" },
@@ -116,8 +143,10 @@ const ShiftExecutionBoard: React.FC = () => {
             inputs[idx] = {
               actual: hp.qtyProduced.toString(),
               // Mapped properties or default to 0 if not fetched
-              reject: (activeOrder?.rejectedQty ? (Number(activeOrder.rejectedQty) / 8).toFixed(0) : "0"), 
-              scrap: (activeOrder?.scrapQty ? (Number(activeOrder.scrapQty) / 8).toFixed(0) : "0"),
+              reject: activeOrder?.rejectedQty
+                ? (Number(activeOrder.rejectedQty) / 8).toFixed(0)
+                : "0",
+              scrap: activeOrder?.scrapQty ? (Number(activeOrder.scrapQty) / 8).toFixed(0) : "0",
             };
             logsFound = true;
           }
@@ -181,19 +210,25 @@ const ShiftExecutionBoard: React.FC = () => {
         payload.producedQty = sumActual;
         payload.rejectedQty = sumReject;
         payload.scrapQty = sumScrap;
-        toast.success("Shift production finishing phase initiated! Status updated to Post-Production.");
+        toast.success(
+          "Shift production finishing phase initiated! Status updated to Post-Production."
+        );
 
-        await dispatch(updateProductionOrder({ id: Number(activeOrderId), data: payload })).unwrap();
+        await dispatch(
+          updateProductionOrder({ id: Number(activeOrderId), data: payload })
+        ).unwrap();
 
-        dispatch(createShiftRecord({
-          productId: Number(activeOrder.productItemId),
-          productionOrderId: activeOrderId,
-          machineId: selectedMachineId,
-          shiftId: selectedShiftId,
-          achievedQty: sumActual,
-          targetQty: Number(activeOrder.targetQty),
-          operatorIds: operatorName || null,
-        }));
+        dispatch(
+          createShiftRecord({
+            productId: Number(activeOrder.productItemId),
+            productionOrderId: activeOrderId,
+            machineId: selectedMachineId,
+            shiftId: selectedShiftId,
+            achievedQty: sumActual,
+            targetQty: Number(activeOrder.targetQty),
+            operatorIds: operatorName || null,
+          })
+        );
 
         dispatch(fetchProductionOrders());
         return;
@@ -278,7 +313,11 @@ const ShiftExecutionBoard: React.FC = () => {
   };
 
   // Handle input changes
-  const handleInputChange = (hourIndex: number, field: "actual" | "reject" | "scrap", value: string) => {
+  const handleInputChange = (
+    hourIndex: number,
+    field: "actual" | "reject" | "scrap",
+    value: string
+  ) => {
     setHourlyInputs((prev) => ({
       ...prev,
       [hourIndex]: {
@@ -347,8 +386,14 @@ const ShiftExecutionBoard: React.FC = () => {
 
   // Shift performance analytics calculations
   const analytics = useMemo(() => {
-    const totalProduced = Object.values(hourlyInputs).reduce((sum, h) => sum + (Number(h.actual) || 0), 0);
-    const totalRejected = Object.values(hourlyInputs).reduce((sum, h) => sum + (Number(h.reject) || 0), 0);
+    const totalProduced = Object.values(hourlyInputs).reduce(
+      (sum, h) => sum + (Number(h.actual) || 0),
+      0
+    );
+    const totalRejected = Object.values(hourlyInputs).reduce(
+      (sum, h) => sum + (Number(h.reject) || 0),
+      0
+    );
     const totalDowntime = downtimeLogs.reduce((sum, log) => sum + log.durationMinutes, 0);
 
     const plannedTime = 8 * 60; // minutes
@@ -362,7 +407,8 @@ const ShiftExecutionBoard: React.FC = () => {
     const performance = (totalProduced / target) * 100;
 
     // 3. Quality = Good / Total
-    const quality = totalProduced > 0 ? ((totalProduced - totalRejected) / totalProduced) * 100 : 100;
+    const quality =
+      totalProduced > 0 ? ((totalProduced - totalRejected) / totalProduced) * 100 : 100;
 
     // 4. OEE = Availability * Performance * Quality
     const oee = (availability / 100) * (performance / 100) * (quality / 100) * 100;
@@ -387,13 +433,12 @@ const ShiftExecutionBoard: React.FC = () => {
             <Col lg={6} md={12}>
               <div className="page-header-info">
                 <h2 className="page-title">Operator Shift Execution Console</h2>
-                
               </div>
             </Col>
             <Col lg={6} md={12} className="text-lg-end">
               {isConsoleActive && (
-                <Button 
-                  variant="outline-danger" 
+                <Button
+                  variant="outline-danger"
                   onClick={() => {
                     setIsConsoleActive(false);
                     setActiveOrderId("");
@@ -416,25 +461,30 @@ const ShiftExecutionBoard: React.FC = () => {
                 <h4 className="fw-bold mb-4 text-center" style={{ color: "var(--color-primary)" }}>
                   Setup Shift Console Session
                 </h4>
-                <Form onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!selectedMachineId || !selectedShiftId || !operatorName) {
-                    toast.error("Please fill in all setup fields");
-                    return;
-                  }
-                  setIsConsoleActive(true);
-                  // auto select order if single one is available
-                  if (availableOrders.length > 0) {
-                    setActiveOrderId(availableOrders[0].productionOrderId || "");
-                  }
-                }}>
+                <Form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!selectedMachineId || !selectedShiftId || !operatorName) {
+                      toast.error("Please fill in all setup fields");
+                      return;
+                    }
+                    setIsConsoleActive(true);
+                    // auto select order if single one is available
+                    if (availableOrders.length > 0) {
+                      setActiveOrderId(availableOrders[0].productionOrderId || "");
+                    }
+                  }}
+                >
                   <Row className="g-3">
                     <Col md={12}>
                       <SelectInput
                         label="Machine"
                         name="machineId"
                         value={selectedMachineId}
-                        options={machines.map(m => ({ label: m.machineName, value: m.machineId }))}
+                        options={machines.map((m) => ({
+                          label: m.machineName,
+                          value: m.machineId,
+                        }))}
                         required
                         defaultOptionLabel="Select Machine"
                         onChange={(e) => setSelectedMachineId(e.target.value)}
@@ -447,7 +497,7 @@ const ShiftExecutionBoard: React.FC = () => {
                         value={selectedShiftId}
                         options={[
                           { label: "Morning Shift", value: "MORNING" },
-                          { label: "Evening Shift", value: "EVENING" }
+                          { label: "Evening Shift", value: "EVENING" },
                         ]}
                         required
                         defaultOptionLabel="Select Shift"
@@ -465,7 +515,11 @@ const ShiftExecutionBoard: React.FC = () => {
                       />
                     </Col>
                     <Col md={12} className="text-center mt-4">
-                      <Button variant="primary" type="submit" className="w-100 py-2 fw-semibold rounded-3">
+                      <Button
+                        variant="primary"
+                        type="submit"
+                        className="w-100 py-2 fw-semibold rounded-3"
+                      >
                         Initialize Operator Board
                       </Button>
                     </Col>
@@ -482,18 +536,22 @@ const ShiftExecutionBoard: React.FC = () => {
               <Card className="border-0 shadow-sm rounded-3 p-4 mb-4">
                 <h5 className="fw-bold mb-3 text-dark border-bottom pb-2">Console Session</h5>
                 <div className="small mb-3">
-                  <strong>Operator:</strong> {operatorName}<br />
-                  <strong>Machine:</strong> {machines.find(m => m.machineId === selectedMachineId)?.machineName}<br />
-                  <strong>Shift:</strong> {selectedShiftId === "MORNING" ? "Morning Shift" : "Evening Shift"}
+                  <strong>Operator:</strong> {operatorName}
+                  <br />
+                  <strong>Machine:</strong>{" "}
+                  {machines.find((m) => m.machineId === selectedMachineId)?.machineName}
+                  <br />
+                  <strong>Shift:</strong>{" "}
+                  {selectedShiftId === "MORNING" ? "Morning Shift" : "Evening Shift"}
                 </div>
 
                 <SelectInput
                   label="Select Production Order"
                   name="activeOrderId"
                   value={activeOrderId}
-                  options={availableOrders.map(po => ({ 
-                    label: `${po.productionOrderId} (${po.productItem?.productName})`, 
-                    value: po.productionOrderId || ""
+                  options={availableOrders.map((po) => ({
+                    label: `${po.productionOrderId} (${po.productItem?.productName})`,
+                    value: po.productionOrderId || "",
                   }))}
                   onChange={(e) => setActiveOrderId(e.target.value)}
                 />
@@ -503,33 +561,44 @@ const ShiftExecutionBoard: React.FC = () => {
                     <div className="p-3 bg-light rounded-3 mb-4">
                       <h6 className="fw-bold text-primary mb-2">Order Information</h6>
                       <div className="small">
-                        <strong>Product:</strong> {activeOrder.productItem?.productName}<br />
-                        <strong>Planned Target:</strong> {activeOrder.targetQty} {activeOrder.uom}<br />
-                        <strong>Expected Run Hours:</strong> 8 Hrs<br />
-                        <strong>Hourly Target:</strong> {hourlyTarget} {activeOrder.uom}/Hr<br />
+                        <strong>Product:</strong> {activeOrder.productItem?.productName}
+                        <br />
+                        <strong>Planned Target:</strong> {activeOrder.targetQty} {activeOrder.uom}
+                        <br />
+                        <strong>Expected Run Hours:</strong> 8 Hrs
+                        <br />
+                        <strong>Hourly Target:</strong> {hourlyTarget} {activeOrder.uom}/Hr
+                        <br />
                         <strong>Setup Time:</strong> N/A
                       </div>
                     </div>
 
                     <h6 className="fw-bold text-dark mb-3">Shift Status Controls</h6>
                     <div className="d-flex flex-column gap-2">
-                      <Button 
-                        variant={activeOrder.status === "IN_PRODUCTION" ? "primary" : "outline-primary"}
+                      <Button
+                        variant={
+                          activeOrder.status === "IN_PRODUCTION" ? "primary" : "outline-primary"
+                        }
                         onClick={() => handleStatusChange("IN_PRODUCTION")}
                         className="d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold"
                         disabled={activeOrder.status === "IN_PRODUCTION"}
                       >
                         <FaPlay size={14} /> Start Shift / Resume
                       </Button>
-                      <Button 
-                        variant={activeOrder.status === "POST_PRODUCTION" ? "success" : "outline-success"}
+                      <Button
+                        variant={
+                          activeOrder.status === "POST_PRODUCTION" ? "success" : "outline-success"
+                        }
                         onClick={() => handleStatusChange("POST_PRODUCTION")}
                         className="d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold"
-                        disabled={activeOrder.status === "POST_PRODUCTION" || activeOrder.status === "COMPLETED"}
+                        disabled={
+                          activeOrder.status === "POST_PRODUCTION" ||
+                          activeOrder.status === "COMPLETED"
+                        }
                       >
                         <FaCheck size={14} /> Complete Shift / Finish
                       </Button>
-                      <Button 
+                      <Button
                         variant={activeOrder.status === "CANCELLED" ? "danger" : "outline-danger"}
                         onClick={() => handleStatusChange("CANCELLED")}
                         className="d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold"
@@ -541,7 +610,8 @@ const ShiftExecutionBoard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="alert alert-warning mt-4 py-3 text-center small">
-                    No active production order loaded for this machine shift slot. Please select or schedule one.
+                    No active production order loaded for this machine shift slot. Please select or
+                    schedule one.
                   </div>
                 )}
               </Card>
@@ -554,8 +624,12 @@ const ShiftExecutionBoard: React.FC = () => {
                     <span>Real-time Shift OEE</span>
                   </h5>
                   <div className="text-center py-3">
-                    <div className="display-4 fw-bold text-primary font-monospace">{analytics.oee}%</div>
-                    <div className="text-uppercase small text-muted fw-bold tracking-wider">Overall Shift OEE</div>
+                    <div className="display-4 fw-bold text-primary font-monospace">
+                      {analytics.oee}%
+                    </div>
+                    <div className="text-uppercase small text-muted fw-bold tracking-wider">
+                      Overall Shift OEE
+                    </div>
                   </div>
 
                   <hr />
@@ -595,24 +669,35 @@ const ShiftExecutionBoard: React.FC = () => {
                       </h5>
                       <div className="d-flex align-items-center gap-2">
                         {supervisorMode ? (
-                          <Badge bg="success" className="d-flex align-items-center gap-1 p-2 cursor-pointer" onClick={() => setSupervisorMode(false)}>
+                          <Badge
+                            bg="success"
+                            className="d-flex align-items-center gap-1 p-2 cursor-pointer"
+                            onClick={() => setSupervisorMode(false)}
+                          >
                             <FaUnlock /> Supervisor Unlocked
                           </Badge>
                         ) : (
-                          <Button variant="outline-secondary" size="sm" className="d-flex align-items-center gap-1 px-2 py-1 rounded-3" onClick={() => setShowSupervisorModal(true)}>
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            className="d-flex align-items-center gap-1 px-2 py-1 rounded-3"
+                            onClick={() => setShowSupervisorModal(true)}
+                          >
                             <FaLock /> Supervisor Override
                           </Button>
                         )}
-                        
+
                         <div className="small text-muted font-monospace border rounded px-2 py-1 bg-light">
-                          Active Hour: 
-                          <select 
-                            value={activeHourIndex} 
+                          Active Hour:
+                          <select
+                            value={activeHourIndex}
                             onChange={(e) => setActiveHourIndex(Number(e.target.value))}
                             className="border-0 bg-transparent fw-bold"
                           >
-                            {[1,2,3,4,5,6,7,8].map(h => (
-                              <option key={h} value={h}>Hour {h}</option>
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map((h) => (
+                              <option key={h} value={h}>
+                                Hour {h}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -634,10 +719,17 @@ const ShiftExecutionBoard: React.FC = () => {
                         <tbody>
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((hour) => {
                             const isEditable = supervisorMode || hour === activeHourIndex;
-                            const input = hourlyInputs[hour] || { actual: "", reject: "", scrap: "" };
+                            const input = hourlyInputs[hour] || {
+                              actual: "",
+                              reject: "",
+                              scrap: "",
+                            };
 
                             return (
-                              <tr key={hour} className={hour === activeHourIndex ? "table-primary" : ""}>
+                              <tr
+                                key={hour}
+                                className={hour === activeHourIndex ? "table-primary" : ""}
+                              >
                                 <td className="fw-bold font-monospace">H-{hour}</td>
                                 <td className="font-monospace text-secondary fw-semibold">
                                   {hourlyTarget} {activeOrder.uom}
@@ -649,7 +741,9 @@ const ShiftExecutionBoard: React.FC = () => {
                                     placeholder="0"
                                     value={input.actual}
                                     disabled={!isEditable}
-                                    onChange={(e) => handleInputChange(hour, "actual", e.target.value)}
+                                    onChange={(e) =>
+                                      handleInputChange(hour, "actual", e.target.value)
+                                    }
                                   />
                                 </td>
                                 <td>
@@ -659,7 +753,9 @@ const ShiftExecutionBoard: React.FC = () => {
                                     placeholder="0"
                                     value={input.reject}
                                     disabled={!isEditable}
-                                    onChange={(e) => handleInputChange(hour, "reject", e.target.value)}
+                                    onChange={(e) =>
+                                      handleInputChange(hour, "reject", e.target.value)
+                                    }
                                   />
                                 </td>
                                 <td>
@@ -669,13 +765,15 @@ const ShiftExecutionBoard: React.FC = () => {
                                     placeholder="0"
                                     value={input.scrap}
                                     disabled={!isEditable}
-                                    onChange={(e) => handleInputChange(hour, "scrap", e.target.value)}
+                                    onChange={(e) =>
+                                      handleInputChange(hour, "scrap", e.target.value)
+                                    }
                                   />
                                 </td>
                                 <td>
-                                  <Button 
+                                  <Button
                                     variant={isEditable ? "success" : "light"}
-                                    size="sm" 
+                                    size="sm"
                                     disabled={!isEditable}
                                     onClick={() => handleSaveHourlyRow(hour)}
                                     className="px-3"
@@ -698,7 +796,12 @@ const ShiftExecutionBoard: React.FC = () => {
                         <FaClock />
                         <span>Machine Stoppage & Downtime Logs</span>
                       </h5>
-                      <Button variant="danger" size="sm" className="d-flex align-items-center gap-1 rounded-3 px-3 py-1 fw-semibold" onClick={() => setShowDowntimeModal(true)}>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        className="d-flex align-items-center gap-1 rounded-3 px-3 py-1 fw-semibold"
+                        onClick={() => setShowDowntimeModal(true)}
+                      >
                         <FaPlus /> Log Stoppage
                       </Button>
                     </Card.Header>
@@ -718,16 +821,30 @@ const ShiftExecutionBoard: React.FC = () => {
                           {downtimeLogs.length > 0 ? (
                             downtimeLogs.map((log) => (
                               <tr key={log.id}>
-                                <td className="fw-bold text-start ps-3 text-danger">{log.reason}</td>
-                                <td className="font-monospace text-secondary" style={{ fontSize: "12px" }}>
+                                <td className="fw-bold text-start ps-3 text-danger">
+                                  {log.reason}
+                                </td>
+                                <td
+                                  className="font-monospace text-secondary"
+                                  style={{ fontSize: "12px" }}
+                                >
                                   {new Date(log.startTime).toLocaleString()}
                                 </td>
-                                <td className="font-monospace text-secondary" style={{ fontSize: "12px" }}>
+                                <td
+                                  className="font-monospace text-secondary"
+                                  style={{ fontSize: "12px" }}
+                                >
                                   {new Date(log.endTime).toLocaleString()}
                                 </td>
-                                <td className="fw-bold text-dark font-monospace">{log.durationMinutes} Min</td>
+                                <td className="fw-bold text-dark font-monospace">
+                                  {log.durationMinutes} Min
+                                </td>
                                 <td>
-                                  <Button variant="link" className="text-danger p-0 border-0" onClick={() => handleDeleteDowntime(log.id)}>
+                                  <Button
+                                    variant="link"
+                                    className="text-danger p-0 border-0"
+                                    onClick={() => handleDeleteDowntime(log.id)}
+                                  >
                                     <FaTrash size={12} />
                                   </Button>
                                 </td>
@@ -749,7 +866,10 @@ const ShiftExecutionBoard: React.FC = () => {
                 <div className="alert alert-info py-5 text-center shadow-sm rounded-3 border-0 bg-white">
                   <FaClipboardList className="mb-3 text-secondary" size={45} />
                   <h5>Awaiting active Production Order selection</h5>
-                  <p className="extra-small">Please select a Production Order in the side panel to view execution grids and logs.</p>
+                  <p className="extra-small">
+                    Please select a Production Order in the side panel to view execution grids and
+                    logs.
+                  </p>
                 </div>
               )}
             </Col>
@@ -758,10 +878,17 @@ const ShiftExecutionBoard: React.FC = () => {
       </Container>
 
       {/* Supervisor Verification Modal */}
-      <Modal show={showSupervisorModal} onHide={() => setShowSupervisorModal(false)} centered size="sm">
+      <Modal
+        show={showSupervisorModal}
+        onHide={() => setShowSupervisorModal(false)}
+        centered
+        size="sm"
+      >
         <form onSubmit={handleSupervisorVerify}>
           <Modal.Header closeButton>
-            <Modal.Title className="fw-bold text-dark" style={{ fontSize: "16px" }}>Supervisor Authorization</Modal.Title>
+            <Modal.Title className="fw-bold text-dark" style={{ fontSize: "16px" }}>
+              Supervisor Authorization
+            </Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Form.Group className="mb-3">
@@ -777,8 +904,12 @@ const ShiftExecutionBoard: React.FC = () => {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer className="justify-content-center p-2">
-            <Button variant="secondary" size="sm" onClick={() => setShowSupervisorModal(false)}>Cancel</Button>
-            <Button variant="success" size="sm" type="submit">Unlock Console</Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowSupervisorModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="success" size="sm" type="submit">
+              Unlock Console
+            </Button>
           </Modal.Footer>
         </form>
       </Modal>
@@ -802,7 +933,7 @@ const ShiftExecutionBoard: React.FC = () => {
                     { label: "Material Shortage", value: "Material Shortage" },
                     { label: "Power Failure", value: "Power Failure" },
                     { label: "Quality Issue (Inspection delay)", value: "Quality Issue" },
-                    { label: "Operator Absence", value: "Operator Absence" }
+                    { label: "Operator Absence", value: "Operator Absence" },
                   ]}
                   required
                   onChange={(e) => setDowntimeReason(e.target.value)}
@@ -831,8 +962,12 @@ const ShiftExecutionBoard: React.FC = () => {
             </Row>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowDowntimeModal(false)}>Cancel</Button>
-            <Button variant="danger" type="submit">Log Stoppage</Button>
+            <Button variant="secondary" onClick={() => setShowDowntimeModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" type="submit">
+              Log Stoppage
+            </Button>
           </Modal.Footer>
         </form>
       </Modal>
