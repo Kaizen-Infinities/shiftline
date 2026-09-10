@@ -1,7 +1,10 @@
 import React, { useEffect } from "react";
-import { Modal } from "react-bootstrap";
+import { Modal } from "../../../components/ui/TailwindPrimitives";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
-import { fetchRecordsByProduct, clearRecords } from "../../../features/product-shift-records/productShiftRecordSlice";
+import {
+  fetchRecordsByProduct,
+  clearRecords,
+} from "../../../features/product-shift-records/productShiftRecordSlice";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 
@@ -58,12 +61,14 @@ const ProductionShiftRecordsModal: React.FC<Props> = ({ show, onHide, productId,
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <span className="badge bg-success mb-2">CURRENT HIGHEST RECORD</span>
-                    <h3 className="fw-bold text-success mb-0">{Number(highest.achievedQty).toLocaleString()}</h3>
+                    <h3 className="fw-bold text-success mb-0">
+                      {Number(highest.achievedQty).toLocaleString()}
+                    </h3>
                     <small className="text-muted">
-                      Target: {Number(highest.targetQty).toLocaleString()} |
-                      Machine: {highest.machine?.machineName || "N/A"} |
-                      Shift: {highest.shift?.shiftName || "N/A"} |
-                      Date: {new Date(highest.recordedDate).toLocaleDateString()}
+                      Target: {Number(highest.targetQty).toLocaleString()} | Machine:{" "}
+                      {highest.machine?.machineName || "N/A"} | Shift:{" "}
+                      {highest.shift?.shiftName || "N/A"} | Date:{" "}
+                      {new Date(highest.recordedDate).toLocaleDateString()}
                     </small>
                     {highest.operatorIds && (
                       <div className="mt-1">
@@ -73,7 +78,13 @@ const ProductionShiftRecordsModal: React.FC<Props> = ({ show, onHide, productId,
                   </div>
                   <div className="text-end">
                     <div className="display-6 fw-bold text-success">
-                      +{((Number(highest.achievedQty) - Number(highest.targetQty)) / Number(highest.targetQty) * 100).toFixed(1)}%
+                      +
+                      {(
+                        ((Number(highest.achievedQty) - Number(highest.targetQty)) /
+                          Number(highest.targetQty)) *
+                        100
+                      ).toFixed(1)}
+                      %
                     </div>
                     <small className="text-muted">above target</small>
                   </div>
@@ -100,13 +111,23 @@ const ProductionShiftRecordsModal: React.FC<Props> = ({ show, onHide, productId,
                   {records.map((r, idx) => (
                     <tr key={r.id} className={r.isHighest ? "table-success" : ""}>
                       <td className="text-muted">{idx + 1}</td>
-                      <td className="fw-semibold">{new Date(r.recordedDate).toLocaleDateString()}</td>
+                      <td className="fw-semibold">
+                        {new Date(r.recordedDate).toLocaleDateString()}
+                      </td>
                       <td>{r.shift?.shiftName || r.shiftId}</td>
                       <td>{r.machine?.machineName || r.machineId}</td>
-                      <td className="fw-bold text-primary">{Number(r.achievedQty).toLocaleString()}</td>
+                      <td className="fw-bold text-primary">
+                        {Number(r.achievedQty).toLocaleString()}
+                      </td>
                       <td className="text-muted">{Number(r.targetQty).toLocaleString()}</td>
                       <td>{r.operatorIds || "-"}</td>
-                      <td>{r.isHighest ? <StatusBadge status="ACTIVE" /> : <span className="text-muted small">Previous</span>}</td>
+                      <td>
+                        {r.isHighest ? (
+                          <StatusBadge status="ACTIVE" />
+                        ) : (
+                          <span className="text-muted small">Previous</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

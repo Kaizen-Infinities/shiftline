@@ -1,12 +1,18 @@
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { FaBuilding, FaHashtag, FaEdit, FaFileInvoiceDollar, FaPhone, FaServer } from 'react-icons/fa';
-import type { RootState, AppDispatch } from '../../../app/store';
-import { fetchCompany } from '../../../features/company/companySlice';
-import CustomButton from '../../../components/ui/Button/Button';
-import { StatusBadge } from '../../../components/ui/StatusBadge/Badge';
-import Logo from '../../../assets/images/sun-sea.webp';
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import {
+  FaBuilding,
+  FaHashtag,
+  FaEdit,
+  FaFileInvoiceDollar,
+  FaPhone,
+  FaServer,
+} from "react-icons/fa";
+import type { RootState, AppDispatch } from "../../../app/store";
+import { fetchCompany } from "../../../features/company/companySlice";
+import CustomButton from "../../../components/ui/Button/Button";
+import { StatusBadge } from "../../../components/ui/StatusBadge/Badge";
 
 const CompanyProfile: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -32,12 +38,15 @@ const CompanyProfile: React.FC = () => {
   return (
     <div className="p-4 md:p-6 min-h-screen bg-linear-to-br from-indigo-50 via-white to-blue-50">
       <div className="max-w-5xl mx-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden transition-all duration-300 hover:shadow-md">
-
         {/* HEADER */}
         <div className="bg-linear-to-r from-indigo-600 via-blue-600 to-blue-500 px-6 py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 md:w-20 md:h-20 bg-card rounded-xl shadow-md border-2 border-white/20 flex items-center justify-center p-2 shrink-0 overflow-hidden">
-              <img src={company.logoUrl || Logo} alt="Company Logo" className="w-full h-full object-contain" />
+              <img
+                src={company.logoUrl || "/favicon.svg"}
+                alt="Company Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight drop-shadow-sm">
@@ -55,13 +64,14 @@ const CompanyProfile: React.FC = () => {
               <span>{company.companyCode || "-"}</span>
             </div>
             <div className="w-px h-5 bg-card/30"></div>
-            <div className="bg-card rounded-full"><StatusBadge status={company.isActive ? "ACTIVE" : "INACTIVE"} /></div>
+            <div className="bg-card rounded-full">
+              <StatusBadge status={company.isActive ? "ACTIVE" : "INACTIVE"} />
+            </div>
           </div>
         </div>
 
         {/* BODY */}
         <div className="p-6 space-y-8">
-
           {/* General */}
           <section>
             <h3 className="text-sm font-bold text-ink-subtle uppercase tracking-widest flex items-center gap-2 border-b border-line-soft pb-2 mb-4">
@@ -70,11 +80,17 @@ const CompanyProfile: React.FC = () => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Legal Name</span>
-                <span className="text-sm font-bold text-ink">{company.legalName || company.companyName || "-"}</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Legal Name
+                </span>
+                <span className="text-sm font-bold text-ink">
+                  {company.legalName || company.companyName || "-"}
+                </span>
               </div>
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Company Code</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Company Code
+                </span>
                 <span className="text-sm font-bold text-ink">{company.companyCode || "-"}</span>
               </div>
             </div>
@@ -88,12 +104,20 @@ const CompanyProfile: React.FC = () => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">GSTIN</span>
-                <span className="text-sm font-bold text-ink tracking-wide">{company.gstin || "-"}</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  GSTIN
+                </span>
+                <span className="text-sm font-bold text-ink tracking-wide">
+                  {company.gstin || "-"}
+                </span>
               </div>
               <div className="flex flex-col space-y-1 p-3 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
-                <span className="text-xs font-semibold text-emerald-600/70 uppercase tracking-wider">Currency</span>
-                <span className="text-sm font-bold text-emerald-700">{company.currencyCode || "INR"}</span>
+                <span className="text-xs font-semibold text-emerald-600/70 uppercase tracking-wider">
+                  Currency
+                </span>
+                <span className="text-sm font-bold text-emerald-700">
+                  {company.currencyCode || "INR"}
+                </span>
               </div>
             </div>
           </section>
@@ -106,23 +130,33 @@ const CompanyProfile: React.FC = () => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50 lg:col-span-2">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Address Line 1</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Address Line 1
+                </span>
                 <span className="text-sm font-bold text-ink">{company.addressLine1 || "-"}</span>
               </div>
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">City</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  City
+                </span>
                 <span className="text-sm font-bold text-ink">{company.city || "-"}</span>
               </div>
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">State</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  State
+                </span>
                 <span className="text-sm font-bold text-ink">{company.state || "-"}</span>
               </div>
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Zipcode</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Zipcode
+                </span>
                 <span className="text-sm font-bold text-ink">{company.zipcode || "-"}</span>
               </div>
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Country</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Country
+                </span>
                 <span className="text-sm font-bold text-ink">{company.country || "-"}</span>
               </div>
             </div>
@@ -136,11 +170,15 @@ const CompanyProfile: React.FC = () => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Phone</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Phone
+                </span>
                 <span className="text-sm font-bold text-ink">{company.phone || "-"}</span>
               </div>
               <div className="flex flex-col space-y-1 p-3 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Email</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Email
+                </span>
                 <span className="text-sm font-bold text-ink">{company.email || "-"}</span>
               </div>
             </div>
@@ -154,7 +192,9 @@ const CompanyProfile: React.FC = () => {
             </h3>
             <div className="grid grid-cols-1 gap-4">
               <div className="flex flex-col space-y-3 p-4 bg-card rounded-xl border border-line-soft/50">
-                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">Logo Image</span>
+                <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                  Logo Image
+                </span>
                 {company.logoUrl ? (
                   <div className="bg-card p-2 border border-line rounded-lg shadow-sm inline-block w-max">
                     <img
@@ -169,7 +209,6 @@ const CompanyProfile: React.FC = () => {
               </div>
             </div>
           </section>
-
         </div>
 
         {/* FOOTER */}
@@ -178,7 +217,7 @@ const CompanyProfile: React.FC = () => {
             <CustomButton
               text="Edit Company Profile"
               icon={FaEdit}
-              onClick={() => navigate('/company/edit')}
+              onClick={() => navigate("/company/edit")}
             />
           </div>
         )}

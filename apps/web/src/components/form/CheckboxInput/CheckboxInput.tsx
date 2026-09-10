@@ -1,23 +1,16 @@
 import React from "react";
-import { Form } from "react-bootstrap";
+import { Form } from "../../ui/TailwindPrimitives";
 
-import "./CheckboxInput.css"
+import "./CheckboxInput.css";
 
 interface CheckboxProps {
   label: React.ReactNode;
   name: string;
   checked: boolean;
-  onChange: (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => void;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const Checkbox: React.FC<CheckboxProps> = ({
-  label,
-  name,
-  checked,
-  onChange,
-}) => {
+const Checkbox: React.FC<CheckboxProps> = ({ label, name, checked, onChange }) => {
   return (
     <Form.Group className="checkbox-group">
       <Form.Check

@@ -1,7 +1,10 @@
 import React, { useEffect } from "react";
-import { Modal } from "react-bootstrap";
+import { Modal } from "../../../components/ui/TailwindPrimitives";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
-import { fetchCapacityHistory, clearHistory } from "../../../features/product-capacity-history/productCapacityHistorySlice";
+import {
+  fetchCapacityHistory,
+  clearHistory,
+} from "../../../features/product-capacity-history/productCapacityHistorySlice";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 
@@ -13,7 +16,13 @@ interface Props {
   currentCapacity?: number | null;
 }
 
-const CapacityHistoryModal: React.FC<Props> = ({ show, onHide, productId, productName, currentCapacity }) => {
+const CapacityHistoryModal: React.FC<Props> = ({
+  show,
+  onHide,
+  productId,
+  productName,
+  currentCapacity,
+}) => {
   const dispatch = useAppDispatch();
   const { records, loading } = useAppSelector((state) => state.productCapacityHistory);
 
@@ -46,7 +55,9 @@ const CapacityHistoryModal: React.FC<Props> = ({ show, onHide, productId, produc
             <div className="d-flex justify-content-between align-items-center">
               <div>
                 <span className="badge bg-info mb-2">CURRENT CAPACITY</span>
-                <h3 className="fw-bold text-info mb-0">{Number(currentCapacity).toLocaleString()} / Shift</h3>
+                <h3 className="fw-bold text-info mb-0">
+                  {Number(currentCapacity).toLocaleString()} / Shift
+                </h3>
               </div>
             </div>
           </div>
@@ -60,7 +71,9 @@ const CapacityHistoryModal: React.FC<Props> = ({ show, onHide, productId, produc
         )}
 
         {!loading && records.length === 0 && (
-          <div className="text-center py-5 text-muted">No capacity history found for this product.</div>
+          <div className="text-center py-5 text-muted">
+            No capacity history found for this product.
+          </div>
         )}
 
         {!loading && records.length > 0 && (
@@ -98,7 +111,8 @@ const CapacityHistoryModal: React.FC<Props> = ({ show, onHide, productId, produc
                       <td className="fw-bold">{Number(r.newCapacity).toLocaleString()}</td>
                       <td>
                         <span className={isIncrease ? "text-success" : "text-danger"}>
-                          {isIncrease ? "+" : ""}{change.toLocaleString()}
+                          {isIncrease ? "+" : ""}
+                          {change.toLocaleString()}
                         </span>
                       </td>
                       <td className="text-muted">{Number(r.targetQty).toLocaleString()}</td>
@@ -106,10 +120,15 @@ const CapacityHistoryModal: React.FC<Props> = ({ show, onHide, productId, produc
                         {Number(r.actualQty).toLocaleString()}
                       </td>
                       <td>
-                        <StatusBadge status={
-                          r.achievementPct >= 100 ? "ACTIVE" :
-                          r.achievementPct >= 80 ? "IN_PRODUCTION" : "INACTIVE"
-                        } />
+                        <StatusBadge
+                          status={
+                            r.achievementPct >= 100
+                              ? "ACTIVE"
+                              : r.achievementPct >= 80
+                                ? "IN_PRODUCTION"
+                                : "INACTIVE"
+                          }
+                        />
                         <small className="ms-1">{Number(r.achievementPct).toFixed(1)}%</small>
                       </td>
                       <td>{r.shiftId}</td>

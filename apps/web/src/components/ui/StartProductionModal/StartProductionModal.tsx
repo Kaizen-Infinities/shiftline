@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Form, Row, Col, Button } from "react-bootstrap";
+import { Modal, Form, Row, Col, Button } from "../TailwindPrimitives";
 import { shiftService } from "../../../services/shiftService";
 import type { Shift } from "../../../features/shifts/types";
 
@@ -55,7 +55,10 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
 
   return (
     <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton style={{ background: "var(--color-success, #22C55E)", color: "#fff" }}>
+      <Modal.Header
+        closeButton
+        style={{ background: "var(--color-success, #22C55E)", color: "#fff" }}
+      >
         <Modal.Title className="fs-5 fw-bold">Start Production Run</Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
@@ -63,10 +66,15 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
           <Row className="g-3">
             <Col md={12}>
               <Form.Group>
-                <Form.Label className="fw-bold small text-muted text-uppercase">Run Details</Form.Label>
+                <Form.Label className="fw-bold small text-muted text-uppercase">
+                  Run Details
+                </Form.Label>
                 <div className="p-3 bg-light rounded border small">
-                  <strong>PO ID:</strong> {program?.productionOrderId}<br />
-                  <strong>Product Name:</strong> {program?.productionOrder?.productItem?.productName}<br />
+                  <strong>PO ID:</strong> {program?.productionOrderId}
+                  <br />
+                  <strong>Product Name:</strong>{" "}
+                  {program?.productionOrder?.productItem?.productName}
+                  <br />
                   <strong>Target Quantity:</strong> {program?.plannedQty} pcs
                 </div>
               </Form.Group>
@@ -74,7 +82,9 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
 
             <Col md={6}>
               <Form.Group>
-                <Form.Label className="fw-bold small text-muted text-uppercase">Select Machine to Run On</Form.Label>
+                <Form.Label className="fw-bold small text-muted text-uppercase">
+                  Select Machine to Run On
+                </Form.Label>
                 <Form.Select
                   required
                   value={machineId}
@@ -96,7 +106,9 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
 
             <Col md={6}>
               <Form.Group>
-                <Form.Label className="fw-bold small text-muted text-uppercase">Select Shift</Form.Label>
+                <Form.Label className="fw-bold small text-muted text-uppercase">
+                  Select Shift
+                </Form.Label>
                 <Form.Select
                   required
                   value={shiftId}

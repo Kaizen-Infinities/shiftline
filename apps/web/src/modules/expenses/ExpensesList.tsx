@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Modal } from "react-bootstrap";
+import { Modal } from "../../components/ui/TailwindPrimitives";
 import { FaPlus, FaFilePdf } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../hooks/usePageShortcuts";
