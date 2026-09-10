@@ -1,5 +1,5 @@
 import React from "react";
-import { Container, Button, Form } from "react-bootstrap";
+import { Container, Button, Form } from "../../../components/ui/TailwindPrimitives";
 import { FaSearch, FaPlus } from "react-icons/fa";
 
 const SupplierViewPage: React.FC = () => {

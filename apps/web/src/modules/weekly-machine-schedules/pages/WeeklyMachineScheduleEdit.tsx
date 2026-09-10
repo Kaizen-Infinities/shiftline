@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { Container, Row, Col, Card } from "react-bootstrap";
+import { Container, Row, Col, Card } from "../../../components/ui/TailwindPrimitives";
 import { FaSave, FaEraser, FaArrowLeft } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";

@@ -45,6 +45,7 @@ const AUTH_ENDPOINTS = [
   "/auth/refresh",
   "/auth/logout",
   "/auth/logout-all-sessions",
+  "/invitations/token/",
 ];
 
 apiClient.interceptors.response.use(

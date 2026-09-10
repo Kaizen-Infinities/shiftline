@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Row } from 'react-bootstrap';
+import { Card, Row } from "../TailwindPrimitives";
 
 interface FilterCardProps {
   title?: string;

@@ -340,7 +340,7 @@ const BankAccountsPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. TMB SUN-SEA A/C"
+                    placeholder="e.g. Current account — Chennai"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     className="w-full px-3 py-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500"

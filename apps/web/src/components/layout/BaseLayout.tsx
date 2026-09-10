@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 
 import { useAppSelector } from "../../hooks/reduxHooks";
@@ -17,6 +17,8 @@ const BaseLayout = () => {
   const location = useLocation();
   const { user } = useAppSelector((state) => state.auth);
   const { data: company } = useAppSelector((state) => state.company);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
 
   // ── Shortcut panel: persistent in localStorage across all page navigation & reloads ──
   const [panelOpen, setPanelOpen] = useState<boolean>(() => {
@@ -56,6 +58,51 @@ const BaseLayout = () => {
     onOpenCalculator: handleOpenCalculator,
   });
 
+  const closeMobileNavigation = useCallback(() => setShowSidebar(false), []);
+
+  useEffect(() => {
+    closeMobileNavigation();
+  }, [location.pathname, closeMobileNavigation]);
+
+  useEffect(() => {
+    if (!showSidebar) return;
+    const drawer = mobileDrawerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    drawer?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMobileNavigation();
+        return;
+      }
+      if (event.key !== "Tab" || !drawer) return;
+      const focusable = Array.from(
+        drawer.querySelectorAll<HTMLElement>(
+          'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+        )
+      );
+      if (!focusable.length) return event.preventDefault();
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      menuButtonRef.current?.focus();
+    };
+  }, [showSidebar, closeMobileNavigation]);
+
   // ── Company favicon ─────────────────────────────────────────────
   useEffect(() => {
     if (company?.faviconUrl) {
@@ -70,21 +117,44 @@ const BaseLayout = () => {
   }, [company?.faviconUrl]);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-dvh min-h-screen overflow-hidden bg-page text-ink">
+      <a
+        href="#main-content"
+        className="fixed left-3 top-3 z-[200] -translate-y-24 rounded-md bg-accent px-4 py-2 font-semibold text-white shadow-lg transition-transform focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-white"
+      >
+        Skip to main content
+      </a>
       {/* Mobile Sidebar Overlay */}
       {showSidebar && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setShowSidebar(false)}
+          aria-hidden="true"
+          onClick={closeMobileNavigation}
         />
       )}
 
       {/* Mobile Sidebar Drawer */}
       <div
+        ref={mobileDrawerRef}
+        id="mobile-navigation"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Main navigation"
+        aria-hidden={!showSidebar}
+        inert={!showSidebar ? true : undefined}
+        tabIndex={-1}
         className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
           showSidebar ? "translate-x-0" : "-translate-x-full"
         }`}
       >
+        <button
+          type="button"
+          onClick={closeMobileNavigation}
+          aria-label="Close navigation"
+          className="absolute right-3 top-3 z-10 flex size-10 items-center justify-center rounded-lg border border-white/20 bg-nav-hover text-xl text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
         <Sidebar />
       </div>
 
@@ -92,7 +162,9 @@ const BaseLayout = () => {
         {/* Top Navbar (Mobile only) */}
         <div className="lg:hidden">
           <Navbar
+            menuButtonRef={menuButtonRef}
             onMenuClick={() => setShowSidebar(true)}
+            menuOpen={showSidebar}
             user={user}
             onProfileClick={() => navigate("/company/view")}
           />
@@ -106,7 +178,11 @@ const BaseLayout = () => {
         {/* Content row: main + shortcut panel side by side */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Main Content */}
-          <main className="flex-1 w-full min-w-0 overflow-y-auto bg-page">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 w-full min-w-0 overflow-y-auto bg-page outline-none"
+          >
             <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 min-h-full flex flex-col">
               <Outlet />
             </div>

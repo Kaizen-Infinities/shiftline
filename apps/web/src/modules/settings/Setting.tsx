@@ -1,5 +1,5 @@
 import React from "react";
-import { Container, Row, Col } from "react-bootstrap";
+import { Container, Row, Col } from "../../components/ui/TailwindPrimitives";
 import { FaCog, FaBuilding, FaUsersCog, FaChevronRight, FaChevronLeft } from "react-icons/fa";
 import type { TabItem } from "../../components/ui/tab/Tabs";
 import Tabs from "../../components/ui/tab/Tabs";

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Table, Badge, Modal, Form } from "../../../components/ui/TailwindPrimitives";
 import { 
   FaPlay, FaStop, FaCheck, FaUnlock, FaLock, 
   FaClipboardList, FaClock, FaPlus, FaTrash, FaCalculator 

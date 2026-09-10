@@ -1,4 +1,4 @@
-/* Cleaned up custom styles - reverting to Bootstrap utilities for better visibility and theme consistency */
+/* Component-specific additions; layout and colour are provided by Tailwind utilities. */
 .day-schedule-card {
   transition: all 0.2s ease;
 }

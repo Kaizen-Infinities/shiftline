@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FaBars, FaUser, FaSignOutAlt, FaCheckCircle } from 'react-icons/fa';
-import ThemeToggle from './ThemeToggle';
-import LiveBadge from '../ui/LiveBadge/LiveBadge';
-import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { logoutUser } from '../../features/auth/authSlice';
-import CommonConfirmModal from '../ui/CommonConfirmModal/CommonConfirmModal';
+import React, { useState, useEffect, useRef } from "react";
+import { FaBars, FaUser, FaSignOutAlt, FaCheckCircle } from "react-icons/fa";
+import ThemeToggle from "./ThemeToggle";
+import LiveBadge from "../ui/LiveBadge/LiveBadge";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../../features/auth/authSlice";
+import CommonConfirmModal from "../ui/CommonConfirmModal/CommonConfirmModal";
 
 export interface UserProfile {
   fullName: string;
@@ -20,12 +20,16 @@ export interface UserProfile {
 
 export interface NavbarProps {
   onMenuClick?: () => void;
+  menuOpen?: boolean;
+  menuButtonRef?: React.Ref<HTMLButtonElement>;
   user?: UserProfile | null;
   onProfileClick?: () => void;
 }
 
 const TopNavbar: React.FC<NavbarProps> = ({
   onMenuClick,
+  menuOpen = false,
+  menuButtonRef,
   user,
   onProfileClick,
 }) => {
@@ -90,9 +94,13 @@ const TopNavbar: React.FC<NavbarProps> = ({
       <div className="flex items-center gap-4">
         {/* Mobile Menu */}
         <button
+          ref={menuButtonRef}
           type="button"
           className="p-2 text-ink-subtle hover:text-primary transition-colors lg:hidden rounded-md hover:bg-card-2"
           onClick={onMenuClick}
+          aria-label="Open main navigation"
+          aria-controls="mobile-navigation"
+          aria-expanded={menuOpen}
         >
           <FaBars size={20} />
         </button>
@@ -105,18 +113,17 @@ const TopNavbar: React.FC<NavbarProps> = ({
 
         {/* Profile */}
         <div className="relative" ref={dropdownRef}>
-          <div
+          <button
+            type="button"
             className="flex items-center gap-3 p-1.5 pr-4 rounded-full cursor-pointer transition-all hover:bg-card-2"
-            role="button"
-            tabIndex={0}
             onClick={() => setShowDropdown(!showDropdown)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setShowDropdown(!showDropdown);
-            }}
+            aria-label="Open user menu"
+            aria-haspopup="menu"
+            aria-expanded={showDropdown}
           >
             <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
               {avatarImage ? (
-                <img src={avatarImage} alt="avatar" className="w-full h-full object-cover" />
+                <img src={avatarImage} alt="" className="w-full h-full object-cover" />
               ) : (
                 getInitials(user?.fullName)
               )}
@@ -125,18 +132,20 @@ const TopNavbar: React.FC<NavbarProps> = ({
               <span className="text-sm font-semibold text-ink leading-tight">
                 {user ? user.fullName : "Guest"}
               </span>
-              <span className="text-xs text-ink-muted leading-tight">
-                {formatRole(user)}
-              </span>
+              <span className="text-xs text-ink-muted leading-tight">{formatRole(user)}</span>
             </div>
-          </div>
+          </button>
 
           {/* Dropdown Menu */}
           {showDropdown && (
-            <div className="absolute right-0 top-16 w-40 bg-card border border-line rounded-xl shadow-[0px_8px_30px_rgba(0,0,0,0.3)] py-2.5 z-50">
+            <div
+              role="menu"
+              className="absolute right-0 top-16 w-48 bg-card border border-line rounded-xl shadow-[0px_8px_30px_rgba(0,0,0,0.3)] py-2.5 z-50"
+            >
               {/* Menu Items */}
               <div className="px-1.5 space-y-0.5">
                 <button
+                  role="menuitem"
                   type="button"
                   onClick={() => {
                     setShowDropdown(false);
@@ -151,6 +160,7 @@ const TopNavbar: React.FC<NavbarProps> = ({
                 </button>
 
                 <button
+                  role="menuitem"
                   type="button"
                   onClick={() => {
                     setShowDropdown(false);
@@ -171,7 +181,7 @@ const TopNavbar: React.FC<NavbarProps> = ({
         {/* MD Approval Shortcut */}
         <button
           type="button"
-          onClick={() => navigate('/pending-quotations')}
+          onClick={() => navigate("/pending-quotations")}
           title="MD Approvals"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/20 text-teal-300 hover:bg-teal-500 hover:text-white transition-all font-semibold text-xs border border-teal-500/30 cursor-pointer shadow-xs"
         >

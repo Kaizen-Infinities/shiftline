@@ -8,7 +8,6 @@ import React, { useEffect } from "react";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import { FaChevronDown, FaChevronRight, FaSignOutAlt } from "react-icons/fa";
 import { FiPower, FiMenu, FiChevronsLeft, FiChevronsRight, FiLogOut } from "react-icons/fi";
-import Logo from "../../../assets/images/sun-sea.webp";
 import { sidebarItems } from "./sidebar.data";
 const Sidebar = () => {
   const dispatch = useAppDispatch();

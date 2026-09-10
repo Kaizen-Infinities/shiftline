@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Container, Row, Col, Modal } from "react-bootstrap";
+import { Container, Row, Col, Modal } from "../../../components/ui/TailwindPrimitives";
 import { FaSearch, FaChevronLeft, FaChevronRight, FaSave } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";

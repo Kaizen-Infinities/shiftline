@@ -28,7 +28,7 @@
     --radius-lg: 16px;
 }
 
-/* Override Bootstrap !important utility classes with our Tailwind Theme Color */
+/* Preserve the established semantic colour helpers during the Tailwind migration. */
 .text-primary {
     color: var(--color-primary) !important;
 }

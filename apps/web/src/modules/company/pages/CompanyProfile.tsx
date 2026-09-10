@@ -6,7 +6,6 @@ import type { RootState, AppDispatch } from '../../../app/store';
 import { fetchCompany } from '../../../features/company/companySlice';
 import CustomButton from '../../../components/ui/Button/Button';
 import { StatusBadge } from '../../../components/ui/StatusBadge/Badge';
-import Logo from '../../../assets/images/sun-sea.webp';
 
 const CompanyProfile: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -37,7 +36,7 @@ const CompanyProfile: React.FC = () => {
         <div className="bg-linear-to-r from-indigo-600 via-blue-600 to-blue-500 px-6 py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 md:w-20 md:h-20 bg-card rounded-xl shadow-md border-2 border-white/20 flex items-center justify-center p-2 shrink-0 overflow-hidden">
-              <img src={company.logoUrl || Logo} alt="Company Logo" className="w-full h-full object-contain" />
+              <img src={company.logoUrl || "/favicon.svg"} alt="Company Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <h2 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight drop-shadow-sm">

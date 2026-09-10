@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Form, Button } from "react-bootstrap";
+import { Modal, Form, Button } from "../TailwindPrimitives";
 import TextInput from "../../form/TextInput/TextInput";
 
 interface StopProductionModalProps {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Container, Row, Col, Card, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Card, Badge } from "../../../components/ui/TailwindPrimitives";
 import { FaChartLine, FaIndustry, FaCogs, FaCheckCircle, FaExclamationTriangle, FaPauseCircle } from 'react-icons/fa';
 import { oeeService } from '../../../services/oeeService';
 import { toast } from 'react-toastify';

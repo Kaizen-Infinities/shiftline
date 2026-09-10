@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Modal } from "react-bootstrap";
+import { Modal } from "../../../components/ui/TailwindPrimitives";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { fetchCapacityHistory, clearHistory } from "../../../features/product-capacity-history/productCapacityHistorySlice";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";

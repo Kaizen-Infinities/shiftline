@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { Container, Row, Col, Card, ProgressBar, Badge, Table } from "react-bootstrap";
+import { Container, Row, Col, Card, ProgressBar, Badge, Table } from "../../../components/ui/TailwindPrimitives";
 import { 
   FaExclamationTriangle, 
   FaCalendarDay, FaCalendarWeek, FaCalendarAlt 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Table, Card } from "react-bootstrap";
+import { Container, Row, Col, Table, Card } from "../../../components/ui/TailwindPrimitives";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { z } from "zod";

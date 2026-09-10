@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, Col, Row } from "react-bootstrap";
+import { Card, Col, Row } from "../TailwindPrimitives";
 import { FaPlay } from "react-icons/fa";
 import StatusBadge from "../StatusBadge/Badge";
 import CustomButton from "../Button/Button";

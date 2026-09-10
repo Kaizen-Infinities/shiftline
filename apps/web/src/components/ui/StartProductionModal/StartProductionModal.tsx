@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Form, Row, Col, Button } from "react-bootstrap";
+import { Modal, Form, Row, Col, Button } from "../TailwindPrimitives";
 import { shiftService } from "../../../services/shiftService";
 import type { Shift } from "../../../features/shifts/types";
 
