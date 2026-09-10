@@ -1,0 +1,225 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "claude/**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  PUPPETEER_SKIP_DOWNLOAD: "1"
+  NPM_CONFIG_UPDATE_NOTIFIER: "false"
+
+jobs:
+  static:
+    name: Typecheck, lint, format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Dependency audit (high/critical must be fixed or allowlisted with an expiry)
+        run: npm run audit:gate
+      - name: Format check (new code only; legacy screens are formatted as they are touched)
+        run: npx prettier --check "packages/**/*.{ts,js,json}" "apps/api/test/**/*.ts" "apps/api/prisma/seed.ts" "*.{js,mjs,mts,json,yml}" ".github/**/*.yml"
+
+  migrations:
+    name: Schema and migration gate
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: shiftline
+          POSTGRES_PASSWORD: shiftline
+          POSTGRES_DB: shiftline
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shiftline -d shiftline"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://shiftline:shiftline@localhost:5432/shiftline
+      SHADOW_DATABASE_URL: postgresql://shiftline:shiftline@localhost:5432/shiftline_shadow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Prisma schema is valid
+        run: npx -w @shiftline/api prisma validate
+      - name: Create the shadow database for migrate diff
+        run: PGPASSWORD=shiftline psql -h localhost -U shiftline -d shiftline -v ON_ERROR_STOP=1 -c "CREATE DATABASE shiftline_shadow;"
+      - name: Migrations apply to an empty database and match the schema
+        run: |
+          cd apps/api
+          if ls prisma/migrations/*/migration.sql >/dev/null 2>&1; then
+            npx prisma migrate deploy
+            # Fail if schema.prisma drifted from the migration history.
+            npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+          else
+            echo "::warning::No migrations yet (P0-06 adds the initial migration); applying schema with db push for now"
+            npx prisma db push --skip-generate --accept-data-loss
+          fi
+      - name: No db push in package scripts or the Makefile
+        run: |
+          if grep -n "db push" package.json apps/*/package.json packages/*/package.json Makefile; then
+            echo "::error::use prisma migrate dev / migrate deploy, never db push"; exit 1
+          fi
+      - name: No PrismaClient constructed outside the shared client
+        run: |
+          hits=$(grep -rln "new PrismaClient" apps/api/src --include=*.ts | grep -v -E "apps/api/src/(config|lib)/prisma.ts" || true)
+          if [ -n "$hits" ]; then echo "::error::new PrismaClient outside the shared client:"; echo "$hits"; exit 1; fi
+      - name: No session-scoped SET app.* variables
+        run: |
+      - name: No hard deletes on books of account (P1-09 — cancel and reverse instead)
+        run: |
+          if grep -rnE "\b(voucher|journalItem|salesInvoice|grnInvoice|salesReturn|purchaseReturn|expense|pettyCashEntry)\.(delete|deleteMany)\(" apps/api/src/modules --include=*.ts | grep -v "/retention/" | grep -v "salesInvoiceItem\|grnInvoiceItem\|salesReturnItem\|purchaseReturnItem"; then
+            echo "Books-of-account rows must be cancelled, not deleted"; exit 1; fi
+          if grep -rEn "SET (SESSION )?app\." apps/api/src --include=*.ts; then echo "::error::use set_config(..., true) inside a transaction"; exit 1; fi
+
+  test-api:
+    name: API tests
+    runs-on: ubuntu-latest
+    needs: static
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      # A non-superuser role: superusers bypass row-level security, which would make the RLS suite meaningless.
+      TEST_DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@localhost:5432/shiftline_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Create the non-superuser test role
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE shiftline_migrator LOGIN CREATEDB PASSWORD 'shiftline_migrator';"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test -w @shiftline/api
+      - run: npm run test -w @shiftline/shared
+
+  test-web:
+    name: Web tests and build
+    runs-on: ubuntu-latest
+    needs: static
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test -w @shiftline/web
+      - run: npm run build -w @shiftline/web
+        env:
+          VITE_API_URL: /api
+
+  e2e:
+    name: Browser smoke (Playwright)
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      CI: "true"
+      NODE_ENV: development
+      DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@localhost:5432/shiftline_e2e
+      JWT_ACCESS_SECRET: e2e-secret-e2e-secret-e2e-secret-0000
+      DATA_ENCRYPTION_KEY: e2e-encryption-key-e2e-encryption-key-00
+      ADMIN_EMAIL: admin@e2e.shiftline.local
+      ADMIN_USERNAME: e2eadmin
+      ADMIN_PASSWORD: E2eAdmin#2026!!
+      SEED_PASSWORD: Demo@12345678
+      E2E_USER: owner@demo.shiftline.local
+      E2E_PASSWORD: Demo@12345678
+      FRONTEND_URL: http://localhost:5173
+      BACKEND_URL: http://localhost:5000
+      VITE_API_URL: http://localhost:5000/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Create the application role and database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE shiftline_migrator LOGIN CREATEDB PASSWORD 'shiftline_migrator';" \
+            -c "CREATE DATABASE shiftline_e2e OWNER shiftline_migrator;"
+      - run: npm ci --no-audit --no-fund
+      - name: Migrate and seed the demo tenant
+        run: |
+          npx -w @shiftline/api prisma migrate deploy
+          npm run db:seed -w @shiftline/api
+      - name: Build the web app against the local API
+        run: |
+          npm run build -w @shiftline/shared
+          npm run build -w @shiftline/web
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e:typecheck
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true

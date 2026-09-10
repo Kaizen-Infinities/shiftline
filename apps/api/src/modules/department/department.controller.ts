@@ -1,0 +1,76 @@
+import { Request, Response } from "express";
+
+import { ApiResponse } from "../../utils/ApiResponse";
+import { asyncHandler } from "../../utils/asyncHandler";
+import { emitToTenant } from "../../lib/realtime";
+
+import {
+  createDepartmentService,
+  deleteDepartmentService,
+  getAllDepartmentsService,
+  updateDepartmentService,
+  getDepartmentByIdService,
+} from "./department.service";
+
+/**
+ * Create Department
+ */
+export const createDepartment = asyncHandler(async (req: Request, res: Response) => {
+  const department = await createDepartmentService(req.body);
+
+  emitToTenant("department:created", department);
+
+  return res.status(201).json(new ApiResponse("Department created successfully", department));
+});
+
+/**
+ * Get All Departments
+ */
+export const getAllDepartments = asyncHandler(async (req: Request, res: Response) => {
+  const page = req.query.page ? Number(req.query.page) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : undefined;
+  const search = req.query.search ? String(req.query.search) : undefined;
+
+  const { departments, total } = await getAllDepartmentsService(page, limit, search);
+
+  return res.status(200).json({
+    success: true,
+    message: "Departments fetched successfully",
+    data: departments,
+    meta: {
+      total,
+      page: page || 1,
+      limit: limit || total,
+    },
+  });
+});
+
+/**
+ * Get Department By Id
+ */
+export const getDepartmentById = asyncHandler(async (req: Request, res: Response) => {
+  const departmentId = Number(String(req.params.id));
+
+  const department = await getDepartmentByIdService(departmentId);
+
+  return res.status(200).json(new ApiResponse("Department fetched successfully", department));
+});
+
+export const updateDepartment = asyncHandler(async (req: Request, res: Response) => {
+  const departmentId = Number(String(req.params.id));
+
+  const department = await updateDepartmentService(departmentId, req.body);
+
+  emitToTenant("department:updated", department);
+
+  return res.status(200).json(new ApiResponse("Department updated successfully", department));
+});
+
+export const deleteDepartment = asyncHandler(async (req: Request, res: Response) => {
+  const departmentId = Number(String(req.params.id));
+  await deleteDepartmentService(departmentId);
+
+  emitToTenant("department:deleted", { id: departmentId });
+
+  return res.status(200).json(new ApiResponse("Department deleted successfully"));
+});

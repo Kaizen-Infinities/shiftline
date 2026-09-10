@@ -1,0 +1,904 @@
+import { prisma } from "../../config/prisma";
+import { ApiError } from "../../utils/ApiError";
+import dailyPlanRepository from "./daily-plan.repository";
+import { CreateDailyPlanInput, UpdateDailyPlanInput } from "./daily-plan.validation";
+import { StatusSyncService } from "../../utils/status-sync.util";
+import { MachineOperationAssignmentService } from "../machine-operation-assignment/machine-operation-assignment.service";
+import { logger } from "../../lib/logger";
+import { byCode } from "../../lib/prisma";
+
+class DailyPlanService {
+  async generateNextDailyPlanId(tx?: any): Promise<string> {
+    const client = tx || prisma;
+    const latest = await client.dailyProductionPlan.findFirst({
+      orderBy: { dailyPlanId: "desc" },
+      select: { dailyPlanId: true },
+    });
+
+    if (!latest || !latest.dailyPlanId) {
+      return "DP0001";
+    }
+
+    const match = latest.dailyPlanId.match(/\d+/);
+    if (!match) return "DP0001";
+
+    const nextNumber = parseInt(match[0], 10) + 1;
+    return `DP${String(nextNumber).padStart(4, "0")}`;
+  }
+
+  async create(data: CreateDailyPlanInput, userId?: string) {
+    const [yyyy, mm, dd] = data.productionDate.split("-").map(Number);
+    const prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
+
+    // 1. Validation: Weekly Plan must exist
+    const weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
+      where: byCode("weeklyProgramId", data.weeklyProgramId),
+    });
+    if (!weeklyProgram) {
+      throw new ApiError(404, `Weekly Program with ID ${data.weeklyProgramId} not found`);
+    }
+
+    // 2. Validation: Production Order must exist
+    const productionOrder = await prisma.productionOrder.findUnique({
+      where: byCode("productionOrderId", data.productionOrderId),
+    });
+    if (!productionOrder) {
+      throw new ApiError(404, `Production Order with ID ${data.productionOrderId} not found`);
+    }
+    const targetQty = Number(productionOrder.targetQty || 0);
+    const producedQty = Number(productionOrder.producedQty || 0);
+    if (targetQty > 0 && producedQty >= targetQty) {
+      throw new ApiError(
+        400,
+        `Cannot create Daily Plan: Target quantity of ${targetQty} pcs has already been fully produced.`
+      );
+    }
+
+    // ✅ STEP 4 RULE: Daily Planning only allowed for WEEKLY_SCHEDULED orders
+    // Also allow legacy SCHEDULED and DAILY_PLANNED (for re-planning an existing day)
+    const dailyPlanAllowedStatuses = [
+      "WEEKLY_SCHEDULED",
+      "SCHEDULED", // legacy alias
+      "DAILY_PLANNED", // already daily planned, adding another shift
+      "IN_PROGRESS", // allow creating plans for orders currently in progress (e.g. next shift/day)
+      "POST_PRODUCTION", // allow carrying forward production even if previous shifts are in post-production
+      "PARTIAL_COMPLETED", // allow planning remaining quantity for partially completed orders
+      "READY_FOR_DISPATCH", // allow planning remaining quantity if target is not yet fully met
+      "DISPATCHED", // allow if accidentally fully dispatched but target not met
+    ];
+    if (!dailyPlanAllowedStatuses.includes(productionOrder.status)) {
+      throw new ApiError(
+        400,
+        `Cannot create Daily Plan: Production Order status must be schedulable. Current status: ${productionOrder.status}. ` +
+          `Please ensure the Production Order is active.`
+      );
+    }
+
+    // 3. Validation: Machine must exist
+    const machine = await prisma.machine.findUnique({
+      where: byCode("machineId", data.machineId),
+    });
+    if (!machine) {
+      throw new ApiError(404, `Machine with ID ${data.machineId} not found`);
+    }
+
+    // 4. Validation: Shift must exist
+    const shift = await prisma.shift.findUnique({
+      where: byCode("shiftCode", data.shiftId),
+    });
+    if (!shift) {
+      throw new ApiError(404, `Shift with ID ${data.shiftId} not found`);
+    }
+
+    // Validate Machine & Shift Active status
+    if (!machine.isActive) {
+      throw new ApiError(
+        400,
+        `Machine ${machine.machineName} (${data.machineId}) is currently inactive and cannot be planned`
+      );
+    }
+    if (!shift.isActive) {
+      throw new ApiError(
+        400,
+        `Shift ${shift.shiftName} (${data.shiftId}) is currently inactive and cannot be planned`
+      );
+    }
+
+    // Resolve assignment and validate Operator + Shift Incharge
+    const assignment = await MachineOperationAssignmentService.resolveAssignment(
+      data.machineId,
+      data.shiftId,
+      prodDate
+    );
+
+    if (!assignment || !assignment.operators || assignment.operators.length === 0) {
+      throw new ApiError(
+        400,
+        "No operator is assigned to the selected machine for this shift. Please assign an operator before creating the Daily Production Plan."
+      );
+    }
+    const opsToCheckCreate =
+      data.selectedOperatorIds && data.selectedOperatorIds.trim() !== ""
+        ? assignment.operators.filter((op) => {
+            const ids = data.selectedOperatorIds!.split(",").map((id) => id.trim());
+            return (
+              ids.includes(op.id?.toString()) ||
+              ids.includes((op as any).employeeId?.toString()) ||
+              ids.includes(op.fullName) ||
+              ids.includes(op.empCode)
+            );
+          })
+        : assignment.operators;
+    const inactiveOp = opsToCheckCreate.find((op) => op.status !== "active");
+    if (inactiveOp) {
+      throw new ApiError(400, `Operator ${inactiveOp.fullName} is currently inactive.`);
+    }
+
+    // 5. Validation: Planned quantity must be greater than zero
+    if (data.plannedQty <= 0) {
+      throw new ApiError(400, "Planned quantity must be greater than zero");
+    }
+
+    // 6. Carry-forward guard: a source plan can only be carried forward ONCE
+    if (data.carryForwardFromPlanId) {
+      const sourcePlan = await prisma.dailyProductionPlan.findUnique({
+        where: byCode("dailyPlanId", data.carryForwardFromPlanId),
+        include: { carryForwardTo: { select: { dailyPlanId: true } } },
+      });
+      if (!sourcePlan) {
+        throw new ApiError(404, `Source plan ${data.carryForwardFromPlanId} not found`);
+      }
+      if (sourcePlan.carryForwardTo && sourcePlan.carryForwardTo.length > 0) {
+        throw new ApiError(
+          409,
+          `Plan ${data.carryForwardFromPlanId} has already been carried forward. Each plan can only be carried forward once.`
+        );
+      }
+    }
+
+    return prisma.$transaction(
+      async (tx) => {
+        // 7. Validation: Machine must not already be planned for the same date, shift, and PO
+        const isAlreadyPlanned = await dailyPlanRepository.existsByDateMachineShift(
+          prodDate,
+          data.machineId,
+          data.shiftId,
+          data.productionOrderId,
+          undefined,
+          tx
+        );
+        if (isAlreadyPlanned) {
+          throw new ApiError(
+            409,
+            `Machine ${data.machineId} is already scheduled with production order ${data.productionOrderId} on shift ${data.shiftId} for date ${data.productionDate}`
+          );
+        }
+
+        const nextId = await this.generateNextDailyPlanId(tx);
+
+        const created = await dailyPlanRepository.create(
+          {
+            dailyPlanId: nextId,
+            weeklyProgramId: data.weeklyProgramId,
+            productionOrderId: data.productionOrderId,
+            productionDate: prodDate,
+            machineId: data.machineId,
+            shiftId: data.shiftId,
+            plannedQty: data.plannedQty,
+            plannedHours: data.plannedHours ?? null,
+            priority: data.priority ?? "MEDIUM",
+            status: data.status ?? "DRAFT",
+            remarks: data.remarks ?? null,
+            carryForwardFromPlanId: data.carryForwardFromPlanId ?? null,
+            selectedOperatorIds: data.selectedOperatorIds ?? null,
+            createdBy: userId,
+          },
+          tx
+        );
+
+        // ✅ STEP 4: Transition Production Order to DAILY_PLANNED after first daily plan created
+        if (
+          productionOrder.status === "WEEKLY_SCHEDULED" ||
+          productionOrder.status === "SCHEDULED"
+        ) {
+          await tx.productionOrder.update({
+            where: byCode("productionOrderId", data.productionOrderId),
+            data: { status: "DAILY_PLANNED" },
+          });
+          await StatusSyncService.logHistory(
+            tx,
+            data.productionOrderId,
+            productionOrder.status,
+            "DAILY_PLANNED",
+            userId,
+            `Daily production plan ${nextId} created for ${data.productionDate}`,
+            "DAILY_PLAN_CREATED"
+          );
+        }
+
+        const operators = await this.filterOperators(
+          assignment?.operators || [],
+          created.selectedOperatorIds
+        );
+        return {
+          ...created,
+          operators,
+          shiftIncharge: assignment?.shiftIncharge || null,
+        };
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
+  }
+
+  async update(dailyPlanId: string, data: UpdateDailyPlanInput, userId?: string) {
+    const existingPlan = await dailyPlanRepository.findById(dailyPlanId);
+    if (!existingPlan) {
+      throw new ApiError(404, `Daily Plan with ID ${dailyPlanId} not found`);
+    }
+
+    const checkWeeklyProgramId = data.weeklyProgramId || existingPlan.weeklyProgramId;
+    const checkProductionOrderId = data.productionOrderId || existingPlan.productionOrderId;
+    const checkMachineId = data.machineId || existingPlan.machineId;
+    const checkShiftId = data.shiftId || existingPlan.shiftId;
+    const checkPlannedQty =
+      data.plannedQty !== undefined ? data.plannedQty : Number(existingPlan.plannedQty);
+
+    let prodDate = existingPlan.productionDate;
+    if (data.productionDate) {
+      const [yyyy, mm, dd] = data.productionDate.split("-").map(Number);
+      prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
+    }
+
+    // 1. Verify Weekly Plan exists
+    const weeklyProgram = await prisma.weeklyMachineProgram.findUnique({
+      where: byCode("weeklyProgramId", checkWeeklyProgramId),
+    });
+    if (!weeklyProgram) {
+      throw new ApiError(404, `Weekly Program with ID ${checkWeeklyProgramId} not found`);
+    }
+
+    // 2. Verify Production Order exists
+    const productionOrder = await prisma.productionOrder.findUnique({
+      where: byCode("productionOrderId", checkProductionOrderId),
+    });
+    if (!productionOrder) {
+      throw new ApiError(404, `Production Order with ID ${checkProductionOrderId} not found`);
+    }
+
+    // 3. Verify Machine exists
+    const machine = await prisma.machine.findUnique({
+      where: byCode("machineId", checkMachineId),
+    });
+    if (!machine) {
+      throw new ApiError(404, `Machine with ID ${checkMachineId} not found`);
+    }
+
+    // 4. Verify Shift exists
+    const shift = await prisma.shift.findUnique({
+      where: byCode("shiftCode", checkShiftId),
+    });
+    if (!shift) {
+      throw new ApiError(404, `Shift with ID ${checkShiftId} not found`);
+    }
+
+    // Validate Machine & Shift Active status
+    if (!machine.isActive) {
+      throw new ApiError(
+        400,
+        `Machine ${machine.machineName} (${checkMachineId}) is currently inactive and cannot be planned`
+      );
+    }
+    if (!shift.isActive) {
+      throw new ApiError(
+        400,
+        `Shift ${shift.shiftName} (${checkShiftId}) is currently inactive and cannot be planned`
+      );
+    }
+
+    // Resolve assignment and validate Operator + Shift Incharge
+    const assignment = await MachineOperationAssignmentService.resolveAssignment(
+      checkMachineId,
+      checkShiftId,
+      prodDate
+    );
+
+    if (!assignment || !assignment.operators || assignment.operators.length === 0) {
+      throw new ApiError(
+        400,
+        "No operator is assigned to the selected machine for this shift. Please assign an operator before creating the Daily Production Plan."
+      );
+    }
+    const opsToCheckUpdate =
+      data.selectedOperatorIds && data.selectedOperatorIds.trim() !== ""
+        ? assignment.operators.filter((op) => {
+            const ids = data.selectedOperatorIds!.split(",").map((id) => id.trim());
+            return (
+              ids.includes(op.id?.toString()) ||
+              ids.includes((op as any).employeeId?.toString()) ||
+              ids.includes(op.fullName) ||
+              ids.includes(op.empCode)
+            );
+          })
+        : assignment.operators;
+    const inactiveOp = opsToCheckUpdate.find((op) => op.status !== "active");
+    if (inactiveOp) {
+      throw new ApiError(400, `Operator ${inactiveOp.fullName} is currently inactive.`);
+    }
+
+    // 5. Verify quantity > 0
+    if (checkPlannedQty <= 0) {
+      throw new ApiError(400, "Planned quantity must be greater than zero");
+    }
+
+    return prisma.$transaction(
+      async (tx) => {
+        // 6. Verify machine is not already planned on this date, shift & PO (excluding self)
+        const isAlreadyPlanned = await dailyPlanRepository.existsByDateMachineShift(
+          prodDate,
+          checkMachineId,
+          checkShiftId,
+          checkProductionOrderId,
+          dailyPlanId,
+          tx
+        );
+        if (isAlreadyPlanned) {
+          throw new ApiError(
+            409,
+            `Machine ${checkMachineId} is already scheduled with production order ${checkProductionOrderId} on shift ${checkShiftId} for date ${prodDate.toISOString().split("T")[0]}`
+          );
+        }
+
+        // ✅ STEP 5 GATE: If transitioning to IN_PROGRESS, production order must be DAILY_PLANNED
+        // The actual stock deduction happens via the /start-production API — not here.
+        // This just validates the gate and transitions the daily plan status.
+        if (data.status === "IN_PROGRESS" && existingPlan.status !== "IN_PROGRESS") {
+          if (
+            ![
+              "DAILY_PLANNED",
+              "IN_PRODUCTION",
+              "IN_PROGRESS",
+              "WEEKLY_SCHEDULED",
+              "MATERIAL_ISSUED",
+              "POST_PRODUCTION",
+              "PARTIAL_COMPLETED",
+              "DISPATCHED",
+            ].includes(productionOrder.status)
+          ) {
+            throw new ApiError(
+              400,
+              `Daily Plan cannot be started because the Production Order status is "${productionOrder.status}". ` +
+                `Please ensure the production order is active and use the Start Production action.`
+            );
+          }
+        }
+
+        // Formulate update fields
+        const updateData: any = {
+          weeklyProgramId: checkWeeklyProgramId,
+          productionOrderId: checkProductionOrderId,
+          productionDate: prodDate,
+          machineId: checkMachineId,
+          shiftId: checkShiftId,
+          plannedQty: checkPlannedQty,
+          plannedHours:
+            data.plannedHours !== undefined ? data.plannedHours : existingPlan.plannedHours,
+          priority: data.priority || existingPlan.priority,
+          status: data.status === "NEXT_STEP" ? "IN_PROGRESS" : data.status || existingPlan.status,
+          remarks: data.remarks !== undefined ? data.remarks : existingPlan.remarks,
+          selectedOperatorIds:
+            data.selectedOperatorIds !== undefined
+              ? data.selectedOperatorIds
+              : existingPlan.selectedOperatorIds,
+          updatedBy: userId,
+        };
+
+        // Handle dynamic post-production steps
+        if (
+          data.status === "COMPLETED" ||
+          data.status === "NEXT_STEP" ||
+          data.status === "POST_PRODUCTION"
+        ) {
+          const productionOrderFull = await tx.productionOrder.findUnique({
+            where: byCode("productionOrderId", checkProductionOrderId),
+            include: {
+              productItem: { include: { productionSteps: { orderBy: { stepOrder: "asc" } } } },
+            },
+          });
+
+          if (productionOrderFull) {
+            const customSteps = productionOrderFull.productItem?.productionSteps || [];
+            const totalCustomStepsCount = customSteps.length;
+
+            if (data.status === "POST_PRODUCTION") {
+              // First time entering POST_PRODUCTION
+              if (existingPlan.status !== "POST_PRODUCTION") {
+                const firstStepName =
+                  totalCustomStepsCount > 0 ? customSteps[0].stepKey : "Post Production";
+
+                updateData.currentStepIndex = 1;
+                updateData.currentProductionStep = firstStepName;
+                updateData.status = "POST_PRODUCTION";
+              }
+
+              if (
+                productionOrderFull.status !== "POST_PRODUCTION" &&
+                productionOrderFull.status !== "READY_FOR_DISPATCH" &&
+                productionOrderFull.status !== "COMPLETED" &&
+                productionOrderFull.status !== "PARTIAL_COMPLETED" &&
+                productionOrderFull.status !== "COMPLETED_WITH_SHORTFALL" &&
+                productionOrderFull.status !== "CLOSED"
+              ) {
+                if (data.shortClosePO) {
+                  // ── PERMANENT STOP ──────────────────────────────────────────
+                  // 1. Close this weekly program
+                  await tx.weeklyMachineProgram.update({
+                    where: byCode("weeklyProgramId", checkWeeklyProgramId),
+                    data: { status: "COMPLETED" },
+                  });
+                  // 2. Mark PO status — READY_FOR_DISPATCH if target met/exceeded, COMPLETED_WITH_SHORTFALL if under-produced
+                  const targetQty = Number(productionOrderFull.targetQty || 0);
+                  const producedQty = Number(productionOrderFull.producedQty || 0);
+                  const permanentStopStatus =
+                    targetQty > 0 && producedQty >= targetQty
+                      ? "READY_FOR_DISPATCH"
+                      : "COMPLETED_WITH_SHORTFALL";
+                  await tx.productionOrder.update({
+                    where: byCode("productionOrderId", checkProductionOrderId),
+                    data: { status: permanentStopStatus },
+                  });
+                  // 3. Cascade-stop ALL other active DPs for this PO
+                  const otherActiveDPs = await tx.dailyProductionPlan.findMany({
+                    where: {
+                      productionOrderId: checkProductionOrderId,
+                      dailyPlanId: { not: dailyPlanId },
+                      status: { in: ["DRAFT", "PLANNED", "APPROVED", "IN_PROGRESS"] },
+                    },
+                  });
+                  for (const dp of otherActiveDPs) {
+                    await tx.dailyProductionPlan.update({
+                      where: byCode("dailyPlanId", dp.dailyPlanId),
+                      data: { status: "STOPPED" },
+                    });
+                    // Also lock that plan's weekly program
+                    if (dp.weeklyProgramId) {
+                      await tx.weeklyMachineProgram.update({
+                        where: byCode("weeklyProgramId", dp.weeklyProgramId),
+                        data: { status: "COMPLETED" },
+                      });
+                    }
+                  }
+
+                  // Audit metadata details
+                  let stopReasonOnly = "No reason provided";
+                  if (data.remarks) {
+                    const parts = data.remarks.split("Stopped:");
+                    if (parts.length > 1) {
+                      stopReasonOnly = parts[parts.length - 1].trim();
+                    } else {
+                      stopReasonOnly = data.remarks;
+                    }
+                  }
+                  const cancelledQty = targetQty > producedQty ? targetQty - producedQty : 0;
+
+                  await StatusSyncService.logHistory(
+                    tx,
+                    checkProductionOrderId,
+                    productionOrderFull.status,
+                    permanentStopStatus,
+                    userId,
+                    data.remarks ||
+                      `Production force-stopped (Permanent Stop). All active plans closed. Proceeding to post-production.`,
+                    "PERMANENT_STOP",
+                    {
+                      stopReason: stopReasonOnly,
+                      stopAction: "PERMANENT_STOP",
+                      producedQuantity: producedQty,
+                      cancelledQuantity: cancelledQty,
+                      user: userId,
+                      dateTime: new Date().toISOString(),
+                    }
+                  );
+                } else {
+                  await tx.productionOrder.update({
+                    where: byCode("productionOrderId", checkProductionOrderId),
+                    data: { status: "POST_PRODUCTION" },
+                  });
+                  await StatusSyncService.logHistory(
+                    tx,
+                    checkProductionOrderId,
+                    productionOrderFull.status,
+                    "POST_PRODUCTION",
+                    userId,
+                    "Production completed. Entering post-production phase.",
+                    "POST_PRODUCTION_START"
+                  );
+                }
+              } else if (data.shortClosePO) {
+                // PO is already in POST_PRODUCTION or PARTIAL_COMPLETED/COMPLETED_WITH_SHORTFALL — still close the weekly program and cascade-stop active DPs
+                await tx.weeklyMachineProgram.update({
+                  where: byCode("weeklyProgramId", checkWeeklyProgramId),
+                  data: { status: "COMPLETED" },
+                });
+                const otherActiveDPs2 = await tx.dailyProductionPlan.findMany({
+                  where: {
+                    productionOrderId: checkProductionOrderId,
+                    dailyPlanId: { not: dailyPlanId },
+                    status: { in: ["DRAFT", "PLANNED", "APPROVED", "IN_PROGRESS"] },
+                  },
+                });
+                for (const dp of otherActiveDPs2) {
+                  await tx.dailyProductionPlan.update({
+                    where: byCode("dailyPlanId", dp.dailyPlanId),
+                    data: { status: "STOPPED" },
+                  });
+                  if (dp.weeklyProgramId) {
+                    await tx.weeklyMachineProgram.update({
+                      where: byCode("weeklyProgramId", dp.weeklyProgramId),
+                      data: { status: "COMPLETED" },
+                    });
+                  }
+                }
+                // Ensure PO gets correct stop status — READY_FOR_DISPATCH if target met, else COMPLETED_WITH_SHORTFALL
+                if (
+                  ![
+                    "COMPLETED_WITH_SHORTFALL",
+                    "CLOSED",
+                    "READY_FOR_DISPATCH",
+                    "DISPATCHED",
+                  ].includes(productionOrderFull.status)
+                ) {
+                  const stopTargetQty = Number(productionOrderFull.targetQty || 0);
+                  const stopProducedQty = Number(productionOrderFull.producedQty || 0);
+                  const fallbackStopStatus =
+                    stopTargetQty > 0 && stopProducedQty >= stopTargetQty
+                      ? "READY_FOR_DISPATCH"
+                      : "COMPLETED_WITH_SHORTFALL";
+                  await tx.productionOrder.update({
+                    where: byCode("productionOrderId", checkProductionOrderId),
+                    data: { status: fallbackStopStatus },
+                  });
+                }
+              }
+            } else if (data.status === "NEXT_STEP" && existingPlan.status === "POST_PRODUCTION") {
+              // Advancing through custom steps within POST_PRODUCTION
+              // Use the Daily Plan's current step
+              const currentIndex = existingPlan.currentStepIndex || 1;
+              const nextIndex = currentIndex + 1;
+
+              if (nextIndex <= totalCustomStepsCount) {
+                const nextStepName = customSteps[nextIndex - 1].stepKey;
+                updateData.currentStepIndex = nextIndex;
+                updateData.currentProductionStep = nextStepName;
+                updateData.status = "POST_PRODUCTION"; // Keep daily plan in POST_PRODUCTION
+              }
+            } else if (data.status === "COMPLETED" && existingPlan.status !== "COMPLETED") {
+              updateData.currentStepIndex = totalCustomStepsCount + 1;
+              updateData.currentProductionStep = "Completed";
+              updateData.status = "COMPLETED";
+
+              // If this plan was previously short-closed but is now completing normally via POST_PRODUCTION, strip the Short Closed remarks
+              if (
+                existingPlan.status === "POST_PRODUCTION" &&
+                existingPlan.remarks?.includes("Short Closed:")
+              ) {
+                updateData.remarks = existingPlan.remarks
+                  .replace(/Short Closed:\s*/g, "")
+                  .replace(/\s*\|\s*/g, " | ")
+                  .trim();
+              }
+
+              // Check if all OTHER daily plans for this PO are completed or cancelled
+              const otherPlans = await tx.dailyProductionPlan.findMany({
+                where: {
+                  productionOrderId: checkProductionOrderId,
+                  dailyPlanId: { not: dailyPlanId },
+                },
+              });
+              const allOthersFinished = otherPlans.every(
+                (p: any) =>
+                  p.status === "COMPLETED" ||
+                  p.status === "CANCELLED" ||
+                  p.status === "STOPPED" ||
+                  p.status === "SHORT_CLOSED"
+              );
+
+              const poTarget = Number(productionOrderFull.targetQty || 0);
+              const poProduced = Number(productionOrderFull.producedQty || 0);
+              const isTargetMet = poTarget > 0 && poProduced >= poTarget;
+
+              // Only advance PO if all other plans are finished
+              if (allOthersFinished) {
+                const isShortClosed = existingPlan.status !== "POST_PRODUCTION";
+
+                if (!isShortClosed) {
+                  // Normal flow: came from POST_PRODUCTION
+                  if (isTargetMet && productionOrderFull.status !== "READY_FOR_DISPATCH") {
+                    await tx.productionOrder.update({
+                      where: byCode("productionOrderId", checkProductionOrderId),
+                      data: { status: "READY_FOR_DISPATCH" },
+                    });
+                    await StatusSyncService.logHistory(
+                      tx,
+                      checkProductionOrderId,
+                      productionOrderFull.status,
+                      "READY_FOR_DISPATCH",
+                      userId,
+                      "All post-production steps completed and target quantity met. Ready for dispatch.",
+                      "READY_FOR_DISPATCH"
+                    );
+                  } else if (
+                    productionOrderFull.status !== "PARTIAL_COMPLETED" &&
+                    productionOrderFull.status !== "COMPLETED_WITH_SHORTFALL" &&
+                    productionOrderFull.status !== "CLOSED" &&
+                    productionOrderFull.status !== "DISPATCHED" &&
+                    productionOrderFull.status !== "READY_FOR_DISPATCH"
+                  ) {
+                    await tx.productionOrder.update({
+                      where: byCode("productionOrderId", checkProductionOrderId),
+                      data: { status: "PARTIAL_COMPLETED" },
+                    });
+                    await StatusSyncService.logHistory(
+                      tx,
+                      checkProductionOrderId,
+                      productionOrderFull.status,
+                      "PARTIAL_COMPLETED",
+                      userId,
+                      "Partial post-production steps completed. Eligible for partial dispatch.",
+                      "PARTIAL_COMPLETED"
+                    );
+                  }
+                } else if (isShortClosed) {
+                  if (
+                    isTargetMet &&
+                    !["READY_FOR_DISPATCH", "DISPATCHED"].includes(productionOrderFull.status)
+                  ) {
+                    // Short-closed but target qty is met: advance PO directly to READY_FOR_DISPATCH
+                    await tx.productionOrder.update({
+                      where: byCode("productionOrderId", checkProductionOrderId),
+                      data: { status: "READY_FOR_DISPATCH" },
+                    });
+                    await StatusSyncService.logHistory(
+                      tx,
+                      checkProductionOrderId,
+                      productionOrderFull.status,
+                      "READY_FOR_DISPATCH",
+                      userId,
+                      "Production completed (short-closed). Target quantity met. Ready for dispatch.",
+                      "READY_FOR_DISPATCH"
+                    );
+                  } else if (
+                    !isTargetMet &&
+                    ![
+                      "PARTIAL_COMPLETED",
+                      "COMPLETED_WITH_SHORTFALL",
+                      "CLOSED",
+                      "READY_FOR_DISPATCH",
+                      "DISPATCHED",
+                      "COMPLETED",
+                    ].includes(productionOrderFull.status)
+                  ) {
+                    // Short-closed and target NOT met (Force Complete Stop): close the PO and Weekly Program
+                    await tx.productionOrder.update({
+                      where: byCode("productionOrderId", checkProductionOrderId),
+                      data: { status: "COMPLETED_WITH_SHORTFALL" },
+                    });
+                    await tx.weeklyMachineProgram.update({
+                      where: byCode("weeklyProgramId", checkWeeklyProgramId),
+                      data: { status: "COMPLETED" },
+                    });
+                    await StatusSyncService.logHistory(
+                      tx,
+                      checkProductionOrderId,
+                      productionOrderFull.status,
+                      "COMPLETED_WITH_SHORTFALL",
+                      userId,
+                      "Production force-stopped (Complete Stop). No further planning allowed. Eligible for partial dispatch.",
+                      "COMPLETED_WITH_SHORTFALL"
+                    );
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        const updatedPlan = await dailyPlanRepository.update(dailyPlanId, updateData, tx);
+
+        const operators = await this.filterOperators(
+          assignment?.operators || [],
+          updatedPlan.selectedOperatorIds
+        );
+        return {
+          ...updatedPlan,
+          operators,
+          shiftIncharge: assignment?.shiftIncharge || null,
+        };
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
+  }
+
+  async delete(dailyPlanId: string) {
+    const existingPlan = await dailyPlanRepository.findById(dailyPlanId);
+    if (!existingPlan) {
+      throw new ApiError(404, `Daily Plan with ID ${dailyPlanId} not found`);
+    }
+
+    // Verify if there are already hourly production logs registered
+    const hourlyLogsCount = await prisma.hourlyProduction.count({
+      where: { dailyPlanId },
+    });
+
+    if (hourlyLogsCount > 0) {
+      throw new ApiError(
+        400,
+        `Cannot delete Daily Plan because it already has ${hourlyLogsCount} hourly production logs registered`
+      );
+    }
+
+    // ✅ If this is the LAST daily plan for the PO, revert PO status back to WEEKLY_SCHEDULED
+    const remainingPlans = await prisma.dailyProductionPlan.count({
+      where: {
+        productionOrderId: existingPlan.productionOrderId,
+        dailyPlanId: { not: dailyPlanId },
+      },
+    });
+
+    if (remainingPlans === 0) {
+      const po = await prisma.productionOrder.findUnique({
+        where: byCode("productionOrderId", existingPlan.productionOrderId),
+      });
+      if (po && po.status === "DAILY_PLANNED") {
+        await prisma.productionOrder.update({
+          where: byCode("productionOrderId", existingPlan.productionOrderId),
+          data: { status: "WEEKLY_SCHEDULED" },
+        });
+      }
+    }
+
+    return dailyPlanRepository.delete(dailyPlanId);
+  }
+
+  private async filterOperators(assignedOperators: any[], selectedOperatorIds?: string | null) {
+    if (!selectedOperatorIds || selectedOperatorIds.trim() === "") {
+      return assignedOperators || [];
+    }
+    const selectedIds = selectedOperatorIds
+      .split(",")
+      .map((id: string) => id.trim())
+      .filter(Boolean);
+    const filtered = (assignedOperators || []).filter(
+      (op: any) =>
+        selectedIds.includes(op.id?.toString()) ||
+        selectedIds.includes(op.employeeId?.toString()) ||
+        selectedIds.includes(op.fullName) ||
+        selectedIds.includes(op.empCode)
+    );
+    if (filtered.length < selectedIds.length) {
+      const existingIds = new Set(filtered.map((op: any) => op.id?.toString()));
+      const existingNames = new Set(filtered.map((op: any) => op.fullName));
+      const existingCodes = new Set(filtered.map((op: any) => op.empCode));
+      const missingIds = selectedIds.filter(
+        (id: string) => !existingIds.has(id) && !existingNames.has(id) && !existingCodes.has(id)
+      );
+      if (missingIds.length > 0) {
+        try {
+          const numericIds = missingIds.filter((id: string) => /^\d+$/.test(id));
+          const stringValues = missingIds.filter((id: string) => !/^\d+$/.test(id));
+          const whereClauses: any[] = [];
+          if (numericIds.length > 0) {
+            whereClauses.push({ id: { in: numericIds.map((id: string) => BigInt(id)) } });
+          }
+          if (stringValues.length > 0) {
+            whereClauses.push({ fullName: { in: stringValues } });
+            whereClauses.push({ empCode: { in: stringValues } });
+          }
+          if (whereClauses.length > 0) {
+            const missingEmps = await prisma.employee.findMany({
+              where: { OR: whereClauses },
+            });
+            for (const emp of missingEmps) {
+              if (!filtered.some((f: any) => f.id === emp.id.toString())) {
+                filtered.push({
+                  id: emp.id.toString(),
+                  empCode: emp.empCode,
+                  fullName: emp.fullName,
+                  status: emp.status,
+                });
+              }
+            }
+          }
+        } catch (e) {
+          logger.error({ err: e }, "Error fetching missing employee details:");
+        }
+      }
+    }
+    return filtered;
+  }
+
+  async findById(dailyPlanId: string) {
+    const plan = await dailyPlanRepository.findById(dailyPlanId);
+    if (!plan) {
+      throw new ApiError(404, `Daily Plan with ID ${dailyPlanId} not found`);
+    }
+
+    const assignment = await MachineOperationAssignmentService.resolveAssignment(
+      plan.machineId,
+      plan.shiftId,
+      plan.productionDate
+    );
+    const operators = await this.filterOperators(
+      assignment?.operators || [],
+      plan.selectedOperatorIds
+    );
+
+    return {
+      ...plan,
+      operators,
+      shiftIncharge: assignment?.shiftIncharge || null,
+    };
+  }
+
+  async findAll(filters: {
+    weeklyProgramId?: string;
+    productionOrderId?: string;
+    machineId?: string;
+    shiftId?: string;
+    productionDate?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    let dateObj: Date | undefined;
+    if (filters.productionDate) {
+      const [yyyy, mm, dd] = filters.productionDate.split("-").map(Number);
+      dateObj = new Date(Date.UTC(yyyy, mm - 1, dd));
+    }
+
+    const result = await dailyPlanRepository.findAll({
+      weeklyProgramId: filters.weeklyProgramId,
+      productionOrderId: filters.productionOrderId,
+      machineId: filters.machineId,
+      shiftId: filters.shiftId,
+      productionDate: dateObj,
+      status: filters.status,
+      page: filters.page,
+      limit: filters.limit,
+    });
+
+    const plansWithAssignments = await Promise.all(
+      result.dailyPlans.map(async (plan: any) => {
+        try {
+          const assignment = await MachineOperationAssignmentService.resolveAssignment(
+            plan.machineId,
+            plan.shiftId,
+            plan.productionDate
+          );
+          const operators = await this.filterOperators(
+            assignment?.operators || [],
+            plan.selectedOperatorIds
+          );
+          return {
+            ...plan,
+            operators,
+            shiftIncharge: assignment?.shiftIncharge || null,
+          };
+        } catch (err) {
+          return {
+            ...plan,
+            operators: [],
+            operator: null,
+            shiftIncharge: null,
+          };
+        }
+      })
+    );
+
+    return {
+      ...result,
+      dailyPlans: plansWithAssignments,
+    };
+  }
+}
+
+export default new DailyPlanService();

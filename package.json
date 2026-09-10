@@ -1,0 +1,57 @@
+{
+  "name": "shiftline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shiftline: multi-tenant ERP for secondary-sector manufacturing",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22 <23",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "vitest run",
+    "build": "npm run build --workspaces --if-present",
+    "prepare": "husky",
+    "pretypecheck": "npm run build -w @shiftline/shared",
+    "prebuild": "npm run build -w @shiftline/shared",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test -c e2e/playwright.config.ts",
+    "e2e:typecheck": "tsc -p e2e/tsconfig.json --noEmit",
+    "audit:gate": "node scripts/audit-gate.mjs",
+    "postinstall": "npm run prisma:generate -w @shiftline/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@faker-js/faker": "^10.6.0",
+    "@playwright/test": "^1.63.0",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.0",
+    "concurrently": "^9.2.0",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2",
+    "supertest": "^7.2.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.59.2",
+    "vitest": "^5.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "eslint --fix --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
+  }
+}

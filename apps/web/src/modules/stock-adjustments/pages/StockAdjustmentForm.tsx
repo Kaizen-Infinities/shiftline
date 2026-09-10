@@ -1,0 +1,1342 @@
+import React, { useState, useEffect } from "react";
+import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
+import { FaSave, FaPlus, FaMinus, FaInfoCircle, FaEraser } from "react-icons/fa";
+import { Search } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+import { z } from "zod";
+
+import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
+import {
+  createStockAdjustment,
+  fetchStockAdjustmentById,
+  updateStockAdjustment,
+  clearCurrent,
+  fetchProductionOrdersForIssue,
+  fetchNextAdjustmentNumber,
+} from "../../../features/stock-adjustments/stockAdjustmentSlice";
+import { fetchRawMaterials } from "../../../features/raw-materials/rawMaterialSlice";
+import { fetchRawMaterialStocks } from "../../../features/raw-materials/rawMaterialStockSlice";
+import { fetchProducts } from "../../../features/product/productSlice";
+import { fetchStores } from "../../../features/stores/storeSlice";
+import { fetchFinishedGoodsStocks } from "../../../features/finished-goods-stock/finishedGoodsStockSlice";
+
+import CustomButton from "../../../components/ui/Button/Button";
+import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
+import BackButton from "../../../components/ui/BackButton/BackButton";
+import TextInput from "../../../components/form/TextInput/TextInput";
+import SelectInput from "../../../components/form/SelectInput/SelectInput";
+import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
+import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
+
+// ──────────────────────────────────────────
+// Constants
+// ──────────────────────────────────────────
+const REASON_OPTIONS = [
+  { value: "Damaged Goods", label: "Damaged Goods" },
+  { value: "Lost / Stolen", label: "Lost / Stolen" },
+  { value: "Customer Return", label: "Customer Return" },
+  { value: "Found / Recovered", label: "Found / Recovered" },
+  { value: "Inventory Correction", label: "Inventory Correction" },
+  { value: "Other", label: "Other" },
+];
+
+const getReasonAndNotes = (remarks: string) => {
+  if (!remarks) return { reason: "", notes: "" };
+  const parts = remarks.split(" - ");
+  const first = parts[0];
+  const matched = REASON_OPTIONS.find(
+    (opt) => opt.value === first || opt.label === first || opt.value.toUpperCase() === first.toUpperCase()
+  );
+  if (matched) {
+    return { reason: matched.value, notes: parts.slice(1).join(" - ") };
+  }
+  return { reason: "Other", notes: remarks };
+};
+
+// ──────────────────────────────────────────
+// Validation
+// ──────────────────────────────────────────
+const adjustmentItemSchema = z.object({
+  itemType: z.enum(["RAW_MATERIAL", "FINISHED_GOODS", "WASTAGE"]),
+  rawMaterialId: z.string().nullable().optional(),
+  productItemId: z.string().nullable().optional(),
+  storeId: z.string().min(1, "Store is required"),
+  currentQty: z.number({ message: "Current qty must be a number" }),
+  adjustedQty: z.number({ message: "Adjusted qty must be a number" }).min(0, "Cannot be negative"),
+  difference: z.number(),
+  reason: z.string().min(1, "Reason is required"),
+  remarks: z.string().optional().nullable(),
+}).refine(item => {
+  if (item.itemType === "RAW_MATERIAL" || item.itemType === "WASTAGE") return !!item.rawMaterialId;
+  if (item.itemType === "FINISHED_GOODS") return !!item.productItemId;
+  return true;
+}, { message: "Selection is required", path: ["itemSelection"] });
+
+const pmiItemSchema = z.object({
+  rawMaterialId: z.string().min(1),
+  storeId: z.string().min(1, "Store is required"),
+  issueQty: z.number().min(0.001, "Issue qty must be greater than 0"),
+  currentQty: z.number(),
+  adjustedQty: z.number(),
+  difference: z.number(),
+  remarks: z.string().optional().nullable(),
+});
+
+const stockAdjustmentFormSchema = z.object({
+  adjustmentNumber: z.string().min(1, "Adjustment Number is required"),
+  adjustmentDate: z.string().min(1, "Date is required"),
+  adjustmentType: z.string().min(1, "Adjustment Type is required"),
+  reason: z.string().min(1, "Adjusted By is required").max(255),
+  items: z.array(adjustmentItemSchema).min(1, "At least one item is required"),
+});
+
+const pmiFormSchema = z.object({
+  adjustmentNumber: z.string().min(1, "Adjustment Number is required"),
+  adjustmentDate: z.string().min(1, "Date is required"),
+  productionOrderId: z.string().min(1, "Production Order is required"),
+  reason: z.string().min(1, "Reason is required").max(255),
+  items: z.array(pmiItemSchema).min(1, "At least one material is required"),
+});
+
+// ──────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────
+const StockAdjustmentForm: React.FC = () => {
+  const { id } = useParams();
+  const isEditMode = !!id;
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+
+  const { currentAdjustment, loading, productionOrdersForIssue } = useAppSelector(
+    (state) => state.stockAdjustments
+  );
+  const { data: rawMaterials } = useAppSelector((state) => state.rawMaterials);
+  const { data: rmStocks = [] } = useAppSelector((state) => state.rawMaterialStocks);
+  const { products } = useAppSelector((state) => state.products);
+  const { data: stores } = useAppSelector((state) => state.stores);
+  const { data: fgStocks = [] } = useAppSelector(
+    (state) => (state as any).finishedGoodsStocks || {}
+  );
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<any>({
+    adjustmentNumber: "",
+    adjustmentDate: new Date().toISOString().split("T")[0],
+    adjustmentType: "STOCK_INCREASE",
+    reason: "",
+    status: "APPROVED",
+    productionOrderId: "",
+    items: [],
+  });
+  const [pmiItems, setPmiItems] = useState<any[]>([]);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useFormShortcuts({});
+
+  // Custom manual adjustment states
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("All Categories");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isAddProductsOpen, setIsAddProductsOpen] = useState(false);
+
+  const isPMI = formData.adjustmentType === "PRODUCTION_MATERIAL_ISSUE";
+
+  // ── Load reference data ─────────────────
+  useEffect(() => {
+    dispatch(fetchRawMaterials(undefined));
+    dispatch(fetchRawMaterialStocks({ limit: 1000 }));
+    dispatch(fetchProducts(undefined));
+    dispatch(fetchStores(undefined)); // Stock adjustment handles both RM and FG — show all stores
+    dispatch(fetchFinishedGoodsStocks({ limit: 1000 }));
+    dispatch(fetchProductionOrdersForIssue());
+    return () => { dispatch(clearCurrent()); };
+  }, [dispatch]);
+
+  // Click outside listener for the dropdown
+  useEffect(() => {
+    const handleClose = (e: MouseEvent) => {
+      if (
+        isAddProductsOpen &&
+        !(e.target as Element).closest(".select-add-products-container")
+      ) {
+        setIsAddProductsOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClose);
+    return () => document.removeEventListener("click", handleClose);
+  }, [isAddProductsOpen]);
+
+  // ── Edit mode: populate form ────────────
+  useEffect(() => {
+    if (isEditMode && id) {
+      dispatch(fetchStockAdjustmentById(id));
+    }
+  }, [isEditMode, id, dispatch]);
+
+  useEffect(() => {
+    if (isEditMode && currentAdjustment) {
+      const adjType = currentAdjustment.adjustmentType || "STOCK_INCREASE";
+
+      const loadedItems = currentAdjustment.items?.map((i: any) => {
+        const itemType = i.itemType;
+        let name = "";
+        let itemCode = "";
+        let categoryName = "";
+        let uom = "";
+
+        if (itemType === "FINISHED_GOODS") {
+          name = i.product?.productName || "";
+          itemCode = i.product?.productCode || "";
+          categoryName = i.product?.category?.name || i.product?.category?.categoryName || "";
+          uom = i.product?.uom?.code || i.product?.uom?.uomCode || "pcs";
+        } else {
+          name = i.rawMaterial?.materialName || "";
+          itemCode = i.rawMaterialId || "";
+          categoryName = i.rawMaterial?.category?.name || "";
+          uom = i.rawMaterial?.baseUom || "kg";
+        }
+
+        const remarks = i.remarks || "";
+        const parsed = getReasonAndNotes(remarks);
+
+        return {
+          ...i,
+          productItemId: i.productItemId ? i.productItemId.toString() : "",
+          rawMaterialId: i.rawMaterialId || "",
+          name,
+          itemCode,
+          categoryName,
+          uom,
+          reason: parsed.reason,
+          notes: parsed.notes,
+        };
+      }) || [];
+
+      setFormData({
+        adjustmentNumber: currentAdjustment.adjustmentNumber,
+        adjustmentDate: new Date(currentAdjustment.adjustmentDate).toISOString().split("T")[0],
+        adjustmentType: adjType,
+        reason: currentAdjustment.reason || "",
+        status: currentAdjustment.status,
+        productionOrderId: currentAdjustment.productionOrderId || "",
+        items: loadedItems,
+      });
+
+      if (adjType === "PRODUCTION_MATERIAL_ISSUE" && currentAdjustment.productionOrder) {
+        setSelectedPO(currentAdjustment.productionOrder);
+        // Build PMI items from existing adjustment items
+        setPmiItems(
+          currentAdjustment.items?.map((i: any) => ({
+            rawMaterialId: i.rawMaterialId,
+            materialName: i.rawMaterial?.materialName || i.rawMaterialId,
+            storeId: i.storeId,
+            currentQty: Number(i.currentQty),
+            adjustedQty: Number(i.adjustedQty),
+            issueQty: Math.abs(Number(i.difference)),
+            difference: Number(i.difference),
+            remarks: i.remarks || "",
+            availableStock: Number(i.currentQty),
+            reservedQty: Number(i.currentQty),
+            requiredQty: Number(i.currentQty),
+            alreadyIssuedQty: 0,
+            remainingQty: Number(i.currentQty),
+            uom: "KG",
+          })) || []
+        );
+      }
+    } else if (!isEditMode) {
+      // Fetch sequential number from backend
+      dispatch(fetchNextAdjustmentNumber()).then((action: any) => {
+        if (action.payload) {
+          setFormData((prev: any) => ({ ...prev, adjustmentNumber: action.payload }));
+        }
+      });
+    }
+  }, [currentAdjustment, isEditMode, rawMaterials, products, dispatch]);
+
+  // ── Handle PO selection ─────────────────
+  const handlePOSelect = (poId: string) => {
+    setFormData((prev: any) => ({ ...prev, productionOrderId: poId }));
+    if (!poId) {
+      setSelectedPO(null);
+      setPmiItems([]);
+      return;
+    }
+    const po = productionOrdersForIssue.find((p: any) => p.productionOrderId === poId);
+    setSelectedPO(po || null);
+    if (po) {
+      const defaultStoreId = stores.length > 0 ? stores[0].storeId : "";
+      setPmiItems(
+        (po.draftRawMaterials || []).map((rm: any) => ({
+          rawMaterialId: rm.rawMaterialId,
+          materialName: rm.materialName,
+          requiredQty: rm.requiredQty,
+          reservedQty: rm.reservedQty,
+          alreadyIssuedQty: rm.alreadyIssuedQty,
+          remainingQty: rm.remainingQty,
+          availableStock: rm.availableStock,
+          uom: rm.uom,
+          issueQty: rm.remainingQty,
+          storeId: defaultStoreId,
+          currentQty: rm.availableStock,
+          adjustedQty: rm.availableStock - rm.remainingQty,
+          difference: -rm.remainingQty,
+          remarks: "",
+        }))
+      );
+    }
+  };
+
+  // ── PMI item change ─────────────────────
+  const handlePMIItemChange = (index: number, field: string, value: any) => {
+    const updated = [...pmiItems];
+    const item = { ...updated[index], [field]: value };
+
+    if (field === "issueQty") {
+      const qty = Number(value);
+      item.issueQty = qty;
+      item.adjustedQty = item.currentQty - qty;
+      item.difference = -qty;
+
+      // Inline validations
+      if (qty > item.availableStock) {
+        toast.warn(`Issue Qty cannot exceed Available Stock (${item.availableStock})`);
+      }
+    }
+
+    if (field === "storeId") {
+      item.storeId = value;
+    }
+
+    if (field === "remarks") {
+      item.remarks = value;
+    }
+
+    updated[index] = item;
+    setPmiItems(updated);
+  };
+
+  // ── Regular item change ─────────────────
+  const handleItemChange = (index: number, field: string, value: any) => {
+    const updatedItems = [...formData.items];
+    const item = { ...updatedItems[index], [field]: value };
+
+    if (field === "itemType") {
+      item.rawMaterialId = "";
+      item.productItemId = "";
+      item.currentQty = 0;
+      item.adjustedQty = 0;
+      item.difference = 0;
+    }
+
+    if (field === "storeId") {
+      item.storeId = value;
+    }
+
+    if (
+      (item.itemType === "RAW_MATERIAL" || item.itemType === "WASTAGE") &&
+      (field === "rawMaterialId" || field === "storeId" || field === "itemType")
+    ) {
+      const selectedId = field === "rawMaterialId" ? value : item.rawMaterialId;
+      const sId = field === "storeId" ? value : item.storeId;
+      item.currentQty = getRawMaterialStockQty(selectedId, sId);
+      if (field === "rawMaterialId" || field === "itemType") {
+        item.adjustedQty = item.currentQty;
+        item.difference = 0;
+      } else {
+        item.difference = Number(item.adjustedQty || 0) - item.currentQty;
+      }
+    }
+
+    if (
+      item.itemType === "FINISHED_GOODS" &&
+      (field === "productItemId" || field === "storeId" || field === "itemType")
+    ) {
+      const pId = field === "productItemId" ? value : item.productItemId;
+      const sId = field === "storeId" ? value : item.storeId;
+      if (pId) {
+        item.currentQty = getFinishedGoodStockQty(pId, sId);
+      } else {
+        item.currentQty = 0;
+      }
+      if (field === "productItemId" || field === "itemType") {
+        item.adjustedQty = item.currentQty;
+        item.difference = 0;
+      } else {
+        item.difference = Number(item.adjustedQty || 0) - item.currentQty;
+      }
+    }
+
+    if (field === "adjustedQty") {
+      item.adjustedQty = Number(value);
+      item.difference = Number(value) - Number(item.currentQty);
+    }
+
+    if (field === "currentQty") {
+      item.currentQty = Number(value);
+      item.difference = Number(item.adjustedQty) - Number(value);
+    }
+
+    updatedItems[index] = item;
+    setFormData({ ...formData, items: updatedItems });
+  };
+
+
+  const removeItem = (index: number) => {
+    setFormData({
+      ...formData,
+      items: formData.items.filter((_: any, i: number) => i !== index),
+    });
+  };
+
+  const convertToPrimaryBaseQty = (qty: number, selectedUom?: string, baseUomStr?: string): number => {
+    if (!qty || !selectedUom || !baseUomStr) return qty;
+    
+    const sel = selectedUom.toLowerCase().trim();
+    const primary = baseUomStr.split(',')[0].trim().toLowerCase();
+
+    if (sel === primary) return qty;
+
+    // Weight / Mass (Primary is kg)
+    if (primary === "kg" || primary === "kilogram" || primary === "kgs" || primary === "kilo") {
+        if (sel === "g" || sel === "gram" || sel === "gm" || sel === "grams") return qty / 1000;
+        if (sel === "t" || sel === "ton" || sel === "tons") return qty * 1000;
+    }
+    if (primary === "g" || primary === "gram" || primary === "gm" || primary === "grams") {
+        if (sel === "kg" || sel === "kilogram" || sel === "kgs") return qty * 1000;
+        if (sel === "t" || sel === "ton" || sel === "tons") return qty * 1000000;
+    }
+
+    // Volume / Liquid (Primary is l or L)
+    if (primary === "l" || primary === "ltr" || primary === "litre" || primary === "liter" || primary === "litres") {
+        if (sel === "ml" || sel === "milliliter" || sel === "milliliters") return qty / 1000;
+    }
+    if (primary === "ml" || primary === "milliliter") {
+        if (sel === "l" || sel === "ltr" || sel === "litre" || sel === "liter") return qty * 1000;
+    }
+
+    // Length (Primary is m or meter)
+    if (primary === "m" || primary === "meter" || primary === "mtr" || primary === "meters") {
+        if (sel === "cm" || sel === "centimeter" || sel === "centimeters") return qty / 100;
+        if (sel === "mm" || sel === "millimeter" || sel === "millimeters") return qty / 1000;
+    }
+    if (primary === "cm" || primary === "centimeter") {
+        if (sel === "m" || sel === "meter" || sel === "mtr") return qty * 100;
+        if (sel === "mm" || sel === "millimeter") return qty / 10;
+    }
+    if (primary === "mm" || primary === "millimeter") {
+        if (sel === "m" || sel === "meter" || sel === "mtr") return qty * 1000;
+        if (sel === "cm" || sel === "centimeter") return qty * 10;
+    }
+
+    // Count (Primary is pcs / ea)
+    if (primary === "pcs" || primary === "ea" || primary === "each" || primary === "piece") {
+        if (sel === "dz" || sel === "dozen") return qty * 12;
+    }
+
+    return qty;
+  };
+
+  const formatCleanNumber = (val: number): string => {
+    if (Number.isInteger(val)) return String(val);
+    return Number(val.toFixed(3)).toString();
+  };
+
+  const handleItemDifferenceChange = (
+    index: number,
+    rawVal: number | string,
+    selectedUom?: string
+  ) => {
+    const updatedItems = [...formData.items];
+    const item = { ...updatedItems[index] };
+
+    const uom = selectedUom || item.selectedUom || getPrimaryUom(item.uom);
+    item.selectedUom = uom;
+
+    const valNum = Number(rawVal || 0);
+    item.adjustInputValue = rawVal;
+
+    const diffInBase = convertToPrimaryBaseQty(valNum, uom, item.uom);
+    item.difference = diffInBase;
+    item.adjustedQty = Number(item.currentQty || 0) + diffInBase;
+
+    updatedItems[index] = item;
+    setFormData({ ...formData, items: updatedItems });
+  };
+
+  const handleClearAll = () => {
+    setFormData({ ...formData, items: [] });
+  };
+
+  const categories = Array.from(
+    new Set([
+      ...products.map((p: any) => p.category?.name || p.category?.categoryName).filter(Boolean),
+      ...rawMaterials.map((rm) => rm.category?.name).filter(Boolean),
+    ])
+  ) as string[];
+
+  const getPrimaryUom = (uomStr?: string) => {
+    if (!uomStr) return "pcs";
+    const first = uomStr.split(",")[0].trim();
+    const l = first.toLowerCase();
+    if (l === "ea" || l === "each" || l === "piece" || l === "pcs") return "pcs";
+    return first;
+  };
+
+  const getRawMaterialStockQty = (rmId: string, targetStoreId?: string) => {
+    if (!rmId) return 0;
+    // Use actual stock records (rmStocks) for accurate qty + store match
+    let matches = (rmStocks as any[]).filter(
+      (s: any) => s.rawMaterialId?.toString() === rmId.toString()
+    );
+    if (targetStoreId) {
+      matches = matches.filter((s: any) => s.storeId?.toString() === targetStoreId.toString());
+    }
+    if (matches.length > 0) {
+      return matches.reduce((sum: number, s: any) => sum + Number(s.onHandQty || 0), 0);
+    }
+    // Fallback to master data
+    const rm = rawMaterials.find((r: any) => r.rawMaterialId?.toString() === rmId.toString());
+    return Number(rm?.onHandQty || 0);
+  };
+
+  const getFinishedGoodStockQty = (productId: string, targetStoreId?: string) => {
+    if (!productId) return 0;
+    const pIdStr = productId.toString();
+
+    // 1. Check in fgStocks slice
+    let matchedFg = fgStocks.filter((f: any) => {
+      const fProdId = (f.productItemId || f.productId || f.product?.id || f.id)?.toString();
+      return fProdId === pIdStr;
+    });
+
+    if (targetStoreId) {
+      matchedFg = matchedFg.filter((f: any) => f.storeId?.toString() === targetStoreId.toString());
+    }
+
+    if (matchedFg.length > 0) {
+      return matchedFg.reduce((sum: number, f: any) => sum + Number(f.onHandQty || 0), 0);
+    }
+
+    // 2. Check directly in products array (as ProductList / ProductEdit does)
+    const prod: any = products.find((p: any) => (p.id || p.productId || p.productItemId)?.toString() === pIdStr);
+    if (prod) {
+      if (prod.finishedGoodsStocks && Array.isArray(prod.finishedGoodsStocks)) {
+        let prodStocks = prod.finishedGoodsStocks;
+        if (targetStoreId) {
+          prodStocks = prodStocks.filter((f: any) => f.storeId?.toString() === targetStoreId.toString());
+        }
+        if (prodStocks.length > 0) {
+          return prodStocks.reduce((sum: number, f: any) => sum + Number(f.onHandQty || 0), 0);
+        }
+        if (targetStoreId && prod.finishedGoodsStocks.length > 0) {
+          return 0;
+        }
+      }
+      if (!targetStoreId) {
+        if (prod.onHandQty != null) return Number(prod.onHandQty);
+        if (prod.stock != null) return Number(prod.stock);
+        if (prod.currentStock != null) return Number(prod.currentStock);
+      }
+    }
+
+    return 0;
+  };
+
+  const selectableItems = [
+    ...products.map((p: any) => ({
+      uniqueKey: `prod-${p.id}`,
+      id: p.id.toString(),
+      name: p.productName,
+      itemCode: p.productCode,
+      type: "FINISHED_GOODS" as const,
+      typeLabel: "Finished Goods",
+      category: p.category?.name || p.category?.categoryName || "",
+      uom: p.uom?.code || p.uom?.uomCode || p.baseUom || "pcs",
+    })),
+    ...rawMaterials
+      .filter((rm) => rm.itemType !== "WASTAGE")
+      .map((rm) => ({
+        uniqueKey: `rm-${rm.rawMaterialId}`,
+        id: rm.rawMaterialId,
+        name: rm.materialName,
+        itemCode: rm.rawMaterialId,
+        type: "RAW_MATERIAL" as const,
+        typeLabel: "Raw Material",
+        category: rm.category?.name || "",
+        uom: rm.baseUom || "kg",
+      })),
+    ...rawMaterials
+      .filter((rm) => rm.itemType === "WASTAGE")
+      .map((rm) => ({
+        uniqueKey: `wastage-${rm.rawMaterialId}`,
+        id: rm.rawMaterialId,
+        name: rm.materialName,
+        itemCode: rm.rawMaterialId,
+        type: "WASTAGE" as const,
+        typeLabel: "Wastage Product",
+        category: rm.category?.name || "",
+        uom: rm.baseUom || "kg",
+      })),
+  ];
+
+  const isItemAlreadyAdded = (item: any) => {
+    return formData.items.some((added: any) =>
+      added.uniqueKey === item.uniqueKey ||
+      (item.type === "FINISHED_GOODS" && added.productItemId?.toString() === item.id.toString()) ||
+      (item.type !== "FINISHED_GOODS" && added.rawMaterialId?.toString() === item.id.toString())
+    );
+  };
+
+  const filteredItemsForSelect = selectableItems.filter((item) => {
+    if (selectedCategoryFilter !== "All Categories") {
+      if (item.category !== selectedCategoryFilter) return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const nameMatch = item.name?.toLowerCase().includes(q);
+      const codeMatch = item.itemCode?.toLowerCase().includes(q);
+      if (!nameMatch && !codeMatch) return false;
+    }
+    return true;
+  });
+
+  const handleAddItemFromSelect = (item: any) => {
+    if (isItemAlreadyAdded(item)) {
+      toast.info("This item is already added to the adjustment table.");
+      return;
+    }
+    const defaultStoreId = stores.length > 0 ? stores[0].storeId : "";
+    let itemStoreId = defaultStoreId;
+    let currentQty = 0;
+
+    if (item.type === "FINISHED_GOODS") {
+      // Find the store where this FG has stock
+      const fgMatch = (fgStocks as any[]).find(
+        (f: any) => (f.productItemId || f.productId || f.product?.id || f.id)?.toString() === item.id?.toString()
+      );
+      if (fgMatch?.storeId) itemStoreId = fgMatch.storeId;
+      currentQty = getFinishedGoodStockQty(item.id, itemStoreId);
+    } else {
+      // Find the store where this RM has stock (from actual stock records)
+      const stockRecord = (rmStocks as any[]).find(
+        (s: any) => s.rawMaterialId?.toString() === item.id?.toString()
+      );
+      if (stockRecord?.storeId) {
+        itemStoreId = stockRecord.storeId;
+      } else {
+        // Fallback to master data storeId
+        const rm = rawMaterials.find((r: any) => r.rawMaterialId?.toString() === item.id?.toString());
+        if (rm && (rm as any).storeId) itemStoreId = (rm as any).storeId;
+      }
+      currentQty = getRawMaterialStockQty(item.id, itemStoreId);
+    }
+
+    setFormData({
+      ...formData,
+      items: [
+        ...formData.items,
+        {
+          itemType: item.type,
+          rawMaterialId: item.type === "FINISHED_GOODS" ? null : item.id,
+          productItemId: item.type === "FINISHED_GOODS" ? item.id.toString() : null,
+          storeId: itemStoreId,
+          currentQty: currentQty,
+          adjustedQty: currentQty,
+          difference: 0,
+          remarks: "",
+          reason: "",
+          notes: "",
+          // Local labels & uoms for rendering
+          uniqueKey: item.uniqueKey,
+          name: item.name,
+          itemCode: item.itemCode,
+          categoryName: item.category,
+          uom: item.uom,
+          selectedUom: getPrimaryUom(item.uom),
+        },
+      ],
+    });
+  };
+
+  // ── Submit ──────────────────────────────
+  const handleSubmit = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setErrors({});
+
+    if (isPMI) {
+      // Validate PMI form
+      const pmiValidation = pmiFormSchema.safeParse({
+        adjustmentNumber: formData.adjustmentNumber,
+        adjustmentDate: formData.adjustmentDate,
+        productionOrderId: formData.productionOrderId,
+        reason: formData.reason,
+        items: pmiItems,
+      });
+
+      if (!pmiValidation.success) {
+        const newErrors: Record<string, string> = {};
+        pmiValidation.error.issues.forEach((err) => {
+          newErrors[err.path.join(".")] = err.message;
+        });
+        setErrors(newErrors);
+        toast.error(pmiValidation.error.issues[0].message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Additional PMI validations
+      for (const item of pmiItems) {
+        if (item.issueQty <= 0) {
+          toast.error("Issue Quantity must be greater than zero.");
+          setIsSubmitting(false);
+          return;
+        }
+        if (item.issueQty > item.availableStock) {
+          toast.error(`Issue Qty for ${item.materialName} exceeds available stock (${item.availableStock}).`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Build payload items from PMI rows
+      const payloadItems = pmiItems.map((item) => ({
+        itemType: "RAW_MATERIAL",
+        rawMaterialId: item.rawMaterialId,
+        storeId: item.storeId,
+        currentQty: item.currentQty,
+        adjustedQty: item.currentQty - item.issueQty,
+        difference: -item.issueQty,
+        remarks: item.remarks || `Issued for Production Order ${formData.productionOrderId}`,
+      }));
+
+      const payload = {
+        adjustmentNumber: formData.adjustmentNumber,
+        adjustmentDate: formData.adjustmentDate,
+        adjustmentType: "PRODUCTION_MATERIAL_ISSUE",
+        productionOrderId: formData.productionOrderId,
+        reason: formData.reason,
+        status: "APPROVED",
+        items: payloadItems,
+      };
+
+      try {
+        if (isEditMode && id) {
+          await dispatch(updateStockAdjustment({ id, data: payload })).unwrap();
+          toast.success("Material Issue updated successfully");
+        } else {
+          await dispatch(createStockAdjustment(payload)).unwrap();
+          toast.success("Material Issue saved successfully");
+        }
+        navigate("/inventory/stock-adjustments");
+      } catch (err: any) {
+        toast.error(err || "An error occurred");
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Regular adjustment validation
+    const compiledItems = formData.items.map((item: any) => ({
+      itemType: item.itemType === "WASTAGE" ? "RAW_MATERIAL" : item.itemType,
+      rawMaterialId: item.rawMaterialId,
+      productItemId: item.productItemId,
+      storeId: item.storeId || (stores.length > 0 ? stores[0].storeId : ""),
+      currentQty: Number(item.currentQty),
+      adjustedQty: Number(item.adjustedQty),
+      difference: Number(item.difference),
+      reason: item.reason || "",
+      uom: item.selectedUom || item.uom,
+      remarks: [
+        REASON_OPTIONS.find((o) => o.value === item.reason)?.label || item.reason,
+        item.notes,
+      ]
+        .filter(Boolean)
+        .join(" - "),
+    }));
+
+    const finalPayload = {
+      ...formData,
+      status: "APPROVED",
+      adjustmentType: formData.adjustmentType || "STOCK_INCREASE",
+      items: compiledItems,
+    };
+
+    const validation = stockAdjustmentFormSchema.safeParse(finalPayload);
+    if (!validation.success) {
+      const newErrors: Record<string, string> = {};
+      validation.error.issues.forEach((err: any) => {
+        newErrors[err.path.join(".")] = err.message;
+      });
+      setErrors(newErrors);
+      toast.error(validation.error.issues[0].message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      if (isEditMode && id) {
+        await dispatch(updateStockAdjustment({ id, data: finalPayload })).unwrap();
+        toast.success("Stock Adjustment updated successfully");
+      } else {
+        await dispatch(createStockAdjustment(finalPayload)).unwrap();
+        toast.success("Stock Adjustment created successfully");
+      }
+      navigate("/inventory/stock-adjustments");
+    } catch (err: any) {
+      toast.error(err || "An error occurred");
+      setIsSubmitting(false);
+    }
+  };
+
+
+
+  // ── Render ──────────────────────────────
+  return (
+    <div className="w-full mx-auto">
+      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-visible">
+        {/* Page Header */}
+        <div className="px-5 py-3 border-b border-line">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-bold text-ink">
+              {isEditMode ? "Edit Stock Adjustment" : "New Stock Adjustment"}
+            </h2>
+            <BackButton text="Back" to="/inventory/stock-adjustments" />
+          </div>
+        </div>
+
+        <form onSubmit={(e) => e.preventDefault()} className="px-5 py-4 space-y-4" noValidate>
+          {/* Section 1: Adjustment Information */}
+          <div className="mb-4">
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-ink-muted uppercase tracking-wider">Adjustment Details</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block mb-2 text-xs font-bold text-ink-muted uppercase tracking-wider">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <DatePickerCalendar
+                  name="adjustmentDate"
+                  value={formData.adjustmentDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, adjustmentDate: e.target.value })
+                  }
+                  required
+                />
+                {errors.adjustmentDate && (
+                  <p className="text-xs text-red-500 mt-1 font-medium">{errors.adjustmentDate}</p>
+                )}
+              </div>
+              <TextInput
+                label="Adjusted By"
+                name="reason"
+                required
+                placeholder="Your name"
+                value={formData.reason}
+                onChange={(e) =>
+                  setFormData({ ...formData, reason: e.target.value })
+                }
+                error={errors.reason}
+              />
+            </div>
+          </div>
+
+          {/* Section 2: Production Order Selection (PMI Only) */}
+          {isPMI && (
+            <div className="pt-2">
+              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">Production Order Selection</h6>
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start">
+                <div className="lg:col-span-2">
+                  <SelectInput
+                    label="Production Order"
+                    name="productionOrderId"
+                required
+                    value={formData.productionOrderId}
+                    onChange={(e) => handlePOSelect(e.target.value)}
+                    error={errors.productionOrderId}
+                    disabled={isEditMode}
+                    options={[
+                      { label: "-- Select Production Order --", value: "" },
+                      ...productionOrdersForIssue.map((po: any) => ({
+                        label: `${po.productionOrderId} — ${po.productItem?.productName || ""}`,
+                        value: po.productionOrderId,
+                      })),
+                    ]}
+                  />
+                </div>
+                {selectedPO && (
+                  <>
+                    <div className="px-3 py-2 bg-card-2 border border-line rounded-lg flex flex-col justify-center min-h-[66px]">
+                      <span className="text-xs text-ink-subtle mb-1">Product</span>
+                      <span className="text-sm font-semibold text-ink truncate">
+                        {selectedPO.productItem?.productName || "—"}
+                      </span>
+                    </div>
+                    <div className="px-3 py-2 bg-card-2 border border-line rounded-lg flex flex-col justify-center min-h-[66px]">
+                      <span className="text-xs text-ink-subtle mb-1">Planned Qty</span>
+                      <span className="text-sm font-semibold text-ink">
+                        {Number(selectedPO.targetQty).toLocaleString()} {selectedPO.uom}
+                      </span>
+                    </div>
+                    <div className="px-3 py-2 bg-card-2 border border-line rounded-lg flex flex-col justify-center min-h-[66px]">
+                      <span className="text-xs text-ink-subtle mb-1">Machine</span>
+                      <span className="text-sm font-semibold text-ink truncate">
+                        {selectedPO.Machine?.machineName || selectedPO.machineMachineId || "—"}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {!formData.productionOrderId && (
+                <div className="mt-3 p-3 bg-card-2 border border-line text-ink-muted rounded-lg flex items-center gap-2 text-sm">
+                  <FaInfoCircle className="flex-shrink-0" />
+                  <span>
+                    Select a Production Order to load its reserved raw materials for issue.
+                    Only orders in <strong>Approved / RM Available</strong> status are shown.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Section 3: Raw Materials to Issue (PMI Only) */}
+          {isPMI && selectedPO && pmiItems.length > 0 && (
+            <div className="pt-2 border-t border-line mt-4">
+              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">Raw Materials to Issue</h6>
+              <div className="rounded-xl border border-line bg-card [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0 overflow-visible">
+                <table className="min-w-full divide-y divide-line">
+                  <thead className="bg-card-2">
+                    <tr>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">RM CODE</th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">MATERIAL NAME</th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">REQUIRED QTY</th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">RESERVED QTY</th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">ALREADY ISSUED</th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">REMAINING</th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">AVAILABLE STOCK</th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">UOM</th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[200px]">STORE*</th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[150px]">ISSUE QTY*</th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[180px]">REMARKS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {pmiItems.map((item, index) => {
+                      const isOver = item.issueQty > item.availableStock;
+                      return (
+                        <tr key={index} className={`hover:bg-card-2/50 transition-colors ${isOver ? 'bg-red-950/40' : ''}`}>
+                          <td className="px-4 py-3 font-mono text-xs text-ink-subtle">{item.rawMaterialId}</td>
+                          <td className="px-4 py-3 font-medium text-ink">{item.materialName}</td>
+                          <td className="px-4 py-3 text-right text-ink-muted">{Number(item.requiredQty).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-ink-muted">{Number(item.reservedQty).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-ink-muted">{Number(item.alreadyIssuedQty).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-yellow-400 font-semibold">{Number(item.remainingQty).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-green-400 font-semibold">{Number(item.availableStock).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-ink-subtle">{item.uom}</td>
+                          <td className="px-4 py-3 align-top">
+                            <SelectInput
+                              label=""
+                              hideLabel
+                              noMargin
+                              name={`storeId-${index}`}
+                              value={item.storeId || ""}
+                              options={[
+                                { label: "Select Store", value: "" },
+                                ...stores.map((s) => ({
+                                  label: s.storeName,
+                                  value: s.storeId,
+                                })),
+                              ]}
+                              onChange={(e) =>
+                                handlePMIItemChange(index, "storeId", e.target.value)
+                              }
+                              error={errors[`items.${index}.storeId`]}
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <QuantityInput
+                              label=""
+                              name={`issueQty-${index}`}
+                              value={item.issueQty}
+                              baseUoms={item.uom}
+                              step="0.001"
+                              onChange={(e: any) =>
+                                handlePMIItemChange(index, "issueQty", Number(e.target.value))
+                              }
+                              error={errors[`items.${index}.issueQty`]}
+                            />
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <TextInput
+                              label=""
+                              name={`remarks-${index}`}
+                              placeholder="Remarks..."
+                              value={item.remarks || ""}
+                              onChange={(e) =>
+                                handlePMIItemChange(index, "remarks", e.target.value)
+                              }
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {errors.items && (
+                <div className="mt-2 text-sm text-red-500 font-medium">{errors.items}</div>
+              )}
+            </div>
+          )}
+
+          {/* Section 2: Adjustment Items (Regular Adjustment Only) */}
+          {!isPMI && (
+            <div className="pt-2 mt-4">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
+                <h3 className="text-base font-bold text-ink m-0">Items to Adjust</h3>
+                <div className="flex items-center gap-2.5">
+                  <div className="[&_.mb-4]:!mb-0 [&_.mb-\[18px\]]:!mb-0">
+                    <SelectInput
+                      label=""
+                      hideLabel
+                      noMargin
+                      name="categoryFilter"
+                      value={selectedCategoryFilter}
+                      onChange={(e) => {
+                        setSelectedCategoryFilter(e.target.value);
+                        if (!isAddProductsOpen) setIsAddProductsOpen(true);
+                      }}
+                      options={categories.map((c) => ({ value: c, label: c }))}
+                      defaultOptionLabel="All Categories"
+                    />
+                  </div>
+
+                  <div className="relative select-add-products-container">
+                    <CustomButton
+                      text={`${formData.items.length} Selected`}
+                      icon={FaPlus}
+                      size="sm"
+                      onClick={() => setIsAddProductsOpen(!isAddProductsOpen)}
+                      className="!bg-card-2 !text-ink hover:!bg-line !border !border-line shadow-sm"
+                    />
+
+                    {isAddProductsOpen && (
+                      <div className="absolute right-0 mt-2 w-80 sm:w-96 max-h-96 overflow-y-auto bg-card rounded-2xl shadow-2xl border border-line-soft p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                        <div className="flex gap-2 mb-2">
+                          <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle pointer-events-none" size={14} />
+                            <input
+                              autoFocus
+                              type="text"
+                              name="productSearch"
+                              placeholder="Search products or materials..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full h-9 pl-8 pr-3 bg-card-2 border border-line-soft rounded-lg text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                            />
+                          </div>
+                          <div className="[&_.mb-4]:!mb-0 [&_.mb-\[18px\]]:!mb-0">
+                            <SelectInput
+                              label=""
+                              hideLabel
+                              noMargin
+                              name="categoryFilterDropdown"
+                              value={selectedCategoryFilter}
+                              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                              options={categories.map((c) => ({ value: c, label: c }))}
+                              defaultOptionLabel="All"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                          {filteredItemsForSelect.length > 0 ? (
+                            filteredItemsForSelect.map((item: any) => {
+                              const added = isItemAlreadyAdded(item);
+                              return (
+                                <div
+                                  key={item.uniqueKey}
+                                  onClick={() => {
+                                    if (!added) {
+                                      handleAddItemFromSelect(item);
+                                      setIsAddProductsOpen(false);
+                                    }
+                                  }}
+                                  className={`p-2.5 border border-transparent rounded-xl transition-all flex items-center justify-between group ${
+                                    added
+                                      ? "opacity-50 cursor-not-allowed bg-card-2"
+                                      : "hover:bg-primary/10 hover:border-primary/20 cursor-pointer"
+                                  }`}
+                                >
+                                  <div>
+                                    <div className={`text-sm font-semibold text-ink ${!added && "group-hover:text-primary"} transition-colors`}>
+                                      {item.name}
+                                    </div>
+                                    <div className="text-xs text-ink-subtle font-mono mt-0.5">
+                                      {item.itemCode} • {item.category || "General"}
+                                    </div>
+                                  </div>
+                                  {added ? (
+                                    <span className="px-2 py-1 text-[10px] font-bold bg-green-900/30 text-green-400 rounded-lg uppercase tracking-wider flex items-center gap-1">
+                                      ✓ Added
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-1 text-[10px] font-bold bg-card-2 group-hover:bg-primary/20 text-ink-muted group-hover:text-primary rounded-lg transition-colors uppercase tracking-wider">
+                                      {item.typeLabel}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="py-6 text-center text-sm text-ink-subtle">
+                              No items match your filter/search.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-line overflow-hidden bg-card shadow-sm">
+                <table className="min-w-full divide-y divide-line">
+                  <thead className="bg-card-2 border-b border-line">
+                    <tr>
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+                        Product
+                      </th>
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wider min-w-[130px]">
+                        Store
+                      </th>
+                      <th className="px-3 py-2.5 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wider w-20">
+                        Current
+                      </th>
+                      <th className="px-3 py-2.5 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wider min-w-[200px]">
+                        Adjust
+                      </th>
+                      <th className="px-3 py-2.5 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wider w-20">
+                        New Total
+                      </th>
+                      <th className="px-3 py-2.5 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wider min-w-[160px]">
+                        Reason <span className="text-rose-500">*</span>
+                      </th>
+                      <th className="px-3 py-2.5 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {formData.items.length > 0 ? (
+                      formData.items.map((item: any, index: number) => {
+                        const diffInBase = Number(item.difference || 0);
+                        const current = Number(item.currentQty || 0);
+                        const newTotalNum = current + diffInBase;
+                        const newTotal = formatCleanNumber(newTotalNum);
+                        const baseUom = getPrimaryUom(item.uom || "pcs");
+
+                        const currentInputVal = item.adjustInputValue !== undefined ? item.adjustInputValue : (diffInBase === 0 ? "" : diffInBase);
+                        const selectedUom = item.selectedUom || baseUom;
+
+                        return (
+                          <tr key={index} className="hover:bg-card-2/50 transition-colors group">
+                            {/* Product */}
+                            <td className="px-3 py-2.5 align-middle">
+                              <div className="font-semibold text-ink text-xs leading-snug">
+                                {item.name || "Unnamed Item"}
+                              </div>
+                              {errors[`items.${index}.itemSelection`] && (
+                                <div className="text-xs text-red-500 font-medium mt-1">{errors[`items.${index}.itemSelection`]}</div>
+                              )}
+                            </td>
+
+                            {/* Store */}
+                            <td className="px-3 py-2.5 align-middle">
+                              <div className="[&_.mb-4]:!mb-0 [&_.mb-\[18px\]]:!mb-0">
+                                <SelectInput
+                                  label=""
+                                  hideLabel={true}
+                                  noMargin={true}
+                                  name={`storeId-${index}`}
+                                  value={item.storeId || (stores.length > 0 ? stores[0].storeId : "")}
+                                  options={[
+                                    { label: "Select Store", value: "" },
+                                    ...stores.map((s: any) => ({
+                                      label: s.storeName || s.name || s.storeId,
+                                      value: s.storeId,
+                                    })),
+                                  ]}
+                                  onChange={(e: any) => handleItemChange(index, "storeId", e.target.value)}
+                                  error={errors[`items.${index}.storeId`]}
+                                />
+                              </div>
+                            </td>
+
+                            {/* Current */}
+                            <td className="px-3 py-2.5 align-middle text-center">
+                              <span className="font-bold text-ink text-sm">
+                                {current}
+                                {baseUom}
+                              </span>
+                            </td>
+
+                            {/* Adjust */}
+                            <td className="px-3 py-2.5 align-middle text-center">
+                              <div className="flex items-center justify-center gap-0.5 min-w-[185px]">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const numVal = Number(currentInputVal || 0);
+                                    handleItemDifferenceChange(index, numVal - 1, selectedUom);
+                                  }}
+                                  className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md bg-card-2 border border-line text-ink-muted hover:bg-line transition-colors text-xs"
+                                >
+                                  <FaMinus size={8} />
+                                </button>
+                                <div className="flex-1 [&_.mb-4]:!mb-0">
+                                  <QuantityInput
+                                    hideLabel={true}
+                                    name={`difference-${index}`}
+                                    value={currentInputVal}
+                                    baseUoms={item.uom || "pcs"}
+                                    uom={selectedUom}
+                                    onChange={(e: any) =>
+                                      handleItemDifferenceChange(
+                                        index,
+                                        e.target.value,
+                                        e.target.uom
+                                      )
+                                    }
+                                    disabled={false}
+                                    error={errors[`items.${index}.adjustedQty`]}
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const numVal = Number(currentInputVal || 0);
+                                    handleItemDifferenceChange(index, numVal + 1, selectedUom);
+                                  }}
+                                  className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md bg-card-2 border border-line text-ink-muted hover:bg-line transition-colors text-xs"
+                                >
+                                  <FaPlus size={8} />
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* New Total */}
+                            <td className="px-3 py-2.5 align-middle text-center">
+                              <div className="font-bold text-ink text-sm">
+                                {newTotal}
+                                {baseUom}
+                              </div>
+                              <div
+                                className={`text-xs font-bold mt-0.5 ${
+                                  diffInBase > 0
+                                    ? "text-green-400"
+                                    : diffInBase < 0
+                                    ? "text-red-400"
+                                    : "text-ink-subtle"
+                                }`}
+                              >
+                                {diffInBase > 0
+                                  ? `+${currentInputVal}${selectedUom}`
+                                  : diffInBase < 0
+                                  ? `${currentInputVal}${selectedUom}`
+                                  : `0${selectedUom}`}
+                              </div>
+                            </td>
+
+                            {/* Reason */}
+                            <td className="px-3 py-2.5 align-middle">
+                              <div className="[&_.mb-4]:!mb-0 [&_.mb-\[18px\]]:!mb-0">
+                                <SelectInput
+                                  label=""
+                                  hideLabel={true}
+                                  noMargin={true}
+                                  name={`reason-${index}`}
+                                  value={item.reason || ""}
+                                  options={[
+                                    { label: "Select reason", value: "" },
+                                    ...REASON_OPTIONS,
+                                  ]}
+                                  onChange={(e: any) => handleItemChange(index, "reason", e.target.value)}
+                                  error={errors[`items.${index}.reason`]}
+                                  required
+                                />
+                              </div>
+                            </td>
+
+                            {/* Delete Action */}
+                            <td className="px-3 py-2.5 align-middle text-center">
+                              <DeleteButton onClick={() => removeItem(index)} />
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="text-center py-12 text-ink-subtle text-sm">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <span>No items added for adjustment yet.</span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setIsAddProductsOpen(true)}
+                              onKeyDown={(e) => e.key === "Enter" && setIsAddProductsOpen(true)}
+                              className="text-primary font-semibold hover:underline cursor-pointer"
+                            >
+                              Click + to select products or raw materials
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {errors.items && (
+                <div className="mt-2 text-sm text-red-500 font-medium">{errors.items}</div>
+              )}
+            </div>
+          )}
+
+          {/* Form Actions */}
+          <div className="flex items-center justify-between pt-4 mt-4 border-t border-line">
+            <div>
+              {!isPMI && formData.items.length > 0 && (
+                <CustomButton
+                  text="Clear All"
+                  icon={FaEraser}
+                  variant="danger"
+                  onClick={handleClearAll}
+                  type="button"
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <CustomButton
+                text="Cancel"
+                icon={FaEraser}
+                onClick={() => navigate("/inventory/stock-adjustments")}
+                type="button"
+              />
+              <CustomButton
+                text={isSubmitting ? "Saving..." : isPMI ? "Save Material Issue" : `Confirm Adjustment (${formData.items.length})`}
+                icon={FaSave}
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isSubmitting || loading}
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default StockAdjustmentForm;

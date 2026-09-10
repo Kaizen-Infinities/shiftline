@@ -1,0 +1,197 @@
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
+import { usePermission } from "../../../hooks/usePermission";
+import { fetchCompany } from "../../../features/company/companySlice";
+import { logoutUser } from "../../../features/auth/authSlice";
+import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import { onboardingService } from "../../../services/onboardingService";
+import type { OnboardingState, OnboardingStepKey } from "../types";
+import { ErrorBox, SecondaryButton } from "../steps/fields";
+import { apiMessage } from "../steps/utils";
+import CompanyStep from "../steps/CompanyStep";
+import GstStep from "../steps/GstStep";
+import FinancialYearStep from "../steps/FinancialYearStep";
+import BankStep from "../steps/BankStep";
+import UsersStep from "../steps/UsersStep";
+import ReviewStep from "../steps/ReviewStep";
+
+const ORDER: OnboardingStepKey[] = ["company", "gst", "financial-year", "bank", "users", "review"];
+
+/**
+ * First-run wizard for a newly provisioned tenant (P1-00). ProtectedRoute sends
+ * every signed-in member here until the company is marked onboarded; only
+ * holders of company-settings.edit (the owner) can fill it in.
+ */
+const OnboardingWizard: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const { can } = usePermission();
+  const user = useAppSelector((s) => s.auth.user);
+  const canEdit = can("company-settings.edit");
+
+  const [state, setState] = useState<OnboardingState | null>(null);
+  const [active, setActive] = useState<OnboardingStepKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const s = await onboardingService.getState();
+    setState(s);
+    return s;
+  }, []);
+
+  const finish = useCallback(async () => {
+    await dispatch(fetchCompany());
+    navigate("/dashboard", { replace: true });
+  }, [dispatch, navigate]);
+
+  useEffect(() => {
+    load()
+      .then((s) => {
+        if (s.isOnboarded) return finish();
+        setActive((a) => a ?? s.step ?? "review");
+      })
+      .catch((err) => setError(apiMessage(err)));
+  }, [load, finish]);
+
+  const onSaved = async (next: OnboardingStepKey) => {
+    await load();
+    setActive(next);
+    window.scrollTo({ top: 0 });
+  };
+
+  const goto = (step: OnboardingStepKey) => {
+    setActive(step);
+    window.scrollTo({ top: 0 });
+  };
+
+  const back = () => {
+    const idx = ORDER.indexOf(active ?? "company");
+    if (idx > 0) goto(ORDER[idx - 1]);
+  };
+
+  const signOut = async () => {
+    await dispatch(logoutUser());
+    navigate("/login", { replace: true });
+  };
+
+  if (error && !state) {
+    return (
+      <div className="min-h-screen bg-page px-4 py-16 text-ink">
+        <div className="mx-auto max-w-md rounded-2xl border border-line-soft bg-card p-8">
+          <h1 className="text-xl font-bold">Could not load onboarding</h1>
+          <ErrorBox message={error} />
+          <div className="mt-6 flex gap-2">
+            <SecondaryButton onClick={() => window.location.reload()}>Retry</SecondaryButton>
+            <SecondaryButton onClick={signOut}>Sign out</SecondaryButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (!state || !active) return <CommonLoader text="Loading your workspace…" />;
+
+  const currentIdx = ORDER.indexOf(state.step ?? "review");
+
+  if (!canEdit) {
+    const owners = state.users.filter((u) => u.roleCode === "OWNER");
+    return (
+      <div className="min-h-screen bg-page px-4 py-16 text-ink">
+        <div className="mx-auto max-w-md rounded-2xl border border-line-soft bg-card p-8">
+          <h1 className="text-xl font-bold">{state.company.companyName} is being set up</h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            {owners.length ? owners.map((o) => o.fullName).join(", ") : "Your administrator"} is
+            completing the company setup. You will have access as soon as it is finished — no action
+            is needed from you.
+          </p>
+          <ul className="mt-4 space-y-1 text-sm">
+            {state.steps.map((s) => (
+              <li key={s.key} className={s.done ? "text-emerald-500" : "text-ink-muted"}>
+                {s.done ? "✓" : "○"} {s.label}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex gap-2">
+            <SecondaryButton onClick={() => load()}>Refresh</SecondaryButton>
+            <SecondaryButton onClick={signOut}>Sign out</SecondaryButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-page text-ink">
+      <header className="border-b border-line-soft bg-card">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-ink-muted">
+              Shiftline setup
+            </div>
+            <h1 className="text-lg font-bold">{state.company.companyName}</h1>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-ink-muted">
+            <span className="hidden sm:inline">{user?.fullName}</span>
+            <SecondaryButton onClick={signOut}>Sign out</SecondaryButton>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto grid max-w-6xl gap-8 px-6 py-8 md:grid-cols-[260px_1fr]">
+        <aside>
+          <ol className="space-y-1">
+            {state.steps.map((s, idx) => {
+              const reachable = idx <= currentIdx;
+              const isActive = s.key === active;
+              return (
+                <li key={s.key}>
+                  <button
+                    type="button"
+                    disabled={!reachable}
+                    onClick={() => goto(s.key)}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm ${
+                      isActive
+                        ? "bg-blue-600 text-white"
+                        : reachable
+                          ? "text-ink hover:bg-card"
+                          : "text-ink-muted/60"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        s.done && !isActive
+                          ? "bg-emerald-500/20 text-emerald-500"
+                          : isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-card-2 text-ink-muted"
+                      }`}
+                    >
+                      {s.done && !isActive ? "✓" : idx + 1}
+                    </span>
+                    {s.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
+
+        <main
+          className="rounded-2xl border border-line-soft bg-card p-6 shadow-xl"
+          data-step={active}
+        >
+          {active === "company" && <CompanyStep state={state} onSaved={onSaved} />}
+          {active === "gst" && <GstStep state={state} onSaved={onSaved} onBack={back} />}
+          {active === "financial-year" && (
+            <FinancialYearStep state={state} onSaved={onSaved} onBack={back} />
+          )}
+          {active === "bank" && <BankStep state={state} onSaved={onSaved} onBack={back} />}
+          {active === "users" && <UsersStep state={state} onSaved={onSaved} onBack={back} />}
+          {active === "review" && <ReviewStep state={state} onEdit={goto} onComplete={finish} />}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default OnboardingWizard;

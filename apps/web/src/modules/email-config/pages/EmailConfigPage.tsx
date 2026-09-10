@@ -1,0 +1,333 @@
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { FaSave, FaPaperPlane } from "react-icons/fa";
+import { toast } from "react-toastify";
+import { emailConfigService } from "../../../services/emailConfigService";
+import TextInput from "../../../components/form/TextInput/TextInput";
+import SelectInput from "../../../components/form/SelectInput/SelectInput";
+import CustomButton from "../../../components/ui/Button/Button";
+import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import { usePermission } from "../../../hooks/usePermission";
+import { useDetailCache, invalidateDetailCache } from "../../../hooks/useDetailCache";
+
+interface EmailConfigForm {
+  smtpHost: string;
+  smtpPort: string;
+  smtpUsername: string;
+  smtpPassword: string;
+  fromEmail: string;
+  fromName: string;
+  encryption: string;
+}
+
+interface EmailForm {
+  recipientEmail: string;
+  subject: string;
+  message: string;
+}
+
+const encryptionOptions = [
+  { value: "TLS", label: "TLS" },
+  { value: "SSL", label: "SSL" },
+  { value: "NONE", label: "NONE" },
+];
+
+const EmailConfigPage: React.FC = () => {
+  const initialConfigData: EmailConfigForm = {
+    smtpHost: "",
+    smtpPort: "",
+    smtpUsername: "",
+    smtpPassword: "",
+    fromEmail: "",
+    fromName: "",
+    encryption: "TLS",
+  };
+
+  const initialEmailData: EmailForm = {
+    recipientEmail: "",
+    subject: "Test Email",
+    message: "This is an email from your application.",
+  };
+
+  const [configData, setConfigData] = useState<EmailConfigForm>(initialConfigData);
+  const [emailData, setEmailData] = useState<EmailForm>(initialEmailData);
+
+  const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const [configErrors, setConfigErrors] = useState<Record<string, string>>({});
+  const [emailErrors, setEmailErrors] = useState<Record<string, string>>({});
+  const { can } = usePermission();
+  const canEditEmail = can("email-config.edit");
+
+  const fetcher = useCallback(async (_signal: AbortSignal) => {
+    return await emailConfigService.getConfig();
+  }, []);
+
+  const { data: fetchedConfig, loading } = useDetailCache<any>({
+    cacheKey: "emailConfig:smtp",
+    socketModule: "emailConfig",
+    fetcher,
+  });
+
+  const populated = useRef(false);
+  useEffect(() => {
+    if (!fetchedConfig || populated.current) return;
+    populated.current = true;
+    setConfigData({
+      smtpHost: fetchedConfig.smtpHost || "",
+      smtpPort: fetchedConfig.smtpPort ? String(fetchedConfig.smtpPort) : "",
+      smtpUsername: fetchedConfig.smtpUsername || "",
+      smtpPassword: fetchedConfig.smtpPassword ? "••••••••••••••••••••" : "",
+      fromEmail: fetchedConfig.fromEmail || "",
+      fromName: fetchedConfig.fromName || "",
+      encryption: fetchedConfig.encryption || "TLS",
+    });
+  }, [fetchedConfig]);
+
+  const handleConfigChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setConfigData((prev) => ({ ...prev, [name]: value }));
+    if (configErrors[name]) {
+      setConfigErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEmailData((prev) => ({ ...prev, [name]: value }));
+    if (emailErrors[name]) {
+      setEmailErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const handlePasswordFocus = () => {
+    if (configData.smtpPassword === "••••••••••••••••••••") {
+      setConfigData((prev) => ({ ...prev, smtpPassword: "" }));
+    }
+  };
+
+  const validateConfig = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!configData.smtpHost) errors.smtpHost = "SMTP Host is required";
+    if (!configData.smtpPort) errors.smtpPort = "SMTP Port is required";
+    if (!configData.smtpUsername) errors.smtpUsername = "SMTP Username is required";
+    if (!configData.smtpPassword) errors.smtpPassword = "SMTP Password is required";
+    if (!configData.fromEmail) errors.fromEmail = "From Email is required";
+    if (!configData.fromName) errors.fromName = "From Name is required";
+
+    setConfigErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateEmail = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!emailData.recipientEmail) errors.recipientEmail = "Recipient Email is required";
+    if (!emailData.subject) errors.subject = "Subject is required";
+    if (!emailData.message) errors.message = "Message is required";
+
+    setEmailErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canEditEmail) {
+      toast.error("You do not have permission to edit email configuration.");
+      return;
+    }
+    if (!validateConfig()) {
+      toast.warn("Please fill all required SMTP fields.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await emailConfigService.saveConfig(configData);
+      toast.success("Email configuration saved successfully!");
+      setConfigData((prev) => ({ ...prev, smtpPassword: "••••••••••••••••••••" }));
+      invalidateDetailCache("emailConfig:smtp");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to save configuration");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateEmail()) {
+      toast.warn("Please fill all email fields.");
+      return;
+    }
+
+    setSending(true);
+    try {
+      await emailConfigService.sendEmailDirect(emailData);
+      toast.success("Email sent successfully!");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to send email");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (loading) return <CommonLoader text="Loading..." fullScreen={false} />;
+
+  return (
+    <div className="max-w-[1024px] xl:mr-auto">
+      <form onSubmit={handleSaveConfig} noValidate>
+        <div className="bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
+            <h2 className="text-xl font-bold text-ink">Email Configuration</h2>
+          </div>
+
+          {/* Section 1: SMTP Settings */}
+          <div className="p-5 lg:p-6 space-y-5">
+            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">SMTP Settings</h6>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
+              <TextInput
+                label="SMTP Host"
+                name="smtpHost"
+                value={configData.smtpHost}
+                placeholder="smtp.gmail.com"
+                required
+                horizontal
+                onChange={handleConfigChange as any}
+                error={configErrors.smtpHost}
+              />
+              <TextInput
+                label="SMTP Port"
+                name="smtpPort"
+                type="number"
+                value={configData.smtpPort}
+                placeholder="587"
+                required
+                horizontal
+                onChange={handleConfigChange as any}
+                error={configErrors.smtpPort}
+              />
+              <SelectInput
+                label="Encryption"
+                name="encryption"
+                value={configData.encryption}
+                options={encryptionOptions}
+                onChange={handleConfigChange}
+                searchable={false}
+                horizontal
+              />
+              <TextInput
+                label="SMTP Username"
+                name="smtpUsername"
+                value={configData.smtpUsername}
+                placeholder="user@example.com"
+                required
+                horizontal
+                onChange={handleConfigChange as any}
+                error={configErrors.smtpUsername}
+              />
+              <TextInput
+                label="SMTP Password"
+                name="smtpPassword"
+                type="password"
+                value={configData.smtpPassword}
+                placeholder="••••••••"
+                required
+                horizontal
+                onFocus={handlePasswordFocus}
+                onChange={handleConfigChange as any}
+                error={configErrors.smtpPassword}
+              />
+              <TextInput
+                label="From Email"
+                name="fromEmail"
+                type="email"
+                value={configData.fromEmail}
+                placeholder="noreply@example.com"
+                required
+                horizontal
+                onChange={handleConfigChange as any}
+                error={configErrors.fromEmail}
+              />
+              <TextInput
+                label="From Name"
+                name="fromName"
+                value={configData.fromName}
+                placeholder="Company Name"
+                required
+                horizontal
+                onChange={handleConfigChange as any}
+                error={configErrors.fromName}
+              />
+            </div>
+
+            {/* Save Config Button */}
+            {canEditEmail && (
+              <div className="flex justify-end pt-2">
+                <CustomButton
+                  text={saving ? "Saving..." : "Save Configuration"}
+                  icon={FaSave}
+                  type="submit"
+                  disabled={saving}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Send Test Email */}
+          <div className="border-t border-line p-5 lg:p-6 space-y-5">
+            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">Send Test Email</h6>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
+              <TextInput
+                label="Recipient Email"
+                name="recipientEmail"
+                type="email"
+                value={emailData.recipientEmail}
+                placeholder="recipient@example.com"
+                required
+                horizontal
+                onChange={handleEmailChange as any}
+                error={emailErrors.recipientEmail}
+              />
+              <TextInput
+                label="Subject"
+                name="subject"
+                value={emailData.subject}
+                required
+                horizontal
+                onChange={handleEmailChange as any}
+                error={emailErrors.subject}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 items-end">
+              <TextInput
+                label="Message"
+                name="message"
+                value={emailData.message}
+                placeholder="Write your email message here..."
+                required
+                horizontal
+                onChange={handleEmailChange as any}
+                error={emailErrors.message}
+              />
+              <CustomButton
+                text={sending ? "Sending..." : "Send Email"}
+                icon={FaPaperPlane}
+                type="button"
+                onClick={handleSendEmail}
+                disabled={sending || saving}
+              />
+            </div>
+          </div>
+
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default EmailConfigPage;

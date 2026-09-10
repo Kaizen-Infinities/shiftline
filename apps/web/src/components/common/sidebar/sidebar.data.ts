@@ -1,0 +1,794 @@
+import type { SidebarItem } from "./sidebar.types";
+import { FiPieChart, FiSettings, FiBarChart2, FiClock, FiRepeat, FiServer } from "react-icons/fi";
+
+export const sidebarItems: SidebarItem[] = [
+  // ── 1. Dashboard (Direct Top-Level Link) ──────────────────────────────────
+  {
+    title: "Dashboard",
+    icon: FiPieChart,
+    path: "/dashboard",
+    activePaths: ["/dashboard"],
+  },
+
+  // ── 2. Administration (Busy ERP Grouped: Masters + Configuration + Users) ─
+  {
+    title: "Administration",
+    icon: FiSettings,
+    path: "/settings/company",
+    pathsByPermission: [
+      { permission: "company-settings.view", path: "/settings/company" },
+      { permission: "employees.view", path: "/employees" },
+      { permission: "shifts.view", path: "/shifts" },
+      { permission: "machines.view", path: "/machines" },
+      { permission: "departments.view", path: "/departments" },
+      { permission: "roles.view", path: "/roles" },
+      { permission: "customers.view", path: "/customers" },
+      { permission: "suppliers.view", path: "/suppliers" },
+      { permission: "categories.view", path: "/categories" },
+    ],
+    children: [
+      // ── 1. Masters (General & Account Masters) ──
+      {
+        title: "Masters",
+        permissionAny: [
+          "customers.view",
+          "suppliers.view",
+          "employees.view",
+          "machines.view",
+          "machine-assignments.view",
+          "shifts.view",
+          "accounts.view",
+          "chart-of-accounts.view",
+        ],
+        children: [
+          {
+            title: "Customers",
+            permission: "customers.view",
+            children: [
+              { title: "Add", path: "/customers/create", permission: "customers.create" },
+              { title: "List", path: "/customers", permission: "customers.view", badge: "Ctrl+C" },
+            ],
+          },
+          {
+            title: "Suppliers",
+            permission: "suppliers.view",
+            children: [
+              { title: "Add", path: "/suppliers/create", permission: "suppliers.create" },
+              { title: "List", path: "/suppliers", permission: "suppliers.view", badge: "Ctrl+S" },
+            ],
+          },
+          {
+            title: "Employees",
+            permission: "employees.view",
+            children: [
+              { title: "Add", path: "/employees/create", permission: "employees.create" },
+              { title: "List", path: "/employees", permission: "employees.view", badge: "Ctrl+E" },
+            ],
+          },
+          {
+            title: "Machines",
+            permission: "machines.view",
+            children: [
+              { title: "Add", path: "/machines/create", permission: "machines.create" },
+              { title: "List", path: "/machines", permission: "machines.view", badge: "Ctrl+M" },
+            ],
+          },
+          {
+            title: "Machine Assignments",
+            permission: "machine-assignments.view",
+            children: [
+              {
+                title: "Add",
+                path: "/machines/assignments/create",
+                permission: "machine-assignments.create",
+              },
+              {
+                title: "List",
+                path: "/machines/assignments",
+                permission: "machine-assignments.view",
+              },
+            ],
+          },
+          {
+            title: "Shifts",
+            permission: "shifts.view",
+            children: [
+              { title: "Add", path: "/shifts/create", permission: "shifts.create" },
+              { title: "List", path: "/shifts", permission: "shifts.view" },
+            ],
+          },
+          {
+            title: "Bank Accounts",
+            path: "/accounts/bank-accounts",
+            permission: "accounts.view",
+          },
+          {
+            title: "Chart of Accounts",
+            path: "/accounts/chart-of-accounts",
+            permission: "chart-of-accounts.view",
+            badge: "Alt+N",
+          },
+          {
+            title: "Year-End Closing",
+            path: "/accounts/year-end",
+            permission: "year-end.view",
+          },
+          {
+            title: "Filing Approvals",
+            path: "/compliance/approvals",
+            permission: "filings.view",
+          },
+          {
+            title: "E-invoice Register",
+            path: "/compliance/e-invoices",
+            permission: "e-invoice.view",
+          },
+          {
+            title: "E-way Bills",
+            path: "/compliance/eway-bills",
+            permission: "eway-bill.view",
+          },
+        ],
+      },
+      // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──
+      {
+        title: "Inventory Masters",
+        permissionAny: [
+          "categories.view",
+          "stores.view",
+          "raw_materials.view",
+          "wastage-store.view",
+          "products.view",
+          "sales_products.view",
+        ],
+        children: [
+          {
+            title: "Categories",
+            permission: "categories.view",
+            children: [
+              { title: "Add", path: "/categories/create", permission: "categories.create" },
+              { title: "List", path: "/categories", permission: "categories.view" },
+            ],
+          },
+          {
+            title: "Storage Stores",
+            permission: "stores.view",
+            children: [
+              { title: "Add", path: "/storage-stores/create", permission: "stores.create" },
+              { title: "List", path: "/storage-stores", permission: "stores.view" },
+            ],
+          },
+          {
+            title: "Raw Materials",
+            permission: "raw_materials.view",
+            children: [
+              { title: "Add", path: "/raw-materials/create", permission: "raw_materials.create" },
+              { title: "List", path: "/raw-materials", permission: "raw_materials.view" },
+            ],
+          },
+          {
+            title: "Wastage Store",
+            permission: "wastage-store.view",
+            children: [
+              { title: "Add", path: "/wastage-store/create", permission: "raw_materials.create" },
+              { title: "List", path: "/wastage-store", permission: "wastage-store.view" },
+            ],
+          },
+          {
+            title: "Production Products",
+            permission: "products.view",
+            children: [
+              { title: "Add", path: "/products/create", permission: "products.create" },
+              { title: "List", path: "/products", permission: "products.view" },
+            ],
+          },
+          {
+            title: "Sales Products",
+            permission: "sales_products.view",
+            children: [
+              { title: "Add", path: "/sales-products/create", permission: "sales_products.create" },
+              { title: "List", path: "/sales-products", permission: "sales_products.view" },
+            ],
+          },
+        ],
+      },
+      // ── 3. Configuration / Settings ──
+      {
+        title: "Configuration",
+        permission: "company-settings.view",
+        children: [
+          {
+            title: "Company Settings",
+            path: "/settings/company",
+            permission: "company-settings.view",
+          },
+          { title: "WhatsApp Settings", path: "/whatsapp", permission: "whatsapp.view" },
+          { title: "Email Configuration", path: "/email-config", permission: "email-config.view" },
+          {
+            title: "Invoice Settings",
+            path: "/settings/invoice",
+            permission: "invoice-settings.view",
+          },
+          { title: "Data Imports", path: "/settings/imports", permission: "company-settings.view" },
+          { title: "GST & HSN", path: "/settings/gst", permission: "gst_tax.view" },
+          { title: "E-invoicing", path: "/settings/e-invoice", permission: "e-invoice.settings" },
+          {
+            title: "Transporters",
+            path: "/settings/transporters",
+            permission: "transporters.view",
+          },
+          { title: "Field Devices", path: "/settings/devices", permission: "mobile-app.manage" },
+          { title: "Account Export", path: "/settings/export", permission: "account-export.view" },
+        ],
+      },
+      // ── 4. Users & Roles ──
+      {
+        title: "Users & Roles",
+        permissionAny: ["roles.view", "departments.view", "role-permissions.view", "users.view"],
+        children: [
+          {
+            title: "Roles",
+            permission: "roles.view",
+            children: [
+              { title: "Add", path: "/roles?action=add", permission: "roles.create" },
+              { title: "List", path: "/roles", permission: "roles.view" },
+            ],
+          },
+          {
+            title: "Departments",
+            permission: "departments.view",
+            children: [
+              { title: "Add", path: "/departments?action=add", permission: "departments.create" },
+              { title: "List", path: "/departments", permission: "departments.view" },
+            ],
+          },
+          {
+            title: "Permissions Mapping",
+            path: "/role-permissions",
+            permission: "role-permissions.view",
+          },
+          { title: "User Management", path: "/users", permission: "users.view" },
+        ],
+      },
+    ],
+    activePaths: [
+      "/settings/company",
+      "/whatsapp",
+      "/email-config",
+      "/settings/invoice",
+      "/settings/imports",
+      "/settings/gst",
+      "/settings/e-invoice",
+      "/settings/transporters",
+      "/settings/devices",
+      "/settings/export",
+      "/roles",
+      "/role-permissions",
+      "/departments",
+      "/users",
+      "/permissions",
+      "/employees",
+      "/machines",
+      "/shifts",
+      "/categories",
+      "/storage-stores",
+      "/raw-materials",
+      "/wastage-store",
+      "/products",
+      "/sales-products",
+      "/customers",
+      "/suppliers",
+      "/accounts/bank-accounts",
+      "/accounts/chart-of-accounts",
+    ],
+    permissionAny: [
+      "company-settings.view",
+      "roles.view",
+      "departments.view",
+      "role-permissions.view",
+      "users.view",
+      "whatsapp.view",
+      "email-config.view",
+      "invoice-settings.view",
+      "employees.view",
+      "machines.view",
+      "machine-assignments.view",
+      "shifts.view",
+      "categories.view",
+      "products.view",
+      "uoms.view",
+      "raw_materials.view",
+      "wastage-store.view",
+      "sales_products.view",
+      "stores.view",
+      "customers.view",
+      "suppliers.view",
+      "accounts.view",
+      "chart-of-accounts.view",
+    ],
+  },
+
+  // ── 3. Transactions (Busy ERP Style: Sales, Purchase, Vouchers, Production)
+  {
+    title: "Transactions",
+    icon: FiRepeat,
+    path: "/sales-order",
+    pathsByPermission: [
+      { permission: "sales-orders.view", path: "/sales-order" },
+      { permission: "quotations.view", path: "/quatation-order" },
+      { permission: "purchaseOrders.view", path: "/purchase-orders" },
+      { permission: "vouchers.view", path: "/accounts/payment-voucher" },
+      { permission: "production_orders.view", path: "/production-orders" },
+      { permission: "stock-adjustments.view", path: "/inventory/stock-adjustments" },
+    ],
+    children: [
+      // ── Sales Order ──
+      {
+        title: "Sales Order",
+        permission: "sales-orders.view",
+        children: [
+          {
+            title: "Add",
+            path: "/sales-order/create",
+            permission: "sales-orders.create",
+            badge: "Ctrl+O",
+          },
+          { title: "List", path: "/sales-order", permission: "sales-orders.view" },
+        ],
+      },
+      // ── Purchase Order ──
+      {
+        title: "Purchase Order",
+        permission: "purchaseOrders.view",
+        children: [
+          {
+            title: "Add",
+            path: "/purchase-orders/create",
+            permission: "purchaseOrders.create",
+            badge: "Ctrl+X",
+          },
+          { title: "List", path: "/purchase-orders", permission: "purchaseOrders.view" },
+        ],
+      },
+      // ── Sales (Invoice) ──
+      {
+        title: "Sales",
+        permission: "sales-invoices.view",
+        children: [
+          {
+            title: "Add",
+            path: "/sales-invoices/create",
+            permission: "sales-invoices.create",
+            badge: "Ctrl+1",
+          },
+          {
+            title: "List",
+            path: "/sales-invoices",
+            permission: "sales-invoices.view",
+            badge: "Ctrl+6",
+          },
+        ],
+      },
+      // ── Purchase (GRN) ──
+      {
+        title: "Purchase",
+        permission: "invoice.view",
+        children: [
+          { title: "Add", path: "/invoice/create", permission: "invoice.create", badge: "Ctrl+U" },
+          { title: "List", path: "/invoice", permission: "invoice.view", badge: "Ctrl+G" },
+        ],
+      },
+      // ── Expenses ──
+      {
+        title: "Expenses",
+        permission: "expenses.view",
+        children: [{ title: "List & Claims", path: "/expenses", permission: "expenses.view" }],
+      },
+      // ── Sales Return (Cr. Note) ──
+      {
+        title: "Sales Return (Cr. Note)",
+        permission: "sales-returns.view",
+        children: [
+          { title: "Add", path: "/sales-returns/create", permission: "sales-returns.create" },
+          { title: "List", path: "/sales-returns", permission: "sales-returns.view" },
+        ],
+      },
+      // ── Purchase Return (Dr. Note) ──
+      {
+        title: "Purchase Return (Dr. Note)",
+        permission: "purchase-returns.view",
+        children: [
+          { title: "Add", path: "/purchase-returns/create", permission: "purchase-returns.create" },
+          { title: "List", path: "/purchase-returns", permission: "purchase-returns.view" },
+        ],
+      },
+      // ── Payment Voucher ──
+      {
+        title: "Payment",
+        permission: "vouchers.view",
+        children: [
+          {
+            title: "Add",
+            path: "/accounts/payment-voucher/add",
+            permission: "vouchers.create",
+            badge: "Ctrl+P",
+          },
+          { title: "List", path: "/accounts/payment-voucher", permission: "vouchers.view" },
+        ],
+      },
+      // ── Receipt Voucher ──
+      {
+        title: "Receipt",
+        permission: "vouchers.view",
+        children: [
+          {
+            title: "Add",
+            path: "/accounts/receipt-voucher/add",
+            permission: "vouchers.create",
+            badge: "Ctrl+R",
+          },
+          { title: "List", path: "/accounts/receipt-voucher", permission: "vouchers.view" },
+        ],
+      },
+      // ── Journal Entry ──
+      {
+        title: "Journal",
+        permission: "vouchers.view",
+        children: [
+          {
+            title: "Add",
+            path: "/accounts/journal-entry/add",
+            permission: "vouchers.create",
+            badge: "Ctrl+J",
+          },
+          { title: "List", path: "/accounts/journal-entry", permission: "vouchers.view" },
+        ],
+      },
+      // ── Contra Entry ──
+      {
+        title: "Contra",
+        permission: "vouchers.view",
+        children: [
+          { title: "Add", path: "/accounts/contra-entry/add", permission: "vouchers.create" },
+          { title: "List", path: "/accounts/contra-entry", permission: "vouchers.view" },
+        ],
+      },
+      // ── Quotations ──
+      {
+        title: "Quotations",
+        permission: "quotations.view",
+        children: [
+          { title: "Add", path: "/quatation-order/create", permission: "quotations.create" },
+          {
+            title: "List",
+            path: "/quatation-order",
+            permission: "quotations.view",
+            badge: "Ctrl+Q",
+          },
+        ],
+      },
+      // ── Production ──
+      {
+        title: "Production",
+        permission: "production_orders.view",
+        children: [
+          {
+            title: "Add Production Order",
+            path: "/production-orders/create",
+            permission: "production_orders.create",
+          },
+          {
+            title: "Production Orders List",
+            path: "/production-orders",
+            permission: "production_orders.view",
+            badge: "P",
+          },
+          {
+            title: "Order History",
+            path: "/allproduction-orders",
+            permission: "production_orders.view",
+          },
+          {
+            title: "Daily Machine Planning",
+            path: "/daily-machine-planning",
+            permission: "daily-machine-planning.view",
+          },
+          {
+            title: "Hourly Work Reports",
+            path: "/hourly-work-reports",
+            permission: "hourly_productions.view",
+          },
+          {
+            title: "Production Wastages",
+            path: "/production-wastages",
+            permission: "production-wastages.view",
+          },
+          {
+            title: "Weekly Schedules",
+            path: "/weekly-machine-schedules",
+            permission: "weekly_programs.view",
+          },
+          {
+            title: "Goods Dispatch",
+            path: "/production/goods-dispatch",
+            permission: "goods-dispatch.view",
+          },
+          {
+            title: "Shift Execution Board",
+            path: "/shift-execution",
+            permission: "shift-execution.view",
+          },
+        ],
+      },
+      // ── Inventory / Stock ──
+      {
+        title: "Inventory",
+        permission: "stock-adjustments.view",
+        children: [
+          {
+            title: "Add Stock Adjustment",
+            path: "/inventory/stock-adjustments/create",
+            permission: "stock-adjustments.create",
+          },
+          {
+            title: "Stock Adjustments List",
+            path: "/inventory/stock-adjustments",
+            permission: "stock-adjustments.view",
+          },
+          { title: "Petty Cash", path: "/accounts/petty-cash", permission: "petty-cash.view" },
+        ],
+      },
+    ],
+    activePaths: [
+      "/sales-order",
+      "/quatation-order",
+      "/sales-invoices",
+      "/sales-returns",
+      "/expenses",
+      "/purchase-orders",
+      "/invoice",
+      "/purchase-returns",
+      "/accounts/payment-voucher",
+      "/accounts/receipt-voucher",
+      "/accounts/journal-entry",
+      "/accounts/contra-entry",
+      "/accounts/petty-cash",
+      "/production-orders",
+      "/allproduction-orders",
+      "/weekly-machine-schedules",
+      "/daily-machine-planning",
+      "/hourly-work-reports",
+      "/production-wastages",
+      "/production/goods-dispatch",
+      "/shift-execution",
+      "/inventory/stock-adjustments",
+      "/inventory/eod-stock",
+    ],
+    permissionAny: [
+      "sales-orders.view",
+      "quotations.view",
+      "sales-invoices.view",
+      "sales-returns.view",
+      "purchaseOrders.view",
+      "invoice.view",
+      "purchase-returns.view",
+      "vouchers.view",
+      "petty-cash.view",
+      "production_orders.view",
+      "weekly_programs.view",
+      "daily-machine-planning.view",
+      "hourly_productions.view",
+      "production-wastages.view",
+      "goods-dispatch.view",
+      "shift-execution.view",
+      "stock-adjustments.view",
+      "eod-stock.view",
+    ],
+  },
+
+  // ── 4. Display (Busy ERP Style: Final Results, Outstanding, Stock, Reports)
+  {
+    title: "Display",
+    icon: FiBarChart2,
+    path: "/company/view",
+    pathsByPermission: [
+      { permission: "company-settings.view", path: "/company/view" },
+      { permission: "accounts.view", path: "/accounts/trial-balance" },
+      { permission: "payable.view", path: "/accounts/payable" },
+      { permission: "receivable.view", path: "/accounts/receivable" },
+      { permission: "raw_material_stocks.view", path: "/stock" },
+      { permission: "sales-reports.view", path: "/reports/sales" },
+    ],
+    children: [
+      // ── Company Profile ──
+      {
+        title: "Company Profile",
+        path: "/company/view",
+        permission: "company-settings.view",
+      },
+      // ── Final Results (Financial Statements) ──
+      {
+        title: "Final Results",
+        permission: "accounts.view",
+        children: [
+          { title: "Balance Sheet", path: "/accounts/balance-sheet", permission: "accounts.view" },
+          { title: "Profit & Loss", path: "/accounts/profit-loss", permission: "accounts.view" },
+          { title: "Trial Balance", path: "/accounts/trial-balance", permission: "accounts.view" },
+          { title: "Cash Flow", path: "/accounts/cash-flow", permission: "accounts.view" },
+        ],
+      },
+      // ── Account Books & Ledgers ──
+      {
+        title: "Account Books",
+        permission: "accounts.view",
+        children: [
+          {
+            title: "Account-Wise Ledger",
+            path: "/accounts/ledger-statement",
+            permission: "accounts.view",
+          },
+          {
+            title: "Merged Accounts Ledger",
+            path: "/accounts/ledger-statement/merged",
+            permission: "accounts.view",
+          },
+          { title: "Day Book", path: "/accounts/day-book", permission: "accounts.view" },
+          { title: "Cash Book", path: "/accounts/cash-book", permission: "accounts.view" },
+          { title: "Bank Book", path: "/accounts/bank-book", permission: "accounts.view" },
+        ],
+      },
+      // ── Outstanding Analysis ──
+      {
+        title: "Outstanding Analysis",
+        permission: "payable.view",
+        children: [
+          {
+            title: "Amount Payable (Outstanding)",
+            path: "/accounts/payable",
+            permission: "payable.view",
+          },
+          {
+            title: "Amount Receivable (Outstanding)",
+            path: "/accounts/receivable",
+            permission: "receivable.view",
+          },
+        ],
+      },
+      // ── Stock Status ──
+      {
+        title: "Stock Status",
+        permission: "raw_material_stocks.view",
+        children: [
+          { title: "Raw Material Stock", path: "/stock", permission: "raw_material_stocks.view" },
+          {
+            title: "Finished Goods Stock",
+            path: "/finished-stock",
+            permission: "finished_goods_stocks.view",
+          },
+          { title: "Wastage Stock", path: "/wastage-stock", permission: "wastage-stock.view" },
+        ],
+      },
+      // ── MIS Reports & Analysis ──
+      {
+        title: "MIS Reports",
+        permission: "sales-reports.view",
+        children: [
+          { title: "Sales Reports", path: "/reports/sales", permission: "sales-reports.view" },
+          {
+            title: "Purchase Reports",
+            path: "/reports/purchase",
+            permission: "purchase-reports.view",
+          },
+          {
+            title: "Inventory Reports",
+            path: "/reports/inventory",
+            permission: "inventory-reports.view",
+          },
+          {
+            title: "Production Reports",
+            path: "/reports/production",
+            permission: "production-reports.view",
+          },
+          { title: "Audit Trail", path: "/reports/audit", permission: "audit-reports.view" },
+        ],
+      },
+    ],
+    activePaths: [
+      "/company/view",
+      "/accounts/trial-balance",
+      "/accounts/profit-loss",
+      "/accounts/balance-sheet",
+      "/accounts/cash-flow",
+      "/accounts/day-book",
+      "/accounts/cash-book",
+      "/accounts/bank-book",
+      "/accounts/ledger-statement",
+      "/accounts/ledger-statement/merged",
+      "/accounts/payable",
+      "/accounts/receivable",
+      "/stock",
+      "/finished-stock",
+      "/wastage-stock",
+      "/reports/sales",
+      "/reports/purchase",
+      "/reports/inventory",
+      "/reports/production",
+      "/reports/audit",
+    ],
+    permissionAny: [
+      "company-settings.view",
+      "accounts.view",
+      "payable.view",
+      "receivable.view",
+      "raw_material_stocks.view",
+      "finished_goods_stocks.view",
+      "wastage-stock.view",
+      "sales-reports.view",
+      "purchase-reports.view",
+      "inventory-reports.view",
+      "production-reports.view",
+      "audit-reports.view",
+    ],
+  },
+
+  // ── 5. Payroll ─────────────────────────────────────────────────────────────
+  {
+    title: "Payroll",
+    icon: FiClock,
+    path: "/payroll",
+    pathsByPermission: [
+      { permission: "payroll.view", path: "/payroll" },
+      { permission: "payroll-run.view", path: "/payroll/run" },
+      { permission: "payroll-settings.view", path: "/payroll/settings" },
+      { permission: "payroll-attendance.view", path: "/payroll/attendance" },
+      { permission: "payroll-advance.view", path: "/payroll/advance" },
+    ],
+    children: [
+      { title: "Payroll Dashboard", path: "/payroll", permission: "payroll.view" },
+      { title: "Run Payroll", path: "/payroll/run", permission: "payroll-run.view" },
+      { title: "Attendance", path: "/payroll/attendance", permission: "payroll-attendance.view" },
+      { title: "Salary Advances", path: "/payroll/advance", permission: "payroll-advance.view" },
+      { title: "Payroll Settings", path: "/payroll/settings", permission: "payroll-settings.view" },
+      {
+        title: "Weekly Payroll Report",
+        path: "/payroll/weekly-report",
+        permission: "payroll.view",
+      },
+      {
+        title: "Monthly Payroll Report",
+        path: "/payroll/monthly-report",
+        permission: "payroll.view",
+      },
+    ],
+    activePaths: [
+      "/payroll",
+      "/payroll/run",
+      "/payroll/settings",
+      "/payroll/attendance",
+      "/payroll/advance",
+      "/payroll/weekly-report",
+      "/payroll/monthly-report",
+    ],
+    permissionAny: [
+      "payroll.view",
+      "payroll-run.view",
+      "payroll-settings.view",
+      "payroll-attendance.view",
+      "payroll-advance.view",
+    ],
+  },
+
+  // ── Platform console (super admins only, P1-02) ───────────────────────────
+  {
+    title: "Platform",
+    icon: FiServer,
+    path: "/platform",
+    superAdminOnly: true,
+    children: [
+      { title: "Overview", path: "/platform" },
+      { title: "Tenants", path: "/platform/tenants" },
+      { title: "Plans", path: "/platform/plans" },
+    ],
+    activePaths: ["/platform"],
+  },
+];

@@ -1,0 +1,39 @@
+# dependencies / build
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.turbo/
+
+# environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# runtime artefacts
+uploads/
+backups/
+exports/
+archives/
+logs/
+*.log
+test-results/
+playwright-report/
+.auth/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# agent scratch
+.claude/
+CLAUDE.local.md
+
+# retention archives written by the worker

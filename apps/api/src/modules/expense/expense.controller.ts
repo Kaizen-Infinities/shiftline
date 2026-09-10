@@ -1,0 +1,154 @@
+import { requireTenantId } from "../../lib/tenant-context";
+import { Request, Response } from "express";
+import { asyncHandler } from "../../utils/asyncHandler";
+import { ApiResponse } from "../../utils/ApiResponse";
+import { ApiError } from "../../utils/ApiError";
+import { expenseService } from "./expense.service";
+import { prisma } from "../../config/prisma";
+import { emitToTenant } from "../../lib/realtime";
+
+class ExpenseController {
+  private async getCompanyId(): Promise<string> {
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
+    if (!company) {
+      throw new ApiError(500, "Internal Server Error: No company found in the system");
+    }
+    return company.id;
+  }
+
+  create = asyncHandler(async (req: Request, res: Response) => {
+    let userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(401, "Unauthorized: missing user context");
+    }
+
+    // Resolve admin virtual ID to standard user ID to prevent P2003 constraint failure
+    if (userId.startsWith("admin_")) {
+      const firstUser = await prisma.user.findFirst();
+      if (firstUser) {
+        userId = firstUser.userId;
+      }
+    }
+
+    const companyId = await this.getCompanyId();
+
+    const expense = await expenseService.createExpense(req.body, {
+      userId,
+      companyId,
+    });
+
+    emitToTenant("expense:created", expense);
+
+    return res.status(201).json(new ApiResponse("Expense created successfully", expense));
+  });
+
+  findAll = asyncHandler(async (req: Request, res: Response) => {
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const search = req.query.search ? String(req.query.search) : undefined;
+    const category = req.query.category ? String(req.query.category) : undefined;
+    const status = req.query.status ? String(req.query.status) : undefined;
+    const companyId = await this.getCompanyId();
+
+    const result = await expenseService.getAllExpenses(companyId, {
+      page,
+      limit,
+      search,
+      category,
+      status,
+    });
+
+    return res.status(200).json(new ApiResponse("Expenses fetched successfully", result));
+  });
+
+  findOne = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const companyId = await this.getCompanyId();
+
+    const expense = await expenseService.getExpenseById(id, companyId);
+
+    return res.status(200).json(new ApiResponse("Expense fetched successfully", expense));
+  });
+
+  update = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const companyId = await this.getCompanyId();
+
+    const expense = await expenseService.updateExpense(id, req.body, companyId);
+
+    emitToTenant("expense:updated", expense);
+
+    return res.status(200).json(new ApiResponse("Expense updated successfully", expense));
+  });
+
+  delete = asyncHandler(async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    const companyId = await this.getCompanyId();
+
+    const reason =
+      typeof req.body?.reason === "string"
+        ? req.body.reason
+        : (req.query.reason as string | undefined);
+    await expenseService.cancelExpense(
+      id,
+      companyId,
+      { userId: (req as any).user?.userId, isSuperAdmin: !!(req as any).user?.isSuperAdmin },
+      reason
+    );
+
+    emitToTenant("expense:deleted", { id });
+
+    return res.status(200).json(new ApiResponse("Expense cancelled"));
+  });
+
+  private actor(req: Request) {
+    return {
+      userId: (req as any).user?.userId as string | undefined,
+      isSuperAdmin: !!(req as any).user?.isSuperAdmin,
+    };
+  }
+
+  submit = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = await this.getCompanyId();
+    const expense = await expenseService.submitExpense(req.params.id as string, companyId);
+    emitToTenant("expense:updated", expense);
+    return res.status(200).json(new ApiResponse("Expense submitted for approval", expense));
+  });
+
+  approve = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = await this.getCompanyId();
+    const expense = await expenseService.approveExpense(
+      req.params.id as string,
+      companyId,
+      this.actor(req)
+    );
+    emitToTenant("expense:updated", expense);
+    emitToTenant("voucher:created", { source: "expense" });
+    return res.status(200).json(new ApiResponse("Expense approved and posted", expense));
+  });
+
+  reject = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = await this.getCompanyId();
+    const expense = await expenseService.rejectExpense(
+      req.params.id as string,
+      companyId,
+      this.actor(req),
+      String(req.body.reason)
+    );
+    emitToTenant("expense:updated", expense);
+    return res.status(200).json(new ApiResponse("Expense rejected", expense));
+  });
+
+  getNextCode = asyncHandler(async (req: Request, res: Response) => {
+    const companyId = await this.getCompanyId();
+    const nextCode = await expenseService.getNextExpenseNumber(companyId);
+
+    return res
+      .status(200)
+      .json(new ApiResponse("Next expense code fetched successfully", nextCode));
+  });
+}
+
+export const expenseController = new ExpenseController();
+export default expenseController;
