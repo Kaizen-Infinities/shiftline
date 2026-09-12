@@ -27,6 +27,8 @@ export const AUDITED_MODELS = [
   "AdvanceAdjustment",
   "DeliveryChallan",
   "DeliveryChallanItem",
+  "TdsDeduction",
+  "TdsChallan",
   // documents
   "SalesInvoice",
   "SalesInvoiceItem",
@@ -63,6 +65,7 @@ export const AUDITED_MODELS = [
   "GstRate",
   "Currency",
   "JobWorker",
+  "TdsSection",
   "ExchangeRate",
 ] as const;
 

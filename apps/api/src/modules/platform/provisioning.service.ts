@@ -74,6 +74,9 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["eway-bill", "transporters"]),
       // GST returns (P1-13): prepared and filed by the accountant, approved on the filing gate.
       ...keysFor(["gst-returns"]),
+      // TDS (P1-15): the accountant deducts, pays the challan and prepares the return; the
+      // owner approves it on the filing gate like every other return.
+      ...keysFor(["tds"], ["view", "create", "manage", "pay", "prepare", "file"]),
     ],
   },
   {

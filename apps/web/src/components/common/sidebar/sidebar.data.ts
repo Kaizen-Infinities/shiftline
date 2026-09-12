@@ -153,6 +153,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/compliance/calendar",
             permission: "filings.view",
           },
+          {
+            title: "TDS & TCS",
+            path: "/compliance/tds",
+            permission: "tds.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

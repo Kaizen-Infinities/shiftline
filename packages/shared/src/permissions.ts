@@ -255,6 +255,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "manage", "export"],
     description: "Job work, delivery challans and ITC-04",
   },
+  {
+    module: "tds",
+    actions: ["view", "create", "manage", "pay", "prepare", "file"],
+    description: "TDS and TCS: sections, deductions, challans, 26Q/27Q and Form 16A",
+  },
 
   // ── Production ──────────────────────────────────────────────────────
   {

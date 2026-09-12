@@ -538,6 +538,9 @@ model Company {
   legalName    String? @db.VarChar(160)
   shortName    String? @db.VarChar(60)
   gstin        String? @db.VarChar(15)
+  /// Tax deduction account number; every TDS challan and return carries it (P1-15).
+  tan          String? @db.VarChar(10)
+  pan          String? @db.VarChar(10)
   currencyCode String  @default("INR") @db.VarChar(3)
   phone        String? @db.VarChar(20)
   mobile       String? @db.VarChar(1000)
@@ -676,6 +679,9 @@ model Company {
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
   itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
 
+  tdsSections          TdsSection[]          @relation("CompanyTdsSection")
+  tdsDeductions        TdsDeduction[]        @relation("CompanyTdsDeduction")
+  tdsChallans          TdsChallan[]          @relation("CompanyTdsChallan")
   jobWorkers           JobWorker[]           @relation("CompanyJobWorker")
   deliveryChallans     DeliveryChallan[]     @relation("CompanyDeliveryChallan")
   deliveryChallanItems DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
@@ -824,7 +830,12 @@ model Supplier {
   creditDays          Int?                    @map("credit_days")
   id                  Int                     @id @default(autoincrement())
   companyId           String                  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// Deductee details for TDS (P1-15): who they are decides the rate, and 206AB doubles it.
+  deducteeType        DeducteeType?           @map("deductee_type")
+  /// The payee has not filed their returns, so tax comes off at the higher rate (206AB).
+  higherRate206AB     Boolean                 @default(false) @map("higher_rate_206ab")
   materialPrices      SupplierMaterialPrice[]
+  tdsDeductions       TdsDeduction[]
   expenses            Expense[]
   grnInvoices         GrnInvoice[]
   purchaseOrders      PurchaseOrder[]
@@ -4311,4 +4322,165 @@ model DeliveryChallanItem {
   @@index([challanId])
   @@index([companyId, rawMaterialId])
   @@map("delivery_challan_items")
+}
+
+/// Who the payee is decides the rate on several sections, and the return asks for it.
+enum DeducteeType {
+  COMPANY
+  INDIVIDUAL_HUF
+  FIRM
+  AOP_BOI
+  LOCAL_AUTHORITY
+  NON_RESIDENT
+}
+
+/// Where a deduction came from, which decides the quarter it is reported in.
+enum TdsEventKind {
+  /// Deducted when the bill was booked.
+  ON_BILL
+  /// Deducted when the money went out.
+  ON_PAYMENT
+  /// Collected on a sale (TCS).
+  ON_COLLECTION
+}
+
+enum TdsDeductionStatus {
+  PENDING
+  CHALLAN_PAID
+  RETURN_FILED
+  CANCELLED
+}
+
+/// A section tax is deducted or collected under (P1-15).
+///
+/// The Income-tax Act 2025 renumbers the sections — deduction at source sits in section 393 and
+/// collection in 394, each with a table of items — but every accountant, every challan and every
+/// return utility still says 194C and 194J. So both live on the row: `code` is what people type
+/// and what the return carries, `actCode` is where it sits in the new Act.
+model TdsSection {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// The familiar code: 194C, 194J, 194Q, 206C(1H).
+  code             String   @db.VarChar(20)
+  /// Where it sits in the Income-tax Act 2025: "393 Table item 2" and so on.
+  actCode          String?  @map("act_code") @db.VarChar(40)
+  name             String   @db.VarChar(160)
+  /// True for a collection at source (section 394) rather than a deduction (393).
+  isTcs            Boolean  @default(false) @map("is_tcs")
+  /// Rate when the payee is a company or a firm.
+  rateCompany      Decimal  @default(0) @map("rate_company") @db.Decimal(5, 2)
+  /// Rate when the payee is an individual or a HUF; several sections differ.
+  rateIndividual   Decimal  @default(0) @map("rate_individual") @db.Decimal(5, 2)
+  /// Rate when no PAN is furnished (section 206AA) or the payee is a non-filer (206AB).
+  rateNoPan        Decimal  @default(20) @map("rate_no_pan") @db.Decimal(5, 2)
+  /// Deduct only once a single payment crosses this; zero means no single-payment threshold.
+  thresholdSingle  Decimal  @default(0) @map("threshold_single") @db.Decimal(14, 2)
+  /// Deduct once the year's payments to this payee cross this.
+  thresholdAnnual  Decimal  @default(0) @map("threshold_annual") @db.Decimal(14, 2)
+  /// The ledger the liability is credited to; one per section keeps the challan reconcilable.
+  ledgerCode       String?  @map("ledger_code") @db.VarChar(20)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  deductions TdsDeduction[]
+
+  company Company @relation("CompanyTdsSection", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("tds_sections")
+}
+
+/// One deduction or collection. Never deleted — a return has been filed against it — only
+/// cancelled when the document behind it is. Audited.
+model TdsDeduction {
+  id             String             @id @default(uuid()) @db.Uuid
+  companyId      String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  sectionId      String             @map("section_id") @db.Uuid
+  /// The payee. A supplier for 26Q; a non-resident payee is still a supplier row (27Q).
+  supplierId     Int?               @map("supplier_id")
+  /// Copied at the time of deduction: the return carries what was true then.
+  deducteeName   String             @map("deductee_name") @db.VarChar(160)
+  deducteePan    String?            @map("deductee_pan") @db.VarChar(10)
+  deducteeType   DeducteeType       @default(COMPANY) @map("deductee_type")
+  /// True when no PAN was available, or the payee is a non-filer under 206AB.
+  higherRate     Boolean            @default(false) @map("higher_rate")
+  kind           TdsEventKind       @default(ON_BILL)
+  /// EXPENSE | GRN | PETTY_CASH | SALES_INVOICE (for TCS)
+  docType        String             @map("doc_type") @db.VarChar(16)
+  docId          String             @map("doc_id") @db.VarChar(40)
+  docNo          String             @map("doc_no") @db.VarChar(40)
+  deductionDate  DateTime           @map("deduction_date") @db.Date
+  /// The whole amount paid or credited to the payee. Thresholds accumulate against this, and
+  /// it is what the return's "amount paid" column carries.
+  amountPaid     Decimal            @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  /// The part of it the rate was actually applied to. For most sections that is the whole
+  /// amount; for 194Q and 206C(1H) it is only what sits above the annual threshold.
+  taxableAmount  Decimal            @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  rate           Decimal            @default(0) @db.Decimal(5, 2)
+  tdsAmount      Decimal            @default(0) @map("tds_amount") @db.Decimal(14, 2)
+  /// Financial year `2026-27` and the quarter `Q1`..`Q4`, both derived from the date.
+  fyCode         String             @map("fy_code") @db.VarChar(7)
+  quarter        String             @db.VarChar(2)
+  challanId      String?            @map("challan_id") @db.Uuid
+  status         TdsDeductionStatus @default(PENDING)
+  /// Why the rate was what it was, for the person who has to explain it later.
+  rateReason     String?            @map("rate_reason") @db.VarChar(160)
+  createdBy      String?            @map("created_by") @db.VarChar(36)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cancelledAt    DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason   String?            @map("cancel_reason") @db.VarChar(255)
+
+  section  TdsSection  @relation(fields: [sectionId], references: [id])
+  supplier Supplier?   @relation(fields: [supplierId], references: [id])
+  challan  TdsChallan? @relation(fields: [challanId], references: [id])
+
+  company Company @relation("CompanyTdsDeduction", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, docType, docId, sectionId])
+  @@index([companyId, fyCode, quarter])
+  @@index([companyId, status])
+  @@index([challanId])
+  @@map("tds_deductions")
+}
+
+/// A challan (ITNS 281) paying a month's deductions to the government. The deductions it covers
+/// point at it, which is what makes a return reconcile: every deduction in a quarter has to sit
+/// on a challan, and every challan's total has to equal the deductions on it. Audited.
+model TdsChallan {
+  id             String    @id @default(uuid()) @db.Uuid
+  companyId      String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// Bank branch code, 7 digits — half of the challan's identity.
+  bsrCode        String    @map("bsr_code") @db.VarChar(7)
+  /// The bank's serial number for the day.
+  challanSerial  String    @map("challan_serial") @db.VarChar(10)
+  challanDate    DateTime  @map("challan_date") @db.Date
+  /// The month the deductions belong to, `2026-08`.
+  periodKey      String    @map("period_key") @db.VarChar(7)
+  fyCode         String    @map("fy_code") @db.VarChar(7)
+  quarter        String    @db.VarChar(2)
+  /// What was actually paid, split the way the challan is.
+  tdsAmount      Decimal   @default(0) @map("tds_amount") @db.Decimal(14, 2)
+  surcharge      Decimal   @default(0) @db.Decimal(14, 2)
+  educationCess  Decimal   @default(0) @map("education_cess") @db.Decimal(14, 2)
+  interest       Decimal   @default(0) @db.Decimal(14, 2)
+  lateFee        Decimal   @default(0) @map("late_fee") @db.Decimal(14, 2)
+  totalAmount    Decimal   @default(0) @map("total_amount") @db.Decimal(14, 2)
+  /// 200 for a regular payment, 400 for one raised by a demand.
+  paymentCode    String    @default("200") @map("payment_code") @db.VarChar(3)
+  /// True for a collection challan (TCS) rather than a deduction one.
+  isTcs          Boolean   @default(false) @map("is_tcs")
+  remarks        String?   @db.VarChar(255)
+  createdBy      String?   @map("created_by") @db.VarChar(36)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  deductions TdsDeduction[]
+
+  company Company @relation("CompanyTdsChallan", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, bsrCode, challanSerial, challanDate])
+  @@index([companyId, fyCode, quarter])
+  @@map("tds_challans")
 }

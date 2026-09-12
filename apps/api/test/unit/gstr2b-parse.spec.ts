@@ -6,6 +6,7 @@ import {
   periodFromRtnprd,
   portalDate,
 } from "../../src/modules/gst-returns/gstr2b.parse";
+import type { Gstr2bJson } from "../../src/modules/gst-returns/gstr2b.types";
 
 /**
  * Reading the portal's GSTR-2B (P1-13c). The number normalisation matters most: the same
@@ -45,7 +46,7 @@ describe("GSTR-2B dates and periods", () => {
 });
 
 describe("GSTR-2B parsing", () => {
-  const json = {
+  const json: Gstr2bJson = {
     data: {
       gstin: "33AAAAA0000A1Z9",
       rtnprd: "082026",
@@ -139,7 +140,7 @@ describe("GSTR-2B parsing", () => {
   });
 
   it("reads a file exported without the data envelope", () => {
-    const flat = { gstin: "33AAAAA0000A1Z9", rtnprd: "082026", docdata: json.data.docdata };
+    const flat = { gstin: "33AAAAA0000A1Z9", rtnprd: "082026", docdata: json.data!.docdata };
     expect(parse2b(flat)).toHaveLength(4);
     expect(envelopeOf(flat).periodKey).toBe("2026-08");
   });

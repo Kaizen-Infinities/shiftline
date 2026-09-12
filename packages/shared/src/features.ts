@@ -164,7 +164,7 @@ export const FEATURES: readonly FeatureDef[] = [
     key: "gst-compliance",
     name: "GST compliance",
     description: "E-invoicing, e-way bills and GST returns from the books",
-    modules: ["e-invoice", "eway-bill", "transporters", "gst-returns"],
+    modules: ["e-invoice", "eway-bill", "transporters", "gst-returns", "tds"],
   },
   {
     key: "insights",

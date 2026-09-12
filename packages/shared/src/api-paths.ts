@@ -216,6 +216,15 @@ export const API_PATHS = {
     base: "/currencies",
     rates: "/currencies/rates",
   },
+  tds: {
+    base: "/tds",
+    sections: "/tds/sections",
+    preview: "/tds/preview",
+    deductions: "/tds/deductions",
+    challans: "/tds/challans",
+    returns: "/tds/returns",
+    form16a: "/tds/form16a",
+  },
   jobWork: {
     base: "/job-work",
     workers: "/job-work/workers",
