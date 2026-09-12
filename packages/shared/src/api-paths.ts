@@ -225,6 +225,13 @@ export const API_PATHS = {
     returns: "/tds/returns",
     form16a: "/tds/form16a",
   },
+  costing: {
+    base: "/costing",
+    valuation: "/costing/valuation",
+    costCentres: "/costing/cost-centres",
+    budgets: "/costing/budgets",
+    costSheets: "/costing/cost-sheets",
+  },
   fx: {
     base: "/fx",
     rates: "/fx/rates",

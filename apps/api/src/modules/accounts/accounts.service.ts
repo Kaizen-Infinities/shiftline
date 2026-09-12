@@ -78,6 +78,21 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Indirect Income",
   },
   {
+    // P1-19: closing stock is an asset and its movement is a charge to the profit and loss. The
+    // two are separate ledgers because the balance sheet needs the balance and the P&L needs the
+    // movement, and posting the balance into the P&L every month would double the stock.
+    code: "STOCK-001",
+    name: "Closing Stock",
+    type: LedgerType.ASSET,
+    group: "Stock-in-Hand",
+  },
+  {
+    code: "STOCK-CHG-001",
+    name: "Change in Inventories",
+    type: LedgerType.EXPENSE,
+    group: "Direct Expenses",
+  },
+  {
     // P1-17: the rupee moves between raising a bill and settling it, and the difference is real
     // income or a real expense — not an adjustment to the sale.
     code: "FX-GAIN-001",

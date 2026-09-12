@@ -679,27 +679,31 @@ model Company {
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
   itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
 
-  tdsSections          TdsSection[]          @relation("CompanyTdsSection")
-  tdsDeductions        TdsDeduction[]        @relation("CompanyTdsDeduction")
-  tdsChallans          TdsChallan[]          @relation("CompanyTdsChallan")
-  tallyNameMaps        TallyNameMap[]        @relation("CompanyTallyNameMap")
-  tallyExportRuns      TallyExportRun[]      @relation("CompanyTallyExportRun")
-  assetClasses         AssetClass[]          @relation("CompanyAssetClass")
-  fixedAssets          FixedAsset[]          @relation("CompanyFixedAsset")
-  assetEvents          AssetEvent[]          @relation("CompanyAssetEvent")
-  depreciationRuns     DepreciationRun[]     @relation("CompanyDepreciationRun")
-  assetDepreciations   AssetDepreciation[]   @relation("CompanyAssetDepreciation")
-  fxRevaluations       FxRevaluation[]       @relation("CompanyFxRevaluation")
-  billsOfEntry         BillOfEntry[]         @relation("CompanyBillOfEntry")
-  jobWorkers           JobWorker[]           @relation("CompanyJobWorker")
-  deliveryChallans     DeliveryChallan[]     @relation("CompanyDeliveryChallan")
-  deliveryChallanItems DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
-  currencies           Currency[]            @relation("CompanyCurrency")
-  exchangeRates        ExchangeRate[]        @relation("CompanyExchangeRate")
-  advanceReceipts      AdvanceReceipt[]      @relation("CompanyAdvanceReceipt")
-  advanceAdjustments   AdvanceAdjustment[]   @relation("CompanyAdvanceAdjustment")
-  gstr2bRecords        Gstr2bRecord[]        @relation("CompanyGstr2bRecord")
-  imsActions           ImsAction[]           @relation("CompanyImsAction")
+  tdsSections           TdsSection[]          @relation("CompanyTdsSection")
+  tdsDeductions         TdsDeduction[]        @relation("CompanyTdsDeduction")
+  tdsChallans           TdsChallan[]          @relation("CompanyTdsChallan")
+  tallyNameMaps         TallyNameMap[]        @relation("CompanyTallyNameMap")
+  tallyExportRuns       TallyExportRun[]      @relation("CompanyTallyExportRun")
+  assetClasses          AssetClass[]          @relation("CompanyAssetClass")
+  fixedAssets           FixedAsset[]          @relation("CompanyFixedAsset")
+  assetEvents           AssetEvent[]          @relation("CompanyAssetEvent")
+  depreciationRuns      DepreciationRun[]     @relation("CompanyDepreciationRun")
+  assetDepreciations    AssetDepreciation[]   @relation("CompanyAssetDepreciation")
+  fxRevaluations        FxRevaluation[]       @relation("CompanyFxRevaluation")
+  billsOfEntry          BillOfEntry[]         @relation("CompanyBillOfEntry")
+  stockValuationEntries StockValuationEntry[] @relation("CompanyStockValuationEntry")
+  costCentres           CostCentre[]          @relation("CompanyCostCentre")
+  budgets               Budget[]              @relation("CompanyBudget")
+  productCostSheets     ProductCostSheet[]    @relation("CompanyProductCostSheet")
+  jobWorkers            JobWorker[]           @relation("CompanyJobWorker")
+  deliveryChallans      DeliveryChallan[]     @relation("CompanyDeliveryChallan")
+  deliveryChallanItems  DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
+  currencies            Currency[]            @relation("CompanyCurrency")
+  exchangeRates         ExchangeRate[]        @relation("CompanyExchangeRate")
+  advanceReceipts       AdvanceReceipt[]      @relation("CompanyAdvanceReceipt")
+  advanceAdjustments    AdvanceAdjustment[]   @relation("CompanyAdvanceAdjustment")
+  gstr2bRecords         Gstr2bRecord[]        @relation("CompanyGstr2bRecord")
+  imsActions            ImsAction[]           @relation("CompanyImsAction")
 
   @@map("companies")
 }
@@ -976,6 +980,7 @@ model Product {
   capacityHistories         ProductCapacityHistory[]
   usedInSalesProducts       SalesProductComponent[]
   deliveryChallanItems      DeliveryChallanItem[]
+  costSheets                ProductCostSheet[]
 
   company Company @relation("CompanyProduct", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2727,6 +2732,7 @@ model AccountLedger {
   supplier    Supplier?     @relation(fields: [supplierId], references: [id])
   debitItems  JournalItem[] @relation("DebitItems")
   creditItems JournalItem[] @relation("CreditItems")
+  budgets     Budget[]
   bankAccount BankAccount?
 
   company Company @relation("CompanyAccountLedger", fields: [companyId], references: [id], onDelete: Restrict)
@@ -2988,6 +2994,10 @@ model JournalItem {
   debitAmount    Decimal        @default(0) @db.Decimal(14, 2)
   creditAmount   Decimal        @default(0) @db.Decimal(14, 2)
   narration      String?        @db.VarChar(255)
+  /// P1-19: where this cost belongs. Null means unallocated, which the cost-centre P&L shows
+  /// rather than hides — an unallocated pile is the thing that makes the report untrustworthy.
+  costCentreId   String?        @map("cost_centre_id") @db.Uuid
+  costCentre     CostCentre?    @relation(fields: [costCentreId], references: [id])
   voucher        Voucher        @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   debitLedger    AccountLedger? @relation("DebitItems", fields: [debitLedgerId], references: [id])
   creditLedger   AccountLedger? @relation("CreditItems", fields: [creditLedgerId], references: [id])
@@ -4874,4 +4884,142 @@ model BillOfEntry {
   @@unique([companyId, beNumber, beDate])
   @@index([companyId, beDate])
   @@map("bills_of_entry")
+}
+
+// ── Valuation, costing, cost centres and budgets (P1-19) ──────────────────────
+
+enum StockMoveKind {
+  OPENING
+  RECEIPT
+  ISSUE
+  PRODUCTION_IN
+  SCRAP
+  ADJUSTMENT
+  RETURN_IN
+  RETURN_OUT
+}
+
+/// One movement in the weighted-average valuation ledger (P1-19).
+///
+/// Kept as a ledger rather than a single running number on the item because the average is the
+/// number everyone argues about at a year end, and a balance you cannot explain is a balance you
+/// cannot defend. Each row carries the balance and the average *after* it, so any month's closing
+/// stock can be read straight off the last row before the cut-off.
+model StockValuationEntry {
+  id              String        @id @default(uuid()) @db.Uuid
+  companyId       String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// RAW_MATERIAL or PRODUCT; the two live in different tables but value the same way.
+  itemType        String        @map("item_type") @db.VarChar(16)
+  itemId          String        @map("item_id") @db.VarChar(40)
+  storeId         String?       @map("store_id") @db.VarChar(20)
+  movedOn         DateTime      @map("moved_on") @db.Date
+  kind            StockMoveKind
+  quantity        Decimal       @default(0) @db.Decimal(14, 3)
+  /// What this movement came in at. An issue is valued at the running average instead.
+  rate            Decimal       @default(0) @db.Decimal(14, 4)
+  value           Decimal       @default(0) @db.Decimal(14, 2)
+  balanceQuantity Decimal       @default(0) @map("balance_quantity") @db.Decimal(14, 3)
+  balanceValue    Decimal       @default(0) @map("balance_value") @db.Decimal(14, 2)
+  avgRate         Decimal       @default(0) @map("avg_rate") @db.Decimal(14, 4)
+  /// True when the movement took the balance below zero — the average stops meaning anything and
+  /// somebody has to go and look.
+  wentNegative    Boolean       @default(false) @map("went_negative")
+  refDocType      String?       @map("ref_doc_type") @db.VarChar(30)
+  refDocId        String?       @map("ref_doc_id") @db.VarChar(40)
+  narration       String?       @db.VarChar(255)
+  createdBy       String?       @map("created_by") @db.VarChar(36)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyStockValuationEntry", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, itemType, itemId, storeId, movedOn])
+  @@index([companyId, movedOn])
+  @@map("stock_valuation_entries")
+}
+
+enum CostCentreKind {
+  PRODUCTION
+  SERVICE
+  ADMIN
+  SALES
+}
+
+/// Where a cost belongs (P1-19).
+model CostCentre {
+  id        String         @id @default(uuid()) @db.Uuid
+  companyId String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code      String         @db.VarChar(20)
+  name      String         @db.VarChar(120)
+  kind      CostCentreKind @default(PRODUCTION)
+  parentId  String?        @map("parent_id") @db.Uuid
+  isActive  Boolean        @default(true) @map("is_active")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  parent   CostCentre?   @relation("CostCentreTree", fields: [parentId], references: [id])
+  children CostCentre[]  @relation("CostCentreTree")
+  items    JournalItem[]
+  budgets  Budget[]
+  company  Company       @relation("CompanyCostCentre", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@map("cost_centres")
+}
+
+/// A budget line (P1-19).
+///
+/// The scope key exists because Postgres does not treat two NULLs as equal, so a unique index
+/// over nullable period and cost-centre columns would let the same budget be entered twice.
+model Budget {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  fyCode       String   @map("fy_code") @db.VarChar(10)
+  /// `2026-08` for a month, or null for the whole year.
+  periodKey    String?  @map("period_key") @db.VarChar(7)
+  ledgerId     Int      @map("ledger_id")
+  costCentreId String?  @map("cost_centre_id") @db.Uuid
+  amount       Decimal  @default(0) @db.Decimal(14, 2)
+  /// `fy|period|ledger|costCentre`, with the nulls spelled out.
+  scopeKey     String   @map("scope_key") @db.VarChar(120)
+  notes        String?  @db.VarChar(255)
+  createdBy    String?  @map("created_by") @db.VarChar(36)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ledger     AccountLedger @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  costCentre CostCentre?   @relation(fields: [costCentreId], references: [id])
+  company    Company       @relation("CompanyBudget", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, scopeKey])
+  @@index([companyId, fyCode])
+  @@map("budgets")
+}
+
+/// What a product cost in a period (P1-19).
+model ProductCostSheet {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  productId        BigInt   @map("product_id")
+  periodKey        String   @map("period_key") @db.VarChar(7)
+  quantityProduced Decimal  @default(0) @map("quantity_produced") @db.Decimal(14, 3)
+  materialCost     Decimal  @default(0) @map("material_cost") @db.Decimal(14, 2)
+  labourCost       Decimal  @default(0) @map("labour_cost") @db.Decimal(14, 2)
+  overheadCost     Decimal  @default(0) @map("overhead_cost") @db.Decimal(14, 2)
+  /// What the scrap that came out was worth; it comes off the cost of the good output.
+  scrapCredit      Decimal  @default(0) @map("scrap_credit") @db.Decimal(14, 2)
+  totalCost        Decimal  @default(0) @map("total_cost") @db.Decimal(14, 2)
+  perUnitCost      Decimal  @default(0) @map("per_unit_cost") @db.Decimal(14, 4)
+  /// How the overhead was spread: the rule, so the number can be argued with.
+  overheadBasis    String?  @map("overhead_basis") @db.VarChar(40)
+  lines            Json
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  company Company @relation("CompanyProductCostSheet", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, productId, periodKey])
+  @@index([companyId, periodKey])
+  @@map("product_cost_sheets")
 }

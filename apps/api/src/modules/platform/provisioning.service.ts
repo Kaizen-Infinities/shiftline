@@ -83,6 +83,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["assets"]),
       // Imports (P1-17): the bill of entry and its credit are the accountant’s to record.
       ...keysFor(["imports"]),
+      // Costing (P1-19): valuation, cost centres and budgets are the accountant’s ground.
+      ...keysFor(["costing"]),
     ],
   },
   {

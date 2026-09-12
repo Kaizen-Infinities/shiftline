@@ -178,6 +178,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/forex",
             permission: "currencies.view",
           },
+          {
+            title: "Costing",
+            path: "/accounts/costing",
+            permission: "costing.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

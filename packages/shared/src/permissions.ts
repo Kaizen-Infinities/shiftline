@@ -261,6 +261,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "TDS and TCS: sections, deductions, challans, 26Q/27Q and Form 16A",
   },
   {
+    module: "costing",
+    actions: ["view", "manage"],
+    description: "Stock valuation, cost centres, budgets and cost sheets",
+  },
+  {
     module: "imports",
     actions: ["view", "create", "manage"],
     description: "Imports: bills of entry, customs duty and landed cost",
