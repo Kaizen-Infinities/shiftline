@@ -132,6 +132,14 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Indirect Expenses",
   },
   {
+    // P1-21: what a payment gateway keeps out of a collection, and the GST on it. Separate from
+    // bank charges because it reconciles against the gateway's statement, not the bank's.
+    code: "PG-FEE-001",
+    name: "Payment Gateway Charges",
+    type: LedgerType.EXPENSE,
+    group: "Indirect Expenses",
+  },
+  {
     // P1-19: closing stock is an asset and its movement is a charge to the profit and loss. The
     // two are separate ledgers because the balance sheet needs the balance and the P&L needs the
     // movement, and posting the balance into the P&L every month would double the stock.

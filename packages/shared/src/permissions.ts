@@ -83,6 +83,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "prepare", "file"],
     description: "GST returns from the books (GSTR-1, 3B, 2B, IMS, GSTR-9)",
   },
+  {
+    module: "payments",
+    actions: ["view", "create", "cancel", "settings"],
+    description: "Payment links and gateway settings",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {

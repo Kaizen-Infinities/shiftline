@@ -715,6 +715,11 @@ model Company {
   leaveTypes            LeaveType[]              @relation("CompanyLeaveType")
   leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
   finalSettlements      FinalSettlement[]        @relation("CompanyFinalSettlement")
+  paymentGateway        PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
+  paymentLinks          PaymentLink[]            @relation("CompanyPaymentLink")
+  paymentCaptures       PaymentCapture[]         @relation("CompanyPaymentCapture")
+  paymentWebhookEvents  PaymentWebhookEvent[]    @relation("CompanyPaymentWebhookEvent")
+  subscriptionInvoices  SubscriptionInvoice[]    @relation("CompanySubscriptionInvoice")
 
   @@map("companies")
 }
@@ -2222,7 +2227,8 @@ model SalesInvoice {
   cancelledBy          String?               @map("cancelled_by") @db.VarChar(36)
   cancelReason         String?               @map("cancel_reason") @db.VarChar(255)
 
-  company Company @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
+  company      Company       @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
+  paymentLinks PaymentLink[]
 
   @@unique([companyId, invoiceNo])
   @@index([customerId])
@@ -2847,21 +2853,24 @@ model Plan {
 /// One subscription per tenant (history is in the audit trail). Seats and the API cap may
 /// override the plan; overrides of individual features live in FeatureFlagOverride.
 model Subscription {
-  id                 String             @id @default(uuid()) @db.Uuid
-  companyId          String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  planId             String             @map("plan_id") @db.Uuid
-  status             SubscriptionStatus @default(TRIALING)
-  seats              Int?
-  apiLimit           Int?               @map("api_limit")
-  trialEndsAt        DateTime?          @map("trial_ends_at") @db.Timestamptz(6)
-  currentPeriodStart DateTime?          @map("current_period_start") @db.Timestamptz(6)
-  currentPeriodEnd   DateTime?          @map("current_period_end") @db.Timestamptz(6)
-  cancelledAt        DateTime?          @map("cancelled_at") @db.Timestamptz(6)
-  notes              String?            @db.VarChar(500)
-  createdBy          String?            @map("created_by") @db.VarChar(36)
-  updatedBy          String?            @map("updated_by") @db.VarChar(36)
-  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String             @id @default(uuid()) @db.Uuid
+  companyId              String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  planId                 String             @map("plan_id") @db.Uuid
+  status                 SubscriptionStatus @default(TRIALING)
+  seats                  Int?
+  apiLimit               Int?               @map("api_limit")
+  trialEndsAt            DateTime?          @map("trial_ends_at") @db.Timestamptz(6)
+  currentPeriodStart     DateTime?          @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd       DateTime?          @map("current_period_end") @db.Timestamptz(6)
+  cancelledAt            DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  notes                  String?            @db.VarChar(500)
+  /// The gateway's own ids, when the subscription is billed through one (P1-21).
+  providerSubscriptionId String?            @map("provider_subscription_id") @db.VarChar(120)
+  providerCustomerId     String?            @map("provider_customer_id") @db.VarChar(120)
+  createdBy              String?            @map("created_by") @db.VarChar(36)
+  updatedBy              String?            @map("updated_by") @db.VarChar(36)
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
   company Company @relation("CompanySubscription", fields: [companyId], references: [id], onDelete: Restrict)
@@ -5413,4 +5422,178 @@ model FinalSettlement {
   @@unique([companyId, employeeId, separationOn])
   @@index([companyId, status])
   @@map("final_settlements")
+}
+
+// ─── Payments (P1-21) ────────────────────────────────────────────────────────
+
+enum PaymentGatewayProvider {
+  FIXTURE
+  RAZORPAY
+}
+
+enum PaymentLinkStatus {
+  CREATED
+  PARTIALLY_PAID
+  PAID
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentCaptureStatus {
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+/// One gateway per tenant. Secrets are encrypted at rest and never returned; `webhookToken` is
+/// the opaque segment of the callback URL, so the URL a tenant hands the gateway carries no
+/// company id.
+model PaymentGatewayConfig {
+  id             String                 @id @default(uuid()) @db.Uuid
+  companyId      String                 @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  provider       PaymentGatewayProvider @default(FIXTURE)
+  enabled        Boolean                @default(false)
+  keyId          String?                @map("key_id") @db.VarChar(120)
+  keySecret      String?                @map("key_secret") @db.VarChar(400)
+  webhookSecret  String?                @map("webhook_secret") @db.VarChar(400)
+  webhookToken   String                 @unique @map("webhook_token") @db.VarChar(64)
+  /// Where the money lands and what the gateway keeps for itself.
+  bankLedgerCode String                 @default("BANK-001") @map("bank_ledger_code") @db.VarChar(20)
+  feeLedgerCode  String                 @default("PG-FEE-001") @map("fee_ledger_code") @db.VarChar(20)
+  expiryHours    Int                    @default(72) @map("expiry_hours")
+  lastVerifiedAt DateTime?              @map("last_verified_at") @db.Timestamptz(6)
+  createdBy      String?                @map("created_by") @db.VarChar(36)
+  updatedBy      String?                @map("updated_by") @db.VarChar(36)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyPaymentGatewayConfig", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("payment_gateway_configs")
+}
+
+/// A link a customer can pay. `amountPaid` is the sum of its captures, kept on the row so the
+/// list does not have to add them up.
+model PaymentLink {
+  id             String                 @id @default(uuid()) @db.Uuid
+  companyId      String                 @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  linkNo         String                 @map("link_no") @db.VarChar(30)
+  provider       PaymentGatewayProvider @default(FIXTURE)
+  providerLinkId String?                @map("provider_link_id") @db.VarChar(120)
+  shortUrl       String?                @map("short_url") @db.VarChar(400)
+  salesInvoiceId String?                @map("sales_invoice_id") @db.Uuid
+  customerId     String?                @map("customer_id") @db.Uuid
+  amount         Decimal                @db.Decimal(14, 2)
+  amountPaid     Decimal                @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  currencyCode   String                 @default("INR") @map("currency_code") @db.VarChar(3)
+  status         PaymentLinkStatus      @default(CREATED)
+  description    String?                @db.VarChar(255)
+  notifyEmail    String?                @map("notify_email") @db.VarChar(120)
+  notifyPhone    String?                @map("notify_phone") @db.VarChar(20)
+  expiresAt      DateTime?              @map("expires_at") @db.Timestamptz(6)
+  cancelledAt    DateTime?              @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason   String?                @map("cancel_reason") @db.VarChar(255)
+  createdBy      String?                @map("created_by") @db.VarChar(36)
+  updatedBy      String?                @map("updated_by") @db.VarChar(36)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company      Company          @relation("CompanyPaymentLink", fields: [companyId], references: [id], onDelete: Restrict)
+  salesInvoice SalesInvoice?    @relation(fields: [salesInvoiceId], references: [id], onDelete: SetNull)
+  captures     PaymentCapture[]
+
+  @@unique([companyId, linkNo])
+  @@unique([companyId, providerLinkId])
+  @@index([companyId, status])
+  @@index([companyId, salesInvoiceId])
+  @@map("payment_links")
+}
+
+/// One payment the gateway reports against a link. The provider's payment id is the idempotency
+/// key: the same capture cannot post twice however many times the webhook is delivered.
+model PaymentCapture {
+  id                    String               @id @default(uuid()) @db.Uuid
+  companyId             String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  paymentLinkId         String               @map("payment_link_id") @db.Uuid
+  providerPaymentId     String               @map("provider_payment_id") @db.VarChar(120)
+  status                PaymentCaptureStatus @default(CAPTURED)
+  amount                Decimal              @db.Decimal(14, 2)
+  /// What the gateway kept, and the GST on it. Both are the gateway's numbers, in paise-exact
+  /// rupees; the books never guess them.
+  fee                   Decimal              @default(0) @db.Decimal(14, 2)
+  feeTax                Decimal              @default(0) @map("fee_tax") @db.Decimal(14, 2)
+  method                String?              @db.VarChar(30)
+  capturedAt            DateTime             @map("captured_at") @db.Timestamptz(6)
+  salesInvoicePaymentId String?              @map("sales_invoice_payment_id") @db.Uuid
+  voucherId             String?              @map("voucher_id") @db.VarChar(36)
+  feeVoucherId          String?              @map("fee_voucher_id") @db.VarChar(36)
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company     Company     @relation("CompanyPaymentCapture", fields: [companyId], references: [id], onDelete: Restrict)
+  paymentLink PaymentLink @relation(fields: [paymentLinkId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, providerPaymentId])
+  @@index([companyId, paymentLinkId])
+  @@map("payment_captures")
+}
+
+/// Every callback, stored before it is acted on: what arrived, whether it was signed correctly,
+/// and what became of it. A gateway that redelivers an event finds it here and does nothing.
+model PaymentWebhookEvent {
+  id              String             @id @default(uuid()) @db.Uuid
+  companyId       String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  providerEventId String             @map("provider_event_id") @db.VarChar(160)
+  eventType       String             @map("event_type") @db.VarChar(60)
+  signatureValid  Boolean            @default(false) @map("signature_valid")
+  status          WebhookEventStatus @default(RECEIVED)
+  payload         Json
+  error           String?            @db.VarChar(500)
+  receivedAt      DateTime           @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt     DateTime?          @map("processed_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyPaymentWebhookEvent", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, providerEventId])
+  @@index([companyId, status])
+  @@map("payment_webhook_events")
+}
+
+enum SubscriptionInvoiceStatus {
+  DUE
+  PAID
+  FAILED
+  VOID
+}
+
+/// What a tenant owes the platform for one period. Raised by the platform, moved to paid by the
+/// gateway's webhook, and the subscription's status follows it.
+model SubscriptionInvoice {
+  id                String                    @id @default(uuid()) @db.Uuid
+  companyId         String                    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  planCode          String                    @map("plan_code") @db.VarChar(30)
+  periodStart       DateTime                  @map("period_start") @db.Timestamptz(6)
+  periodEnd         DateTime                  @map("period_end") @db.Timestamptz(6)
+  amount            Decimal                   @db.Decimal(12, 2)
+  status            SubscriptionInvoiceStatus @default(DUE)
+  dueAt             DateTime                  @map("due_at") @db.Timestamptz(6)
+  paidAt            DateTime?                 @map("paid_at") @db.Timestamptz(6)
+  providerInvoiceId String?                   @map("provider_invoice_id") @db.VarChar(120)
+  providerPaymentId String?                   @map("provider_payment_id") @db.VarChar(120)
+  failureReason     String?                   @map("failure_reason") @db.VarChar(255)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySubscriptionInvoice", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodStart])
+  @@index([companyId, status])
+  @@map("subscription_invoices")
 }

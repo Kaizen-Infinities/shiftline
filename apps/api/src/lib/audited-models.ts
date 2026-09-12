@@ -29,6 +29,9 @@ export const AUDITED_MODELS = [
   "DeliveryChallanItem",
   "TdsDeduction",
   "TdsChallan",
+  "PaymentLink",
+  "PaymentCapture",
+  "SubscriptionInvoice",
   // documents
   "SalesInvoice",
   "SalesInvoiceItem",

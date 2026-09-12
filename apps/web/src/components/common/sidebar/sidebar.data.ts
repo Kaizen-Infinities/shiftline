@@ -198,6 +198,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/payroll/entitlements",
             permission: "payroll.view",
           },
+          {
+            title: "Payment Links",
+            path: "/accounts/payment-links",
+            permission: "payments.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

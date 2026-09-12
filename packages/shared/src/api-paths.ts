@@ -234,6 +234,11 @@ export const API_PATHS = {
     bonus: "/labour/bonus",
     settlements: "/labour/settlements",
   },
+  payments: {
+    base: "/payments",
+    links: "/payments/links",
+    settings: "/payments/settings",
+  },
   payrollStatutory: {
     base: "/payroll-statutory",
     rules: "/payroll-statutory/rules",

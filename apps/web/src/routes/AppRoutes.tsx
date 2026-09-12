@@ -242,6 +242,7 @@ const StatutoryPayrollPage = lazy(() => import("../modules/payroll/pages/Statuto
 const LabourEntitlementsPage = lazy(
   () => import("../modules/payroll/pages/LabourEntitlementsPage")
 );
+const PaymentLinksPage = lazy(() => import("../modules/payments/pages/PaymentLinksPage"));
 const ComplianceCalendarPage = lazy(
   () => import("../modules/compliance/pages/ComplianceCalendarPage")
 );
@@ -618,6 +619,9 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="payroll.view" />}>
                 <Route path="/payroll/statutory" element={<StatutoryPayrollPage />} />
                 <Route path="/payroll/entitlements" element={<LabourEntitlementsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="payments.view" />}>
+                <Route path="/accounts/payment-links" element={<PaymentLinksPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="transporters.view" />}>
                 <Route path="/settings/transporters" element={<TransportersPage />} />

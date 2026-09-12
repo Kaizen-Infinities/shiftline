@@ -17,6 +17,7 @@ const TEST_ENV = {
   ADMIN_USERNAME: "testadmin",
   ADMIN_PASSWORD: "TestAdmin#2026!!",
   SEED_PASSWORD: "Test@12345678",
+  PLATFORM_GATEWAY_WEBHOOK_SECRET: "test-platform-billing-secret-0000",
 };
 
 const hasMigrations = () => {
