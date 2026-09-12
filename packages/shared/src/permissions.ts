@@ -88,6 +88,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "cancel", "settings"],
     description: "Payment links and gateway settings",
   },
+  {
+    module: "sms",
+    actions: ["view", "send", "settings"],
+    description: "SMS, DLT templates and one-time passwords",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {

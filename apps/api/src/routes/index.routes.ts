@@ -63,6 +63,7 @@ import costingRoutes from "../modules/costing/costing.routes";
 import bankingRoutes from "../modules/banking/banking.routes";
 import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
 import labourRoutes from "../modules/payroll/labour.routes";
+import smsRoutes from "../modules/sms/sms.routes";
 import paymentsRoutes, {
   paymentWebhookRouter,
   platformBillingRouter,
@@ -171,6 +172,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/payments/webhook", router: paymentWebhookRouter },
   { path: "/payments", router: paymentsRoutes },
   { path: "/platform/billing", router: platformBillingRouter },
+  { path: "/sms", router: smsRoutes },
   { path: "/payroll", router: payrollRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },

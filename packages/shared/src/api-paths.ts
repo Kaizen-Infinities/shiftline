@@ -239,6 +239,15 @@ export const API_PATHS = {
     links: "/payments/links",
     settings: "/payments/settings",
   },
+  sms: {
+    base: "/sms",
+    settings: "/sms/settings",
+    templates: "/sms/templates",
+    messages: "/sms/messages",
+    send: "/sms/send",
+    preview: "/sms/preview",
+    otp: "/sms/otp",
+  },
   payrollStatutory: {
     base: "/payroll-statutory",
     rules: "/payroll-statutory/rules",

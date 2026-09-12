@@ -32,6 +32,7 @@ export const AUDITED_MODELS = [
   "PaymentLink",
   "PaymentCapture",
   "SubscriptionInvoice",
+  "SmsTemplate",
   // documents
   "SalesInvoice",
   "SalesInvoiceItem",

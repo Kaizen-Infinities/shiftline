@@ -203,6 +203,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/payment-links",
             permission: "payments.view",
           },
+          {
+            title: "SMS & OTP",
+            path: "/settings/sms",
+            permission: "sms.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

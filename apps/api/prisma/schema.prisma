@@ -720,6 +720,10 @@ model Company {
   paymentCaptures       PaymentCapture[]         @relation("CompanyPaymentCapture")
   paymentWebhookEvents  PaymentWebhookEvent[]    @relation("CompanyPaymentWebhookEvent")
   subscriptionInvoices  SubscriptionInvoice[]    @relation("CompanySubscriptionInvoice")
+  smsConfig             SmsConfig?               @relation("CompanySmsConfig")
+  smsTemplates          SmsTemplate[]            @relation("CompanySmsTemplate")
+  smsMessages           SmsMessage[]             @relation("CompanySmsMessage")
+  otpChallenges         OtpChallenge[]           @relation("CompanyOtpChallenge")
 
   @@map("companies")
 }
@@ -5596,4 +5600,130 @@ model SubscriptionInvoice {
   @@unique([companyId, periodStart])
   @@index([companyId, status])
   @@map("subscription_invoices")
+}
+
+// ─── SMS and one-time passwords (P1-22) ──────────────────────────────────────
+
+enum SmsProviderName {
+  FIXTURE
+  MSG91
+}
+
+/// TRAI's categories. Transactional and service messages need a DLT-registered template;
+/// promotional messages are blocked for numbers on the DND registry.
+enum SmsCategory {
+  TRANSACTIONAL
+  SERVICE_IMPLICIT
+  SERVICE_EXPLICIT
+  PROMOTIONAL
+}
+
+enum SmsMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum OtpPurpose {
+  MOBILE_VERIFY
+  FIELD_LOGIN
+  PAYMENT_CONFIRM
+}
+
+/// One SMS account per tenant. The auth key is encrypted at rest and never returned; the DLT ids
+/// are not secret but without them every transactional message is dropped by the operator.
+model SmsConfig {
+  id                String          @id @default(uuid()) @db.Uuid
+  companyId         String          @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  provider          SmsProviderName @default(FIXTURE)
+  enabled           Boolean         @default(false)
+  /// The sender id registered on DLT: six letters, e.g. SHFTLN.
+  senderId          String?         @map("sender_id") @db.VarChar(6)
+  /// The principal entity id the tenant registered with on the DLT platform.
+  principalEntityId String?         @map("principal_entity_id") @db.VarChar(30)
+  authKey           String?         @map("auth_key") @db.VarChar(400)
+  /// A cap the tenant sets on itself, so a loop cannot spend a month's credit in an hour.
+  dailyCap          Int             @default(2000) @map("daily_cap")
+  lastVerifiedAt    DateTime?       @map("last_verified_at") @db.Timestamptz(6)
+  createdBy         String?         @map("created_by") @db.VarChar(36)
+  updatedBy         String?         @map("updated_by") @db.VarChar(36)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySmsConfig", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("sms_configs")
+}
+
+/// A message the operator will actually deliver: the body must match the DLT registration
+/// character for character apart from the variables.
+model SmsTemplate {
+  id            String      @id @default(uuid()) @db.Uuid
+  companyId     String      @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code          String      @db.VarChar(40)
+  name          String      @db.VarChar(80)
+  category      SmsCategory @default(TRANSACTIONAL)
+  dltTemplateId String?     @map("dlt_template_id") @db.VarChar(30)
+  body          String      @db.VarChar(1000)
+  /// The placeholder names in the order the body uses them.
+  variables     String[]
+  isActive      Boolean     @default(true) @map("is_active")
+  createdBy     String?     @map("created_by") @db.VarChar(36)
+  updatedBy     String?     @map("updated_by") @db.VarChar(36)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySmsTemplate", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("sms_templates")
+}
+
+/// Every send, whatever became of it. An OTP's message body is stored with the code masked.
+model SmsMessage {
+  id                String           @id @default(uuid()) @db.Uuid
+  companyId         String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  toMobile          String           @map("to_mobile") @db.VarChar(15)
+  templateCode      String?          @map("template_code") @db.VarChar(40)
+  dltTemplateId     String?          @map("dlt_template_id") @db.VarChar(30)
+  body              String           @db.VarChar(1000)
+  segments          Int              @default(1)
+  status            SmsMessageStatus @default(QUEUED)
+  providerMessageId String?          @map("provider_message_id") @db.VarChar(120)
+  purpose           String?          @db.VarChar(30)
+  error             String?          @db.VarChar(255)
+  requestId         String?          @map("request_id") @db.VarChar(64)
+  queuedAt          DateTime         @default(now()) @map("queued_at") @db.Timestamptz(6)
+  sentAt            DateTime?        @map("sent_at") @db.Timestamptz(6)
+  deliveredAt       DateTime?        @map("delivered_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySmsMessage", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, toMobile])
+  @@index([companyId, status])
+  @@map("sms_messages")
+}
+
+/// A code somebody has to type back. Only its hash is stored, it expires, and it counts the
+/// attempts against it.
+model OtpChallenge {
+  id           String     @id @default(uuid()) @db.Uuid
+  companyId    String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  purpose      OtpPurpose
+  mobile       String     @db.VarChar(15)
+  codeHash     String     @map("code_hash") @db.VarChar(120)
+  expiresAt    DateTime   @map("expires_at") @db.Timestamptz(6)
+  attempts     Int        @default(0)
+  maxAttempts  Int        @default(5) @map("max_attempts")
+  consumedAt   DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  smsMessageId String?    @map("sms_message_id") @db.Uuid
+  /// Who asked, when there is a session behind the request.
+  requestedBy  String?    @map("requested_by") @db.VarChar(36)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyOtpChallenge", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, mobile, purpose])
+  @@map("otp_challenges")
 }
