@@ -128,6 +128,16 @@ export const sidebarItems: SidebarItem[] = [
             path: "/compliance/eway-bills",
             permission: "eway-bill.view",
           },
+          {
+            title: "GST Returns",
+            path: "/compliance/gst",
+            permission: "gst-returns.view",
+          },
+          {
+            title: "Compliance Calendar",
+            path: "/compliance/calendar",
+            permission: "filings.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

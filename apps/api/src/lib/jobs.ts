@@ -36,6 +36,8 @@ export const QUEUES = {
   EWB_EXPIRY: "gst.eway-bill.expiry",
   /** Daily: warn when IMS records are still undecided and the 14th is close (P1-13c). */
   IMS_DEADLINE: "gst.ims.deadline",
+  /** Daily: warn 7 and 2 days before each statutory due date (P1-13d). */
+  COMPLIANCE_CALENDAR: "gst.compliance.calendar",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

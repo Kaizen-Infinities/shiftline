@@ -10,6 +10,7 @@ import { accountExportHandler } from "./account-export.job";
 import { eInvoiceHandler } from "./e-invoice.job";
 import { ewayBillExpiryHandler } from "./eway-bill.job";
 import { heartbeatHandler } from "./heartbeat.job";
+import { complianceCalendarHandler } from "./compliance.job";
 import { imsDeadlineHandler } from "./ims.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 
@@ -59,6 +60,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.E_INVOICE, work, each(eInvoiceHandler));
   await boss.work(QUEUES.EWB_EXPIRY, work, each(ewayBillExpiryHandler));
   await boss.work(QUEUES.IMS_DEADLINE, work, each(imsDeadlineHandler));
+  await boss.work(QUEUES.COMPLIANCE_CALENDAR, work, each(complianceCalendarHandler));
 };
 
 /**
@@ -76,4 +78,6 @@ export const registerSchedules = async (): Promise<void> => {
   // 08:00 IST daily: the IMS deadline warning is only useful in the run-up to the 14th, and
   // the handler itself decides whether today is inside that window.
   await boss.schedule(QUEUES.IMS_DEADLINE, "0 8 * * *", {}, { tz: IST });
+  // 07:30 IST daily, before the IMS nudge so the calendar's wider view lands first.
+  await boss.schedule(QUEUES.COMPLIANCE_CALENDAR, "30 7 * * *", {}, { tz: IST });
 };

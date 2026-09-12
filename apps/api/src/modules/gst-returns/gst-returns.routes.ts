@@ -11,6 +11,8 @@ import { gstr3bService } from "./gstr3b.service";
 import { itcService } from "./itc.service";
 import { gstr2bService } from "./gstr2b.service";
 import { imsService } from "./ims.service";
+import { gstr9Service } from "./gstr9.service";
+import { complianceService } from "./compliance.service";
 
 /** /api/gst-returns (P1-13): returns computed from the books, per GSTIN and period. */
 const router = Router();
@@ -269,6 +271,63 @@ router.post(
     res.json(
       new ApiResponse("IMS actions pushed", await imsService.push(q.period, q.gstin, actorOf(req)))
     );
+  })
+);
+
+/** GSTR-9 working papers (P1-13d): the twelve months added up the way the annual return asks. */
+const fyQuery = z.object({
+  fy: z.string().regex(/^\d{4}-\d{2}$/, "Financial year must look like 2026-27"),
+  gstin: z.string().trim().toUpperCase().length(15).optional(),
+});
+router.get(
+  "/gstr9",
+  requirePermission("gst-returns.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = fyQuery.parse(req.query);
+    res.json(new ApiResponse("GSTR-9", await gstr9Service.build(q.fy, q.gstin)));
+  })
+);
+router.post(
+  "/gstr9/register",
+  requirePermission("gst-returns.prepare"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = fyQuery.parse(req.body);
+    res.json(
+      new ApiResponse(
+        "GSTR-9 registered for approval",
+        await gstr9Service.register(q.fy, q.gstin, actorOf(req))
+      )
+    );
+  })
+);
+router.post(
+  "/gstr9/filed",
+  requirePermission("gst-returns.file"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const b = fyQuery
+      .extend({ submissionRef: z.string().trim().max(120).optional().nullable() })
+      .parse(req.body);
+    res.json(
+      new ApiResponse(
+        "GSTR-9 marked filed",
+        await gstr9Service.markFiled(b.fy, b.gstin, b.submissionRef ?? null, actorOf(req))
+      )
+    );
+  })
+);
+
+/** The compliance calendar: what is due, when, and how far along it is. */
+router.get(
+  "/calendar",
+  requirePermission("filings.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = z
+      .object({
+        from: z.coerce.date().optional(),
+        to: z.coerce.date().optional(),
+      })
+      .parse(req.query);
+    res.json(new ApiResponse("Compliance calendar", await complianceService.calendar(q)));
   })
 );
 

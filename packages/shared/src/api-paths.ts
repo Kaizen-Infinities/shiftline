@@ -179,6 +179,8 @@ export const API_PATHS = {
     imsRegister: "/gst-returns/ims/register",
     imsPush: "/gst-returns/ims/push",
     gstr3b: "/gst-returns/gstr3b",
+    gstr9: "/gst-returns/gstr9",
+    calendar: "/gst-returns/calendar",
     itc: "/gst-returns/itc",
   },
   status: "/status",

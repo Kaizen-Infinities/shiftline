@@ -99,12 +99,21 @@ export const setOff = (
 };
 
 class Gstr3bService {
-  async build(periodKey: string, gstin?: string | null): Promise<Gstr3bReturn> {
+  /**
+   * `skipItcRebuild` is for a caller that has already rebuilt the ledger across the months it
+   * needs — GSTR-9 builds twelve of these, and a rebuild per month would sweep the lookback
+   * twelve times over for the same answer.
+   */
+  async build(
+    periodKey: string,
+    gstin?: string | null,
+    opts: { skipItcRebuild?: boolean } = {}
+  ): Promise<Gstr3bReturn> {
     const period = monthRange(periodKey);
     const scope = await scopeFor(gstin);
     const warnings: string[] = [];
 
-    await itcService.rebuild(periodKey, scope);
+    if (!opts.skipItcRebuild) await itcService.rebuild(periodKey, scope);
     const [outward, credit] = await Promise.all([
       this.outward(periodKey, scope),
       this.credit(periodKey, scope, warnings),
