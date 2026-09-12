@@ -235,6 +235,9 @@ const MsmePage = lazy(() => import("../modules/accounts/pages/MsmePage"));
 const FixedAssetsPage = lazy(() => import("../modules/accounts/pages/FixedAssetsPage"));
 const ForexPage = lazy(() => import("../modules/accounts/pages/ForexPage"));
 const CostingPage = lazy(() => import("../modules/accounts/pages/CostingPage"));
+const BankReconciliationPage = lazy(
+  () => import("../modules/accounts/pages/BankReconciliationPage")
+);
 const ComplianceCalendarPage = lazy(
   () => import("../modules/compliance/pages/ComplianceCalendarPage")
 );
@@ -604,6 +607,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="costing.view" />}>
                 <Route path="/accounts/costing" element={<CostingPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="banking.view" />}>
+                <Route path="/accounts/bank-reconciliation" element={<BankReconciliationPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="transporters.view" />}>
                 <Route path="/settings/transporters" element={<TransportersPage />} />

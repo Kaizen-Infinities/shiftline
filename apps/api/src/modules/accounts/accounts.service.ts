@@ -78,6 +78,13 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Indirect Income",
   },
   {
+    // P1-20: what the bank takes for its own trouble — returns, transfers, statement charges.
+    code: "BANK-CHG-001",
+    name: "Bank Charges",
+    type: LedgerType.EXPENSE,
+    group: "Indirect Expenses",
+  },
+  {
     // P1-19: closing stock is an asset and its movement is a charge to the profit and loss. The
     // two are separate ledgers because the balance sheet needs the balance and the P&L needs the
     // movement, and posting the balance into the P&L every month would double the stock.

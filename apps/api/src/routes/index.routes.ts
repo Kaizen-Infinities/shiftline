@@ -60,6 +60,7 @@ import msmeRoutes from "../modules/msme/msme.routes";
 import assetRoutes from "../modules/assets/asset.routes";
 import fxRoutes from "../modules/currency/fx.routes";
 import costingRoutes from "../modules/costing/costing.routes";
+import bankingRoutes from "../modules/banking/banking.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
@@ -156,6 +157,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/assets", router: assetRoutes },
   { path: "/fx", router: fxRoutes },
   { path: "/costing", router: costingRoutes },
+  { path: "/banking", router: bankingRoutes },
   { path: "/payroll", router: payrollRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },

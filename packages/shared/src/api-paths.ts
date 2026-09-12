@@ -225,6 +225,14 @@ export const API_PATHS = {
     returns: "/tds/returns",
     form16a: "/tds/form16a",
   },
+  banking: {
+    base: "/banking",
+    statements: "/banking/statements",
+    lines: "/banking/lines",
+    brs: "/banking/brs",
+    cheques: "/banking/cheques",
+    autoMatch: "/banking/auto-match",
+  },
   costing: {
     base: "/costing",
     valuation: "/costing/valuation",

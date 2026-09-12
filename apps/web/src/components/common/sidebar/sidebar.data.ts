@@ -183,6 +183,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/costing",
             permission: "costing.view",
           },
+          {
+            title: "Bank Reconciliation",
+            path: "/accounts/bank-reconciliation",
+            permission: "banking.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

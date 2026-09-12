@@ -77,6 +77,8 @@ export const AUDITED_MODELS = [
   "StockValuationEntry",
   "CostCentre",
   "Budget",
+  "Cheque",
+  "BankStatement",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

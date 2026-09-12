@@ -85,6 +85,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["imports"]),
       // Costing (P1-19): valuation, cost centres and budgets are the accountant’s ground.
       ...keysFor(["costing"]),
+      // Banking (P1-20): the reconciliation and the cheque register are the accountant’s.
+      ...keysFor(["banking"]),
     ],
   },
   {

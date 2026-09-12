@@ -297,9 +297,11 @@ describe("foreign exchange and imports", () => {
   });
 
   it("refuses a restatement when nothing is open in a foreign currency", async () => {
-    const res = await (await api()).post("/api/fx/revaluations/2032-07").set(OWNER.auth).send({});
-    expect([400, 409]).toContain(res.status);
-    if (res.status === 400) expect(res.body.code).toBe("NOTHING_OPEN");
+    // A period before any document in the test database exists, so the answer does not depend on
+    // what another suite happens to have left lying about.
+    const res = await (await api()).post("/api/fx/revaluations/2010-01").set(OWNER.auth).send({});
+    expect(res.status, JSON.stringify(res.body).slice(0, 200)).toBe(400);
+    expect(res.body.code).toBe("NOTHING_OPEN");
   });
 
   it("refuses a user without the permission and hides a foreign tenant's bills of entry", async () => {

@@ -261,6 +261,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "TDS and TCS: sections, deductions, challans, 26Q/27Q and Form 16A",
   },
   {
+    module: "banking",
+    actions: ["view", "manage"],
+    description: "Bank statements, reconciliation and the cheque register",
+  },
+  {
     module: "costing",
     actions: ["view", "manage"],
     description: "Stock valuation, cost centres, budgets and cost sheets",

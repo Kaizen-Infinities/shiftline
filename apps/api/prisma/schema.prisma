@@ -503,6 +503,7 @@ model Customer {
   accountLedger         AccountLedger?
   salesReturns          SalesReturn[]
   advanceReceipts       AdvanceReceipt[]
+  cheques               Cheque[]
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -704,6 +705,9 @@ model Company {
   advanceAdjustments    AdvanceAdjustment[]   @relation("CompanyAdvanceAdjustment")
   gstr2bRecords         Gstr2bRecord[]        @relation("CompanyGstr2bRecord")
   imsActions            ImsAction[]           @relation("CompanyImsAction")
+  bankStatements        BankStatement[]       @relation("CompanyBankStatement")
+  bankStatementLines    BankStatementLine[]   @relation("CompanyBankStatementLine")
+  cheques               Cheque[]              @relation("CompanyCheque")
 
   @@map("companies")
 }
@@ -866,6 +870,7 @@ model Supplier {
   addresses           SupplierAddress[]
   accountLedger       AccountLedger?
   purchaseReturns     PurchaseReturn[]
+  cheques             Cheque[]
 
   company       Company       @relation("CompanySupplier", fields: [companyId], references: [id], onDelete: Restrict)
   fixedAssets   FixedAsset[]
@@ -2760,8 +2765,10 @@ model BankAccount {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  ledger  AccountLedger @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
-  company Company       @relation("CompanyBankAccount", fields: [companyId], references: [id], onDelete: Restrict)
+  ledger     AccountLedger   @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  statements BankStatement[]
+  cheques    Cheque[]
+  company    Company         @relation("CompanyBankAccount", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
   @@map("bank_accounts")
@@ -5022,4 +5029,131 @@ model ProductCostSheet {
   @@unique([companyId, productId, periodKey])
   @@index([companyId, periodKey])
   @@map("product_cost_sheets")
+}
+
+// ── Bank reconciliation and cheques (P1-20) ───────────────────────────────────
+
+enum StatementLineStatus {
+  UNMATCHED
+  MATCHED
+  IGNORED
+}
+
+enum ChequeKind {
+  RECEIVED
+  ISSUED
+}
+
+enum ChequeStatus {
+  IN_HAND
+  DEPOSITED
+  CLEARED
+  BOUNCED
+  CANCELLED
+}
+
+/// One imported bank statement (P1-20).
+model BankStatement {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  bankAccountId  String   @map("bank_account_id") @db.Uuid
+  /// The bank whose layout the file was read as; "GENERIC" when a mapping was supplied.
+  format         String   @db.VarChar(20)
+  fileName       String?  @map("file_name") @db.VarChar(160)
+  fromDate       DateTime @map("from_date") @db.Date
+  toDate         DateTime @map("to_date") @db.Date
+  openingBalance Decimal  @default(0) @map("opening_balance") @db.Decimal(14, 2)
+  closingBalance Decimal  @default(0) @map("closing_balance") @db.Decimal(14, 2)
+  rowCount       Int      @default(0) @map("row_count")
+  /// Rows the file had that were already on file from an earlier import.
+  duplicateCount Int      @default(0) @map("duplicate_count")
+  importedBy     String?  @map("imported_by") @db.VarChar(36)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  bankAccount BankAccount         @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  lines       BankStatementLine[]
+  company     Company             @relation("CompanyBankStatement", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, bankAccountId, fromDate])
+  @@map("bank_statements")
+}
+
+/// One line of a statement, and what it was matched to (P1-20).
+model BankStatementLine {
+  id               String              @id @default(uuid()) @db.Uuid
+  companyId        String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  statementId      String              @map("statement_id") @db.Uuid
+  bankAccountId    String              @map("bank_account_id") @db.Uuid
+  txnDate          DateTime            @map("txn_date") @db.Date
+  valueDate        DateTime?           @map("value_date") @db.Date
+  description      String              @db.VarChar(400)
+  refNo            String?             @map("ref_no") @db.VarChar(60)
+  /// Money out of the account and money in; a bank gives one or the other, never both.
+  debit            Decimal             @default(0) @db.Decimal(14, 2)
+  credit           Decimal             @default(0) @db.Decimal(14, 2)
+  runningBalance   Decimal?            @map("running_balance") @db.Decimal(14, 2)
+  /// The reference with the noise taken out, which is what matching compares.
+  normalisedRef    String?             @map("normalised_ref") @db.VarChar(60)
+  /// Date, amount and reference hashed: re-importing an overlapping statement finds this and
+  /// skips the row rather than doubling the bank.
+  dedupeHash       String              @map("dedupe_hash") @db.VarChar(64)
+  status           StatementLineStatus @default(UNMATCHED)
+  matchedVoucherId Int?                @map("matched_voucher_id")
+  /// How sure the automatic match was, 0 to 100; a person's match is always 100.
+  matchConfidence  Int?                @map("match_confidence")
+  matchedBy        String?             @map("matched_by") @db.VarChar(36)
+  matchedAt        DateTime?           @map("matched_at") @db.Timestamptz(6)
+  notes            String?             @db.VarChar(255)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  statement BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  company   Company       @relation("CompanyBankStatementLine", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, bankAccountId, dedupeHash])
+  @@index([companyId, bankAccountId, txnDate])
+  @@index([companyId, status])
+  @@map("bank_statement_lines")
+}
+
+/// A cheque received or issued, post-dated or not (P1-20).
+///
+/// In Indian trade a post-dated cheque is the normal instrument: a receivable that becomes money
+/// on a date. It is not cash until it clears, which is why it has a status rather than a flag.
+model Cheque {
+  id                String       @id @default(uuid()) @db.Uuid
+  companyId         String       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  kind              ChequeKind
+  chequeNo          String       @map("cheque_no") @db.VarChar(20)
+  /// The date written on it; a later one is what makes it post-dated.
+  chequeDate        DateTime     @map("cheque_date") @db.Date
+  bankName          String?      @map("bank_name") @db.VarChar(120)
+  partyName         String?      @map("party_name") @db.VarChar(160)
+  customerId        String?      @map("customer_id") @db.Uuid
+  supplierId        Int?         @map("supplier_id")
+  amount            Decimal      @default(0) @db.Decimal(14, 2)
+  status            ChequeStatus @default(IN_HAND)
+  /// The account it went into or is drawn on.
+  bankAccountId     String?      @map("bank_account_id") @db.Uuid
+  depositedOn       DateTime?    @map("deposited_on") @db.Date
+  clearedOn         DateTime?    @map("cleared_on") @db.Date
+  bouncedOn         DateTime?    @map("bounced_on") @db.Date
+  bounceCharges     Decimal      @default(0) @map("bounce_charges") @db.Decimal(14, 2)
+  bounceReason      String?      @map("bounce_reason") @db.VarChar(160)
+  refDocType        String?      @map("ref_doc_type") @db.VarChar(30)
+  refDocId          String?      @map("ref_doc_id") @db.VarChar(40)
+  voucherId         Int?         @map("voucher_id")
+  reversalVoucherId Int?         @map("reversal_voucher_id")
+  notes             String?      @db.VarChar(255)
+  createdBy         String?      @map("created_by") @db.VarChar(36)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+  customer    Customer?    @relation(fields: [customerId], references: [id])
+  supplier    Supplier?    @relation(fields: [supplierId], references: [id])
+  company     Company      @relation("CompanyCheque", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, kind, chequeNo, chequeDate])
+  @@index([companyId, status, chequeDate])
+  @@map("cheques")
 }
