@@ -12,7 +12,12 @@ import { runAsTenant } from "../../src/lib/tenant-context";
  * to surface a difference (6(J), 8(D)) actually do.
  */
 const SELLER = "33AAAAA0000A1Z9";
-const FY = "2019-20"; // a year of its own: 2023-24 and 2024-25 belong to the year-end suite
+/**
+ * A year of this suite's own, and a *later* one. 2023-24 and 2024-25 belong to the year-end
+ * suite, and its trial-balance assertions are cumulative "as on 31 March 2025" — so documents
+ * dated before that, in any year, land in a balance it expects to be zero.
+ */
+const FY = "2027-28";
 const sfx = Date.now().toString(36);
 const n = (v: unknown) => Number(v);
 
@@ -59,10 +64,10 @@ describe("GSTR-9 and the compliance calendar", () => {
     const overseas = await createCustomer({ gstin: null, gstRegType: "OVERSEAS", stateCode: null });
 
     // FY 2024-25 runs April 2024 to March 2025.
-    await sale(b2b.id, 10000, 18, "2019-05-10"); // B2B, table 4(B)
-    await sale(walkIn.id, 4000, 18, "2019-05-12"); // B2C, table 4(A)
-    await sale(overseas.id, 25000, 0, "2019-06-08"); // export under LUT, table 5(A)
-    await sale(walkIn.id, 3000, 0, "2019-06-09"); // nil rated, table 5(E)
+    await sale(b2b.id, 10000, 18, "2027-05-10"); // B2B, table 4(B)
+    await sale(walkIn.id, 4000, 18, "2027-05-12"); // B2C, table 4(A)
+    await sale(overseas.id, 25000, 0, "2027-06-08"); // export under LUT, table 5(A)
+    await sale(walkIn.id, 3000, 0, "2027-06-09"); // nil rated, table 5(E)
 
     const res = await client
       .get("/api/gst-returns/gstr9")
@@ -73,8 +78,8 @@ describe("GSTR-9 and the compliance calendar", () => {
 
     expect(ret).toMatchObject({ gstin: SELLER, fyKey: FY });
     expect(ret.months).toHaveLength(12);
-    expect(ret.months[0]).toBe("2019-04"); // the year starts in April
-    expect(ret.months[11]).toBe("2020-03");
+    expect(ret.months[0]).toBe("2027-04"); // the year starts in April
+    expect(ret.months[11]).toBe("2028-03");
 
     // Table 4: the taxed supplies, split by whether the buyer is registered.
     expect(n(ret.table4.b2b.taxable)).toBe(10000);
@@ -98,9 +103,9 @@ describe("GSTR-9 and the compliance calendar", () => {
     expect(n(hsn.taxable)).toBe(14000);
 
     // The monthly trace is what lets an accountant defend a figure.
-    const may = ret.monthly.find((m: { periodKey: string }) => m.periodKey === "2019-05");
+    const may = ret.monthly.find((m: { periodKey: string }) => m.periodKey === "2027-05");
     expect(n(may.outputTax.taxable)).toBe(14000);
-    const june = ret.monthly.find((m: { periodKey: string }) => m.periodKey === "2019-06");
+    const june = ret.monthly.find((m: { periodKey: string }) => m.periodKey === "2027-06");
     expect(n(june.outputTax.taxable)).toBe(25000); // the export; the nil-rated sale is 3.1(c)
 
     expect(ret.payloadHash).toMatch(/^[0-9a-f]{64}$/);

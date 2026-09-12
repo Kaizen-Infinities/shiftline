@@ -63,6 +63,8 @@ export const FEATURES: readonly FeatureDef[] = [
       "pending-quotations",
       "sales-invoices",
       "sales-returns",
+      "advances",
+      "currencies",
       "goods-dispatch",
       "sales-reports",
       "gst_tax",

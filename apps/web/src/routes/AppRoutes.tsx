@@ -226,6 +226,8 @@ const FilingApprovalsPage = lazy(() => import("../modules/compliance/pages/Filin
 const EInvoicesPage = lazy(() => import("../modules/compliance/pages/EInvoicesPage"));
 const EwayBillsPage = lazy(() => import("../modules/compliance/pages/EwayBillsPage"));
 const GstReturnsPage = lazy(() => import("../modules/compliance/pages/GstReturnsPage"));
+const AdvancesPage = lazy(() => import("../modules/sales/advances/AdvancesPage"));
+const CurrenciesPage = lazy(() => import("../modules/settings/pages/CurrenciesPage"));
 const ComplianceCalendarPage = lazy(
   () => import("../modules/compliance/pages/ComplianceCalendarPage")
 );
@@ -565,6 +567,12 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="gst-returns.view" />}>
                 <Route path="/compliance/gst" element={<GstReturnsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="advances.view" />}>
+                <Route path="/sales/advances" element={<AdvancesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="currencies.view" />}>
+                <Route path="/settings/currencies" element={<CurrenciesPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="filings.view" />}>
                 <Route path="/compliance/calendar" element={<ComplianceCalendarPage />} />

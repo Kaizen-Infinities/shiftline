@@ -106,6 +106,11 @@ describe("year-end closing", () => {
     expect(approved.body.data.closingVoucher.voucherNo).toMatch(/^JV\/2023-24\//);
   });
 
+  /**
+   * Note for other suites: the trial-balance assertions below are *cumulative* balances as on
+   * 31 March 2025, not figures for the year. A document dated before that date in any other
+   * suite lands in a balance this test expects to be zero. Date test documents after it.
+   */
   it("closes FY 2024-25: result to Retained Earnings, periods closed, next year opened, books frozen", async () => {
     const owner = await authed("demo.owner");
     const client = await api();

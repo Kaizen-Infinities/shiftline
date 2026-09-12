@@ -134,6 +134,16 @@ export const sidebarItems: SidebarItem[] = [
             permission: "gst-returns.view",
           },
           {
+            title: "Advances Received",
+            path: "/sales/advances",
+            permission: "advances.view",
+          },
+          {
+            title: "Currencies & Rates",
+            path: "/settings/currencies",
+            permission: "currencies.view",
+          },
+          {
             title: "Compliance Calendar",
             path: "/compliance/calendar",
             permission: "filings.view",

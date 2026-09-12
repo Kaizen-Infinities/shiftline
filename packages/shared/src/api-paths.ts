@@ -208,6 +208,14 @@ export const API_PATHS = {
   salesInvoice: {
     base: "/sales-invoices",
   },
+  advances: {
+    base: "/advances",
+    open: "/advances/open",
+  },
+  currencies: {
+    base: "/currencies",
+    rates: "/currencies/rates",
+  },
   goodsDispatch: {
     base: "/goods-dispatches",
     nextNumber: "/goods-dispatches/next-number",

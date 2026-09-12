@@ -240,6 +240,16 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Sales Returns",
   },
+  {
+    module: "advances",
+    actions: ["view", "create", "refund", "export"],
+    description: "Advances received (receipt vouchers, adjustment, refund)",
+  },
+  {
+    module: "currencies",
+    actions: ["view", "edit"],
+    description: "Currency master and exchange rates",
+  },
 
   // ── Production ──────────────────────────────────────────────────────
   {

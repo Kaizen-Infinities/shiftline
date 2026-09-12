@@ -23,6 +23,8 @@ export const AUDITED_MODELS = [
   "ItcEntry",
   "Gstr2bRecord",
   "ImsAction",
+  "AdvanceReceipt",
+  "AdvanceAdjustment",
   // documents
   "SalesInvoice",
   "SalesInvoiceItem",
@@ -57,6 +59,8 @@ export const AUDITED_MODELS = [
   "FeatureFlagOverride",
   "HsnCode",
   "GstRate",
+  "Currency",
+  "ExchangeRate",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

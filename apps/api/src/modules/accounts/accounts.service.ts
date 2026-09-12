@@ -44,6 +44,14 @@ const DEFAULT_SEED_LEDGERS = [
   },
   { code: "PCASH-001", name: "Petty Cash Account", type: LedgerType.ASSET, group: "Cash in Hand" },
   {
+    // P1-14: money taken before the invoice is owed to the customer until it is earned, so it
+    // is a liability, not a credit on their receivable account.
+    code: "ADV-CUST-001",
+    name: "Advances from Customers",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
     code: "SRT-001",
     name: "Sales Return Account",
     type: LedgerType.INCOME,

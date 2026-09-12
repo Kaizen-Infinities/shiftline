@@ -502,6 +502,7 @@ model Customer {
   salesOrdersAsReferral SalesOrder[]        @relation("SalesOrderReferredBy")
   accountLedger         AccountLedger?
   salesReturns          SalesReturn[]
+  advanceReceipts       AdvanceReceipt[]
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -675,6 +676,10 @@ model Company {
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
   itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
 
+  currencies         Currency[]          @relation("CompanyCurrency")
+  exchangeRates      ExchangeRate[]      @relation("CompanyExchangeRate")
+  advanceReceipts    AdvanceReceipt[]    @relation("CompanyAdvanceReceipt")
+  advanceAdjustments AdvanceAdjustment[] @relation("CompanyAdvanceAdjustment")
   gstr2bRecords Gstr2bRecord[] @relation("CompanyGstr2bRecord")
   imsActions    ImsAction[]   @relation("CompanyImsAction")
 
@@ -742,6 +747,7 @@ model BusinessPlace {
   goodsDispatches  GoodsDispatch[]   @relation("GoodsDispatchBusinessPlace")
   expenses         Expense[]         @relation("ExpenseBusinessPlace")
   pettyCashEntries PettyCashEntry[]  @relation("PettyCashBusinessPlace")
+  advanceReceipts  AdvanceReceipt[]  @relation("AdvanceReceiptBusinessPlace")
 
   company Company @relation("CompanyBusinessPlace", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2135,12 +2141,24 @@ model SalesInvoice {
   customerGstin        String?               @map("customer_gstin") @db.VarChar(15)
   reverseCharge        Boolean               @default(false) @map("reverse_charge")
   cessTotal            Decimal               @default(0) @map("cess_total") @db.Decimal(14, 2)
+  /// Exports and SEZ supplies (P1-14): whether tax was charged, and the shipping bill that
+  /// proves the goods left, which GSTR-1's EXP table carries.
+  exportType           ExportType?           @map("export_type")
+  lutNumber            String?               @map("lut_number") @db.VarChar(30)
+  shippingBillNo       String?               @map("shipping_bill_no") @db.VarChar(20)
+  shippingBillDate     DateTime?             @map("shipping_bill_date") @db.Date
+  portCode             String?               @map("port_code") @db.VarChar(10)
+  /// A foreign-currency document keeps both: the books are in INR at the rate it posted at.
+  currencyCode         String                @default("INR") @map("currency_code") @db.VarChar(3)
+  exchangeRate         Decimal               @default(1) @map("exchange_rate") @db.Decimal(14, 6)
+  foreignTotal         Decimal?              @map("foreign_total") @db.Decimal(14, 2)
   items                SalesInvoiceItem[]
   paymentRecords       SalesInvoicePayment[]
   customer             Customer              @relation(fields: [customerId], references: [id])
   salesOrder           SalesOrder?           @relation(fields: [salesOrderId], references: [id])
   store                Store?                @relation(fields: [companyId, storeId], references: [companyId, storeId])
   salesReturns         SalesReturn[]
+  advanceAdjustments   AdvanceAdjustment[]
   businessPlace        BusinessPlace?        @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
   /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
   cancelledAt          DateTime?             @map("cancelled_at") @db.Timestamptz(6)
@@ -4002,4 +4020,144 @@ model ImsAction {
 
   @@index([companyId, status])
   @@map("ims_actions")
+}
+
+/// How an export or SEZ supply was made: under a bond/LUT with no tax, or on payment of IGST.
+enum ExportType {
+  UNDER_LUT
+  WITH_TAX
+}
+
+/// Where a daily exchange rate came from.
+enum RateSource {
+  MANUAL
+  RBI
+  IMPORT
+}
+
+/// A currency the company transacts in. INR is seeded for every tenant and cannot be retired:
+/// the books are kept in it, and every foreign document converts to it before it posts.
+model Currency {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// ISO 4217, e.g. USD.
+  code         String   @db.VarChar(3)
+  name         String   @db.VarChar(60)
+  symbol       String?  @db.VarChar(6)
+  /// Minor units: 2 for most, 0 for JPY.
+  decimals     Int      @default(2)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rates ExchangeRate[]
+
+  company Company @relation("CompanyCurrency", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("currencies")
+}
+
+/// One currency's rate against INR for one day. Rates are never edited in place once a document
+/// has used one: a correction is a new row for the day, and the document keeps the rate it was
+/// posted at, because that is what the books are in.
+model ExchangeRate {
+  id           String     @id @default(uuid()) @db.Uuid
+  companyId    String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  currencyCode String     @map("currency_code") @db.VarChar(3)
+  rateDate     DateTime   @map("rate_date") @db.Date
+  /// Rupees for one unit of the currency.
+  rate         Decimal    @db.Decimal(14, 6)
+  source       RateSource @default(MANUAL)
+  createdBy    String?    @map("created_by") @db.VarChar(36)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  currency Currency @relation(fields: [companyId, currencyCode], references: [companyId, code])
+
+  company Company @relation("CompanyExchangeRate", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, currencyCode, rateDate])
+  @@index([companyId, currencyCode, rateDate])
+  @@map("exchange_rates")
+}
+
+/// Money taken before the invoice exists. GST is payable on an advance for a service when it is
+/// received, so the receipt carries its own tax and its own document number, and the tax is
+/// adjusted — not charged again — when the invoice finally goes out. Audited.
+model AdvanceReceipt {
+  id              String     @id @default(uuid()) @db.Uuid
+  companyId       String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  receiptNo       String     @map("receipt_no") @db.VarChar(30)
+  receiptDate     DateTime   @map("receipt_date") @db.Date
+  customerId      String     @map("customer_id") @db.Uuid
+  businessPlaceId BigInt?    @map("business_place_id")
+  /// The gross amount received, tax included.
+  amount          Decimal    @db.Decimal(14, 2)
+  /// The value the tax was worked out on: amount less the tax in it.
+  taxable         Decimal    @default(0) @db.Decimal(14, 2)
+  gstRate         Decimal    @default(0) @map("gst_rate") @db.Decimal(5, 2)
+  igst            Decimal    @default(0) @db.Decimal(14, 2)
+  cgst            Decimal    @default(0) @db.Decimal(14, 2)
+  sgst            Decimal    @default(0) @db.Decimal(14, 2)
+  cess            Decimal    @default(0) @db.Decimal(14, 2)
+  placeOfSupply   String?    @map("place_of_supply") @db.VarChar(2)
+  supplyType      SupplyType @default(INTRA_STATE) @map("supply_type")
+  customerGstin   String?    @map("customer_gstin") @db.VarChar(15)
+  paymentMethod   String     @default("Bank") @map("payment_method") @db.VarChar(50)
+  referenceNumber String?    @map("reference_number") @db.VarChar(100)
+  narration       String?    @db.VarChar(500)
+  /// How much of the advance has been used up by invoices or refunded.
+  adjustedAmount  Decimal    @default(0) @map("adjusted_amount") @db.Decimal(14, 2)
+  refundedAmount  Decimal    @default(0) @map("refunded_amount") @db.Decimal(14, 2)
+  /// OPEN | PART_ADJUSTED | CLOSED
+  status          String     @default("OPEN") @db.VarChar(20)
+  createdBy       String?    @map("created_by") @db.VarChar(36)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt     DateTime?  @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?    @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?    @map("cancel_reason") @db.VarChar(255)
+
+  customer      Customer            @relation(fields: [customerId], references: [id])
+  businessPlace BusinessPlace?      @relation("AdvanceReceiptBusinessPlace", fields: [businessPlaceId], references: [id])
+  adjustments   AdvanceAdjustment[]
+
+  company Company @relation("CompanyAdvanceReceipt", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, receiptNo])
+  @@index([companyId, customerId, status])
+  @@map("advance_receipts")
+}
+
+/// One advance applied against one invoice, or refunded. The tax already paid on the advance
+/// comes off the invoice's liability, which is what GSTR-1 table 11B reports. Audited.
+model AdvanceAdjustment {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  advanceId      String   @map("advance_id") @db.Uuid
+  /// Null for a refund: the advance is given back rather than used.
+  salesInvoiceId String?  @map("sales_invoice_id") @db.Uuid
+  /// ADJUSTED | REFUNDED
+  kind           String   @default("ADJUSTED") @db.VarChar(10)
+  amount         Decimal  @db.Decimal(14, 2)
+  taxable        Decimal  @default(0) @db.Decimal(14, 2)
+  igst           Decimal  @default(0) @db.Decimal(14, 2)
+  cgst           Decimal  @default(0) @db.Decimal(14, 2)
+  sgst           Decimal  @default(0) @db.Decimal(14, 2)
+  /// The refund voucher's own number, when this is a refund.
+  refundVoucherNo String? @map("refund_voucher_no") @db.VarChar(30)
+  adjustedOn     DateTime @map("adjusted_on") @db.Date
+  createdBy      String?  @map("created_by") @db.VarChar(36)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  advance      AdvanceReceipt @relation(fields: [advanceId], references: [id], onDelete: Cascade)
+  salesInvoice SalesInvoice?  @relation(fields: [salesInvoiceId], references: [id])
+
+  company Company @relation("CompanyAdvanceAdjustment", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, advanceId])
+  @@index([salesInvoiceId])
+  @@map("advance_adjustments")
 }

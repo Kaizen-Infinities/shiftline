@@ -19,6 +19,7 @@ import {
 } from "../gst/gst.context";
 import { stateNameToCode } from "../imports/imports.types";
 import { periodService } from "../accounts/period.service";
+import { BASE_CURRENCY, currencyService } from "../currency/currency.service";
 import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
 
@@ -28,6 +29,14 @@ type SaleHeaderInput = {
   placeOfSupply?: string | null;
   reverseCharge?: boolean | null;
   shippingAddress?: { state?: string | null } | null;
+};
+type SaleCurrencyInput = { currencyCode?: string | null; exchangeRate?: number | null };
+type SaleExportInput = {
+  exportType?: "UNDER_LUT" | "WITH_TAX" | null;
+  lutNumber?: string | null;
+  shippingBillNo?: string | null;
+  shippingBillDate?: string | null;
+  portCode?: string | null;
 };
 type SaleCustomer = {
   gstRegType: string;
@@ -185,7 +194,29 @@ class SalesInvoiceService {
       ])
     );
 
-    const lines = await computeSaleLines(prisma, data.items, gst);
+    // Foreign currency (P1-14). The line rates arrive in the document's currency; converting
+    // them here means every figure computed below — line and header — is already in rupees, and
+    // nothing downstream (vouchers, GSTR-1, ageing) has to know a document was ever foreign.
+    // The rate is frozen onto the document: a rate corrected next week must not restate this
+    // month's books.
+    const currencyCode = String(
+      (data as SaleCurrencyInput).currencyCode ?? BASE_CURRENCY
+    ).toUpperCase();
+    const exchangeRate =
+      currencyCode === BASE_CURRENCY
+        ? 1
+        : ((data as SaleCurrencyInput).exchangeRate ??
+          (await currencyService.rateFor(currencyCode, new Date(data.invoiceDate))));
+    const itemsInInr =
+      exchangeRate === 1
+        ? data.items
+        : data.items.map((i) => ({
+            ...i,
+            rate: Number(i.rate) * exchangeRate,
+            discountAmount: Number(i.discountAmount ?? 0) * exchangeRate,
+          }));
+
+    const lines = await computeSaleLines(prisma, itemsInInr, gst);
     const invoiceItems = lines.items.map((line) => ({
       ...line,
       description: spNameMap.get(String(line.productId)) || null,
@@ -244,6 +275,20 @@ class SalesInvoiceService {
     const grandTotal =
       taxableAmount + taxTotal + cessTotal + chargeAdditions - chargeDeductions + billSundryTotal;
 
+    const exportHeader = {
+      exportType: (data as SaleExportInput).exportType ?? null,
+      lutNumber: (data as SaleExportInput).lutNumber ?? null,
+      shippingBillNo: (data as SaleExportInput).shippingBillNo ?? null,
+      shippingBillDate: (data as SaleExportInput).shippingBillDate
+        ? new Date((data as SaleExportInput).shippingBillDate as string)
+        : null,
+      portCode: (data as SaleExportInput).portCode ?? null,
+      currencyCode,
+      exchangeRate,
+      /** What the customer is billed in their own currency; every other column is rupees. */
+      foreignTotal: exchangeRate === 1 ? null : Math.round((grandTotal / exchangeRate) * 100) / 100,
+    };
+
     const computedStatus = "CONFIRMED";
 
     const invoice = await prisma.$transaction(
@@ -298,6 +343,7 @@ class SalesInvoiceService {
             shippingState: (data as any).shippingAddress?.state || null,
             shippingPincode: (data as any).shippingAddress?.pincode || null,
             salesOrderId: data.salesOrderId || null,
+            ...exportHeader,
             ...gstHeader(gst, customer.gstin ?? null, cessTotal),
             subTotal,
             discountType: d.discountType || null,
@@ -890,8 +936,6 @@ class SalesInvoiceService {
           updChargeDeductions +
           updBillSundryTotal;
 
-        const computedStatus = "CONFIRMED";
-
         // 6. Delete old invoice items and update record
         await tx.salesInvoiceItem.deleteMany({ where: { salesInvoiceId: id } });
 
@@ -924,7 +968,9 @@ class SalesInvoiceService {
             totalDiscount: updTotalDiscount,
             taxTotal,
             grandTotal,
-            status: computedStatus,
+            // An edit leaves the export details and the currency alone: the rate a document
+            // posted at is part of its history, not something a later edit restates.
+            status: "CONFIRMED",
             payments: [] as any,
             items: { create: invoiceItems },
           },

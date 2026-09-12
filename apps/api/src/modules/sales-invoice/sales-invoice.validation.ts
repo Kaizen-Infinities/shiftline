@@ -56,6 +56,15 @@ export const CreateSalesInvoiceSchema = z.object({
       .optional()
   ),
   reverseCharge: z.preprocess((val) => val === true || val === "true", z.boolean().optional()),
+  /** Exports and SEZ supplies (P1-14): under a bond, or on payment of IGST. */
+  exportType: z.preprocess(blankToUndefined, z.enum(["UNDER_LUT", "WITH_TAX"]).optional()),
+  lutNumber: z.preprocess(blankToUndefined, z.string().max(30).optional()),
+  shippingBillNo: z.preprocess(blankToUndefined, z.string().max(20).optional()),
+  shippingBillDate: z.preprocess(blankToUndefined, z.string().optional()),
+  portCode: z.preprocess(blankToUndefined, z.string().max(10).optional()),
+  /** A foreign-currency invoice: line rates are in this currency and convert to rupees. */
+  currencyCode: z.preprocess(blankToUndefined, z.string().length(3).toUpperCase().optional()),
+  exchangeRate: z.preprocess(blankToUndefined, z.coerce.number().positive().optional()),
   notes: z.string().optional().nullable(),
   storeId: z.string().optional().nullable(),
   salesOrderId: z.preprocess(

@@ -49,6 +49,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "petty-cash",
         "chart-of-accounts",
         "sales-invoices",
+        "advances",
+        "currencies",
         "purchase-orders",
         "sales-returns",
         "purchase-returns",
