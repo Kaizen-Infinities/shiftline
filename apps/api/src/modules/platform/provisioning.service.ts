@@ -51,6 +51,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "sales-invoices",
         "advances",
         "currencies",
+        "job-work",
         "purchase-orders",
         "sales-returns",
         "purchase-returns",
@@ -94,6 +95,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
       "uoms",
       "eway-bill",
       "transporters",
+      "job-work",
     ]),
   },
   {

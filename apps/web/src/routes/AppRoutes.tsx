@@ -228,6 +228,7 @@ const EwayBillsPage = lazy(() => import("../modules/compliance/pages/EwayBillsPa
 const GstReturnsPage = lazy(() => import("../modules/compliance/pages/GstReturnsPage"));
 const AdvancesPage = lazy(() => import("../modules/sales/advances/AdvancesPage"));
 const CurrenciesPage = lazy(() => import("../modules/settings/pages/CurrenciesPage"));
+const JobWorkPage = lazy(() => import("../modules/production/jobwork/JobWorkPage"));
 const ComplianceCalendarPage = lazy(
   () => import("../modules/compliance/pages/ComplianceCalendarPage")
 );
@@ -573,6 +574,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="currencies.view" />}>
                 <Route path="/settings/currencies" element={<CurrenciesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="job-work.view" />}>
+                <Route path="/production/job-work" element={<JobWorkPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="filings.view" />}>
                 <Route path="/compliance/calendar" element={<ComplianceCalendarPage />} />

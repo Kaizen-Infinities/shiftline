@@ -40,6 +40,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/compliance/calendar", marker: /Compliance Calendar/ },
   { path: "/sales/advances", marker: /Advances Received/ },
   { path: "/settings/currencies", marker: /Currencies and Rates/ },
+  { path: "/production/job-work", marker: /Job Work/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 

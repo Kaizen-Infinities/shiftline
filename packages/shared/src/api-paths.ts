@@ -216,6 +216,13 @@ export const API_PATHS = {
     base: "/currencies",
     rates: "/currencies/rates",
   },
+  jobWork: {
+    base: "/job-work",
+    workers: "/job-work/workers",
+    challans: "/job-work/challans",
+    register: "/job-work/register",
+    itc04: "/job-work/itc04",
+  },
   goodsDispatch: {
     base: "/goods-dispatches",
     nextNumber: "/goods-dispatches/next-number",

@@ -144,6 +144,11 @@ export const sidebarItems: SidebarItem[] = [
             permission: "currencies.view",
           },
           {
+            title: "Job Work",
+            path: "/production/job-work",
+            permission: "job-work.view",
+          },
+          {
             title: "Compliance Calendar",
             path: "/compliance/calendar",
             permission: "filings.view",

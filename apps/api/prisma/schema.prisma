@@ -676,6 +676,9 @@ model Company {
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
   itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
 
+  jobWorkers           JobWorker[]           @relation("CompanyJobWorker")
+  deliveryChallans     DeliveryChallan[]     @relation("CompanyDeliveryChallan")
+  deliveryChallanItems DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
   currencies         Currency[]          @relation("CompanyCurrency")
   exchangeRates      ExchangeRate[]      @relation("CompanyExchangeRate")
   advanceReceipts    AdvanceReceipt[]    @relation("CompanyAdvanceReceipt")
@@ -748,6 +751,7 @@ model BusinessPlace {
   expenses         Expense[]         @relation("ExpenseBusinessPlace")
   pettyCashEntries PettyCashEntry[]  @relation("PettyCashBusinessPlace")
   advanceReceipts  AdvanceReceipt[]  @relation("AdvanceReceiptBusinessPlace")
+  deliveryChallans DeliveryChallan[] @relation("ChallanBusinessPlace")
 
   company Company @relation("CompanyBusinessPlace", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -937,6 +941,7 @@ model Product {
   shiftRecords              ProductShiftRecord[]
   capacityHistories         ProductCapacityHistory[]
   usedInSalesProducts       SalesProductComponent[]
+  deliveryChallanItems      DeliveryChallanItem[]
 
   company Company @relation("CompanyProduct", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1215,6 +1220,7 @@ model RawMaterial {
   purchaseReturnItems     PurchaseReturnItem[]
   store                   Store?                   @relation("StoreToRawMaterial", fields: [companyId, storeId], references: [companyId, storeId])
   StockAdjustmentItem     StockAdjustmentItem[]
+  deliveryChallanItems    DeliveryChallanItem[]
   category                Category?                @relation(fields: [categoryId], references: [id])
 
   company Company @relation("CompanyRawMaterial", fields: [companyId], references: [id], onDelete: Restrict)
@@ -4160,4 +4166,149 @@ model AdvanceAdjustment {
   @@index([companyId, advanceId])
   @@index([salesInvoiceId])
   @@map("advance_adjustments")
+}
+
+/// Why goods are moving when they are not being sold (P1-14).
+enum ChallanKind {
+  /// Sent to a job worker for processing.
+  JOB_WORK_OUT
+  /// Coming back from a job worker, against an out challan.
+  JOB_WORK_RETURN
+  /// Between the company's own registered places.
+  BRANCH_TRANSFER
+  /// To an exhibition or a trade fair.
+  EXHIBITION
+  /// Out on a van for line sales; what is not sold comes back.
+  LINE_SALES
+  OTHER
+}
+
+enum ChallanStatus {
+  OPEN
+  PART_RETURNED
+  CLOSED
+  CANCELLED
+}
+
+/// Someone who processes the company's goods and sends them back. Registered or not: an
+/// unregistered job worker is common and changes who accounts for the movement, so the GSTIN
+/// is optional and its absence is meaningful.
+model JobWorker {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code          String   @db.VarChar(20)
+  name          String   @db.VarChar(160)
+  gstin         String?  @db.VarChar(15)
+  stateCode     String?  @map("state_code") @db.VarChar(2)
+  addressLine1  String?  @map("address_line1") @db.VarChar(255)
+  city          String?  @db.VarChar(100)
+  pincode       String?  @db.VarChar(10)
+  contactPerson String?  @map("contact_person") @db.VarChar(120)
+  phone         String?  @db.VarChar(20)
+  email         String?  @db.VarChar(120)
+  /// What they do, for the register.
+  processType   String?  @map("process_type") @db.VarChar(80)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdBy     String?  @map("created_by") @db.VarChar(36)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  challans DeliveryChallan[]
+
+  company Company @relation("CompanyJobWorker", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("job_workers")
+}
+
+/// Goods leaving without a sale. The credit taken on inputs sent for job work is only safe while
+/// they come back within a year — three years for capital goods — so the clock starts here and
+/// the balance on the challan is what it is measured against. Audited.
+model DeliveryChallan {
+  id              String        @id @default(uuid()) @db.Uuid
+  companyId       String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  challanNo       String        @map("challan_no") @db.VarChar(30)
+  challanDate     DateTime      @map("challan_date") @db.Date
+  kind            ChallanKind
+  status          ChallanStatus @default(OPEN)
+  jobWorkerId     String?       @map("job_worker_id") @db.Uuid
+  /// The challan this one returns goods against (a JOB_WORK_RETURN).
+  parentChallanId String?       @map("parent_challan_id") @db.Uuid
+  businessPlaceId BigInt?       @map("business_place_id")
+  /// Where the goods left from, and where a branch transfer is going.
+  storeId         String?       @map("store_id") @db.VarChar(20)
+  toBusinessPlaceId BigInt?     @map("to_business_place_id")
+  placeOfSupply   String?       @map("place_of_supply") @db.VarChar(2)
+  supplyType      SupplyType    @default(INTRA_STATE) @map("supply_type")
+  purpose         String?       @db.VarChar(255)
+  /// Capital goods get three years to come back instead of one.
+  capitalGoods    Boolean       @default(false) @map("capital_goods")
+  /// Day the goods have to be back by; the rule that set it travels with it.
+  returnDueDate   DateTime?     @map("return_due_date") @db.Date
+  /// The notional value the movement is worth, for the e-way bill.
+  taxable         Decimal       @default(0) @db.Decimal(14, 2)
+  igst            Decimal       @default(0) @db.Decimal(14, 2)
+  cgst            Decimal       @default(0) @db.Decimal(14, 2)
+  sgst            Decimal       @default(0) @db.Decimal(14, 2)
+  totalValue      Decimal       @default(0) @map("total_value") @db.Decimal(14, 2)
+  transporterName String?       @map("transporter_name") @db.VarChar(120)
+  vehicleNumber   String?       @map("vehicle_number") @db.VarChar(20)
+  remarks         String?       @db.VarChar(500)
+  /// Set once every line is accounted for, by return, consumption or scrap.
+  closedAt        DateTime?     @map("closed_at") @db.Timestamptz(6)
+  createdBy       String?       @map("created_by") @db.VarChar(36)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Cancelled documents stay on file (MCA Rule 3(1)).
+  cancelledAt     DateTime?     @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?       @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?       @map("cancel_reason") @db.VarChar(255)
+
+  jobWorker     JobWorker?            @relation(fields: [jobWorkerId], references: [id])
+  parentChallan DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
+  returns       DeliveryChallan[]     @relation("ChallanReturns")
+  businessPlace BusinessPlace?        @relation("ChallanBusinessPlace", fields: [businessPlaceId], references: [id])
+  items         DeliveryChallanItem[]
+
+  company Company @relation("CompanyDeliveryChallan", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, challanNo])
+  @@index([companyId, kind, status])
+  @@index([companyId, jobWorkerId])
+  @@index([returnDueDate])
+  @@map("delivery_challans")
+}
+
+/// One line of a challan, and what became of it. A line is accounted for when what was sent
+/// equals what came back plus what was consumed in the process plus what was scrapped.
+model DeliveryChallanItem {
+  id               String           @id @default(uuid()) @db.Uuid
+  companyId        String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  challanId        String           @map("challan_id") @db.Uuid
+  itemType         ItemCategoryType @map("item_type")
+  rawMaterialId    String?          @map("raw_material_id") @db.VarChar(20)
+  productItemId    BigInt?          @map("product_item_id")
+  description      String?          @db.VarChar(255)
+  uom              String?          @db.VarChar(20)
+  hsnCode          String?          @map("hsn_code") @db.VarChar(8)
+  quantitySent     Decimal          @default(0) @map("quantity_sent") @db.Decimal(14, 3)
+  quantityReturned Decimal          @default(0) @map("quantity_returned") @db.Decimal(14, 3)
+  /// Used up in the process and never coming back as itself.
+  quantityConsumed Decimal          @default(0) @map("quantity_consumed") @db.Decimal(14, 3)
+  quantityScrap    Decimal          @default(0) @map("quantity_scrap") @db.Decimal(14, 3)
+  rate             Decimal          @default(0) @db.Decimal(14, 2)
+  taxableAmount    Decimal          @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  gstRate          Decimal          @default(0) @map("gst_rate") @db.Decimal(5, 2)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  challan     DeliveryChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  rawMaterial RawMaterial?    @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId])
+  product     Product?        @relation(fields: [productItemId], references: [id])
+
+  company Company @relation("CompanyDeliveryChallanItem", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([challanId])
+  @@index([companyId, rawMaterialId])
+  @@map("delivery_challan_items")
 }

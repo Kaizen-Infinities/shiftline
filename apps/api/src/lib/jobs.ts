@@ -38,6 +38,8 @@ export const QUEUES = {
   IMS_DEADLINE: "gst.ims.deadline",
   /** Daily: warn 7 and 2 days before each statutory due date (P1-13d). */
   COMPLIANCE_CALENDAR: "gst.compliance.calendar",
+  /** Daily: warn before job-work goods run out of time to come back (P1-14). */
+  JOB_WORK_RETURN: "gst.job-work.return",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

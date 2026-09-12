@@ -250,6 +250,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "edit"],
     description: "Currency master and exchange rates",
   },
+  {
+    module: "job-work",
+    actions: ["view", "create", "manage", "export"],
+    description: "Job work, delivery challans and ITC-04",
+  },
 
   // ── Production ──────────────────────────────────────────────────────
   {
