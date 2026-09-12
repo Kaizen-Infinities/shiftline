@@ -31,6 +31,12 @@ const envSchema = z
     REFRESH_REUSE_GRACE_MS: z.coerce.number().int().min(0).max(60_000).default(10_000),
     /** Login and password-reset requests per IP per 15 minutes; browser suites raise it. */
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(5).max(10_000).default(30),
+    /**
+     * All requests per IP per 15 minutes. The browser suite raises it for the same reason it
+     * raises the auth cap: every screen it walks makes a dozen calls from one address, and the
+     * whole suite is one client as far as the limiter can tell.
+     */
+    GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().min(60).max(1_000_000).default(1200),
     REFRESH_COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).optional(),
     COOKIE_SECURE: z
       .enum(["true", "false"])
