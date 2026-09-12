@@ -141,6 +141,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "filings",
       "tally",
       "assets",
+      "imports",
     ],
   },
   {

@@ -173,6 +173,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/fixed-assets",
             permission: "assets.view",
           },
+          {
+            title: "Foreign Exchange",
+            path: "/accounts/forex",
+            permission: "currencies.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

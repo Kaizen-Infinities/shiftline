@@ -44,6 +44,8 @@ export const QUEUES = {
   MSME_CLOCK: "accounts.msme.clock",
   /** Monthly on the 1st: prepare last month's depreciation for every tenant (P1-18). */
   DEPRECIATION_RUN: "accounts.depreciation.run",
+  /** Daily: pull the day's exchange rates for every tenant (P1-17). */
+  FX_RATES: "accounts.fx.rates",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

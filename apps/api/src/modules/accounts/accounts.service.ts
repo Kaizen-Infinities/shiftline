@@ -78,6 +78,26 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Indirect Income",
   },
   {
+    // P1-17: the rupee moves between raising a bill and settling it, and the difference is real
+    // income or a real expense — not an adjustment to the sale.
+    code: "FX-GAIN-001",
+    name: "Exchange Gain",
+    type: LedgerType.INCOME,
+    group: "Indirect Income",
+  },
+  {
+    code: "FX-LOSS-001",
+    name: "Exchange Loss",
+    type: LedgerType.EXPENSE,
+    group: "Indirect Expenses",
+  },
+  {
+    code: "CUSTOMS-PAY-001",
+    name: "Customs Duty Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
     code: "SRT-001",
     name: "Sales Return Account",
     type: LedgerType.INCOME,

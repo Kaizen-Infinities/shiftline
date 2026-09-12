@@ -81,6 +81,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["tally"]),
       // Fixed assets (P1-18): the accountant keeps the register and runs the monthly charge.
       ...keysFor(["assets"]),
+      // Imports (P1-17): the bill of entry and its credit are the accountant’s to record.
+      ...keysFor(["imports"]),
     ],
   },
   {

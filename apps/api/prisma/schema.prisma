@@ -689,6 +689,8 @@ model Company {
   assetEvents          AssetEvent[]          @relation("CompanyAssetEvent")
   depreciationRuns     DepreciationRun[]     @relation("CompanyDepreciationRun")
   assetDepreciations   AssetDepreciation[]   @relation("CompanyAssetDepreciation")
+  fxRevaluations       FxRevaluation[]       @relation("CompanyFxRevaluation")
+  billsOfEntry         BillOfEntry[]         @relation("CompanyBillOfEntry")
   jobWorkers           JobWorker[]           @relation("CompanyJobWorker")
   deliveryChallans     DeliveryChallan[]     @relation("CompanyDeliveryChallan")
   deliveryChallanItems DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
@@ -861,8 +863,9 @@ model Supplier {
   accountLedger       AccountLedger?
   purchaseReturns     PurchaseReturn[]
 
-  company     Company      @relation("CompanySupplier", fields: [companyId], references: [id], onDelete: Restrict)
-  fixedAssets FixedAsset[]
+  company       Company       @relation("CompanySupplier", fields: [companyId], references: [id], onDelete: Restrict)
+  fixedAssets   FixedAsset[]
+  billOfEntries BillOfEntry[]
 
   @@unique([companyId, supplierCode])
   @@index([legalName])
@@ -4789,4 +4792,86 @@ model AssetDepreciation {
   @@unique([companyId, assetId, periodKey])
   @@index([companyId, periodKey])
   @@map("asset_depreciations")
+}
+
+// ── Foreign exchange and imports (P1-17) ──────────────────────────────────────
+
+enum FxRevaluationStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+/// A period-end restatement of open foreign-currency balances (P1-17).
+///
+/// An unrealised difference is an opinion about a rate, not a transaction, so the run posts on
+/// the last day of the period and reverses on the first day of the next one. Left standing, it
+/// would be counted twice the month the balance is actually settled.
+model FxRevaluation {
+  id                String              @id @default(uuid()) @db.Uuid
+  companyId         String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// `2026-08`; a period is revalued once.
+  periodKey         String              @map("period_key") @db.VarChar(7)
+  asOn              DateTime            @map("as_on") @db.Date
+  status            FxRevaluationStatus @default(DRAFT)
+  /// Net gain (positive) or loss (negative) across every open balance.
+  netAmount         Decimal             @default(0) @map("net_amount") @db.Decimal(14, 2)
+  lines             Json
+  voucherId         Int?                @map("voucher_id")
+  reversalVoucherId Int?                @map("reversal_voucher_id")
+  preparedBy        String?             @map("prepared_by") @db.VarChar(36)
+  postedBy          String?             @map("posted_by") @db.VarChar(36)
+  postedAt          DateTime?           @map("posted_at") @db.Timestamptz(6)
+  notes             String?             @db.VarChar(255)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyFxRevaluation", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodKey])
+  @@index([companyId, status])
+  @@map("fx_revaluations")
+}
+
+/// A bill of entry: what customs charged to let the goods in (P1-17).
+///
+/// The split matters more than the total. IGST under section 3(7) is creditable and must not
+/// reach the cost of the goods; basic customs duty and the surcharge are not creditable and
+/// must. Putting the whole bill into stock overstates it by the IGST and loses the credit.
+model BillOfEntry {
+  id                     String   @id @default(uuid()) @db.Uuid
+  companyId              String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  beNumber               String   @map("be_number") @db.VarChar(20)
+  beDate                 DateTime @map("be_date") @db.Date
+  portCode               String?  @map("port_code") @db.VarChar(10)
+  /// The purchase this clears, when it came in through one.
+  grnInvoiceId           String?  @map("grn_invoice_id") @db.Uuid
+  supplierId             Int?     @map("supplier_id")
+  currencyCode           String   @default("USD") @map("currency_code") @db.VarChar(3)
+  /// The rate customs used, which is notified fortnightly and is NOT the day's market rate.
+  exchangeRate           Decimal  @default(1) @map("exchange_rate") @db.Decimal(14, 6)
+  /// The invoice value in foreign currency, and the assessable value customs worked out in INR.
+  foreignValue           Decimal  @default(0) @map("foreign_value") @db.Decimal(14, 2)
+  assessableValue        Decimal  @default(0) @map("assessable_value") @db.Decimal(14, 2)
+  basicDuty              Decimal  @default(0) @map("basic_duty") @db.Decimal(14, 2)
+  socialWelfareSurcharge Decimal  @default(0) @map("social_welfare_surcharge") @db.Decimal(14, 2)
+  /// Creditable: it goes to the input-credit ledger, never into the cost of the goods.
+  igst                   Decimal  @default(0) @db.Decimal(14, 2)
+  cess                   Decimal  @default(0) @db.Decimal(14, 2)
+  /// Freight, insurance, clearing and handling — all part of what the stock cost.
+  otherCharges           Decimal  @default(0) @map("other_charges") @db.Decimal(14, 2)
+  /// Assessable value plus everything that is not creditable.
+  landedCost             Decimal  @default(0) @map("landed_cost") @db.Decimal(14, 2)
+  voucherId              Int?     @map("voucher_id")
+  notes                  String?  @db.VarChar(255)
+  createdBy              String?  @map("created_by") @db.VarChar(36)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  company  Company   @relation("CompanyBillOfEntry", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, beNumber, beDate])
+  @@index([companyId, beDate])
+  @@map("bills_of_entry")
 }

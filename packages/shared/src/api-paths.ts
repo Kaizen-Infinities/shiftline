@@ -225,6 +225,13 @@ export const API_PATHS = {
     returns: "/tds/returns",
     form16a: "/tds/form16a",
   },
+  fx: {
+    base: "/fx",
+    rates: "/fx/rates",
+    exposure: "/fx/exposure",
+    revaluations: "/fx/revaluations",
+    billsOfEntry: "/fx/bills-of-entry",
+  },
   assets: {
     base: "/assets",
     classes: "/assets/classes",

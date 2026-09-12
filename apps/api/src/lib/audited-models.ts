@@ -72,6 +72,8 @@ export const AUDITED_MODELS = [
   "FixedAsset",
   "AssetEvent",
   "DepreciationRun",
+  "FxRevaluation",
+  "BillOfEntry",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

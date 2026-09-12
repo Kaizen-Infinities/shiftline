@@ -70,6 +70,8 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "AssetEvent",
   "DepreciationRun",
   "AssetDepreciation",
+  "FxRevaluation",
+  "BillOfEntry",
   "Currency",
   "ExchangeRate",
   "EmployeePayrollConfig",
