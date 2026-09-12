@@ -6,23 +6,23 @@ in `docs/specs/` and its own handoff note here; this is the map.
 
 ## The packages, in the order they were built
 
-| #   | Package                                                | Commit               |
-| --- | ------------------------------------------------------ | -------------------- |
-| 1   | P1-13b GSTR-3B and the ITC ledger                      | `0a02ef7`            |
-| 2   | P1-13c GSTR-2B import and IMS                          | `bd76d31`            |
-| 3   | P1-13d GSTR-9, the compliance calendar and the GST hub | `35cd7fa`            |
-| 4   | P1-14 exports, advances, job work                      | `c37d046`, `890242c` |
-| 5   | P1-15 TDS and TCS                                      | `45a1eef`            |
-| 6   | P1-06 Tally XML export                                 | `b4344da`            |
-| 7   | P1-07 MSME dues and section 43B(h)                     | `7f5c51c`            |
-| 8   | P1-18 fixed assets and depreciation                    | `4a3ce7d`            |
-| 9   | P1-17 foreign exchange and imports                     | `2259fc3`            |
-| 10  | P1-19 valuation, costing, cost centres, budgets        | `2cdc0da`            |
-| 11  | P1-20 bank reconciliation and cheques                  | `2ba3fb2`            |
-| 12  | P1-16 statutory payroll and filings                    | `5e181da`            |
-| 13  | P1-17b Labour Code entitlements                        | `c4df3dc`            |
-| 14  | P1-21 payment links and subscription billing           | `151b73c`            |
-| 14  | P1-22 SMS, DLT templates and one-time passwords        | `f698c3e`            |
+| #   | Package                                                | Commit                          |
+| --- | ------------------------------------------------------ | ------------------------------- |
+| 1   | P1-13b GSTR-3B and the ITC ledger                      | `a27656d`, `1d63c52`, `94a6dbd` |
+| 2   | P1-13c GSTR-2B import and IMS                          | `26fd193`                       |
+| 3   | P1-13d GSTR-9, the compliance calendar and the GST hub | `35cd7fa`                       |
+| 4   | P1-14 exports, advances, job work                      | `c37d046`, `890242c`            |
+| 5   | P1-15 TDS and TCS                                      | `45a1eef`                       |
+| 6   | P1-06 Tally XML export                                 | `b4344da`                       |
+| 7   | P1-07 MSME dues and section 43B(h)                     | `7f5c51c`                       |
+| 8   | P1-18 fixed assets and depreciation                    | `4a3ce7d`                       |
+| 9   | P1-17 foreign exchange and imports                     | `2259fc3`                       |
+| 10  | P1-19 valuation, costing, cost centres, budgets        | `2cdc0da`                       |
+| 11  | P1-20 bank reconciliation and cheques                  | `2ba3fb2`                       |
+| 12  | P1-16 statutory payroll and filings                    | `5e181da`                       |
+| 13  | P1-17b Labour Code entitlements                        | `c4df3dc`                       |
+| 14  | P1-21 payment links and subscription billing           | `151b73c`                       |
+| 14  | P1-22 SMS, DLT templates and one-time passwords        | `f698c3e`                       |
 
 ## Where the work stands
 
