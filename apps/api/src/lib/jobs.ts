@@ -34,6 +34,18 @@ export const QUEUES = {
   E_INVOICE: "gst.e-invoice",
   /** Hourly: expire e-way bills past validity and warn before they lapse (P1-12). */
   EWB_EXPIRY: "gst.eway-bill.expiry",
+  /** Daily: warn when IMS records are still undecided and the 14th is close (P1-13c). */
+  IMS_DEADLINE: "gst.ims.deadline",
+  /** Daily: warn 7 and 2 days before each statutory due date (P1-13d). */
+  COMPLIANCE_CALENDAR: "gst.compliance.calendar",
+  /** Daily: warn before job-work goods run out of time to come back (P1-14). */
+  JOB_WORK_RETURN: "gst.job-work.return",
+  /** Daily: warn before a micro or small supplier's bill runs past section 15 (P1-07). */
+  MSME_CLOCK: "accounts.msme.clock",
+  /** Monthly on the 1st: prepare last month's depreciation for every tenant (P1-18). */
+  DEPRECIATION_RUN: "accounts.depreciation.run",
+  /** Daily: pull the day's exchange rates for every tenant (P1-17). */
+  FX_RATES: "accounts.fx.rates",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

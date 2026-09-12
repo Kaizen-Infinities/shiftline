@@ -117,6 +117,18 @@ export interface Gstr1Nil {
   }[];
 }
 
+/** 11A advances taken on which tax was paid, and 11B those adjusted against invoices. */
+export interface Gstr1AdvanceRow {
+  pos: string;
+  sply_ty: "INTRA" | "INTER";
+  rt: number;
+  ad_amt: number;
+  iamt?: number;
+  camt?: number;
+  samt?: number;
+  csamt: number;
+}
+
 export interface Gstr1Json {
   gstin: string;
   fp: string;
@@ -129,6 +141,9 @@ export interface Gstr1Json {
   cdnur: Gstr1Cdnur[];
   exp: Gstr1Exp[];
   nil: Gstr1Nil;
+  /** 11(1) advances received, 11(2) advances adjusted (P1-14). */
+  at: Gstr1AdvanceRow[];
+  txpd: Gstr1AdvanceRow[];
   hsn: { data: Gstr1Hsn[] };
   doc_issue: { doc_det: Gstr1DocIssue[] };
 }

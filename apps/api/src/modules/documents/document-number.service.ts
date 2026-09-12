@@ -31,6 +31,10 @@ export const DOCUMENT_PREFIXES: Record<string, string> = {
   SALES_RETURN: "SR",
   PURCHASE_RETURN: "PR",
   EXPENSE: "EXP",
+  /** P1-14: advances taken before the invoice, and the voucher that gives one back. */
+  RECEIPT_VOUCHER: "RV",
+  REFUND_VOUCHER: "RFV",
+  JOB_WORK_CHALLAN: "JW",
 };
 
 const pad2 = (n: number) => String(n).padStart(2, "0");

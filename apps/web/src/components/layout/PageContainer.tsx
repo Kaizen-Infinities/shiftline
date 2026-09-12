@@ -5,10 +5,10 @@ import { Outlet } from "react-router-dom";
  *
  * Those wrappers had stopped rendering a tab bar long ago — all they still did
  * was map the current pathname to a page component and wrap it in
- * `.inner-container` + a fluid Bootstrap container. Now that the router points
+ * a nested fixed-width container. Now that the router points
  * straight at the page components, this reproduces that shell in one place.
  *
- * The Bootstrap `Container fluid` that used to sit in here has been dropped:
+ * The nested container that used to sit here has been dropped:
  * its gutters stacked on top of `.inner-container`'s own padding and the
  * layout wrapper's, giving the table three nested gutters. Horizontal spacing
  * now comes solely from the max-w-[1024px] wrapper in BaseLayout.

@@ -128,6 +128,86 @@ export const sidebarItems: SidebarItem[] = [
             path: "/compliance/eway-bills",
             permission: "eway-bill.view",
           },
+          {
+            title: "GST Returns",
+            path: "/compliance/gst",
+            permission: "gst-returns.view",
+          },
+          {
+            title: "Advances Received",
+            path: "/sales/advances",
+            permission: "advances.view",
+          },
+          {
+            title: "Currencies & Rates",
+            path: "/settings/currencies",
+            permission: "currencies.view",
+          },
+          {
+            title: "Job Work",
+            path: "/production/job-work",
+            permission: "job-work.view",
+          },
+          {
+            title: "Compliance Calendar",
+            path: "/compliance/calendar",
+            permission: "filings.view",
+          },
+          {
+            title: "TDS & TCS",
+            path: "/compliance/tds",
+            permission: "tds.view",
+          },
+          {
+            title: "Tally Export",
+            path: "/accounts/tally",
+            permission: "tally.view",
+          },
+          {
+            title: "MSME Dues",
+            path: "/payable/msme",
+            permission: "payable.view",
+          },
+          {
+            title: "Fixed Assets",
+            path: "/accounts/fixed-assets",
+            permission: "assets.view",
+          },
+          {
+            title: "Foreign Exchange",
+            path: "/accounts/forex",
+            permission: "currencies.view",
+          },
+          {
+            title: "Costing",
+            path: "/accounts/costing",
+            permission: "costing.view",
+          },
+          {
+            title: "Bank Reconciliation",
+            path: "/accounts/bank-reconciliation",
+            permission: "banking.view",
+          },
+          {
+            title: "Statutory Payroll",
+            path: "/payroll/statutory",
+            permission: "payroll.view",
+          },
+          {
+            title: "Leave & Entitlements",
+            path: "/payroll/entitlements",
+            permission: "payroll.view",
+          },
+          {
+            title: "Payment Links",
+            path: "/accounts/payment-links",
+            permission: "payments.view",
+          },
+          {
+            title: "SMS & OTP",
+            path: "/settings/sms",
+            permission: "sms.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

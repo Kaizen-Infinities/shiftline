@@ -1,6 +1,15 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FaUniversity, FaPlus, FaArrowRight, FaTimes, FaSync, FaMoneyBillWave, FaPen, FaTools } from "react-icons/fa";
+import {
+  FaUniversity,
+  FaPlus,
+  FaArrowRight,
+  FaTimes,
+  FaSync,
+  FaMoneyBillWave,
+  FaPen,
+  FaTools,
+} from "react-icons/fa";
 import { toast } from "react-toastify";
 import apiClient from "../../../../api/apiClient";
 import { accountService } from "../../../../services/accountService";
@@ -81,7 +90,12 @@ const BankAccountsPage: React.FC = () => {
     }
   }, []);
 
-  const { data: cachedList, loading, refreshing, refresh } = useListCache<BankAccountsData>({
+  const {
+    data: cachedList,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<BankAccountsData>({
     cacheKey,
     socketModule: "accountLedger",
     fetcher,
@@ -104,8 +118,8 @@ const BankAccountsPage: React.FC = () => {
 
   const filteredAccounts = useMemo(() => {
     if (!filterType) return data.accounts;
-    if (filterType === "cash") return data.accounts.filter(a => isCashAccount(a.group, a.name));
-    if (filterType === "bank") return data.accounts.filter(a => !isCashAccount(a.group, a.name));
+    if (filterType === "cash") return data.accounts.filter((a) => isCashAccount(a.group, a.name));
+    if (filterType === "bank") return data.accounts.filter((a) => !isCashAccount(a.group, a.name));
     return data.accounts;
   }, [data.accounts, filterType]);
 
@@ -163,10 +177,18 @@ const BankAccountsPage: React.FC = () => {
       <div className="bg-card rounded-lg border border-line">
         <div className="px-3 py-2 border-b border-line flex items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-ink flex items-center gap-2">
-            {filterType === "cash" ? <FaMoneyBillWave className="text-emerald-500 text-sm" />
-              : filterType === "bank" ? <FaUniversity className="text-blue-600 text-sm" />
-              : <FaUniversity className="text-blue-600 text-sm" />}
-            {filterType === "cash" ? "Cash Accounts" : filterType === "bank" ? "Bank Accounts" : "Bank & Cash Accounts"}
+            {filterType === "cash" ? (
+              <FaMoneyBillWave className="text-emerald-500 text-sm" />
+            ) : filterType === "bank" ? (
+              <FaUniversity className="text-blue-600 text-sm" />
+            ) : (
+              <FaUniversity className="text-blue-600 text-sm" />
+            )}
+            {filterType === "cash"
+              ? "Cash Accounts"
+              : filterType === "bank"
+                ? "Bank Accounts"
+                : "Bank & Cash Accounts"}
             {refreshing && <FaSync className="animate-spin text-blue-600 text-[10px]" />}
           </h2>
           <div className="flex items-center gap-1.5">
@@ -216,7 +238,9 @@ const BankAccountsPage: React.FC = () => {
             <button
               onClick={() => setSearchParams({})}
               className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border transition-colors ${
-                !filterType ? "bg-blue-600 text-white border-blue-600" : "bg-card text-ink-muted border-line hover:border-blue-500/50"
+                !filterType
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-card text-ink-muted border-line hover:border-blue-500/50"
               }`}
             >
               All
@@ -224,7 +248,9 @@ const BankAccountsPage: React.FC = () => {
             <button
               onClick={() => setSearchParams({ filter: "cash" })}
               className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
-                filterType === "cash" ? "bg-emerald-600 text-white border-emerald-600" : "bg-card text-ink-muted border-line hover:border-emerald-500/50"
+                filterType === "cash"
+                  ? "bg-emerald-600 text-white border-emerald-600"
+                  : "bg-card text-ink-muted border-line hover:border-emerald-500/50"
               }`}
             >
               <FaMoneyBillWave className="text-[9px]" /> Cash
@@ -232,7 +258,9 @@ const BankAccountsPage: React.FC = () => {
             <button
               onClick={() => setSearchParams({ filter: "bank" })}
               className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
-                filterType === "bank" ? "bg-blue-600 text-white border-blue-600" : "bg-card text-ink-muted border-line hover:border-blue-500/50"
+                filterType === "bank"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-card text-ink-muted border-line hover:border-blue-500/50"
               }`}
             >
               <FaUniversity className="text-[9px]" /> Bank
@@ -240,9 +268,15 @@ const BankAccountsPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
-              {filterType === "cash" ? "Cash Balance" : filterType === "bank" ? "Bank Balance" : "Total Balance"}
+              {filterType === "cash"
+                ? "Cash Balance"
+                : filterType === "bank"
+                  ? "Bank Balance"
+                  : "Total Balance"}
             </span>
-            <span className={`text-lg font-mono font-bold ${filteredBalance < 0 ? "text-red-500" : "text-ink"}`}>
+            <span
+              className={`text-lg font-mono font-bold ${filteredBalance < 0 ? "text-red-500" : "text-ink"}`}
+            >
               ₹{Math.abs(filteredBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -252,11 +286,14 @@ const BankAccountsPage: React.FC = () => {
       {/* Account Cards */}
       {filteredAccounts.length === 0 && !loading ? (
         <div className="bg-card rounded-lg border border-line p-8 text-center text-xs text-ink-subtle">
-          {filterType === "cash" ? "No cash accounts found." : filterType === "bank" ? "No bank accounts found." : "No bank or cash accounts found."} Click "Add Account" to create one.
+          {filterType === "cash"
+            ? "No cash accounts found."
+            : filterType === "bank"
+              ? "No bank accounts found."
+              : "No bank or cash accounts found."}{" "}
+          Click "Add Account" to create one.
         </div>
-      ) : filteredAccounts.length === 0 ? (
-        null
-      ) : (
+      ) : filteredAccounts.length === 0 ? null : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
           {filteredAccounts.map((acc) => (
             <div
@@ -267,7 +304,9 @@ const BankAccountsPage: React.FC = () => {
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-ink truncate">{acc.name}</h3>
-                  <p className="text-[10px] uppercase tracking-wide font-mono text-ink-subtle mt-0.5">{acc.code}</p>
+                  <p className="text-[10px] uppercase tracking-wide font-mono text-ink-subtle mt-0.5">
+                    {acc.code}
+                  </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {!acc.hasOpeningBalance && (
@@ -284,21 +323,30 @@ const BankAccountsPage: React.FC = () => {
                       <FaPen className="text-[9px]" />
                     </button>
                   )}
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                    isCashAccount(acc.group, acc.name)
-                      ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                      : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                  }`}>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                      isCashAccount(acc.group, acc.name)
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                    }`}
+                  >
                     {isCashAccount(acc.group, acc.name) ? "Cash" : "Bank"}
                   </span>
                 </div>
               </div>
               <div className="border-t border-line pt-2">
-                <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Current Balance</p>
-                <p className={`text-base font-mono font-bold mt-0.5 ${
-                  acc.currentBalance >= 0 ? "text-emerald-500" : "text-red-500"
-                }`}>
-                  ₹{Math.abs(acc.currentBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  Current Balance
+                </p>
+                <p
+                  className={`text-base font-mono font-bold mt-0.5 ${
+                    acc.currentBalance >= 0 ? "text-emerald-500" : "text-red-500"
+                  }`}
+                >
+                  ₹
+                  {Math.abs(acc.currentBalance).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
                   <span className="text-[10px] ml-1">
                     {acc.currentBalance >= 0 ? "(Cr)" : "(Dr)"}
                   </span>
@@ -306,9 +354,13 @@ const BankAccountsPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-line-soft">
                 <div className="text-[11px] text-ink-subtle">
-                  <span className="text-emerald-500 font-semibold">↑ ₹{acc.totalDebit.toLocaleString("en-IN")}</span>
+                  <span className="text-emerald-500 font-semibold">
+                    ↑ ₹{acc.totalDebit.toLocaleString("en-IN")}
+                  </span>
                   {" / "}
-                  <span className="text-red-500 font-semibold">↓ ₹{acc.totalCredit.toLocaleString("en-IN")}</span>
+                  <span className="text-red-500 font-semibold">
+                    ↓ ₹{acc.totalCredit.toLocaleString("en-IN")}
+                  </span>
                 </div>
                 <FaArrowRight className="text-ink-subtle group-hover:text-blue-500 transition-colors w-2.5 h-2.5" />
               </div>
@@ -325,7 +377,10 @@ const BankAccountsPage: React.FC = () => {
               <FaUniversity className="text-sm" />
               <h2 className="text-sm font-bold flex-1">Add Bank / Cash Account</h2>
               <button
-                onClick={() => { setShowAddForm(false); resetForm(); }}
+                onClick={() => {
+                  setShowAddForm(false);
+                  resetForm();
+                }}
                 className="text-white/80 hover:text-white"
               >
                 <FaTimes className="text-sm" />
@@ -340,7 +395,7 @@ const BankAccountsPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. TMB SUN-SEA A/C"
+                    placeholder="e.g. Current account — Chennai"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     className="w-full px-3 py-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500"
@@ -364,7 +419,9 @@ const BankAccountsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Type</label>
+                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                    Type
+                  </label>
                   <select
                     value={newGroup}
                     onChange={(e) => setNewGroup(e.target.value)}
@@ -403,19 +460,24 @@ const BankAccountsPage: React.FC = () => {
                     <span className="text-emerald-500 font-bold">Cr</span> = Add (↑)
                   </p>
                 </div>
-
               </div>
 
               <div className="text-[10px] text-ink-subtle bg-card-2 border border-line rounded p-2 leading-relaxed">
                 💡 <b>Tip:</b> Enter the actual bank balance shown in your bank statement/passbook.
-                A JV will auto-post: <b>Debit</b> {newName || "this account"} ₹{parseFloat(newOpeningBalance) || 0}
-                {" · "}<b>Credit</b> Opening Balance Equity. Every subsequent transaction updates from this starting balance.
+                A JV will auto-post: <b>Debit</b> {newName || "this account"} ₹
+                {parseFloat(newOpeningBalance) || 0}
+                {" · "}
+                <b>Credit</b> Opening Balance Equity. Every subsequent transaction updates from this
+                starting balance.
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
                 <button
                   type="button"
-                  onClick={() => { setShowAddForm(false); resetForm(); }}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    resetForm();
+                  }}
                   className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded border border-line"
                 >
                   Cancel
@@ -425,7 +487,15 @@ const BankAccountsPage: React.FC = () => {
                   disabled={submitting}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {submitting ? <><FaSync className="animate-spin text-[10px]" /> Creating...</> : <><FaPlus className="text-[10px]" /> Create Account</>}
+                  {submitting ? (
+                    <>
+                      <FaSync className="animate-spin text-[10px]" /> Creating...
+                    </>
+                  ) : (
+                    <>
+                      <FaPlus className="text-[10px]" /> Create Account
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -441,7 +511,10 @@ const BankAccountsPage: React.FC = () => {
               <FaPen className="text-xs" />
               <h2 className="text-sm font-bold flex-1">Set Opening Balance — {editingBank.name}</h2>
               <button
-                onClick={() => { setEditingBank(null); setEditOpeningBalance(""); }}
+                onClick={() => {
+                  setEditingBank(null);
+                  setEditOpeningBalance("");
+                }}
                 className="text-white/80 hover:text-white"
               >
                 <FaTimes className="text-sm" />
@@ -469,7 +542,9 @@ const BankAccountsPage: React.FC = () => {
                   invalidateCache(cacheKey);
                   refresh();
                 } catch (err: any) {
-                  toast.error(err?.response?.data?.message || err?.message || "Failed to set opening balance");
+                  toast.error(
+                    err?.response?.data?.message || err?.message || "Failed to set opening balance"
+                  );
                 } finally {
                   setEditSubmitting(false);
                 }
@@ -493,14 +568,20 @@ const BankAccountsPage: React.FC = () => {
               </div>
 
               <div className="text-[10px] text-ink-subtle bg-card-2 border border-line rounded p-2 leading-relaxed">
-                💡 A JV will auto-post: <b>Debit</b> {editingBank.name} ₹{parseFloat(editOpeningBalance) || 0}
-                {" · "}<b>Credit</b> Opening Balance Equity. Any previous opening JV for this account is replaced.
+                💡 A JV will auto-post: <b>Debit</b> {editingBank.name} ₹
+                {parseFloat(editOpeningBalance) || 0}
+                {" · "}
+                <b>Credit</b> Opening Balance Equity. Any previous opening JV for this account is
+                replaced.
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
                 <button
                   type="button"
-                  onClick={() => { setEditingBank(null); setEditOpeningBalance(""); }}
+                  onClick={() => {
+                    setEditingBank(null);
+                    setEditOpeningBalance("");
+                  }}
                   className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded border border-line"
                 >
                   Cancel
@@ -510,7 +591,13 @@ const BankAccountsPage: React.FC = () => {
                   disabled={editSubmitting}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {editSubmitting ? <><FaSync className="animate-spin text-[10px]" /> Saving...</> : "Save Opening Balance"}
+                  {editSubmitting ? (
+                    <>
+                      <FaSync className="animate-spin text-[10px]" /> Saving...
+                    </>
+                  ) : (
+                    "Save Opening Balance"
+                  )}
                 </button>
               </div>
             </form>

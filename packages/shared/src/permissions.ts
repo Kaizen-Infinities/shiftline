@@ -83,6 +83,16 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "prepare", "file"],
     description: "GST returns from the books (GSTR-1, 3B, 2B, IMS, GSTR-9)",
   },
+  {
+    module: "payments",
+    actions: ["view", "create", "cancel", "settings"],
+    description: "Payment links and gateway settings",
+  },
+  {
+    module: "sms",
+    actions: ["view", "send", "settings"],
+    description: "SMS, DLT templates and one-time passwords",
+  },
 
   // ── HR & Organization ───────────────────────────────────────────────────────
   {
@@ -239,6 +249,51 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     module: "sales-returns",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Sales Returns",
+  },
+  {
+    module: "advances",
+    actions: ["view", "create", "refund", "export"],
+    description: "Advances received (receipt vouchers, adjustment, refund)",
+  },
+  {
+    module: "currencies",
+    actions: ["view", "edit"],
+    description: "Currency master and exchange rates",
+  },
+  {
+    module: "job-work",
+    actions: ["view", "create", "manage", "export"],
+    description: "Job work, delivery challans and ITC-04",
+  },
+  {
+    module: "tds",
+    actions: ["view", "create", "manage", "pay", "prepare", "file"],
+    description: "TDS and TCS: sections, deductions, challans, 26Q/27Q and Form 16A",
+  },
+  {
+    module: "banking",
+    actions: ["view", "manage"],
+    description: "Bank statements, reconciliation and the cheque register",
+  },
+  {
+    module: "costing",
+    actions: ["view", "manage"],
+    description: "Stock valuation, cost centres, budgets and cost sheets",
+  },
+  {
+    module: "imports",
+    actions: ["view", "create", "manage"],
+    description: "Imports: bills of entry, customs duty and landed cost",
+  },
+  {
+    module: "assets",
+    actions: ["view", "create", "manage", "depreciate", "dispose"],
+    description: "Fixed assets: the register, depreciation and the year-end reports",
+  },
+  {
+    module: "tally",
+    actions: ["view", "export", "manage"],
+    description: "Tally XML export: masters, vouchers and the name mapping",
   },
 
   // ── Production ──────────────────────────────────────────────────────

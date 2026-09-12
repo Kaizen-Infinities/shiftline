@@ -44,6 +44,137 @@ const DEFAULT_SEED_LEDGERS = [
   },
   { code: "PCASH-001", name: "Petty Cash Account", type: LedgerType.ASSET, group: "Cash in Hand" },
   {
+    // P1-14: money taken before the invoice is owed to the customer until it is earned, so it
+    // is a liability, not a credit on their receivable account.
+    code: "ADV-CUST-001",
+    name: "Advances from Customers",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    // P1-18: the three ledgers a fixed asset moves between. Cost and depreciation are kept apart
+    // so that both come off on a disposal and the register keeps agreeing with the balance sheet.
+    code: "FA-001",
+    name: "Plant and Machinery",
+    type: LedgerType.ASSET,
+    group: "Fixed Assets",
+  },
+  {
+    code: "FA-ACC-001",
+    name: "Accumulated Depreciation",
+    type: LedgerType.ASSET,
+    group: "Fixed Assets",
+  },
+  {
+    code: "DEP-001",
+    name: "Depreciation",
+    type: LedgerType.EXPENSE,
+    group: "Depreciation & Amortisation",
+  },
+  {
+    code: "ASSET-PL-001",
+    name: "Profit or Loss on Sale of Assets",
+    type: LedgerType.INCOME,
+    group: "Indirect Income",
+  },
+  {
+    // P1-16: payroll. The employer's contributions are a cost of employing people, not a
+    // deduction from anyone's pay, so they have their own expense ledger rather than being
+    // netted against the salary bill.
+    code: "SAL-EXP-001",
+    name: "Salaries and Wages",
+    type: LedgerType.EXPENSE,
+    group: "Employee Benefits",
+  },
+  {
+    code: "SAL-CONTRIB-001",
+    name: "Employer's Contributions",
+    type: LedgerType.EXPENSE,
+    group: "Employee Benefits",
+  },
+  {
+    // P1-17b: gratuity is a retirement benefit, not salary, and the notes to the accounts
+    // report it separately.
+    code: "GRATUITY-EXP-001",
+    name: "Gratuity",
+    type: LedgerType.EXPENSE,
+    group: "Employee Benefits",
+  },
+  {
+    code: "SAL-PAY-001",
+    name: "Salaries Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    code: "PF-PAY-001",
+    name: "Provident Fund Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    code: "ESI-PAY-001",
+    name: "ESI Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    code: "PT-PAY-001",
+    name: "Professional Tax Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    // P1-20: what the bank takes for its own trouble — returns, transfers, statement charges.
+    code: "BANK-CHG-001",
+    name: "Bank Charges",
+    type: LedgerType.EXPENSE,
+    group: "Indirect Expenses",
+  },
+  {
+    // P1-21: what a payment gateway keeps out of a collection, and the GST on it. Separate from
+    // bank charges because it reconciles against the gateway's statement, not the bank's.
+    code: "PG-FEE-001",
+    name: "Payment Gateway Charges",
+    type: LedgerType.EXPENSE,
+    group: "Indirect Expenses",
+  },
+  {
+    // P1-19: closing stock is an asset and its movement is a charge to the profit and loss. The
+    // two are separate ledgers because the balance sheet needs the balance and the P&L needs the
+    // movement, and posting the balance into the P&L every month would double the stock.
+    code: "STOCK-001",
+    name: "Closing Stock",
+    type: LedgerType.ASSET,
+    group: "Stock-in-Hand",
+  },
+  {
+    code: "STOCK-CHG-001",
+    name: "Change in Inventories",
+    type: LedgerType.EXPENSE,
+    group: "Direct Expenses",
+  },
+  {
+    // P1-17: the rupee moves between raising a bill and settling it, and the difference is real
+    // income or a real expense — not an adjustment to the sale.
+    code: "FX-GAIN-001",
+    name: "Exchange Gain",
+    type: LedgerType.INCOME,
+    group: "Indirect Income",
+  },
+  {
+    code: "FX-LOSS-001",
+    name: "Exchange Loss",
+    type: LedgerType.EXPENSE,
+    group: "Indirect Expenses",
+  },
+  {
+    code: "CUSTOMS-PAY-001",
+    name: "Customs Duty Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
     code: "SRT-001",
     name: "Sales Return Account",
     type: LedgerType.INCOME,

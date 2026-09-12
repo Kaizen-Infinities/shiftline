@@ -52,6 +52,22 @@ import accountsRoutes from "../modules/accounts/accounts.routes";
 import voucherRoutes from "../modules/vouchers/vouchers.routes";
 import returnRoutes from "../modules/returns/returns.routes";
 import pettyCashRoutes from "../modules/petty-cash/petty-cash.routes";
+import advancesRoutes, { currencyRouter } from "../modules/advances/advances.routes";
+import jobWorkRoutes from "../modules/job-work/job-work.routes";
+import tdsRoutes from "../modules/tds/tds.routes";
+import tallyRoutes from "../modules/tally/tally.routes";
+import msmeRoutes from "../modules/msme/msme.routes";
+import assetRoutes from "../modules/assets/asset.routes";
+import fxRoutes from "../modules/currency/fx.routes";
+import costingRoutes from "../modules/costing/costing.routes";
+import bankingRoutes from "../modules/banking/banking.routes";
+import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
+import labourRoutes from "../modules/payroll/labour.routes";
+import smsRoutes from "../modules/sms/sms.routes";
+import paymentsRoutes, {
+  paymentWebhookRouter,
+  platformBillingRouter,
+} from "../modules/payments/payments.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
@@ -139,6 +155,24 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/vouchers", router: voucherRoutes },
   { path: "/returns", router: returnRoutes },
   { path: "/petty-cash", router: pettyCashRoutes },
+  { path: "/advances", router: advancesRoutes },
+  { path: "/currencies", router: currencyRouter },
+  { path: "/job-work", router: jobWorkRoutes },
+  { path: "/tds", router: tdsRoutes },
+  { path: "/tally", router: tallyRoutes },
+  { path: "/msme", router: msmeRoutes },
+  { path: "/assets", router: assetRoutes },
+  { path: "/fx", router: fxRoutes },
+  { path: "/costing", router: costingRoutes },
+  { path: "/banking", router: bankingRoutes },
+  { path: "/payroll-statutory", router: statutoryPayrollRoutes },
+  { path: "/labour", router: labourRoutes },
+  // The callback router must be mounted before /payments so a gateway's POST never meets
+  // authMiddleware; it is authenticated by the signature on its body instead.
+  { path: "/payments/webhook", router: paymentWebhookRouter },
+  { path: "/payments", router: paymentsRoutes },
+  { path: "/platform/billing", router: platformBillingRouter },
+  { path: "/sms", router: smsRoutes },
   { path: "/payroll", router: payrollRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },

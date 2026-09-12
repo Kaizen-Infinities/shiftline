@@ -49,6 +49,9 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "petty-cash",
         "chart-of-accounts",
         "sales-invoices",
+        "advances",
+        "currencies",
+        "job-work",
         "purchase-orders",
         "sales-returns",
         "purchase-returns",
@@ -71,6 +74,19 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["eway-bill", "transporters"]),
       // GST returns (P1-13): prepared and filed by the accountant, approved on the filing gate.
       ...keysFor(["gst-returns"]),
+      // TDS (P1-15): the accountant deducts, pays the challan and prepares the return; the
+      // owner approves it on the filing gate like every other return.
+      ...keysFor(["tds"], ["view", "create", "manage", "pay", "prepare", "file"]),
+      // Tally export (P1-06): handing the books to the auditor is the accountant's job.
+      ...keysFor(["tally"]),
+      // Fixed assets (P1-18): the accountant keeps the register and runs the monthly charge.
+      ...keysFor(["assets"]),
+      // Imports (P1-17): the bill of entry and its credit are the accountant’s to record.
+      ...keysFor(["imports"]),
+      // Costing (P1-19): valuation, cost centres and budgets are the accountant’s ground.
+      ...keysFor(["costing"]),
+      // Banking (P1-20): the reconciliation and the cheque register are the accountant’s.
+      ...keysFor(["banking"]),
     ],
   },
   {
@@ -92,6 +108,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
       "uoms",
       "eway-bill",
       "transporters",
+      "job-work",
     ]),
   },
   {

@@ -92,6 +92,20 @@ export const createSupplierSchema = z.object({
     openingBalanceType: z.enum(["CREDIT", "DEBIT"]).optional().default("CREDIT"),
     /** Days after the bill date a bill falls due (P1-10); blank means due on the bill date. */
     creditDays: z.number().int().min(0).max(365).nullable().optional(),
+    /**
+     * MSME status (P1-07). The category is what brings section 15 and 43B(h) with it, so the
+     * agreed days are accepted as agreed and capped at 45 where they are used — a supplier who
+     * agreed to 60 is recorded honestly and still reported as late after 45.
+     */
+    msmeCategory: z.enum(["MICRO", "SMALL", "MEDIUM", "NOT_REGISTERED"]).optional(),
+    udyamNumber: z
+      .string()
+      .regex(/^UDYAM-[A-Z]{2}-\d{2}-\d{7}$/, "A Udyam number looks like UDYAM-TN-01-0000001")
+      .nullable()
+      .optional(),
+    msmeVerifiedOn: z.coerce.date().nullable().optional(),
+    hasWrittenContract: z.boolean().optional(),
+    agreedPaymentDays: z.number().int().min(0).max(365).nullable().optional(),
     addresses: z.array(supplierAddressInputSchema).optional(),
   }),
 });

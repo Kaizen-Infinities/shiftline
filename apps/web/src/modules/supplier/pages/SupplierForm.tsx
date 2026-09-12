@@ -136,6 +136,10 @@ const SupplierForm: React.FC = () => {
     openingBalance: 0,
     openingBalanceType: "CREDIT",
     creditDays: "",
+    msmeCategory: "NOT_REGISTERED",
+    udyamNumber: "",
+    hasWrittenContract: false,
+    agreedPaymentDays: "",
     status: "Active",
   });
 
@@ -181,6 +185,11 @@ const SupplierForm: React.FC = () => {
       openingBalance: Number(supplier.openingBalance) || 0,
       openingBalanceType: supplier.openingBalanceType || "CREDIT",
       creditDays: supplier.creditDays != null ? String(supplier.creditDays) : "",
+      msmeCategory: supplier.msmeCategory ?? "NOT_REGISTERED",
+      udyamNumber: supplier.udyamNumber ?? "",
+      hasWrittenContract: Boolean(supplier.hasWrittenContract),
+      agreedPaymentDays:
+        supplier.agreedPaymentDays != null ? String(supplier.agreedPaymentDays) : "",
       status: supplier.status || "Active",
     });
 
@@ -290,6 +299,10 @@ const SupplierForm: React.FC = () => {
         openingBalance: 0,
         openingBalanceType: "CREDIT",
         creditDays: "",
+        msmeCategory: "NOT_REGISTERED",
+        udyamNumber: "",
+        hasWrittenContract: false,
+        agreedPaymentDays: "",
         status: "Active",
       });
       setAddresses([
@@ -473,6 +486,19 @@ const SupplierForm: React.FC = () => {
       formData.creditDays === "" || formData.creditDays == null
         ? null
         : Number(formData.creditDays);
+    // P1-07: MSME status drives the section 15 clock and the 43B(h) report. The agreed days are
+    // sent as agreed; the 45-day cap is applied where the limit is worked out, not here, so the
+    // record stays an honest account of what was signed.
+    payload.msmeCategory = formData.msmeCategory || "NOT_REGISTERED";
+    payload.udyamNumber = formData.udyamNumber?.trim()
+      ? formData.udyamNumber.trim().toUpperCase()
+      : null;
+    payload.hasWrittenContract = Boolean(formData.hasWrittenContract);
+    payload.agreedPaymentDays =
+      formData.agreedPaymentDays === "" || formData.agreedPaymentDays == null
+        ? null
+        : Number(formData.agreedPaymentDays);
+
     if (!isEdit) {
       payload.openingBalance = Number(formData.openingBalance || 0);
       payload.openingBalanceType = formData.openingBalanceType || "CREDIT";
@@ -836,6 +862,71 @@ const SupplierForm: React.FC = () => {
                   />
                   <p className="mt-0.5 text-[10px] text-ink-muted">
                     Bills fall due this many days after the bill date.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
+                  MSME Registration
+                </h3>
+              </div>
+              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
+                <div>
+                  <SelectInput
+                    label="MSME Category"
+                    name="msmeCategory"
+                    value={String(formData.msmeCategory ?? "NOT_REGISTERED")}
+                    options={[
+                      { value: "NOT_REGISTERED", label: "Not registered" },
+                      { value: "MICRO", label: "Micro" },
+                      { value: "SMALL", label: "Small" },
+                      { value: "MEDIUM", label: "Medium" },
+                    ]}
+                    onChange={handleChange}
+                  />
+                  <p className="mt-0.5 text-[10px] text-ink-muted">
+                    Micro and small carry the section 15 clock; medium does not.
+                  </p>
+                </div>
+                <div>
+                  <TextInput
+                    label="Udyam Number"
+                    name="udyamNumber"
+                    value={String(formData.udyamNumber ?? "")}
+                    placeholder="UDYAM-TN-01-0000001"
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <SelectInput
+                    label="Written Contract"
+                    name="hasWrittenContract"
+                    value={formData.hasWrittenContract ? "yes" : "no"}
+                    options={[
+                      { value: "no", label: "No — 15-day limit" },
+                      { value: "yes", label: "Yes — up to 45 days" },
+                    ]}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        hasWrittenContract: e.target.value === "yes",
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <TextInput
+                    label="Agreed Payment Days"
+                    name="agreedPaymentDays"
+                    type="number"
+                    value={String(formData.agreedPaymentDays ?? "")}
+                    placeholder="e.g. 45"
+                    onChange={handleChange}
+                  />
+                  <p className="mt-0.5 text-[10px] text-ink-muted">
+                    Section 15 caps this at 45 days however long the contract says.
                   </p>
                 </div>
               </div>

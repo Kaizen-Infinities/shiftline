@@ -4,8 +4,10 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { unitCode } from "../e-invoice/e-invoice.payload";
 import { filingApprovalService, hashPayload } from "../filings/filing-approval.service";
+import { advanceService } from "../advances/advance.service";
 import { gstinScopes, monthRange, placeFilter, scopeFor, type GstinScope } from "./gst-period";
 import type {
+  Gstr1AdvanceRow,
   Gstr1B2b,
   Gstr1B2cl,
   Gstr1B2cs,
@@ -132,6 +134,28 @@ class Gstr1Service {
     ]);
 
     const warnings: string[] = [];
+    // 11A and 11B: tax on an advance falls due when the money arrives, and is released when the
+    // invoice finally goes out. Both belong to the month they happened in (P1-14).
+    const advances = await advanceService.gstr1Tables(
+      period.from,
+      period.to,
+      scope.businessPlaceIds
+    );
+    const advanceRow = (
+      r: { pos: string; rate: number; taxable: number; igst: number; cgst: number; sgst: number },
+      inter: boolean
+    ): Gstr1AdvanceRow => ({
+      pos: r.pos,
+      sply_ty: inter ? "INTER" : "INTRA",
+      rt: r.rate,
+      ad_amt: n2(r.taxable),
+      ...(inter ? { iamt: n2(r.igst) } : { camt: n2(r.cgst), samt: n2(r.sgst) }),
+      csamt: 0,
+    });
+    const advanceRows = {
+      table11A: advances.table11A.map((r) => advanceRow(r, r.igst > 0)),
+      table11B: advances.table11B.map((r) => advanceRow(r, r.igst > 0)),
+    };
     const b2b = new Map<string, Gstr1B2b>();
     const b2cl = new Map<string, Gstr1B2cl>();
     const b2cs = new Map<string, Gstr1B2cs>();
@@ -222,12 +246,21 @@ class Gstr1Service {
       totals.total = n2(totals.total + val);
 
       if (inv.supplyType === "EXPORT") {
-        const typ = igst > 0 ? "WPAY" : "WOPAY";
+        // The document says how it was exported; the tax on it is the fallback when it does not.
+        const typ = inv.exportType === "WITH_TAX" || igst > 0 ? "WPAY" : "WOPAY";
+        if (!inv.shippingBillNo) {
+          warnings.push(`${inv.invoiceNo}: an export with no shipping bill number`);
+        }
         const e = exp.get(typ) ?? { exp_typ: typ, inv: [] };
         e.inv.push({
           inum: inv.invoiceNo,
           idt: dmy(inv.invoiceDate),
           val,
+          // The shipping bill is what proves the goods left; without it the portal cannot
+          // match the export to customs and the refund does not come.
+          ...(inv.shippingBillNo ? { sbnum: inv.shippingBillNo } : {}),
+          ...(inv.shippingBillDate ? { sbdt: dmy(inv.shippingBillDate) } : {}),
+          ...(inv.portCode ? { sbpcode: inv.portCode } : {}),
           itms: itemsByRate(taxed.length ? taxed : lines, true).map((i) => ({
             txval: i.itm_det.txval,
             rt: i.itm_det.rt,
@@ -409,6 +442,8 @@ class Gstr1Service {
           .filter((k) => nil[k] > 0)
           .map((k) => ({ sply_ty: k, nil_amt: nil[k], expt_amt: 0, ngsup_amt: 0 })),
       },
+      at: advanceRows.table11A,
+      txpd: advanceRows.table11B,
       hsn: { data: hsnData },
       doc_issue: { doc_det },
     };

@@ -12,6 +12,8 @@ process.env.ADMIN_EMAIL = "admin@test.shiftline.local";
 process.env.ADMIN_USERNAME = "testadmin";
 process.env.ADMIN_PASSWORD = "TestAdmin#2026!!";
 process.env.FRONTEND_URL = "http://localhost:5173";
+// P1-21: the platform's billing callbacks are signed with this; without it they are refused.
+process.env.PLATFORM_GATEWAY_WEBHOOK_SECRET = "test-platform-billing-secret-0000";
 
 const workerId = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "1";
 const dbName = workerDbName(workerId);

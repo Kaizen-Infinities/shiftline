@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Container, Row, Col, Card, Modal, Button, Form } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Modal,
+  Button,
+  Form,
+} from "../../../components/ui/TailwindPrimitives";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
@@ -53,16 +61,16 @@ const getMonday = (d: Date) => {
 // Formats a Date object as YYYY-MM-DD in UTC
 const formatDateString = (d: Date) => {
   const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
 // Formats a Date object as YYYY-MM-DD in Local time
 const formatLocalDateString = (d: Date) => {
   const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
@@ -78,7 +86,6 @@ const DailyMachinePlanning: React.FC = () => {
   const [weeklyPrograms, setWeeklyPrograms] = useState<any[]>([]);
   const [loadingPlanning, setLoadingPlanning] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<string>(formatLocalDateString(new Date()));
-
 
   // Active production orders (for adding a run)
   const [activeProductionOrders, setActiveProductionOrders] = useState<any[]>([]);
@@ -108,24 +115,28 @@ const DailyMachinePlanning: React.FC = () => {
   useEffect(() => {
     if (programToView && programToView.machineId && programToView.shiftId && showViewModal) {
       setLoadingLogs(true);
-      apiClient.get(config.hourlyProduction.base, {
-        params: {
-          machineId: programToView.machineId,
-          shiftId: programToView.shiftId,
-          productionDate: selectedDate
-        }
-      }).then(res => {
-        if (res.data?.success) {
-          setHourlyLogs(res.data.data || []);
-        } else {
+      apiClient
+        .get(config.hourlyProduction.base, {
+          params: {
+            machineId: programToView.machineId,
+            shiftId: programToView.shiftId,
+            productionDate: selectedDate,
+          },
+        })
+        .then((res) => {
+          if (res.data?.success) {
+            setHourlyLogs(res.data.data || []);
+          } else {
+            setHourlyLogs([]);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load hourly logs", err);
           setHourlyLogs([]);
-        }
-      }).catch(err => {
-        console.error("Failed to load hourly logs", err);
-        setHourlyLogs([]);
-      }).finally(() => {
-        setLoadingLogs(false);
-      });
+        })
+        .finally(() => {
+          setLoadingLogs(false);
+        });
     } else {
       setHourlyLogs([]);
     }
@@ -154,16 +165,22 @@ const DailyMachinePlanning: React.FC = () => {
     try {
       // 1. Load programs for the selected week
       const res = await weeklyProgramService.getAll({
-        weekStartDate: formatDateString(currentWeekMonday)
+        weekStartDate: formatDateString(currentWeekMonday),
       });
-      const weekList: any[] = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+      const weekList: any[] = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
 
       // 2. Also load ALL pending/active programs (carry-forwards from other weeks)
       let pendingList: any[] = [];
       try {
         const pendingRes = await weeklyProgramService.getPending();
-        pendingList = Array.isArray(pendingRes.data) ? pendingRes.data : (Array.isArray(pendingRes) ? pendingRes : []);
-      } catch { /* ignore pending fetch failure */ }
+        pendingList = Array.isArray(pendingRes.data)
+          ? pendingRes.data
+          : Array.isArray(pendingRes)
+            ? pendingRes
+            : [];
+      } catch {
+        /* ignore pending fetch failure */
+      }
 
       // 3. Merge: start with the week's programs, add pending ones not already in the week list
       const weekIds = new Set(weekList.map((p: any) => p.weeklyProgramId));
@@ -172,7 +189,9 @@ const DailyMachinePlanning: React.FC = () => {
 
       setWeeklyPrograms(merged);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Failed to load weekly program runs");
+      toast.error(
+        err?.response?.data?.message || err?.message || "Failed to load weekly program runs"
+      );
     } finally {
       setLoadingPlanning(false);
     }
@@ -197,11 +216,11 @@ const DailyMachinePlanning: React.FC = () => {
     try {
       const res = await productionOrderService.fetchAll({ limit: 10 } as any);
       const list = res.data || res || [];
-      const poList = Array.isArray(list) ? list : ((list as any).data || []);
-      
+      const poList = Array.isArray(list) ? list : (list as any).data || [];
+
       // Include orders that are not yet fully completed or cancelled
-      const activeList = poList.filter((po: any) =>
-        !["COMPLETED", "CANCELLED", "DISPATCHED"].includes(po.status)
+      const activeList = poList.filter(
+        (po: any) => !["COMPLETED", "CANCELLED", "DISPATCHED"].includes(po.status)
       );
       setActiveProductionOrders(activeList);
     } catch (err) {
@@ -242,8 +261,8 @@ const DailyMachinePlanning: React.FC = () => {
 
     try {
       const nextId = await weeklyProgramService.fetchNextId();
-      const po = activeProductionOrders.find(o => o.productionOrderId === newRunPoId);
-      
+      const po = activeProductionOrders.find((o) => o.productionOrderId === newRunPoId);
+
       const weekStartStr = formatDateString(currentWeekMonday);
       const weekEnd = new Date(currentWeekMonday);
       weekEnd.setDate(currentWeekMonday.getDate() + 6);
@@ -263,11 +282,13 @@ const DailyMachinePlanning: React.FC = () => {
         sequenceNo: 1,
         priority: normalizePriority(po?.priority || newRunPriority),
         status: "PLANNED",
-        remarks: "Scheduled run"
+        remarks: "Scheduled run",
       };
 
       await weeklyProgramService.create(payload);
-      toast.success("Run scheduled successfully! Click Start to choose machine and start production.");
+      toast.success(
+        "Run scheduled successfully! Click Start to choose machine and start production."
+      );
       setShowAddRunModal(false);
       fetchWeeklyPrograms();
     } catch (err: any) {
@@ -290,14 +311,14 @@ const DailyMachinePlanning: React.FC = () => {
     try {
       const today = new Date();
       const todayStartMonday = getMonday(today);
-      
+
       // 1. Update program to IN_PROGRESS and assign selected machine and shift
       await weeklyProgramService.update(programToStart.weeklyProgramId, {
         machineId: selectedMachineId,
         shiftId: selectedShiftId,
         status: "IN_PROGRESS",
         weekStartDate: formatDateString(todayStartMonday),
-        dayOfWeek: today.getDay() === 0 ? 7 : today.getDay()
+        dayOfWeek: today.getDay() === 0 ? 7 : today.getDay(),
       });
 
       // 2. Log SYSTEM_START in hourly production to start tracking
@@ -314,7 +335,7 @@ const DailyMachinePlanning: React.FC = () => {
         scrapQty: 0,
         downtime: 0,
         remarks: "SYSTEM_START",
-        operatorId: "SYSTEM"
+        operatorId: "SYSTEM",
       };
 
       await apiClient.post(config.hourlyProduction.base, payload);
@@ -334,10 +355,11 @@ const DailyMachinePlanning: React.FC = () => {
       const producedQty = Number(stopProgram.productionOrder?.producedQty || 0);
       const plannedQty = Number(stopProgram.plannedQty || 0);
       const targetQty = Number(stopProgram.productionOrder?.targetQty || 0);
-      
+
       // If the overall PO target is met, or the scheduled plannedQty is met, mark as COMPLETED.
       // Otherwise, put it back to PLANNED so it can be resumed later.
-      const newStatus = (producedQty >= plannedQty || producedQty >= targetQty) ? "COMPLETED" : "PLANNED";
+      const newStatus =
+        producedQty >= plannedQty || producedQty >= targetQty ? "COMPLETED" : "PLANNED";
 
       // 1. Log SYSTEM_STOP in hourly production while machine/shift are still assigned
       const todayStr = formatLocalDateString(new Date());
@@ -354,7 +376,7 @@ const DailyMachinePlanning: React.FC = () => {
         downtime: 0,
         downtimeReason: reason,
         remarks: reason === "Others" ? remarks : reason,
-        operatorId: "SYSTEM"
+        operatorId: "SYSTEM",
       };
 
       await apiClient.post(config.hourlyProduction.base, payload);
@@ -392,8 +414,8 @@ const DailyMachinePlanning: React.FC = () => {
   // Stats calculation
   const stats = useMemo(() => {
     const total = weeklyPrograms.length;
-    const running = weeklyPrograms.filter(p => p.status === "IN_PROGRESS").length;
-    const completed = weeklyPrograms.filter(p => p.status === "COMPLETED").length;
+    const running = weeklyPrograms.filter((p) => p.status === "IN_PROGRESS").length;
+    const completed = weeklyPrograms.filter((p) => p.status === "COMPLETED").length;
     const target = weeklyPrograms.reduce((acc, p) => acc + Number(p.plannedQty || 0), 0);
     return { total, running, completed, target };
   }, [weeklyPrograms]);
@@ -407,14 +429,19 @@ const DailyMachinePlanning: React.FC = () => {
             <Col lg={5} md={12}>
               <div className="page-header-info">
                 <h2 className="page-title">Daily Machine Planning</h2>
-                
               </div>
             </Col>
             <Col lg={7} md={12}>
               <div className="page-header-actions d-flex align-items-center justify-content-end gap-2 flex-wrap">
                 {/* Week Selection Display */}
-                <div className="d-flex align-items-center bg-white border px-3 py-2 rounded shadow-sm text-secondary small fw-medium" style={{ height: "42px" }}>
-                  <FaCalendarAlt className="me-2" style={{ color: "var(--color-primary, #003428)" }} />
+                <div
+                  className="d-flex align-items-center bg-white border px-3 py-2 rounded shadow-sm text-secondary small fw-medium"
+                  style={{ height: "42px" }}
+                >
+                  <FaCalendarAlt
+                    className="me-2"
+                    style={{ color: "var(--color-primary, #003428)" }}
+                  />
                   Week Range: <span className="ms-1 fw-bold text-dark">{weekRangeText}</span>
                 </div>
 
@@ -430,11 +457,7 @@ const DailyMachinePlanning: React.FC = () => {
                 </div>
 
                 {/* Add Run Button */}
-                <CustomButton 
-                  text="Add Production Run"
-                  icon={FaPlus}
-                  onClick={handleOpenAddRun}
-                />
+                <CustomButton text="Add Production Run" icon={FaPlus} onClick={handleOpenAddRun} />
               </div>
             </Col>
           </Row>
@@ -488,8 +511,12 @@ const DailyMachinePlanning: React.FC = () => {
                   <FaIndustry size={20} style={{ color: "var(--color-secondary, #CB7A21)" }} />
                 </div>
                 <div>
-                  <h6 className="text-muted small text-uppercase mb-1 fw-bold">Weekly Target Run</h6>
-                  <h4 className="mb-0 fw-extrabold text-dark">{stats.target.toLocaleString()} pcs</h4>
+                  <h6 className="text-muted small text-uppercase mb-1 fw-bold">
+                    Weekly Target Run
+                  </h6>
+                  <h4 className="mb-0 fw-extrabold text-dark">
+                    {stats.target.toLocaleString()} pcs
+                  </h4>
                 </div>
               </Card.Body>
             </Card>
@@ -506,7 +533,7 @@ const DailyMachinePlanning: React.FC = () => {
               </div>
             ) : filteredPrograms.length > 0 ? (
               <div className="table-responsive">
-                 <table className="master-data-table mb-0" style={{ width: "100%" }}>
+                <table className="master-data-table mb-0" style={{ width: "100%" }}>
                   <thead>
                     <tr>
                       <th style={{ width: "60px" }}>#</th>
@@ -531,8 +558,9 @@ const DailyMachinePlanning: React.FC = () => {
                       const target = poTarget || shiftTarget;
                       const produced = poProduced;
                       const displayPriority = getDisplayPriority(po?.priority);
-                      
-                      const isPaused = prog.status === "PLANNED" && poProduced > 0 && po?.status !== "COMPLETED";
+
+                      const isPaused =
+                        prog.status === "PLANNED" && poProduced > 0 && po?.status !== "COMPLETED";
                       // isCarryForward: PLANNED row where the PO already has some production — this is the carry-forward slot
                       const isCarryForward = isPaused;
                       const displayStatus = isPaused ? "ON_HOLD" : prog.status;
@@ -541,19 +569,21 @@ const DailyMachinePlanning: React.FC = () => {
                         <tr
                           key={prog.weeklyProgramId}
                           className="master-data-row"
-                          style={isCarryForward ? {
-                            background: "linear-gradient(90deg, #fffbe6 0%, #fff8e1 100%)",
-                            borderLeft: "4px solid #f59e0b"
-                          } : {}}
+                          style={
+                            isCarryForward
+                              ? {
+                                  background: "linear-gradient(90deg, #fffbe6 0%, #fff8e1 100%)",
+                                  borderLeft: "4px solid #f59e0b",
+                                }
+                              : {}
+                          }
                         >
                           <td className="master-data-cell">{idx + 1}</td>
                           <td className="master-data-cell fw-bold">
                             <div className="d-flex flex-column gap-1">
                               <div className="d-flex align-items-center gap-2 flex-wrap">
                                 <span>{prog.productionOrderId}</span>
-                                {po?.priority && (
-                                  <StatusBadge status={displayPriority} />
-                                )}
+                                {po?.priority && <StatusBadge status={displayPriority} />}
                                 {isCarryForward && (
                                   <span
                                     style={{
@@ -564,7 +594,7 @@ const DailyMachinePlanning: React.FC = () => {
                                       padding: "2px 6px",
                                       borderRadius: "4px",
                                       letterSpacing: "0.5px",
-                                      textTransform: "uppercase"
+                                      textTransform: "uppercase",
                                     }}
                                   >
                                     ↩ Carry Forward
@@ -572,33 +602,51 @@ const DailyMachinePlanning: React.FC = () => {
                                 )}
                               </div>
                               {isCarryForward && (
-                                <span style={{ fontSize: "10px", color: "#92400e", fontWeight: 500 }}>
+                                <span
+                                  style={{ fontSize: "10px", color: "#92400e", fontWeight: 500 }}
+                                >
                                   {poProduced} / {poTarget} pcs produced — Click ▶ to resume
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="master-data-cell">{po?.productItem?.productName || "Unknown Product"}</td>
+                          <td className="master-data-cell">
+                            {po?.productItem?.productName || "Unknown Product"}
+                          </td>
                           <td className="master-data-cell fw-medium">
                             {shiftTarget} pcs
                             {poTarget > shiftTarget && (
-                              <div className="text-muted" style={{ fontSize: "10px" }}>PO: {poTarget} pcs</div>
+                              <div className="text-muted" style={{ fontSize: "10px" }}>
+                                PO: {poTarget} pcs
+                              </div>
                             )}
                           </td>
                           <td className="master-data-cell fw-medium">
-                            <span className={produced >= poTarget && poTarget > 0 ? "text-success fw-bold" : "text-dark"}>
+                            <span
+                              className={
+                                produced >= poTarget && poTarget > 0
+                                  ? "text-success fw-bold"
+                                  : "text-dark"
+                              }
+                            >
                               {produced} pcs
                             </span>
                             {/* Only show pending for active programs, not for completed ones */}
                             {poTarget > 0 && produced < poTarget && prog.status !== "COMPLETED" && (
-                              <div className="text-danger" style={{ fontSize: "10px" }}>Pending: {poTarget - produced} pcs</div>
+                              <div className="text-danger" style={{ fontSize: "10px" }}>
+                                Pending: {poTarget - produced} pcs
+                              </div>
                             )}
                             {/* For completed programs that under-produced, show carry-forward note */}
                             {poTarget > 0 && produced < poTarget && prog.status === "COMPLETED" && (
-                              <div className="text-warning" style={{ fontSize: "10px" }}>↳ Carried Forward</div>
+                              <div className="text-warning" style={{ fontSize: "10px" }}>
+                                ↳ Carried Forward
+                              </div>
                             )}
                             {poTarget > 0 && produced > poTarget && (
-                              <div className="text-success" style={{ fontSize: "10px" }}>+{produced - poTarget} extra</div>
+                              <div className="text-success" style={{ fontSize: "10px" }}>
+                                +{produced - poTarget} extra
+                              </div>
                             )}
                           </td>
                           <td className="master-data-cell">
@@ -619,10 +667,12 @@ const DailyMachinePlanning: React.FC = () => {
                           </td>
                           <td className="master-data-cell text-end">
                             <div className="table-action-group justify-content-end">
-                              <ViewButton onClick={() => {
-                                setProgramToView(prog);
-                                setShowViewModal(true);
-                              }} />
+                              <ViewButton
+                                onClick={() => {
+                                  setProgramToView(prog);
+                                  setShowViewModal(true);
+                                }}
+                              />
                               {prog.status === "PLANNED" && (
                                 <>
                                   <IconButton
@@ -667,12 +717,16 @@ const DailyMachinePlanning: React.FC = () => {
                       );
                     })}
                   </tbody>
-                 </table>
+                </table>
               </div>
             ) : (
               <div className="text-center py-5">
-                <h5 className="text-muted mb-1">No scheduled production runs match your filters.</h5>
-                <p className="text-muted small mb-0">Try adjusting your filters or click "Add Production Run" to schedule a new one.</p>
+                <h5 className="text-muted mb-1">
+                  No scheduled production runs match your filters.
+                </h5>
+                <p className="text-muted small mb-0">
+                  Try adjusting your filters or click "Add Production Run" to schedule a new one.
+                </p>
               </div>
             )}
           </Card.Body>
@@ -680,7 +734,10 @@ const DailyMachinePlanning: React.FC = () => {
 
         {/* Modal: Add Production Run to Week */}
         <Modal show={showAddRunModal} onHide={() => setShowAddRunModal(false)} centered>
-          <Modal.Header closeButton style={{ background: "var(--color-primary, #003428)", color: "#fff" }}>
+          <Modal.Header
+            closeButton
+            style={{ background: "var(--color-primary, #003428)", color: "#fff" }}
+          >
             <Modal.Title className="fs-5 fw-bold">Schedule Production Run</Modal.Title>
           </Modal.Header>
           <Form onSubmit={handleSaveNewRun}>
@@ -688,16 +745,24 @@ const DailyMachinePlanning: React.FC = () => {
               <Row className="g-3">
                 <Col md={12}>
                   <Form.Group>
-                    <Form.Label className="fw-bold small text-muted text-uppercase">Target Week Period</Form.Label>
+                    <Form.Label className="fw-bold small text-muted text-uppercase">
+                      Target Week Period
+                    </Form.Label>
                     <div className="p-3 bg-light rounded border small fw-medium text-dark">
-                      <FaCalendarAlt className="me-2 text-primary" style={{ color: "var(--color-primary, #003428)" }} /> {weekRangeText}
+                      <FaCalendarAlt
+                        className="me-2 text-primary"
+                        style={{ color: "var(--color-primary, #003428)" }}
+                      />{" "}
+                      {weekRangeText}
                     </div>
                   </Form.Group>
                 </Col>
 
                 <Col md={12}>
                   <Form.Group>
-                    <Form.Label className="fw-bold small text-muted text-uppercase">Select Production Order</Form.Label>
+                    <Form.Label className="fw-bold small text-muted text-uppercase">
+                      Select Production Order
+                    </Form.Label>
                     <Form.Select
                       required
                       value={newRunPoId}
@@ -707,7 +772,8 @@ const DailyMachinePlanning: React.FC = () => {
                       <option value="">-- Select Production Order --</option>
                       {activeProductionOrders.map((po) => (
                         <option key={po.productionOrderId} value={po.productionOrderId}>
-                          {po.productionOrderId} - {po.productItem?.productName} (Qty: {po.targetQty} pcs)
+                          {po.productionOrderId} - {po.productItem?.productName} (Qty:{" "}
+                          {po.targetQty} pcs)
                         </option>
                       ))}
                     </Form.Select>
@@ -728,7 +794,9 @@ const DailyMachinePlanning: React.FC = () => {
 
                 <Col md={6}>
                   <Form.Group>
-                    <Form.Label className="fw-bold small text-muted text-uppercase">Priority</Form.Label>
+                    <Form.Label className="fw-bold small text-muted text-uppercase">
+                      Priority
+                    </Form.Label>
                     <Form.Select
                       value={newRunPriority}
                       onChange={(e) => setNewRunPriority(e.target.value)}
@@ -744,10 +812,21 @@ const DailyMachinePlanning: React.FC = () => {
               </Row>
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" className="rounded-3" onClick={() => setShowAddRunModal(false)}>
+              <Button
+                variant="secondary"
+                className="rounded-3"
+                onClick={() => setShowAddRunModal(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" style={{ backgroundColor: "var(--color-primary, #003428)", borderColor: "var(--color-primary, #003428)" }} className="rounded-3 px-4 text-white">
+              <Button
+                type="submit"
+                style={{
+                  backgroundColor: "var(--color-primary, #003428)",
+                  borderColor: "var(--color-primary, #003428)",
+                }}
+                className="rounded-3 px-4 text-white"
+              >
                 Schedule Run
               </Button>
             </Modal.Footer>
@@ -791,10 +870,23 @@ const DailyMachinePlanning: React.FC = () => {
               title: "Planning Details",
               fields: [
                 { label: "Target Quantity", value: `${programToView?.plannedQty || 0} pcs` },
-                { label: "Produced Quantity", value: `${programToView?.productionOrder?.producedQty || 0} pcs` },
-                { label: "Machine Assigned", value: programToView?.machine?.machineName || programToView?.machineId || "Not Assigned" },
-                { label: "Shift", value: programToView?.shift?.shiftName || programToView?.shiftId || "Not Assigned" },
-              ]
+                {
+                  label: "Produced Quantity",
+                  value: `${programToView?.productionOrder?.producedQty || 0} pcs`,
+                },
+                {
+                  label: "Machine Assigned",
+                  value:
+                    programToView?.machine?.machineName ||
+                    programToView?.machineId ||
+                    "Not Assigned",
+                },
+                {
+                  label: "Shift",
+                  value:
+                    programToView?.shift?.shiftName || programToView?.shiftId || "Not Assigned",
+                },
+              ],
             },
             {
               title: "Scheduling Info",
@@ -802,19 +894,28 @@ const DailyMachinePlanning: React.FC = () => {
                 { label: "Week Start", value: programToView?.weekStartDate },
                 { label: "Day of Week", value: programToView?.dayOfWeek },
                 { label: "Priority", value: programToView?.priority || "Normal" },
-              ]
-            }
+              ],
+            },
           ]}
           customContent={
             <div className="mt-2">
-              <h6 className="fw-bold mb-3 text-uppercase" style={{ color: "var(--color-primary)", letterSpacing: "0.5px" }}>
+              <h6
+                className="fw-bold mb-3 text-uppercase"
+                style={{ color: "var(--color-primary)", letterSpacing: "0.5px" }}
+              >
                 Hourly Entries Details
               </h6>
               {loadingLogs ? (
-                <div className="text-center py-3"><div className="animate-spin rounded-full border-b-2 border-indigo-600 h-4 w-4 border-b-2"></div> Loading logs...</div>
+                <div className="text-center py-3">
+                  <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-4 w-4 border-b-2"></div>{" "}
+                  Loading logs...
+                </div>
               ) : hourlyLogs.filter((h: any) => Number(h.hourIndex) > 0).length > 0 ? (
                 <div className="rounded-3 border bg-white shadow-sm overflow-hidden">
-                  <table className="master-data-table text-center align-middle mb-0" style={{ width: "100%" }}>
+                  <table
+                    className="master-data-table text-center align-middle mb-0"
+                    style={{ width: "100%" }}
+                  >
                     <thead className="bg-light">
                       <tr>
                         <th>Hour Index</th>
@@ -827,36 +928,68 @@ const DailyMachinePlanning: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {hourlyLogs.filter((h: any) => Number(h.hourIndex) > 0).map((h: any) => (
-                        <tr key={h.hourlyProductionId} className="master-data-row border-bottom">
-                          <td className="master-data-cell fw-bold text-dark font-monospace">Hour {h.hourIndex}</td>
-                          <td className="master-data-cell fw-bold text-success">{h.qtyProduced}</td>
-                          <td className="master-data-cell text-danger fw-semibold">{h.rejectQty || 0}</td>
-                          <td className="master-data-cell text-warning fw-semibold">{h.scrapQty || 0}</td>
-                          <td className="master-data-cell text-muted">
-                            {h.downtime > 0 ? (
-                              <div className="d-flex flex-column align-items-center">
-                                <span className="fw-semibold text-danger">{h.downtime} Mins</span>
-                                {h.downtimeReason && (
-                                  <span className="small text-muted" style={{ fontSize: "10px" }}>{h.downtimeReason}</span>
-                                )}
-                              </div>
-                            ) : "-"}
-                          </td>
-                          <td className="master-data-cell text-dark small">{h.operatorId || "-"}</td>
-                          <td className="master-data-cell text-muted small text-start">{h.remarks || "-"}</td>
-                        </tr>
-                      ))}
+                      {hourlyLogs
+                        .filter((h: any) => Number(h.hourIndex) > 0)
+                        .map((h: any) => (
+                          <tr key={h.hourlyProductionId} className="master-data-row border-bottom">
+                            <td className="master-data-cell fw-bold text-dark font-monospace">
+                              Hour {h.hourIndex}
+                            </td>
+                            <td className="master-data-cell fw-bold text-success">
+                              {h.qtyProduced}
+                            </td>
+                            <td className="master-data-cell text-danger fw-semibold">
+                              {h.rejectQty || 0}
+                            </td>
+                            <td className="master-data-cell text-warning fw-semibold">
+                              {h.scrapQty || 0}
+                            </td>
+                            <td className="master-data-cell text-muted">
+                              {h.downtime > 0 ? (
+                                <div className="d-flex flex-column align-items-center">
+                                  <span className="fw-semibold text-danger">{h.downtime} Mins</span>
+                                  {h.downtimeReason && (
+                                    <span className="small text-muted" style={{ fontSize: "10px" }}>
+                                      {h.downtimeReason}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                            <td className="master-data-cell text-dark small">
+                              {h.operatorId || "-"}
+                            </td>
+                            <td className="master-data-cell text-muted small text-start">
+                              {h.remarks || "-"}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                     <tfoot className="bg-light fw-bold" style={{ borderTop: "2px solid #dee2e6" }}>
                       <tr>
                         <td className="text-end pe-3">Total:</td>
-                        <td className="text-success">{hourlyLogs.filter((h: any) => Number(h.hourIndex) > 0).reduce((sum, h) => sum + (Number(h.qtyProduced) || 0), 0)}</td>
-                        <td className="text-danger">{hourlyLogs.filter((h: any) => Number(h.hourIndex) > 0).reduce((sum, h) => sum + (Number(h.rejectQty) || 0), 0)}</td>
-                        <td className="text-warning">{hourlyLogs.filter((h: any) => Number(h.hourIndex) > 0).reduce((sum, h) => sum + (Number(h.scrapQty) || 0), 0)}</td>
+                        <td className="text-success">
+                          {hourlyLogs
+                            .filter((h: any) => Number(h.hourIndex) > 0)
+                            .reduce((sum, h) => sum + (Number(h.qtyProduced) || 0), 0)}
+                        </td>
+                        <td className="text-danger">
+                          {hourlyLogs
+                            .filter((h: any) => Number(h.hourIndex) > 0)
+                            .reduce((sum, h) => sum + (Number(h.rejectQty) || 0), 0)}
+                        </td>
+                        <td className="text-warning">
+                          {hourlyLogs
+                            .filter((h: any) => Number(h.hourIndex) > 0)
+                            .reduce((sum, h) => sum + (Number(h.scrapQty) || 0), 0)}
+                        </td>
                         <td className="text-danger">
                           {(() => {
-                            const totalDowntime = hourlyLogs.filter((h: any) => Number(h.hourIndex) > 0).reduce((sum, h) => sum + (Number(h.downtime) || 0), 0);
+                            const totalDowntime = hourlyLogs
+                              .filter((h: any) => Number(h.hourIndex) > 0)
+                              .reduce((sum, h) => sum + (Number(h.downtime) || 0), 0);
                             return totalDowntime > 0 ? `${totalDowntime} Mins` : "-";
                           })()}
                         </td>
@@ -866,7 +999,9 @@ const DailyMachinePlanning: React.FC = () => {
                   </table>
                 </div>
               ) : (
-                <div className="text-center text-muted p-4 border rounded-3 bg-light">No hourly reports recorded for this run.</div>
+                <div className="text-center text-muted p-4 border rounded-3 bg-light">
+                  No hourly reports recorded for this run.
+                </div>
               )}
             </div>
           }

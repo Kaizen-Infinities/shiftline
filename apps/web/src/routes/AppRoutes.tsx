@@ -225,6 +225,28 @@ const AccountExportPage = lazy(() => import("../modules/settings/pages/AccountEx
 const FilingApprovalsPage = lazy(() => import("../modules/compliance/pages/FilingApprovalsPage"));
 const EInvoicesPage = lazy(() => import("../modules/compliance/pages/EInvoicesPage"));
 const EwayBillsPage = lazy(() => import("../modules/compliance/pages/EwayBillsPage"));
+const GstReturnsPage = lazy(() => import("../modules/compliance/pages/GstReturnsPage"));
+const AdvancesPage = lazy(() => import("../modules/sales/advances/AdvancesPage"));
+const CurrenciesPage = lazy(() => import("../modules/settings/pages/CurrenciesPage"));
+const JobWorkPage = lazy(() => import("../modules/production/jobwork/JobWorkPage"));
+const TdsPage = lazy(() => import("../modules/compliance/pages/TdsPage"));
+const TallyExportPage = lazy(() => import("../modules/accounts/pages/TallyExportPage"));
+const MsmePage = lazy(() => import("../modules/accounts/pages/MsmePage"));
+const FixedAssetsPage = lazy(() => import("../modules/accounts/pages/FixedAssetsPage"));
+const ForexPage = lazy(() => import("../modules/accounts/pages/ForexPage"));
+const CostingPage = lazy(() => import("../modules/accounts/pages/CostingPage"));
+const BankReconciliationPage = lazy(
+  () => import("../modules/accounts/pages/BankReconciliationPage")
+);
+const StatutoryPayrollPage = lazy(() => import("../modules/payroll/pages/StatutoryPayrollPage"));
+const LabourEntitlementsPage = lazy(
+  () => import("../modules/payroll/pages/LabourEntitlementsPage")
+);
+const PaymentLinksPage = lazy(() => import("../modules/payments/pages/PaymentLinksPage"));
+const SmsPage = lazy(() => import("../modules/sms/pages/SmsPage"));
+const ComplianceCalendarPage = lazy(
+  () => import("../modules/compliance/pages/ComplianceCalendarPage")
+);
 const TransportersPage = lazy(() => import("../modules/settings/pages/TransportersPage"));
 const EInvoiceSettingsPage = lazy(() => import("../modules/settings/pages/EInvoiceSettingsPage"));
 const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
@@ -558,6 +580,52 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="eway-bill.view" />}>
                 <Route path="/compliance/eway-bills" element={<EwayBillsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="gst-returns.view" />}>
+                <Route path="/compliance/gst" element={<GstReturnsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="advances.view" />}>
+                <Route path="/sales/advances" element={<AdvancesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="currencies.view" />}>
+                <Route path="/settings/currencies" element={<CurrenciesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="job-work.view" />}>
+                <Route path="/production/job-work" element={<JobWorkPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="filings.view" />}>
+                <Route path="/compliance/calendar" element={<ComplianceCalendarPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="tds.view" />}>
+                <Route path="/compliance/tds" element={<TdsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="tally.view" />}>
+                <Route path="/accounts/tally" element={<TallyExportPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="payable.view" />}>
+                <Route path="/payable/msme" element={<MsmePage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="assets.view" />}>
+                <Route path="/accounts/fixed-assets" element={<FixedAssetsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="currencies.view" />}>
+                <Route path="/accounts/forex" element={<ForexPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="costing.view" />}>
+                <Route path="/accounts/costing" element={<CostingPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="banking.view" />}>
+                <Route path="/accounts/bank-reconciliation" element={<BankReconciliationPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="payroll.view" />}>
+                <Route path="/payroll/statutory" element={<StatutoryPayrollPage />} />
+                <Route path="/payroll/entitlements" element={<LabourEntitlementsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="payments.view" />}>
+                <Route path="/accounts/payment-links" element={<PaymentLinksPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="sms.view" />}>
+                <Route path="/settings/sms" element={<SmsPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="transporters.view" />}>
                 <Route path="/settings/transporters" element={<TransportersPage />} />

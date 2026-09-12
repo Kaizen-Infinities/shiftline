@@ -502,6 +502,8 @@ model Customer {
   salesOrdersAsReferral SalesOrder[]        @relation("SalesOrderReferredBy")
   accountLedger         AccountLedger?
   salesReturns          SalesReturn[]
+  advanceReceipts       AdvanceReceipt[]
+  cheques               Cheque[]
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -537,6 +539,9 @@ model Company {
   legalName    String? @db.VarChar(160)
   shortName    String? @db.VarChar(60)
   gstin        String? @db.VarChar(15)
+  /// Tax deduction account number; every TDS challan and return carries it (P1-15).
+  tan          String? @db.VarChar(10)
+  pan          String? @db.VarChar(10)
   currencyCode String  @default("INR") @db.VarChar(3)
   phone        String? @db.VarChar(20)
   mobile       String? @db.VarChar(1000)
@@ -673,6 +678,52 @@ model Company {
   transporters                Transporter[]                @relation("CompanyTransporter")
   ewayBills                   EwayBill[]                   @relation("CompanyEwayBill")
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
+  itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
+
+  tdsSections           TdsSection[]             @relation("CompanyTdsSection")
+  tdsDeductions         TdsDeduction[]           @relation("CompanyTdsDeduction")
+  tdsChallans           TdsChallan[]             @relation("CompanyTdsChallan")
+  tallyNameMaps         TallyNameMap[]           @relation("CompanyTallyNameMap")
+  tallyExportRuns       TallyExportRun[]         @relation("CompanyTallyExportRun")
+  assetClasses          AssetClass[]             @relation("CompanyAssetClass")
+  fixedAssets           FixedAsset[]             @relation("CompanyFixedAsset")
+  assetEvents           AssetEvent[]             @relation("CompanyAssetEvent")
+  depreciationRuns      DepreciationRun[]        @relation("CompanyDepreciationRun")
+  assetDepreciations    AssetDepreciation[]      @relation("CompanyAssetDepreciation")
+  fxRevaluations        FxRevaluation[]          @relation("CompanyFxRevaluation")
+  billsOfEntry          BillOfEntry[]            @relation("CompanyBillOfEntry")
+  stockValuationEntries StockValuationEntry[]    @relation("CompanyStockValuationEntry")
+  costCentres           CostCentre[]             @relation("CompanyCostCentre")
+  budgets               Budget[]                 @relation("CompanyBudget")
+  productCostSheets     ProductCostSheet[]       @relation("CompanyProductCostSheet")
+  jobWorkers            JobWorker[]              @relation("CompanyJobWorker")
+  deliveryChallans      DeliveryChallan[]        @relation("CompanyDeliveryChallan")
+  deliveryChallanItems  DeliveryChallanItem[]    @relation("CompanyDeliveryChallanItem")
+  currencies            Currency[]               @relation("CompanyCurrency")
+  exchangeRates         ExchangeRate[]           @relation("CompanyExchangeRate")
+  advanceReceipts       AdvanceReceipt[]         @relation("CompanyAdvanceReceipt")
+  advanceAdjustments    AdvanceAdjustment[]      @relation("CompanyAdvanceAdjustment")
+  gstr2bRecords         Gstr2bRecord[]           @relation("CompanyGstr2bRecord")
+  imsActions            ImsAction[]              @relation("CompanyImsAction")
+  bankStatements        BankStatement[]          @relation("CompanyBankStatement")
+  bankStatementLines    BankStatementLine[]      @relation("CompanyBankStatementLine")
+  cheques               Cheque[]                 @relation("CompanyCheque")
+  statutoryRules        StatutoryRule[]          @relation("CompanyStatutoryRule")
+  payrollStatutory      PayrollStatutory[]       @relation("CompanyPayrollStatutory")
+  taxDeclarations       EmployeeTaxDeclaration[] @relation("CompanyEmployeeTaxDeclaration")
+  holidays              Holiday[]                @relation("CompanyHoliday")
+  leaveTypes            LeaveType[]              @relation("CompanyLeaveType")
+  leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
+  finalSettlements      FinalSettlement[]        @relation("CompanyFinalSettlement")
+  paymentGateway        PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
+  paymentLinks          PaymentLink[]            @relation("CompanyPaymentLink")
+  paymentCaptures       PaymentCapture[]         @relation("CompanyPaymentCapture")
+  paymentWebhookEvents  PaymentWebhookEvent[]    @relation("CompanyPaymentWebhookEvent")
+  subscriptionInvoices  SubscriptionInvoice[]    @relation("CompanySubscriptionInvoice")
+  smsConfig             SmsConfig?               @relation("CompanySmsConfig")
+  smsTemplates          SmsTemplate[]            @relation("CompanySmsTemplate")
+  smsMessages           SmsMessage[]             @relation("CompanySmsMessage")
+  otpChallenges         OtpChallenge[]           @relation("CompanyOtpChallenge")
 
   @@map("companies")
 }
@@ -735,9 +786,12 @@ model BusinessPlace {
   salesReturns     SalesReturn[]     @relation("SalesReturnBusinessPlace")
   purchaseReturns  PurchaseReturn[]  @relation("PurchaseReturnBusinessPlace")
   vouchers         Voucher[]         @relation("VoucherBusinessPlace")
+  fixedAssets      FixedAsset[]      @relation("FixedAssetBusinessPlace")
   goodsDispatches  GoodsDispatch[]   @relation("GoodsDispatchBusinessPlace")
   expenses         Expense[]         @relation("ExpenseBusinessPlace")
   pettyCashEntries PettyCashEntry[]  @relation("PettyCashBusinessPlace")
+  advanceReceipts  AdvanceReceipt[]  @relation("AdvanceReceiptBusinessPlace")
+  deliveryChallans DeliveryChallan[] @relation("ChallanBusinessPlace")
 
   company Company @relation("CompanyBusinessPlace", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -810,19 +864,38 @@ model Supplier {
   creditDays          Int?                    @map("credit_days")
   id                  Int                     @id @default(autoincrement())
   companyId           String                  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// Deductee details for TDS (P1-15): who they are decides the rate, and 206AB doubles it.
+  deducteeType        DeducteeType?           @map("deductee_type")
+  /// MSME status (P1-07). Only MICRO and SMALL bring section 15 and 43B(h) with them.
+  msmeCategory        MsmeCategory            @default(NOT_REGISTERED) @map("msme_category")
+  /// UDYAM-XX-00-0000000 from the supplier's registration certificate.
+  udyamNumber         String?                 @map("udyam_number") @db.VarChar(19)
+  /// The day the certificate was actually seen; status claimed but unverified is worth knowing.
+  msmeVerifiedOn      DateTime?               @map("msme_verified_on") @db.Date
+  /// Section 15 allows up to 45 days only where there is a written agreement; 15 days otherwise.
+  hasWrittenContract  Boolean                 @default(false) @map("has_written_contract")
+  /// The days the contract agrees to. Capped at 45 when the limit is worked out, never here.
+  agreedPaymentDays   Int?                    @map("agreed_payment_days")
+  /// The payee has not filed their returns, so tax comes off at the higher rate (206AB).
+  higherRate206AB     Boolean                 @default(false) @map("higher_rate_206ab")
   materialPrices      SupplierMaterialPrice[]
+  tdsDeductions       TdsDeduction[]
   expenses            Expense[]
   grnInvoices         GrnInvoice[]
   purchaseOrders      PurchaseOrder[]
   addresses           SupplierAddress[]
   accountLedger       AccountLedger?
   purchaseReturns     PurchaseReturn[]
+  cheques             Cheque[]
 
-  company Company @relation("CompanySupplier", fields: [companyId], references: [id], onDelete: Restrict)
+  company       Company       @relation("CompanySupplier", fields: [companyId], references: [id], onDelete: Restrict)
+  fixedAssets   FixedAsset[]
+  billOfEntries BillOfEntry[]
 
   @@unique([companyId, supplierCode])
   @@index([legalName])
   @@index([status])
+  @@index([companyId, msmeCategory])
   @@map("suppliers")
 }
 
@@ -927,6 +1000,8 @@ model Product {
   shiftRecords              ProductShiftRecord[]
   capacityHistories         ProductCapacityHistory[]
   usedInSalesProducts       SalesProductComponent[]
+  deliveryChallanItems      DeliveryChallanItem[]
+  costSheets                ProductCostSheet[]
 
   company Company @relation("CompanyProduct", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1205,6 +1280,7 @@ model RawMaterial {
   purchaseReturnItems     PurchaseReturnItem[]
   store                   Store?                   @relation("StoreToRawMaterial", fields: [companyId, storeId], references: [companyId, storeId])
   StockAdjustmentItem     StockAdjustmentItem[]
+  deliveryChallanItems    DeliveryChallanItem[]
   category                Category?                @relation(fields: [categoryId], references: [id])
 
   company Company @relation("CompanyRawMaterial", fields: [companyId], references: [id], onDelete: Restrict)
@@ -2131,19 +2207,32 @@ model SalesInvoice {
   customerGstin        String?               @map("customer_gstin") @db.VarChar(15)
   reverseCharge        Boolean               @default(false) @map("reverse_charge")
   cessTotal            Decimal               @default(0) @map("cess_total") @db.Decimal(14, 2)
+  /// Exports and SEZ supplies (P1-14): whether tax was charged, and the shipping bill that
+  /// proves the goods left, which GSTR-1's EXP table carries.
+  exportType           ExportType?           @map("export_type")
+  lutNumber            String?               @map("lut_number") @db.VarChar(30)
+  shippingBillNo       String?               @map("shipping_bill_no") @db.VarChar(20)
+  shippingBillDate     DateTime?             @map("shipping_bill_date") @db.Date
+  portCode             String?               @map("port_code") @db.VarChar(10)
+  /// A foreign-currency document keeps both: the books are in INR at the rate it posted at.
+  currencyCode         String                @default("INR") @map("currency_code") @db.VarChar(3)
+  exchangeRate         Decimal               @default(1) @map("exchange_rate") @db.Decimal(14, 6)
+  foreignTotal         Decimal?              @map("foreign_total") @db.Decimal(14, 2)
   items                SalesInvoiceItem[]
   paymentRecords       SalesInvoicePayment[]
   customer             Customer              @relation(fields: [customerId], references: [id])
   salesOrder           SalesOrder?           @relation(fields: [salesOrderId], references: [id])
   store                Store?                @relation(fields: [companyId, storeId], references: [companyId, storeId])
   salesReturns         SalesReturn[]
+  advanceAdjustments   AdvanceAdjustment[]
   businessPlace        BusinessPlace?        @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
   /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
   cancelledAt          DateTime?             @map("cancelled_at") @db.Timestamptz(6)
   cancelledBy          String?               @map("cancelled_by") @db.VarChar(36)
   cancelReason         String?               @map("cancel_reason") @db.VarChar(255)
 
-  company Company @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
+  company      Company       @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
+  paymentLinks PaymentLink[]
 
   @@unique([companyId, invoiceNo])
   @@index([customerId])
@@ -2665,6 +2754,7 @@ model AccountLedger {
   supplier    Supplier?     @relation(fields: [supplierId], references: [id])
   debitItems  JournalItem[] @relation("DebitItems")
   creditItems JournalItem[] @relation("CreditItems")
+  budgets     Budget[]
   bankAccount BankAccount?
 
   company Company @relation("CompanyAccountLedger", fields: [companyId], references: [id], onDelete: Restrict)
@@ -2692,8 +2782,10 @@ model BankAccount {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  ledger  AccountLedger @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
-  company Company       @relation("CompanyBankAccount", fields: [companyId], references: [id], onDelete: Restrict)
+  ledger     AccountLedger   @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  statements BankStatement[]
+  cheques    Cheque[]
+  company    Company         @relation("CompanyBankAccount", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
   @@map("bank_accounts")
@@ -2765,21 +2857,24 @@ model Plan {
 /// One subscription per tenant (history is in the audit trail). Seats and the API cap may
 /// override the plan; overrides of individual features live in FeatureFlagOverride.
 model Subscription {
-  id                 String             @id @default(uuid()) @db.Uuid
-  companyId          String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  planId             String             @map("plan_id") @db.Uuid
-  status             SubscriptionStatus @default(TRIALING)
-  seats              Int?
-  apiLimit           Int?               @map("api_limit")
-  trialEndsAt        DateTime?          @map("trial_ends_at") @db.Timestamptz(6)
-  currentPeriodStart DateTime?          @map("current_period_start") @db.Timestamptz(6)
-  currentPeriodEnd   DateTime?          @map("current_period_end") @db.Timestamptz(6)
-  cancelledAt        DateTime?          @map("cancelled_at") @db.Timestamptz(6)
-  notes              String?            @db.VarChar(500)
-  createdBy          String?            @map("created_by") @db.VarChar(36)
-  updatedBy          String?            @map("updated_by") @db.VarChar(36)
-  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String             @id @default(uuid()) @db.Uuid
+  companyId              String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  planId                 String             @map("plan_id") @db.Uuid
+  status                 SubscriptionStatus @default(TRIALING)
+  seats                  Int?
+  apiLimit               Int?               @map("api_limit")
+  trialEndsAt            DateTime?          @map("trial_ends_at") @db.Timestamptz(6)
+  currentPeriodStart     DateTime?          @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd       DateTime?          @map("current_period_end") @db.Timestamptz(6)
+  cancelledAt            DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  notes                  String?            @db.VarChar(500)
+  /// The gateway's own ids, when the subscription is billed through one (P1-21).
+  providerSubscriptionId String?            @map("provider_subscription_id") @db.VarChar(120)
+  providerCustomerId     String?            @map("provider_customer_id") @db.VarChar(120)
+  createdBy              String?            @map("created_by") @db.VarChar(36)
+  updatedBy              String?            @map("updated_by") @db.VarChar(36)
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
   company Company @relation("CompanySubscription", fields: [companyId], references: [id], onDelete: Restrict)
@@ -2926,6 +3021,10 @@ model JournalItem {
   debitAmount    Decimal        @default(0) @db.Decimal(14, 2)
   creditAmount   Decimal        @default(0) @db.Decimal(14, 2)
   narration      String?        @db.VarChar(255)
+  /// P1-19: where this cost belongs. Null means unallocated, which the cost-centre P&L shows
+  /// rather than hides — an unallocated pile is the thing that makes the report untrustworthy.
+  costCentreId   String?        @map("cost_centre_id") @db.Uuid
+  costCentre     CostCentre?    @relation(fields: [costCentreId], references: [id])
   voucher        Voucher        @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   debitLedger    AccountLedger? @relation("DebitItems", fields: [debitLedgerId], references: [id])
   creditLedger   AccountLedger? @relation("CreditItems", fields: [creditLedgerId], references: [id])
@@ -3849,4 +3948,1782 @@ model ConsolidatedEwayBill {
 
   @@unique([companyId, cewbNo])
   @@map("consolidated_eway_bills")
+}
+
+// ─── Input tax credit ledger (P1-13b) ─────────────────────────────────────────
+
+enum ItcStatus {
+  ELIGIBLE
+  INELIGIBLE
+  REVERSED
+  RECLAIMED
+  VOID
+}
+
+/// One row per inward document carrying GST: what credit it brings, whether it may be taken
+/// (section 17(5) by HSN, or a manual call), whether it was reversed (180-day non-payment) and
+/// reclaimed. Rebuilt from the documents each time a period is computed; rows are updated,
+/// never deleted, and a cancelled document leaves a VOID row. Audited.
+model ItcEntry {
+  id              String     @id @default(uuid()) @db.Uuid
+  companyId       String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// Month the credit is availed in (2026-08).
+  periodKey       String     @map("period_key") @db.VarChar(7)
+  /// GRN | EXPENSE | PETTY_CASH
+  docType         String     @map("doc_type") @db.VarChar(12)
+  docId           String     @map("doc_id") @db.VarChar(40)
+  docNo           String     @map("doc_no") @db.VarChar(40)
+  docDate         DateTime   @map("doc_date") @db.Date
+  supplierGstin   String?    @map("supplier_gstin") @db.VarChar(15)
+  hsnCode         String?    @map("hsn_code") @db.VarChar(8)
+  /// RCM | IMPORT_GOODS | IMPORT_SERVICES | ISD | OTHER (GSTR-3B table 4A rows)
+  source          String     @default("OTHER") @db.VarChar(16)
+  taxable         Decimal    @default(0) @db.Decimal(14, 2)
+  igst            Decimal    @default(0) @db.Decimal(14, 2)
+  cgst            Decimal    @default(0) @db.Decimal(14, 2)
+  sgst            Decimal    @default(0) @db.Decimal(14, 2)
+  cess            Decimal    @default(0) @db.Decimal(14, 2)
+  status          ItcStatus  @default(ELIGIBLE)
+  /// 17(5) | 180D | MANUAL | CANCELLED
+  rule            String?    @db.VarChar(12)
+  reason          String?    @db.VarChar(255)
+  reversedPeriod  String?    @map("reversed_period") @db.VarChar(7)
+  reclaimedPeriod String?    @map("reclaimed_period") @db.VarChar(7)
+  /// A manual classification survives rebuilds.
+  manualStatus    ItcStatus? @map("manual_status")
+  manualReason    String?    @map("manual_reason") @db.VarChar(255)
+  manualBy        String?    @map("manual_by") @db.VarChar(36)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyItcEntry", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, docType, docId])
+  @@index([companyId, periodKey, status])
+  @@map("itc_entries")
+}
+
+/// What the portal says about an inward document: accepted, rejected, or left to the default.
+enum ImsStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+/// How a 2B record lines up with the purchase register (P1-13c).
+enum Gstr2bMatchStatus {
+  MATCHED
+  MISMATCH
+  MISSING_IN_2B
+  MISSING_IN_BOOKS
+}
+
+/// One supplier document in a GSTR-2B, as the portal drew it for a period. Imported from the
+/// portal JSON or pulled through a provider; never written by hand. The credit the company may
+/// actually take is decided here, not in its own purchase register. Audited.
+model Gstr2bRecord {
+  id             String             @id @default(uuid()) @db.Uuid
+  companyId      String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// The 2B period the record was drawn for (2026-08).
+  periodKey      String             @map("period_key") @db.VarChar(7)
+  /// The company's own GSTIN this 2B belongs to.
+  gstin          String             @db.VarChar(15)
+  supplierGstin  String             @map("supplier_gstin") @db.VarChar(15)
+  supplierName   String?            @map("supplier_name") @db.VarChar(160)
+  /// INV | CRN | DBN | ISD | IMPG | IMPS
+  docType        String             @map("doc_type") @db.VarChar(4)
+  docNo          String             @map("doc_no") @db.VarChar(40)
+  /// The document number with case, spaces and punctuation stripped, for matching.
+  docNoNorm      String             @map("doc_no_norm") @db.VarChar(40)
+  docDate        DateTime           @map("doc_date") @db.Date
+  docValue       Decimal            @default(0) @map("doc_value") @db.Decimal(14, 2)
+  placeOfSupply  String?            @map("place_of_supply") @db.VarChar(2)
+  reverseCharge  Boolean            @default(false) @map("reverse_charge")
+  taxable        Decimal            @default(0) @db.Decimal(14, 2)
+  igst           Decimal            @default(0) @db.Decimal(14, 2)
+  cgst           Decimal            @default(0) @db.Decimal(14, 2)
+  sgst           Decimal            @default(0) @db.Decimal(14, 2)
+  cess           Decimal            @default(0) @db.Decimal(14, 2)
+  /// The portal's own call on whether the credit is available ("Y"/"N") and why not.
+  itcAvailable   Boolean            @default(true) @map("itc_available")
+  itcReason      String?            @map("itc_reason") @db.VarChar(120)
+  /// The period the supplier filed in, and the day they filed.
+  filingPeriod   String?            @map("filing_period") @db.VarChar(7)
+  filingDate     DateTime?          @map("filing_date") @db.Date
+  /// FIXTURE | GSP | IMPORT (a file the accountant downloaded)
+  sourceKind     String             @default("IMPORT") @map("source_kind") @db.VarChar(10)
+  /// The record exactly as it arrived, so a disputed figure can be traced.
+  raw            Json?
+  /// Set when reconciliation places it against a purchase document.
+  matchStatus    Gstr2bMatchStatus? @map("match_status")
+  matchedDocType String?            @map("matched_doc_type") @db.VarChar(12)
+  matchedDocId   String?            @map("matched_doc_id") @db.VarChar(40)
+  /// Which fields differ, and by how much, when the status is MISMATCH.
+  mismatchFields Json?              @map("mismatch_fields")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  imsAction ImsAction?
+
+  company Company @relation("CompanyGstr2bRecord", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodKey, supplierGstin, docType, docNo])
+  @@index([companyId, periodKey, matchStatus])
+  @@index([companyId, supplierGstin, docNoNorm])
+  @@map("gstr2b_records")
+}
+
+/// The company's call on one inward record in the Invoice Management System. A record left
+/// PENDING when the return is drawn is accepted by the portal's own default, so the absence of
+/// a decision is itself a decision — which is why a pending row is stored, not implied. Audited.
+model ImsAction {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  recordId  String    @unique @map("record_id") @db.Uuid
+  status    ImsStatus @default(PENDING)
+  reason    String?   @db.VarChar(255)
+  decidedBy String?   @map("decided_by") @db.VarChar(36)
+  decidedAt DateTime? @map("decided_at") @db.Timestamptz(6)
+  /// When the action reached the portal, and what it said back.
+  pushedAt  DateTime? @map("pushed_at") @db.Timestamptz(6)
+  pushedBy  String?   @map("pushed_by") @db.VarChar(36)
+  pushRef   String?   @map("push_ref") @db.VarChar(64)
+  pushError String?   @map("push_error") @db.VarChar(255)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  record  Gstr2bRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  company Company      @relation("CompanyImsAction", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@map("ims_actions")
+}
+
+/// How an export or SEZ supply was made: under a bond/LUT with no tax, or on payment of IGST.
+enum ExportType {
+  UNDER_LUT
+  WITH_TAX
+}
+
+/// Where a daily exchange rate came from.
+enum RateSource {
+  MANUAL
+  RBI
+  IMPORT
+}
+
+/// A currency the company transacts in. INR is seeded for every tenant and cannot be retired:
+/// the books are kept in it, and every foreign document converts to it before it posts.
+model Currency {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// ISO 4217, e.g. USD.
+  code      String   @db.VarChar(3)
+  name      String   @db.VarChar(60)
+  symbol    String?  @db.VarChar(6)
+  /// Minor units: 2 for most, 0 for JPY.
+  decimals  Int      @default(2)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rates ExchangeRate[]
+
+  company Company @relation("CompanyCurrency", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("currencies")
+}
+
+/// One currency's rate against INR for one day. Rates are never edited in place once a document
+/// has used one: a correction is a new row for the day, and the document keeps the rate it was
+/// posted at, because that is what the books are in.
+model ExchangeRate {
+  id           String     @id @default(uuid()) @db.Uuid
+  companyId    String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  currencyCode String     @map("currency_code") @db.VarChar(3)
+  rateDate     DateTime   @map("rate_date") @db.Date
+  /// Rupees for one unit of the currency.
+  rate         Decimal    @db.Decimal(14, 6)
+  source       RateSource @default(MANUAL)
+  createdBy    String?    @map("created_by") @db.VarChar(36)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  currency Currency @relation(fields: [companyId, currencyCode], references: [companyId, code])
+
+  company Company @relation("CompanyExchangeRate", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, currencyCode, rateDate])
+  @@index([companyId, currencyCode, rateDate])
+  @@map("exchange_rates")
+}
+
+/// Money taken before the invoice exists. GST is payable on an advance for a service when it is
+/// received, so the receipt carries its own tax and its own document number, and the tax is
+/// adjusted — not charged again — when the invoice finally goes out. Audited.
+model AdvanceReceipt {
+  id              String     @id @default(uuid()) @db.Uuid
+  companyId       String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  receiptNo       String     @map("receipt_no") @db.VarChar(30)
+  receiptDate     DateTime   @map("receipt_date") @db.Date
+  customerId      String     @map("customer_id") @db.Uuid
+  businessPlaceId BigInt?    @map("business_place_id")
+  /// The gross amount received, tax included.
+  amount          Decimal    @db.Decimal(14, 2)
+  /// The value the tax was worked out on: amount less the tax in it.
+  taxable         Decimal    @default(0) @db.Decimal(14, 2)
+  gstRate         Decimal    @default(0) @map("gst_rate") @db.Decimal(5, 2)
+  igst            Decimal    @default(0) @db.Decimal(14, 2)
+  cgst            Decimal    @default(0) @db.Decimal(14, 2)
+  sgst            Decimal    @default(0) @db.Decimal(14, 2)
+  cess            Decimal    @default(0) @db.Decimal(14, 2)
+  placeOfSupply   String?    @map("place_of_supply") @db.VarChar(2)
+  supplyType      SupplyType @default(INTRA_STATE) @map("supply_type")
+  customerGstin   String?    @map("customer_gstin") @db.VarChar(15)
+  paymentMethod   String     @default("Bank") @map("payment_method") @db.VarChar(50)
+  referenceNumber String?    @map("reference_number") @db.VarChar(100)
+  narration       String?    @db.VarChar(500)
+  /// How much of the advance has been used up by invoices or refunded.
+  adjustedAmount  Decimal    @default(0) @map("adjusted_amount") @db.Decimal(14, 2)
+  refundedAmount  Decimal    @default(0) @map("refunded_amount") @db.Decimal(14, 2)
+  /// OPEN | PART_ADJUSTED | CLOSED
+  status          String     @default("OPEN") @db.VarChar(20)
+  createdBy       String?    @map("created_by") @db.VarChar(36)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
+  cancelledAt     DateTime?  @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?    @map("cancelled_by") @db.VarChar(36)
+  cancelReason    String?    @map("cancel_reason") @db.VarChar(255)
+
+  customer      Customer            @relation(fields: [customerId], references: [id])
+  businessPlace BusinessPlace?      @relation("AdvanceReceiptBusinessPlace", fields: [businessPlaceId], references: [id])
+  adjustments   AdvanceAdjustment[]
+
+  company Company @relation("CompanyAdvanceReceipt", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, receiptNo])
+  @@index([companyId, customerId, status])
+  @@map("advance_receipts")
+}
+
+/// One advance applied against one invoice, or refunded. The tax already paid on the advance
+/// comes off the invoice's liability, which is what GSTR-1 table 11B reports. Audited.
+model AdvanceAdjustment {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  advanceId       String   @map("advance_id") @db.Uuid
+  /// Null for a refund: the advance is given back rather than used.
+  salesInvoiceId  String?  @map("sales_invoice_id") @db.Uuid
+  /// ADJUSTED | REFUNDED
+  kind            String   @default("ADJUSTED") @db.VarChar(10)
+  amount          Decimal  @db.Decimal(14, 2)
+  taxable         Decimal  @default(0) @db.Decimal(14, 2)
+  igst            Decimal  @default(0) @db.Decimal(14, 2)
+  cgst            Decimal  @default(0) @db.Decimal(14, 2)
+  sgst            Decimal  @default(0) @db.Decimal(14, 2)
+  /// The refund voucher's own number, when this is a refund.
+  refundVoucherNo String?  @map("refund_voucher_no") @db.VarChar(30)
+  adjustedOn      DateTime @map("adjusted_on") @db.Date
+  createdBy       String?  @map("created_by") @db.VarChar(36)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  advance      AdvanceReceipt @relation(fields: [advanceId], references: [id], onDelete: Cascade)
+  salesInvoice SalesInvoice?  @relation(fields: [salesInvoiceId], references: [id])
+
+  company Company @relation("CompanyAdvanceAdjustment", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, advanceId])
+  @@index([salesInvoiceId])
+  @@map("advance_adjustments")
+}
+
+/// Why goods are moving when they are not being sold (P1-14).
+enum ChallanKind {
+  /// Sent to a job worker for processing.
+  JOB_WORK_OUT
+  /// Coming back from a job worker, against an out challan.
+  JOB_WORK_RETURN
+  /// Between the company's own registered places.
+  BRANCH_TRANSFER
+  /// To an exhibition or a trade fair.
+  EXHIBITION
+  /// Out on a van for line sales; what is not sold comes back.
+  LINE_SALES
+  OTHER
+}
+
+enum ChallanStatus {
+  OPEN
+  PART_RETURNED
+  CLOSED
+  CANCELLED
+}
+
+/// Someone who processes the company's goods and sends them back. Registered or not: an
+/// unregistered job worker is common and changes who accounts for the movement, so the GSTIN
+/// is optional and its absence is meaningful.
+model JobWorker {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code          String   @db.VarChar(20)
+  name          String   @db.VarChar(160)
+  gstin         String?  @db.VarChar(15)
+  stateCode     String?  @map("state_code") @db.VarChar(2)
+  addressLine1  String?  @map("address_line1") @db.VarChar(255)
+  city          String?  @db.VarChar(100)
+  pincode       String?  @db.VarChar(10)
+  contactPerson String?  @map("contact_person") @db.VarChar(120)
+  phone         String?  @db.VarChar(20)
+  email         String?  @db.VarChar(120)
+  /// What they do, for the register.
+  processType   String?  @map("process_type") @db.VarChar(80)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdBy     String?  @map("created_by") @db.VarChar(36)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  challans DeliveryChallan[]
+
+  company Company @relation("CompanyJobWorker", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("job_workers")
+}
+
+/// Goods leaving without a sale. The credit taken on inputs sent for job work is only safe while
+/// they come back within a year — three years for capital goods — so the clock starts here and
+/// the balance on the challan is what it is measured against. Audited.
+model DeliveryChallan {
+  id                String        @id @default(uuid()) @db.Uuid
+  companyId         String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  challanNo         String        @map("challan_no") @db.VarChar(30)
+  challanDate       DateTime      @map("challan_date") @db.Date
+  kind              ChallanKind
+  status            ChallanStatus @default(OPEN)
+  jobWorkerId       String?       @map("job_worker_id") @db.Uuid
+  /// The challan this one returns goods against (a JOB_WORK_RETURN).
+  parentChallanId   String?       @map("parent_challan_id") @db.Uuid
+  businessPlaceId   BigInt?       @map("business_place_id")
+  /// Where the goods left from, and where a branch transfer is going.
+  storeId           String?       @map("store_id") @db.VarChar(20)
+  toBusinessPlaceId BigInt?       @map("to_business_place_id")
+  placeOfSupply     String?       @map("place_of_supply") @db.VarChar(2)
+  supplyType        SupplyType    @default(INTRA_STATE) @map("supply_type")
+  purpose           String?       @db.VarChar(255)
+  /// Capital goods get three years to come back instead of one.
+  capitalGoods      Boolean       @default(false) @map("capital_goods")
+  /// Day the goods have to be back by; the rule that set it travels with it.
+  returnDueDate     DateTime?     @map("return_due_date") @db.Date
+  /// The notional value the movement is worth, for the e-way bill.
+  taxable           Decimal       @default(0) @db.Decimal(14, 2)
+  igst              Decimal       @default(0) @db.Decimal(14, 2)
+  cgst              Decimal       @default(0) @db.Decimal(14, 2)
+  sgst              Decimal       @default(0) @db.Decimal(14, 2)
+  totalValue        Decimal       @default(0) @map("total_value") @db.Decimal(14, 2)
+  transporterName   String?       @map("transporter_name") @db.VarChar(120)
+  vehicleNumber     String?       @map("vehicle_number") @db.VarChar(20)
+  remarks           String?       @db.VarChar(500)
+  /// Set once every line is accounted for, by return, consumption or scrap.
+  closedAt          DateTime?     @map("closed_at") @db.Timestamptz(6)
+  createdBy         String?       @map("created_by") @db.VarChar(36)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Cancelled documents stay on file (MCA Rule 3(1)).
+  cancelledAt       DateTime?     @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy       String?       @map("cancelled_by") @db.VarChar(36)
+  cancelReason      String?       @map("cancel_reason") @db.VarChar(255)
+
+  jobWorker     JobWorker?            @relation(fields: [jobWorkerId], references: [id])
+  parentChallan DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
+  returns       DeliveryChallan[]     @relation("ChallanReturns")
+  businessPlace BusinessPlace?        @relation("ChallanBusinessPlace", fields: [businessPlaceId], references: [id])
+  items         DeliveryChallanItem[]
+
+  company Company @relation("CompanyDeliveryChallan", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, challanNo])
+  @@index([companyId, kind, status])
+  @@index([companyId, jobWorkerId])
+  @@index([returnDueDate])
+  @@map("delivery_challans")
+}
+
+/// One line of a challan, and what became of it. A line is accounted for when what was sent
+/// equals what came back plus what was consumed in the process plus what was scrapped.
+model DeliveryChallanItem {
+  id               String           @id @default(uuid()) @db.Uuid
+  companyId        String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  challanId        String           @map("challan_id") @db.Uuid
+  itemType         ItemCategoryType @map("item_type")
+  rawMaterialId    String?          @map("raw_material_id") @db.VarChar(20)
+  productItemId    BigInt?          @map("product_item_id")
+  description      String?          @db.VarChar(255)
+  uom              String?          @db.VarChar(20)
+  hsnCode          String?          @map("hsn_code") @db.VarChar(8)
+  quantitySent     Decimal          @default(0) @map("quantity_sent") @db.Decimal(14, 3)
+  quantityReturned Decimal          @default(0) @map("quantity_returned") @db.Decimal(14, 3)
+  /// Used up in the process and never coming back as itself.
+  quantityConsumed Decimal          @default(0) @map("quantity_consumed") @db.Decimal(14, 3)
+  quantityScrap    Decimal          @default(0) @map("quantity_scrap") @db.Decimal(14, 3)
+  rate             Decimal          @default(0) @db.Decimal(14, 2)
+  taxableAmount    Decimal          @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  gstRate          Decimal          @default(0) @map("gst_rate") @db.Decimal(5, 2)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  challan     DeliveryChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  rawMaterial RawMaterial?    @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId])
+  product     Product?        @relation(fields: [productItemId], references: [id])
+
+  company Company @relation("CompanyDeliveryChallanItem", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([challanId])
+  @@index([companyId, rawMaterialId])
+  @@map("delivery_challan_items")
+}
+
+/// Who the payee is decides the rate on several sections, and the return asks for it.
+enum DeducteeType {
+  COMPANY
+  INDIVIDUAL_HUF
+  FIRM
+  AOP_BOI
+  LOCAL_AUTHORITY
+  NON_RESIDENT
+}
+
+/// Where a deduction came from, which decides the quarter it is reported in.
+enum TdsEventKind {
+  /// Deducted when the bill was booked.
+  ON_BILL
+  /// Deducted when the money went out.
+  ON_PAYMENT
+  /// Collected on a sale (TCS).
+  ON_COLLECTION
+}
+
+enum TdsDeductionStatus {
+  PENDING
+  CHALLAN_PAID
+  RETURN_FILED
+  CANCELLED
+}
+
+/// A section tax is deducted or collected under (P1-15).
+///
+/// The Income-tax Act 2025 renumbers the sections — deduction at source sits in section 393 and
+/// collection in 394, each with a table of items — but every accountant, every challan and every
+/// return utility still says 194C and 194J. So both live on the row: `code` is what people type
+/// and what the return carries, `actCode` is where it sits in the new Act.
+model TdsSection {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// The familiar code: 194C, 194J, 194Q, 206C(1H).
+  code            String   @db.VarChar(20)
+  /// Where it sits in the Income-tax Act 2025: "393 Table item 2" and so on.
+  actCode         String?  @map("act_code") @db.VarChar(40)
+  name            String   @db.VarChar(160)
+  /// True for a collection at source (section 394) rather than a deduction (393).
+  isTcs           Boolean  @default(false) @map("is_tcs")
+  /// Rate when the payee is a company or a firm.
+  rateCompany     Decimal  @default(0) @map("rate_company") @db.Decimal(5, 2)
+  /// Rate when the payee is an individual or a HUF; several sections differ.
+  rateIndividual  Decimal  @default(0) @map("rate_individual") @db.Decimal(5, 2)
+  /// Rate when no PAN is furnished (section 206AA) or the payee is a non-filer (206AB).
+  rateNoPan       Decimal  @default(20) @map("rate_no_pan") @db.Decimal(5, 2)
+  /// Deduct only once a single payment crosses this; zero means no single-payment threshold.
+  thresholdSingle Decimal  @default(0) @map("threshold_single") @db.Decimal(14, 2)
+  /// Deduct once the year's payments to this payee cross this.
+  thresholdAnnual Decimal  @default(0) @map("threshold_annual") @db.Decimal(14, 2)
+  /// The ledger the liability is credited to; one per section keeps the challan reconcilable.
+  ledgerCode      String?  @map("ledger_code") @db.VarChar(20)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  deductions TdsDeduction[]
+
+  company Company @relation("CompanyTdsSection", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("tds_sections")
+}
+
+/// One deduction or collection. Never deleted — a return has been filed against it — only
+/// cancelled when the document behind it is. Audited.
+model TdsDeduction {
+  id            String             @id @default(uuid()) @db.Uuid
+  companyId     String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  sectionId     String             @map("section_id") @db.Uuid
+  /// The payee. A supplier for 26Q; a non-resident payee is still a supplier row (27Q).
+  supplierId    Int?               @map("supplier_id")
+  /// Copied at the time of deduction: the return carries what was true then.
+  deducteeName  String             @map("deductee_name") @db.VarChar(160)
+  deducteePan   String?            @map("deductee_pan") @db.VarChar(10)
+  deducteeType  DeducteeType       @default(COMPANY) @map("deductee_type")
+  /// True when no PAN was available, or the payee is a non-filer under 206AB.
+  higherRate    Boolean            @default(false) @map("higher_rate")
+  kind          TdsEventKind       @default(ON_BILL)
+  /// EXPENSE | GRN | PETTY_CASH | SALES_INVOICE (for TCS)
+  docType       String             @map("doc_type") @db.VarChar(16)
+  docId         String             @map("doc_id") @db.VarChar(40)
+  docNo         String             @map("doc_no") @db.VarChar(40)
+  deductionDate DateTime           @map("deduction_date") @db.Date
+  /// The whole amount paid or credited to the payee. Thresholds accumulate against this, and
+  /// it is what the return's "amount paid" column carries.
+  amountPaid    Decimal            @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  /// The part of it the rate was actually applied to. For most sections that is the whole
+  /// amount; for 194Q and 206C(1H) it is only what sits above the annual threshold.
+  taxableAmount Decimal            @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  rate          Decimal            @default(0) @db.Decimal(5, 2)
+  tdsAmount     Decimal            @default(0) @map("tds_amount") @db.Decimal(14, 2)
+  /// Financial year `2026-27` and the quarter `Q1`..`Q4`, both derived from the date.
+  fyCode        String             @map("fy_code") @db.VarChar(7)
+  quarter       String             @db.VarChar(2)
+  challanId     String?            @map("challan_id") @db.Uuid
+  status        TdsDeductionStatus @default(PENDING)
+  /// Why the rate was what it was, for the person who has to explain it later.
+  rateReason    String?            @map("rate_reason") @db.VarChar(160)
+  createdBy     String?            @map("created_by") @db.VarChar(36)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cancelledAt   DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason  String?            @map("cancel_reason") @db.VarChar(255)
+
+  section  TdsSection  @relation(fields: [sectionId], references: [id])
+  supplier Supplier?   @relation(fields: [supplierId], references: [id])
+  challan  TdsChallan? @relation(fields: [challanId], references: [id])
+
+  company Company @relation("CompanyTdsDeduction", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, docType, docId, sectionId])
+  @@index([companyId, fyCode, quarter])
+  @@index([companyId, status])
+  @@index([challanId])
+  @@map("tds_deductions")
+}
+
+/// A challan (ITNS 281) paying a month's deductions to the government. The deductions it covers
+/// point at it, which is what makes a return reconcile: every deduction in a quarter has to sit
+/// on a challan, and every challan's total has to equal the deductions on it. Audited.
+model TdsChallan {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// Bank branch code, 7 digits — half of the challan's identity.
+  bsrCode       String   @map("bsr_code") @db.VarChar(7)
+  /// The bank's serial number for the day.
+  challanSerial String   @map("challan_serial") @db.VarChar(10)
+  challanDate   DateTime @map("challan_date") @db.Date
+  /// The month the deductions belong to, `2026-08`.
+  periodKey     String   @map("period_key") @db.VarChar(7)
+  fyCode        String   @map("fy_code") @db.VarChar(7)
+  quarter       String   @db.VarChar(2)
+  /// What was actually paid, split the way the challan is.
+  tdsAmount     Decimal  @default(0) @map("tds_amount") @db.Decimal(14, 2)
+  surcharge     Decimal  @default(0) @db.Decimal(14, 2)
+  educationCess Decimal  @default(0) @map("education_cess") @db.Decimal(14, 2)
+  interest      Decimal  @default(0) @db.Decimal(14, 2)
+  lateFee       Decimal  @default(0) @map("late_fee") @db.Decimal(14, 2)
+  totalAmount   Decimal  @default(0) @map("total_amount") @db.Decimal(14, 2)
+  /// 200 for a regular payment, 400 for one raised by a demand.
+  paymentCode   String   @default("200") @map("payment_code") @db.VarChar(3)
+  /// True for a collection challan (TCS) rather than a deduction one.
+  isTcs         Boolean  @default(false) @map("is_tcs")
+  remarks       String?  @db.VarChar(255)
+  createdBy     String?  @map("created_by") @db.VarChar(36)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  deductions TdsDeduction[]
+
+  company Company @relation("CompanyTdsChallan", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, bsrCode, challanSerial, challanDate])
+  @@index([companyId, fyCode, quarter])
+  @@map("tds_challans")
+}
+
+// ── Tally XML export (P1-06) ──────────────────────────────────────────────────
+
+enum TallyNameKind {
+  GROUP
+  LEDGER
+  UNIT
+  STOCK_ITEM
+  VOUCHER_TYPE
+}
+
+/// What something in our books is called in the tenant's Tally company (P1-06).
+///
+/// A Tally company that has been running for ten years has its own names, and an import has to
+/// meet them where they are: a ledger imported under a name Tally does not have is created as a
+/// new one, and the balance quietly splits in two. Built-in defaults cover Tally's reserved
+/// groups; this table is the tenant's override on top of them.
+model TallyNameMap {
+  id          String        @id @default(uuid()) @db.Uuid
+  companyId   String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  kind        TallyNameKind
+  /// Our side: a ledger group code, ledger code, uom code, item code or voucher type.
+  sourceCode  String        @map("source_code") @db.VarChar(60)
+  /// What it is called in Tally.
+  tallyName   String        @map("tally_name") @db.VarChar(160)
+  /// The Tally group a ledger or group must be created under, when it is not the mapped default.
+  tallyParent String?       @map("tally_parent") @db.VarChar(160)
+  /// False keeps the row out of the export entirely — a ledger Tally is not to be told about.
+  isExported  Boolean       @default(true) @map("is_exported")
+  notes       String?       @db.VarChar(255)
+  createdBy   String?       @map("created_by") @db.VarChar(36)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyTallyNameMap", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, kind, sourceCode])
+  @@index([companyId, kind])
+  @@map("tally_name_maps")
+}
+
+enum TallyExportScope {
+  MASTERS
+  VOUCHERS
+  BOTH
+}
+
+enum TallyExportStatus {
+  DRAFT
+  CONFIRMED
+  DISCARDED
+}
+
+/// One generated Tally file (P1-06).
+///
+/// The run is the watermark: the next incremental export starts where the last CONFIRMED one
+/// ended, so a month can be handed over weekly without re-importing what the accountant already
+/// has. Nothing here can know whether Tally accepted the file, which is why confirming is a
+/// person's act.
+model TallyExportRun {
+  id               String            @id @default(uuid()) @db.Uuid
+  companyId        String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  scope            TallyExportScope  @default(BOTH)
+  /// The Tally company the file names in its request header.
+  tallyCompany     String            @map("tally_company") @db.VarChar(160)
+  fromDate         DateTime?         @map("from_date") @db.Date
+  toDate           DateTime?         @map("to_date") @db.Date
+  incremental      Boolean           @default(false)
+  /// Only vouchers touched after this are in the file; taken from the last confirmed run.
+  sinceAt          DateTime?         @map("since_at") @db.Timestamptz(6)
+  /// The newest voucher timestamp the file covers, and where the next incremental run starts.
+  throughAt        DateTime?         @map("through_at") @db.Timestamptz(6)
+  /// How many of each kind of record the file carries.
+  counts           Json
+  sizeBytes        Int               @default(0) @map("size_bytes")
+  payloadHash      String            @map("payload_hash") @db.VarChar(64)
+  status           TallyExportStatus @default(DRAFT)
+  notes            String?           @db.VarChar(255)
+  requestedBy      String?           @map("requested_by") @db.VarChar(36)
+  confirmedBy      String?           @map("confirmed_by") @db.VarChar(36)
+  confirmedAt      DateTime?         @map("confirmed_at") @db.Timestamptz(6)
+  downloads        Int               @default(0)
+  lastDownloadedAt DateTime?         @map("last_downloaded_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyTallyExportRun", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, status])
+  @@map("tally_export_runs")
+}
+
+/// Micro, small or medium under the MSMED Act (P1-07). Only the first two carry section 15 and
+/// section 43B(h) with them; a medium enterprise has neither.
+enum MsmeCategory {
+  MICRO
+  SMALL
+  MEDIUM
+  NOT_REGISTERED
+}
+
+// ── Fixed assets and depreciation (P1-18) ─────────────────────────────────────
+
+enum DepreciationMethod {
+  SLM
+  WDV
+}
+
+enum AssetStatus {
+  ACTIVE
+  DISPOSED
+  WRITTEN_OFF
+}
+
+enum AssetEventKind {
+  ADDITION
+  REVALUATION
+  TRANSFER
+  DISPOSAL
+  IMPAIRMENT
+}
+
+enum DepreciationRunStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+/// A class of asset (P1-18): what its useful life is under Schedule II, and which income-tax
+/// block it falls in. The two live on the same row because they describe the same machine, but
+/// they are never the same number — see `depreciation.calc.ts`.
+model AssetClass {
+  id                   String             @id @default(uuid()) @db.Uuid
+  companyId            String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code                 String             @db.VarChar(20)
+  name                 String             @db.VarChar(120)
+  /// Schedule II: the life in years the Act gives this kind of asset.
+  usefulLifeYears      Int                @default(15) @map("useful_life_years")
+  method               DepreciationMethod @default(SLM)
+  /// Schedule II allows up to 5% of cost as residual; it is a percentage, not an amount.
+  residualPercent      Decimal            @default(5) @map("residual_percent") @db.Decimal(5, 2)
+  /// The Schedule II head the register groups under, e.g. "Plant and Machinery".
+  scheduleIiHead       String?            @map("schedule_ii_head") @db.VarChar(80)
+  /// Income-tax block name and rate. The block depreciates as a pool at this rate, not per asset.
+  itBlockName          String?            @map("it_block_name") @db.VarChar(80)
+  itBlockRate          Decimal            @default(15) @map("it_block_rate") @db.Decimal(5, 2)
+  /// The three ledgers a class posts to. Codes rather than ids so a seed can name them.
+  assetLedgerCode      String             @map("asset_ledger_code") @db.VarChar(30)
+  accumDepLedgerCode   String             @map("accum_dep_ledger_code") @db.VarChar(30)
+  depExpenseLedgerCode String             @map("dep_expense_ledger_code") @db.VarChar(30)
+  isActive             Boolean            @default(true) @map("is_active")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assets  FixedAsset[]
+  company Company      @relation("CompanyAssetClass", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("asset_classes")
+}
+
+/// One asset on the register (P1-18).
+model FixedAsset {
+  id                      String             @id @default(uuid()) @db.Uuid
+  companyId               String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code                    String             @db.VarChar(30)
+  name                    String             @db.VarChar(160)
+  classId                 String             @map("class_id") @db.Uuid
+  businessPlaceId         BigInt?            @map("business_place_id")
+  /// When it was bought, and when it was put to use — depreciation runs from the second.
+  acquiredOn              DateTime           @map("acquired_on") @db.Date
+  capitalisedOn           DateTime           @map("capitalised_on") @db.Date
+  /// Everything it cost to bring into use: price, freight, installation, non-creditable tax.
+  cost                    Decimal            @default(0) @db.Decimal(14, 2)
+  /// Derived from the class at capitalisation and then fixed, because the class may be edited.
+  residualValue           Decimal            @default(0) @map("residual_value") @db.Decimal(14, 2)
+  method                  DepreciationMethod @default(SLM)
+  usefulLifeMonths        Int                @map("useful_life_months")
+  /// Depreciation charged to date under the Companies Act. The income-tax side is a block, not
+  /// an asset, so there is deliberately no per-asset tax figure here.
+  accumulatedDepreciation Decimal            @default(0) @map("accumulated_depreciation") @db.Decimal(14, 2)
+  quantity                Decimal            @default(1) @db.Decimal(12, 3)
+  serialNo                String?            @map("serial_no") @db.VarChar(80)
+  location                String?            @db.VarChar(120)
+  status                  AssetStatus        @default(ACTIVE)
+  /// Where it was capitalised from, when it came off a bill rather than being typed.
+  sourceDocType           String?            @map("source_doc_type") @db.VarChar(20)
+  sourceDocId             String?            @map("source_doc_id") @db.VarChar(40)
+  supplierId              Int?               @map("supplier_id")
+  disposedOn              DateTime?          @map("disposed_on") @db.Date
+  disposalProceeds        Decimal            @default(0) @map("disposal_proceeds") @db.Decimal(14, 2)
+  notes                   String?            @db.VarChar(255)
+  createdBy               String?            @map("created_by") @db.VarChar(36)
+  createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assetClass    AssetClass          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  businessPlace BusinessPlace?      @relation("FixedAssetBusinessPlace", fields: [businessPlaceId], references: [id])
+  supplier      Supplier?           @relation(fields: [supplierId], references: [id])
+  events        AssetEvent[]
+  depreciations AssetDepreciation[]
+  company       Company             @relation("CompanyFixedAsset", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([companyId, classId])
+  @@map("fixed_assets")
+}
+
+/// Anything that happened to an asset other than the monthly charge (P1-18).
+model AssetEvent {
+  id                  String         @id @default(uuid()) @db.Uuid
+  companyId           String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  assetId             String         @map("asset_id") @db.Uuid
+  kind                AssetEventKind
+  effectiveOn         DateTime       @map("effective_on") @db.Date
+  /// What it changed the cost by, or what the disposal fetched.
+  amount              Decimal        @default(0) @db.Decimal(14, 2)
+  /// The written-down value at the moment of the event; what a disposal's result is measured from.
+  wdvAtEvent          Decimal        @default(0) @map("wdv_at_event") @db.Decimal(14, 2)
+  /// Profit (positive) or loss (negative) on a disposal.
+  resultAmount        Decimal        @default(0) @map("result_amount") @db.Decimal(14, 2)
+  fromBusinessPlaceId BigInt?        @map("from_business_place_id")
+  toBusinessPlaceId   BigInt?        @map("to_business_place_id")
+  narration           String?        @db.VarChar(255)
+  voucherId           Int?           @map("voucher_id")
+  createdBy           String?        @map("created_by") @db.VarChar(36)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  asset   FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  company Company    @relation("CompanyAssetEvent", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, assetId])
+  @@index([companyId, effectiveOn])
+  @@map("asset_events")
+}
+
+/// One month's depreciation, prepared and then posted (P1-18).
+model DepreciationRun {
+  id          String                @id @default(uuid()) @db.Uuid
+  companyId   String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// `2026-08`; a month is run once, which is what stops a double charge.
+  periodKey   String                @map("period_key") @db.VarChar(7)
+  status      DepreciationRunStatus @default(DRAFT)
+  totalAmount Decimal               @default(0) @map("total_amount") @db.Decimal(14, 2)
+  assetCount  Int                   @default(0) @map("asset_count")
+  voucherId   Int?                  @map("voucher_id")
+  preparedBy  String?               @map("prepared_by") @db.VarChar(36)
+  postedBy    String?               @map("posted_by") @db.VarChar(36)
+  postedAt    DateTime?             @map("posted_at") @db.Timestamptz(6)
+  notes       String?               @db.VarChar(255)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lines   AssetDepreciation[]
+  company Company             @relation("CompanyDepreciationRun", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodKey])
+  @@index([companyId, status])
+  @@map("depreciation_runs")
+}
+
+/// What one asset was charged in one month (P1-18).
+model AssetDepreciation {
+  id         String             @id @default(uuid()) @db.Uuid
+  companyId  String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  runId      String             @map("run_id") @db.Uuid
+  assetId    String             @map("asset_id") @db.Uuid
+  periodKey  String             @map("period_key") @db.VarChar(7)
+  /// The days the asset was in use in the month; a mid-month purchase is not a full month.
+  daysInUse  Int                @default(0) @map("days_in_use")
+  openingWdv Decimal            @default(0) @map("opening_wdv") @db.Decimal(14, 2)
+  amount     Decimal            @default(0) @db.Decimal(14, 2)
+  closingWdv Decimal            @default(0) @map("closing_wdv") @db.Decimal(14, 2)
+  method     DepreciationMethod
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run     DepreciationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  asset   FixedAsset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  company Company         @relation("CompanyAssetDepreciation", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, assetId, periodKey])
+  @@index([companyId, periodKey])
+  @@map("asset_depreciations")
+}
+
+// ── Foreign exchange and imports (P1-17) ──────────────────────────────────────
+
+enum FxRevaluationStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+/// A period-end restatement of open foreign-currency balances (P1-17).
+///
+/// An unrealised difference is an opinion about a rate, not a transaction, so the run posts on
+/// the last day of the period and reverses on the first day of the next one. Left standing, it
+/// would be counted twice the month the balance is actually settled.
+model FxRevaluation {
+  id                String              @id @default(uuid()) @db.Uuid
+  companyId         String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// `2026-08`; a period is revalued once.
+  periodKey         String              @map("period_key") @db.VarChar(7)
+  asOn              DateTime            @map("as_on") @db.Date
+  status            FxRevaluationStatus @default(DRAFT)
+  /// Net gain (positive) or loss (negative) across every open balance.
+  netAmount         Decimal             @default(0) @map("net_amount") @db.Decimal(14, 2)
+  lines             Json
+  voucherId         Int?                @map("voucher_id")
+  reversalVoucherId Int?                @map("reversal_voucher_id")
+  preparedBy        String?             @map("prepared_by") @db.VarChar(36)
+  postedBy          String?             @map("posted_by") @db.VarChar(36)
+  postedAt          DateTime?           @map("posted_at") @db.Timestamptz(6)
+  notes             String?             @db.VarChar(255)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyFxRevaluation", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodKey])
+  @@index([companyId, status])
+  @@map("fx_revaluations")
+}
+
+/// A bill of entry: what customs charged to let the goods in (P1-17).
+///
+/// The split matters more than the total. IGST under section 3(7) is creditable and must not
+/// reach the cost of the goods; basic customs duty and the surcharge are not creditable and
+/// must. Putting the whole bill into stock overstates it by the IGST and loses the credit.
+model BillOfEntry {
+  id                     String   @id @default(uuid()) @db.Uuid
+  companyId              String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  beNumber               String   @map("be_number") @db.VarChar(20)
+  beDate                 DateTime @map("be_date") @db.Date
+  portCode               String?  @map("port_code") @db.VarChar(10)
+  /// The purchase this clears, when it came in through one.
+  grnInvoiceId           String?  @map("grn_invoice_id") @db.Uuid
+  supplierId             Int?     @map("supplier_id")
+  currencyCode           String   @default("USD") @map("currency_code") @db.VarChar(3)
+  /// The rate customs used, which is notified fortnightly and is NOT the day's market rate.
+  exchangeRate           Decimal  @default(1) @map("exchange_rate") @db.Decimal(14, 6)
+  /// The invoice value in foreign currency, and the assessable value customs worked out in INR.
+  foreignValue           Decimal  @default(0) @map("foreign_value") @db.Decimal(14, 2)
+  assessableValue        Decimal  @default(0) @map("assessable_value") @db.Decimal(14, 2)
+  basicDuty              Decimal  @default(0) @map("basic_duty") @db.Decimal(14, 2)
+  socialWelfareSurcharge Decimal  @default(0) @map("social_welfare_surcharge") @db.Decimal(14, 2)
+  /// Creditable: it goes to the input-credit ledger, never into the cost of the goods.
+  igst                   Decimal  @default(0) @db.Decimal(14, 2)
+  cess                   Decimal  @default(0) @db.Decimal(14, 2)
+  /// Freight, insurance, clearing and handling — all part of what the stock cost.
+  otherCharges           Decimal  @default(0) @map("other_charges") @db.Decimal(14, 2)
+  /// Assessable value plus everything that is not creditable.
+  landedCost             Decimal  @default(0) @map("landed_cost") @db.Decimal(14, 2)
+  voucherId              Int?     @map("voucher_id")
+  notes                  String?  @db.VarChar(255)
+  createdBy              String?  @map("created_by") @db.VarChar(36)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  company  Company   @relation("CompanyBillOfEntry", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, beNumber, beDate])
+  @@index([companyId, beDate])
+  @@map("bills_of_entry")
+}
+
+// ── Valuation, costing, cost centres and budgets (P1-19) ──────────────────────
+
+enum StockMoveKind {
+  OPENING
+  RECEIPT
+  ISSUE
+  PRODUCTION_IN
+  SCRAP
+  ADJUSTMENT
+  RETURN_IN
+  RETURN_OUT
+}
+
+/// One movement in the weighted-average valuation ledger (P1-19).
+///
+/// Kept as a ledger rather than a single running number on the item because the average is the
+/// number everyone argues about at a year end, and a balance you cannot explain is a balance you
+/// cannot defend. Each row carries the balance and the average *after* it, so any month's closing
+/// stock can be read straight off the last row before the cut-off.
+model StockValuationEntry {
+  id              String        @id @default(uuid()) @db.Uuid
+  companyId       String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// RAW_MATERIAL or PRODUCT; the two live in different tables but value the same way.
+  itemType        String        @map("item_type") @db.VarChar(16)
+  itemId          String        @map("item_id") @db.VarChar(40)
+  storeId         String?       @map("store_id") @db.VarChar(20)
+  movedOn         DateTime      @map("moved_on") @db.Date
+  kind            StockMoveKind
+  quantity        Decimal       @default(0) @db.Decimal(14, 3)
+  /// What this movement came in at. An issue is valued at the running average instead.
+  rate            Decimal       @default(0) @db.Decimal(14, 4)
+  value           Decimal       @default(0) @db.Decimal(14, 2)
+  balanceQuantity Decimal       @default(0) @map("balance_quantity") @db.Decimal(14, 3)
+  balanceValue    Decimal       @default(0) @map("balance_value") @db.Decimal(14, 2)
+  avgRate         Decimal       @default(0) @map("avg_rate") @db.Decimal(14, 4)
+  /// True when the movement took the balance below zero — the average stops meaning anything and
+  /// somebody has to go and look.
+  wentNegative    Boolean       @default(false) @map("went_negative")
+  refDocType      String?       @map("ref_doc_type") @db.VarChar(30)
+  refDocId        String?       @map("ref_doc_id") @db.VarChar(40)
+  narration       String?       @db.VarChar(255)
+  createdBy       String?       @map("created_by") @db.VarChar(36)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyStockValuationEntry", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, itemType, itemId, storeId, movedOn])
+  @@index([companyId, movedOn])
+  @@map("stock_valuation_entries")
+}
+
+enum CostCentreKind {
+  PRODUCTION
+  SERVICE
+  ADMIN
+  SALES
+}
+
+/// Where a cost belongs (P1-19).
+model CostCentre {
+  id        String         @id @default(uuid()) @db.Uuid
+  companyId String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code      String         @db.VarChar(20)
+  name      String         @db.VarChar(120)
+  kind      CostCentreKind @default(PRODUCTION)
+  parentId  String?        @map("parent_id") @db.Uuid
+  isActive  Boolean        @default(true) @map("is_active")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  parent   CostCentre?   @relation("CostCentreTree", fields: [parentId], references: [id])
+  children CostCentre[]  @relation("CostCentreTree")
+  items    JournalItem[]
+  budgets  Budget[]
+  company  Company       @relation("CompanyCostCentre", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@map("cost_centres")
+}
+
+/// A budget line (P1-19).
+///
+/// The scope key exists because Postgres does not treat two NULLs as equal, so a unique index
+/// over nullable period and cost-centre columns would let the same budget be entered twice.
+model Budget {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  fyCode       String   @map("fy_code") @db.VarChar(10)
+  /// `2026-08` for a month, or null for the whole year.
+  periodKey    String?  @map("period_key") @db.VarChar(7)
+  ledgerId     Int      @map("ledger_id")
+  costCentreId String?  @map("cost_centre_id") @db.Uuid
+  amount       Decimal  @default(0) @db.Decimal(14, 2)
+  /// `fy|period|ledger|costCentre`, with the nulls spelled out.
+  scopeKey     String   @map("scope_key") @db.VarChar(120)
+  notes        String?  @db.VarChar(255)
+  createdBy    String?  @map("created_by") @db.VarChar(36)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  ledger     AccountLedger @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  costCentre CostCentre?   @relation(fields: [costCentreId], references: [id])
+  company    Company       @relation("CompanyBudget", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, scopeKey])
+  @@index([companyId, fyCode])
+  @@map("budgets")
+}
+
+/// What a product cost in a period (P1-19).
+model ProductCostSheet {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  productId        BigInt   @map("product_id")
+  periodKey        String   @map("period_key") @db.VarChar(7)
+  quantityProduced Decimal  @default(0) @map("quantity_produced") @db.Decimal(14, 3)
+  materialCost     Decimal  @default(0) @map("material_cost") @db.Decimal(14, 2)
+  labourCost       Decimal  @default(0) @map("labour_cost") @db.Decimal(14, 2)
+  overheadCost     Decimal  @default(0) @map("overhead_cost") @db.Decimal(14, 2)
+  /// What the scrap that came out was worth; it comes off the cost of the good output.
+  scrapCredit      Decimal  @default(0) @map("scrap_credit") @db.Decimal(14, 2)
+  totalCost        Decimal  @default(0) @map("total_cost") @db.Decimal(14, 2)
+  perUnitCost      Decimal  @default(0) @map("per_unit_cost") @db.Decimal(14, 4)
+  /// How the overhead was spread: the rule, so the number can be argued with.
+  overheadBasis    String?  @map("overhead_basis") @db.VarChar(40)
+  lines            Json
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  company Company @relation("CompanyProductCostSheet", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, productId, periodKey])
+  @@index([companyId, periodKey])
+  @@map("product_cost_sheets")
+}
+
+// ── Bank reconciliation and cheques (P1-20) ───────────────────────────────────
+
+enum StatementLineStatus {
+  UNMATCHED
+  MATCHED
+  IGNORED
+}
+
+enum ChequeKind {
+  RECEIVED
+  ISSUED
+}
+
+enum ChequeStatus {
+  IN_HAND
+  DEPOSITED
+  CLEARED
+  BOUNCED
+  CANCELLED
+}
+
+/// One imported bank statement (P1-20).
+model BankStatement {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  bankAccountId  String   @map("bank_account_id") @db.Uuid
+  /// The bank whose layout the file was read as; "GENERIC" when a mapping was supplied.
+  format         String   @db.VarChar(20)
+  fileName       String?  @map("file_name") @db.VarChar(160)
+  fromDate       DateTime @map("from_date") @db.Date
+  toDate         DateTime @map("to_date") @db.Date
+  openingBalance Decimal  @default(0) @map("opening_balance") @db.Decimal(14, 2)
+  closingBalance Decimal  @default(0) @map("closing_balance") @db.Decimal(14, 2)
+  rowCount       Int      @default(0) @map("row_count")
+  /// Rows the file had that were already on file from an earlier import.
+  duplicateCount Int      @default(0) @map("duplicate_count")
+  importedBy     String?  @map("imported_by") @db.VarChar(36)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  bankAccount BankAccount         @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  lines       BankStatementLine[]
+  company     Company             @relation("CompanyBankStatement", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, bankAccountId, fromDate])
+  @@map("bank_statements")
+}
+
+/// One line of a statement, and what it was matched to (P1-20).
+model BankStatementLine {
+  id               String              @id @default(uuid()) @db.Uuid
+  companyId        String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  statementId      String              @map("statement_id") @db.Uuid
+  bankAccountId    String              @map("bank_account_id") @db.Uuid
+  txnDate          DateTime            @map("txn_date") @db.Date
+  valueDate        DateTime?           @map("value_date") @db.Date
+  description      String              @db.VarChar(400)
+  refNo            String?             @map("ref_no") @db.VarChar(60)
+  /// Money out of the account and money in; a bank gives one or the other, never both.
+  debit            Decimal             @default(0) @db.Decimal(14, 2)
+  credit           Decimal             @default(0) @db.Decimal(14, 2)
+  runningBalance   Decimal?            @map("running_balance") @db.Decimal(14, 2)
+  /// The reference with the noise taken out, which is what matching compares.
+  normalisedRef    String?             @map("normalised_ref") @db.VarChar(60)
+  /// Date, amount and reference hashed: re-importing an overlapping statement finds this and
+  /// skips the row rather than doubling the bank.
+  dedupeHash       String              @map("dedupe_hash") @db.VarChar(64)
+  status           StatementLineStatus @default(UNMATCHED)
+  matchedVoucherId Int?                @map("matched_voucher_id")
+  /// How sure the automatic match was, 0 to 100; a person's match is always 100.
+  matchConfidence  Int?                @map("match_confidence")
+  matchedBy        String?             @map("matched_by") @db.VarChar(36)
+  matchedAt        DateTime?           @map("matched_at") @db.Timestamptz(6)
+  notes            String?             @db.VarChar(255)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  statement BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  company   Company       @relation("CompanyBankStatementLine", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, bankAccountId, dedupeHash])
+  @@index([companyId, bankAccountId, txnDate])
+  @@index([companyId, status])
+  @@map("bank_statement_lines")
+}
+
+/// A cheque received or issued, post-dated or not (P1-20).
+///
+/// In Indian trade a post-dated cheque is the normal instrument: a receivable that becomes money
+/// on a date. It is not cash until it clears, which is why it has a status rather than a flag.
+model Cheque {
+  id                String       @id @default(uuid()) @db.Uuid
+  companyId         String       @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  kind              ChequeKind
+  chequeNo          String       @map("cheque_no") @db.VarChar(20)
+  /// The date written on it; a later one is what makes it post-dated.
+  chequeDate        DateTime     @map("cheque_date") @db.Date
+  bankName          String?      @map("bank_name") @db.VarChar(120)
+  partyName         String?      @map("party_name") @db.VarChar(160)
+  customerId        String?      @map("customer_id") @db.Uuid
+  supplierId        Int?         @map("supplier_id")
+  amount            Decimal      @default(0) @db.Decimal(14, 2)
+  status            ChequeStatus @default(IN_HAND)
+  /// The account it went into or is drawn on.
+  bankAccountId     String?      @map("bank_account_id") @db.Uuid
+  depositedOn       DateTime?    @map("deposited_on") @db.Date
+  clearedOn         DateTime?    @map("cleared_on") @db.Date
+  bouncedOn         DateTime?    @map("bounced_on") @db.Date
+  bounceCharges     Decimal      @default(0) @map("bounce_charges") @db.Decimal(14, 2)
+  bounceReason      String?      @map("bounce_reason") @db.VarChar(160)
+  refDocType        String?      @map("ref_doc_type") @db.VarChar(30)
+  refDocId          String?      @map("ref_doc_id") @db.VarChar(40)
+  voucherId         Int?         @map("voucher_id")
+  reversalVoucherId Int?         @map("reversal_voucher_id")
+  notes             String?      @db.VarChar(255)
+  createdBy         String?      @map("created_by") @db.VarChar(36)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+  customer    Customer?    @relation(fields: [customerId], references: [id])
+  supplier    Supplier?    @relation(fields: [supplierId], references: [id])
+  company     Company      @relation("CompanyCheque", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, kind, chequeNo, chequeDate])
+  @@index([companyId, status, chequeDate])
+  @@map("cheques")
+}
+
+// ── Statutory payroll (P1-16) ─────────────────────────────────────────────────
+
+enum TaxRegime {
+  OLD
+  NEW
+}
+
+/// Professional tax and labour welfare fund, which are state taxes (P1-16).
+///
+/// Neither is a national rate. Professional tax has its own slabs in each state that levies it,
+/// several states charge a different amount in one month of the year, and the labour welfare fund
+/// is a fixed amount at a frequency the state decides. A flat number is wrong everywhere.
+model StatutoryRule {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  stateCode    String   @map("state_code") @db.VarChar(2)
+  stateName    String   @map("state_name") @db.VarChar(80)
+  /// `[{ upTo, amount, month? }]`, ordered; `month` (1-12) charges that amount in that month only.
+  ptSlabs      Json     @map("pt_slabs")
+  ptEnabled    Boolean  @default(true) @map("pt_enabled")
+  lwfEmployee  Decimal  @default(0) @map("lwf_employee") @db.Decimal(10, 2)
+  lwfEmployer  Decimal  @default(0) @map("lwf_employer") @db.Decimal(10, 2)
+  /// MONTHLY, HALF_YEARLY or ANNUAL, with the months it is actually collected in.
+  lwfFrequency String   @default("ANNUAL") @map("lwf_frequency") @db.VarChar(16)
+  lwfMonths    Json     @default("[12]") @map("lwf_months")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyStatutoryRule", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, stateCode])
+  @@map("statutory_rules")
+}
+
+/// The statutory split for one employee in one payroll run (P1-16).
+///
+/// It is a table of its own rather than columns on `PayrollResult` because the three wages are
+/// different wages — PF is on basic plus dearness allowance, ESI on gross, professional tax on
+/// gross as the state defines it — and flattening them into one row is how a contribution ends up
+/// worked out on the wrong base.
+model PayrollStatutory {
+  id           String  @id @default(uuid()) @db.Uuid
+  companyId    String  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  payrollRunId Int     @map("payroll_run_id")
+  employeeId   BigInt  @map("employee_id")
+  employeeCode String  @map("employee_code") @db.VarChar(40)
+  periodKey    String  @map("period_key") @db.VarChar(7)
+  stateCode    String? @map("state_code") @db.VarChar(2)
+  uan          String? @db.VarChar(12)
+  esicNumber   String? @map("esic_number") @db.VarChar(17)
+
+  pfWage  Decimal @default(0) @map("pf_wage") @db.Decimal(14, 2)
+  esiWage Decimal @default(0) @map("esi_wage") @db.Decimal(14, 2)
+  ptWage  Decimal @default(0) @map("pt_wage") @db.Decimal(14, 2)
+
+  /// The employee's 12%.
+  epfEmployee    Decimal @default(0) @map("epf_employee") @db.Decimal(14, 2)
+  /// The employer's 12%, split the way the EPFO takes it: 8.33% to pension, the rest to PF.
+  epsEmployer    Decimal @default(0) @map("eps_employer") @db.Decimal(14, 2)
+  epfEmployer    Decimal @default(0) @map("epf_employer") @db.Decimal(14, 2)
+  /// 0.50% each, paid by the employer on top of the 12%.
+  edliCharges    Decimal @default(0) @map("edli_charges") @db.Decimal(14, 2)
+  pfAdminCharges Decimal @default(0) @map("pf_admin_charges") @db.Decimal(14, 2)
+  /// Voluntary provident fund: the employee's own extra, which the employer does not match.
+  vpf            Decimal @default(0) @db.Decimal(14, 2)
+
+  esiEmployee Decimal @default(0) @map("esi_employee") @db.Decimal(14, 2)
+  esiEmployer Decimal @default(0) @map("esi_employer") @db.Decimal(14, 2)
+
+  professionalTax Decimal @default(0) @map("professional_tax") @db.Decimal(14, 2)
+  lwfEmployee     Decimal @default(0) @map("lwf_employee") @db.Decimal(14, 2)
+  lwfEmployer     Decimal @default(0) @map("lwf_employer") @db.Decimal(14, 2)
+  incomeTax       Decimal @default(0) @map("income_tax") @db.Decimal(14, 2)
+
+  /// Basic and dearness allowance as a share of gross; under half fails the Labour Code check.
+  wageSharePercent Decimal @default(0) @map("wage_share_percent") @db.Decimal(5, 2)
+  wageCheckPassed  Boolean @default(true) @map("wage_check_passed")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyPayrollStatutory", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, payrollRunId, employeeId])
+  @@index([companyId, periodKey])
+  @@map("payroll_statutory")
+}
+
+/// What an employee said about their tax for the year (P1-16).
+model EmployeeTaxDeclaration {
+  id                String    @id @default(uuid()) @db.Uuid
+  companyId         String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId        BigInt    @map("employee_id")
+  fyCode            String    @map("fy_code") @db.VarChar(10)
+  regime            TaxRegime @default(NEW)
+  /// 80C, 80D, house rent, interest on a housing loan — whatever the old regime allows.
+  declarations      Json      @default("{}")
+  /// What the year is expected to come to, and what has already been taken off.
+  projectedIncome   Decimal   @default(0) @map("projected_income") @db.Decimal(14, 2)
+  projectedTax      Decimal   @default(0) @map("projected_tax") @db.Decimal(14, 2)
+  taxDeductedToDate Decimal   @default(0) @map("tax_deducted_to_date") @db.Decimal(14, 2)
+  /// Proof was seen; until then the declaration is a claim and the old regime may be refused.
+  proofsVerified    Boolean   @default(false) @map("proofs_verified")
+  notes             String?   @db.VarChar(255)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyEmployeeTaxDeclaration", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, fyCode])
+  @@map("employee_tax_declarations")
+}
+
+// ── Labour Code entitlements (P1-17b) ─────────────────────────────────────────
+
+enum LeaveAccrualBasis {
+  ANNUAL
+  MONTHLY
+  DAYS_WORKED
+}
+
+enum SettlementStatus {
+  DRAFT
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+/// A day the factory does not work (P1-17b). National holidays are statutory; the rest are the
+/// company's, and the list is per state because a festival is not a holiday everywhere.
+model Holiday {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  holidayOn DateTime @map("holiday_on") @db.Date
+  name      String   @db.VarChar(120)
+  /// NATIONAL, FESTIVAL or COMPANY. A national holiday cannot be worked without double wages.
+  kind      String   @default("FESTIVAL") @db.VarChar(16)
+  stateCode String?  @map("state_code") @db.VarChar(2)
+  isPaid    Boolean  @default(true) @map("is_paid")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyHoliday", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, holidayOn, name])
+  @@index([companyId, holidayOn])
+  @@map("holidays")
+}
+
+/// A kind of leave and the policy attached to it (P1-17b).
+model LeaveType {
+  id               String            @id @default(uuid()) @db.Uuid
+  companyId        String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code             String            @db.VarChar(20)
+  name             String            @db.VarChar(80)
+  /// Days a year, or the divisor when the basis is days worked (one day per twenty, say).
+  daysPerYear      Decimal           @default(0) @map("days_per_year") @db.Decimal(6, 2)
+  basis            LeaveAccrualBasis @default(ANNUAL)
+  /// One earned day for every this many days actually worked, when the basis says so.
+  daysWorkedPerDay Int               @default(20) @map("days_worked_per_day")
+  isPaid           Boolean           @default(true) @map("is_paid")
+  /// How much may be carried into the next year; the rest lapses.
+  carryForwardMax  Decimal           @default(0) @map("carry_forward_max") @db.Decimal(6, 2)
+  encashable       Boolean           @default(false)
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  balances LeaveBalance[]
+  company  Company        @relation("CompanyLeaveType", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("leave_types")
+}
+
+/// What an employee has of a leave type in a year (P1-17b).
+///
+/// A running balance rather than a derived figure, because leave is argued about and the argument
+/// is always "what did I have at the start of the year" — which a recomputation cannot answer
+/// once the policy has changed.
+model LeaveBalance {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId  BigInt   @map("employee_id")
+  leaveTypeId String   @map("leave_type_id") @db.Uuid
+  fyCode      String   @map("fy_code") @db.VarChar(10)
+  opening     Decimal  @default(0) @db.Decimal(6, 2)
+  accrued     Decimal  @default(0) @db.Decimal(6, 2)
+  taken       Decimal  @default(0) @db.Decimal(6, 2)
+  encashed    Decimal  @default(0) @db.Decimal(6, 2)
+  /// What went past the carry-forward cap at the year end and was lost.
+  lapsed      Decimal  @default(0) @db.Decimal(6, 2)
+  closing     Decimal  @default(0) @db.Decimal(6, 2)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  company   Company   @relation("CompanyLeaveBalance", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, leaveTypeId, fyCode])
+  @@index([companyId, fyCode])
+  @@map("leave_balances")
+}
+
+/// Full and final settlement (P1-17b).
+model FinalSettlement {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId         BigInt   @map("employee_id")
+  employeeCode       String   @map("employee_code") @db.VarChar(40)
+  separationOn       DateTime @map("separation_on") @db.Date
+  lastWorkingDay     DateTime @map("last_working_day") @db.Date
+  reason             String?  @db.VarChar(160)
+  /// Whether the employee served their notice; what they did not serve is recovered.
+  noticeDaysRequired Int      @default(0) @map("notice_days_required")
+  noticeDaysServed   Int      @default(0) @map("notice_days_served")
+
+  /// What is owed.
+  salaryDue       Decimal @default(0) @map("salary_due") @db.Decimal(14, 2)
+  leaveEncashment Decimal @default(0) @map("leave_encashment") @db.Decimal(14, 2)
+  gratuity        Decimal @default(0) @db.Decimal(14, 2)
+  bonus           Decimal @default(0) @db.Decimal(14, 2)
+  otherDues       Decimal @default(0) @map("other_dues") @db.Decimal(14, 2)
+  /// What comes off.
+  noticeRecovery  Decimal @default(0) @map("notice_recovery") @db.Decimal(14, 2)
+  advanceRecovery Decimal @default(0) @map("advance_recovery") @db.Decimal(14, 2)
+  otherRecovery   Decimal @default(0) @map("other_recovery") @db.Decimal(14, 2)
+  netPayable      Decimal @default(0) @map("net_payable") @db.Decimal(14, 2)
+
+  /// The service and wage the gratuity was worked out on, kept so the figure can be defended.
+  yearsOfService   Decimal @default(0) @map("years_of_service") @db.Decimal(6, 2)
+  lastDrawnWage    Decimal @default(0) @map("last_drawn_wage") @db.Decimal(14, 2)
+  gratuityEligible Boolean @default(false) @map("gratuity_eligible")
+
+  status     SettlementStatus @default(DRAFT)
+  voucherId  Int?             @map("voucher_id")
+  notes      String?          @db.VarChar(255)
+  preparedBy String?          @map("prepared_by") @db.VarChar(36)
+  approvedBy String?          @map("approved_by") @db.VarChar(36)
+  approvedAt DateTime?        @map("approved_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyFinalSettlement", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, separationOn])
+  @@index([companyId, status])
+  @@map("final_settlements")
+}
+
+// ─── Payments (P1-21) ────────────────────────────────────────────────────────
+
+enum PaymentGatewayProvider {
+  FIXTURE
+  RAZORPAY
+}
+
+enum PaymentLinkStatus {
+  CREATED
+  PARTIALLY_PAID
+  PAID
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentCaptureStatus {
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+/// One gateway per tenant. Secrets are encrypted at rest and never returned; `webhookToken` is
+/// the opaque segment of the callback URL, so the URL a tenant hands the gateway carries no
+/// company id.
+model PaymentGatewayConfig {
+  id             String                 @id @default(uuid()) @db.Uuid
+  companyId      String                 @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  provider       PaymentGatewayProvider @default(FIXTURE)
+  enabled        Boolean                @default(false)
+  keyId          String?                @map("key_id") @db.VarChar(120)
+  keySecret      String?                @map("key_secret") @db.VarChar(400)
+  webhookSecret  String?                @map("webhook_secret") @db.VarChar(400)
+  webhookToken   String                 @unique @map("webhook_token") @db.VarChar(64)
+  /// Where the money lands and what the gateway keeps for itself.
+  bankLedgerCode String                 @default("BANK-001") @map("bank_ledger_code") @db.VarChar(20)
+  feeLedgerCode  String                 @default("PG-FEE-001") @map("fee_ledger_code") @db.VarChar(20)
+  expiryHours    Int                    @default(72) @map("expiry_hours")
+  lastVerifiedAt DateTime?              @map("last_verified_at") @db.Timestamptz(6)
+  createdBy      String?                @map("created_by") @db.VarChar(36)
+  updatedBy      String?                @map("updated_by") @db.VarChar(36)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyPaymentGatewayConfig", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("payment_gateway_configs")
+}
+
+/// A link a customer can pay. `amountPaid` is the sum of its captures, kept on the row so the
+/// list does not have to add them up.
+model PaymentLink {
+  id             String                 @id @default(uuid()) @db.Uuid
+  companyId      String                 @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  linkNo         String                 @map("link_no") @db.VarChar(30)
+  provider       PaymentGatewayProvider @default(FIXTURE)
+  providerLinkId String?                @map("provider_link_id") @db.VarChar(120)
+  shortUrl       String?                @map("short_url") @db.VarChar(400)
+  salesInvoiceId String?                @map("sales_invoice_id") @db.Uuid
+  customerId     String?                @map("customer_id") @db.Uuid
+  amount         Decimal                @db.Decimal(14, 2)
+  amountPaid     Decimal                @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  currencyCode   String                 @default("INR") @map("currency_code") @db.VarChar(3)
+  status         PaymentLinkStatus      @default(CREATED)
+  description    String?                @db.VarChar(255)
+  notifyEmail    String?                @map("notify_email") @db.VarChar(120)
+  notifyPhone    String?                @map("notify_phone") @db.VarChar(20)
+  expiresAt      DateTime?              @map("expires_at") @db.Timestamptz(6)
+  cancelledAt    DateTime?              @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason   String?                @map("cancel_reason") @db.VarChar(255)
+  createdBy      String?                @map("created_by") @db.VarChar(36)
+  updatedBy      String?                @map("updated_by") @db.VarChar(36)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company      Company          @relation("CompanyPaymentLink", fields: [companyId], references: [id], onDelete: Restrict)
+  salesInvoice SalesInvoice?    @relation(fields: [salesInvoiceId], references: [id], onDelete: SetNull)
+  captures     PaymentCapture[]
+
+  @@unique([companyId, linkNo])
+  @@unique([companyId, providerLinkId])
+  @@index([companyId, status])
+  @@index([companyId, salesInvoiceId])
+  @@map("payment_links")
+}
+
+/// One payment the gateway reports against a link. The provider's payment id is the idempotency
+/// key: the same capture cannot post twice however many times the webhook is delivered.
+model PaymentCapture {
+  id                    String               @id @default(uuid()) @db.Uuid
+  companyId             String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  paymentLinkId         String               @map("payment_link_id") @db.Uuid
+  providerPaymentId     String               @map("provider_payment_id") @db.VarChar(120)
+  status                PaymentCaptureStatus @default(CAPTURED)
+  amount                Decimal              @db.Decimal(14, 2)
+  /// What the gateway kept, and the GST on it. Both are the gateway's numbers, in paise-exact
+  /// rupees; the books never guess them.
+  fee                   Decimal              @default(0) @db.Decimal(14, 2)
+  feeTax                Decimal              @default(0) @map("fee_tax") @db.Decimal(14, 2)
+  method                String?              @db.VarChar(30)
+  capturedAt            DateTime             @map("captured_at") @db.Timestamptz(6)
+  salesInvoicePaymentId String?              @map("sales_invoice_payment_id") @db.Uuid
+  voucherId             String?              @map("voucher_id") @db.VarChar(36)
+  feeVoucherId          String?              @map("fee_voucher_id") @db.VarChar(36)
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company     Company     @relation("CompanyPaymentCapture", fields: [companyId], references: [id], onDelete: Restrict)
+  paymentLink PaymentLink @relation(fields: [paymentLinkId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, providerPaymentId])
+  @@index([companyId, paymentLinkId])
+  @@map("payment_captures")
+}
+
+/// Every callback, stored before it is acted on: what arrived, whether it was signed correctly,
+/// and what became of it. A gateway that redelivers an event finds it here and does nothing.
+model PaymentWebhookEvent {
+  id              String             @id @default(uuid()) @db.Uuid
+  companyId       String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  providerEventId String             @map("provider_event_id") @db.VarChar(160)
+  eventType       String             @map("event_type") @db.VarChar(60)
+  signatureValid  Boolean            @default(false) @map("signature_valid")
+  status          WebhookEventStatus @default(RECEIVED)
+  payload         Json
+  error           String?            @db.VarChar(500)
+  receivedAt      DateTime           @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt     DateTime?          @map("processed_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyPaymentWebhookEvent", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, providerEventId])
+  @@index([companyId, status])
+  @@map("payment_webhook_events")
+}
+
+enum SubscriptionInvoiceStatus {
+  DUE
+  PAID
+  FAILED
+  VOID
+}
+
+/// What a tenant owes the platform for one period. Raised by the platform, moved to paid by the
+/// gateway's webhook, and the subscription's status follows it.
+model SubscriptionInvoice {
+  id                String                    @id @default(uuid()) @db.Uuid
+  companyId         String                    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  planCode          String                    @map("plan_code") @db.VarChar(30)
+  periodStart       DateTime                  @map("period_start") @db.Timestamptz(6)
+  periodEnd         DateTime                  @map("period_end") @db.Timestamptz(6)
+  amount            Decimal                   @db.Decimal(12, 2)
+  status            SubscriptionInvoiceStatus @default(DUE)
+  dueAt             DateTime                  @map("due_at") @db.Timestamptz(6)
+  paidAt            DateTime?                 @map("paid_at") @db.Timestamptz(6)
+  providerInvoiceId String?                   @map("provider_invoice_id") @db.VarChar(120)
+  providerPaymentId String?                   @map("provider_payment_id") @db.VarChar(120)
+  failureReason     String?                   @map("failure_reason") @db.VarChar(255)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySubscriptionInvoice", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodStart])
+  @@index([companyId, status])
+  @@map("subscription_invoices")
+}
+
+// ─── SMS and one-time passwords (P1-22) ──────────────────────────────────────
+
+enum SmsProviderName {
+  FIXTURE
+  MSG91
+}
+
+/// TRAI's categories. Transactional and service messages need a DLT-registered template;
+/// promotional messages are blocked for numbers on the DND registry.
+enum SmsCategory {
+  TRANSACTIONAL
+  SERVICE_IMPLICIT
+  SERVICE_EXPLICIT
+  PROMOTIONAL
+}
+
+enum SmsMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum OtpPurpose {
+  MOBILE_VERIFY
+  FIELD_LOGIN
+  PAYMENT_CONFIRM
+}
+
+/// One SMS account per tenant. The auth key is encrypted at rest and never returned; the DLT ids
+/// are not secret but without them every transactional message is dropped by the operator.
+model SmsConfig {
+  id                String          @id @default(uuid()) @db.Uuid
+  companyId         String          @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  provider          SmsProviderName @default(FIXTURE)
+  enabled           Boolean         @default(false)
+  /// The sender id registered on DLT: six letters, e.g. SHFTLN.
+  senderId          String?         @map("sender_id") @db.VarChar(6)
+  /// The principal entity id the tenant registered with on the DLT platform.
+  principalEntityId String?         @map("principal_entity_id") @db.VarChar(30)
+  authKey           String?         @map("auth_key") @db.VarChar(400)
+  /// A cap the tenant sets on itself, so a loop cannot spend a month's credit in an hour.
+  dailyCap          Int             @default(2000) @map("daily_cap")
+  lastVerifiedAt    DateTime?       @map("last_verified_at") @db.Timestamptz(6)
+  createdBy         String?         @map("created_by") @db.VarChar(36)
+  updatedBy         String?         @map("updated_by") @db.VarChar(36)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySmsConfig", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("sms_configs")
+}
+
+/// A message the operator will actually deliver: the body must match the DLT registration
+/// character for character apart from the variables.
+model SmsTemplate {
+  id            String      @id @default(uuid()) @db.Uuid
+  companyId     String      @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code          String      @db.VarChar(40)
+  name          String      @db.VarChar(80)
+  category      SmsCategory @default(TRANSACTIONAL)
+  dltTemplateId String?     @map("dlt_template_id") @db.VarChar(30)
+  body          String      @db.VarChar(1000)
+  /// The placeholder names in the order the body uses them.
+  variables     String[]
+  isActive      Boolean     @default(true) @map("is_active")
+  createdBy     String?     @map("created_by") @db.VarChar(36)
+  updatedBy     String?     @map("updated_by") @db.VarChar(36)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySmsTemplate", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("sms_templates")
+}
+
+/// Every send, whatever became of it. An OTP's message body is stored with the code masked.
+model SmsMessage {
+  id                String           @id @default(uuid()) @db.Uuid
+  companyId         String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  toMobile          String           @map("to_mobile") @db.VarChar(15)
+  templateCode      String?          @map("template_code") @db.VarChar(40)
+  dltTemplateId     String?          @map("dlt_template_id") @db.VarChar(30)
+  body              String           @db.VarChar(1000)
+  segments          Int              @default(1)
+  status            SmsMessageStatus @default(QUEUED)
+  providerMessageId String?          @map("provider_message_id") @db.VarChar(120)
+  purpose           String?          @db.VarChar(30)
+  error             String?          @db.VarChar(255)
+  requestId         String?          @map("request_id") @db.VarChar(64)
+  queuedAt          DateTime         @default(now()) @map("queued_at") @db.Timestamptz(6)
+  sentAt            DateTime?        @map("sent_at") @db.Timestamptz(6)
+  deliveredAt       DateTime?        @map("delivered_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySmsMessage", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, toMobile])
+  @@index([companyId, status])
+  @@map("sms_messages")
+}
+
+/// A code somebody has to type back. Only its hash is stored, it expires, and it counts the
+/// attempts against it.
+model OtpChallenge {
+  id           String     @id @default(uuid()) @db.Uuid
+  companyId    String     @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  purpose      OtpPurpose
+  mobile       String     @db.VarChar(15)
+  codeHash     String     @map("code_hash") @db.VarChar(120)
+  expiresAt    DateTime   @map("expires_at") @db.Timestamptz(6)
+  attempts     Int        @default(0)
+  maxAttempts  Int        @default(5) @map("max_attempts")
+  consumedAt   DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  smsMessageId String?    @map("sms_message_id") @db.Uuid
+  /// Who asked, when there is a session behind the request.
+  requestedBy  String?    @map("requested_by") @db.VarChar(36)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyOtpChallenge", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, mobile, purpose])
+  @@map("otp_challenges")
 }

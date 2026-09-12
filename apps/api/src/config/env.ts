@@ -39,6 +39,13 @@ const envSchema = z
     /** Key for encrypting stored credentials (WhatsApp tokens, SMTP passwords, GSP secrets). */
     DATA_ENCRYPTION_KEY: z.string().min(32).optional(),
 
+    /**
+     * The platform's own gateway webhook secret (P1-21): subscription callbacks are signed with
+     * it. Absent means subscription billing is not wired up, and the callback is refused rather
+     * than trusted.
+     */
+    PLATFORM_GATEWAY_WEBHOOK_SECRET: z.string().min(16).optional(),
+
     /** Run the pg-boss worker inside the API process (single-process local runs). */
     EMBED_WORKER: z
       .enum(["true", "false"])
