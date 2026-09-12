@@ -225,6 +225,14 @@ export const API_PATHS = {
     returns: "/tds/returns",
     form16a: "/tds/form16a",
   },
+  tally: {
+    base: "/tally",
+    masters: "/tally/masters",
+    vouchers: "/tally/vouchers",
+    preview: "/tally/preview",
+    mappings: "/tally/mappings",
+    runs: "/tally/runs",
+  },
   jobWork: {
     base: "/job-work",
     workers: "/job-work/workers",

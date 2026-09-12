@@ -55,6 +55,7 @@ import pettyCashRoutes from "../modules/petty-cash/petty-cash.routes";
 import advancesRoutes, { currencyRouter } from "../modules/advances/advances.routes";
 import jobWorkRoutes from "../modules/job-work/job-work.routes";
 import tdsRoutes from "../modules/tds/tds.routes";
+import tallyRoutes from "../modules/tally/tally.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
@@ -146,6 +147,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/currencies", router: currencyRouter },
   { path: "/job-work", router: jobWorkRoutes },
   { path: "/tds", router: tdsRoutes },
+  { path: "/tally", router: tallyRoutes },
   { path: "/payroll", router: payrollRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },

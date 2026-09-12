@@ -682,15 +682,17 @@ model Company {
   tdsSections          TdsSection[]          @relation("CompanyTdsSection")
   tdsDeductions        TdsDeduction[]        @relation("CompanyTdsDeduction")
   tdsChallans          TdsChallan[]          @relation("CompanyTdsChallan")
+  tallyNameMaps        TallyNameMap[]        @relation("CompanyTallyNameMap")
+  tallyExportRuns      TallyExportRun[]      @relation("CompanyTallyExportRun")
   jobWorkers           JobWorker[]           @relation("CompanyJobWorker")
   deliveryChallans     DeliveryChallan[]     @relation("CompanyDeliveryChallan")
   deliveryChallanItems DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
-  currencies         Currency[]          @relation("CompanyCurrency")
-  exchangeRates      ExchangeRate[]      @relation("CompanyExchangeRate")
-  advanceReceipts    AdvanceReceipt[]    @relation("CompanyAdvanceReceipt")
-  advanceAdjustments AdvanceAdjustment[] @relation("CompanyAdvanceAdjustment")
-  gstr2bRecords Gstr2bRecord[] @relation("CompanyGstr2bRecord")
-  imsActions    ImsAction[]   @relation("CompanyImsAction")
+  currencies           Currency[]            @relation("CompanyCurrency")
+  exchangeRates        ExchangeRate[]        @relation("CompanyExchangeRate")
+  advanceReceipts      AdvanceReceipt[]      @relation("CompanyAdvanceReceipt")
+  advanceAdjustments   AdvanceAdjustment[]   @relation("CompanyAdvanceAdjustment")
+  gstr2bRecords        Gstr2bRecord[]        @relation("CompanyGstr2bRecord")
+  imsActions           ImsAction[]           @relation("CompanyImsAction")
 
   @@map("companies")
 }
@@ -3962,46 +3964,46 @@ enum Gstr2bMatchStatus {
 /// portal JSON or pulled through a provider; never written by hand. The credit the company may
 /// actually take is decided here, not in its own purchase register. Audited.
 model Gstr2bRecord {
-  id             String    @id @default(uuid()) @db.Uuid
-  companyId      String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  id             String             @id @default(uuid()) @db.Uuid
+  companyId      String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   /// The 2B period the record was drawn for (2026-08).
-  periodKey      String    @map("period_key") @db.VarChar(7)
+  periodKey      String             @map("period_key") @db.VarChar(7)
   /// The company's own GSTIN this 2B belongs to.
-  gstin          String    @db.VarChar(15)
-  supplierGstin  String    @map("supplier_gstin") @db.VarChar(15)
-  supplierName   String?   @map("supplier_name") @db.VarChar(160)
+  gstin          String             @db.VarChar(15)
+  supplierGstin  String             @map("supplier_gstin") @db.VarChar(15)
+  supplierName   String?            @map("supplier_name") @db.VarChar(160)
   /// INV | CRN | DBN | ISD | IMPG | IMPS
-  docType        String    @map("doc_type") @db.VarChar(4)
-  docNo          String    @map("doc_no") @db.VarChar(40)
+  docType        String             @map("doc_type") @db.VarChar(4)
+  docNo          String             @map("doc_no") @db.VarChar(40)
   /// The document number with case, spaces and punctuation stripped, for matching.
-  docNoNorm      String    @map("doc_no_norm") @db.VarChar(40)
-  docDate        DateTime  @map("doc_date") @db.Date
-  docValue       Decimal   @default(0) @map("doc_value") @db.Decimal(14, 2)
-  placeOfSupply  String?   @map("place_of_supply") @db.VarChar(2)
-  reverseCharge  Boolean   @default(false) @map("reverse_charge")
-  taxable        Decimal   @default(0) @db.Decimal(14, 2)
-  igst           Decimal   @default(0) @db.Decimal(14, 2)
-  cgst           Decimal   @default(0) @db.Decimal(14, 2)
-  sgst           Decimal   @default(0) @db.Decimal(14, 2)
-  cess           Decimal   @default(0) @db.Decimal(14, 2)
+  docNoNorm      String             @map("doc_no_norm") @db.VarChar(40)
+  docDate        DateTime           @map("doc_date") @db.Date
+  docValue       Decimal            @default(0) @map("doc_value") @db.Decimal(14, 2)
+  placeOfSupply  String?            @map("place_of_supply") @db.VarChar(2)
+  reverseCharge  Boolean            @default(false) @map("reverse_charge")
+  taxable        Decimal            @default(0) @db.Decimal(14, 2)
+  igst           Decimal            @default(0) @db.Decimal(14, 2)
+  cgst           Decimal            @default(0) @db.Decimal(14, 2)
+  sgst           Decimal            @default(0) @db.Decimal(14, 2)
+  cess           Decimal            @default(0) @db.Decimal(14, 2)
   /// The portal's own call on whether the credit is available ("Y"/"N") and why not.
-  itcAvailable   Boolean   @default(true) @map("itc_available")
-  itcReason      String?   @map("itc_reason") @db.VarChar(120)
+  itcAvailable   Boolean            @default(true) @map("itc_available")
+  itcReason      String?            @map("itc_reason") @db.VarChar(120)
   /// The period the supplier filed in, and the day they filed.
-  filingPeriod   String?   @map("filing_period") @db.VarChar(7)
-  filingDate     DateTime? @map("filing_date") @db.Date
+  filingPeriod   String?            @map("filing_period") @db.VarChar(7)
+  filingDate     DateTime?          @map("filing_date") @db.Date
   /// FIXTURE | GSP | IMPORT (a file the accountant downloaded)
-  sourceKind     String    @default("IMPORT") @map("source_kind") @db.VarChar(10)
+  sourceKind     String             @default("IMPORT") @map("source_kind") @db.VarChar(10)
   /// The record exactly as it arrived, so a disputed figure can be traced.
   raw            Json?
   /// Set when reconciliation places it against a purchase document.
   matchStatus    Gstr2bMatchStatus? @map("match_status")
-  matchedDocType String?   @map("matched_doc_type") @db.VarChar(12)
-  matchedDocId   String?   @map("matched_doc_id") @db.VarChar(40)
+  matchedDocType String?            @map("matched_doc_type") @db.VarChar(12)
+  matchedDocId   String?            @map("matched_doc_id") @db.VarChar(40)
   /// Which fields differ, and by how much, when the status is MISMATCH.
-  mismatchFields Json?     @map("mismatch_fields")
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  mismatchFields Json?              @map("mismatch_fields")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   imsAction ImsAction?
 
@@ -4017,20 +4019,20 @@ model Gstr2bRecord {
 /// PENDING when the return is drawn is accepted by the portal's own default, so the absence of
 /// a decision is itself a decision — which is why a pending row is stored, not implied. Audited.
 model ImsAction {
-  id          String    @id @default(uuid()) @db.Uuid
-  companyId   String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  recordId    String    @unique @map("record_id") @db.Uuid
-  status      ImsStatus @default(PENDING)
-  reason      String?   @db.VarChar(255)
-  decidedBy   String?   @map("decided_by") @db.VarChar(36)
-  decidedAt   DateTime? @map("decided_at") @db.Timestamptz(6)
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  recordId  String    @unique @map("record_id") @db.Uuid
+  status    ImsStatus @default(PENDING)
+  reason    String?   @db.VarChar(255)
+  decidedBy String?   @map("decided_by") @db.VarChar(36)
+  decidedAt DateTime? @map("decided_at") @db.Timestamptz(6)
   /// When the action reached the portal, and what it said back.
-  pushedAt    DateTime? @map("pushed_at") @db.Timestamptz(6)
-  pushedBy    String?   @map("pushed_by") @db.VarChar(36)
-  pushRef     String?   @map("push_ref") @db.VarChar(64)
-  pushError   String?   @map("push_error") @db.VarChar(255)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pushedAt  DateTime? @map("pushed_at") @db.Timestamptz(6)
+  pushedBy  String?   @map("pushed_by") @db.VarChar(36)
+  pushRef   String?   @map("push_ref") @db.VarChar(64)
+  pushError String?   @map("push_error") @db.VarChar(255)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   record  Gstr2bRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
   company Company      @relation("CompanyImsAction", fields: [companyId], references: [id], onDelete: Restrict)
@@ -4055,17 +4057,17 @@ enum RateSource {
 /// A currency the company transacts in. INR is seeded for every tenant and cannot be retired:
 /// the books are kept in it, and every foreign document converts to it before it posts.
 model Currency {
-  id           String   @id @default(uuid()) @db.Uuid
-  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   /// ISO 4217, e.g. USD.
-  code         String   @db.VarChar(3)
-  name         String   @db.VarChar(60)
-  symbol       String?  @db.VarChar(6)
+  code      String   @db.VarChar(3)
+  name      String   @db.VarChar(60)
+  symbol    String?  @db.VarChar(6)
   /// Minor units: 2 for most, 0 for JPY.
-  decimals     Int      @default(2)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  decimals  Int      @default(2)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   rates ExchangeRate[]
 
@@ -4151,23 +4153,23 @@ model AdvanceReceipt {
 /// One advance applied against one invoice, or refunded. The tax already paid on the advance
 /// comes off the invoice's liability, which is what GSTR-1 table 11B reports. Audited.
 model AdvanceAdjustment {
-  id             String   @id @default(uuid()) @db.Uuid
-  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  advanceId      String   @map("advance_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  advanceId       String   @map("advance_id") @db.Uuid
   /// Null for a refund: the advance is given back rather than used.
-  salesInvoiceId String?  @map("sales_invoice_id") @db.Uuid
+  salesInvoiceId  String?  @map("sales_invoice_id") @db.Uuid
   /// ADJUSTED | REFUNDED
-  kind           String   @default("ADJUSTED") @db.VarChar(10)
-  amount         Decimal  @db.Decimal(14, 2)
-  taxable        Decimal  @default(0) @db.Decimal(14, 2)
-  igst           Decimal  @default(0) @db.Decimal(14, 2)
-  cgst           Decimal  @default(0) @db.Decimal(14, 2)
-  sgst           Decimal  @default(0) @db.Decimal(14, 2)
+  kind            String   @default("ADJUSTED") @db.VarChar(10)
+  amount          Decimal  @db.Decimal(14, 2)
+  taxable         Decimal  @default(0) @db.Decimal(14, 2)
+  igst            Decimal  @default(0) @db.Decimal(14, 2)
+  cgst            Decimal  @default(0) @db.Decimal(14, 2)
+  sgst            Decimal  @default(0) @db.Decimal(14, 2)
   /// The refund voucher's own number, when this is a refund.
-  refundVoucherNo String? @map("refund_voucher_no") @db.VarChar(30)
-  adjustedOn     DateTime @map("adjusted_on") @db.Date
-  createdBy      String?  @map("created_by") @db.VarChar(36)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  refundVoucherNo String?  @map("refund_voucher_no") @db.VarChar(30)
+  adjustedOn      DateTime @map("adjusted_on") @db.Date
+  createdBy       String?  @map("created_by") @db.VarChar(36)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   advance      AdvanceReceipt @relation(fields: [advanceId], references: [id], onDelete: Cascade)
   salesInvoice SalesInvoice?  @relation(fields: [salesInvoiceId], references: [id])
@@ -4236,44 +4238,44 @@ model JobWorker {
 /// they come back within a year — three years for capital goods — so the clock starts here and
 /// the balance on the challan is what it is measured against. Audited.
 model DeliveryChallan {
-  id              String        @id @default(uuid()) @db.Uuid
-  companyId       String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  challanNo       String        @map("challan_no") @db.VarChar(30)
-  challanDate     DateTime      @map("challan_date") @db.Date
-  kind            ChallanKind
-  status          ChallanStatus @default(OPEN)
-  jobWorkerId     String?       @map("job_worker_id") @db.Uuid
+  id                String        @id @default(uuid()) @db.Uuid
+  companyId         String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  challanNo         String        @map("challan_no") @db.VarChar(30)
+  challanDate       DateTime      @map("challan_date") @db.Date
+  kind              ChallanKind
+  status            ChallanStatus @default(OPEN)
+  jobWorkerId       String?       @map("job_worker_id") @db.Uuid
   /// The challan this one returns goods against (a JOB_WORK_RETURN).
-  parentChallanId String?       @map("parent_challan_id") @db.Uuid
-  businessPlaceId BigInt?       @map("business_place_id")
+  parentChallanId   String?       @map("parent_challan_id") @db.Uuid
+  businessPlaceId   BigInt?       @map("business_place_id")
   /// Where the goods left from, and where a branch transfer is going.
-  storeId         String?       @map("store_id") @db.VarChar(20)
-  toBusinessPlaceId BigInt?     @map("to_business_place_id")
-  placeOfSupply   String?       @map("place_of_supply") @db.VarChar(2)
-  supplyType      SupplyType    @default(INTRA_STATE) @map("supply_type")
-  purpose         String?       @db.VarChar(255)
+  storeId           String?       @map("store_id") @db.VarChar(20)
+  toBusinessPlaceId BigInt?       @map("to_business_place_id")
+  placeOfSupply     String?       @map("place_of_supply") @db.VarChar(2)
+  supplyType        SupplyType    @default(INTRA_STATE) @map("supply_type")
+  purpose           String?       @db.VarChar(255)
   /// Capital goods get three years to come back instead of one.
-  capitalGoods    Boolean       @default(false) @map("capital_goods")
+  capitalGoods      Boolean       @default(false) @map("capital_goods")
   /// Day the goods have to be back by; the rule that set it travels with it.
-  returnDueDate   DateTime?     @map("return_due_date") @db.Date
+  returnDueDate     DateTime?     @map("return_due_date") @db.Date
   /// The notional value the movement is worth, for the e-way bill.
-  taxable         Decimal       @default(0) @db.Decimal(14, 2)
-  igst            Decimal       @default(0) @db.Decimal(14, 2)
-  cgst            Decimal       @default(0) @db.Decimal(14, 2)
-  sgst            Decimal       @default(0) @db.Decimal(14, 2)
-  totalValue      Decimal       @default(0) @map("total_value") @db.Decimal(14, 2)
-  transporterName String?       @map("transporter_name") @db.VarChar(120)
-  vehicleNumber   String?       @map("vehicle_number") @db.VarChar(20)
-  remarks         String?       @db.VarChar(500)
+  taxable           Decimal       @default(0) @db.Decimal(14, 2)
+  igst              Decimal       @default(0) @db.Decimal(14, 2)
+  cgst              Decimal       @default(0) @db.Decimal(14, 2)
+  sgst              Decimal       @default(0) @db.Decimal(14, 2)
+  totalValue        Decimal       @default(0) @map("total_value") @db.Decimal(14, 2)
+  transporterName   String?       @map("transporter_name") @db.VarChar(120)
+  vehicleNumber     String?       @map("vehicle_number") @db.VarChar(20)
+  remarks           String?       @db.VarChar(500)
   /// Set once every line is accounted for, by return, consumption or scrap.
-  closedAt        DateTime?     @map("closed_at") @db.Timestamptz(6)
-  createdBy       String?       @map("created_by") @db.VarChar(36)
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  closedAt          DateTime?     @map("closed_at") @db.Timestamptz(6)
+  createdBy         String?       @map("created_by") @db.VarChar(36)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   /// Cancelled documents stay on file (MCA Rule 3(1)).
-  cancelledAt     DateTime?     @map("cancelled_at") @db.Timestamptz(6)
-  cancelledBy     String?       @map("cancelled_by") @db.VarChar(36)
-  cancelReason    String?       @map("cancel_reason") @db.VarChar(255)
+  cancelledAt       DateTime?     @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy       String?       @map("cancelled_by") @db.VarChar(36)
+  cancelReason      String?       @map("cancel_reason") @db.VarChar(255)
 
   jobWorker     JobWorker?            @relation(fields: [jobWorkerId], references: [id])
   parentChallan DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
@@ -4358,30 +4360,30 @@ enum TdsDeductionStatus {
 /// return utility still says 194C and 194J. So both live on the row: `code` is what people type
 /// and what the return carries, `actCode` is where it sits in the new Act.
 model TdsSection {
-  id               String   @id @default(uuid()) @db.Uuid
-  companyId        String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   /// The familiar code: 194C, 194J, 194Q, 206C(1H).
-  code             String   @db.VarChar(20)
+  code            String   @db.VarChar(20)
   /// Where it sits in the Income-tax Act 2025: "393 Table item 2" and so on.
-  actCode          String?  @map("act_code") @db.VarChar(40)
-  name             String   @db.VarChar(160)
+  actCode         String?  @map("act_code") @db.VarChar(40)
+  name            String   @db.VarChar(160)
   /// True for a collection at source (section 394) rather than a deduction (393).
-  isTcs            Boolean  @default(false) @map("is_tcs")
+  isTcs           Boolean  @default(false) @map("is_tcs")
   /// Rate when the payee is a company or a firm.
-  rateCompany      Decimal  @default(0) @map("rate_company") @db.Decimal(5, 2)
+  rateCompany     Decimal  @default(0) @map("rate_company") @db.Decimal(5, 2)
   /// Rate when the payee is an individual or a HUF; several sections differ.
-  rateIndividual   Decimal  @default(0) @map("rate_individual") @db.Decimal(5, 2)
+  rateIndividual  Decimal  @default(0) @map("rate_individual") @db.Decimal(5, 2)
   /// Rate when no PAN is furnished (section 206AA) or the payee is a non-filer (206AB).
-  rateNoPan        Decimal  @default(20) @map("rate_no_pan") @db.Decimal(5, 2)
+  rateNoPan       Decimal  @default(20) @map("rate_no_pan") @db.Decimal(5, 2)
   /// Deduct only once a single payment crosses this; zero means no single-payment threshold.
-  thresholdSingle  Decimal  @default(0) @map("threshold_single") @db.Decimal(14, 2)
+  thresholdSingle Decimal  @default(0) @map("threshold_single") @db.Decimal(14, 2)
   /// Deduct once the year's payments to this payee cross this.
-  thresholdAnnual  Decimal  @default(0) @map("threshold_annual") @db.Decimal(14, 2)
+  thresholdAnnual Decimal  @default(0) @map("threshold_annual") @db.Decimal(14, 2)
   /// The ledger the liability is credited to; one per section keeps the challan reconcilable.
-  ledgerCode       String?  @map("ledger_code") @db.VarChar(20)
-  isActive         Boolean  @default(true) @map("is_active")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  ledgerCode      String?  @map("ledger_code") @db.VarChar(20)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   deductions TdsDeduction[]
 
@@ -4394,43 +4396,43 @@ model TdsSection {
 /// One deduction or collection. Never deleted — a return has been filed against it — only
 /// cancelled when the document behind it is. Audited.
 model TdsDeduction {
-  id             String             @id @default(uuid()) @db.Uuid
-  companyId      String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  sectionId      String             @map("section_id") @db.Uuid
+  id            String             @id @default(uuid()) @db.Uuid
+  companyId     String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  sectionId     String             @map("section_id") @db.Uuid
   /// The payee. A supplier for 26Q; a non-resident payee is still a supplier row (27Q).
-  supplierId     Int?               @map("supplier_id")
+  supplierId    Int?               @map("supplier_id")
   /// Copied at the time of deduction: the return carries what was true then.
-  deducteeName   String             @map("deductee_name") @db.VarChar(160)
-  deducteePan    String?            @map("deductee_pan") @db.VarChar(10)
-  deducteeType   DeducteeType       @default(COMPANY) @map("deductee_type")
+  deducteeName  String             @map("deductee_name") @db.VarChar(160)
+  deducteePan   String?            @map("deductee_pan") @db.VarChar(10)
+  deducteeType  DeducteeType       @default(COMPANY) @map("deductee_type")
   /// True when no PAN was available, or the payee is a non-filer under 206AB.
-  higherRate     Boolean            @default(false) @map("higher_rate")
-  kind           TdsEventKind       @default(ON_BILL)
+  higherRate    Boolean            @default(false) @map("higher_rate")
+  kind          TdsEventKind       @default(ON_BILL)
   /// EXPENSE | GRN | PETTY_CASH | SALES_INVOICE (for TCS)
-  docType        String             @map("doc_type") @db.VarChar(16)
-  docId          String             @map("doc_id") @db.VarChar(40)
-  docNo          String             @map("doc_no") @db.VarChar(40)
-  deductionDate  DateTime           @map("deduction_date") @db.Date
+  docType       String             @map("doc_type") @db.VarChar(16)
+  docId         String             @map("doc_id") @db.VarChar(40)
+  docNo         String             @map("doc_no") @db.VarChar(40)
+  deductionDate DateTime           @map("deduction_date") @db.Date
   /// The whole amount paid or credited to the payee. Thresholds accumulate against this, and
   /// it is what the return's "amount paid" column carries.
-  amountPaid     Decimal            @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  amountPaid    Decimal            @default(0) @map("amount_paid") @db.Decimal(14, 2)
   /// The part of it the rate was actually applied to. For most sections that is the whole
   /// amount; for 194Q and 206C(1H) it is only what sits above the annual threshold.
-  taxableAmount  Decimal            @default(0) @map("taxable_amount") @db.Decimal(14, 2)
-  rate           Decimal            @default(0) @db.Decimal(5, 2)
-  tdsAmount      Decimal            @default(0) @map("tds_amount") @db.Decimal(14, 2)
+  taxableAmount Decimal            @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  rate          Decimal            @default(0) @db.Decimal(5, 2)
+  tdsAmount     Decimal            @default(0) @map("tds_amount") @db.Decimal(14, 2)
   /// Financial year `2026-27` and the quarter `Q1`..`Q4`, both derived from the date.
-  fyCode         String             @map("fy_code") @db.VarChar(7)
-  quarter        String             @db.VarChar(2)
-  challanId      String?            @map("challan_id") @db.Uuid
-  status         TdsDeductionStatus @default(PENDING)
+  fyCode        String             @map("fy_code") @db.VarChar(7)
+  quarter       String             @db.VarChar(2)
+  challanId     String?            @map("challan_id") @db.Uuid
+  status        TdsDeductionStatus @default(PENDING)
   /// Why the rate was what it was, for the person who has to explain it later.
-  rateReason     String?            @map("rate_reason") @db.VarChar(160)
-  createdBy      String?            @map("created_by") @db.VarChar(36)
-  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  cancelledAt    DateTime?          @map("cancelled_at") @db.Timestamptz(6)
-  cancelReason   String?            @map("cancel_reason") @db.VarChar(255)
+  rateReason    String?            @map("rate_reason") @db.VarChar(160)
+  createdBy     String?            @map("created_by") @db.VarChar(36)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cancelledAt   DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason  String?            @map("cancel_reason") @db.VarChar(255)
 
   section  TdsSection  @relation(fields: [sectionId], references: [id])
   supplier Supplier?   @relation(fields: [supplierId], references: [id])
@@ -4449,32 +4451,32 @@ model TdsDeduction {
 /// point at it, which is what makes a return reconcile: every deduction in a quarter has to sit
 /// on a challan, and every challan's total has to equal the deductions on it. Audited.
 model TdsChallan {
-  id             String    @id @default(uuid()) @db.Uuid
-  companyId      String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   /// Bank branch code, 7 digits — half of the challan's identity.
-  bsrCode        String    @map("bsr_code") @db.VarChar(7)
+  bsrCode       String   @map("bsr_code") @db.VarChar(7)
   /// The bank's serial number for the day.
-  challanSerial  String    @map("challan_serial") @db.VarChar(10)
-  challanDate    DateTime  @map("challan_date") @db.Date
+  challanSerial String   @map("challan_serial") @db.VarChar(10)
+  challanDate   DateTime @map("challan_date") @db.Date
   /// The month the deductions belong to, `2026-08`.
-  periodKey      String    @map("period_key") @db.VarChar(7)
-  fyCode         String    @map("fy_code") @db.VarChar(7)
-  quarter        String    @db.VarChar(2)
+  periodKey     String   @map("period_key") @db.VarChar(7)
+  fyCode        String   @map("fy_code") @db.VarChar(7)
+  quarter       String   @db.VarChar(2)
   /// What was actually paid, split the way the challan is.
-  tdsAmount      Decimal   @default(0) @map("tds_amount") @db.Decimal(14, 2)
-  surcharge      Decimal   @default(0) @db.Decimal(14, 2)
-  educationCess  Decimal   @default(0) @map("education_cess") @db.Decimal(14, 2)
-  interest       Decimal   @default(0) @db.Decimal(14, 2)
-  lateFee        Decimal   @default(0) @map("late_fee") @db.Decimal(14, 2)
-  totalAmount    Decimal   @default(0) @map("total_amount") @db.Decimal(14, 2)
+  tdsAmount     Decimal  @default(0) @map("tds_amount") @db.Decimal(14, 2)
+  surcharge     Decimal  @default(0) @db.Decimal(14, 2)
+  educationCess Decimal  @default(0) @map("education_cess") @db.Decimal(14, 2)
+  interest      Decimal  @default(0) @db.Decimal(14, 2)
+  lateFee       Decimal  @default(0) @map("late_fee") @db.Decimal(14, 2)
+  totalAmount   Decimal  @default(0) @map("total_amount") @db.Decimal(14, 2)
   /// 200 for a regular payment, 400 for one raised by a demand.
-  paymentCode    String    @default("200") @map("payment_code") @db.VarChar(3)
+  paymentCode   String   @default("200") @map("payment_code") @db.VarChar(3)
   /// True for a collection challan (TCS) rather than a deduction one.
-  isTcs          Boolean   @default(false) @map("is_tcs")
-  remarks        String?   @db.VarChar(255)
-  createdBy      String?   @map("created_by") @db.VarChar(36)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  isTcs         Boolean  @default(false) @map("is_tcs")
+  remarks       String?  @db.VarChar(255)
+  createdBy     String?  @map("created_by") @db.VarChar(36)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   deductions TdsDeduction[]
 
@@ -4483,4 +4485,96 @@ model TdsChallan {
   @@unique([companyId, bsrCode, challanSerial, challanDate])
   @@index([companyId, fyCode, quarter])
   @@map("tds_challans")
+}
+
+// ── Tally XML export (P1-06) ──────────────────────────────────────────────────
+
+enum TallyNameKind {
+  GROUP
+  LEDGER
+  UNIT
+  STOCK_ITEM
+  VOUCHER_TYPE
+}
+
+/// What something in our books is called in the tenant's Tally company (P1-06).
+///
+/// A Tally company that has been running for ten years has its own names, and an import has to
+/// meet them where they are: a ledger imported under a name Tally does not have is created as a
+/// new one, and the balance quietly splits in two. Built-in defaults cover Tally's reserved
+/// groups; this table is the tenant's override on top of them.
+model TallyNameMap {
+  id          String        @id @default(uuid()) @db.Uuid
+  companyId   String        @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  kind        TallyNameKind
+  /// Our side: a ledger group code, ledger code, uom code, item code or voucher type.
+  sourceCode  String        @map("source_code") @db.VarChar(60)
+  /// What it is called in Tally.
+  tallyName   String        @map("tally_name") @db.VarChar(160)
+  /// The Tally group a ledger or group must be created under, when it is not the mapped default.
+  tallyParent String?       @map("tally_parent") @db.VarChar(160)
+  /// False keeps the row out of the export entirely — a ledger Tally is not to be told about.
+  isExported  Boolean       @default(true) @map("is_exported")
+  notes       String?       @db.VarChar(255)
+  createdBy   String?       @map("created_by") @db.VarChar(36)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyTallyNameMap", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, kind, sourceCode])
+  @@index([companyId, kind])
+  @@map("tally_name_maps")
+}
+
+enum TallyExportScope {
+  MASTERS
+  VOUCHERS
+  BOTH
+}
+
+enum TallyExportStatus {
+  DRAFT
+  CONFIRMED
+  DISCARDED
+}
+
+/// One generated Tally file (P1-06).
+///
+/// The run is the watermark: the next incremental export starts where the last CONFIRMED one
+/// ended, so a month can be handed over weekly without re-importing what the accountant already
+/// has. Nothing here can know whether Tally accepted the file, which is why confirming is a
+/// person's act.
+model TallyExportRun {
+  id               String            @id @default(uuid()) @db.Uuid
+  companyId        String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  scope            TallyExportScope  @default(BOTH)
+  /// The Tally company the file names in its request header.
+  tallyCompany     String            @map("tally_company") @db.VarChar(160)
+  fromDate         DateTime?         @map("from_date") @db.Date
+  toDate           DateTime?         @map("to_date") @db.Date
+  incremental      Boolean           @default(false)
+  /// Only vouchers touched after this are in the file; taken from the last confirmed run.
+  sinceAt          DateTime?         @map("since_at") @db.Timestamptz(6)
+  /// The newest voucher timestamp the file covers, and where the next incremental run starts.
+  throughAt        DateTime?         @map("through_at") @db.Timestamptz(6)
+  /// How many of each kind of record the file carries.
+  counts           Json
+  sizeBytes        Int               @default(0) @map("size_bytes")
+  payloadHash      String            @map("payload_hash") @db.VarChar(64)
+  status           TallyExportStatus @default(DRAFT)
+  notes            String?           @db.VarChar(255)
+  requestedBy      String?           @map("requested_by") @db.VarChar(36)
+  confirmedBy      String?           @map("confirmed_by") @db.VarChar(36)
+  confirmedAt      DateTime?         @map("confirmed_at") @db.Timestamptz(6)
+  downloads        Int               @default(0)
+  lastDownloadedAt DateTime?         @map("last_downloaded_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyTallyExportRun", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, status])
+  @@map("tally_export_runs")
 }

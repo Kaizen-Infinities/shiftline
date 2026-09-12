@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import type { ChallanPrintData } from "../../templates/deliveryChallanTemplate";
+import { requireTenantId } from "../../lib/tenant-context";
 
 /**
  * Gathers what the delivery challan prints (P1-14). The e-way bill is looked up by the challan's
@@ -13,7 +14,7 @@ export const challanPrintData = async (id: string): Promise<ChallanPrintData> =>
     include: { items: true, jobWorker: true, businessPlace: true },
   });
   if (!challan) throw new ApiError(404, "That challan does not exist");
-  const company = await prisma.company.findFirstOrThrow();
+  const company = await prisma.company.findFirstOrThrow({ where: { id: requireTenantId() } });
 
   const ewayBill = await prisma.ewayBill.findFirst({
     where: { docType: "CHL", docRef: challan.id, status: { in: ["ACTIVE", "PENDING"] } },

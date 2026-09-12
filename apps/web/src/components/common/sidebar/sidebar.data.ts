@@ -158,6 +158,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/compliance/tds",
             permission: "tds.view",
           },
+          {
+            title: "Tally Export",
+            path: "/accounts/tally",
+            permission: "tally.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

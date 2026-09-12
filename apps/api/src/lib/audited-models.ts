@@ -67,6 +67,7 @@ export const AUDITED_MODELS = [
   "JobWorker",
   "TdsSection",
   "ExchangeRate",
+  "TallyNameMap",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

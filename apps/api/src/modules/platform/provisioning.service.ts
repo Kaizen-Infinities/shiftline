@@ -77,6 +77,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       // TDS (P1-15): the accountant deducts, pays the challan and prepares the return; the
       // owner approves it on the filing gate like every other return.
       ...keysFor(["tds"], ["view", "create", "manage", "pay", "prepare", "file"]),
+      // Tally export (P1-06): handing the books to the auditor is the accountant's job.
+      ...keysFor(["tally"]),
     ],
   },
   {

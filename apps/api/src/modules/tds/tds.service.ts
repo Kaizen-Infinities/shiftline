@@ -467,7 +467,7 @@ class TdsService {
       orderBy: { deductionDate: "asc" },
     });
     if (rows.length === 0) throw new ApiError(404, "Nothing was deducted for that payee");
-    const company = await prisma.company.findFirstOrThrow();
+    const company = await prisma.company.findFirstOrThrow({ where: { id: requireTenantId() } });
     const supplier = await prisma.supplier.findUniqueOrThrow({ where: { id: supplierId } });
     const certified = rows.filter((r) => r.challanId);
     return {

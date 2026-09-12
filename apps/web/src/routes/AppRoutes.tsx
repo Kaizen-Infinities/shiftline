@@ -230,6 +230,7 @@ const AdvancesPage = lazy(() => import("../modules/sales/advances/AdvancesPage")
 const CurrenciesPage = lazy(() => import("../modules/settings/pages/CurrenciesPage"));
 const JobWorkPage = lazy(() => import("../modules/production/jobwork/JobWorkPage"));
 const TdsPage = lazy(() => import("../modules/compliance/pages/TdsPage"));
+const TallyExportPage = lazy(() => import("../modules/accounts/pages/TallyExportPage"));
 const ComplianceCalendarPage = lazy(
   () => import("../modules/compliance/pages/ComplianceCalendarPage")
 );
@@ -584,6 +585,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="tds.view" />}>
                 <Route path="/compliance/tds" element={<TdsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="tally.view" />}>
+                <Route path="/accounts/tally" element={<TallyExportPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="transporters.view" />}>
                 <Route path="/settings/transporters" element={<TransportersPage />} />

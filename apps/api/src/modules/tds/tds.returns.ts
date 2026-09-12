@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { filingApprovalService } from "../filings/filing-approval.service";
 import { createHash } from "node:crypto";
+import { requireTenantId } from "../../lib/tenant-context";
 
 /**
  * Quarterly TDS returns (P1-15).
@@ -67,7 +68,7 @@ export const buildTdsReturn = async (
   quarter: string
 ): Promise<TdsReturn> => {
   if (!/^Q[1-4]$/.test(quarter)) throw new ApiError(400, "A quarter is Q1 to Q4");
-  const company = await prisma.company.findFirstOrThrow();
+  const company = await prisma.company.findFirstOrThrow({ where: { id: requireTenantId() } });
   const warnings: string[] = [];
   if (!company.tan) warnings.push("The company has no TAN; the utility will refuse the file");
 
