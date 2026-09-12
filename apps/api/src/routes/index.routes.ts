@@ -57,6 +57,7 @@ import jobWorkRoutes from "../modules/job-work/job-work.routes";
 import tdsRoutes from "../modules/tds/tds.routes";
 import tallyRoutes from "../modules/tally/tally.routes";
 import msmeRoutes from "../modules/msme/msme.routes";
+import assetRoutes from "../modules/assets/asset.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
@@ -150,6 +151,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/tds", router: tdsRoutes },
   { path: "/tally", router: tallyRoutes },
   { path: "/msme", router: msmeRoutes },
+  { path: "/assets", router: assetRoutes },
   { path: "/payroll", router: payrollRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },

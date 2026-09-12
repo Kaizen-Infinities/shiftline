@@ -79,6 +79,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["tds"], ["view", "create", "manage", "pay", "prepare", "file"]),
       // Tally export (P1-06): handing the books to the auditor is the accountant's job.
       ...keysFor(["tally"]),
+      // Fixed assets (P1-18): the accountant keeps the register and runs the monthly charge.
+      ...keysFor(["assets"]),
     ],
   },
   {

@@ -250,6 +250,12 @@ export const SYSTEM_LEDGER_GROUPS: Record<string, string> = {
   "SALES-001": "SALES_ACCOUNTS",
   "SRT-001": "SALES_ACCOUNTS",
   "EXP-001": "INDIRECT_EXPENSES",
+  // P1-18: accumulated depreciation is a negative asset, so it sits beside the asset it reduces
+  // rather than under a liability head; the balance sheet nets the two.
+  "FA-001": "FIXED_ASSETS",
+  "FA-ACC-001": "FIXED_ASSETS",
+  "DEP-001": "DEPRECIATION",
+  "ASSET-PL-001": "INDIRECT_INCOME",
   "EQ-001": "CAPITAL",
   "EQ-002": "RESERVES_SURPLUS",
   "CGST-LIA-001": "TAX_LIABILITIES",

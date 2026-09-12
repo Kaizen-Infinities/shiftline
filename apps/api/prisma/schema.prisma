@@ -684,6 +684,11 @@ model Company {
   tdsChallans          TdsChallan[]          @relation("CompanyTdsChallan")
   tallyNameMaps        TallyNameMap[]        @relation("CompanyTallyNameMap")
   tallyExportRuns      TallyExportRun[]      @relation("CompanyTallyExportRun")
+  assetClasses         AssetClass[]          @relation("CompanyAssetClass")
+  fixedAssets          FixedAsset[]          @relation("CompanyFixedAsset")
+  assetEvents          AssetEvent[]          @relation("CompanyAssetEvent")
+  depreciationRuns     DepreciationRun[]     @relation("CompanyDepreciationRun")
+  assetDepreciations   AssetDepreciation[]   @relation("CompanyAssetDepreciation")
   jobWorkers           JobWorker[]           @relation("CompanyJobWorker")
   deliveryChallans     DeliveryChallan[]     @relation("CompanyDeliveryChallan")
   deliveryChallanItems DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
@@ -755,6 +760,7 @@ model BusinessPlace {
   salesReturns     SalesReturn[]     @relation("SalesReturnBusinessPlace")
   purchaseReturns  PurchaseReturn[]  @relation("PurchaseReturnBusinessPlace")
   vouchers         Voucher[]         @relation("VoucherBusinessPlace")
+  fixedAssets      FixedAsset[]      @relation("FixedAssetBusinessPlace")
   goodsDispatches  GoodsDispatch[]   @relation("GoodsDispatchBusinessPlace")
   expenses         Expense[]         @relation("ExpenseBusinessPlace")
   pettyCashEntries PettyCashEntry[]  @relation("PettyCashBusinessPlace")
@@ -855,7 +861,8 @@ model Supplier {
   accountLedger       AccountLedger?
   purchaseReturns     PurchaseReturn[]
 
-  company Company @relation("CompanySupplier", fields: [companyId], references: [id], onDelete: Restrict)
+  company     Company      @relation("CompanySupplier", fields: [companyId], references: [id], onDelete: Restrict)
+  fixedAssets FixedAsset[]
 
   @@unique([companyId, supplierCode])
   @@index([legalName])
@@ -4597,4 +4604,189 @@ enum MsmeCategory {
   SMALL
   MEDIUM
   NOT_REGISTERED
+}
+
+// ── Fixed assets and depreciation (P1-18) ─────────────────────────────────────
+
+enum DepreciationMethod {
+  SLM
+  WDV
+}
+
+enum AssetStatus {
+  ACTIVE
+  DISPOSED
+  WRITTEN_OFF
+}
+
+enum AssetEventKind {
+  ADDITION
+  REVALUATION
+  TRANSFER
+  DISPOSAL
+  IMPAIRMENT
+}
+
+enum DepreciationRunStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+/// A class of asset (P1-18): what its useful life is under Schedule II, and which income-tax
+/// block it falls in. The two live on the same row because they describe the same machine, but
+/// they are never the same number — see `depreciation.calc.ts`.
+model AssetClass {
+  id                   String             @id @default(uuid()) @db.Uuid
+  companyId            String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code                 String             @db.VarChar(20)
+  name                 String             @db.VarChar(120)
+  /// Schedule II: the life in years the Act gives this kind of asset.
+  usefulLifeYears      Int                @default(15) @map("useful_life_years")
+  method               DepreciationMethod @default(SLM)
+  /// Schedule II allows up to 5% of cost as residual; it is a percentage, not an amount.
+  residualPercent      Decimal            @default(5) @map("residual_percent") @db.Decimal(5, 2)
+  /// The Schedule II head the register groups under, e.g. "Plant and Machinery".
+  scheduleIiHead       String?            @map("schedule_ii_head") @db.VarChar(80)
+  /// Income-tax block name and rate. The block depreciates as a pool at this rate, not per asset.
+  itBlockName          String?            @map("it_block_name") @db.VarChar(80)
+  itBlockRate          Decimal            @default(15) @map("it_block_rate") @db.Decimal(5, 2)
+  /// The three ledgers a class posts to. Codes rather than ids so a seed can name them.
+  assetLedgerCode      String             @map("asset_ledger_code") @db.VarChar(30)
+  accumDepLedgerCode   String             @map("accum_dep_ledger_code") @db.VarChar(30)
+  depExpenseLedgerCode String             @map("dep_expense_ledger_code") @db.VarChar(30)
+  isActive             Boolean            @default(true) @map("is_active")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assets  FixedAsset[]
+  company Company      @relation("CompanyAssetClass", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("asset_classes")
+}
+
+/// One asset on the register (P1-18).
+model FixedAsset {
+  id                      String             @id @default(uuid()) @db.Uuid
+  companyId               String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code                    String             @db.VarChar(30)
+  name                    String             @db.VarChar(160)
+  classId                 String             @map("class_id") @db.Uuid
+  businessPlaceId         BigInt?            @map("business_place_id")
+  /// When it was bought, and when it was put to use — depreciation runs from the second.
+  acquiredOn              DateTime           @map("acquired_on") @db.Date
+  capitalisedOn           DateTime           @map("capitalised_on") @db.Date
+  /// Everything it cost to bring into use: price, freight, installation, non-creditable tax.
+  cost                    Decimal            @default(0) @db.Decimal(14, 2)
+  /// Derived from the class at capitalisation and then fixed, because the class may be edited.
+  residualValue           Decimal            @default(0) @map("residual_value") @db.Decimal(14, 2)
+  method                  DepreciationMethod @default(SLM)
+  usefulLifeMonths        Int                @map("useful_life_months")
+  /// Depreciation charged to date under the Companies Act. The income-tax side is a block, not
+  /// an asset, so there is deliberately no per-asset tax figure here.
+  accumulatedDepreciation Decimal            @default(0) @map("accumulated_depreciation") @db.Decimal(14, 2)
+  quantity                Decimal            @default(1) @db.Decimal(12, 3)
+  serialNo                String?            @map("serial_no") @db.VarChar(80)
+  location                String?            @db.VarChar(120)
+  status                  AssetStatus        @default(ACTIVE)
+  /// Where it was capitalised from, when it came off a bill rather than being typed.
+  sourceDocType           String?            @map("source_doc_type") @db.VarChar(20)
+  sourceDocId             String?            @map("source_doc_id") @db.VarChar(40)
+  supplierId              Int?               @map("supplier_id")
+  disposedOn              DateTime?          @map("disposed_on") @db.Date
+  disposalProceeds        Decimal            @default(0) @map("disposal_proceeds") @db.Decimal(14, 2)
+  notes                   String?            @db.VarChar(255)
+  createdBy               String?            @map("created_by") @db.VarChar(36)
+  createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assetClass    AssetClass          @relation(fields: [classId], references: [id], onDelete: Restrict)
+  businessPlace BusinessPlace?      @relation("FixedAssetBusinessPlace", fields: [businessPlaceId], references: [id])
+  supplier      Supplier?           @relation(fields: [supplierId], references: [id])
+  events        AssetEvent[]
+  depreciations AssetDepreciation[]
+  company       Company             @relation("CompanyFixedAsset", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([companyId, classId])
+  @@map("fixed_assets")
+}
+
+/// Anything that happened to an asset other than the monthly charge (P1-18).
+model AssetEvent {
+  id                  String         @id @default(uuid()) @db.Uuid
+  companyId           String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  assetId             String         @map("asset_id") @db.Uuid
+  kind                AssetEventKind
+  effectiveOn         DateTime       @map("effective_on") @db.Date
+  /// What it changed the cost by, or what the disposal fetched.
+  amount              Decimal        @default(0) @db.Decimal(14, 2)
+  /// The written-down value at the moment of the event; what a disposal's result is measured from.
+  wdvAtEvent          Decimal        @default(0) @map("wdv_at_event") @db.Decimal(14, 2)
+  /// Profit (positive) or loss (negative) on a disposal.
+  resultAmount        Decimal        @default(0) @map("result_amount") @db.Decimal(14, 2)
+  fromBusinessPlaceId BigInt?        @map("from_business_place_id")
+  toBusinessPlaceId   BigInt?        @map("to_business_place_id")
+  narration           String?        @db.VarChar(255)
+  voucherId           Int?           @map("voucher_id")
+  createdBy           String?        @map("created_by") @db.VarChar(36)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  asset   FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  company Company    @relation("CompanyAssetEvent", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, assetId])
+  @@index([companyId, effectiveOn])
+  @@map("asset_events")
+}
+
+/// One month's depreciation, prepared and then posted (P1-18).
+model DepreciationRun {
+  id          String                @id @default(uuid()) @db.Uuid
+  companyId   String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// `2026-08`; a month is run once, which is what stops a double charge.
+  periodKey   String                @map("period_key") @db.VarChar(7)
+  status      DepreciationRunStatus @default(DRAFT)
+  totalAmount Decimal               @default(0) @map("total_amount") @db.Decimal(14, 2)
+  assetCount  Int                   @default(0) @map("asset_count")
+  voucherId   Int?                  @map("voucher_id")
+  preparedBy  String?               @map("prepared_by") @db.VarChar(36)
+  postedBy    String?               @map("posted_by") @db.VarChar(36)
+  postedAt    DateTime?             @map("posted_at") @db.Timestamptz(6)
+  notes       String?               @db.VarChar(255)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lines   AssetDepreciation[]
+  company Company             @relation("CompanyDepreciationRun", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodKey])
+  @@index([companyId, status])
+  @@map("depreciation_runs")
+}
+
+/// What one asset was charged in one month (P1-18).
+model AssetDepreciation {
+  id         String             @id @default(uuid()) @db.Uuid
+  companyId  String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  runId      String             @map("run_id") @db.Uuid
+  assetId    String             @map("asset_id") @db.Uuid
+  periodKey  String             @map("period_key") @db.VarChar(7)
+  /// The days the asset was in use in the month; a mid-month purchase is not a full month.
+  daysInUse  Int                @default(0) @map("days_in_use")
+  openingWdv Decimal            @default(0) @map("opening_wdv") @db.Decimal(14, 2)
+  amount     Decimal            @default(0) @db.Decimal(14, 2)
+  closingWdv Decimal            @default(0) @map("closing_wdv") @db.Decimal(14, 2)
+  method     DepreciationMethod
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  run     DepreciationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  asset   FixedAsset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  company Company         @relation("CompanyAssetDepreciation", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, assetId, periodKey])
+  @@index([companyId, periodKey])
+  @@map("asset_depreciations")
 }

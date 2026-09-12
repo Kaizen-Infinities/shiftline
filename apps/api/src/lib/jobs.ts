@@ -42,6 +42,8 @@ export const QUEUES = {
   JOB_WORK_RETURN: "gst.job-work.return",
   /** Daily: warn before a micro or small supplier's bill runs past section 15 (P1-07). */
   MSME_CLOCK: "accounts.msme.clock",
+  /** Monthly on the 1st: prepare last month's depreciation for every tenant (P1-18). */
+  DEPRECIATION_RUN: "accounts.depreciation.run",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

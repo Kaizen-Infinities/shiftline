@@ -168,6 +168,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/payable/msme",
             permission: "payable.view",
           },
+          {
+            title: "Fixed Assets",
+            path: "/accounts/fixed-assets",
+            permission: "assets.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

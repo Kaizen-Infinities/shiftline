@@ -52,6 +52,32 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Current Liabilities",
   },
   {
+    // P1-18: the three ledgers a fixed asset moves between. Cost and depreciation are kept apart
+    // so that both come off on a disposal and the register keeps agreeing with the balance sheet.
+    code: "FA-001",
+    name: "Plant and Machinery",
+    type: LedgerType.ASSET,
+    group: "Fixed Assets",
+  },
+  {
+    code: "FA-ACC-001",
+    name: "Accumulated Depreciation",
+    type: LedgerType.ASSET,
+    group: "Fixed Assets",
+  },
+  {
+    code: "DEP-001",
+    name: "Depreciation",
+    type: LedgerType.EXPENSE,
+    group: "Depreciation & Amortisation",
+  },
+  {
+    code: "ASSET-PL-001",
+    name: "Profit or Loss on Sale of Assets",
+    type: LedgerType.INCOME,
+    group: "Indirect Income",
+  },
+  {
     code: "SRT-001",
     name: "Sales Return Account",
     type: LedgerType.INCOME,

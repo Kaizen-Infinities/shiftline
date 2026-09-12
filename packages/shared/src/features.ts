@@ -140,6 +140,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "year-end",
       "filings",
       "tally",
+      "assets",
     ],
   },
   {

@@ -261,6 +261,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "TDS and TCS: sections, deductions, challans, 26Q/27Q and Form 16A",
   },
   {
+    module: "assets",
+    actions: ["view", "create", "manage", "depreciate", "dispose"],
+    description: "Fixed assets: the register, depreciation and the year-end reports",
+  },
+  {
     module: "tally",
     actions: ["view", "export", "manage"],
     description: "Tally XML export: masters, vouchers and the name mapping",

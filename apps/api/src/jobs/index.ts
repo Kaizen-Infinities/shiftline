@@ -14,6 +14,7 @@ import { complianceCalendarHandler } from "./compliance.job";
 import { imsDeadlineHandler } from "./ims.job";
 import { jobWorkReturnHandler } from "./job-work.job";
 import { msmeClockHandler } from "./msme.job";
+import { depreciationRunHandler } from "./assets.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 
 const IST = "Asia/Kolkata";
@@ -65,6 +66,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.COMPLIANCE_CALENDAR, work, each(complianceCalendarHandler));
   await boss.work(QUEUES.JOB_WORK_RETURN, work, each(jobWorkReturnHandler));
   await boss.work(QUEUES.MSME_CLOCK, work, each(msmeClockHandler));
+  await boss.work(QUEUES.DEPRECIATION_RUN, work, each(depreciationRunHandler));
 };
 
 /**
@@ -86,4 +88,5 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.COMPLIANCE_CALENDAR, "30 7 * * *", {}, { tz: IST });
   await boss.schedule(QUEUES.JOB_WORK_RETURN, "45 7 * * *", {}, { tz: IST });
   await boss.schedule(QUEUES.MSME_CLOCK, "15 8 * * *", {}, { tz: IST });
+  await boss.schedule(QUEUES.DEPRECIATION_RUN, "0 3 1 * *", {}, { tz: IST });
 };

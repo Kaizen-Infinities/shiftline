@@ -68,6 +68,10 @@ export const AUDITED_MODELS = [
   "TdsSection",
   "ExchangeRate",
   "TallyNameMap",
+  "AssetClass",
+  "FixedAsset",
+  "AssetEvent",
+  "DepreciationRun",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];
