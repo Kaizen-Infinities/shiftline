@@ -93,5 +93,7 @@ export const statutoryPayrollService = {
     (await apiClient.post(`${p.runs}/${runId}/register-filings`)).data.data as {
       registered: number;
     },
-  runs: async (): Promise<PayrollRunRow[]> => (await apiClient.get("/payroll/runs")).data.data,
+  /** The list endpoint pages its results, so the rows are under `runs`, not the envelope itself. */
+  runs: async (): Promise<PayrollRunRow[]> =>
+    (await apiClient.get("/payroll/runs")).data.data?.runs ?? [],
 };
