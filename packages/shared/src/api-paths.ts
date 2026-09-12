@@ -225,6 +225,12 @@ export const API_PATHS = {
     returns: "/tds/returns",
     form16a: "/tds/form16a",
   },
+  payrollStatutory: {
+    base: "/payroll-statutory",
+    rules: "/payroll-statutory/rules",
+    declarations: "/payroll-statutory/declarations",
+    runs: "/payroll-statutory/runs",
+  },
   banking: {
     base: "/banking",
     statements: "/banking/statements",

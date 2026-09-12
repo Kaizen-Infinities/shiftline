@@ -188,6 +188,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/bank-reconciliation",
             permission: "banking.view",
           },
+          {
+            title: "Statutory Payroll",
+            path: "/payroll/statutory",
+            permission: "payroll.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

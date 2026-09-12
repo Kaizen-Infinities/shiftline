@@ -238,6 +238,7 @@ const CostingPage = lazy(() => import("../modules/accounts/pages/CostingPage"));
 const BankReconciliationPage = lazy(
   () => import("../modules/accounts/pages/BankReconciliationPage")
 );
+const StatutoryPayrollPage = lazy(() => import("../modules/payroll/pages/StatutoryPayrollPage"));
 const ComplianceCalendarPage = lazy(
   () => import("../modules/compliance/pages/ComplianceCalendarPage")
 );
@@ -610,6 +611,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="banking.view" />}>
                 <Route path="/accounts/bank-reconciliation" element={<BankReconciliationPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="payroll.view" />}>
+                <Route path="/payroll/statutory" element={<StatutoryPayrollPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="transporters.view" />}>
                 <Route path="/settings/transporters" element={<TransportersPage />} />

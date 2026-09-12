@@ -680,34 +680,37 @@ model Company {
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
   itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
 
-  tdsSections           TdsSection[]          @relation("CompanyTdsSection")
-  tdsDeductions         TdsDeduction[]        @relation("CompanyTdsDeduction")
-  tdsChallans           TdsChallan[]          @relation("CompanyTdsChallan")
-  tallyNameMaps         TallyNameMap[]        @relation("CompanyTallyNameMap")
-  tallyExportRuns       TallyExportRun[]      @relation("CompanyTallyExportRun")
-  assetClasses          AssetClass[]          @relation("CompanyAssetClass")
-  fixedAssets           FixedAsset[]          @relation("CompanyFixedAsset")
-  assetEvents           AssetEvent[]          @relation("CompanyAssetEvent")
-  depreciationRuns      DepreciationRun[]     @relation("CompanyDepreciationRun")
-  assetDepreciations    AssetDepreciation[]   @relation("CompanyAssetDepreciation")
-  fxRevaluations        FxRevaluation[]       @relation("CompanyFxRevaluation")
-  billsOfEntry          BillOfEntry[]         @relation("CompanyBillOfEntry")
-  stockValuationEntries StockValuationEntry[] @relation("CompanyStockValuationEntry")
-  costCentres           CostCentre[]          @relation("CompanyCostCentre")
-  budgets               Budget[]              @relation("CompanyBudget")
-  productCostSheets     ProductCostSheet[]    @relation("CompanyProductCostSheet")
-  jobWorkers            JobWorker[]           @relation("CompanyJobWorker")
-  deliveryChallans      DeliveryChallan[]     @relation("CompanyDeliveryChallan")
-  deliveryChallanItems  DeliveryChallanItem[] @relation("CompanyDeliveryChallanItem")
-  currencies            Currency[]            @relation("CompanyCurrency")
-  exchangeRates         ExchangeRate[]        @relation("CompanyExchangeRate")
-  advanceReceipts       AdvanceReceipt[]      @relation("CompanyAdvanceReceipt")
-  advanceAdjustments    AdvanceAdjustment[]   @relation("CompanyAdvanceAdjustment")
-  gstr2bRecords         Gstr2bRecord[]        @relation("CompanyGstr2bRecord")
-  imsActions            ImsAction[]           @relation("CompanyImsAction")
-  bankStatements        BankStatement[]       @relation("CompanyBankStatement")
-  bankStatementLines    BankStatementLine[]   @relation("CompanyBankStatementLine")
-  cheques               Cheque[]              @relation("CompanyCheque")
+  tdsSections           TdsSection[]             @relation("CompanyTdsSection")
+  tdsDeductions         TdsDeduction[]           @relation("CompanyTdsDeduction")
+  tdsChallans           TdsChallan[]             @relation("CompanyTdsChallan")
+  tallyNameMaps         TallyNameMap[]           @relation("CompanyTallyNameMap")
+  tallyExportRuns       TallyExportRun[]         @relation("CompanyTallyExportRun")
+  assetClasses          AssetClass[]             @relation("CompanyAssetClass")
+  fixedAssets           FixedAsset[]             @relation("CompanyFixedAsset")
+  assetEvents           AssetEvent[]             @relation("CompanyAssetEvent")
+  depreciationRuns      DepreciationRun[]        @relation("CompanyDepreciationRun")
+  assetDepreciations    AssetDepreciation[]      @relation("CompanyAssetDepreciation")
+  fxRevaluations        FxRevaluation[]          @relation("CompanyFxRevaluation")
+  billsOfEntry          BillOfEntry[]            @relation("CompanyBillOfEntry")
+  stockValuationEntries StockValuationEntry[]    @relation("CompanyStockValuationEntry")
+  costCentres           CostCentre[]             @relation("CompanyCostCentre")
+  budgets               Budget[]                 @relation("CompanyBudget")
+  productCostSheets     ProductCostSheet[]       @relation("CompanyProductCostSheet")
+  jobWorkers            JobWorker[]              @relation("CompanyJobWorker")
+  deliveryChallans      DeliveryChallan[]        @relation("CompanyDeliveryChallan")
+  deliveryChallanItems  DeliveryChallanItem[]    @relation("CompanyDeliveryChallanItem")
+  currencies            Currency[]               @relation("CompanyCurrency")
+  exchangeRates         ExchangeRate[]           @relation("CompanyExchangeRate")
+  advanceReceipts       AdvanceReceipt[]         @relation("CompanyAdvanceReceipt")
+  advanceAdjustments    AdvanceAdjustment[]      @relation("CompanyAdvanceAdjustment")
+  gstr2bRecords         Gstr2bRecord[]           @relation("CompanyGstr2bRecord")
+  imsActions            ImsAction[]              @relation("CompanyImsAction")
+  bankStatements        BankStatement[]          @relation("CompanyBankStatement")
+  bankStatementLines    BankStatementLine[]      @relation("CompanyBankStatementLine")
+  cheques               Cheque[]                 @relation("CompanyCheque")
+  statutoryRules        StatutoryRule[]          @relation("CompanyStatutoryRule")
+  payrollStatutory      PayrollStatutory[]       @relation("CompanyPayrollStatutory")
+  taxDeclarations       EmployeeTaxDeclaration[] @relation("CompanyEmployeeTaxDeclaration")
 
   @@map("companies")
 }
@@ -5156,4 +5159,118 @@ model Cheque {
   @@unique([companyId, kind, chequeNo, chequeDate])
   @@index([companyId, status, chequeDate])
   @@map("cheques")
+}
+
+// ── Statutory payroll (P1-16) ─────────────────────────────────────────────────
+
+enum TaxRegime {
+  OLD
+  NEW
+}
+
+/// Professional tax and labour welfare fund, which are state taxes (P1-16).
+///
+/// Neither is a national rate. Professional tax has its own slabs in each state that levies it,
+/// several states charge a different amount in one month of the year, and the labour welfare fund
+/// is a fixed amount at a frequency the state decides. A flat number is wrong everywhere.
+model StatutoryRule {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  stateCode    String   @map("state_code") @db.VarChar(2)
+  stateName    String   @map("state_name") @db.VarChar(80)
+  /// `[{ upTo, amount, month? }]`, ordered; `month` (1-12) charges that amount in that month only.
+  ptSlabs      Json     @map("pt_slabs")
+  ptEnabled    Boolean  @default(true) @map("pt_enabled")
+  lwfEmployee  Decimal  @default(0) @map("lwf_employee") @db.Decimal(10, 2)
+  lwfEmployer  Decimal  @default(0) @map("lwf_employer") @db.Decimal(10, 2)
+  /// MONTHLY, HALF_YEARLY or ANNUAL, with the months it is actually collected in.
+  lwfFrequency String   @default("ANNUAL") @map("lwf_frequency") @db.VarChar(16)
+  lwfMonths    Json     @default("[12]") @map("lwf_months")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyStatutoryRule", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, stateCode])
+  @@map("statutory_rules")
+}
+
+/// The statutory split for one employee in one payroll run (P1-16).
+///
+/// It is a table of its own rather than columns on `PayrollResult` because the three wages are
+/// different wages — PF is on basic plus dearness allowance, ESI on gross, professional tax on
+/// gross as the state defines it — and flattening them into one row is how a contribution ends up
+/// worked out on the wrong base.
+model PayrollStatutory {
+  id           String  @id @default(uuid()) @db.Uuid
+  companyId    String  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  payrollRunId Int     @map("payroll_run_id")
+  employeeId   BigInt  @map("employee_id")
+  employeeCode String  @map("employee_code") @db.VarChar(40)
+  periodKey    String  @map("period_key") @db.VarChar(7)
+  stateCode    String? @map("state_code") @db.VarChar(2)
+  uan          String? @db.VarChar(12)
+  esicNumber   String? @map("esic_number") @db.VarChar(17)
+
+  pfWage  Decimal @default(0) @map("pf_wage") @db.Decimal(14, 2)
+  esiWage Decimal @default(0) @map("esi_wage") @db.Decimal(14, 2)
+  ptWage  Decimal @default(0) @map("pt_wage") @db.Decimal(14, 2)
+
+  /// The employee's 12%.
+  epfEmployee    Decimal @default(0) @map("epf_employee") @db.Decimal(14, 2)
+  /// The employer's 12%, split the way the EPFO takes it: 8.33% to pension, the rest to PF.
+  epsEmployer    Decimal @default(0) @map("eps_employer") @db.Decimal(14, 2)
+  epfEmployer    Decimal @default(0) @map("epf_employer") @db.Decimal(14, 2)
+  /// 0.50% each, paid by the employer on top of the 12%.
+  edliCharges    Decimal @default(0) @map("edli_charges") @db.Decimal(14, 2)
+  pfAdminCharges Decimal @default(0) @map("pf_admin_charges") @db.Decimal(14, 2)
+  /// Voluntary provident fund: the employee's own extra, which the employer does not match.
+  vpf            Decimal @default(0) @db.Decimal(14, 2)
+
+  esiEmployee Decimal @default(0) @map("esi_employee") @db.Decimal(14, 2)
+  esiEmployer Decimal @default(0) @map("esi_employer") @db.Decimal(14, 2)
+
+  professionalTax Decimal @default(0) @map("professional_tax") @db.Decimal(14, 2)
+  lwfEmployee     Decimal @default(0) @map("lwf_employee") @db.Decimal(14, 2)
+  lwfEmployer     Decimal @default(0) @map("lwf_employer") @db.Decimal(14, 2)
+  incomeTax       Decimal @default(0) @map("income_tax") @db.Decimal(14, 2)
+
+  /// Basic and dearness allowance as a share of gross; under half fails the Labour Code check.
+  wageSharePercent Decimal @default(0) @map("wage_share_percent") @db.Decimal(5, 2)
+  wageCheckPassed  Boolean @default(true) @map("wage_check_passed")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyPayrollStatutory", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, payrollRunId, employeeId])
+  @@index([companyId, periodKey])
+  @@map("payroll_statutory")
+}
+
+/// What an employee said about their tax for the year (P1-16).
+model EmployeeTaxDeclaration {
+  id                String    @id @default(uuid()) @db.Uuid
+  companyId         String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId        BigInt    @map("employee_id")
+  fyCode            String    @map("fy_code") @db.VarChar(10)
+  regime            TaxRegime @default(NEW)
+  /// 80C, 80D, house rent, interest on a housing loan — whatever the old regime allows.
+  declarations      Json      @default("{}")
+  /// What the year is expected to come to, and what has already been taken off.
+  projectedIncome   Decimal   @default(0) @map("projected_income") @db.Decimal(14, 2)
+  projectedTax      Decimal   @default(0) @map("projected_tax") @db.Decimal(14, 2)
+  taxDeductedToDate Decimal   @default(0) @map("tax_deducted_to_date") @db.Decimal(14, 2)
+  /// Proof was seen; until then the declaration is a claim and the old regime may be refused.
+  proofsVerified    Boolean   @default(false) @map("proofs_verified")
+  notes             String?   @db.VarChar(255)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyEmployeeTaxDeclaration", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, fyCode])
+  @@map("employee_tax_declarations")
 }

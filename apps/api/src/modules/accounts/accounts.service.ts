@@ -78,6 +78,45 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Indirect Income",
   },
   {
+    // P1-16: payroll. The employer's contributions are a cost of employing people, not a
+    // deduction from anyone's pay, so they have their own expense ledger rather than being
+    // netted against the salary bill.
+    code: "SAL-EXP-001",
+    name: "Salaries and Wages",
+    type: LedgerType.EXPENSE,
+    group: "Employee Benefits",
+  },
+  {
+    code: "SAL-CONTRIB-001",
+    name: "Employer's Contributions",
+    type: LedgerType.EXPENSE,
+    group: "Employee Benefits",
+  },
+  {
+    code: "SAL-PAY-001",
+    name: "Salaries Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    code: "PF-PAY-001",
+    name: "Provident Fund Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    code: "ESI-PAY-001",
+    name: "ESI Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
+    code: "PT-PAY-001",
+    name: "Professional Tax Payable",
+    type: LedgerType.LIABILITY,
+    group: "Current Liabilities",
+  },
+  {
     // P1-20: what the bank takes for its own trouble — returns, transfers, statement charges.
     code: "BANK-CHG-001",
     name: "Bank Charges",
