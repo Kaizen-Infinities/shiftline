@@ -16,6 +16,22 @@ const d2 = (v: number) => new Prisma.Decimal(n2(v).toFixed(2));
 
 /** Rule 37: credit goes back when the bill is still unpaid this many days after the document. */
 export const RULE_37_DAYS = 180;
+/**
+ * How many months back a rebuild ingests and re-reads. A rule 37 reversal belongs to a month
+ * roughly six months after the bill, so a return can need a document whose own month nobody
+ * ever opened; and a bill paid today settles a verdict recorded long before it.
+ */
+export const LOOKBACK_MONTHS = 24;
+
+/** The month key (`2026-08`) a date falls in. */
+export const periodOf = (d: Date): string =>
+  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+
+/** The `n` month keys before `periodKey`, most recent first. */
+export const previousMonths = (periodKey: string, n: number): string[] => {
+  const [y, m] = periodKey.split("-").map(Number);
+  return Array.from({ length: n }, (_, i) => periodOf(new Date(Date.UTC(y, m - 1 - i - 1, 1))));
+};
 
 /**
  * Section 17(5) blocked credits that can be recognised from the HSN/SAC alone. The list is the
@@ -77,6 +93,22 @@ const statusOf = (
   if (isBlockedHsn(c.hsnCode))
     return { status: "INELIGIBLE", rule: "17(5)", reason: `Blocked credit for HSN ${c.hsnCode}` };
   return { status: "ELIGIBLE", rule: null, reason: null };
+};
+
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+/** The date a running total of payments first covers the bill, or null while it does not. */
+const settlementDate = (
+  payable: number,
+  payments: { amount: Prisma.Decimal | number; paymentDate: Date }[]
+): Date | null => {
+  const ordered = [...payments].sort((a, b) => a.paymentDate.getTime() - b.paymentDate.getTime());
+  let paid = 0;
+  for (const p of ordered) {
+    paid = n2(paid + Number(p.amount));
+    if (paid + 0.01 >= payable) return p.paymentDate;
+  }
+  return null;
 };
 
 /** Days between two dates, ignoring the time of day. */
@@ -207,7 +239,19 @@ class ItcService {
    */
   async rebuild(periodKey: string, scope: GstinScope): Promise<void> {
     const period = monthRange(periodKey);
+    // The month itself, then the lookback: a reversal falling in this month belongs to a
+    // document months back, whose own month may never have been computed.
+    for (const earlier of previousMonths(periodKey, LOOKBACK_MONTHS)) {
+      await this.ingestMonth(earlier, scope);
+    }
+    await this.ingestMonth(periodKey, scope);
+    await this.applyRule37(period.to, periodKey);
+  }
+
+  /** Writes the ledger rows of one document month from the books as they now stand. */
+  private async ingestMonth(periodKey: string, scope: GstinScope): Promise<void> {
     const cands = await this.candidates(periodKey, scope);
+    if (cands.length === 0) return;
     const existing = await prisma.itcEntry.findMany({
       where: { periodKey, docType: { in: ["GRN", "EXPENSE", "PETTY_CASH"] } },
     });
@@ -248,18 +292,26 @@ class ItcService {
         update: data,
       });
     }
-
-    await this.applyRule37(period.to, periodKey);
   }
 
   /**
-   * Rule 37 as at the end of the period: an unpaid bill older than 180 days gives its credit
-   * back in this period; a reversed bill that has since been paid takes it back.
+   * Rule 37, as at the end of the period being computed. A bill unpaid 180 days after its date
+   * gives the credit back, and settling it later takes the credit back.
+   *
+   * Both events are stamped with the month they actually fall in — day 181 for the reversal,
+   * the date of the settling payment for the reclaim — not with the month that happens to be
+   * open. A return is a statement about its own month, so which months the accountant has
+   * browsed, and in what order, must not change what any of them says.
    */
   private async applyRule37(periodEnd: Date, periodKey: string): Promise<void> {
     const asAt = new Date(periodEnd.getTime() - 86400000); // the last day of the period
+    const earliest = previousMonths(periodKey, LOOKBACK_MONTHS).at(-1) ?? periodKey;
     const grnEntries = await prisma.itcEntry.findMany({
-      where: { docType: "GRN", status: { in: ["ELIGIBLE", "REVERSED"] } },
+      where: {
+        docType: "GRN",
+        status: { in: ["ELIGIBLE", "REVERSED"] },
+        periodKey: { gte: earliest, lte: periodKey },
+      },
     });
     if (grnEntries.length === 0) return;
     // Payments are read once for every bill in the ledger, not just this month's.
@@ -277,10 +329,10 @@ class ItcService {
         g.id,
         {
           payable: n2(g.netAmount),
-          paid: n2(
-            g.paymentRecords
-              .filter((p) => p.paymentDate <= asAt)
-              .reduce((s, p) => s + Number(p.amount), 0)
+          /** The date the running total first covers the bill, or null while it does not. */
+          settledOn: settlementDate(
+            n2(g.netAmount),
+            g.paymentRecords.filter((p) => p.paymentDate <= asAt)
           ),
         },
       ])
@@ -288,26 +340,41 @@ class ItcService {
     for (const e of grnEntries) {
       const pay = paidBy.get(e.docId);
       if (!pay) continue;
-      const settled = pay.paid + 0.01 >= pay.payable;
-      const overdue = daysBetween(e.docDate, asAt) > RULE_37_DAYS;
-      if (e.status === "ELIGIBLE" && overdue && !settled) {
+      const deadline = new Date(e.docDate.getTime() + RULE_37_DAYS * 86400000);
+      const lapsed = daysBetween(e.docDate, asAt) > RULE_37_DAYS;
+      const settledLate = pay.settledOn !== null && pay.settledOn.getTime() > deadline.getTime();
+      // Day 181 is the first day the credit has to go back, and its month owns the reversal.
+      const reversedPeriod = periodOf(new Date(deadline.getTime() + 86400000));
+      if (e.status === "ELIGIBLE" && lapsed && pay.settledOn === null) {
         await prisma.itcEntry.update({
           where: { id: e.id },
           data: {
             status: "REVERSED",
             rule: "180D",
             reason: `Unpaid ${RULE_37_DAYS} days after ${e.docNo}`,
-            reversedPeriod: periodKey,
+            reversedPeriod,
           },
         });
-      } else if (e.status === "REVERSED" && e.rule === "180D" && settled) {
+      } else if (e.status === "ELIGIBLE" && settledLate) {
+        // Paid, but late: the credit went back on day 181 and returned when the bill was paid.
         await prisma.itcEntry.update({
           where: { id: e.id },
           data: {
             status: "RECLAIMED",
             rule: "180D",
-            reason: `Paid; credit reclaimed in ${periodKey}`,
-            reclaimedPeriod: periodKey,
+            reason: `Paid on ${isoDay(pay.settledOn as Date)}; credit reclaimed`,
+            reversedPeriod,
+            reclaimedPeriod: periodOf(pay.settledOn as Date),
+          },
+        });
+      } else if (e.status === "REVERSED" && e.rule === "180D" && pay.settledOn !== null) {
+        await prisma.itcEntry.update({
+          where: { id: e.id },
+          data: {
+            status: "RECLAIMED",
+            rule: "180D",
+            reason: `Paid on ${isoDay(pay.settledOn)}; credit reclaimed`,
+            reclaimedPeriod: periodOf(pay.settledOn),
           },
         });
       }

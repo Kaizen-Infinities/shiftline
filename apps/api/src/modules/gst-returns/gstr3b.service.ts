@@ -64,7 +64,7 @@ const posRows = (map: Map<string, Gstr3bInterStateRow>): Gstr3bInterStateRow[] =
  * CGST credit (CGST, then IGST) and SGST credit (SGST, then IGST). Cess only meets cess.
  * Reverse-charge liability never reaches this function: it is always cash.
  */
-const setOff = (
+export const setOff = (
   liability: { igst: number; cgst: number; sgst: number; cess: number },
   credit: { igst: number; cgst: number; sgst: number; cess: number }
 ) => {

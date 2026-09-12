@@ -358,23 +358,35 @@ describe("GSTR-3B and the ITC ledger", () => {
     expect(availed).toMatchObject({ status: "ELIGIBLE", periodKey: "2026-04" });
     expect(april.body.data.table4.available.other.cgst).toBe(90);
 
+    // Bought 5 April, so day 181 is 3 October: that month owns the reversal, whichever month
+    // the accountant happens to open, and no other month's return mentions the bill at all.
     const december = await client
       .get("/api/gst-returns/gstr3b")
       .query({ period: "2026-12" })
       .set(owner.auth);
     expect(december.status).toBe(200);
-    const reversed = december.body.data.itc.find(
+    expect(december.body.data.itc.some((e: { docNo: string }) => e.docNo === grn.grnNumber)).toBe(
+      false
+    );
+    expect(december.body.data.table4.reversed.others.cgst).toBe(0);
+
+    const october = await client
+      .get("/api/gst-returns/gstr3b")
+      .query({ period: "2026-10" })
+      .set(owner.auth);
+    expect(october.status).toBe(200);
+    const reversed = october.body.data.itc.find(
       (e: { docNo: string }) => e.docNo === grn.grnNumber
     );
     expect(reversed).toMatchObject({
       status: "REVERSED",
       rule: "180D",
       periodKey: "2026-04",
-      reversedPeriod: "2026-12",
+      reversedPeriod: "2026-10",
     });
-    // The reversal lands in 4B(2) of December, not of the month the credit was taken.
-    expect(december.body.data.table4.reversed.others.cgst).toBe(90);
-    expect(december.body.data.table4.reversed.others.sgst).toBe(90);
+    // The reversal lands in 4B(2) of October, not of the month the credit was taken.
+    expect(october.body.data.table4.reversed.others.cgst).toBe(90);
+    expect(october.body.data.table4.reversed.others.sgst).toBe(90);
 
     // The bill is settled in January; the credit comes back in that month.
     const prisma = await getPrisma();
@@ -397,11 +409,47 @@ describe("GSTR-3B and the ITC ledger", () => {
     expect(back).toMatchObject({
       status: "RECLAIMED",
       rule: "180D",
+      reversedPeriod: "2026-10",
       reclaimedPeriod: "2027-01",
     });
     expect(january.body.data.table4.other.reclaimed.cgst).toBe(90);
     // Reclaimed credit is available again in 4A(5).
     expect(january.body.data.table4.available.other.cgst).toBeGreaterThanOrEqual(90);
+  });
+
+  it("reverses a bill from a month whose return was never opened", async () => {
+    const owner = await authed("demo.owner");
+    const client = await api();
+    const supplier = await createSupplier({
+      gstRegType: "REGULAR",
+      gstin: SELLER,
+      stateCode: "33",
+    });
+    // Bought 2025-05-06 and never paid. Nobody ever computes May, so the ledger has no row for
+    // it until November asks: day 181 is 2025-11-03, and November's return has to find the bill
+    // on its own or the liability is understated.
+    const grn = await receive(supplier.id, 10, 100, {}, "2025-05-06");
+
+    const november = await client
+      .get("/api/gst-returns/gstr3b")
+      .query({ period: "2025-11" })
+      .set(owner.auth);
+    expect(november.status, JSON.stringify(november.body).slice(0, 300)).toBe(200);
+    const row = november.body.data.itc.find((e: { docNo: string }) => e.docNo === grn.grnNumber);
+    expect(row).toMatchObject({
+      status: "REVERSED",
+      rule: "180D",
+      periodKey: "2025-05",
+      reversedPeriod: "2025-11",
+    });
+    expect(november.body.data.table4.reversed.others.cgst).toBe(90);
+    // May still carries the availment, even though it was ingested by November's rebuild.
+    const may = await client
+      .get("/api/gst-returns/gstr3b")
+      .query({ period: "2025-05" })
+      .set(owner.auth);
+    expect(may.body.data.table4.available.other.cgst).toBe(90);
+    expect(may.body.data.table4.reversed.others.cgst).toBe(0);
   });
 
   it("keeps a hand classification across a rebuild and voids a cancelled document's credit", async () => {
