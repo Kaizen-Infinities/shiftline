@@ -675,6 +675,9 @@ model Company {
   consolidatedEwayBills       ConsolidatedEwayBill[]       @relation("CompanyConsolidatedEwayBill")
   itcEntries                  ItcEntry[]                   @relation("CompanyItcEntry")
 
+  gstr2bRecords Gstr2bRecord[] @relation("CompanyGstr2bRecord")
+  imsActions    ImsAction[]   @relation("CompanyImsAction")
+
   @@map("companies")
 }
 
@@ -3903,4 +3906,100 @@ model ItcEntry {
   @@unique([companyId, docType, docId])
   @@index([companyId, periodKey, status])
   @@map("itc_entries")
+}
+
+/// What the portal says about an inward document: accepted, rejected, or left to the default.
+enum ImsStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+/// How a 2B record lines up with the purchase register (P1-13c).
+enum Gstr2bMatchStatus {
+  MATCHED
+  MISMATCH
+  MISSING_IN_2B
+  MISSING_IN_BOOKS
+}
+
+/// One supplier document in a GSTR-2B, as the portal drew it for a period. Imported from the
+/// portal JSON or pulled through a provider; never written by hand. The credit the company may
+/// actually take is decided here, not in its own purchase register. Audited.
+model Gstr2bRecord {
+  id             String    @id @default(uuid()) @db.Uuid
+  companyId      String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// The 2B period the record was drawn for (2026-08).
+  periodKey      String    @map("period_key") @db.VarChar(7)
+  /// The company's own GSTIN this 2B belongs to.
+  gstin          String    @db.VarChar(15)
+  supplierGstin  String    @map("supplier_gstin") @db.VarChar(15)
+  supplierName   String?   @map("supplier_name") @db.VarChar(160)
+  /// INV | CRN | DBN | ISD | IMPG | IMPS
+  docType        String    @map("doc_type") @db.VarChar(4)
+  docNo          String    @map("doc_no") @db.VarChar(40)
+  /// The document number with case, spaces and punctuation stripped, for matching.
+  docNoNorm      String    @map("doc_no_norm") @db.VarChar(40)
+  docDate        DateTime  @map("doc_date") @db.Date
+  docValue       Decimal   @default(0) @map("doc_value") @db.Decimal(14, 2)
+  placeOfSupply  String?   @map("place_of_supply") @db.VarChar(2)
+  reverseCharge  Boolean   @default(false) @map("reverse_charge")
+  taxable        Decimal   @default(0) @db.Decimal(14, 2)
+  igst           Decimal   @default(0) @db.Decimal(14, 2)
+  cgst           Decimal   @default(0) @db.Decimal(14, 2)
+  sgst           Decimal   @default(0) @db.Decimal(14, 2)
+  cess           Decimal   @default(0) @db.Decimal(14, 2)
+  /// The portal's own call on whether the credit is available ("Y"/"N") and why not.
+  itcAvailable   Boolean   @default(true) @map("itc_available")
+  itcReason      String?   @map("itc_reason") @db.VarChar(120)
+  /// The period the supplier filed in, and the day they filed.
+  filingPeriod   String?   @map("filing_period") @db.VarChar(7)
+  filingDate     DateTime? @map("filing_date") @db.Date
+  /// FIXTURE | GSP | IMPORT (a file the accountant downloaded)
+  sourceKind     String    @default("IMPORT") @map("source_kind") @db.VarChar(10)
+  /// The record exactly as it arrived, so a disputed figure can be traced.
+  raw            Json?
+  /// Set when reconciliation places it against a purchase document.
+  matchStatus    Gstr2bMatchStatus? @map("match_status")
+  matchedDocType String?   @map("matched_doc_type") @db.VarChar(12)
+  matchedDocId   String?   @map("matched_doc_id") @db.VarChar(40)
+  /// Which fields differ, and by how much, when the status is MISMATCH.
+  mismatchFields Json?     @map("mismatch_fields")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  imsAction ImsAction?
+
+  company Company @relation("CompanyGstr2bRecord", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodKey, supplierGstin, docType, docNo])
+  @@index([companyId, periodKey, matchStatus])
+  @@index([companyId, supplierGstin, docNoNorm])
+  @@map("gstr2b_records")
+}
+
+/// The company's call on one inward record in the Invoice Management System. A record left
+/// PENDING when the return is drawn is accepted by the portal's own default, so the absence of
+/// a decision is itself a decision — which is why a pending row is stored, not implied. Audited.
+model ImsAction {
+  id          String    @id @default(uuid()) @db.Uuid
+  companyId   String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  recordId    String    @unique @map("record_id") @db.Uuid
+  status      ImsStatus @default(PENDING)
+  reason      String?   @db.VarChar(255)
+  decidedBy   String?   @map("decided_by") @db.VarChar(36)
+  decidedAt   DateTime? @map("decided_at") @db.Timestamptz(6)
+  /// When the action reached the portal, and what it said back.
+  pushedAt    DateTime? @map("pushed_at") @db.Timestamptz(6)
+  pushedBy    String?   @map("pushed_by") @db.VarChar(36)
+  pushRef     String?   @map("push_ref") @db.VarChar(64)
+  pushError   String?   @map("push_error") @db.VarChar(255)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  record  Gstr2bRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  company Company      @relation("CompanyImsAction", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@map("ims_actions")
 }

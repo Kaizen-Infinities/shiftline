@@ -12,7 +12,13 @@ import {
  * Approval gates on filings (P1-04, PC7): draft → pending → approved by someone else → submitted;
  * a change to the payload after approval voids it and the gate refuses; rejections carry a reason.
  */
-const period = `2026-${String((((Date.now() / 1000) % 12) | 0) + 1).padStart(2, "0")}`;
+/**
+ * A month of this suite's own. It used to be derived from the clock, which meant it landed on
+ * a month another suite files — GSTR-1 for 2026-08, GSTR-3B for 2026-06 — roughly one run in
+ * twelve, and the failure looked like a bug in the gate rather than in the fixture. The suites
+ * share one database, so a period has to belong to exactly one of them.
+ */
+const period = "2022-07";
 
 describe("filing approval gate", () => {
   it("walks a GSTR-1 period through preparation, approval and submission", async () => {

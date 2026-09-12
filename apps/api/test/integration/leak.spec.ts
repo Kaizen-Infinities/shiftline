@@ -53,6 +53,8 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "EInvoiceConfig",
   "EwayBill",
   "ItcEntry",
+  "Gstr2bRecord",
+  "ImsAction",
   "EmployeePayrollConfig",
   "FilingApproval",
   "EmployeePermanentDeduction",

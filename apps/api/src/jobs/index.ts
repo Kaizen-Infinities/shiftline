@@ -10,6 +10,7 @@ import { accountExportHandler } from "./account-export.job";
 import { eInvoiceHandler } from "./e-invoice.job";
 import { ewayBillExpiryHandler } from "./eway-bill.job";
 import { heartbeatHandler } from "./heartbeat.job";
+import { imsDeadlineHandler } from "./ims.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 
 const IST = "Asia/Kolkata";
@@ -57,6 +58,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.ACCOUNT_EXPORT, work, each(accountExportHandler));
   await boss.work(QUEUES.E_INVOICE, work, each(eInvoiceHandler));
   await boss.work(QUEUES.EWB_EXPIRY, work, each(ewayBillExpiryHandler));
+  await boss.work(QUEUES.IMS_DEADLINE, work, each(imsDeadlineHandler));
 };
 
 /**
@@ -71,4 +73,7 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.HEARTBEAT, "* * * * *", {}, { tz: IST });
   await boss.schedule(QUEUES.BACKUP_DAILY, "30 1 * * *", { triggeredBy: "schedule" }, { tz: IST });
   await boss.schedule(QUEUES.EWB_EXPIRY, "15 * * * *", {}, { tz: IST });
+  // 08:00 IST daily: the IMS deadline warning is only useful in the run-up to the 14th, and
+  // the handler itself decides whether today is inside that window.
+  await boss.schedule(QUEUES.IMS_DEADLINE, "0 8 * * *", {}, { tz: IST });
 };

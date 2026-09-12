@@ -34,6 +34,8 @@ export const QUEUES = {
   E_INVOICE: "gst.e-invoice",
   /** Hourly: expire e-way bills past validity and warn before they lapse (P1-12). */
   EWB_EXPIRY: "gst.eway-bill.expiry",
+  /** Daily: warn when IMS records are still undecided and the 14th is close (P1-13c). */
+  IMS_DEADLINE: "gst.ims.deadline",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

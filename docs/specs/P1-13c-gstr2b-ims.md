@@ -36,9 +36,10 @@ actions must be pushed before the 14th.
   the rest for a person.
 - Supplier follow-up on `MISSING_IN_2B` and `MISMATCH` through the existing WhatsApp and email
   services, one message per supplier listing the documents, never one per document.
-- The ledger: an accepted and matched record is what makes the credit real. `ItcEntry` gains the
-  2B linkage so table 4(A)(5) can be drawn from what the supplier filed rather than what the
-  company recorded, with the difference visible either way.
+- The ledger: the reconciliation reports the two credit positions side by side — what the portal
+  offers and what the books claim — so the gap is visible before filing. Drawing table 4(A)(5)
+  from the portal rather than from the books is a change of filing policy, not a refactor, and
+  it waits for the accountant's answer to the open question already recorded against P1-13b.
 - Routes `/api/gst-returns/gstr2b` (import, fetch, list, summary), `/api/gst-returns/ims`
   (list, act, bulk act, push, status) on the existing `gst-returns.{view,prepare,file}`
   permissions, with the push registered on the filing gate as `IMS`.
