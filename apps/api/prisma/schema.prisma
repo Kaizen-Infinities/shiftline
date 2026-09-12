@@ -711,6 +711,10 @@ model Company {
   statutoryRules        StatutoryRule[]          @relation("CompanyStatutoryRule")
   payrollStatutory      PayrollStatutory[]       @relation("CompanyPayrollStatutory")
   taxDeclarations       EmployeeTaxDeclaration[] @relation("CompanyEmployeeTaxDeclaration")
+  holidays              Holiday[]                @relation("CompanyHoliday")
+  leaveTypes            LeaveType[]              @relation("CompanyLeaveType")
+  leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
+  finalSettlements      FinalSettlement[]        @relation("CompanyFinalSettlement")
 
   @@map("companies")
 }
@@ -5273,4 +5277,140 @@ model EmployeeTaxDeclaration {
 
   @@unique([companyId, employeeId, fyCode])
   @@map("employee_tax_declarations")
+}
+
+// ── Labour Code entitlements (P1-17b) ─────────────────────────────────────────
+
+enum LeaveAccrualBasis {
+  ANNUAL
+  MONTHLY
+  DAYS_WORKED
+}
+
+enum SettlementStatus {
+  DRAFT
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+/// A day the factory does not work (P1-17b). National holidays are statutory; the rest are the
+/// company's, and the list is per state because a festival is not a holiday everywhere.
+model Holiday {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  holidayOn DateTime @map("holiday_on") @db.Date
+  name      String   @db.VarChar(120)
+  /// NATIONAL, FESTIVAL or COMPANY. A national holiday cannot be worked without double wages.
+  kind      String   @default("FESTIVAL") @db.VarChar(16)
+  stateCode String?  @map("state_code") @db.VarChar(2)
+  isPaid    Boolean  @default(true) @map("is_paid")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyHoliday", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, holidayOn, name])
+  @@index([companyId, holidayOn])
+  @@map("holidays")
+}
+
+/// A kind of leave and the policy attached to it (P1-17b).
+model LeaveType {
+  id               String            @id @default(uuid()) @db.Uuid
+  companyId        String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code             String            @db.VarChar(20)
+  name             String            @db.VarChar(80)
+  /// Days a year, or the divisor when the basis is days worked (one day per twenty, say).
+  daysPerYear      Decimal           @default(0) @map("days_per_year") @db.Decimal(6, 2)
+  basis            LeaveAccrualBasis @default(ANNUAL)
+  /// One earned day for every this many days actually worked, when the basis says so.
+  daysWorkedPerDay Int               @default(20) @map("days_worked_per_day")
+  isPaid           Boolean           @default(true) @map("is_paid")
+  /// How much may be carried into the next year; the rest lapses.
+  carryForwardMax  Decimal           @default(0) @map("carry_forward_max") @db.Decimal(6, 2)
+  encashable       Boolean           @default(false)
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  balances LeaveBalance[]
+  company  Company        @relation("CompanyLeaveType", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, code])
+  @@map("leave_types")
+}
+
+/// What an employee has of a leave type in a year (P1-17b).
+///
+/// A running balance rather than a derived figure, because leave is argued about and the argument
+/// is always "what did I have at the start of the year" — which a recomputation cannot answer
+/// once the policy has changed.
+model LeaveBalance {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId  BigInt   @map("employee_id")
+  leaveTypeId String   @map("leave_type_id") @db.Uuid
+  fyCode      String   @map("fy_code") @db.VarChar(10)
+  opening     Decimal  @default(0) @db.Decimal(6, 2)
+  accrued     Decimal  @default(0) @db.Decimal(6, 2)
+  taken       Decimal  @default(0) @db.Decimal(6, 2)
+  encashed    Decimal  @default(0) @db.Decimal(6, 2)
+  /// What went past the carry-forward cap at the year end and was lost.
+  lapsed      Decimal  @default(0) @db.Decimal(6, 2)
+  closing     Decimal  @default(0) @db.Decimal(6, 2)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  company   Company   @relation("CompanyLeaveBalance", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, leaveTypeId, fyCode])
+  @@index([companyId, fyCode])
+  @@map("leave_balances")
+}
+
+/// Full and final settlement (P1-17b).
+model FinalSettlement {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId         BigInt   @map("employee_id")
+  employeeCode       String   @map("employee_code") @db.VarChar(40)
+  separationOn       DateTime @map("separation_on") @db.Date
+  lastWorkingDay     DateTime @map("last_working_day") @db.Date
+  reason             String?  @db.VarChar(160)
+  /// Whether the employee served their notice; what they did not serve is recovered.
+  noticeDaysRequired Int      @default(0) @map("notice_days_required")
+  noticeDaysServed   Int      @default(0) @map("notice_days_served")
+
+  /// What is owed.
+  salaryDue       Decimal @default(0) @map("salary_due") @db.Decimal(14, 2)
+  leaveEncashment Decimal @default(0) @map("leave_encashment") @db.Decimal(14, 2)
+  gratuity        Decimal @default(0) @db.Decimal(14, 2)
+  bonus           Decimal @default(0) @db.Decimal(14, 2)
+  otherDues       Decimal @default(0) @map("other_dues") @db.Decimal(14, 2)
+  /// What comes off.
+  noticeRecovery  Decimal @default(0) @map("notice_recovery") @db.Decimal(14, 2)
+  advanceRecovery Decimal @default(0) @map("advance_recovery") @db.Decimal(14, 2)
+  otherRecovery   Decimal @default(0) @map("other_recovery") @db.Decimal(14, 2)
+  netPayable      Decimal @default(0) @map("net_payable") @db.Decimal(14, 2)
+
+  /// The service and wage the gratuity was worked out on, kept so the figure can be defended.
+  yearsOfService   Decimal @default(0) @map("years_of_service") @db.Decimal(6, 2)
+  lastDrawnWage    Decimal @default(0) @map("last_drawn_wage") @db.Decimal(14, 2)
+  gratuityEligible Boolean @default(false) @map("gratuity_eligible")
+
+  status     SettlementStatus @default(DRAFT)
+  voucherId  Int?             @map("voucher_id")
+  notes      String?          @db.VarChar(255)
+  preparedBy String?          @map("prepared_by") @db.VarChar(36)
+  approvedBy String?          @map("approved_by") @db.VarChar(36)
+  approvedAt DateTime?        @map("approved_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyFinalSettlement", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, separationOn])
+  @@index([companyId, status])
+  @@map("final_settlements")
 }

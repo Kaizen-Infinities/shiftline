@@ -225,6 +225,15 @@ export const API_PATHS = {
     returns: "/tds/returns",
     form16a: "/tds/form16a",
   },
+  labour: {
+    base: "/labour",
+    holidays: "/labour/holidays",
+    leaveTypes: "/labour/leave-types",
+    leaveBalances: "/labour/leave-balances",
+    gratuity: "/labour/gratuity",
+    bonus: "/labour/bonus",
+    settlements: "/labour/settlements",
+  },
   payrollStatutory: {
     base: "/payroll-statutory",
     rules: "/payroll-statutory/rules",

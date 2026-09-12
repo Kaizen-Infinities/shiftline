@@ -193,6 +193,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/payroll/statutory",
             permission: "payroll.view",
           },
+          {
+            title: "Leave & Entitlements",
+            path: "/payroll/entitlements",
+            permission: "payroll.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

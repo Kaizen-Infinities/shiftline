@@ -93,6 +93,14 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Employee Benefits",
   },
   {
+    // P1-17b: gratuity is a retirement benefit, not salary, and the notes to the accounts
+    // report it separately.
+    code: "GRATUITY-EXP-001",
+    name: "Gratuity",
+    type: LedgerType.EXPENSE,
+    group: "Employee Benefits",
+  },
+  {
     code: "SAL-PAY-001",
     name: "Salaries Payable",
     type: LedgerType.LIABILITY,

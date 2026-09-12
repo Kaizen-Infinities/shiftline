@@ -62,6 +62,7 @@ import fxRoutes from "../modules/currency/fx.routes";
 import costingRoutes from "../modules/costing/costing.routes";
 import bankingRoutes from "../modules/banking/banking.routes";
 import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
+import labourRoutes from "../modules/payroll/labour.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
@@ -160,6 +161,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/costing", router: costingRoutes },
   { path: "/banking", router: bankingRoutes },
   { path: "/payroll-statutory", router: statutoryPayrollRoutes },
+  { path: "/labour", router: labourRoutes },
   { path: "/payroll", router: payrollRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },

@@ -82,6 +82,9 @@ export const AUDITED_MODELS = [
   "PayrollStatutory",
   "EmployeeTaxDeclaration",
   "StatutoryRule",
+  "LeaveType",
+  "LeaveBalance",
+  "FinalSettlement",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

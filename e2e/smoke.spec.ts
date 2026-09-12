@@ -49,6 +49,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/accounts/costing", marker: /Costing/ },
   { path: "/accounts/bank-reconciliation", marker: /Bank Reconciliation/ },
   { path: "/payroll/statutory", marker: /Statutory Payroll/ },
+  { path: "/payroll/entitlements", marker: /Leave and Entitlements/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 
