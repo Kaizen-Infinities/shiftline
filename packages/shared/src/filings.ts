@@ -55,6 +55,13 @@ export const FILINGS: readonly FilingDef[] = [
     perBusinessPlace: false,
   },
   {
+    key: "MSME_1",
+    name: "MSME Form 1",
+    authority: "MCA",
+    cadence: "HALF_YEARLY",
+    perBusinessPlace: false,
+  },
+  {
     key: "PF_ECR",
     name: "EPFO ECR",
     authority: "EPFO",

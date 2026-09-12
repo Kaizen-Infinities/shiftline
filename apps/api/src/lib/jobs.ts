@@ -40,6 +40,8 @@ export const QUEUES = {
   COMPLIANCE_CALENDAR: "gst.compliance.calendar",
   /** Daily: warn before job-work goods run out of time to come back (P1-14). */
   JOB_WORK_RETURN: "gst.job-work.return",
+  /** Daily: warn before a micro or small supplier's bill runs past section 15 (P1-07). */
+  MSME_CLOCK: "accounts.msme.clock",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

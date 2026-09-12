@@ -834,6 +834,16 @@ model Supplier {
   companyId           String                  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   /// Deductee details for TDS (P1-15): who they are decides the rate, and 206AB doubles it.
   deducteeType        DeducteeType?           @map("deductee_type")
+  /// MSME status (P1-07). Only MICRO and SMALL bring section 15 and 43B(h) with them.
+  msmeCategory        MsmeCategory            @default(NOT_REGISTERED) @map("msme_category")
+  /// UDYAM-XX-00-0000000 from the supplier's registration certificate.
+  udyamNumber         String?                 @map("udyam_number") @db.VarChar(19)
+  /// The day the certificate was actually seen; status claimed but unverified is worth knowing.
+  msmeVerifiedOn      DateTime?               @map("msme_verified_on") @db.Date
+  /// Section 15 allows up to 45 days only where there is a written agreement; 15 days otherwise.
+  hasWrittenContract  Boolean                 @default(false) @map("has_written_contract")
+  /// The days the contract agrees to. Capped at 45 when the limit is worked out, never here.
+  agreedPaymentDays   Int?                    @map("agreed_payment_days")
   /// The payee has not filed their returns, so tax comes off at the higher rate (206AB).
   higherRate206AB     Boolean                 @default(false) @map("higher_rate_206ab")
   materialPrices      SupplierMaterialPrice[]
@@ -850,6 +860,7 @@ model Supplier {
   @@unique([companyId, supplierCode])
   @@index([legalName])
   @@index([status])
+  @@index([companyId, msmeCategory])
   @@map("suppliers")
 }
 
@@ -4577,4 +4588,13 @@ model TallyExportRun {
   @@index([companyId, createdAt])
   @@index([companyId, status])
   @@map("tally_export_runs")
+}
+
+/// Micro, small or medium under the MSMED Act (P1-07). Only the first two carry section 15 and
+/// section 43B(h) with them; a medium enterprise has neither.
+enum MsmeCategory {
+  MICRO
+  SMALL
+  MEDIUM
+  NOT_REGISTERED
 }

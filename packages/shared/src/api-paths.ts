@@ -225,6 +225,12 @@ export const API_PATHS = {
     returns: "/tds/returns",
     form16a: "/tds/form16a",
   },
+  msme: {
+    base: "/msme",
+    bills: "/msme/bills",
+    disallowance: "/msme/disallowance",
+    form1: "/msme/form1",
+  },
   tally: {
     base: "/tally",
     masters: "/tally/masters",

@@ -163,6 +163,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/accounts/tally",
             permission: "tally.view",
           },
+          {
+            title: "MSME Dues",
+            path: "/payable/msme",
+            permission: "payable.view",
+          },
         ],
       },
       // ── 2. Inventory Masters (Categories, Stores, Materials & Products) ──

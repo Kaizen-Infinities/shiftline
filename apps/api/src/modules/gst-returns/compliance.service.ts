@@ -35,6 +35,8 @@ export const DUE_RULES: Record<string, DueRule> = {
   GSTR3B: { day: 20, monthsAfter: 1 },
   GSTR9: { day: 31, monthsAfter: 9 },
   ITC04: { day: 25, monthsAfter: 1 },
+  // MSME Form 1 is due a month after each half-year: 31 October and 30 April.
+  MSME_1: { day: 30, monthsAfter: 1 },
   TDS_CHALLAN: { day: 7, monthsAfter: 1 },
   TDS_26Q: { day: 31, monthsAfter: 1 },
   TDS_27Q: { day: 31, monthsAfter: 1 },

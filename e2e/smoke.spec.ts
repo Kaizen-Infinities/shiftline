@@ -43,6 +43,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/production/job-work", marker: /Job Work/ },
   { path: "/compliance/tds", marker: /TDS and TCS/ },
   { path: "/accounts/tally", marker: /Tally Export/ },
+  { path: "/payable/msme", marker: /MSME Dues/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
 ];
 
