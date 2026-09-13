@@ -201,15 +201,18 @@ describe("hourly production", () => {
     expect(res.body.message).toMatch(/No weekly machine schedule/);
   });
 
-  it("refuses a role without the permission, and hides another tenant's hourly logs", async () => {
+  it("grants the Production/Supervisor role access, and hides another tenant's hourly logs", async () => {
     const client = await api();
-    // The Production/Supervisor role is the one that would be expected to own this module, but
-    // ROLE_DEFS grants it "hourly-production" (singular, hyphenated) while the permission
-    // registry's module key is "hourly_productions" (plural, underscored) —
-    // provisioning.service.ts's keysFor() never matches the two, so this role is provisioned with
-    // no hourly_productions.* permission at all today. Characterized as-is, not fixed.
+    // Fixed (P2T-04 bug #1): ROLE_DEFS used to grant this role "hourly-production" (singular,
+    // hyphenated) while the permission registry's module key is "hourly_productions" (plural,
+    // underscored) — provisioning.service.ts's keysFor() never matched the two, so the role was
+    // provisioned with no hourly_productions.* permission at all. Now that the names agree, the
+    // role that was always meant to own this module can reach it.
     const supervisor = await authed("demo.production");
-    expect((await client.get("/api/hourly-productions").set(supervisor.auth)).status).toBe(403);
+    expect((await client.get("/api/hourly-productions").set(supervisor.auth)).status).toBe(200);
+
+    const accounts = await authed("demo.accounts");
+    expect((await client.get("/api/hourly-productions").set(accounts.auth)).status).toBe(403);
 
     const prisma = await getPrisma();
     const other = await withoutTenant(() =>

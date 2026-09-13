@@ -17,12 +17,22 @@ import { periodService } from "../../src/modules/accounts/period.service";
  *    on, reverses the stock it received — the GRN row itself is never deleted, just marked
  *    CANCELLED (P1-09).
  *
- * ODDITY (not fixed here): `grn-invoice.routes.ts` guards every route with `requireFeature("purchase")`
- * only — it never calls `requirePermission`, unlike its sibling `purchase-order.routes.ts`. The
- * "invoice.*" permission keys are registered (`packages/shared/src/permissions.ts`) and AUDITOR is
- * deliberately given only `invoice.view` (`provisioning.service.ts`, "the statutory auditor reads
- * everything ... and changes nothing"), but nothing in this module enforces that — an auditor can
- * create and cancel GRNs over the API today. See the last test.
+ * Fixed (P2T-04 bug #5b): `grn-invoice.routes.ts` used to guard every route with
+ * `requireFeature("purchase")` only — it never called `requirePermission`, unlike its sibling
+ * `purchase-order.routes.ts`. The "invoice.*" permission keys are registered
+ * (`packages/shared/src/permissions.ts`) and AUDITOR is deliberately given only `invoice.view`
+ * (`provisioning.service.ts`, "the statutory auditor reads everything ... and changes nothing"),
+ * but nothing in this module enforced that, so an auditor could create and cancel GRNs over the
+ * API. Now gated on `invoice.view`/`invoice.create`/`invoice.edit`/`invoice.delete` to match. See
+ * the last test.
+ *
+ * Fixing that surfaced a second, adjacent gap: ROLE_DEFS's ACCOUNTS entry — described as "Books,
+ * invoices, payments, reports" — never actually granted the "invoice" module at all, so gating on
+ * it for real would have locked ACCOUNTS out of GRN invoices too. Added `"invoice"` to its
+ * `keysFor()` list alongside the fix, so the role that is meant to do this work still can.
+ * (ACCOUNTS separately lists `"purchase-orders"`, which does not match the registry's
+ * `"purchaseOrders"` — the same class of bug as P2T-04's bug #1, but in a different role and
+ * module. Left alone here: unrelated to this file, and not something this pass's fix depends on.)
  */
 const sfx = Date.now().toString(36).slice(-6);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -242,20 +252,42 @@ describe("GRN / invoice receipt", () => {
     expect(again.body.code).toBe("ALREADY_CANCELLED");
   });
 
-  it("does not gate by permission (no requirePermission on this router) and hides another tenant's GRNs", async () => {
+  it("gates by permission now: an auditor can view but not create or cancel a GRN, and hides another tenant's GRNs", async () => {
     const client = await api();
     const auditor = await authed("demo.auditor");
 
-    // ODDITY, characterised as found rather than fixed: AUDITOR holds only "invoice.view" in the
-    // permission registry (by design — see the module docstring above), yet this router never
-    // calls requirePermission, so an auditor can create *and* cancel a GRN today.
+    // Fixed (P2T-04 bug #5b): AUDITOR holds only "invoice.view" in the permission registry (by
+    // design — see the module docstring above), and this router now enforces that.
     const created = await client.post("/api/grn-invoices").set(auditor.auth).send(basePayload());
-    expect(created.status, JSON.stringify(created.body).slice(0, 300)).toBe(201);
+    expect(created.status).toBe(403);
+
+    const ownerCreated = await client.post("/api/grn-invoices").set(OWNER.auth).send(basePayload());
+    expect(ownerCreated.status, JSON.stringify(ownerCreated.body).slice(0, 300)).toBe(201);
+
+    const viewed = await client
+      .get(`/api/grn-invoices/${ownerCreated.body.data.id}`)
+      .set(auditor.auth);
+    expect(viewed.status).toBe(200);
+
     const cancelled = await client
-      .post(`/api/grn-invoices/${created.body.data.id}/cancel`)
+      .post(`/api/grn-invoices/${ownerCreated.body.data.id}/cancel`)
       .set(auditor.auth)
       .send({ reason: "cleanup by auditor" });
-    expect(cancelled.status).toBe(200);
+    expect(cancelled.status).toBe(403);
+
+    // ACCOUNTS was missing the "invoice" module grant entirely (the adjacent gap this fix also
+    // closed, per the docstring above) — it can still do the job its role description promises.
+    const accounts = await authed("demo.accounts");
+    const accountsCreated = await client
+      .post("/api/grn-invoices")
+      .set(accounts.auth)
+      .send(basePayload());
+    expect(accountsCreated.status, JSON.stringify(accountsCreated.body).slice(0, 300)).toBe(201);
+    const accountsCancelled = await client
+      .post(`/api/grn-invoices/${accountsCreated.body.data.id}/cancel`)
+      .set(accounts.auth)
+      .send({ reason: "cleanup by accounts" });
+    expect(accountsCancelled.status).toBe(200);
 
     const prisma = await getPrisma();
     const other = await withoutTenant(() =>

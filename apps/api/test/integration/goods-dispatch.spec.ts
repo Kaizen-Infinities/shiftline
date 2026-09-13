@@ -29,34 +29,27 @@ import { runAsTenant, withoutTenant } from "../../src/lib/tenant-context";
  * `documentNumberService.next()` as CLAUDE.md's convention calls for elsewhere
  * — characterised as found, not fixed.
  *
- * A second, more serious numbering bug (see the last store-receive test): the stock
- * adjustment this module raises on receipt gets its number from
- * `StockAdjustmentService.getNextAdjustmentNumber()`, called from *inside*
- * `storeReceive`'s own `prisma.$transaction(async (tx) => ...)` — but that helper queries
- * through the plain `prisma` export, not `tx`. Per CLAUDE.md's own rule ("inside a Prisma
- * interactive transaction, read through the tx client: the outer client does not carry the
- * tenant session settings there"), that query runs with no tenant context and — since the
- * extension's `ctx.inTx` check skips re-running `set_config` for it — never sees the demo
- * tenant's existing rows, so it always proposes the very first sequence number again. The
- * first store-receive of the (tenant, year) succeeds and claims that number for real; every
- * one after it collides on the same number and 409s. This is a real, load-bearing bug, not a
- * cosmetic one: characterised, not fixed, and confirmed independently by a sibling
- * characterisation agent hitting the identically-shaped bug in `oeeService`.
+ * A second, more serious numbering bug used to live here (see the last store-receive test,
+ * P2T-04 bug #3, now fixed): the stock adjustment this module raises on receipt gets its
+ * number from `StockAdjustmentService.getNextAdjustmentNumber()`, called from *inside*
+ * `storeReceive`'s own `prisma.$transaction(async (tx) => ...)`. That helper used to query
+ * through the plain `prisma` export instead of `tx` — exactly the mistake CLAUDE.md warns
+ * about by name ("inside a Prisma interactive transaction, read through the tx client: the
+ * outer client does not carry the tenant session settings there") — so it never saw the
+ * tenant's existing rows and always proposed the very first sequence number again: only the
+ * first store-receive of a (tenant, year) ever succeeded, every one after it collided and
+ * 409ed. Fixed by giving `getNextAdjustmentNumber()` an optional `Db` parameter and passing
+ * `tx` from inside this module's transaction, matching the identically-shaped fix in
+ * `oeeService`.
  *
- * Permissions oddity (see the last test): every route in this module is
- * gated on `production_orders.*`, not on the dedicated `goods-dispatch.*` key
- * that `packages/shared/src/permissions.ts` defines and that the seeded
- * STORES role is actually granted. Worse, the seed's PRODUCTION role's own
- * `production_orders`/`weekly_programs`/`daily-machine-planning`/
- * `hourly_productions`/`production-wastages` grants are built from
- * hyphen/underscore-mismatched module names in `ROLE_DEFS()`
- * (`apps/api/src/modules/platform/provisioning.service.ts`), so none of them
- * resolve against `PERMISSION_REGISTRY` and the demo PRODUCTION role ends up
- * with none of those keys either. Only OWNER (which grants every registry key
- * directly) actually holds `production_orders.*` among the seeded demo roles,
- * so it stands in for the acting role throughout this file; demo.stores —
- * named for this exact job and holding `goods-dispatch.*` — gets 403 on every
- * route here today.
+ * Permissions oddity (see the last test, still not fixed — a design question, not a naming
+ * bug): every route in this module is gated on `production_orders.*`, not on the dedicated
+ * `goods-dispatch.*` key that `packages/shared/src/permissions.ts` defines and that the seeded
+ * STORES role is actually granted, so demo.stores — named for this exact job — still gets 403
+ * on every route here. The seed's PRODUCTION role's own `production_orders` grant is fixed now
+ * (P2T-04 bug #1: `ROLE_DEFS()` used to spell it `production-orders`, a hyphen that never
+ * matched `PERMISSION_REGISTRY`'s `production_orders`), so demo.production can reach this
+ * module today even though the permission it is actually checked against is not its own.
  */
 const sfx = Date.now().toString(36).slice(-6);
 let poSeq = 0;
@@ -100,14 +93,11 @@ const create = (body: Record<string, unknown>) =>
 
 /**
  * A brand-new, single-use tenant with just enough of its own masters (a UOM, a finished-goods
- * store) to run a dispatch through `GoodsDispatchService` directly. Needed only for the two tests
- * below that depend on being the *very first* stock adjustment this tenant has ever raised: the
- * numbering bug documented above means `getNextAdjustmentNumber()` always proposes sequence one
- * regardless of what already exists, so on the long-lived, suite-wide demo tenant, whichever test
- * anywhere in the full run happens to raise the first stock adjustment of the year claims that
- * number for real and every other module's first attempt (this one included) collides with it.
- * Calling the service directly (not over HTTP) sidesteps needing a real login for a tenant with
- * no seeded users.
+ * store) to run a dispatch through `GoodsDispatchService` directly. Used so the tests below can
+ * assert exact, deterministic sequence numbers (ADJ-<year>-0001, -0002, ...), independent of
+ * whatever else the long-lived, suite-wide demo tenant has already raised that year in other
+ * test files. Calling the service directly (not over HTTP) sidesteps needing a real login for a
+ * tenant with no seeded users.
  */
 const freshDispatchTenant = async () => {
   const prisma = await getPrisma();
@@ -158,22 +148,20 @@ describe("goods-dispatch (finished goods: shop floor to store, via gate + store 
     OWNER = await authed("demo.owner");
   });
 
-  // Because of the numbering bug documented above, only ONE store-receive can ever succeed per
-  // (tenant, year) — a second one on the same tenant always 409s. This test runs on its own fresh,
-  // single-use tenant (via freshDispatchTenant()) rather than the suite-wide demo tenant, so it is
-  // reliably the tenant's first-ever adjustment regardless of what else this file, or any other
-  // file in a full suite run, has already done to the demo tenant. It carries every
-  // characterisation that needs a *successful* receipt (the stock effect and the item-left-out
-  // default) at once, via two items on one dispatch; the later "second store-receipt" test proves
-  // the failure directly, on its own separate fresh tenant with two dispatches of its own.
+  // This test runs on its own fresh, single-use tenant (via freshDispatchTenant()) rather than
+  // the suite-wide demo tenant, so its stock-adjustment sequence number is deterministic
+  // regardless of what else this file, or any other file in a full suite run, has already done
+  // to the demo tenant. It carries every characterisation that needs a *successful* receipt
+  // (the stock effect and the item-left-out default) at once, via two items on one dispatch;
+  // the later "second store-receipt" test proves that a tenant's second store-receipt of the
+  // year also succeeds, with the next sequence number (P2T-04 bug #3, fixed).
   //
   // A dispatch with no destination store anywhere (create()'s own guard requires a PO's
   // destinationStoreId, when it has one, to equal the dispatch's — so a dispatch can never mix a
   // store-backed item with a store-less one) still exists as a real path through storeReceive
   // (the `if (!storeId) continue` a few lines below the stock-adjustment header creation), but
-  // proving it needs its own successful receipt, which this suite's numbering bug means it can
-  // never have alongside this one. Characterised here in the docstring rather than in a test that
-  // could never pass for reasons unrelated to what it means to prove.
+  // proving it needs a second, store-less dispatch, which is still left uncharacterised here
+  // (unrelated to the numbering bug this file used to document, now fixed).
   it("creates, gate-approves and store-receives a dispatch — the full stock effect, and an unlisted item still receiving in full", async () => {
     const prisma = await getPrisma();
     const { GoodsDispatchService } =
@@ -400,13 +388,13 @@ describe("goods-dispatch (finished goods: shop floor to store, via gate + store 
     expect(second.body.data.status).toBe("PENDING_GATE_APPROVAL");
   });
 
-  it("a second store-receipt this tenant-year fails: getNextAdjustmentNumber() loses its tenant context inside this module's own transaction", async () => {
-    // This is the numbering bug documented at the top of this file, demonstrated directly and
-    // self-contained on its own fresh tenant (so it is the first-ever adjustment for that tenant
-    // that succeeds, and the genuinely second one that collides — not dependent on suite order).
-    // It is not specific to what either dispatch contains: a second store-receipt 409s regardless,
-    // because the adjustment-number lookup made from inside storeReceive's own
-    // prisma.$transaction never sees the tenant's existing rows and always proposes sequence one.
+  it("a second store-receipt this tenant-year also succeeds, with the next sequence number (P2T-04 bug #3, fixed)", async () => {
+    // This used to be the numbering bug documented at the top of this file: getNextAdjustmentNumber(),
+    // called from inside storeReceive's own prisma.$transaction, read through the plain prisma
+    // export instead of tx and so never saw the tenant's existing rows, always proposing sequence
+    // one — the second store-receipt of a (tenant, year) always 409ed. Fixed by passing tx through;
+    // demonstrated directly and self-contained on its own fresh tenant (so it is genuinely the
+    // tenant's first and second adjustments, not dependent on suite order).
     const prisma = await getPrisma();
     const { GoodsDispatchService } =
       await import("../../src/modules/goods-dispatch/goods-dispatch.service");
@@ -463,18 +451,25 @@ describe("goods-dispatch (finished goods: shop floor to store, via gate + store 
     await runAsTenant(companyId, () =>
       GoodsDispatchService.gateApprove(Number(second.id), { action: "APPROVE" } as never, userId)
     );
-    await expect(
-      runAsTenant(companyId, () =>
-        GoodsDispatchService.storeReceive(Number(second.id), { action: "APPROVE" } as never, userId)
-      )
-    ).rejects.toThrow();
-
-    // The whole request rolled back cleanly rather than leaving anything half-applied: the
-    // second dispatch is still exactly where it was before this call.
-    const unchanged = await runAsTenant(companyId, () =>
-      prisma.goodsDispatch.findUniqueOrThrow({ where: { id: BigInt(second.id) } })
+    const secondReceived = await runAsTenant(companyId, () =>
+      GoodsDispatchService.storeReceive(Number(second.id), { action: "APPROVE" } as never, userId)
     );
-    expect(unchanged.status).toBe("PENDING_STORE_RECEIPT");
+    expect(secondReceived.status).toBe("WAREHOUSE_RECEIVED");
+
+    // Two distinct stock adjustments, sequenced one after the other within this tenant's year.
+    const adjustments = await runAsTenant(companyId, () =>
+      prisma.stockAdjustment.findMany({
+        where: { sourceDocument: "GOODS_DISPATCH" },
+        orderBy: { adjustmentNumber: "asc" },
+      })
+    );
+    expect(adjustments).toHaveLength(2);
+    const [firstAdj, secondAdj] = adjustments;
+    expect(firstAdj.sourceDocId).toBe(first.dispatchNumber);
+    expect(secondAdj.sourceDocId).toBe(second.dispatchNumber);
+    const firstSeq = Number(firstAdj.adjustmentNumber.split("-").pop());
+    const secondSeq = Number(secondAdj.adjustmentNumber.split("-").pop());
+    expect(secondSeq).toBe(firstSeq + 1);
   });
 
   it("refuses both approval steps out of order", async () => {
@@ -524,6 +519,19 @@ describe("goods-dispatch (finished goods: shop floor to store, via gate + store 
     const accounts = await authed("demo.accounts");
     const refused = await (await api()).get("/api/goods-dispatches").set(accounts.auth);
     expect(refused.status).toBe(403);
+
+    // The permissions oddity documented at the top of this file, still not fixed: this module
+    // is gated on production_orders.*, not goods-dispatch.*, so demo.stores — holding
+    // goods-dispatch.* — still gets 403 here even though it is named for this exact job.
+    const stores = await authed("demo.stores");
+    expect((await (await api()).get("/api/goods-dispatches").set(stores.auth)).status).toBe(403);
+
+    // Fixed (P2T-04 bug #1): demo.production now holds production_orders.* (the module-name
+    // mismatch in ROLE_DEFS is corrected), so it can reach this module today.
+    const production = await authed("demo.production");
+    expect((await (await api()).get("/api/goods-dispatches").set(production.auth)).status).toBe(
+      200
+    );
 
     const prisma = await getPrisma();
     const other = await withoutTenant(() =>

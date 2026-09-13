@@ -10,16 +10,20 @@ import { byCode } from "../../src/lib/prisma";
  * Production orders (Phase 2-T characterisation, section 4): the shop-floor document nothing
  * currently tests. Its status machine is CREATED → READY_FOR_PLANNING/WAITING_FOR_MATERIAL →
  * WEEKLY_SCHEDULED → DAILY_PLANNED → IN_PRODUCTION → POST_PRODUCTION → READY_FOR_DISPATCH →
- * DISPATCHED, gated by a `VALID_TRANSITIONS` map — but the generic PUT that drives most of it
- * turns out to have a real trap: `updateProductionOrderSchema`'s body is `.partial()`, and
- * several of its fields (`priority`, `orderType`, `rawMaterials`, `producedQty`, `rejectedQty`,
- * `scrapQty`) carry `.optional().default(...)`. Zod applies that default whenever the key is
- * simply absent, so a client that PUTs only `{ status }` gets those fields silently populated
- * anyway — `update()` then copies them straight onto the row (or, once the order is "locked",
- * uses their mere presence to refuse the request outright). Both effects are characterized
- * below rather than fixed. Reaching DISPATCHED belongs to the goods-dispatch module (a sibling
- * characterisation task) and reaching POST_PRODUCTION for real belongs to daily-production-plan
- * / hourly-production, so this suite stops at what production-order's own endpoints can reach.
+ * DISPATCHED, gated by a `VALID_TRANSITIONS` map. Reaching DISPATCHED belongs to the
+ * goods-dispatch module (a sibling characterisation task) and reaching POST_PRODUCTION for real
+ * belongs to daily-production-plan / hourly-production, so this suite stops at what
+ * production-order's own endpoints can reach.
+ *
+ * `updateProductionOrderSchema`'s body is `.partial()`, and several of its fields (`priority`,
+ * `orderType`, `rawMaterials`, `producedQty`, `rejectedQty`, `scrapQty`, `status`) used to carry
+ * `.optional().default(...)` — Zod applies a default whenever the key is simply absent, so a
+ * bare `PUT { status }` got those fields silently populated anyway, wiping `draftRawMaterials`
+ * to `[]` and, once the order reached a "locked" status, making the lock check's allow-list
+ * always fail. Fixed by dropping `.default()` from those fields (P2T-04 bug #4): `create()`
+ * already had its own explicit fallbacks (`?? "MEDIUM"`, hardcoded zeros, etc.) so its behaviour
+ * is unchanged; `update()` now sees `undefined` for a key the caller never sent, exactly as its
+ * own `!== undefined` checks always assumed.
  */
 const sfx = Date.now().toString(36).slice(-6);
 const n = (v: unknown) => Number(v);
@@ -39,11 +43,14 @@ describe("production orders", () => {
     OWNER = await authed("demo.owner");
   });
 
-  it("creates an order, reaches IN_PRODUCTION, and hits the PUT-is-locked-forever trap", async () => {
+  it("creates an order, reaches IN_PRODUCTION, and a bare status PUT no longer wipes its material plan or gets locked out", async () => {
     const client = await api();
     const product = await createProduct();
     const rm = await createRawMaterial(); // onHandQty 500 by factory default
     const poId = `PO-${sfx}-A`;
+    const rawMaterials = [
+      { rawMaterialId: rm.rawMaterialId, requiredQty: 50, uom: "KG", storeId: "ST-RM" },
+    ];
 
     const create = await client
       .post("/api/production-orders")
@@ -52,9 +59,7 @@ describe("production orders", () => {
         orderPayload({
           productionOrderId: poId,
           productItemId: product.id.toString(),
-          rawMaterials: [
-            { rawMaterialId: rm.rawMaterialId, requiredQty: 50, uom: "KG", storeId: "ST-RM" },
-          ],
+          rawMaterials,
         })
       );
     expect(create.status, JSON.stringify(create.body).slice(0, 300)).toBe(201);
@@ -74,17 +79,15 @@ describe("production orders", () => {
     expect(toWeekly.body.data.status).toBe("WEEKLY_SCHEDULED");
 
     const prisma = await getPrisma();
-    const wiped = await asDemoTenant(() =>
+    const afterPut = await asDemoTenant(() =>
       prisma.productionOrder.findUniqueOrThrow({ where: byCode("productionOrderId", poId) })
     );
-    // The rawMaterials the order was created with are gone. `rawMaterials` in the update schema
-    // defaults to `[]` when the key is absent, and update() copies whatever it parses straight
-    // onto draftRawMaterials — a caller that only meant to change the status has just cleared
-    // the material plan.
-    expect(wiped.draftRawMaterials).toEqual([]);
+    // Fixed (P2T-04 bug #4): `rawMaterials` is no longer defaulted to `[]` when the key is
+    // absent from the PUT body, so a caller that only meant to change the status keeps the
+    // material plan it was created with.
+    expect(afterPut.draftRawMaterials).toEqual(rawMaterials);
 
-    // No dailyPlanId given, so this would otherwise issue the full draft quantity — but there is
-    // no draft left to issue.
+    // No dailyPlanId given, so the full draft quantity is issued at ratio 1.
     const start = await client
       .post(`/api/production-orders/${poId}/start-production`)
       .set(OWNER.auth)
@@ -92,39 +95,38 @@ describe("production orders", () => {
     expect(start.status, JSON.stringify(start.body).slice(0, 300)).toBe(200);
     expect(start.body.data.status).toBe("IN_PRODUCTION");
 
-    // With nothing left to issue, start-production takes its "nothing configured" branch: no
-    // stock adjustment, no stock movement, at all.
     const rmAfter = await asDemoTenant(() =>
       prisma.rawMaterial.findFirstOrThrow({ where: { rawMaterialId: rm.rawMaterialId } })
     );
-    expect(n(rmAfter.onHandQty)).toBe(500);
-    expect(
-      await asDemoTenant(() => prisma.stockAdjustment.count({ where: { productionOrderId: poId } }))
-    ).toBe(0);
+    expect(n(rmAfter.onHandQty)).toBe(450);
+    const adjustment = await asDemoTenant(() =>
+      prisma.stockAdjustment.findFirstOrThrow({
+        where: { productionOrderId: poId, adjustmentType: "RAW_MATERIAL_ISSUE" },
+      })
+    );
+    // The legacy (no dailyPlanId) path stamps sourceDocId with the production order's own id
+    // (P2T-04 bug #5a — the idempotency guard below relies on this).
+    expect(adjustment.sourceDocId).toBe(poId);
 
-    // IN_PRODUCTION is "locked": update() means to allow status/producedQty/rejectedQty/
-    // scrapQty/remarks only from here on. But the same defaults strike again — priority,
-    // orderType and rawMaterials are always present in the parsed body — so the lock check now
-    // runs the other way: it refuses ANY PUT at all, even a same-shape `{ status:
-    // "POST_PRODUCTION" }` that VALID_TRANSITIONS would otherwise allow. In the shipped code,
-    // once an order is locked the generic PUT can never move it again.
-    const blocked = await client
+    // IN_PRODUCTION is "locked": update() only allows status/producedQty/rejectedQty/scrapQty/
+    // remarks from here on. A real edit to any other field is still correctly refused...
+    const rejectedEdit = await client
+      .put(`/api/production-orders/${poId}`)
+      .set(OWNER.auth)
+      .send({ priority: "HIGH" });
+    expect(rejectedEdit.status, JSON.stringify(rejectedEdit.body).slice(0, 300)).toBe(400);
+    expect(rejectedEdit.body.message).toMatch(/locked for editing/);
+
+    // ...but fixed: a bare `{ status }` PUT now parses with only that key present, so the lock
+    // check correctly treats it as a system status update and lets VALID_TRANSITIONS' own
+    // IN_PRODUCTION -> POST_PRODUCTION allowance through — the generic PUT can move a locked
+    // order again.
+    const toPostProduction = await client
       .put(`/api/production-orders/${poId}`)
       .set(OWNER.auth)
       .send({ status: "POST_PRODUCTION" });
-    expect(blocked.status, JSON.stringify(blocked.body).slice(0, 300)).toBe(400);
-    expect(blocked.body.message).toMatch(/locked for editing/);
-
-    // Reaching POST_PRODUCTION for real goes through daily-production-plan / hourly-production,
-    // which write the status directly and are out of this module's scope. Simulate that one
-    // write so /complete-post-production — which IS this module's own endpoint — can be
-    // exercised.
-    await asDemoTenant(() =>
-      prisma.productionOrder.update({
-        where: byCode("productionOrderId", poId),
-        data: { status: "POST_PRODUCTION" },
-      })
-    );
+    expect(toPostProduction.status, JSON.stringify(toPostProduction.body).slice(0, 300)).toBe(200);
+    expect(toPostProduction.body.data.status).toBe("POST_PRODUCTION");
 
     const complete = await client
       .post(`/api/production-orders/${poId}/complete-post-production`)
@@ -146,6 +148,65 @@ describe("production orders", () => {
         "POST_PRODUCTION_COMPLETE",
       ])
     );
+  });
+
+  it("start-production is idempotent with no daily plan: a second call does not double-issue materials (P2T-04 bug #5a)", async () => {
+    const client = await api();
+    const product = await createProduct();
+    const rm = await createRawMaterial();
+    const poId = `PO-${sfx}-IDEMPOTENT`;
+    const rawMaterials = [
+      { rawMaterialId: rm.rawMaterialId, requiredQty: 50, uom: "KG", storeId: "ST-RM" },
+    ];
+
+    const create = await client
+      .post("/api/production-orders")
+      .set(OWNER.auth)
+      .send(
+        orderPayload({
+          productionOrderId: poId,
+          productItemId: product.id.toString(),
+          rawMaterials,
+        })
+      );
+    expect(create.status, JSON.stringify(create.body).slice(0, 300)).toBe(201);
+
+    // start-production only accepts orders already scheduled; move it there first.
+    const toWeekly = await client
+      .put(`/api/production-orders/${poId}`)
+      .set(OWNER.auth)
+      .send({ status: "WEEKLY_SCHEDULED" });
+    expect(toWeekly.status, JSON.stringify(toWeekly.body).slice(0, 300)).toBe(200);
+
+    const first = await client
+      .post(`/api/production-orders/${poId}/start-production`)
+      .set(OWNER.auth)
+      .send({});
+    expect(first.status, JSON.stringify(first.body).slice(0, 300)).toBe(200);
+    expect(first.body.data.status).toBe("IN_PRODUCTION");
+
+    // Fixed: the idempotency guard now matches the sourceDocId the first call actually wrote
+    // (the production order id, not null), so this second call takes the early-return branch
+    // instead of issuing the materials again.
+    const second = await client
+      .post(`/api/production-orders/${poId}/start-production`)
+      .set(OWNER.auth)
+      .send({});
+    expect(second.status, JSON.stringify(second.body).slice(0, 300)).toBe(200);
+    expect(second.body.data.status).toBe("IN_PRODUCTION");
+
+    const prisma = await getPrisma();
+    const rmAfter = await asDemoTenant(() =>
+      prisma.rawMaterial.findFirstOrThrow({ where: { rawMaterialId: rm.rawMaterialId } })
+    );
+    expect(n(rmAfter.onHandQty)).toBe(450); // 50 deducted once, not twice
+    expect(
+      await asDemoTenant(() =>
+        prisma.stockAdjustment.count({
+          where: { productionOrderId: poId, adjustmentType: "RAW_MATERIAL_ISSUE" },
+        })
+      )
+    ).toBe(1);
   });
 
   it("issues draft raw materials proportionally on start-production when the plan survives the PUT", async () => {
@@ -170,8 +231,8 @@ describe("production orders", () => {
     expect(create.status, JSON.stringify(create.body).slice(0, 300)).toBe(201);
     expect(create.body.data.status).toBe("READY_FOR_PLANNING");
 
-    // Resending the same rawMaterials on the PUT is the only way to survive the default-wipe
-    // characterized above.
+    // Resending the same rawMaterials on the PUT is redundant now that the plan survives a
+    // bare status PUT (see the fixed test above), but still a valid, explicit way to set it.
     const toWeekly = await client
       .put(`/api/production-orders/${poId}`)
       .set(OWNER.auth)
@@ -267,15 +328,18 @@ describe("production orders", () => {
     expect(jump.body.message).toMatch(/Invalid status transition/);
   });
 
-  it("refuses a role without the permission, and hides another tenant's production orders", async () => {
+  it("grants the Production/Supervisor role access, and hides another tenant's production orders", async () => {
     const client = await api();
-    // The Production/Supervisor role is the one that would be expected to own this module, but
-    // ROLE_DEFS grants it "production-orders" (hyphen) while the permission registry's module
-    // key is "production_orders" (underscore) — provisioning.service.ts's keysFor() never
-    // matches the two, so this role is provisioned with no production_orders.* permission at
-    // all today. Characterized as-is, not fixed.
+    // Fixed (P2T-04 bug #1): ROLE_DEFS used to grant this role "production-orders" (hyphen)
+    // while the permission registry's module key is "production_orders" (underscore) —
+    // provisioning.service.ts's keysFor() never matched the two, so the seeded role held no
+    // production_orders.* permission at all. Now that the module names agree, the role that was
+    // always meant to own this module can reach it.
     const supervisor = await authed("demo.production");
-    expect((await client.get("/api/production-orders").set(supervisor.auth)).status).toBe(403);
+    expect((await client.get("/api/production-orders").set(supervisor.auth)).status).toBe(200);
+
+    const accounts = await authed("demo.accounts");
+    expect((await client.get("/api/production-orders").set(accounts.auth)).status).toBe(403);
 
     const prisma = await getPrisma();
     const other = await withoutTenant(() =>

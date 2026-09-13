@@ -239,7 +239,6 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "DELETE /api/grn-invoices/:id",
   "GET /api/grn-invoices/:id",
   "PUT /api/grn-invoices/:id",
-  "PUT /api/grn-invoices/:id",
   "POST /api/grn-invoices/:id/cancel",
   "GET /api/grn-invoices/next-code",
   "GET /api/gst-returns/calendar",

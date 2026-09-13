@@ -7,14 +7,16 @@ import oeeService, { calculateOeeMetrics } from "../../src/modules/oee/oee.servi
 
 /**
  * Characterisation tests for OEE (Phase 2-T brief, section 4): the shop floor's
- * Availability x Performance x Quality dashboard, currently uncovered.
+ * Availability x Performance x Quality dashboard.
  *
  * There is no "recompute" route -- hourly-production.service.ts calls
  * oeeService.recalculateAndSaveSnapshot() after saving hourly output, and only
  * the two read endpoints (machine summary, all-machines status) plus the
- * production-order summary are mounted. The first test below pins down a
- * genuine, currently-live bug in that write path (see its comment); the rest
- * of the suite characterises the read side and the named P2-04 gap around it.
+ * production-order summary are mounted. The first test below used to pin down a
+ * genuine, live bug in that write path (a compound-unique key name that didn't match the
+ * schema's generated one, so every upsert was rejected and no snapshot was ever written
+ * through the normal flow) -- fixed as P2T-04 bug #2; the test now proves the upsert works.
+ * The rest of the suite characterises the read side and the named P2-04 gap around it.
  */
 const sfx = Date.now().toString(36).slice(-5);
 const DATE = "2031-02-10";
@@ -29,24 +31,53 @@ describe("OEE dashboard", () => {
     product = await createProduct();
   });
 
-  it("recalculateAndSaveSnapshot always rejects: its snapshot upsert names the wrong compound key", async () => {
+  it("recalculateAndSaveSnapshot writes a real snapshot row (P2T-04 bug #2, fixed)", async () => {
     // MachineOeeSnapshot's real unique selector, from `@@unique([companyId, machineId,
     // productionDate, shiftId])` in schema.prisma, is `companyId_machineId_productionDate_shiftId`
     // (confirmed against the generated Prisma client's MachineOeeSnapshotWhereUniqueInput). The
-    // service's upsert uses `machineId_productionDate_shiftId` -- missing the companyId prefix --
-    // which Prisma's client-side validation rejects as an unknown argument. hourly-production
-    // .service.ts already wraps this exact call in a try/catch ("OEE calculation errors should not
-    // fail the main operation"); this test pins down what that catch is silently swallowing today:
-    // every call fails, so no MachineOeeSnapshot row is ever written through the normal flow.
-    await expect(
-      asDemoTenant(() =>
-        oeeService.recalculateAndSaveSnapshot({
-          machineId: `M-NOPE-${sfx}`,
-          productionDate: DATE,
-          shiftId: `SFT-NOPE-${sfx}`,
+    // service's upsert used to name it `machineId_productionDate_shiftId` -- missing the
+    // companyId prefix -- which Prisma's client-side validation rejected as an unknown argument;
+    // hourly-production.service.ts's try/catch around this call ("OEE calculation errors should
+    // not fail the main operation") silently swallowed every failure, so no MachineOeeSnapshot
+    // row was ever written through the normal flow. Fixed by using the correct compound key.
+    const prisma = await getPrisma();
+    const machine = await asDemoTenant(() =>
+      prisma.machine.create({ data: { machineId: `M-FIXED-${sfx}`, machineName: "Fixed Press" } })
+    );
+
+    await asDemoTenant(() =>
+      oeeService.recalculateAndSaveSnapshot({
+        machineId: machine.machineId,
+        productionDate: DATE,
+        shiftId: `SFT-FIXED-${sfx}`,
+      })
+    );
+
+    const snapshot = await asDemoTenant(() =>
+      prisma.machineOeeSnapshot.findFirstOrThrow({
+        where: { machineId: machine.machineId, productionDate: PROD_DATE },
+      })
+    );
+    expect(snapshot.shiftId).toBe(`SFT-FIXED-${sfx}`);
+    // No hourly output was logged for this machine/date, so every aggregate is zero.
+    expect(Number(snapshot.totalProduced)).toBe(0);
+
+    // Calling it again for the same machine/date/shift upserts the same row rather than
+    // duplicating it.
+    await asDemoTenant(() =>
+      oeeService.recalculateAndSaveSnapshot({
+        machineId: machine.machineId,
+        productionDate: DATE,
+        shiftId: `SFT-FIXED-${sfx}`,
+      })
+    );
+    expect(
+      await asDemoTenant(() =>
+        prisma.machineOeeSnapshot.count({
+          where: { machineId: machine.machineId, productionDate: PROD_DATE },
         })
       )
-    ).rejects.toThrow();
+    ).toBe(1);
   });
 
   it("computes a production order's OEE from its hourly output, and always reports 100% performance there regardless of the machine's cycle time", async () => {
@@ -128,10 +159,10 @@ describe("OEE dashboard", () => {
     const prisma = await getPrisma();
     const client = await api();
 
-    // The service's own write path is broken (see the first test above), so this fixture inserts
-    // the MachineOeeSnapshot row directly -- exercising the read side (getMachineOeeSummary,
-    // getAllMachinesStatus) independently of that bug, using calculateOeeMetrics for the same
-    // arithmetic the service would have produced had the upsert worked.
+    // The write path is exercised directly in the first test above; this one inserts the
+    // MachineOeeSnapshot row directly instead, to test the read side (getMachineOeeSummary,
+    // getAllMachinesStatus) in isolation, using calculateOeeMetrics for the same arithmetic the
+    // service's upsert would itself have produced.
     const oee = calculateOeeMetrics({
       plannedRunTimeMinutes: 480,
       totalRuntimeMinutes: 480,
@@ -338,16 +369,20 @@ describe("OEE dashboard", () => {
     expect(badOrder.body.message).toBe(`Production Order NOPE-PO-${sfx} not found`);
   });
 
-  it("refuses a role without oee-dashboard.view, and hides another tenant's OEE snapshots", async () => {
+  it("grants the Production/Supervisor role oee-dashboard.view, and hides another tenant's OEE snapshots", async () => {
     const client = await api();
     const production = await authed("demo.production");
-    // ROLE_DEFS's PRODUCTION entry (provisioning.service.ts) lists module "oee", but the
-    // permission registry (packages/shared/src/permissions.ts) registers this dashboard's module
-    // as "oee-dashboard" -- so the shop-floor role that would most plausibly need it holds no
-    // oee-dashboard key today. Only OWNER (which holds every key) can reach this route in the
-    // seeded demo tenant. Characterising the current wiring, not fixing the name mismatch.
+    // Fixed (P2T-04 bug #1): ROLE_DEFS's PRODUCTION entry (provisioning.service.ts) used to list
+    // module "oee", but the permission registry (packages/shared/src/permissions.ts) registers
+    // this dashboard's module as "oee-dashboard" -- so the shop-floor role that most plausibly
+    // needs it held no oee-dashboard key at all. Now that the names agree, it does.
     expect(
       (await client.get(`/api/oee/machine/M-ANY-${sfx}/summary`).set(production.auth)).status
+    ).toBe(404); // the role can now reach the route; M-ANY-<sfx> just isn't a real machine.
+
+    const accounts = await authed("demo.accounts");
+    expect(
+      (await client.get(`/api/oee/machine/M-ANY-${sfx}/summary`).set(accounts.auth)).status
     ).toBe(403);
 
     const prisma = await getPrisma();

@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { byCode } from "../../lib/prisma";
+import { requireTenantId } from "../../lib/tenant-context";
 
 // --- OEE Calculation Utilities -------------------------------------------------
 //
@@ -84,6 +85,7 @@ class OeeService {
     dailyPlanId?: string | null;
   }) {
     const { machineId, productionDate, shiftId, dailyPlanId } = params;
+    const companyId = requireTenantId();
     const [yyyy, mm, dd] = productionDate.split("-").map(Number);
     const prodDate = new Date(Date.UTC(yyyy, mm - 1, dd));
 
@@ -127,7 +129,14 @@ class OeeService {
     });
 
     await (prisma as any).machineOeeSnapshot.upsert({
-      where: { machineId_productionDate_shiftId: { machineId, productionDate: prodDate, shiftId } },
+      where: {
+        companyId_machineId_productionDate_shiftId: {
+          companyId,
+          machineId,
+          productionDate: prodDate,
+          shiftId,
+        },
+      },
       update: {
         dailyPlanId: dailyPlanId ?? null,
         plannedRunTime: shiftMinutes,
