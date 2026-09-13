@@ -332,11 +332,11 @@ const CustomerFormPage: React.FC = () => {
 
   return (
     <div className="max-w-[1400px] xl:mr-auto">
-      <div className="bg-card rounded-2xl shadow-sm border border-line overflow-visible">
+      <div className="bg-card rounded-sm border border-line overflow-visible">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
           <h3 className="text-lg font-bold text-ink flex items-start">
             {isEditMode ? "Edit Customer" : "Create Customer"}
-            <span className="text-purple-400 text-sm ml-1 mt-0.5 leading-none">
+            <span className="text-ink-muted text-sm ml-1 mt-0.5 leading-none">
               *{watch("customerId")}
             </span>
           </h3>
