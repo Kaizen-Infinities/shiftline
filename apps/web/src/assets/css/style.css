@@ -167,6 +167,34 @@
 }
 
 /* ===============================
+   Chart categorical palette — "registry inks"
+   Four muted, ledger-appropriate hues for chart series identity (never for
+   UI chrome — the One Ink Rule's accent stays reserved for the primary
+   action and status stamps). Distinct from --color-accent and the
+   success/warning/danger/info tokens so a series color never impersonates
+   a status. Validated for CVD-safety and contrast against each theme's own
+   --color-card surface via the dataviz skill's validator — all checks pass
+   in both modes, in this order, as adjacent pairs (stacks/bars/lines).
+   Teal-ink and sienna-ink together clear the strongest pairing, so use
+   them first for a two-series chart. For a pie/doughnut with more slices
+   than slots, cycle the four with a visible legend/direct labels (already
+   the convention here) rather than adding a fifth generated hue.
+================================ */
+:root[data-theme="dark"] {
+  --chart-series-1: #2a9ab0; /* teal ink */
+  --chart-series-2: #c97e38; /* sienna ink */
+  --chart-series-3: #8f60b0; /* plum ink */
+  --chart-series-4: #5fa05f; /* forest ink */
+}
+
+:root[data-theme="light"] {
+  --chart-series-1: #0d6e99; /* teal ink */
+  --chart-series-2: #a8621f; /* sienna ink */
+  --chart-series-3: #6b3a8a; /* plum ink */
+  --chart-series-4: #3f7a3f; /* forest ink */
+}
+
+/* ===============================
    Global style
 ================================ */
 *,

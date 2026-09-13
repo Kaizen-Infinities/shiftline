@@ -1,11 +1,29 @@
 import React, { useState, useMemo } from "react";
 import {
-  BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  XAxis, YAxis, CartesianGrid, ResponsiveContainer,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
 } from "recharts";
 import { FaChartBar, FaChartArea, FaChartPie, FaProjectDiagram, FaTable } from "react-icons/fa";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "../../../components/ui/chart";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 
 /* ════════════════════════════════════════════════════════════════
@@ -21,8 +39,8 @@ interface SalesPurchaseTrendChartProps {
 }
 
 const trendChartConfig = {
-  sales: { label: "Sales", color: "#0ea5e9" },
-  purchase: { label: "Purchase", color: "#f43f5e" },
+  sales: { label: "Sales", color: "var(--chart-series-1)" },
+  purchase: { label: "Purchase", color: "var(--chart-series-2)" },
 } satisfies ChartConfig;
 
 /* ════════════════════════════════════════════════════════════════
@@ -107,7 +125,8 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
     const now = new Date();
     const getStartOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-    const buckets: { label: string, start: Date, end: Date, sales: number, purchase: number }[] = [];
+    const buckets: { label: string; start: Date; end: Date; sales: number; purchase: number }[] =
+      [];
 
     if (period === "7d") {
       // Last 7 days
@@ -116,7 +135,7 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
         d.setDate(d.getDate() - i);
         const start = getStartOfDay(d);
         const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-        const label = start.toLocaleDateString('en-US', { weekday: 'short' });
+        const label = start.toLocaleDateString("en-US", { weekday: "short" });
         buckets.push({ label, start, end, sales: 0, purchase: 0 });
       }
     } else if (period === "30d") {
@@ -132,7 +151,7 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const start = d;
         const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-        const label = d.toLocaleDateString('en-US', { month: 'short' });
+        const label = d.toLocaleDateString("en-US", { month: "short" });
         buckets.push({ label, start, end, sales: 0, purchase: 0 });
       }
     } else if (period === "12m") {
@@ -145,8 +164,12 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
       }
     }
 
-    const effectiveSales = Array.isArray(salesInvoices) && salesInvoices.length > 0 ? salesInvoices : salesOrders;
-    const effectivePurchases = Array.isArray(purchaseInvoices) && purchaseInvoices.length > 0 ? purchaseInvoices : purchaseOrders;
+    const effectiveSales =
+      Array.isArray(salesInvoices) && salesInvoices.length > 0 ? salesInvoices : salesOrders;
+    const effectivePurchases =
+      Array.isArray(purchaseInvoices) && purchaseInvoices.length > 0
+        ? purchaseInvoices
+        : purchaseOrders;
 
     const processItem = (item: any, isSales: boolean) => {
       if (item.status && String(item.status).toUpperCase() === "CANCELLED") return;
@@ -182,26 +205,42 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
   }, [salesOrders, purchaseOrders, salesInvoices, purchaseInvoices, period]);
 
   const totalSales = useMemo(() => chartData.reduce((sum, d) => sum + d.sales, 0), [chartData]);
-  const totalPurchase = useMemo(() => chartData.reduce((sum, d) => sum + d.purchase, 0), [chartData]);
+  const totalPurchase = useMemo(
+    () => chartData.reduce((sum, d) => sum + d.purchase, 0),
+    [chartData]
+  );
   const combinedTotal = totalSales + totalPurchase;
   const netMargin = totalSales - totalPurchase;
 
   const maxSalesItem = useMemo(() => {
-    return chartData.reduce((max, item) => item.sales > max.sales ? item : max, chartData[0] || { name: "-", sales: 0, purchase: 0 });
+    return chartData.reduce(
+      (max, item) => (item.sales > max.sales ? item : max),
+      chartData[0] || { name: "-", sales: 0, purchase: 0 }
+    );
   }, [chartData]);
 
   const maxPurchaseItem = useMemo(() => {
-    return chartData.reduce((max, item) => item.purchase > max.purchase ? item : max, chartData[0] || { name: "-", sales: 0, purchase: 0 });
+    return chartData.reduce(
+      (max, item) => (item.purchase > max.purchase ? item : max),
+      chartData[0] || { name: "-", sales: 0, purchase: 0 }
+    );
   }, [chartData]);
 
   const avgSales = useMemo(() => {
     return chartData.length > 0 ? Math.round(totalSales / chartData.length) : 0;
   }, [chartData, totalSales]);
 
-  const pieData = useMemo(() => [
-    { name: "Sales", value: totalSales || (combinedTotal === 0 ? 1 : 0), color: "#0ea5e9" },
-    { name: "Purchase", value: totalPurchase || 0, color: "#f43f5e" }
-  ], [totalSales, totalPurchase, combinedTotal]);
+  const pieData = useMemo(
+    () => [
+      {
+        name: "Sales",
+        value: totalSales || (combinedTotal === 0 ? 1 : 0),
+        color: "var(--chart-series-1)",
+      },
+      { name: "Purchase", value: totalPurchase || 0, color: "var(--chart-series-2)" },
+    ],
+    [totalSales, totalPurchase, combinedTotal]
+  );
 
   const formatYAxis = (value: number) => {
     const v = Math.abs(value);
@@ -218,7 +257,13 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
         <div className="flex items-center gap-2">
           <div
             className="shrink-0 rounded-[2px] h-2.5 w-2.5"
-            style={{ backgroundColor: item?.color || (String(name).toLowerCase().includes('sales') ? '#0ea5e9' : '#f43f5e') }}
+            style={{
+              backgroundColor:
+                item?.color ||
+                (String(name).toLowerCase().includes("sales")
+                  ? "var(--chart-series-1)"
+                  : "var(--chart-series-2)"),
+            }}
           />
           <div className="flex flex-1 justify-between leading-none gap-4 items-center">
             <span className="text-ink-muted font-semibold capitalize">{String(name)}</span>
@@ -232,12 +277,10 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
   );
 
   return (
-    <div className="bg-card rounded-xl sm:rounded-2xl shadow-md border border-line-soft overflow-hidden h-full flex flex-col min-h-0">
+    <div className="bg-card rounded-sm border border-line overflow-hidden h-full flex flex-col min-h-0">
       <div className="p-3 sm:p-5 lg:p-6 flex flex-col flex-1 min-h-0">
-
         {/* Header row (Dropdown + 5 Chart Type Switchers + Legend) */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-3 sm:mb-4 gap-2 sm:gap-4 shrink-0">
-
           {/* Left: Dropdown + 5 Distinct Chart Switch Icons */}
           <div className="flex items-center gap-2.5 flex-wrap">
             {/* Period Dropdown — hidden when global dashboard filter controls the period */}
@@ -255,14 +298,14 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
             )}
 
             {/* 5 Distinct Chart Type Switch Icons */}
-            <div className="flex items-center bg-card-2 p-0.5 rounded-lg border border-line-soft gap-0.5 shadow-inner">
+            <div className="flex items-center bg-card-2 p-0.5 rounded-sm border border-line-soft gap-0.5">
               <button
                 type="button"
                 onClick={() => handleChartTypeChange("bar")}
                 title="1. Column Bar Chart"
-                className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-1.5 rounded-sm transition-colors flex items-center justify-center cursor-pointer ${
                   chartType === "bar"
-                    ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
+                    ? "bg-accent text-white"
                     : "text-ink-muted hover:text-ink hover:bg-card"
                 }`}
               >
@@ -272,9 +315,9 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                 type="button"
                 onClick={() => handleChartTypeChange("area")}
                 title="2. Wave Area Chart"
-                className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-1.5 rounded-sm transition-colors flex items-center justify-center cursor-pointer ${
                   chartType === "area"
-                    ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
+                    ? "bg-accent text-white"
                     : "text-ink-muted hover:text-ink hover:bg-card"
                 }`}
               >
@@ -284,9 +327,9 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                 type="button"
                 onClick={() => handleChartTypeChange("pie")}
                 title="3. Donut Ratio Breakdown"
-                className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-1.5 rounded-sm transition-colors flex items-center justify-center cursor-pointer ${
                   chartType === "pie"
-                    ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
+                    ? "bg-accent text-white"
                     : "text-ink-muted hover:text-ink hover:bg-card"
                 }`}
               >
@@ -296,9 +339,9 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                 type="button"
                 onClick={() => handleChartTypeChange("radar")}
                 title="4. Spider Radar Polygon"
-                className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-1.5 rounded-sm transition-colors flex items-center justify-center cursor-pointer ${
                   chartType === "radar"
-                    ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
+                    ? "bg-accent text-white"
                     : "text-ink-muted hover:text-ink hover:bg-card"
                 }`}
               >
@@ -308,9 +351,9 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                 type="button"
                 onClick={() => handleChartTypeChange("table")}
                 title="5. Financial Data Matrix Table"
-                className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
+                className={`p-1.5 rounded-sm transition-colors flex items-center justify-center cursor-pointer ${
                   chartType === "table"
-                    ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
+                    ? "bg-accent text-white"
                     : "text-ink-muted hover:text-ink hover:bg-card"
                 }`}
               >
@@ -322,11 +365,11 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
           {/* Right: Legend */}
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-b from-[#0ea5e9] to-[#0284c7] shadow-sm" />
+              <div className="w-2.5 h-2.5 rounded-sm bg-[var(--chart-series-1)]" />
               <span className="text-[11px] sm:text-[12px] font-bold text-ink">Sales</span>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-b from-[#f43f5e] to-[#e11d48] shadow-sm" />
+              <div className="w-2.5 h-2.5 rounded-sm bg-[var(--chart-series-2)]" />
               <span className="text-[11px] sm:text-[12px] font-bold text-ink">Purchase</span>
             </div>
           </div>
@@ -337,27 +380,44 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
           {chartType === "bar" ? (
             /* 1. COLUMN BAR CHART */
             <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 h-full flex-1 min-h-0 flex flex-col">
-              <ChartContainer config={trendChartConfig} className="min-w-[460px] w-full h-full flex-1 !aspect-auto">
-                <BarChart data={chartData} margin={{ top: 14, right: 12, left: 0, bottom: 6 }} barGap={6} style={{ outline: 'none' }}>
+              <ChartContainer
+                config={trendChartConfig}
+                className="min-w-[460px] w-full h-full flex-1 !aspect-auto"
+              >
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 14, right: 12, left: 0, bottom: 6 }}
+                  barGap={6}
+                  style={{ outline: "none" }}
+                >
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={1} />
-                      <stop offset="95%" stopColor="#0284c7" stopOpacity={0.8} />
+                      <stop offset="5%" stopColor="var(--chart-series-1)" stopOpacity={1} />
+                      <stop offset="95%" stopColor="var(--chart-series-1)" stopOpacity={0.7} />
                     </linearGradient>
                     <linearGradient id="colorPurchase" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={1} />
-                      <stop offset="95%" stopColor="#e11d48" stopOpacity={0.8} />
+                      <stop offset="5%" stopColor="var(--chart-series-2)" stopOpacity={1} />
+                      <stop offset="95%" stopColor="var(--chart-series-2)" stopOpacity={0.7} />
                     </linearGradient>
                   </defs>
 
-                  <CartesianGrid vertical={false} horizontal={true} stroke="var(--color-line-soft)" strokeDasharray="4 4" />
+                  <CartesianGrid
+                    vertical={false}
+                    horizontal={true}
+                    stroke="var(--color-line-soft)"
+                    strokeDasharray="4 4"
+                  />
 
                   <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
                     tickMargin={isMobile ? 8 : 12}
-                    tick={{ fontSize: isMobile ? 9 : 11, fill: "var(--color-ink-subtle)", fontWeight: 600 }}
+                    tick={{
+                      fontSize: isMobile ? 9 : 11,
+                      fill: "var(--color-ink-subtle)",
+                      fontWeight: 600,
+                    }}
                   />
                   <YAxis
                     axisLine={false}
@@ -376,7 +436,11 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                     fill="url(#colorPurchase)"
                     radius={[6, 6, 0, 0]}
                     maxBarSize={44}
-                    activeBar={{ fill: '#fb7185', stroke: '#f43f5e', strokeWidth: 1 }}
+                    activeBar={{
+                      fill: "var(--chart-series-2)",
+                      stroke: "var(--chart-series-2)",
+                      strokeWidth: 1,
+                    }}
                   />
                   <Bar
                     className="focus:outline-none"
@@ -384,7 +448,11 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                     fill="url(#colorSales)"
                     radius={[6, 6, 0, 0]}
                     maxBarSize={44}
-                    activeBar={{ fill: '#38bdf8', stroke: '#0ea5e9', strokeWidth: 1 }}
+                    activeBar={{
+                      fill: "var(--chart-series-1)",
+                      stroke: "var(--chart-series-1)",
+                      strokeWidth: 1,
+                    }}
                   />
                 </BarChart>
               </ChartContainer>
@@ -392,27 +460,43 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
           ) : chartType === "area" ? (
             /* 2. WAVE AREA CHART */
             <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 h-full flex-1 min-h-0 flex flex-col">
-              <ChartContainer config={trendChartConfig} className="min-w-[460px] w-full h-full flex-1 !aspect-auto">
-                <AreaChart data={chartData} margin={{ top: 14, right: 12, left: 0, bottom: 6 }} style={{ outline: 'none' }}>
+              <ChartContainer
+                config={trendChartConfig}
+                className="min-w-[460px] w-full h-full flex-1 !aspect-auto"
+              >
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 14, right: 12, left: 0, bottom: 6 }}
+                  style={{ outline: "none" }}
+                >
                   <defs>
                     <linearGradient id="areaSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="var(--chart-series-1)" stopOpacity={0.45} />
+                      <stop offset="95%" stopColor="var(--chart-series-1)" stopOpacity={0.0} />
                     </linearGradient>
                     <linearGradient id="areaPurchase" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.45} />
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="var(--chart-series-2)" stopOpacity={0.45} />
+                      <stop offset="95%" stopColor="var(--chart-series-2)" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
 
-                  <CartesianGrid vertical={false} horizontal={true} stroke="var(--color-line-soft)" strokeDasharray="4 4" />
+                  <CartesianGrid
+                    vertical={false}
+                    horizontal={true}
+                    stroke="var(--color-line-soft)"
+                    strokeDasharray="4 4"
+                  />
 
                   <XAxis
                     dataKey="name"
                     axisLine={false}
                     tickLine={false}
                     tickMargin={isMobile ? 8 : 12}
-                    tick={{ fontSize: isMobile ? 9 : 11, fill: "var(--color-ink-subtle)", fontWeight: 600 }}
+                    tick={{
+                      fontSize: isMobile ? 9 : 11,
+                      fill: "var(--color-ink-subtle)",
+                      fontWeight: 600,
+                    }}
                   />
                   <YAxis
                     axisLine={false}
@@ -423,25 +507,42 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                     tick={{ fontSize: 11, fill: "var(--color-ink-subtle)", fontWeight: 600 }}
                   />
 
-                  <ChartTooltip cursor={{ stroke: 'rgba(148, 163, 184, 0.3)', strokeWidth: 1, strokeDasharray: '3 3' }} content={renderTooltipContent()} />
+                  <ChartTooltip
+                    cursor={{
+                      stroke: "var(--color-line-soft)",
+                      strokeWidth: 1,
+                      strokeDasharray: "3 3",
+                    }}
+                    content={renderTooltipContent()}
+                  />
 
                   <Area
                     type="monotone"
                     dataKey="sales"
-                    stroke="#0ea5e9"
+                    stroke="var(--chart-series-1)"
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#areaSales)"
-                    activeDot={{ r: 5, stroke: '#0ea5e9', strokeWidth: 2, fill: '#fff' }}
+                    activeDot={{
+                      r: 5,
+                      stroke: "var(--chart-series-1)",
+                      strokeWidth: 2,
+                      fill: "var(--color-card)",
+                    }}
                   />
                   <Area
                     type="monotone"
                     dataKey="purchase"
-                    stroke="#f43f5e"
+                    stroke="var(--chart-series-2)"
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#areaPurchase)"
-                    activeDot={{ r: 5, stroke: '#f43f5e', strokeWidth: 2, fill: '#fff' }}
+                    activeDot={{
+                      r: 5,
+                      stroke: "var(--chart-series-2)",
+                      strokeWidth: 2,
+                      fill: "var(--color-card)",
+                    }}
                   />
                 </AreaChart>
               </ChartContainer>
@@ -469,8 +570,12 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                 </ResponsiveContainer>
                 {/* Center Badge */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                  <span className="text-[10px] uppercase font-bold text-ink-subtle tracking-wider">Net Difference</span>
-                  <span className={`text-base sm:text-lg font-black font-sans ${netMargin >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  <span className="text-[10px] uppercase font-bold text-ink-subtle tracking-wider">
+                    Net Difference
+                  </span>
+                  <span
+                    className={`text-base sm:text-lg font-bold font-sans ${netMargin >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
+                  >
                     {netMargin >= 0 ? "+" : ""}₹{Math.abs(netMargin).toLocaleString("en-IN")}
                   </span>
                 </div>
@@ -478,35 +583,45 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
 
               {/* Right Side Metric Cards */}
               <div className="flex-1 w-full max-w-sm space-y-3">
-                <div className="p-3.5 rounded-xl bg-card-2 border border-sky-500/30 flex items-center justify-between">
+                <div className="p-3.5 rounded-sm bg-card-2 border border-line flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded-full bg-sky-500 shrink-0 shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
+                    <div className="w-3.5 h-3.5 rounded-sm bg-[var(--chart-series-1)] shrink-0" />
                     <div>
-                      <div className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">Total Sales</div>
-                      <div className="text-lg font-black text-white font-sans">₹{totalSales.toLocaleString("en-IN")}</div>
+                      <div className="text-[11px] font-bold text-[color:var(--chart-series-1)] uppercase tracking-wider">
+                        Total Sales
+                      </div>
+                      <div className="text-lg font-bold text-ink font-mono tabular-nums">
+                        ₹{totalSales.toLocaleString("en-IN")}
+                      </div>
                     </div>
                   </div>
-                  <span className="text-xs font-bold px-2 py-1 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                  <span className="text-xs font-bold px-2 py-1 rounded-sm border border-[color:var(--chart-series-1)]/40 text-[color:var(--chart-series-1)]">
                     {combinedTotal > 0 ? Math.round((totalSales / combinedTotal) * 100) : 0}%
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-card-2 border border-rose-500/30 flex items-center justify-between">
+                <div className="p-3.5 rounded-sm bg-card-2 border border-line flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                    <div className="w-3.5 h-3.5 rounded-sm bg-[var(--chart-series-2)] shrink-0" />
                     <div>
-                      <div className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">Total Purchase</div>
-                      <div className="text-lg font-black text-ink font-sans">₹{totalPurchase.toLocaleString("en-IN")}</div>
+                      <div className="text-[11px] font-bold text-[color:var(--chart-series-2)] uppercase tracking-wider">
+                        Total Purchase
+                      </div>
+                      <div className="text-lg font-bold text-ink font-mono tabular-nums">
+                        ₹{totalPurchase.toLocaleString("en-IN")}
+                      </div>
                     </div>
                   </div>
-                  <span className="text-xs font-bold px-2 py-1 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                  <span className="text-xs font-bold px-2 py-1 rounded-sm border border-[color:var(--chart-series-2)]/40 text-[color:var(--chart-series-2)]">
                     {combinedTotal > 0 ? Math.round((totalPurchase / combinedTotal) * 100) : 0}%
                   </span>
                 </div>
 
-                <div className="p-3 rounded-xl bg-card-2 border border-line-soft flex items-center justify-between text-xs">
+                <div className="p-3 rounded-sm bg-card-2 border border-line-soft flex items-center justify-between text-xs">
                   <span className="text-ink-subtle font-semibold">Total Combined Volume</span>
-                  <span className="font-mono font-bold text-ink">₹{combinedTotal.toLocaleString("en-IN")}</span>
+                  <span className="font-mono font-bold text-ink">
+                    ₹{combinedTotal.toLocaleString("en-IN")}
+                  </span>
                 </div>
               </div>
             </div>
@@ -516,29 +631,61 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
               {/* Left: Enhanced Radar Chart */}
               <div className="w-full md:w-3/5 h-full min-h-[360px] flex items-center justify-center">
                 <ChartContainer config={trendChartConfig} className="w-full h-full !aspect-auto">
-                  <RadarChart data={chartData} margin={{ top: 16, right: 28, bottom: 16, left: 28 }} outerRadius="82%">
-                    <PolarGrid stroke="rgba(148, 163, 184, 0.2)" strokeDasharray="3 3" />
-                    <PolarAngleAxis dataKey="name" tick={{ fill: "var(--color-ink)", fontSize: 11, fontWeight: 700 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fill: "var(--color-ink-subtle)", fontSize: 9 }} stroke="transparent" />
+                  <RadarChart
+                    data={chartData}
+                    margin={{ top: 16, right: 28, bottom: 16, left: 28 }}
+                    outerRadius="82%"
+                  >
+                    <PolarGrid stroke="var(--color-line-soft)" strokeDasharray="3 3" />
+                    <PolarAngleAxis
+                      dataKey="name"
+                      tick={{ fill: "var(--color-ink)", fontSize: 11, fontWeight: 700 }}
+                    />
+                    <PolarRadiusAxis
+                      angle={30}
+                      domain={[0, "auto"]}
+                      tick={{ fill: "var(--color-ink-subtle)", fontSize: 9 }}
+                      stroke="transparent"
+                    />
                     <Radar
                       name="sales"
                       dataKey="sales"
-                      stroke="#0ea5e9"
-                      fill="#0ea5e9"
+                      stroke="var(--chart-series-1)"
+                      fill="var(--chart-series-1)"
                       fillOpacity={0.4}
                       strokeWidth={2.5}
-                      dot={{ r: 4, fill: "#0ea5e9", stroke: "#ffffff", strokeWidth: 1.5 }}
-                      activeDot={{ r: 6, fill: "#38bdf8", stroke: "#ffffff", strokeWidth: 2 }}
+                      dot={{
+                        r: 4,
+                        fill: "var(--chart-series-1)",
+                        stroke: "var(--color-card)",
+                        strokeWidth: 1.5,
+                      }}
+                      activeDot={{
+                        r: 6,
+                        fill: "var(--chart-series-1)",
+                        stroke: "var(--color-card)",
+                        strokeWidth: 2,
+                      }}
                     />
                     <Radar
                       name="purchase"
                       dataKey="purchase"
-                      stroke="#f43f5e"
-                      fill="#f43f5e"
+                      stroke="var(--chart-series-2)"
+                      fill="var(--chart-series-2)"
                       fillOpacity={0.4}
                       strokeWidth={2.5}
-                      dot={{ r: 4, fill: "#f43f5e", stroke: "#ffffff", strokeWidth: 1.5 }}
-                      activeDot={{ r: 6, fill: "#fb7185", stroke: "#ffffff", strokeWidth: 2 }}
+                      dot={{
+                        r: 4,
+                        fill: "var(--chart-series-2)",
+                        stroke: "var(--color-card)",
+                        strokeWidth: 1.5,
+                      }}
+                      activeDot={{
+                        r: 6,
+                        fill: "var(--chart-series-2)",
+                        stroke: "var(--color-card)",
+                        strokeWidth: 2,
+                      }}
                     />
                     <ChartTooltip content={renderTooltipContent()} />
                   </RadarChart>
@@ -549,20 +696,32 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
               <div className="w-full md:w-2/5 flex flex-col justify-between gap-2.5 h-full overflow-hidden pr-1">
                 {/* Peak Insights Card */}
                 <div className="grid grid-cols-2 gap-2 shrink-0">
-                  <div className="p-2.5 rounded-xl bg-card-2 border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-transparent">
-                    <div className="text-[10px] uppercase font-bold text-sky-400">Peak Sales ({maxSalesItem.name})</div>
-                    <div className="text-sm font-black text-ink font-sans mt-0.5">₹{maxSalesItem.sales.toLocaleString("en-IN")}</div>
-                    <div className="text-[9px] text-ink-subtle mt-0.5">Avg: ₹{avgSales.toLocaleString("en-IN")}</div>
+                  <div className="p-2.5 rounded-sm bg-card-2 border border-line">
+                    <div className="text-[10px] uppercase font-bold text-[color:var(--chart-series-1)]">
+                      Peak Sales ({maxSalesItem.name})
+                    </div>
+                    <div className="text-sm font-bold text-ink font-mono tabular-nums mt-0.5">
+                      ₹{maxSalesItem.sales.toLocaleString("en-IN")}
+                    </div>
+                    <div className="text-[9px] text-ink-subtle mt-0.5">
+                      Avg: ₹{avgSales.toLocaleString("en-IN")}
+                    </div>
                   </div>
-                  <div className="p-2.5 rounded-xl bg-card-2 border border-rose-500/30 bg-gradient-to-br from-rose-500/10 to-transparent">
-                    <div className="text-[10px] uppercase font-bold text-rose-400">Peak Purchase ({maxPurchaseItem.name})</div>
-                    <div className="text-sm font-black text-ink font-sans mt-0.5">₹{maxPurchaseItem.purchase.toLocaleString("en-IN")}</div>
-                    <div className="text-[9px] text-ink-subtle mt-0.5">Vol: ₹{totalPurchase.toLocaleString("en-IN")}</div>
+                  <div className="p-2.5 rounded-sm bg-card-2 border border-line">
+                    <div className="text-[10px] uppercase font-bold text-[color:var(--chart-series-2)]">
+                      Peak Purchase ({maxPurchaseItem.name})
+                    </div>
+                    <div className="text-sm font-bold text-ink font-mono tabular-nums mt-0.5">
+                      ₹{maxPurchaseItem.purchase.toLocaleString("en-IN")}
+                    </div>
+                    <div className="text-[9px] text-ink-subtle mt-0.5">
+                      Vol: ₹{totalPurchase.toLocaleString("en-IN")}
+                    </div>
                   </div>
                 </div>
 
                 {/* Timeline Spread Distribution List */}
-                <div className="p-2.5 rounded-xl bg-card-2 border border-line-soft flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div className="p-2.5 rounded-sm bg-card-2 border border-line-soft flex-1 min-h-0 flex flex-col overflow-hidden">
                   <div className="text-[10px] uppercase font-bold text-ink-subtle mb-1.5 tracking-wider flex items-center justify-between shrink-0">
                     <span>Timeline Spread</span>
                     <span className="text-[9px] text-ink-subtle">{chartData.length} slots</span>
@@ -577,13 +736,21 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                           <span className="w-8 font-bold text-ink shrink-0">{item.name}</span>
                           <div className="flex-1 space-y-0.5">
                             <div className="h-1.5 bg-line-soft rounded-full overflow-hidden">
-                              <div style={{ width: `${Math.max(salesWidth, 3)}%` }} className="bg-sky-500 h-full rounded-full transition-all" />
+                              <div
+                                style={{ width: `${Math.max(salesWidth, 3)}%` }}
+                                className="bg-[var(--chart-series-1)] h-full rounded-full transition-all"
+                              />
                             </div>
                             <div className="h-1.5 bg-line-soft rounded-full overflow-hidden">
-                              <div style={{ width: `${Math.max(purchaseWidth, 3)}%` }} className="bg-rose-500 h-full rounded-full transition-all" />
+                              <div
+                                style={{ width: `${Math.max(purchaseWidth, 3)}%` }}
+                                className="bg-[var(--chart-series-2)] h-full rounded-full transition-all"
+                              />
                             </div>
                           </div>
-                          <span className="font-mono text-[9px] text-sky-400 font-bold shrink-0">₹{item.sales}</span>
+                          <span className="font-mono text-[9px] text-[color:var(--chart-series-1)] font-bold shrink-0">
+                            ₹{item.sales}
+                          </span>
                         </div>
                       );
                     })}
@@ -609,24 +776,35 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                     {chartData.map((row, idx) => {
                       const rowDiff = row.sales - row.purchase;
                       const rowTotal = row.sales + row.purchase;
-                      const salesPercent = rowTotal > 0 ? Math.round((row.sales / rowTotal) * 100) : 50;
+                      const salesPercent =
+                        rowTotal > 0 ? Math.round((row.sales / rowTotal) * 100) : 50;
 
                       return (
                         <tr key={idx} className="hover:bg-card-2 transition-colors">
                           <td className="px-3 py-2 font-bold text-ink text-xs">{row.name}</td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-sky-400">
+                          <td className="px-3 py-2 text-right font-mono font-bold text-[color:var(--chart-series-1)]">
                             ₹{row.sales.toLocaleString("en-IN")}
                           </td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-rose-400">
+                          <td className="px-3 py-2 text-right font-mono font-bold text-[color:var(--chart-series-2)]">
                             ₹{row.purchase.toLocaleString("en-IN")}
                           </td>
-                          <td className={`px-3 py-2 text-right font-mono font-bold ${rowDiff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          <td
+                            className={`px-3 py-2 text-right font-mono font-bold ${rowDiff >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
+                          >
                             {rowDiff >= 0 ? "+" : ""}₹{rowDiff.toLocaleString("en-IN")}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            <div className="w-24 mx-auto h-2 bg-slate-800 rounded-full overflow-hidden flex">
-                              <div style={{ width: `${salesPercent}%` }} className="bg-sky-500 h-full" title={`Sales: ${salesPercent}%`} />
-                              <div style={{ width: `${100 - salesPercent}%` }} className="bg-rose-500 h-full" title={`Purchase: ${100 - salesPercent}%`} />
+                            <div className="w-24 mx-auto h-2 bg-card-2 rounded-full overflow-hidden flex">
+                              <div
+                                style={{ width: `${salesPercent}%` }}
+                                className="bg-[var(--chart-series-1)] h-full"
+                                title={`Sales: ${salesPercent}%`}
+                              />
+                              <div
+                                style={{ width: `${100 - salesPercent}%` }}
+                                className="bg-[var(--chart-series-2)] h-full"
+                                title={`Purchase: ${100 - salesPercent}%`}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -636,13 +814,20 @@ const SalesPurchaseTrendChart: React.FC<SalesPurchaseTrendChartProps> = ({
                   <tfoot className="bg-card-2/80 font-bold border-t border-line-soft text-ink">
                     <tr>
                       <td className="px-3 py-2 uppercase text-[10px] text-ink-subtle">Total</td>
-                      <td className="px-3 py-2 text-right font-mono text-sky-400">₹{totalSales.toLocaleString("en-IN")}</td>
-                      <td className="px-3 py-2 text-right font-mono text-rose-400">₹{totalPurchase.toLocaleString("en-IN")}</td>
-                      <td className={`px-3 py-2 text-right font-mono ${netMargin >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      <td className="px-3 py-2 text-right font-mono text-[color:var(--chart-series-1)]">
+                        ₹{totalSales.toLocaleString("en-IN")}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-[color:var(--chart-series-2)]">
+                        ₹{totalPurchase.toLocaleString("en-IN")}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right font-mono ${netMargin >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
+                      >
                         {netMargin >= 0 ? "+" : ""}₹{netMargin.toLocaleString("en-IN")}
                       </td>
                       <td className="px-3 py-2 text-center text-[10px] text-ink-subtle">
-                        {combinedTotal > 0 ? Math.round((totalSales / combinedTotal) * 100) : 0}% Sales
+                        {combinedTotal > 0 ? Math.round((totalSales / combinedTotal) * 100) : 0}%
+                        Sales
                       </td>
                     </tr>
                   </tfoot>
