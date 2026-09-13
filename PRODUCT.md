@@ -1,48 +1,102 @@
-# Shiftline — product context
+# Product
 
-## What it is
-
-A multi-tenant ERP SaaS for Indian secondary-sector manufacturers (job-shop
-and process manufacturing: production, machine scheduling, inventory, sales,
-purchasing, accounts, GST/statutory compliance, payroll). Each tenant is a
-manufacturing company; Shiftline is the vendor/product, never a tenant's own
-brand.
-
-Remastered from an earlier codebase ("Sun Sea ERP"). That name and its
-branding are legacy history only — they must never appear in code, UI copy,
-or assets going forward.
-
-Current scale: 160 Prisma models, 85 API modules, ~59 integration suites
-(400+ tests). This is a mature, deep ERP, not a starter app — most modules
-already have real behaviour, real edge cases and real regulatory constraints
-behind them.
+<!-- impeccable:product-schema 1 -->
 
 ## Platform
 
-Web (React 19 SPA). There is also a field-sales mobile sync API
-(`apps/api` `/api/mobile`) consumed by a native field app, but no native
-client lives in this repository.
+web
 
-## Who uses it
+## Users
 
-- **Tenant company staff**, scoped by role/permission: owner, accountant,
-  storekeeper, production supervisor, sales, auditor, and other permissioned
-  roles defined per tenant (`packages/shared` permission registry; roles
-  wired in `provisioningService`'s `ROLE_DEFS`).
+Primary users are **tenant company staff** running day-to-day operations for
+an Indian secondary-sector manufacturer (job-shop / process manufacturing):
+owner, accountant, storekeeper, production supervisor, sales, auditor, and
+other permissioned roles defined per tenant (`packages/shared` permission
+registry; roles wired in `provisioningService`'s `ROLE_DEFS`).
+
+Other confirmed audiences:
+
 - **Platform admins** — Shiftline's own operators, not tenant staff. No
-  tenant context of their own; console screens sit behind a super-admin
-  boundary and act on tenant data only through explicit, audited
-  impersonation.
-- **Field-sales device users** — native app, syncing through the mobile
-  module with server-owned/append-only/merge conflict rules.
-- (Roadmap) **Shop-floor operators, inspectors and maintenance staff**, and a
-  **labour inspector** as an audience for statutory registers — see Roadmap
-  below.
+  tenant context of their own; provision tenants and manage plans; touch
+  tenant data only through explicit, audited impersonation.
+- **Field-sales device users** — a native field app syncing sales/visit data
+  through `apps/api`'s `/api/mobile`, under server-owned/append-only/merge
+  conflict rules. No native client lives in this repository.
+- (Roadmap, Phase 2 — not yet built) shop-floor operators, quality
+  inspectors and maintenance staff; a labour inspector as the audience for
+  statutory registers (muster roll, wages, overtime, fines, deductions,
+  advances).
 
-## Domain modules
+## Product Purpose
 
-Grouped by user task (see `docs/specs/P1-UI-remake.md` for the full route
-inventory):
+Shiftline runs the day-to-day operations of an Indian secondary-sector
+manufacturer — production scheduling and shift execution, inventory, sales
+and purchasing, accounts — while treating Indian statutory compliance (GST,
+e-invoice, e-way bill, TDS/TCS, MSME Section 43B(h), Labour Code payroll) as
+load-bearing rather than a bolt-on module. Success means a tenant can run its
+business and stay compliant without a parallel spreadsheet/Tally workflow,
+and the ERP is never the reason a filing is late or a book is wrong.
+
+## Positioning
+
+**Undecided — not yet confirmed by the product owner.** Do not invent a
+competitive claim (e.g. "vs. Tally", "vs. SAP B1", "shop-floor-first") in
+copy or design work; ask before anything implies one. Revisit this section
+once the owner states the claim.
+
+## Operating Context
+
+- **Multi-tenant SaaS.** Each tenant is one manufacturing company, created
+  only through `provisioningService.provisionTenant()`, finished by its
+  owner in an onboarding wizard, and staffed through invitations — never a
+  password sent by email.
+- **No hosting yet.** Runs locally via Docker compose; CI is GitHub Actions.
+  There is no production deployment to design around yet.
+- **Monorepo, npm workspaces:** `apps/api` (Express 5, Prisma 6, PostgreSQL,
+  pg-boss, pino, zod), `apps/web` (React 19 SPA, Vite, Redux Toolkit,
+  Tailwind), `packages/shared` (permission registry, feature tiers, API
+  paths, filings registry), `packages/config`, `e2e` (Playwright).
+- **Commissioned in named phases**, each with a brief in `docs/handoff/` and
+  a spec per work package in `docs/specs/`. Read the *newest* dated note in
+  `docs/handoff/` before assuming any status below is still current —
+  phase status is the most perishable fact in this file.
+  - **Phase 1 (finished):** GST returns (1, 2B/IMS, 3B + ITC ledger, 9),
+    TDS/TCS, Tally XML export, MSME 43B(h), fixed assets/depreciation,
+    forex and import advances, costing/valuation/cost centres/budgets, bank
+    reconciliation and cheques, statutory payroll, Labour Code entitlements
+    (leave, gratuity, bonus, settlement), subscription billing and payment
+    links, SMS/DLT/OTP. 44 new models, 11 new modules.
+  - **Phase 2-T ("transition", in flight as of this writing):** closes
+    cross-cutting gaps before Phase 2 starts — three jobs that exist only
+    as manual/synchronous code and need to become pg-boss jobs (subscription
+    invoicing, leave accrual, the SMS queue); Labour Code overtime/wage
+    rules computed but not yet wired into the actual payroll run; the
+    statutory inspector's registers (reports over existing data); the
+    frontend remake (only slice 1 of 7 in `docs/specs/P1-UI-remake.md` has
+    landed — do not assume a screen has had its domain-slice treatment just
+    because it renders with the new design tokens); characterisation tests
+    for eight modules with **no integration coverage today** (OEE, machine,
+    production-order, hourly-production, inventory, GRN/invoice, goods
+    dispatch, payroll).
+  - **Phase 2 (next, shop floor — nothing built yet beyond planning/manual
+    entry):** machine telemetry (OPC UA / EUROMAP 63 / Modbus, always
+    behind an adapter + simulator), machine-state timeline and live andon,
+    energy metering, cycle-time variance and regrind ratio, preventive
+    maintenance and breakdown tickets, quality foundation, inspections/SPC/
+    certificate of analysis, lot traceability and recall, engineering
+    change control, CAPA and non-conformance, biometric attendance
+    ingestion, piece-rate/incentive pay. Explicitly out of scope: operations
+    scheduling/dispatch, shop-floor document control, the operator skill
+    matrix, multi-warehouse/bin-location inventory, barcode picking,
+    AI-vision defect detection, ESG disclosure. There is deliberately **no
+    mould/tooling module** carried over from the origin codebase.
+- Scale as of this writing: 160 Prisma models, 85 API modules, ~59
+  integration suites (400+ tests).
+
+## Capabilities and Constraints
+
+Confirmed domain modules, grouped by user task (full route inventory in
+`docs/specs/P1-UI-remake.md`):
 
 - **Operations** — dashboards (executive, production, OEE), status, weekly
   machine scheduling, daily planning/reporting, shift execution, hourly
@@ -50,164 +104,97 @@ inventory):
 - **Inventory** — categories, UOMs, store types, raw materials and stock,
   finished goods, products, BOMs, capacity/pricing history, stock
   adjustments, EOD stock, inventory reports.
-- **Sales** — customers, grades/types, quotations, sales orders, dispatch and
-  approvals, invoices, receivables, returns, sales reports.
+- **Sales** — customers, grades/types, quotations, sales orders, dispatch
+  and approvals, invoices, receivables, returns, sales reports.
 - **Purchasing** — suppliers and pricing, purchase orders, GRN/invoice
   flows, payables, purchase reports.
 - **People** — employees, departments, shifts, roles/permission mapping,
-  users, attendance, payroll (dashboard, settings, runs, advances, payslips,
-  reports), Labour Code entitlements (leave, gratuity, bonus, settlement).
+  users, attendance, payroll (dashboard, settings, runs, advances,
+  payslips, reports), Labour Code entitlements.
 - **Finance** — bank accounts, chart of accounts, vouchers, expenses, petty
   cash, ageing, statements, books, audit trail, year-end, bank
-  reconciliation and cheques, valuation/costing/cost centres/budgets, fixed
-  assets and depreciation, foreign exchange and import advances, MSME dues
-  (Section 43B(h)), Tally XML export.
-- **Compliance** — GST/HSN masters, filing approvals, e-invoice, e-way bill,
-  transporters, the full GST-return set (GSTR-1, 2B/IMS, 3B and the ITC
-  ledger, GSTR-9), TDS/TCS, the compliance calendar and GST hub, job work
-  and delivery challans (ITC-04).
+  reconciliation, costing/valuation/budgets, fixed assets, forex, MSME
+  dues, Tally export.
+- **Compliance** — GST/HSN masters, filing approvals, e-invoice, e-way
+  bill, transporters, the full GST-return set, TDS/TCS, job work and
+  delivery challans (ITC-04), the compliance calendar and GST hub.
 - **Billing & comms** — subscription billing and payment links (platform
-  and tenant Razorpay), SMS/DLT templates and OTP delivery (MSG91),
-  WhatsApp.
+  and tenant Razorpay, kept as separate integrations), SMS/DLT/OTP
+  (MSG91), WhatsApp.
 - **Tenant settings** — company profile, invoice/email settings, imports,
   export, devices, user profile.
-- **Platform** — super-admin console: tenant overview, tenant detail, plans.
+- **Platform** — super-admin console: tenant overview, tenant detail,
+  plans.
 
-## Roadmap and current state (durable — check `docs/handoff/` for what has
-actually shipped since this was last updated)
+Hard constraints that bound any future work:
 
-Work is commissioned in named phases, each with its own brief in
-`docs/handoff/`. Read the *newest* handoff note before assuming any of the
-below is still accurate.
-
-- **Phase 1 (finished):** the compliance/money depth above — GST returns,
-  TDS/TCS, Tally export, MSME dues, fixed assets, forex, costing, bank
-  reconciliation, statutory payroll, Labour Code entitlements, subscription
-  billing, SMS/OTP. 44 new models, 11 new modules.
-- **Phase 2-T ("transition", current work as of this writing):** not new
-  product surface — it closes cross-cutting gaps before Phase 2 starts:
-  - Three jobs that exist only as manual/synchronous code and need to be
-    pg-boss jobs: subscription invoicing, leave accrual, the SMS queue.
-  - Labour Code overtime/wage rules are computed (`modules/payroll`'s P1-17b
-    engine) but not yet wired into the actual payroll run, which still uses
-    its own slabs.
-  - The statutory inspector's registers (muster roll, wages, overtime,
-    fines, deductions, advances) — reports over data that already exists,
-    not new data.
-  - **The frontend remake is genuinely mid-flight**: only slice 1 of 7 in
-    `docs/specs/P1-UI-remake.md` has landed (Bootstrap and the origin logo
-    removed, `apps/web/src/components/ui/TailwindPrimitives.tsx` and the
-    semantic token system adopted app-wide). Slices 2–7 — shell/navigation
-    polish, per-domain forms/tables/lists, and the final a11y/contrast/
-    responsive hardening pass — are still to be built, in order. Do not
-    assume a screen has had its "domain slice" treatment just because it
-    renders with the new tokens.
-  - Characterisation tests for eight modules Phase 2 is about to modify and
-    that currently have **no integration coverage at all**: OEE, machine,
-    production-order, hourly-production, inventory, GRN/invoice, goods
-    dispatch, payroll.
-- **Phase 2 (next, shop floor — nothing built yet beyond planning/manual
-  entry):** machine telemetry ingestion (OPC UA / EUROMAP 63 / Modbus
-  adapters, always behind a simulator — no package may block on hardware),
-  machine-state timeline and live andon, energy metering, cycle-time
-  variance and regrind ratio, preventive maintenance and breakdown tickets,
-  quality foundation (characteristics/plans/rejection master), inspections/
-  SPC/certificate of analysis, lot traceability and recall, engineering
-  change control, CAPA and non-conformance, biometric attendance ingestion,
-  piece-rate/incentive pay. Explicitly out of scope for Phase 2: operations
-  scheduling/dispatch, shop-floor document control, the operator skill
-  matrix, multi-warehouse/bin-location inventory, barcode picking, AI-vision
-  defect detection, ESG disclosure. There is deliberately **no mould/tooling
-  module** — do not go looking for one.
-- **Standing gaps regardless of phase:** no payout reconciliation for the
-  payment gateway and no SMS delivery receipts (both need a live vendor
-  account); several fields are known-loose and scheduled to be tightened by
-  a specific later package rather than fixed opportunistically (e.g.
-  `Machine.machineStatus` as a single mutable column, `AttendanceRecord.date`
-  as a `String`, operator-id CSV/string fields) — see the newest Phase brief
-  for the current list before "fixing" one of these as a side effect of
-  unrelated work.
-
-## Business model and hard constraints
-
-- **Multi-tenant, tenant-isolated.** Every query is scoped to a tenant
-  (`companyId`); a cross-tenant lookup must return nothing. New tenants are
-  provisioned only through `provisioningService`, onboarded through a
-  wizard, and staffed through invitations — never a password emailed to a
-  new user.
-- **Plans and entitlements.** Some features are paywalled per plan
-  (`useEntitlement` on the client, entitlement checks on the server); the UI
-  must never be the only gate. Subscription billing runs through a platform
-  Razorpay account; tenants pay their own customers through their own
-  Razorpay account — these are separate integrations.
-- **Indian statutory compliance is load-bearing, not decorative.** GST tax
-  split by business-place state code vs. place of supply, HSN/rate from the
-  item master, GSTIN validation, e-invoice/e-way bill through their provider
-  abstractions only, document numbering through the shared series service.
-  Numbers and dates render `en-IN`, INR, with lakh/crore grouping — this is
-  existing, reused formatting, not a design choice to revisit. Filings
-  cannot submit until `filingApprovalService.assertSubmittable` passes.
+- **Tenant isolation is absolute.** Every query is scoped to `companyId`;
+  every module's integration suite proves a foreign `companyId` returns
+  nothing.
 - **Books of account are permanent.** No hard delete; cancellation posts a
-  reversal and is gated by the accounting period. Audit trail is a database
-  trigger on a fixed model list, never a hand-written log row.
-- **Hardware/device integrations are adapter-shaped and simulator-first.**
-  The e-invoice/e-way-bill GSP providers, and every Phase 2 shop-floor
-  device (PLC, energy meter, biometric reader), are reached only through a
-  provider/adapter interface with a deterministic simulator; several exist
-  today with no live account behind them yet (GSP, Razorpay, MSG91/DLT) —
-  that is a known, deliberate, owner-blocked gap, not a bug to route around.
-- **No hosting yet.** Runs locally via Docker compose; CI is GitHub Actions.
+  reversal and is gated by the accounting period. Audit trail is a
+  database trigger on a fixed model list, never a hand-written log row.
+- **Plans and entitlements gate paid features server-side**
+  (`useEntitlement` on the client mirrors, never replaces, the server
+  check).
+- **Document numbering, GST tax-split, and filing submission** each run
+  through one fixed shared service (`documentNumberService`, `gst.calc.ts`/
+  `gst.context.ts`, `filingApprovalService.assertSubmittable`) — never
+  reimplemented per module.
+- **Every hardware or external-provider integration is adapter-shaped and
+  simulator-first**: the GSP (e-invoice/e-way bill), Razorpay, MSG91, and
+  every planned Phase 2 shop-floor device reach the outside world only
+  through a provider/adapter interface with a deterministic simulator.
+  Several of these have no live account behind them yet — a known,
+  deliberate, owner-blocked gap, not a defect to route around.
+- Terminology: a **tenant** is one manufacturing company. "The origin
+  codebase" ("Sun Sea ERP") is history only — its name and assets must
+  never appear in code, UI, or new assets.
 
-## Brand
+## Brand Commitments
 
-Product name: **Shiftline**. Tenant-facing chrome (logo, company name, email
-domain) comes from the tenant record, not from the product shell — the
-product itself has no customer-facing marketing site or public brand voice
-to protect beyond "Shiftline" and its own login/onboarding screens.
+Product name: **Shiftline**. There is no customer-facing marketing site;
+brand voice exists only within the product itself (login, onboarding, and
+its screens). Tenant-facing chrome — logo, company name, email domain —
+comes from the tenant record, not from the product shell: the shell carries
+no fixed brand identity beyond "Shiftline." The prior codebase's name and
+assets ("Sun Sea") must not appear anywhere in code, UI, or assets going
+forward.
 
-## Design system status (current, not aspirational)
+## Evidence on Hand
 
-A single Tailwind v4 design language exists and its foundation is adopted
-app-wide, but the *domain-level* redesign work is only one slice of seven
-done — see Roadmap above before treating any given screen as finished (see
-`docs/specs/P1-UI-remake.md` for the accepted spec;
-`apps/web/src/assets/css/style.css` defines the tokens as CSS custom
-properties under `@theme`, switched by `[data-theme="light"|"dark"]`):
+No external evidence exists (customer testimonials, case studies, press,
+usage metrics) and none should be fabricated. What exists: a seeded demo
+tenant exercising the real workflows (credentials in `README.md`), and
+dated specs (`docs/specs/`) and hand-off notes (`docs/handoff/`) recording
+what has actually shipped, package by package. Treat the newest hand-off
+note as the source of truth for current completeness — not this file's
+Operating Context snapshot, which will drift.
 
-- Neutral slate surfaces (`page`, `card`, `ink`, `line`) with a single teal
-  `accent` (`#0d9488` light / `#2dd4bf` dark), light and dark themes fully
-  defined, default theme dark, user-toggleable and persisted
-  (`localStorage: shiftline-theme`).
-- Dense, data-heavy screens: tables, cards, status badges and dialogs share
-  spacing/state treatment; every screen must stay usable at a 400px
-  viewport with local (not page-level) horizontal scroll on tables.
-- Accessibility floor: WCAG 2.1 AA contrast, visible focus rings, ≥40px
-  targets, Escape-to-close and focus-trapped/restored dialogs, colour never
-  the sole status cue. This floor is a *target* for the still-pending
-  hardening slice, not a verified property of every existing screen yet.
-- No Bootstrap/React-Bootstrap; no new UI dependency without cause. A small
-  legacy pocket of old (`bg-surface`, `sidebar-*`, red-primary) styling
-  still exists in a handful of files (`tailwind.config.js` v3-style tokens)
-  — treat as not-yet-migrated debris, not the intended direction.
+## Product Principles
 
-## Non-goals for design/UI work
+1. Tenant isolation is non-negotiable — every query scoped, every module
+   proven with a cross-tenant test.
+2. Compliance and accounting integrity are load-bearing, not decorative —
+   filings gate on approval, books never hard-delete, numbering and tax
+   logic each run through one shared service.
+3. No device or external provider is trusted directly — everything reaches
+   hardware or a portal through an adapter with a deterministic simulator,
+   so a missing live account never blocks the code that will use it.
+4. One system, not parallel ones — a single Tailwind design language and a
+   single state/data pattern (RTK/axios services), not accreted frameworks
+   or ad hoc HTTP calls.
+5. Say what's unfinished — specs and hand-off notes record gaps explicitly
+   (owner-blocked items, half-done slices, missing tests) rather than
+   presenting partial work as done.
 
-No backend, schema, endpoint, route, role, entitlement, or accounting-rule
-changes as a side effect of visual work. No route redesign, no replacing
-Redux/RTK Query, no speculative workflow removal. All HTTP goes through
-`apiClient`/RTK `baseApi`; realtime through tenant-scoped socket rooms
-(`useSocketSync`) — these are fixed, not negotiable during design changes.
+## Accessibility & Inclusion
 
-## References
-
-- `CLAUDE.md` — working conventions: tenancy, module structure, security,
-  the full "definition of done."
-- `docs/specs/P1-UI-remake.md` — the accepted design-system/navigation spec
-  this codebase is executing against.
-- `docs/handoff/2026-09-12-phase-1-complete.md` — the Phase 1 map and its
-  carried-over gaps.
-- `docs/handoff/2026-09-13-commission-phase-2-transition.md` and
-  `docs/handoff/2026-09-13-commission-phase-2.md` — the current and next
-  commissioned phases; read the newer of these plus the newest dated note
-  in `docs/handoff/` for what is actually in flight right now.
-- `docs/specs/` — one half-page spec per work package.
+WCAG 2.1 AA is an explicit, committed standard for the web app
+(`docs/specs/P1-UI-remake.md`): visible focus rings, ≥40px targets,
+keyboard reachability, Escape-to-close and focus-trapped/restored dialogs,
+colour never the sole status cue, usable at a 400px viewport with tables
+scrolling locally rather than the page. This is a target the frontend
+remake is still completing — only its foundation slice has landed — so new
+UI work should meet the standard rather than assume it already holds
+everywhere.
