@@ -138,10 +138,8 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {REG_TYPES.map((r) => (
           <label
             key={r.value}
-            className={`cursor-pointer rounded-xl border p-3 ${
-              registrationType === r.value
-                ? "border-blue-500 bg-blue-500/10"
-                : "border-line-soft bg-card-2"
+            className={`cursor-pointer rounded-md border p-3 ${
+              registrationType === r.value ? "border-accent bg-accent/10" : "border-line bg-card-2"
             }`}
           >
             <input
@@ -150,7 +148,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
               value={r.value}
               checked={registrationType === r.value}
               onChange={() => setRegistrationType(r.value)}
-              className="mr-2"
+              className="mr-2 accent-[var(--color-accent)]"
             />
             <span className="text-sm font-semibold text-ink">{r.label}</span>
             <span className="mt-1 block text-xs text-ink-muted">{r.hint}</span>
@@ -173,7 +171,11 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
             <input
               name="gstin"
               className={`${inputClass} font-mono tracking-wider ${
-                gstin.length === 15 ? (gstinOk ? "border-emerald-500/60" : "border-red-500/60") : ""
+                gstin.length === 15
+                  ? gstinOk
+                    ? "border-[color:var(--color-success)]/60"
+                    : "border-[color:var(--color-danger)]/60"
+                  : ""
               }`}
               value={gstin}
               onChange={(e) => onGstin(e.target.value)}
@@ -199,7 +201,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {places.map((p, idx) => (
           <div
             key={p.id ?? `new-${idx}`}
-            className="rounded-xl border border-line-soft bg-card-2/60 p-4"
+            className="rounded-md border border-line-soft bg-card-2/60 p-4"
           >
             <div className="grid gap-3 md:grid-cols-6">
               <Field label="Code">
@@ -309,7 +311,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
               {!p.isHeadOffice && (
                 <button
                   type="button"
-                  className="text-red-500 hover:underline"
+                  className="text-[color:var(--color-danger)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
                   onClick={() => setPlaces((ps) => ps.filter((_, i) => i !== idx))}
                 >
                   Remove

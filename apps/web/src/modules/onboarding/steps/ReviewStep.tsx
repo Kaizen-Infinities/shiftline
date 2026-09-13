@@ -17,12 +17,12 @@ const Section: React.FC<{
   onEdit: (s: OnboardingStepKey) => void;
   children: React.ReactNode;
 }> = ({ title, step, onEdit, children }) => (
-  <section className="rounded-xl border border-line-soft bg-card-2/60 p-4 text-sm">
+  <section className="rounded-md border border-line-soft bg-card-2/60 p-4 text-sm">
     <div className="flex items-center justify-between">
       <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">{title}</h3>
       <button
         type="button"
-        className="text-xs text-blue-500 hover:underline"
+        className="text-xs text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
         onClick={() => onEdit(step)}
       >
         Edit
@@ -112,7 +112,7 @@ const ReviewStep: React.FC<Props> = ({ state, onEdit, onComplete }) => {
                     {b.name}
                     {b.bankName && <span className="text-ink-muted"> · {b.bankName}</span>}
                     {b.isDefault && (
-                      <span className="ml-1 rounded bg-blue-500/15 px-1.5 text-[10px] font-bold text-blue-500">
+                      <span className="ml-1 rounded-sm border border-accent/40 px-1.5 text-[10px] font-bold text-accent">
                         DEFAULT
                       </span>
                     )}
@@ -134,7 +134,7 @@ const ReviewStep: React.FC<Props> = ({ state, onEdit, onComplete }) => {
         </Section>
       </div>
 
-      <div className="mt-6 rounded-xl border border-line-soft p-4">
+      <div className="mt-6 rounded-md border border-line p-4">
         <h3 className="text-sm font-bold text-ink">
           Terms of service · version {state.tos.version}
         </h3>
@@ -164,7 +164,7 @@ const ReviewStep: React.FC<Props> = ({ state, onEdit, onComplete }) => {
           <input
             type="checkbox"
             name="acceptTos"
-            className="mt-0.5"
+            className="mt-0.5 accent-[var(--color-accent)]"
             checked={accepted}
             disabled={state.tos.accepted}
             onChange={(e) => setAccepted(e.target.checked)}

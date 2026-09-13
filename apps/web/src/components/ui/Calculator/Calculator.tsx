@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { 
-  FaTimes, 
-  FaEquals, 
-  FaBackspace, 
-  FaCopy, 
-  FaCheck, 
-  FaHistory, 
-  FaPercent, 
-  FaCalculator 
+import {
+  FaTimes,
+  FaEquals,
+  FaBackspace,
+  FaCopy,
+  FaCheck,
+  FaHistory,
+  FaCalculator,
 } from "react-icons/fa";
 
 interface CalculatorProps {
@@ -34,9 +33,9 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   const [activeBtnKey, setActiveBtnKey] = useState<string | null>(null);
 
   // Dragging state
-  const [pos, setPos] = useState({ 
-    x: Math.max(20, Math.min(window.innerWidth - 410, window.innerWidth / 2 - 192)), 
-    y: Math.max(20, Math.min(window.innerHeight - 560, window.innerHeight / 2 - 270)) 
+  const [pos, setPos] = useState({
+    x: Math.max(20, Math.min(window.innerWidth - 410, window.innerWidth / 2 - 192)),
+    y: Math.max(20, Math.min(window.innerHeight - 560, window.innerHeight / 2 - 270)),
   });
   const dragging = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -50,27 +49,35 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   // ── Core calculation logic ─────────────────────────────────────
   const calculate = useCallback((a: number, operator: CalcOp, b: number): number => {
     switch (operator) {
-      case "+": return a + b;
-      case "-": return a - b;
-      case "*": return a * b;
-      case "/": return b !== 0 ? a / b : 0;
-      default:  return b;
+      case "+":
+        return a + b;
+      case "-":
+        return a - b;
+      case "*":
+        return a * b;
+      case "/":
+        return b !== 0 ? a / b : 0;
+      default:
+        return b;
     }
   }, []);
 
-  const handleDigit = useCallback((digit: string) => {
-    flashBtn(digit);
-    if (waitingForOperand) {
-      setDisplay(digit);
-      setWaitingForOperand(false);
-    } else {
-      setDisplay((prev) => {
-        if (prev === "0") return digit;
-        if (prev.length >= 15) return prev;
-        return prev + digit;
-      });
-    }
-  }, [waitingForOperand]);
+  const handleDigit = useCallback(
+    (digit: string) => {
+      flashBtn(digit);
+      if (waitingForOperand) {
+        setDisplay(digit);
+        setWaitingForOperand(false);
+      } else {
+        setDisplay((prev) => {
+          if (prev === "0") return digit;
+          if (prev.length >= 15) return prev;
+          return prev + digit;
+        });
+      }
+    },
+    [waitingForOperand]
+  );
 
   const handleDecimal = useCallback(() => {
     flashBtn(".");
@@ -82,23 +89,28 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
     if (!display.includes(".")) setDisplay((prev) => prev + ".");
   }, [waitingForOperand, display]);
 
-  const handleOperator = useCallback((nextOp: CalcOp) => {
-    if (nextOp) flashBtn(nextOp);
-    const curr = parseFloat(display);
-    if (prevValue !== null && op && !waitingForOperand) {
-      const result = calculate(prevValue, op, curr);
-      const fmt = parseFloat(result.toPrecision(12)).toString();
-      setDisplay(fmt);
-      setExpression(`${fmt} ${nextOp === "*" ? "×" : nextOp === "/" ? "÷" : nextOp === "-" ? "−" : "+"}`);
-      setPrevValue(result);
-    } else {
-      const opSym = nextOp === "*" ? "×" : nextOp === "/" ? "÷" : nextOp === "-" ? "−" : "+";
-      setExpression(`${display} ${opSym}`);
-      setPrevValue(curr);
-    }
-    setOp(nextOp);
-    setWaitingForOperand(true);
-  }, [display, prevValue, op, waitingForOperand, calculate]);
+  const handleOperator = useCallback(
+    (nextOp: CalcOp) => {
+      if (nextOp) flashBtn(nextOp);
+      const curr = parseFloat(display);
+      if (prevValue !== null && op && !waitingForOperand) {
+        const result = calculate(prevValue, op, curr);
+        const fmt = parseFloat(result.toPrecision(12)).toString();
+        setDisplay(fmt);
+        setExpression(
+          `${fmt} ${nextOp === "*" ? "×" : nextOp === "/" ? "÷" : nextOp === "-" ? "−" : "+"}`
+        );
+        setPrevValue(result);
+      } else {
+        const opSym = nextOp === "*" ? "×" : nextOp === "/" ? "÷" : nextOp === "-" ? "−" : "+";
+        setExpression(`${display} ${opSym}`);
+        setPrevValue(curr);
+      }
+      setOp(nextOp);
+      setWaitingForOperand(true);
+    },
+    [display, prevValue, op, waitingForOperand, calculate]
+  );
 
   const handleEquals = useCallback(() => {
     flashBtn("=");
@@ -107,15 +119,19 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
     const result = calculate(prevValue, op, curr);
     const fmt = parseFloat(result.toPrecision(12)).toString();
     const fullExpr = `${expression} ${curr}`;
-    
+
     // Add to calculation history
     setHistory((prev) => [
       {
         expression: fullExpr,
         result: fmt,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
       },
-      ...prev.slice(0, 19)
+      ...prev.slice(0, 19),
     ]);
 
     setExpression(`${fullExpr} =`);
@@ -153,29 +169,36 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   }, [display, prevValue, op]);
 
   // Quick GST Calculation
-  const handleQuickGST = useCallback((rate: number) => {
-    flashBtn(`GST${rate}`);
-    const curr = parseFloat(display);
-    if (isNaN(curr) || curr === 0) return;
-    const gstAmount = (curr * rate) / 100;
-    const total = curr + gstAmount;
-    const fmt = parseFloat(total.toPrecision(12)).toString();
-    setExpression(`${curr} + ${rate}% GST =`);
-    
-    setHistory((prev) => [
-      {
-        expression: `${curr} + ${rate}% GST (${gstAmount.toFixed(2)})`,
-        result: fmt,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-      },
-      ...prev.slice(0, 19)
-    ]);
+  const handleQuickGST = useCallback(
+    (rate: number) => {
+      flashBtn(`GST${rate}`);
+      const curr = parseFloat(display);
+      if (isNaN(curr) || curr === 0) return;
+      const gstAmount = (curr * rate) / 100;
+      const total = curr + gstAmount;
+      const fmt = parseFloat(total.toPrecision(12)).toString();
+      setExpression(`${curr} + ${rate}% GST =`);
 
-    setDisplay(fmt);
-    setPrevValue(null);
-    setOp(null);
-    setWaitingForOperand(true);
-  }, [display]);
+      setHistory((prev) => [
+        {
+          expression: `${curr} + ${rate}% GST (${gstAmount.toFixed(2)})`,
+          result: fmt,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+        },
+        ...prev.slice(0, 19),
+      ]);
+
+      setDisplay(fmt);
+      setPrevValue(null);
+      setOp(null);
+      setWaitingForOperand(true);
+    },
+    [display]
+  );
 
   const handleToggleSign = useCallback(() => {
     flashBtn("+/-");
@@ -191,49 +214,58 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   // ── Keyboard support ───────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { 
+      if (e.key === "Escape") {
         e.preventDefault();
-        onClose(); 
-        return; 
+        onClose();
+        return;
       }
-      if (e.key >= "0" && e.key <= "9") { 
+      if (e.key >= "0" && e.key <= "9") {
         e.preventDefault();
-        handleDigit(e.key); 
-        return; 
+        handleDigit(e.key);
+        return;
       }
-      if (e.key === ".") { 
+      if (e.key === ".") {
         e.preventDefault();
-        handleDecimal(); 
-        return; 
+        handleDecimal();
+        return;
       }
       if (e.key === "+" || e.key === "-" || e.key === "*" || e.key === "/") {
         e.preventDefault();
         handleOperator(e.key as CalcOp);
         return;
       }
-      if (e.key === "Enter" || e.key === "=") { 
+      if (e.key === "Enter" || e.key === "=") {
         e.preventDefault();
-        handleEquals(); 
-        return; 
+        handleEquals();
+        return;
       }
-      if (e.key === "Backspace") { 
+      if (e.key === "Backspace") {
         e.preventDefault();
-        handleBackspace(); 
-        return; 
+        handleBackspace();
+        return;
       }
       if (e.key === "%") {
         e.preventDefault();
         handlePercent();
         return;
       }
-      if (e.key === "Delete" || e.key === "c" || e.key === "C") { 
+      if (e.key === "Delete" || e.key === "c" || e.key === "C") {
         e.preventDefault();
-        handleClear(); 
+        handleClear();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleDigit, handleDecimal, handleOperator, handleEquals, handleBackspace, handleClear, handlePercent, onClose]);
+  }, [
+    handleDigit,
+    handleDecimal,
+    handleOperator,
+    handleEquals,
+    handleBackspace,
+    handleClear,
+    handlePercent,
+    onClose,
+  ]);
 
   // ── Drag handlers ──────────────────────────────────────────────
   const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -250,7 +282,9 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
         y: Math.max(10, Math.min(e.clientY - dragOffset.current.y, window.innerHeight - 560)),
       });
     };
-    const onUp = () => { dragging.current = false; };
+    const onUp = () => {
+      dragging.current = false;
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
@@ -266,35 +300,47 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
     const parts = numStr.split(".");
     const integerPart = parts[0];
     const decimalPart = parts[1];
-    
+
     // Add commas to integer part
     const formattedInt = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     return decimalPart !== undefined ? `${formattedInt}.${decimalPart}` : formattedInt;
   };
 
+  const digitBtn =
+    "py-3.5 rounded-sm text-base font-bold text-ink bg-card-2 hover:bg-card border border-line transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+  const digitActive = (key: string) => (activeBtnKey === key ? "border-accent bg-accent/10" : "");
+  const funcBtn =
+    "py-3.5 rounded-sm text-sm font-bold text-ink-muted bg-card hover:bg-card-2 border border-line transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent flex items-center justify-center";
+  const funcActive = (key: string) => (activeBtnKey === key ? "border-accent text-accent" : "");
+  const opBtn =
+    "py-3.5 rounded-sm text-xl font-bold border transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+  const opActive = (key: CalcOp) =>
+    op === key || activeBtnKey === key
+      ? "bg-accent text-white border-accent"
+      : "border-line text-ink hover:border-accent/40 hover:text-accent";
+
   return (
     <div
       ref={panelRef}
-      className="fixed z-[300] select-none drop-shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+      className="fixed z-[300] select-none"
       style={{ left: pos.x, top: pos.y, width: 380 }}
     >
-      {/* Outer Shell with Glassmorphism & Subtle Glow */}
-      <div className="rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 bg-slate-900/95 backdrop-blur-xl text-white flex flex-col ring-1 ring-white/10">
-
+      {/* Outer shell — bordered sheet, not a floating glass card */}
+      <div className="rounded-sm overflow-hidden border border-line bg-card text-ink flex flex-col shadow-md">
         {/* ── 1. HEADER / DRAGGABLE TITLE BAR ── */}
         <div
-          className="flex items-center justify-between px-3.5 py-2.5 bg-slate-950/80 border-b border-slate-800/80 cursor-grab active:cursor-grabbing transition-colors hover:bg-slate-950"
+          className="flex items-center justify-between px-3.5 py-2.5 bg-head border-b border-line cursor-grab active:cursor-grabbing"
           onMouseDown={onMouseDown}
         >
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center text-xs shadow-inner">
+            <div className="w-6 h-6 rounded-sm border border-accent/40 text-accent flex items-center justify-center text-xs">
               <FaCalculator />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-[12px] font-black tracking-wide text-white uppercase flex items-center gap-1.5">
+              <span className="text-[12px] font-bold tracking-wide text-ink uppercase flex items-center gap-1.5">
                 Quick Calculator
               </span>
-              <span className="text-[9px] font-semibold text-slate-400 font-mono">Alt+C</span>
+              <span className="text-[9px] font-semibold text-ink-subtle font-mono">Alt+C</span>
             </div>
           </div>
 
@@ -304,10 +350,11 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               type="button"
               onClick={() => setShowHistory(!showHistory)}
               title="Calculation History"
-              className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all cursor-pointer ${
-                showHistory 
-                  ? "bg-teal-500/20 text-teal-400 border border-teal-500/30" 
-                  : "bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700"
+              aria-pressed={showHistory}
+              className={`w-7 h-7 rounded-sm border flex items-center justify-center text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                showHistory
+                  ? "border-accent text-accent bg-accent/10"
+                  : "border-line text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               <FaHistory className="text-[10px]" />
@@ -318,7 +365,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               type="button"
               onClick={onClose}
               title="Close (Esc)"
-              className="w-7 h-7 rounded-lg bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-white flex items-center justify-center text-xs transition-all cursor-pointer"
+              className="w-7 h-7 rounded-sm border border-line text-ink-muted hover:text-ink hover:bg-card-2 flex items-center justify-center text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <FaTimes className="text-[11px]" />
             </button>
@@ -327,33 +374,37 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
 
         {/* ── 2. CALCULATION HISTORY DRAWER (Collapsible) ── */}
         {showHistory && (
-          <div className="bg-slate-950/90 border-b border-slate-800 p-2.5 max-h-40 overflow-y-auto custom-scrollbar animate-in slide-in-from-top duration-150">
-            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800/80 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+          <div className="bg-card-2 border-b border-line p-2.5 max-h-40 overflow-y-auto">
+            <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-line-soft text-[10px] text-ink-muted font-bold uppercase tracking-wider">
               <span>Recent Calculations</span>
               {history.length > 0 && (
-                <button 
+                <button
                   onClick={() => setHistory([])}
-                  className="text-rose-400 hover:text-rose-300 font-medium cursor-pointer"
+                  className="text-[color:var(--color-danger)] hover:underline font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
                 >
                   Clear
                 </button>
               )}
             </div>
             {history.length === 0 ? (
-              <p className="text-[11px] text-slate-500 text-center py-3">No history yet</p>
+              <p className="text-[11px] text-ink-subtle text-center py-3">No history yet</p>
             ) : (
               <div className="space-y-1.5">
                 {history.map((h, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     onClick={() => {
                       setDisplay(h.result);
                       setWaitingForOperand(true);
                     }}
-                    className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-teal-500/10 hover:border-teal-500/30 border border-slate-800/60 transition-all cursor-pointer group text-right"
+                    className="p-1.5 rounded-sm bg-card hover:border-accent/40 hover:bg-card-2 border border-line-soft transition-colors cursor-pointer group text-right"
                   >
-                    <div className="text-[10px] text-slate-400 font-mono truncate group-hover:text-teal-300">{h.expression}</div>
-                    <div className="text-xs font-black text-white font-mono group-hover:text-teal-400">{h.result}</div>
+                    <div className="text-[10px] text-ink-subtle font-mono truncate group-hover:text-ink-muted">
+                      {h.expression}
+                    </div>
+                    <div className="text-xs font-bold text-ink font-mono tabular-nums group-hover:text-accent">
+                      {h.result}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -362,14 +413,14 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
         )}
 
         {/* ── 3. DIGITAL DISPLAY SCREEN ── */}
-        <div className="px-5 py-4 bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900/90 border-b border-slate-800/80 relative group">
+        <div className="px-5 py-4 bg-card-2 border-b border-line relative group">
           {/* Top Expression Row */}
-          <div className="flex items-center justify-between text-xs text-slate-400 font-mono h-5 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-400/80 bg-teal-500/10 px-1.5 py-0.5 rounded">
+          <div className="flex items-center justify-between text-xs font-mono h-5 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted border border-line-soft px-1.5 py-0.5 rounded-sm">
               {op ? `OP: ${op === "*" ? "×" : op === "/" ? "÷" : op === "-" ? "−" : "+"}` : "READY"}
             </span>
-            <span className="truncate max-w-[260px] text-right text-slate-400 font-semibold">
-              {expression || "\u00a0"}
+            <span className="truncate max-w-[260px] text-right text-ink-muted font-semibold">
+              {expression || " "}
             </span>
           </div>
 
@@ -380,18 +431,18 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               type="button"
               onClick={handleCopy}
               title="Copy Result"
-              className={`p-2 rounded-xl border transition-all cursor-pointer shrink-0 mb-0.5 ${
-                copied 
-                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm" 
-                  : "bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-teal-300 border-slate-700/60 shadow-xs"
+              className={`p-2 rounded-sm border transition-colors cursor-pointer shrink-0 mb-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                copied
+                  ? "border-accent text-accent bg-accent/10"
+                  : "border-line text-ink-muted hover:text-accent hover:border-accent/40"
               }`}
             >
               {copied ? <FaCheck className="text-xs" /> : <FaCopy className="text-xs" />}
             </button>
 
             {/* Formatted Number Display */}
-            <div 
-              className="text-4xl font-black font-mono text-right tracking-tight text-white truncate leading-none flex-1 text-glow"
+            <div
+              className="text-4xl font-bold font-mono tabular-nums text-right tracking-tight text-ink truncate leading-none flex-1"
               title={display}
             >
               {formatDisplay(display)}
@@ -400,16 +451,16 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
         </div>
 
         {/* ── 4. QUICK GST PRESET BUTTONS (SUPER USEFUL FOR ERP) ── */}
-        <div className="grid grid-cols-4 gap-1.5 px-4 pt-2.5 pb-2 bg-slate-900/60 border-b border-slate-800/60">
+        <div className="grid grid-cols-4 gap-1.5 px-4 pt-2.5 pb-2 bg-card border-b border-line">
           {[5, 12, 18, 28].map((gst) => (
             <button
               key={gst}
               type="button"
               onClick={() => handleQuickGST(gst)}
-              className={`py-1.5 rounded-lg text-[11px] font-black tracking-wide border transition-all cursor-pointer ${
+              className={`py-1.5 rounded-sm text-[11px] font-bold tracking-wide border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 activeBtnKey === `GST${gst}`
-                  ? "bg-teal-500 text-white border-teal-400 scale-95 shadow-md"
-                  : "bg-slate-800/70 hover:bg-teal-500/20 text-teal-400 hover:text-teal-300 border-teal-500/25 shadow-2xs"
+                  ? "bg-accent text-white border-accent"
+                  : "border-line text-ink-muted hover:text-accent hover:border-accent/40 hover:bg-card-2"
               }`}
             >
               +{gst}% GST
@@ -417,45 +468,26 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           ))}
         </div>
 
-        {/* ── 5. MODERN KEYPAD GRID ── */}
-        <div className="grid grid-cols-4 gap-2.5 p-4 bg-slate-900/80">
+        {/* ── 5. KEYPAD GRID ── */}
+        <div className="grid grid-cols-4 gap-2.5 p-4 bg-card">
           {/* Row 1: AC, +/-, %, ÷ */}
-          <button
-            type="button"
-            onClick={handleClear}
-            className={`py-3.5 rounded-2xl text-sm font-black text-rose-400 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 transition-all active:scale-95 cursor-pointer shadow-xs ${
-              activeBtnKey === "C" ? "scale-95 bg-rose-500 text-white" : ""
-            }`}
-          >
+          <button type="button" onClick={handleClear} className={`${funcBtn} ${funcActive("C")}`}>
             AC
           </button>
-
           <button
             type="button"
             onClick={handleToggleSign}
-            className={`py-3.5 rounded-2xl text-sm font-black text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all active:scale-95 cursor-pointer shadow-xs ${
-              activeBtnKey === "+/-" ? "scale-95 bg-slate-600 text-white" : ""
-            }`}
+            className={`${funcBtn} ${funcActive("+/-")}`}
           >
             ±
           </button>
-
-          <button
-            type="button"
-            onClick={handlePercent}
-            className={`py-3.5 rounded-2xl text-sm font-black text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all active:scale-95 cursor-pointer shadow-xs ${
-              activeBtnKey === "%" ? "scale-95 bg-slate-600 text-white" : ""
-            }`}
-          >
+          <button type="button" onClick={handlePercent} className={`${funcBtn} ${funcActive("%")}`}>
             %
           </button>
-
           <button
             type="button"
             onClick={() => handleOperator("/")}
-            className={`py-3.5 rounded-2xl text-xl font-black text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 transition-all active:scale-95 cursor-pointer shadow-xs ${
-              op === "/" || activeBtnKey === "/" ? "bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20" : ""
-            }`}
+            className={`${opBtn} ${opActive("/")}`}
           >
             ÷
           </button>
@@ -464,36 +496,28 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={() => handleDigit("7")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "7" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("7")}`}
           >
             7
           </button>
           <button
             type="button"
             onClick={() => handleDigit("8")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "8" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("8")}`}
           >
             8
           </button>
           <button
             type="button"
             onClick={() => handleDigit("9")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "9" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("9")}`}
           >
             9
           </button>
           <button
             type="button"
             onClick={() => handleOperator("*")}
-            className={`py-3.5 rounded-2xl text-xl font-black text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 transition-all active:scale-95 cursor-pointer shadow-xs ${
-              op === "*" || activeBtnKey === "*" ? "bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20" : ""
-            }`}
+            className={`${opBtn} ${opActive("*")}`}
           >
             ×
           </button>
@@ -502,36 +526,28 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={() => handleDigit("4")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "4" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("4")}`}
           >
             4
           </button>
           <button
             type="button"
             onClick={() => handleDigit("5")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "5" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("5")}`}
           >
             5
           </button>
           <button
             type="button"
             onClick={() => handleDigit("6")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "6" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("6")}`}
           >
             6
           </button>
           <button
             type="button"
             onClick={() => handleOperator("-")}
-            className={`py-3.5 rounded-2xl text-xl font-black text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 transition-all active:scale-95 cursor-pointer shadow-xs ${
-              op === "-" || activeBtnKey === "-" ? "bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20" : ""
-            }`}
+            className={`${opBtn} ${opActive("-")}`}
           >
             −
           </button>
@@ -540,36 +556,28 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={() => handleDigit("1")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "1" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("1")}`}
           >
             1
           </button>
           <button
             type="button"
             onClick={() => handleDigit("2")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "2" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("2")}`}
           >
             2
           </button>
           <button
             type="button"
             onClick={() => handleDigit("3")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "3" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("3")}`}
           >
             3
           </button>
           <button
             type="button"
             onClick={() => handleOperator("+")}
-            className={`py-3.5 rounded-2xl text-xl font-black text-amber-300 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 transition-all active:scale-95 cursor-pointer shadow-xs ${
-              op === "+" || activeBtnKey === "+" ? "bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20" : ""
-            }`}
+            className={`${opBtn} ${opActive("+")}`}
           >
             +
           </button>
@@ -579,9 +587,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
             type="button"
             onClick={handleBackspace}
             title="Backspace"
-            className={`py-3.5 rounded-2xl text-sm font-bold text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-xs ${
-              activeBtnKey === "Backspace" ? "scale-95 bg-slate-600 text-white" : ""
-            }`}
+            className={`${funcBtn} ${funcActive("Backspace")}`}
           >
             <FaBackspace className="text-base" />
           </button>
@@ -589,9 +595,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={() => handleDigit("0")}
-            className={`py-3.5 rounded-2xl text-base font-bold text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "0" ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive("0")}`}
           >
             0
           </button>
@@ -599,9 +603,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={handleDecimal}
-            className={`py-3.5 rounded-2xl text-base font-black text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/70 shadow-xs transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "." ? "scale-95 bg-teal-600 border-teal-400" : ""
-            }`}
+            className={`${digitBtn} ${digitActive(".")}`}
           >
             .
           </button>
@@ -609,8 +611,8 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={handleEquals}
-            className={`py-3.5 rounded-2xl text-sm font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 border border-emerald-400/50 shadow-lg shadow-emerald-500/30 flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
-              activeBtnKey === "=" ? "scale-95 ring-2 ring-emerald-300" : ""
+            className={`py-3.5 rounded-sm text-sm font-bold text-white bg-accent hover:brightness-110 border border-accent flex items-center justify-center transition-[filter] active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
+              activeBtnKey === "=" ? "ring-2 ring-accent/40" : ""
             }`}
           >
             <FaEquals className="text-sm" />
@@ -618,9 +620,9 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
         </div>
 
         {/* ── 6. FOOTER HINT ── */}
-        <div className="px-3.5 py-2 bg-slate-950/80 border-t border-slate-800/60 flex items-center justify-between text-[9.5px] text-slate-500 font-mono">
-          <span>⌨️ ESC close · Enter result</span>
-          <span>🖱️ Drag header</span>
+        <div className="px-3.5 py-2 bg-card-2 border-t border-line flex items-center justify-between text-[9.5px] text-ink-subtle font-mono">
+          <span>Esc close · Enter for result</span>
+          <span>Drag header to move</span>
         </div>
       </div>
     </div>
