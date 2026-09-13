@@ -46,7 +46,8 @@ const getReasonAndNotes = (remarks: string) => {
   const parts = remarks.split(" - ");
   const first = parts[0];
   const matched = REASON_OPTIONS.find(
-    (opt) => opt.value === first || opt.label === first || opt.value.toUpperCase() === first.toUpperCase()
+    (opt) =>
+      opt.value === first || opt.label === first || opt.value.toUpperCase() === first.toUpperCase()
   );
   if (matched) {
     return { reason: matched.value, notes: parts.slice(1).join(" - ") };
@@ -57,21 +58,29 @@ const getReasonAndNotes = (remarks: string) => {
 // ──────────────────────────────────────────
 // Validation
 // ──────────────────────────────────────────
-const adjustmentItemSchema = z.object({
-  itemType: z.enum(["RAW_MATERIAL", "FINISHED_GOODS", "WASTAGE"]),
-  rawMaterialId: z.string().nullable().optional(),
-  productItemId: z.string().nullable().optional(),
-  storeId: z.string().min(1, "Store is required"),
-  currentQty: z.number({ message: "Current qty must be a number" }),
-  adjustedQty: z.number({ message: "Adjusted qty must be a number" }).min(0, "Cannot be negative"),
-  difference: z.number(),
-  reason: z.string().min(1, "Reason is required"),
-  remarks: z.string().optional().nullable(),
-}).refine(item => {
-  if (item.itemType === "RAW_MATERIAL" || item.itemType === "WASTAGE") return !!item.rawMaterialId;
-  if (item.itemType === "FINISHED_GOODS") return !!item.productItemId;
-  return true;
-}, { message: "Selection is required", path: ["itemSelection"] });
+const adjustmentItemSchema = z
+  .object({
+    itemType: z.enum(["RAW_MATERIAL", "FINISHED_GOODS", "WASTAGE"]),
+    rawMaterialId: z.string().nullable().optional(),
+    productItemId: z.string().nullable().optional(),
+    storeId: z.string().min(1, "Store is required"),
+    currentQty: z.number({ message: "Current qty must be a number" }),
+    adjustedQty: z
+      .number({ message: "Adjusted qty must be a number" })
+      .min(0, "Cannot be negative"),
+    difference: z.number(),
+    reason: z.string().min(1, "Reason is required"),
+    remarks: z.string().optional().nullable(),
+  })
+  .refine(
+    (item) => {
+      if (item.itemType === "RAW_MATERIAL" || item.itemType === "WASTAGE")
+        return !!item.rawMaterialId;
+      if (item.itemType === "FINISHED_GOODS") return !!item.productItemId;
+      return true;
+    },
+    { message: "Selection is required", path: ["itemSelection"] }
+  );
 
 const pmiItemSchema = z.object({
   rawMaterialId: z.string().min(1),
@@ -150,16 +159,15 @@ const StockAdjustmentForm: React.FC = () => {
     dispatch(fetchStores(undefined)); // Stock adjustment handles both RM and FG — show all stores
     dispatch(fetchFinishedGoodsStocks({ limit: 1000 }));
     dispatch(fetchProductionOrdersForIssue());
-    return () => { dispatch(clearCurrent()); };
+    return () => {
+      dispatch(clearCurrent());
+    };
   }, [dispatch]);
 
   // Click outside listener for the dropdown
   useEffect(() => {
     const handleClose = (e: MouseEvent) => {
-      if (
-        isAddProductsOpen &&
-        !(e.target as Element).closest(".select-add-products-container")
-      ) {
+      if (isAddProductsOpen && !(e.target as Element).closest(".select-add-products-container")) {
         setIsAddProductsOpen(false);
       }
     };
@@ -178,40 +186,41 @@ const StockAdjustmentForm: React.FC = () => {
     if (isEditMode && currentAdjustment) {
       const adjType = currentAdjustment.adjustmentType || "STOCK_INCREASE";
 
-      const loadedItems = currentAdjustment.items?.map((i: any) => {
-        const itemType = i.itemType;
-        let name = "";
-        let itemCode = "";
-        let categoryName = "";
-        let uom = "";
+      const loadedItems =
+        currentAdjustment.items?.map((i: any) => {
+          const itemType = i.itemType;
+          let name = "";
+          let itemCode = "";
+          let categoryName = "";
+          let uom = "";
 
-        if (itemType === "FINISHED_GOODS") {
-          name = i.product?.productName || "";
-          itemCode = i.product?.productCode || "";
-          categoryName = i.product?.category?.name || i.product?.category?.categoryName || "";
-          uom = i.product?.uom?.code || i.product?.uom?.uomCode || "pcs";
-        } else {
-          name = i.rawMaterial?.materialName || "";
-          itemCode = i.rawMaterialId || "";
-          categoryName = i.rawMaterial?.category?.name || "";
-          uom = i.rawMaterial?.baseUom || "kg";
-        }
+          if (itemType === "FINISHED_GOODS") {
+            name = i.product?.productName || "";
+            itemCode = i.product?.productCode || "";
+            categoryName = i.product?.category?.name || i.product?.category?.categoryName || "";
+            uom = i.product?.uom?.code || i.product?.uom?.uomCode || "pcs";
+          } else {
+            name = i.rawMaterial?.materialName || "";
+            itemCode = i.rawMaterialId || "";
+            categoryName = i.rawMaterial?.category?.name || "";
+            uom = i.rawMaterial?.baseUom || "kg";
+          }
 
-        const remarks = i.remarks || "";
-        const parsed = getReasonAndNotes(remarks);
+          const remarks = i.remarks || "";
+          const parsed = getReasonAndNotes(remarks);
 
-        return {
-          ...i,
-          productItemId: i.productItemId ? i.productItemId.toString() : "",
-          rawMaterialId: i.rawMaterialId || "",
-          name,
-          itemCode,
-          categoryName,
-          uom,
-          reason: parsed.reason,
-          notes: parsed.notes,
-        };
-      }) || [];
+          return {
+            ...i,
+            productItemId: i.productItemId ? i.productItemId.toString() : "",
+            rawMaterialId: i.rawMaterialId || "",
+            name,
+            itemCode,
+            categoryName,
+            uom,
+            reason: parsed.reason,
+            notes: parsed.notes,
+          };
+        }) || [];
 
       setFormData({
         adjustmentNumber: currentAdjustment.adjustmentNumber,
@@ -382,7 +391,6 @@ const StockAdjustmentForm: React.FC = () => {
     setFormData({ ...formData, items: updatedItems });
   };
 
-
   const removeItem = (index: number) => {
     setFormData({
       ...formData,
@@ -390,49 +398,59 @@ const StockAdjustmentForm: React.FC = () => {
     });
   };
 
-  const convertToPrimaryBaseQty = (qty: number, selectedUom?: string, baseUomStr?: string): number => {
+  const convertToPrimaryBaseQty = (
+    qty: number,
+    selectedUom?: string,
+    baseUomStr?: string
+  ): number => {
     if (!qty || !selectedUom || !baseUomStr) return qty;
-    
+
     const sel = selectedUom.toLowerCase().trim();
-    const primary = baseUomStr.split(',')[0].trim().toLowerCase();
+    const primary = baseUomStr.split(",")[0].trim().toLowerCase();
 
     if (sel === primary) return qty;
 
     // Weight / Mass (Primary is kg)
     if (primary === "kg" || primary === "kilogram" || primary === "kgs" || primary === "kilo") {
-        if (sel === "g" || sel === "gram" || sel === "gm" || sel === "grams") return qty / 1000;
-        if (sel === "t" || sel === "ton" || sel === "tons") return qty * 1000;
+      if (sel === "g" || sel === "gram" || sel === "gm" || sel === "grams") return qty / 1000;
+      if (sel === "t" || sel === "ton" || sel === "tons") return qty * 1000;
     }
     if (primary === "g" || primary === "gram" || primary === "gm" || primary === "grams") {
-        if (sel === "kg" || sel === "kilogram" || sel === "kgs") return qty * 1000;
-        if (sel === "t" || sel === "ton" || sel === "tons") return qty * 1000000;
+      if (sel === "kg" || sel === "kilogram" || sel === "kgs") return qty * 1000;
+      if (sel === "t" || sel === "ton" || sel === "tons") return qty * 1000000;
     }
 
     // Volume / Liquid (Primary is l or L)
-    if (primary === "l" || primary === "ltr" || primary === "litre" || primary === "liter" || primary === "litres") {
-        if (sel === "ml" || sel === "milliliter" || sel === "milliliters") return qty / 1000;
+    if (
+      primary === "l" ||
+      primary === "ltr" ||
+      primary === "litre" ||
+      primary === "liter" ||
+      primary === "litres"
+    ) {
+      if (sel === "ml" || sel === "milliliter" || sel === "milliliters") return qty / 1000;
     }
     if (primary === "ml" || primary === "milliliter") {
-        if (sel === "l" || sel === "ltr" || sel === "litre" || sel === "liter") return qty * 1000;
+      if (sel === "l" || sel === "ltr" || sel === "litre" || sel === "liter") return qty * 1000;
     }
 
     // Length (Primary is m or meter)
     if (primary === "m" || primary === "meter" || primary === "mtr" || primary === "meters") {
-        if (sel === "cm" || sel === "centimeter" || sel === "centimeters") return qty / 100;
-        if (sel === "mm" || sel === "millimeter" || sel === "millimeters") return qty / 1000;
+      if (sel === "cm" || sel === "centimeter" || sel === "centimeters") return qty / 100;
+      if (sel === "mm" || sel === "millimeter" || sel === "millimeters") return qty / 1000;
     }
     if (primary === "cm" || primary === "centimeter") {
-        if (sel === "m" || sel === "meter" || sel === "mtr") return qty * 100;
-        if (sel === "mm" || sel === "millimeter") return qty / 10;
+      if (sel === "m" || sel === "meter" || sel === "mtr") return qty * 100;
+      if (sel === "mm" || sel === "millimeter") return qty / 10;
     }
     if (primary === "mm" || primary === "millimeter") {
-        if (sel === "m" || sel === "meter" || sel === "mtr") return qty * 1000;
-        if (sel === "cm" || sel === "centimeter") return qty * 10;
+      if (sel === "m" || sel === "meter" || sel === "mtr") return qty * 1000;
+      if (sel === "cm" || sel === "centimeter") return qty * 10;
     }
 
     // Count (Primary is pcs / ea)
     if (primary === "pcs" || primary === "ea" || primary === "each" || primary === "piece") {
-        if (sel === "dz" || sel === "dozen") return qty * 12;
+      if (sel === "dz" || sel === "dozen") return qty * 12;
     }
 
     return qty;
@@ -520,12 +538,16 @@ const StockAdjustmentForm: React.FC = () => {
     }
 
     // 2. Check directly in products array (as ProductList / ProductEdit does)
-    const prod: any = products.find((p: any) => (p.id || p.productId || p.productItemId)?.toString() === pIdStr);
+    const prod: any = products.find(
+      (p: any) => (p.id || p.productId || p.productItemId)?.toString() === pIdStr
+    );
     if (prod) {
       if (prod.finishedGoodsStocks && Array.isArray(prod.finishedGoodsStocks)) {
         let prodStocks = prod.finishedGoodsStocks;
         if (targetStoreId) {
-          prodStocks = prodStocks.filter((f: any) => f.storeId?.toString() === targetStoreId.toString());
+          prodStocks = prodStocks.filter(
+            (f: any) => f.storeId?.toString() === targetStoreId.toString()
+          );
         }
         if (prodStocks.length > 0) {
           return prodStocks.reduce((sum: number, f: any) => sum + Number(f.onHandQty || 0), 0);
@@ -582,10 +604,12 @@ const StockAdjustmentForm: React.FC = () => {
   ];
 
   const isItemAlreadyAdded = (item: any) => {
-    return formData.items.some((added: any) =>
-      added.uniqueKey === item.uniqueKey ||
-      (item.type === "FINISHED_GOODS" && added.productItemId?.toString() === item.id.toString()) ||
-      (item.type !== "FINISHED_GOODS" && added.rawMaterialId?.toString() === item.id.toString())
+    return formData.items.some(
+      (added: any) =>
+        added.uniqueKey === item.uniqueKey ||
+        (item.type === "FINISHED_GOODS" &&
+          added.productItemId?.toString() === item.id.toString()) ||
+        (item.type !== "FINISHED_GOODS" && added.rawMaterialId?.toString() === item.id.toString())
     );
   };
 
@@ -614,7 +638,9 @@ const StockAdjustmentForm: React.FC = () => {
     if (item.type === "FINISHED_GOODS") {
       // Find the store where this FG has stock
       const fgMatch = (fgStocks as any[]).find(
-        (f: any) => (f.productItemId || f.productId || f.product?.id || f.id)?.toString() === item.id?.toString()
+        (f: any) =>
+          (f.productItemId || f.productId || f.product?.id || f.id)?.toString() ===
+          item.id?.toString()
       );
       if (fgMatch?.storeId) itemStoreId = fgMatch.storeId;
       currentQty = getFinishedGoodStockQty(item.id, itemStoreId);
@@ -627,7 +653,9 @@ const StockAdjustmentForm: React.FC = () => {
         itemStoreId = stockRecord.storeId;
       } else {
         // Fallback to master data storeId
-        const rm = rawMaterials.find((r: any) => r.rawMaterialId?.toString() === item.id?.toString());
+        const rm = rawMaterials.find(
+          (r: any) => r.rawMaterialId?.toString() === item.id?.toString()
+        );
         if (rm && (rm as any).storeId) itemStoreId = (rm as any).storeId;
       }
       currentQty = getRawMaterialStockQty(item.id, itemStoreId);
@@ -696,7 +724,9 @@ const StockAdjustmentForm: React.FC = () => {
           return;
         }
         if (item.issueQty > item.availableStock) {
-          toast.error(`Issue Qty for ${item.materialName} exceeds available stock (${item.availableStock}).`);
+          toast.error(
+            `Issue Qty for ${item.materialName} exceeds available stock (${item.availableStock}).`
+          );
           setIsSubmitting(false);
           return;
         }
@@ -792,12 +822,10 @@ const StockAdjustmentForm: React.FC = () => {
     }
   };
 
-
-
   // ── Render ──────────────────────────────
   return (
     <div className="w-full mx-auto">
-      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-visible">
+      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-sm border border-line overflow-visible">
         {/* Page Header */}
         <div className="px-5 py-3 border-b border-line">
           <div className="flex items-center justify-between gap-3">
@@ -812,23 +840,25 @@ const StockAdjustmentForm: React.FC = () => {
           {/* Section 1: Adjustment Information */}
           <div className="mb-4">
             <div className="mb-4">
-              <h3 className="text-sm font-bold text-ink-muted uppercase tracking-wider">Adjustment Details</h3>
+              <h3 className="text-sm font-bold text-ink-muted uppercase tracking-wider">
+                Adjustment Details
+              </h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block mb-2 text-xs font-bold text-ink-muted uppercase tracking-wider">
-                  Date <span className="text-red-500">*</span>
+                  Date <span className="text-[color:var(--color-danger)]">*</span>
                 </label>
                 <DatePickerCalendar
                   name="adjustmentDate"
                   value={formData.adjustmentDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, adjustmentDate: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, adjustmentDate: e.target.value })}
                   required
                 />
                 {errors.adjustmentDate && (
-                  <p className="text-xs text-red-500 mt-1 font-medium">{errors.adjustmentDate}</p>
+                  <p className="text-xs text-[color:var(--color-danger)] mt-1 font-medium">
+                    {errors.adjustmentDate}
+                  </p>
                 )}
               </div>
               <TextInput
@@ -837,9 +867,7 @@ const StockAdjustmentForm: React.FC = () => {
                 required
                 placeholder="Your name"
                 value={formData.reason}
-                onChange={(e) =>
-                  setFormData({ ...formData, reason: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                 error={errors.reason}
               />
             </div>
@@ -848,13 +876,15 @@ const StockAdjustmentForm: React.FC = () => {
           {/* Section 2: Production Order Selection (PMI Only) */}
           {isPMI && (
             <div className="pt-2">
-              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">Production Order Selection</h6>
+              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">
+                Production Order Selection
+              </h6>
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start">
                 <div className="lg:col-span-2">
                   <SelectInput
                     label="Production Order"
                     name="productionOrderId"
-                required
+                    required
                     value={formData.productionOrderId}
                     onChange={(e) => handlePOSelect(e.target.value)}
                     error={errors.productionOrderId}
@@ -896,8 +926,8 @@ const StockAdjustmentForm: React.FC = () => {
                 <div className="mt-3 p-3 bg-card-2 border border-line text-ink-muted rounded-lg flex items-center gap-2 text-sm">
                   <FaInfoCircle className="flex-shrink-0" />
                   <span>
-                    Select a Production Order to load its reserved raw materials for issue.
-                    Only orders in <strong>Approved / RM Available</strong> status are shown.
+                    Select a Production Order to load its reserved raw materials for issue. Only
+                    orders in <strong>Approved / RM Available</strong> status are shown.
                   </span>
                 </div>
               )}
@@ -907,36 +937,75 @@ const StockAdjustmentForm: React.FC = () => {
           {/* Section 3: Raw Materials to Issue (PMI Only) */}
           {isPMI && selectedPO && pmiItems.length > 0 && (
             <div className="pt-2 border-t border-line mt-4">
-              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">Raw Materials to Issue</h6>
-              <div className="rounded-xl border border-line bg-card [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0 overflow-visible">
+              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">
+                Raw Materials to Issue
+              </h6>
+              <div className="rounded-sm border border-line bg-card [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0 overflow-visible">
                 <table className="min-w-full divide-y divide-line">
                   <thead className="bg-card-2">
                     <tr>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">RM CODE</th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">MATERIAL NAME</th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">REQUIRED QTY</th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">RESERVED QTY</th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">ALREADY ISSUED</th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">REMAINING</th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">AVAILABLE STOCK</th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">UOM</th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[200px]">STORE*</th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[150px]">ISSUE QTY*</th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[180px]">REMARKS</th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        RM CODE
+                      </th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        MATERIAL NAME
+                      </th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        REQUIRED QTY
+                      </th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        RESERVED QTY
+                      </th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        ALREADY ISSUED
+                      </th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        REMAINING
+                      </th>
+                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        AVAILABLE STOCK
+                      </th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                        UOM
+                      </th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[200px]">
+                        STORE*
+                      </th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[150px]">
+                        ISSUE QTY*
+                      </th>
+                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[180px]">
+                        REMARKS
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
                     {pmiItems.map((item, index) => {
                       const isOver = item.issueQty > item.availableStock;
                       return (
-                        <tr key={index} className={`hover:bg-card-2/50 transition-colors ${isOver ? 'bg-red-950/40' : ''}`}>
-                          <td className="px-4 py-3 font-mono text-xs text-ink-subtle">{item.rawMaterialId}</td>
+                        <tr
+                          key={index}
+                          className={`hover:bg-card-2/50 transition-colors ${isOver ? "bg-[color:var(--color-danger)]/10" : ""}`}
+                        >
+                          <td className="px-4 py-3 font-mono text-xs text-ink-subtle">
+                            {item.rawMaterialId}
+                          </td>
                           <td className="px-4 py-3 font-medium text-ink">{item.materialName}</td>
-                          <td className="px-4 py-3 text-right text-ink-muted">{Number(item.requiredQty).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-ink-muted">{Number(item.reservedQty).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-ink-muted">{Number(item.alreadyIssuedQty).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-yellow-400 font-semibold">{Number(item.remainingQty).toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right text-green-400 font-semibold">{Number(item.availableStock).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right text-ink-muted">
+                            {Number(item.requiredQty).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-ink-muted">
+                            {Number(item.reservedQty).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-ink-muted">
+                            {Number(item.alreadyIssuedQty).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-[color:var(--color-warning)] font-semibold">
+                            {Number(item.remainingQty).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-[color:var(--color-success)] font-semibold">
+                            {Number(item.availableStock).toFixed(2)}
+                          </td>
                           <td className="px-4 py-3 text-ink-subtle">{item.uom}</td>
                           <td className="px-4 py-3 align-top">
                             <SelectInput
@@ -989,7 +1058,9 @@ const StockAdjustmentForm: React.FC = () => {
                 </table>
               </div>
               {errors.items && (
-                <div className="mt-2 text-sm text-red-500 font-medium">{errors.items}</div>
+                <div className="mt-2 text-sm text-[color:var(--color-danger)] font-medium">
+                  {errors.items}
+                </div>
               )}
             </div>
           )}
@@ -1022,14 +1093,17 @@ const StockAdjustmentForm: React.FC = () => {
                       icon={FaPlus}
                       size="sm"
                       onClick={() => setIsAddProductsOpen(!isAddProductsOpen)}
-                      className="!bg-card-2 !text-ink hover:!bg-line !border !border-line shadow-sm"
+                      className="!bg-card-2 !text-ink hover:!bg-line !border !border-line"
                     />
 
                     {isAddProductsOpen && (
-                      <div className="absolute right-0 mt-2 w-80 sm:w-96 max-h-96 overflow-y-auto bg-card rounded-2xl shadow-2xl border border-line-soft p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="absolute right-0 mt-2 w-80 sm:w-96 max-h-96 overflow-y-auto bg-card rounded-sm shadow-md border border-line-soft p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                         <div className="flex gap-2 mb-2">
                           <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle pointer-events-none" size={14} />
+                            <Search
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle pointer-events-none"
+                              size={14}
+                            />
                             <input
                               autoFocus
                               type="text"
@@ -1066,14 +1140,16 @@ const StockAdjustmentForm: React.FC = () => {
                                       setIsAddProductsOpen(false);
                                     }
                                   }}
-                                  className={`p-2.5 border border-transparent rounded-xl transition-all flex items-center justify-between group ${
+                                  className={`p-2.5 border border-transparent rounded-sm transition-all flex items-center justify-between group ${
                                     added
                                       ? "opacity-50 cursor-not-allowed bg-card-2"
-                                      : "hover:bg-primary/10 hover:border-primary/20 cursor-pointer"
+                                      : "hover:bg-accent/10 hover:border-accent/20 cursor-pointer"
                                   }`}
                                 >
                                   <div>
-                                    <div className={`text-sm font-semibold text-ink ${!added && "group-hover:text-primary"} transition-colors`}>
+                                    <div
+                                      className={`text-sm font-semibold text-ink ${!added && "group-hover:text-accent"} transition-colors`}
+                                    >
                                       {item.name}
                                     </div>
                                     <div className="text-xs text-ink-subtle font-mono mt-0.5">
@@ -1081,11 +1157,11 @@ const StockAdjustmentForm: React.FC = () => {
                                     </div>
                                   </div>
                                   {added ? (
-                                    <span className="px-2 py-1 text-[10px] font-bold bg-green-900/30 text-green-400 rounded-lg uppercase tracking-wider flex items-center gap-1">
+                                    <span className="px-2 py-1 text-[10px] font-bold bg-[color:var(--color-success)]/15 text-[color:var(--color-success)] rounded-lg uppercase tracking-wider flex items-center gap-1">
                                       ✓ Added
                                     </span>
                                   ) : (
-                                    <span className="px-2 py-1 text-[10px] font-bold bg-card-2 group-hover:bg-primary/20 text-ink-muted group-hover:text-primary rounded-lg transition-colors uppercase tracking-wider">
+                                    <span className="px-2 py-1 text-[10px] font-bold bg-card-2 group-hover:bg-accent/20 text-ink-muted group-hover:text-accent rounded-lg transition-colors uppercase tracking-wider">
                                       {item.typeLabel}
                                     </span>
                                   )}
@@ -1104,7 +1180,7 @@ const StockAdjustmentForm: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-line overflow-hidden bg-card shadow-sm">
+              <div className="rounded-sm border border-line overflow-hidden bg-card">
                 <table className="min-w-full divide-y divide-line">
                   <thead className="bg-card-2 border-b border-line">
                     <tr>
@@ -1124,7 +1200,7 @@ const StockAdjustmentForm: React.FC = () => {
                         New Total
                       </th>
                       <th className="px-3 py-2.5 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wider min-w-[160px]">
-                        Reason <span className="text-rose-500">*</span>
+                        Reason <span className="text-[color:var(--color-danger)]">*</span>
                       </th>
                       <th className="px-3 py-2.5 w-10"></th>
                     </tr>
@@ -1138,7 +1214,12 @@ const StockAdjustmentForm: React.FC = () => {
                         const newTotal = formatCleanNumber(newTotalNum);
                         const baseUom = getPrimaryUom(item.uom || "pcs");
 
-                        const currentInputVal = item.adjustInputValue !== undefined ? item.adjustInputValue : (diffInBase === 0 ? "" : diffInBase);
+                        const currentInputVal =
+                          item.adjustInputValue !== undefined
+                            ? item.adjustInputValue
+                            : diffInBase === 0
+                              ? ""
+                              : diffInBase;
                         const selectedUom = item.selectedUom || baseUom;
 
                         return (
@@ -1149,7 +1230,9 @@ const StockAdjustmentForm: React.FC = () => {
                                 {item.name || "Unnamed Item"}
                               </div>
                               {errors[`items.${index}.itemSelection`] && (
-                                <div className="text-xs text-red-500 font-medium mt-1">{errors[`items.${index}.itemSelection`]}</div>
+                                <div className="text-xs text-[color:var(--color-danger)] font-medium mt-1">
+                                  {errors[`items.${index}.itemSelection`]}
+                                </div>
                               )}
                             </td>
 
@@ -1161,7 +1244,9 @@ const StockAdjustmentForm: React.FC = () => {
                                   hideLabel={true}
                                   noMargin={true}
                                   name={`storeId-${index}`}
-                                  value={item.storeId || (stores.length > 0 ? stores[0].storeId : "")}
+                                  value={
+                                    item.storeId || (stores.length > 0 ? stores[0].storeId : "")
+                                  }
                                   options={[
                                     { label: "Select Store", value: "" },
                                     ...stores.map((s: any) => ({
@@ -1169,7 +1254,9 @@ const StockAdjustmentForm: React.FC = () => {
                                       value: s.storeId,
                                     })),
                                   ]}
-                                  onChange={(e: any) => handleItemChange(index, "storeId", e.target.value)}
+                                  onChange={(e: any) =>
+                                    handleItemChange(index, "storeId", e.target.value)
+                                  }
                                   error={errors[`items.${index}.storeId`]}
                                 />
                               </div>
@@ -1236,17 +1323,17 @@ const StockAdjustmentForm: React.FC = () => {
                               <div
                                 className={`text-xs font-bold mt-0.5 ${
                                   diffInBase > 0
-                                    ? "text-green-400"
+                                    ? "text-[color:var(--color-success)]"
                                     : diffInBase < 0
-                                    ? "text-red-400"
-                                    : "text-ink-subtle"
+                                      ? "text-[color:var(--color-danger)]"
+                                      : "text-ink-subtle"
                                 }`}
                               >
                                 {diffInBase > 0
                                   ? `+${currentInputVal}${selectedUom}`
                                   : diffInBase < 0
-                                  ? `${currentInputVal}${selectedUom}`
-                                  : `0${selectedUom}`}
+                                    ? `${currentInputVal}${selectedUom}`
+                                    : `0${selectedUom}`}
                               </div>
                             </td>
 
@@ -1263,7 +1350,9 @@ const StockAdjustmentForm: React.FC = () => {
                                     { label: "Select reason", value: "" },
                                     ...REASON_OPTIONS,
                                   ]}
-                                  onChange={(e: any) => handleItemChange(index, "reason", e.target.value)}
+                                  onChange={(e: any) =>
+                                    handleItemChange(index, "reason", e.target.value)
+                                  }
                                   error={errors[`items.${index}.reason`]}
                                   required
                                 />
@@ -1287,7 +1376,7 @@ const StockAdjustmentForm: React.FC = () => {
                               tabIndex={0}
                               onClick={() => setIsAddProductsOpen(true)}
                               onKeyDown={(e) => e.key === "Enter" && setIsAddProductsOpen(true)}
-                              className="text-primary font-semibold hover:underline cursor-pointer"
+                              className="text-accent font-semibold hover:underline cursor-pointer"
                             >
                               Click + to select products or raw materials
                             </span>
@@ -1299,7 +1388,9 @@ const StockAdjustmentForm: React.FC = () => {
                 </table>
               </div>
               {errors.items && (
-                <div className="mt-2 text-sm text-red-500 font-medium">{errors.items}</div>
+                <div className="mt-2 text-sm text-[color:var(--color-danger)] font-medium">
+                  {errors.items}
+                </div>
               )}
             </div>
           )}
@@ -1325,7 +1416,13 @@ const StockAdjustmentForm: React.FC = () => {
                 type="button"
               />
               <CustomButton
-                text={isSubmitting ? "Saving..." : isPMI ? "Save Material Issue" : `Confirm Adjustment (${formData.items.length})`}
+                text={
+                  isSubmitting
+                    ? "Saving..."
+                    : isPMI
+                      ? "Save Material Issue"
+                      : `Confirm Adjustment (${formData.items.length})`
+                }
                 icon={FaSave}
                 type="submit"
                 onClick={handleSubmit}

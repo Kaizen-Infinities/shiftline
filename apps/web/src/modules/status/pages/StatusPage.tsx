@@ -18,10 +18,10 @@ const LABEL: Record<keyof StatusReport["components"], string> = {
   backups: "Backups",
 };
 const DOT: Record<ComponentState, string> = {
-  ok: "bg-emerald-500",
-  degraded: "bg-amber-500",
-  down: "bg-rose-500",
-  unknown: "bg-slate-400",
+  ok: "bg-[color:var(--color-success)]",
+  degraded: "bg-[color:var(--color-warning)]",
+  down: "bg-[color:var(--color-danger)]",
+  unknown: "bg-ink-subtle/40",
 };
 const WORD: Record<ComponentState, string> = {
   ok: "Operational",
@@ -30,10 +30,22 @@ const WORD: Record<ComponentState, string> = {
   unknown: "Unknown",
 };
 const OVERALL: Record<StatusReport["overall"] | "unreachable", { text: string; cls: string }> = {
-  operational: { text: "All systems operational", cls: "bg-emerald-50 text-emerald-800" },
-  degraded: { text: "Some systems degraded", cls: "bg-amber-50 text-amber-800" },
-  down: { text: "Shiftline is down", cls: "bg-rose-50 text-rose-800" },
-  unreachable: { text: "Shiftline is not reachable", cls: "bg-rose-50 text-rose-800" },
+  operational: {
+    text: "All systems operational",
+    cls: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
+  },
+  degraded: {
+    text: "Some systems degraded",
+    cls: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
+  },
+  down: {
+    text: "Shiftline is down",
+    cls: "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]",
+  },
+  unreachable: {
+    text: "Shiftline is not reachable",
+    cls: "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]",
+  },
 };
 const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "";
@@ -63,38 +75,38 @@ const StatusPage: React.FC = () => {
 
   const overall = unreachable ? OVERALL.unreachable : report ? OVERALL[report.overall] : null;
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+    <div className="min-h-screen bg-page px-4 py-10 text-ink">
       <div className="mx-auto max-w-2xl space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">System Status</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-ink-muted">
             Live state of the Shiftline platform. Refreshes every 30 seconds.
           </p>
         </div>
         {overall && (
-          <div className={`rounded-xl px-4 py-3 text-base font-semibold ${overall.cls}`}>
+          <div className={`rounded-sm px-4 py-3 text-base font-semibold ${overall.cls}`}>
             {overall.text}
           </div>
         )}
-        {!overall && <p className="text-sm text-slate-500">Checking…</p>}
+        {!overall && <p className="text-sm text-ink-muted">Checking…</p>}
         {report && (
-          <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+          <ul className="divide-y divide-line-soft rounded-sm border border-line bg-card">
             {(Object.keys(LABEL) as (keyof StatusReport["components"])[]).map((key) => {
               const c = report.components[key];
               return (
                 <li key={key} className="flex items-center gap-3 px-4 py-3">
                   <span className={`h-2.5 w-2.5 rounded-full ${DOT[c.state]}`} aria-hidden />
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{LABEL[key]}</div>
-                    <div className="text-xs text-slate-500">{c.detail}</div>
+                    <div className="text-sm font-medium text-ink">{LABEL[key]}</div>
+                    <div className="text-xs text-ink-muted">{c.detail}</div>
                   </div>
-                  <span className="text-xs font-semibold text-slate-600">{WORD[c.state]}</span>
+                  <span className="text-xs font-semibold text-ink-muted">{WORD[c.state]}</span>
                 </li>
               );
             })}
           </ul>
         )}
-        {report && <p className="text-xs text-slate-400">Last checked {when(report.checkedAt)}</p>}
+        {report && <p className="text-xs text-ink-subtle">Last checked {when(report.checkedAt)}</p>}
       </div>
     </div>
   );

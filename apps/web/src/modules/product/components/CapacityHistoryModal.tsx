@@ -6,6 +6,7 @@ import {
   clearHistory,
 } from "../../../features/product-capacity-history/productCapacityHistorySlice";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
+import DataTable from "../../../components/ui/table/DataTable";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 
 interface Props {
@@ -44,104 +45,120 @@ const CapacityHistoryModal: React.FC<Props> = ({
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
-        <Modal.Title className="fw-bold">
+        <Modal.Title>
           Capacity History
-          {productName && <span className="text-muted fs-6 ms-2">— {productName}</span>}
+          {productName && <span className="text-ink-muted text-sm ml-2">— {productName}</span>}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {currentCapacity !== undefined && currentCapacity !== null && (
-          <div className="bg-info bg-opacity-10 border border-info rounded-3 p-3 mb-4">
-            <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <span className="badge bg-info mb-2">CURRENT CAPACITY</span>
-                <h3 className="fw-bold text-info mb-0">
-                  {Number(currentCapacity).toLocaleString()} / Shift
-                </h3>
-              </div>
-            </div>
+          <div className="bg-card-2 border border-line rounded-sm p-3 mb-4">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card text-ink-muted text-[11px] font-semibold mb-2">
+              CURRENT CAPACITY
+            </span>
+            <h3 className="text-lg font-bold text-ink mb-0">
+              {Number(currentCapacity).toLocaleString()} / Shift
+            </h3>
           </div>
         )}
 
-        {loading && (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status" />
-            <p className="mt-2 text-muted small">Loading history...</p>
-          </div>
-        )}
-
-        {!loading && records.length === 0 && (
-          <div className="text-center py-5 text-muted">
-            No capacity history found for this product.
-          </div>
-        )}
-
-        {!loading && records.length > 0 && (
-          <div className="table-responsive">
-            <table className="table table-hover align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>#</th>
-                  <th>Date</th>
-                  <th>Production Order</th>
-                  <th>Previous</th>
-                  <th>New</th>
-                  <th>Change</th>
-                  <th>Target</th>
-                  <th>Actual</th>
-                  <th>Achievement</th>
-                  <th>Shift</th>
-                  <th>Machine</th>
-                  <th>Operators</th>
-                  <th>Updated By</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((r, idx) => {
-                  const change = Number(r.newCapacity) - Number(r.previousCapacity);
-                  const isIncrease = change >= 0;
-                  return (
-                    <tr key={r.id}>
-                      <td className="text-muted">{idx + 1}</td>
-                      <td className="fw-semibold">
-                        {new Date(r.productionDate).toLocaleDateString()}
-                      </td>
-                      <td className="small text-muted">{r.productionOrderId}</td>
-                      <td>{Number(r.previousCapacity).toLocaleString()}</td>
-                      <td className="fw-bold">{Number(r.newCapacity).toLocaleString()}</td>
-                      <td>
-                        <span className={isIncrease ? "text-success" : "text-danger"}>
-                          {isIncrease ? "+" : ""}
-                          {change.toLocaleString()}
-                        </span>
-                      </td>
-                      <td className="text-muted">{Number(r.targetQty).toLocaleString()}</td>
-                      <td className="fw-bold text-primary">
-                        {Number(r.actualQty).toLocaleString()}
-                      </td>
-                      <td>
-                        <StatusBadge
-                          status={
-                            r.achievementPct >= 100
-                              ? "ACTIVE"
-                              : r.achievementPct >= 80
-                                ? "IN_PRODUCTION"
-                                : "INACTIVE"
-                          }
-                        />
-                        <small className="ms-1">{Number(r.achievementPct).toFixed(1)}%</small>
-                      </td>
-                      <td>{r.shiftId}</td>
-                      <td>{r.machineId}</td>
-                      <td>{r.operators || "-"}</td>
-                      <td className="small">{r.updatedBy || "-"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          data={records}
+          rowKey={(r) => r.id}
+          loading={loading}
+          emptyMessage="No capacity history found for this product."
+          minHeightClassName=""
+          columns={[
+            {
+              header: "#",
+              width: "40px",
+              align: "center",
+              render: (_r, idx) => <span className="text-ink-subtle">{idx + 1}</span>,
+            },
+            {
+              header: "DATE",
+              render: (r) => (
+                <span className="font-semibold text-ink">
+                  {new Date(r.productionDate).toLocaleDateString()}
+                </span>
+              ),
+            },
+            {
+              header: "PRODUCTION ORDER",
+              render: (r) => <span className="text-ink-subtle text-xs">{r.productionOrderId}</span>,
+            },
+            {
+              header: "PREVIOUS",
+              render: (r) => Number(r.previousCapacity).toLocaleString(),
+            },
+            {
+              header: "NEW",
+              render: (r) => (
+                <span className="font-bold text-ink">{Number(r.newCapacity).toLocaleString()}</span>
+              ),
+            },
+            {
+              header: "CHANGE",
+              render: (r) => {
+                const change = Number(r.newCapacity) - Number(r.previousCapacity);
+                const isIncrease = change >= 0;
+                return (
+                  <span
+                    className={
+                      isIncrease
+                        ? "text-[color:var(--color-success)]"
+                        : "text-[color:var(--color-danger)]"
+                    }
+                  >
+                    {isIncrease ? "+" : ""}
+                    {change.toLocaleString()}
+                  </span>
+                );
+              },
+            },
+            {
+              header: "TARGET",
+              render: (r) => (
+                <span className="text-ink-subtle">{Number(r.targetQty).toLocaleString()}</span>
+              ),
+            },
+            {
+              header: "ACTUAL",
+              render: (r) => (
+                <span className="font-bold text-ink">{Number(r.actualQty).toLocaleString()}</span>
+              ),
+            },
+            {
+              header: "ACHIEVEMENT",
+              render: (r) => (
+                <div className="flex items-center gap-1">
+                  <StatusBadge
+                    status={
+                      r.achievementPct >= 100
+                        ? "ACTIVE"
+                        : r.achievementPct >= 80
+                          ? "IN_PRODUCTION"
+                          : "INACTIVE"
+                    }
+                  />
+                  <span className="text-xs text-ink-subtle">
+                    {Number(r.achievementPct).toFixed(1)}%
+                  </span>
+                </div>
+              ),
+            },
+            { header: "SHIFT", render: (r) => r.shiftId },
+            { header: "MACHINE", render: (r) => r.machineId },
+            {
+              header: "OPERATORS",
+              render: (r) => r.operators || "-",
+            },
+            {
+              header: "UPDATED BY",
+              render: (r) => <span className="text-xs text-ink-subtle">{r.updatedBy || "-"}</span>,
+            },
+          ]}
+        />
       </Modal.Body>
     </Modal>
   );

@@ -11,7 +11,6 @@ import type { DataTableColumn } from "../../../components/ui/table/DataTable";
 import { useListCache } from "../../../hooks/useListCache";
 import { usePermission } from "../../../hooks/usePermission";
 
-
 const InventoryReportsCenter: React.FC = () => {
   const { can } = usePermission();
   // Filters state
@@ -31,7 +30,14 @@ const InventoryReportsCenter: React.FC = () => {
   const [asOfDate, setAsOfDate] = useState("");
 
   const DEFAULT_COLUMNS = [
-    "#", "DATE", "ITEM CODE", "ITEM NAME", "CATEGORY", "STORE", "START QTY", "EOD QTY"
+    "#",
+    "DATE",
+    "ITEM CODE",
+    "ITEM NAME",
+    "CATEGORY",
+    "STORE",
+    "START QTY",
+    "EOD QTY",
   ];
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
@@ -66,23 +72,34 @@ const InventoryReportsCenter: React.FC = () => {
   // Load report data via useListCache
   const cacheKey = `inventoryReport:${page}:${LIMIT}:${date}:${category}:${storeId}:${search}`;
 
-  const fetcher = useCallback(async (_signal: AbortSignal) => {
-    const res = await reportsService.getInventoryReport({
-      date, category, storeId, search,
-      page, limit: LIMIT,
-    });
-    if (res.asOf) setAsOfDate(res.asOf);
-    const data = res.data || [];
-    let tot = data.length;
-    if (res.pagination) {
-      tot = res.pagination.total || tot;
-    } else if (res.total) {
-      tot = res.total;
-    }
-    return { data, total: tot };
-  }, [date, category, storeId, search, page]);
+  const fetcher = useCallback(
+    async (_signal: AbortSignal) => {
+      const res = await reportsService.getInventoryReport({
+        date,
+        category,
+        storeId,
+        search,
+        page,
+        limit: LIMIT,
+      });
+      if (res.asOf) setAsOfDate(res.asOf);
+      const data = res.data || [];
+      let tot = data.length;
+      if (res.pagination) {
+        tot = res.pagination.total || tot;
+      } else if (res.total) {
+        tot = res.total;
+      }
+      return { data, total: tot };
+    },
+    [date, category, storeId, search, page]
+  );
 
-  const { data: backendReports, total, loading: loadingBackend } = useListCache({
+  const {
+    data: backendReports,
+    total,
+    loading: loadingBackend,
+  } = useListCache({
     cacheKey,
     socketModule: "inventorySnapshot",
     fetcher,
@@ -96,14 +113,38 @@ const InventoryReportsCenter: React.FC = () => {
       { header: "Item Code", accessor: (item: any) => item.itemCode },
       { header: "Item Name", accessor: (item: any) => item.itemName },
       { header: "Category", accessor: (item: any) => item.category },
-      { header: "Store", accessor: (item: any) => stores.find(s => String(s.storeId) === String(item.storeId))?.storeName || item.storeId },
-      { header: "Date", accessor: (item: any) => item.snapshotDate ? new Date(item.snapshotDate).toLocaleDateString() : "-" },
-      { header: "Start Qty", accessor: (item: any) => (item.startQty !== null && item.startQty !== undefined && item.startQty !== '') ? `${item.startQty} ${item.uom ? item.uom.split(',')[0] : ''}`.trim() : "-" },
-      { header: "EOD Qty", accessor: (item: any) => (item.eodQty !== null && item.eodQty !== undefined && item.eodQty !== '') ? `${item.eodQty} ${item.uom ? item.uom.split(',')[0] : ''}`.trim() : "-" }
+      {
+        header: "Store",
+        accessor: (item: any) =>
+          stores.find((s) => String(s.storeId) === String(item.storeId))?.storeName || item.storeId,
+      },
+      {
+        header: "Date",
+        accessor: (item: any) =>
+          item.snapshotDate ? new Date(item.snapshotDate).toLocaleDateString() : "-",
+      },
+      {
+        header: "Start Qty",
+        accessor: (item: any) =>
+          item.startQty !== null && item.startQty !== undefined && item.startQty !== ""
+            ? `${item.startQty} ${item.uom ? item.uom.split(",")[0] : ""}`.trim()
+            : "-",
+      },
+      {
+        header: "EOD Qty",
+        accessor: (item: any) =>
+          item.eodQty !== null && item.eodQty !== undefined && item.eodQty !== ""
+            ? `${item.eodQty} ${item.uom ? item.uom.split(",")[0] : ""}`.trim()
+            : "-",
+      },
     ];
 
     // For CSV, we ideally want all data, but here we just export the current page or loaded data
-    return { csvData: backendReports, csvColumns: columns, csvFilename: `Inventory_Report_${date || asOfDate}.csv` };
+    return {
+      csvData: backendReports,
+      csvColumns: columns,
+      csvFilename: `Inventory_Report_${date || asOfDate}.csv`,
+    };
   }, [backendReports, date, asOfDate, stores]);
 
   const handleApplyFilters = () => {
@@ -131,58 +172,80 @@ const InventoryReportsCenter: React.FC = () => {
     {
       header: "#",
       width: "60px",
-      render: (_item, index) => ((page - 1) * 10) + index + 1,
+      render: (_item, index) => (page - 1) * 10 + index + 1,
     },
     {
       header: "DATE",
-      render: (item: any) => <span className="text-ink-subtle font-medium">{item.snapshotDate ? new Date(item.snapshotDate).toLocaleDateString() : "-"}</span>
+      render: (item: any) => (
+        <span className="text-ink-subtle font-medium">
+          {item.snapshotDate ? new Date(item.snapshotDate).toLocaleDateString() : "-"}
+        </span>
+      ),
     },
     {
       header: "ITEM CODE",
-      render: (item: any) => <span className="font-semibold text-ink">{item.itemCode || "-"}</span>
+      render: (item: any) => <span className="font-semibold text-ink">{item.itemCode || "-"}</span>,
     },
     {
       header: "ITEM NAME",
-      render: (item: any) => item.itemName || "-"
+      render: (item: any) => item.itemName || "-",
     },
     {
       header: "CATEGORY",
-      render: (item: any) => <span className="text-sm font-medium">{item.category}</span>
+      render: (item: any) => <span className="text-sm font-medium">{item.category}</span>,
     },
     {
       header: "STORE",
       render: (item: any) => {
-        const st = stores.find(s => String(s.storeId) === String(item.storeId));
+        const st = stores.find((s) => String(s.storeId) === String(item.storeId));
         return st ? st.storeName : item.storeId;
-      }
+      },
     },
 
     {
       header: "START QTY",
-      render: (item: any) => <span className="text-ink-muted">{(item.startQty !== null && item.startQty !== undefined && item.startQty !== '') ? `${item.startQty} ${item.uom ? item.uom.split(',')[0] : ''}` : "-"}</span>
+      render: (item: any) => (
+        <span className="text-ink-muted">
+          {item.startQty !== null && item.startQty !== undefined && item.startQty !== ""
+            ? `${item.startQty} ${item.uom ? item.uom.split(",")[0] : ""}`
+            : "-"}
+        </span>
+      ),
     },
     {
       header: "EOD QTY",
-      render: (item: any) => <span className="text-blue-600 font-semibold">{(item.eodQty !== null && item.eodQty !== undefined && item.eodQty !== '') ? `${item.eodQty} ${item.uom ? item.uom.split(',')[0] : ''}` : "-"}</span>
-    }
+      render: (item: any) => (
+        <span className="text-ink font-semibold">
+          {item.eodQty !== null && item.eodQty !== undefined && item.eodQty !== ""
+            ? `${item.eodQty} ${item.uom ? item.uom.split(",")[0] : ""}`
+            : "-"}
+        </span>
+      ),
+    },
   ];
 
-  const finalColumns = tableColumns.filter(c => visibleColumns.includes(c.header as string));
+  const finalColumns = tableColumns.filter((c) => visibleColumns.includes(c.header as string));
 
   return (
     <div className="w-full">
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
           <div>
             <h2 className="text-2xl font-bold text-ink">Inventory Reports</h2>
-            {asOfDate && <p className="text-sm text-ink-subtle mt-1">Data as of: {new Date(asOfDate).toLocaleDateString()}</p>}
+            {asOfDate && (
+              <p className="text-sm text-ink-subtle mt-1">
+                Data as of: {new Date(asOfDate).toLocaleDateString()}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 relative w-full lg:w-auto">
             {can("inventory-reports.export") && (
               <ExportCSVButton
                 data={csvData}
-                columns={csvColumns.filter(c => visibleColumns.map(v => v.toLowerCase()).includes(c.header.toLowerCase()))}
+                columns={csvColumns.filter((c) =>
+                  visibleColumns.map((v) => v.toLowerCase()).includes(c.header.toLowerCase())
+                )}
                 filename={csvFilename}
                 text="Export CSV"
               />
@@ -193,7 +256,9 @@ const InventoryReportsCenter: React.FC = () => {
         <div className="p-6 border-b border-line bg-card-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Snapshot Date</label>
+              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
+                Snapshot Date
+              </label>
               <DatePickerCalendar
                 name="draftDate"
                 value={draftDate}
@@ -201,13 +266,15 @@ const InventoryReportsCenter: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Category</label>
+              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
+                Category
+              </label>
               <SelectInput
                 name="draftCategory"
                 value={draftCategory}
                 options={[
                   { label: "Raw Materials", value: "RAW_MATERIAL" },
-                  { label: "Finished Products", value: "FINISHED_PRODUCT" }
+                  { label: "Finished Products", value: "FINISHED_PRODUCT" },
                 ]}
                 defaultOptionLabel="All Categories"
                 hideLabel={true}
@@ -215,19 +282,32 @@ const InventoryReportsCenter: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Store</label>
+              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
+                Store
+              </label>
               <SelectInput
                 name="draftStoreId"
                 value={draftStoreId}
-                options={stores.map(s => ({ label: s.storeName, value: (s.storeId || s.id || '').toString() }))}
+                options={stores.map((s) => ({
+                  label: s.storeName,
+                  value: (s.storeId || s.id || "").toString(),
+                }))}
                 defaultOptionLabel="All Stores"
                 hideLabel={true}
                 onChange={(e) => setDraftStoreId(e.target.value)}
               />
             </div>
             <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Search Item</label>
-              <input type="text" className="w-full border border-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm" value={draftSearch} onChange={(e) => setDraftSearch(e.target.value)} placeholder="Search code or name..." />
+              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
+                Search Item
+              </label>
+              <input
+                type="text"
+                className="w-full border border-line rounded-md px-3 py-2 text-sm text-ink bg-card focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                value={draftSearch}
+                onChange={(e) => setDraftSearch(e.target.value)}
+                placeholder="Search code or name..."
+              />
             </div>
           </div>
 
@@ -240,12 +320,7 @@ const InventoryReportsCenter: React.FC = () => {
               />
             </div>
             <div className="flex items-center gap-3">
-              <Button
-                text="Clear All"
-                variant="secondary"
-                size="sm"
-                onClick={handleClearFilters}
-              />
+              <Button text="Clear All" variant="secondary" size="sm" onClick={handleClearFilters} />
               <Button
                 text="Apply Filters"
                 variant="primary"

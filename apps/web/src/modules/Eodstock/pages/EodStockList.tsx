@@ -38,28 +38,17 @@ const formatQty = (qty: number | null, uom: string | null): string => {
   return u ? `${qty.toLocaleString()} ${u}` : qty.toLocaleString();
 };
 
-const CategoryBadge: React.FC<{ category: EodCategory }> = ({ category }) => {
-  const map: Record<EodCategory, { label: string; cls: string }> = {
-    RAW_MATERIAL: {
-      label: "Raw Material",
-      cls: "bg-emerald-950/60 text-emerald-300 border-emerald-800/60",
-    },
-    FINISHED_PRODUCT: {
-      label: "Finished Product",
-      cls: "bg-purple-950/60 text-purple-300 border-purple-800/60",
-    },
-    WASTAGE: {
-      label: "Wastage",
-      cls: "bg-red-950/60 text-red-300 border-red-800/60",
-    },
-  };
-  const { label, cls } = map[category] ?? { label: category, cls: "" };
-  return (
-    <span className={`inline-block px-2.5 py-0.5 text-xs font-semibold border rounded-md whitespace-nowrap ${cls}`}>
-      {label}
-    </span>
-  );
+const CATEGORY_LABELS: Record<EodCategory, string> = {
+  RAW_MATERIAL: "Raw Material",
+  FINISHED_PRODUCT: "Finished Product",
+  WASTAGE: "Wastage",
 };
+
+const CategoryBadge: React.FC<{ category: EodCategory }> = ({ category }) => (
+  <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold whitespace-nowrap">
+    {CATEGORY_LABELS[category] ?? category}
+  </span>
+);
 
 const EodStockList: React.FC = () => {
   const { socket } = useSocket();
@@ -94,7 +83,9 @@ const EodStockList: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { loadStores(); }, [loadStores]);
+  useEffect(() => {
+    loadStores();
+  }, [loadStores]);
 
   // Socket sync: refresh store dropdown when stores change
   useSocketSync("store", undefined, loadStores);
@@ -107,24 +98,30 @@ const EodStockList: React.FC = () => {
 
   // ── Dispatch fetch thunk ─────────────────────────────────────────────────────
   const loadData = useCallback(() => {
-    dispatch(fetchEodStock({
-      date: selectedDate,
-      category: categoryFilter || undefined,
-      storeId: storeIdFilter || undefined,
-      search: debouncedSearch || undefined,
-      page: currentPage,
-      limit: ITEMS_PER_PAGE,
-    }));
+    dispatch(
+      fetchEodStock({
+        date: selectedDate,
+        category: categoryFilter || undefined,
+        storeId: storeIdFilter || undefined,
+        search: debouncedSearch || undefined,
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+      })
+    );
   }, [dispatch, selectedDate, categoryFilter, storeIdFilter, debouncedSearch, currentPage]);
 
   // Keep a stable ref so the polling interval always calls the latest version
   const loadDataRef = useRef(loadData);
-  useEffect(() => { loadDataRef.current = loadData; }, [loadData]);
+  useEffect(() => {
+    loadDataRef.current = loadData;
+  }, [loadData]);
 
   usePageShortcuts({ onRefresh: () => loadData() });
 
   // Re-fetch whenever filters / date / page change
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const todayStr = getISTDateString();
   const isTodaySelected = selectedDate === todayStr;
@@ -132,7 +129,9 @@ const EodStockList: React.FC = () => {
   // ── Live polling: refresh every 30 s while viewing today ─────────────────────
   useEffect(() => {
     if (!isTodaySelected) return;
-    const timer = setInterval(() => { loadDataRef.current(); }, LIVE_POLL_INTERVAL_MS);
+    const timer = setInterval(() => {
+      loadDataRef.current();
+    }, LIVE_POLL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [isTodaySelected]);
 
@@ -162,7 +161,9 @@ const EodStockList: React.FC = () => {
     ];
 
     socketEvents.forEach((evt) => socket.on(evt, handleStockUpdate));
-    return () => { socketEvents.forEach((evt) => socket.off(evt, handleStockUpdate)); };
+    return () => {
+      socketEvents.forEach((evt) => socket.off(evt, handleStockUpdate));
+    };
   }, [socket, isTodaySelected]);
 
   const getStoreName = useCallback(
@@ -182,7 +183,9 @@ const EodStockList: React.FC = () => {
   const emptyMessage = useMemo(() => {
     if (isFuture) return "Future date — no EOD data available yet.";
     const catLabels: Record<string, string> = {
-      RAW_MATERIAL: "Raw Material", FINISHED_PRODUCT: "Finished Product", WASTAGE: "Wastage",
+      RAW_MATERIAL: "Raw Material",
+      FINISHED_PRODUCT: "Finished Product",
+      WASTAGE: "Wastage",
     };
     const parts: string[] = [];
     if (categoryFilter) parts.push(catLabels[categoryFilter] || categoryFilter);
@@ -199,16 +202,20 @@ const EodStockList: React.FC = () => {
     { header: "Item Code", accessor: (r: EodStockItem) => r.itemCode },
     { header: "Item Name", accessor: (r: EodStockItem) => r.itemName },
     {
-      header: "Category", accessor: (r: EodStockItem) =>
-        r.category === "RAW_MATERIAL" ? "Raw Material" :
-          r.category === "FINISHED_PRODUCT" ? "Finished Product" : "Wastage"
+      header: "Category",
+      accessor: (r: EodStockItem) =>
+        r.category === "RAW_MATERIAL"
+          ? "Raw Material"
+          : r.category === "FINISHED_PRODUCT"
+            ? "Finished Product"
+            : "Wastage",
     },
     { header: "Store", accessor: (r: EodStockItem) => getStoreName(r.storeId) },
     { header: "UOM", accessor: (r: EodStockItem) => formatUom(r.uom) },
     { header: "Start Qty", accessor: (r: EodStockItem) => r.startQty },
     {
       header: isTodaySelected && isLive ? "Current Qty (Live)" : "EOD Qty",
-      accessor: (r: EodStockItem) => r.eodQty ?? ""
+      accessor: (r: EodStockItem) => r.eodQty ?? "",
     },
   ];
 
@@ -216,20 +223,22 @@ const EodStockList: React.FC = () => {
   const renderBanner = () => {
     if (isTodaySelected && isLive) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-blue-950/40 border-b border-blue-900/50 text-sm text-blue-300">
-          <FaBroadcastTower size={13} className="flex-shrink-0 text-blue-400" />
+        <div className="flex items-center gap-2 px-5 py-2.5 bg-[color:var(--color-info)]/10 border-b border-[color:var(--color-info)]/30 text-sm text-[color:var(--color-info)]">
+          <FaBroadcastTower size={13} className="flex-shrink-0 text-[color:var(--color-info)]" />
           <span>
-            <span className="font-semibold">Live view</span> —
-            {" "}START QTY = day opening balance · EOD QTY = current live stock
-            <span className="ml-2 text-blue-400 text-xs">(auto-refreshes every 30 s)</span>
+            <span className="font-semibold">Live view</span> — START QTY = day opening balance · EOD
+            QTY = current live stock
+            <span className="ml-2 text-[color:var(--color-info)] text-xs">
+              (auto-refreshes every 30 s)
+            </span>
           </span>
         </div>
       );
     }
     if (isTodaySelected && isLocked) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-emerald-950/40 border-b border-emerald-900/50 text-sm text-emerald-300">
-          <FaLock size={12} className="flex-shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-2 px-5 py-2.5 bg-[color:var(--color-success)]/10 border-b border-[color:var(--color-success)]/30 text-sm text-[color:var(--color-success)]">
+          <FaLock size={12} className="flex-shrink-0 text-[color:var(--color-success)]" />
           <span>
             Today's stock locked as of{" "}
             <span className="font-semibold">{formatDateTime(lastLockedAt!)}</span>
@@ -250,8 +259,8 @@ const EodStockList: React.FC = () => {
     }
     if (!isTodaySelected && !isLocked && data.length === 0 && !loading) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-amber-950/40 border-b border-amber-900/50 text-sm text-amber-300">
-          <FaInfoCircle size={13} className="flex-shrink-0 text-amber-400" />
+        <div className="flex items-center gap-2 px-5 py-2.5 bg-[color:var(--color-warning)]/10 border-b border-[color:var(--color-warning)]/30 text-sm text-[color:var(--color-warning)]">
+          <FaInfoCircle size={13} className="flex-shrink-0 text-[color:var(--color-warning)]" />
           <span>
             No EOD snapshot recorded for{" "}
             <span className="font-semibold">{formatDate(selectedDate)}</span>.
@@ -269,7 +278,7 @@ const EodStockList: React.FC = () => {
     }
     return (
       <div className="flex items-center gap-2 px-5 py-2.5 bg-card-2 border-b border-line text-sm text-ink-muted">
-        <FaInfoCircle size={14} className="text-blue-400 flex-shrink-0" />
+        <FaInfoCircle size={14} className="text-[color:var(--color-info)] flex-shrink-0" />
         <span>
           Showing stock for{" "}
           <span className="font-semibold text-ink">
@@ -282,8 +291,7 @@ const EodStockList: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-
+      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
         {/* ── Header ───────────────────────────────────────────────────────────── */}
         <div className="border-b border-line px-5 py-4">
           {/* Row 1: title + action buttons */}
@@ -317,7 +325,10 @@ const EodStockList: React.FC = () => {
                 ]}
                 hideLabel
                 noMargin
-                onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
 
@@ -328,14 +339,20 @@ const EodStockList: React.FC = () => {
                 options={stores.map((s) => ({ label: s.storeName, value: s.storeId }))}
                 hideLabel
                 noMargin
-                onChange={(e) => { setStoreIdFilter(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setStoreIdFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
 
             <div className="w-56">
               <SearchInput
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Search item code or name…"
                 fullWidthOnMobileOnly={false}
               />
@@ -346,7 +363,10 @@ const EodStockList: React.FC = () => {
                 value={selectedDate}
                 maxDate={todayStr}
                 placeholder="Select date"
-                onChange={(e) => { setSelectedDate(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  setCurrentPage(1);
+                }}
               />
             </div>
           </div>
@@ -409,7 +429,11 @@ const EodStockList: React.FC = () => {
                   <span className="font-bold font-mono text-sm text-ink flex items-center justify-end gap-1.5">
                     {formatQty(item.eodQty, item.uom)}
                     {item.recordedAt !== null && (
-                      <FaLock size={9} className="text-ink-subtle" title={`Locked at ${formatDateTime(item.recordedAt)}`} />
+                      <FaLock
+                        size={9}
+                        className="text-ink-subtle"
+                        title={`Locked at ${formatDateTime(item.recordedAt)}`}
+                      />
                     )}
                   </span>
                 ),
@@ -422,7 +446,6 @@ const EodStockList: React.FC = () => {
             }}
           />
         </div>
-
       </div>
     </div>
   );

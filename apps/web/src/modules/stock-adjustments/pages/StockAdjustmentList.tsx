@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import {
-  FaPlus,
-} from "react-icons/fa";
+import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -67,7 +65,7 @@ const getReasonLabel = (reasonStr?: string) => {
 
 const getAdjustmentDisplayReason = (item: any) => {
   const firstItem = item.items?.[0];
-  
+
   if (firstItem?.remarks && firstItem.remarks.trim()) {
     const parts = firstItem.remarks.trim().split(" - ");
     return parts[0];
@@ -103,7 +101,7 @@ const getStockAdjustmentTypeInfo = (item: any) => {
   if (diff > 0) {
     return { label: "Stock Increase", variant: "success" };
   }
-  
+
   if (
     type === "STOCK_DECREASE" ||
     type === "DAMAGE" ||
@@ -112,20 +110,28 @@ const getStockAdjustmentTypeInfo = (item: any) => {
   ) {
     return { label: "Stock Decrease", variant: "danger" };
   }
-  
+
   return { label: "Stock Increase", variant: "success" };
 };
+
+const NEUTRAL_CHIP_CLASS = "border border-line bg-card-2 text-ink-muted";
 
 const getStockAdjustmentSourceInfo = (item: any) => {
   const poId = item.productionOrderId;
   const srcDoc = (item.sourceDocument || "").toLowerCase();
   const type = (item.adjustmentType || "").toLowerCase();
 
-  if (poId || type.includes("production") || type.includes("pmi") || srcDoc.includes("prod") || srcDoc.includes("pmi")) {
+  if (
+    poId ||
+    type.includes("production") ||
+    type.includes("pmi") ||
+    srcDoc.includes("prod") ||
+    srcDoc.includes("pmi")
+  ) {
     return {
       module: "Production",
-      detail: poId ? `PO: ${poId}` : (item.sourceDocId ? `#${item.sourceDocId}` : ""),
-      badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+      detail: poId ? `PO: ${poId}` : item.sourceDocId ? `#${item.sourceDocId}` : "",
+      badgeClass: NEUTRAL_CHIP_CLASS,
     };
   }
 
@@ -133,7 +139,7 @@ const getStockAdjustmentSourceInfo = (item: any) => {
     return {
       module: "Purchase",
       detail: item.sourceDocId ? `#${item.sourceDocId}` : "",
-      badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
+      badgeClass: NEUTRAL_CHIP_CLASS,
     };
   }
 
@@ -141,29 +147,18 @@ const getStockAdjustmentSourceInfo = (item: any) => {
     return {
       module: "Sales",
       detail: item.sourceDocId ? `#${item.sourceDocId}` : "",
-      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+      badgeClass: NEUTRAL_CHIP_CLASS,
     };
   }
 
   return {
     module: "Manual",
     detail: "",
-    badgeClass: "bg-card-2 text-ink-muted border-line",
+    badgeClass: NEUTRAL_CHIP_CLASS,
   };
 };
 
-const getTypeBadgeClass = (type: string) => {
-  switch (ADJUSTMENT_TYPE_BADGE[type]) {
-    case "primary": return "bg-blue-100 text-blue-800";
-    case "info": return "bg-cyan-100 text-cyan-800";
-    case "success": return "bg-green-100 text-green-800";
-    case "warning": return "bg-yellow-100 text-yellow-800";
-    case "danger": return "bg-red-100 text-red-800";
-    case "dark": return "bg-gray-800 text-gray-100";
-    case "light": return "bg-card-2 text-ink";
-    default: return "bg-card-2 text-ink";
-  }
-};
+const getTypeBadgeClass = (_type: string) => NEUTRAL_CHIP_CLASS;
 
 const getPrimaryUom = (uomStr?: string) => {
   if (!uomStr) return "";
@@ -176,15 +171,23 @@ const getPrimaryUom = (uomStr?: string) => {
 const getItemPrimaryUom = (item: any) => {
   if (!item) return "";
   if (item.uom) {
-    const raw = typeof item.uom === "object" ? (item.uom.uomCode || item.uom.uomName || item.uom.code || item.uom.name) : String(item.uom);
+    const raw =
+      typeof item.uom === "object"
+        ? item.uom.uomCode || item.uom.uomName || item.uom.code || item.uom.name
+        : String(item.uom);
     if (raw) return getPrimaryUom(raw);
   }
-  const isProduct = item.itemType === "PRODUCT" || item.itemType === "FINISHED_GOODS" || !!item.product || !!item.productItemId;
+  const isProduct =
+    item.itemType === "PRODUCT" ||
+    item.itemType === "FINISHED_GOODS" ||
+    !!item.product ||
+    !!item.productItemId;
   if (isProduct) {
     const pUom = item.product?.uom;
-    const prodUom = typeof pUom === "object"
-      ? (pUom.uomCode || pUom.uomName || pUom.code || pUom.name)
-      : (pUom || item.product?.baseUom || item.product?.unit);
+    const prodUom =
+      typeof pUom === "object"
+        ? pUom.uomCode || pUom.uomName || pUom.code || pUom.name
+        : pUom || item.product?.baseUom || item.product?.unit;
     if (prodUom) return getPrimaryUom(String(prodUom));
     return "pcs";
   }
@@ -230,20 +233,23 @@ const StockAdjustmentList: React.FC = () => {
 
   const cacheKey = `${SA_CACHE_PREFIX}${currentPage}:${ITEMS_PER_PAGE}:${debouncedSearch}:${status}:${adjustmentType}:${dateFrom}:${dateTo}`;
 
-  const fetcher = useCallback(async (_signal: AbortSignal) => {
-    const res = await stockAdjustmentService.fetchAll({
-      search: debouncedSearch,
-      status,
-      adjustmentType,
-      dateFrom,
-      dateTo,
-      page: currentPage,
-      limit: ITEMS_PER_PAGE,
-    });
-    const list = Array.isArray(res) ? res : (res.data || []);
-    const tot = Array.isArray(res) ? res.length : (res.meta?.total || res.total || list.length);
-    return { data: list, total: tot };
-  }, [debouncedSearch, status, adjustmentType, dateFrom, dateTo, currentPage]);
+  const fetcher = useCallback(
+    async (_signal: AbortSignal) => {
+      const res = await stockAdjustmentService.fetchAll({
+        search: debouncedSearch,
+        status,
+        adjustmentType,
+        dateFrom,
+        dateTo,
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+      });
+      const list = Array.isArray(res) ? res : res.data || [];
+      const tot = Array.isArray(res) ? res.length : res.meta?.total || res.total || list.length;
+      return { data: list, total: tot };
+    },
+    [debouncedSearch, status, adjustmentType, dateFrom, dateTo, currentPage]
+  );
 
   const { data, total, loading, refresh } = useListCache({
     cacheKey,
@@ -301,7 +307,9 @@ const StockAdjustmentList: React.FC = () => {
   }, [deleteId, isDeleting, refresh]);
 
   const getTypeBadge = (type: string) => (
-    <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wider ${getTypeBadgeClass(type)}`}>
+    <span
+      className={`px-2.5 py-1 rounded-sm text-[11px] font-semibold tracking-wider border ${getTypeBadgeClass(type)}`}
+    >
       {ADJUSTMENT_TYPE_LABELS[type] || type}
     </span>
   );
@@ -310,7 +318,7 @@ const StockAdjustmentList: React.FC = () => {
 
   return (
     <div>
-      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
           <div>
@@ -320,7 +328,10 @@ const StockAdjustmentList: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             {/* Search */}
             <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" size={15} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
+                size={15}
+              />
               <input
                 type="text"
                 data-search-input
@@ -438,9 +449,11 @@ const StockAdjustmentList: React.FC = () => {
               render: (item) => (
                 <div>
                   <div className="font-semibold text-ink-muted">{item.adjustmentNumber}</div>
-                  <div className="text-xs text-ink-subtle font-medium">{formatDate(item.adjustmentDate)}</div>
+                  <div className="text-xs text-ink-subtle font-medium">
+                    {formatDate(item.adjustmentDate)}
+                  </div>
                 </div>
-              )
+              ),
             },
             {
               header: "TYPE",
@@ -449,16 +462,16 @@ const StockAdjustmentList: React.FC = () => {
                 const info = getStockAdjustmentTypeInfo(item);
                 return (
                   <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
+                    className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold whitespace-nowrap border ${
                       info.variant === "success"
-                        ? "bg-green-100 text-green-700 border border-green-200"
-                        : "bg-red-100 text-red-700 border border-red-200"
+                        ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border-[color:var(--color-success)]/30"
+                        : "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border-[color:var(--color-danger)]/30"
                     }`}
                   >
                     {info.label}
                   </span>
                 );
-              }
+              },
             },
             {
               header: "SOURCE",
@@ -467,7 +480,9 @@ const StockAdjustmentList: React.FC = () => {
                 const src = getStockAdjustmentSourceInfo(item);
                 return (
                   <div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${src.badgeClass}`}>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold border ${src.badgeClass}`}
+                    >
                       {src.module}
                     </span>
                     {src.detail && (
@@ -477,7 +492,7 @@ const StockAdjustmentList: React.FC = () => {
                     )}
                   </div>
                 );
-              }
+              },
             },
             {
               header: "PRODUCT",
@@ -489,14 +504,12 @@ const StockAdjustmentList: React.FC = () => {
                 if (product?.productName) {
                   return (
                     <div>
-                      <div className="font-semibold text-sm text-ink">
-                        {product.productName}
-                      </div>
-                      <div className="text-xs text-ink-subtle">
-                        {product.productCode}
-                      </div>
+                      <div className="font-semibold text-sm text-ink">{product.productName}</div>
+                      <div className="text-xs text-ink-subtle">{product.productCode}</div>
                       {item.items && item.items.length > 1 && (
-                        <div className="text-[10px] text-ink-subtle mt-0.5">+{item.items.length - 1} more</div>
+                        <div className="text-[10px] text-ink-subtle mt-0.5">
+                          +{item.items.length - 1} more
+                        </div>
                       )}
                     </div>
                   );
@@ -508,61 +521,85 @@ const StockAdjustmentList: React.FC = () => {
                         {rawMaterial.materialName}
                       </div>
                       {item.items && item.items.length > 1 && (
-                        <div className="text-[10px] text-ink-subtle mt-0.5">+{item.items.length - 1} more</div>
+                        <div className="text-[10px] text-ink-subtle mt-0.5">
+                          +{item.items.length - 1} more
+                        </div>
                       )}
                     </div>
                   );
                 }
                 return <span className="text-ink-subtle">—</span>;
-              }
+              },
             },
             {
               header: "ORIGINAL QTY",
               width: "minmax(120px, 1fr)",
               render: (item) => {
                 const firstItem = item.items?.[0];
-                if (!firstItem || firstItem.currentQty == null) return <span className="text-ink-subtle">—</span>;
+                if (!firstItem || firstItem.currentQty == null)
+                  return <span className="text-ink-subtle">—</span>;
                 const qty = Number(firstItem.currentQty);
                 const primaryUom = getItemPrimaryUom(firstItem);
                 const uomStr = primaryUom ? ` ${primaryUom}` : "";
                 return (
                   <div>
-                    <span className="font-semibold text-ink-muted text-sm">{qty}{uomStr}</span>
+                    <span className="font-semibold text-ink-muted text-sm">
+                      {qty}
+                      {uomStr}
+                    </span>
                     {item.items && item.items.length > 1 && (
-                      <div className="text-[10px] text-ink-subtle mt-0.5">+{item.items.length - 1} more</div>
+                      <div className="text-[10px] text-ink-subtle mt-0.5">
+                        +{item.items.length - 1} more
+                      </div>
                     )}
                   </div>
                 );
-              }
+              },
             },
             {
               header: "ADJUSTED QTY",
               width: "minmax(150px, 1fr)",
               render: (item) => {
                 const firstItem = item.items?.[0];
-                if (!firstItem || firstItem.adjustedQty == null) return <span className="text-ink-subtle">—</span>;
+                if (!firstItem || firstItem.adjustedQty == null)
+                  return <span className="text-ink-subtle">—</span>;
                 const qty = Number(firstItem.adjustedQty);
                 const diff = Number(firstItem.difference || 0);
                 const primaryUom = getItemPrimaryUom(firstItem);
                 const uomStr = primaryUom ? ` ${primaryUom}` : "";
-                const diffColor = diff > 0 ? "text-green-600 bg-green-50 border border-green-200" : diff < 0 ? "text-red-600 bg-red-50 border border-red-200" : "text-ink-subtle bg-card-2";
-                const diffSign = diff > 0 ? `+${diff}${primaryUom ? ` ${primaryUom}` : ''}` : `${diff}${primaryUom ? ` ${primaryUom}` : ''}`;
+                const diffColor =
+                  diff > 0
+                    ? "text-[color:var(--color-success)] bg-[color:var(--color-success)]/10 border border-[color:var(--color-success)]/30"
+                    : diff < 0
+                      ? "text-[color:var(--color-danger)] bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/30"
+                      : "text-ink-subtle bg-card-2";
+                const diffSign =
+                  diff > 0
+                    ? `+${diff}${primaryUom ? ` ${primaryUom}` : ""}`
+                    : `${diff}${primaryUom ? ` ${primaryUom}` : ""}`;
                 return (
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-ink text-sm">{qty}{uomStr}</span>
+                      <span className="font-bold text-ink text-sm">
+                        {qty}
+                        {uomStr}
+                      </span>
                       {diff !== 0 && (
-                        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${diffColor}`}>
+                        <span
+                          className={`text-[11px] font-bold px-1.5 py-0.5 rounded-sm ${diffColor}`}
+                        >
                           {diffSign}
                         </span>
                       )}
                     </div>
                     {item.items && item.items.length > 1 && (
-                      <div className="text-[10px] text-ink-subtle mt-0.5">+{item.items.length - 1} more</div>
+                      <div className="text-[10px] text-ink-subtle mt-0.5">
+                        +{item.items.length - 1} more
+                      </div>
                     )}
                   </div>
                 );
-              }
+              },
             },
             {
               header: "REASON",
@@ -574,30 +611,31 @@ const StockAdjustmentList: React.FC = () => {
 
                 return (
                   <div className="min-w-0">
-                    <span
-                      title={fullTooltip}
-                      className="block truncate text-ink-muted font-medium"
-                    >
+                    <span title={fullTooltip} className="block truncate text-ink-muted font-medium">
                       {displayReason}
                     </span>
                     {item.items && item.items.length > 1 && (
-                      <div className="text-[10px] text-ink-subtle mt-0.5">+{item.items.length - 1} more</div>
+                      <div className="text-[10px] text-ink-subtle mt-0.5">
+                        +{item.items.length - 1} more
+                      </div>
                     )}
                   </div>
                 );
-              }
+              },
             },
             {
               header: "ACTIONS",
               width: "80px",
               render: (item: any) => (
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                  <ViewButton onClick={() => navigate(`/inventory/stock-adjustments/view/${item.id}`)} />
+                  <ViewButton
+                    onClick={() => navigate(`/inventory/stock-adjustments/view/${item.id}`)}
+                  />
                   {can("stock-adjustments.delete") && item.status !== "APPROVED" && (
                     <DeleteButton onClick={() => setDeleteId(String(item.id))} />
                   )}
                 </div>
-              )
+              ),
             },
           ]}
         />
