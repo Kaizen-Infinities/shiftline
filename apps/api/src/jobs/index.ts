@@ -17,6 +17,9 @@ import { msmeClockHandler } from "./msme.job";
 import { depreciationRunHandler } from "./assets.job";
 import { fxRatesHandler } from "./fx.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
+import { billingCycleFanoutHandler, billingCycleHandler } from "./billing-cycle.job";
+import { leaveAccrualFanoutHandler, leaveAccrualHandler } from "./leave-accrual.job";
+import { smsSendHandler } from "./sms-send.job";
 
 const IST = "Asia/Kolkata";
 
@@ -69,6 +72,11 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.MSME_CLOCK, work, each(msmeClockHandler));
   await boss.work(QUEUES.DEPRECIATION_RUN, work, each(depreciationRunHandler));
   await boss.work(QUEUES.FX_RATES, work, each(fxRatesHandler));
+  await boss.work(QUEUES.BILLING_CYCLE_FANOUT, work, each(billingCycleFanoutHandler));
+  await boss.work(QUEUES.BILLING_CYCLE, work, each(billingCycleHandler));
+  await boss.work(QUEUES.LEAVE_ACCRUAL_FANOUT, work, each(leaveAccrualFanoutHandler));
+  await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
+  await boss.work(QUEUES.SMS_SEND, work, each(smsSendHandler));
 };
 
 /**
@@ -93,4 +101,9 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.DEPRECIATION_RUN, "0 3 1 * *", {}, { tz: IST });
   // 14:00 IST: the RBI publishes its reference rate around 13:30 and not at all on a holiday.
   await boss.schedule(QUEUES.FX_RATES, "0 14 * * *", {}, { tz: IST });
+  // Daily: each tenant's billing anchor can fall on any day of the month, so the fan-out runs
+  // every day and the per-tenant handler decides whether that tenant's period is actually due.
+  await boss.schedule(QUEUES.BILLING_CYCLE_FANOUT, "0 5 * * *", {}, { tz: IST });
+  // 1st of the month, after the billing fan-out: leave accrual for the month just closed.
+  await boss.schedule(QUEUES.LEAVE_ACCRUAL_FANOUT, "0 6 1 * *", {}, { tz: IST });
 };

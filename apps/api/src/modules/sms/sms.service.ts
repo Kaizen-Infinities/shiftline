@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
+import { QUEUES, isJobsStarted, sendTenantJob } from "../../lib/jobs";
 import { logger } from "../../lib/logger";
 import { getRequestId } from "../../lib/request-context";
 import { requireTenantId } from "../../lib/tenant-context";
@@ -13,8 +14,14 @@ import {
   segmentsFor,
   variablesIn,
 } from "./sms.calc";
-import type { SmsCredentials } from "./sms.types";
+import type { SendRequest, SmsCredentials } from "./sms.types";
 import { SMS_PROVIDERS, smsProviderFor } from "./providers";
+
+/** The `SMS_SEND` job's data shape (P2-T); the job handler lives in `jobs/sms-send.job.ts`. */
+export interface SmsSendJobData {
+  companyId: string;
+  smsMessageId: string;
+}
 
 export const smsConfigSchema = z.object({
   provider: z.enum(SMS_PROVIDERS).default("FIXTURE"),
@@ -278,19 +285,66 @@ class SmsService {
       },
     });
 
-    try {
-      const result = await smsProviderFor(provider).send(
+    // A caller that supplies its own logBody (the OTP path) is asking for a different body to be
+    // sent than what was persisted — a one-time secret that must never sit in a queue row for a
+    // worker to read back later. That send can only happen here, inline, while the real body is
+    // still in memory. Everything else goes through the send queue so a slow gateway never blocks
+    // a request; the worker reads the row back, and for those the row already holds the real body.
+    if (input.logBody === undefined && isJobsStarted()) {
+      const companyId = requireTenantId();
+      await sendTenantJob<SmsSendJobData>(
+        QUEUES.SMS_SEND,
+        { companyId, smsMessageId: row.id },
         {
-          to: mobile,
-          body,
-          dltTemplateId: template.dltTemplateId,
-          category: template.category,
-        },
-        creds
+          singletonKey: `${companyId}:${row.id}`,
+          retryLimit: 2,
+          retryDelay: 15,
+          retryBackoff: true,
+        }
       );
-      logger.info({ templateCode: template.code, segments }, "sms sent");
-      return prisma.smsMessage.update({
-        where: { id: row.id },
+      return row;
+    }
+    return this.deliver(row.id, {
+      provider,
+      creds,
+      body,
+      dltTemplateId: template.dltTemplateId,
+      category: template.category,
+      templateCode: template.code,
+      mobile,
+    });
+  }
+
+  /**
+   * Sends a previously-queued message and records the outcome. Called inline by `sendTemplate`
+   * when there is no queue to defer to (or the body carries a secret that must not be queued),
+   * and by the `SMS_SEND` job handler for everything else.
+   */
+  private async deliver(
+    messageId: string,
+    ctx: {
+      provider: string;
+      creds: SmsCredentials;
+      body: string;
+      dltTemplateId: string | null;
+      category: SendRequest["category"];
+      templateCode: string | null;
+      mobile: string;
+    }
+  ) {
+    try {
+      const result = await smsProviderFor(ctx.provider).send(
+        {
+          to: ctx.mobile,
+          body: ctx.body,
+          dltTemplateId: ctx.dltTemplateId,
+          category: ctx.category,
+        },
+        ctx.creds
+      );
+      logger.info({ templateCode: ctx.templateCode }, "sms sent");
+      return await prisma.smsMessage.update({
+        where: { id: messageId },
         data: {
           status: result.status === "SENT" ? "SENT" : "QUEUED",
           providerMessageId: result.providerMessageId,
@@ -300,12 +354,36 @@ class SmsService {
     } catch (error) {
       const detail = error instanceof Error ? error.message : "The gateway refused the message";
       await prisma.smsMessage.update({
-        where: { id: row.id },
+        where: { id: messageId },
         data: { status: "FAILED", error: detail.slice(0, 255) },
       });
-      logger.warn({ templateCode: template.code }, "sms refused by the gateway");
+      logger.warn({ templateCode: ctx.templateCode }, "sms refused by the gateway");
       throw new ApiError(502, "The SMS gateway refused the message", "SMS_REFUSED");
     }
+  }
+
+  /**
+   * The `SMS_SEND` job's body (P2-T): looks up the queued row and its template, then delivers.
+   * Idempotent — a message that already left `QUEUED` (a retried job racing a first success) is
+   * left alone.
+   */
+  async sendQueuedMessage(messageId: string) {
+    const row = await prisma.smsMessage.findUnique({ where: { id: messageId } });
+    if (!row) return { skipped: "missing" as const };
+    if (row.status !== "QUEUED") return { skipped: row.status };
+    const { provider, creds } = await this.credentials();
+    const template = row.templateCode
+      ? await prisma.smsTemplate.findFirst({ where: { code: row.templateCode } })
+      : null;
+    return this.deliver(row.id, {
+      provider,
+      creds,
+      body: row.body,
+      dltTemplateId: row.dltTemplateId,
+      category: template?.category ?? "TRANSACTIONAL",
+      templateCode: row.templateCode,
+      mobile: row.toMobile,
+    });
   }
 
   async messages(query: { to?: string; status?: string; take?: number }) {

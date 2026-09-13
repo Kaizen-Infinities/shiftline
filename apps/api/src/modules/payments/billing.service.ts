@@ -53,6 +53,29 @@ class BillingService {
     });
   }
 
+  /**
+   * Raises the tenant's next invoice once its current period has ended (P2-T's scheduling gap).
+   * Safe to call any number of times a day: it raises at most one invoice, gated on there being
+   * none already outstanding, and `raise()` itself dedupes on `periodStart`.
+   */
+  async raiseNextIfDue(companyId: string, asOf: Date = new Date()) {
+    return runAsTenant(companyId, async () => {
+      const subscription = await prisma.subscription.findFirst({ include: { plan: true } });
+      if (!subscription || subscription.status === "CANCELLED") return null;
+      if (subscription.trialEndsAt && subscription.trialEndsAt > asOf) return null;
+      const anchor =
+        subscription.currentPeriodEnd ?? subscription.currentPeriodStart ?? subscription.createdAt;
+      if (anchor > asOf) return null;
+      const outstanding = await prisma.subscriptionInvoice.findFirst({
+        where: { status: { in: ["DUE", "FAILED"] } },
+      });
+      if (outstanding) return null;
+      const periodEnd = new Date(anchor);
+      periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+      return this.raise(companyId, { periodStart: anchor, periodEnd });
+    });
+  }
+
   async list(companyId: string, status?: SubscriptionInvoiceStatus) {
     return runAsTenant(companyId, () =>
       prisma.subscriptionInvoice.findMany({

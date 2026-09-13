@@ -46,6 +46,16 @@ export const QUEUES = {
   DEPRECIATION_RUN: "accounts.depreciation.run",
   /** Daily: pull the day's exchange rates for every tenant (P1-17). */
   FX_RATES: "accounts.fx.rates",
+  /** Daily fan-out: enqueue one subscription-invoice check per active tenant (P2-T). */
+  BILLING_CYCLE_FANOUT: "payments.billing-cycle.fanout",
+  /** Per-tenant: raise the next subscription invoice once the current period has ended. */
+  BILLING_CYCLE: "payments.billing-cycle",
+  /** Monthly fan-out (P2-T): enqueue one leave-accrual run per active tenant. */
+  LEAVE_ACCRUAL_FANOUT: "payroll.leave-accrual.fanout",
+  /** Per-tenant: recompute leave balances to date for every active employee. */
+  LEAVE_ACCRUAL: "payroll.leave-accrual",
+  /** One SMS send per job (P2-T); keeps a slow gateway off the request path. */
+  SMS_SEND: "notifications.sms.send",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -55,6 +65,8 @@ const TENANT_QUEUES: ReadonlySet<string> = new Set([
   QUEUES.EOD_SNAPSHOT,
   QUEUES.RETENTION_SWEEP,
   QUEUES.ACCOUNT_EXPORT,
+  QUEUES.BILLING_CYCLE,
+  QUEUES.LEAVE_ACCRUAL,
 ]);
 
 let boss: PgBoss | undefined;

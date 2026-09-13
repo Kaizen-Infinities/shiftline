@@ -34,6 +34,13 @@ const fyRange = (fyCode: string) => {
   return { from: new Date(Date.UTC(y, 3, 1)), to: new Date(Date.UTC(y + 1, 2, 31)) };
 };
 
+/** The Indian financial year (April–March) that a date falls in, as `YYYY-YY`. */
+const fyCodeFor = (d: Date): string => {
+  const y = d.getUTCFullYear();
+  const fyStartYear = d.getUTCMonth() >= 3 ? y : y - 1;
+  return `${fyStartYear}-${String((fyStartYear + 1) % 100).padStart(2, "0")}`;
+};
+
 /** The leave a factory typically gives, as a starting point. */
 export const DEFAULT_LEAVE_TYPES = [
   {
@@ -211,6 +218,61 @@ class LabourService {
       );
     }
     return out;
+  }
+
+  /**
+   * The monthly leave-accrual job (P2-T): recomputes every active employee's leave to date for
+   * the financial year containing `monthEnd`, from attendance recorded since the FY began (or
+   * since the employee joined, if that is later). One query for all employees' attendance rather
+   * than one per employee, since this runs for the whole tenant at once.
+   */
+  async accrueForMonth(monthEnd: Date, actor: { userId?: string } = {}) {
+    const fyCode = fyCodeFor(monthEnd);
+    const { from } = fyRange(fyCode);
+    const toStr = iso(monthEnd);
+    const employees = await prisma.employee.findMany({
+      where: { status: "active" },
+      select: { id: true, dateOfJoining: true },
+    });
+    if (employees.length === 0) return { fyCode, employees: 0 };
+
+    const fromStr = iso(from);
+    const attendance = await prisma.attendanceRecord.findMany({
+      where: {
+        employeeId: { in: employees.map((e) => e.id) },
+        date: { gte: fromStr, lte: toStr },
+        status: { in: ["PRESENT", "HALF_DAY"] },
+      },
+      select: { employeeId: true, status: true },
+    });
+    const daysByEmployee = new Map<string, number>();
+    for (const row of attendance) {
+      const key = row.employeeId.toString();
+      const add = row.status === "HALF_DAY" ? 0.5 : 1;
+      daysByEmployee.set(key, (daysByEmployee.get(key) ?? 0) + add);
+    }
+
+    const monthsWorked = Math.min(
+      12,
+      Math.max(
+        1,
+        (monthEnd.getUTCFullYear() - from.getUTCFullYear()) * 12 +
+          (monthEnd.getUTCMonth() - from.getUTCMonth()) +
+          1
+      )
+    );
+
+    const results = [];
+    for (const emp of employees) {
+      const daysWorked = daysByEmployee.get(emp.id.toString()) ?? 0;
+      results.push(
+        await this.accrue(
+          { employeeId: emp.id.toString(), fyCode, daysWorked, monthsWorked },
+          actor
+        )
+      );
+    }
+    return { fyCode, employees: employees.length, balances: results.flat().length };
   }
 
   /** Records leave taken, refusing what the employee does not have. */
