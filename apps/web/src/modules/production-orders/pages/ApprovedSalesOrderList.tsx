@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Container, Row, Col, Alert, Modal } from "../../../components/ui/TailwindPrimitives";
-import { FaPlus, FaSearch } from "react-icons/fa";
+import { Modal } from "../../../components/ui/TailwindPrimitives";
+import { FaPlus } from "react-icons/fa";
+import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
@@ -110,113 +111,108 @@ const ApprovedSalesOrderList: React.FC = () => {
   };
 
   return (
-    <div className="inner-container">
-      <Container fluid>
-        <div className="page-header">
-          <Row className="align-items-center g-3">
-            <Col lg={6} md={12}>
-              <div className="page-header-info">
-                <h2 className="page-title">Approved Sales Orders</h2>
-              </div>
-            </Col>
-            <Col lg={6} md={12}>
-              <div className="page-header-actions">
-                <div className="page-search-wrap">
-                  <FaSearch className="page-search-icon" />
-                  <input
-                    type="text"
-                    className="page-search-input"
-                    placeholder="Search orders..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    data-search-input
-                  />
-                </div>
-              </div>
-            </Col>
-          </Row>
+    <div>
+      <div className="max-w-[1100px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
+          <div>
+            <h2 className="text-base font-bold text-ink">Approved Sales Orders</h2>
+          </div>
+          <div className="relative w-full md:w-64">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
+              size={15}
+            />
+            <input
+              type="text"
+              data-search-input
+              className="w-full pl-10 pr-4 py-2 bg-card-2 border border-line-soft rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+              placeholder="Search orders..."
+              value={searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
         </div>
 
         {error && (
-          <Alert variant="danger" className="m-3">
+          <div className="mx-5 mt-3 rounded-sm border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 px-4 py-3 text-sm text-[color:var(--color-danger)]">
             {error}
-          </Alert>
+          </div>
         )}
 
-        <div className="master-table-body table-wrap">
-          <div className="master-table-body">
-            <table className="master-data-table">
-              <thead>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-sm">
+            <thead className="bg-card-2 border-b border-line text-ink-muted">
+              <tr>
+                <th className="p-3 font-semibold w-[60px]">#</th>
+                <th className="p-3 font-semibold">ORDER NO</th>
+                <th className="p-3 font-semibold">ORDER DATE</th>
+                <th className="p-3 font-semibold">END DATE</th>
+                <th className="p-3 font-semibold">PRIORITY</th>
+                <th className="p-3 font-semibold">CUSTOMER</th>
+                <th className="p-3 font-semibold">REMARKS</th>
+                <th className="p-3 font-semibold">PRODUCTION STATUS</th>
+                <th className="p-3 font-semibold">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-soft bg-card">
+              {loading ? (
                 <tr>
-                  <th style={{ width: "60px" }}>#</th>
-                  <th>ORDER NO</th>
-                  <th>ORDER DATE</th>
-                  <th>END DATE</th>
-                  <th>PRIORITY</th>
-                  <th>CUSTOMER</th>
-                  <th>REMARKS</th>
-                  <th>PRODUCTION STATUS</th>
-                  <th>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={10} className="text-center p-4">
-                      <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-4 w-4 border-b-2 mr-2"></div>
+                  <td colSpan={9} className="text-center p-4 text-ink-muted">
+                    <div className="inline-flex items-center gap-2">
+                      <div className="animate-spin rounded-full border-b-2 border-accent h-4 w-4"></div>
                       Loading approved sales orders...
-                    </td>
-                  </tr>
-                ) : orders.length > 0 ? (
-                  orders.map((order, index) => {
-                    return (
-                      <tr key={order.id} className="master-data-row">
-                        <td className="master-data-cell">{index + 1}</td>
-                        <td className="master-data-cell">{order.orderNo}</td>
-                        <td className="master-data-cell">{formatDate(order.orderDate)}</td>
-                        <td className="master-data-cell">
-                          {(order as any).expectedCompletionDate
-                            ? formatDate((order as any).expectedCompletionDate)
-                            : "-"}
-                        </td>
-                        <td className="master-data-cell">{order.dispatchType || "-"}</td>
-                        <td className="master-data-cell">{order.customer?.firmName || "-"}</td>
-                        <td className="master-data-cell">{order.remarks || "-"}</td>
-                        <td className="master-data-cell">
-                          <StatusBadge
-                            status={
-                              order.productionStatus === "NOT_STARTED" || !order.productionStatus
-                                ? "PENDING"
-                                : order.productionStatus
-                            }
+                    </div>
+                  </td>
+                </tr>
+              ) : orders.length > 0 ? (
+                orders.map((order, index) => {
+                  return (
+                    <tr key={order.id} className="hover:bg-card-2 transition-colors">
+                      <td className="p-3 text-ink-muted">{index + 1}</td>
+                      <td className="p-3 font-semibold text-ink">{order.orderNo}</td>
+                      <td className="p-3 text-ink-muted">{formatDate(order.orderDate)}</td>
+                      <td className="p-3 text-ink-muted">
+                        {(order as any).expectedCompletionDate
+                          ? formatDate((order as any).expectedCompletionDate)
+                          : "-"}
+                      </td>
+                      <td className="p-3 text-ink-muted">{order.dispatchType || "-"}</td>
+                      <td className="p-3 text-ink-muted">{order.customer?.firmName || "-"}</td>
+                      <td className="p-3 text-ink-muted">{order.remarks || "-"}</td>
+                      <td className="p-3">
+                        <StatusBadge
+                          status={
+                            order.productionStatus === "NOT_STARTED" || !order.productionStatus
+                              ? "PENDING"
+                              : order.productionStatus
+                          }
+                        />
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <ViewButton onClick={() => handleViewOrder(order)} />
+                          <IconButton
+                            variant="primary"
+                            title="Plan Production"
+                            icon={FaPlus}
+                            onClick={() => handleCreateProductionOrder(order)}
                           />
-                        </td>
-                        <td className="master-data-cell">
-                          <div className="table-action-group">
-                            <ViewButton onClick={() => handleViewOrder(order)} />
-                            <IconButton
-                              variant="primary"
-                              title="Plan Production"
-                              icon={FaPlus}
-                              onClick={() => handleCreateProductionOrder(order)}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={10} className="text-center p-4">
-                      No approved sales orders found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={9} className="text-center p-4 text-ink-muted">
+                    No approved sales orders found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      </Container>
+      </div>
 
       {/* Order View Modal */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered>
@@ -226,60 +222,62 @@ const ApprovedSalesOrderList: React.FC = () => {
         <Modal.Body>
           {selectedViewOrder ? (
             <>
-              <Row className="mb-4">
-                <Col md={4}>
-                  <div className="text-muted small">Order No</div>
-                  <div className="fw-bold">{selectedViewOrder.orderNo}</div>
-                </Col>
-                <Col md={4}>
-                  <div className="text-muted small">Customer</div>
-                  <div className="fw-bold">{selectedViewOrder.customer?.firmName || "-"}</div>
-                </Col>
-                <Col md={4}>
-                  <div className="text-muted small">Order Date</div>
-                  <div className="fw-bold">{formatDate(selectedViewOrder.orderDate)}</div>
-                </Col>
-              </Row>
-              <h6 className="section-title">Products & Production Stage</h6>
-              <div className="master-table-body table-wrap">
-                <div className="master-table-body">
-                  <table className="master-data-table">
-                    <thead>
-                      <tr>
-                        <th>PRODUCT CODE</th>
-                        <th>PRODUCT NAME</th>
-                        <th>ORDERED QTY</th>
-                        <th>PRODUCTION STAGE</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedViewOrder.items?.map((item, idx) => (
-                        <tr key={idx} className="master-data-row">
-                          <td className="master-data-cell">{item.product?.productCode || "-"}</td>
-                          <td className="master-data-cell">{item.product?.productName || "-"}</td>
-                          <td className="master-data-cell">
-                            {item.quantity} {(item.product as any)?.uom?.name || "PCS"}
-                          </td>
-                          <td className="master-data-cell">
-                            {loadingStages ? (
-                              <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-4 w-4 border-b-2"></div>
-                            ) : (
-                              <StatusBadge
-                                status={
-                                  orderProductionStages[item.productId.toString()] || "NOT_STARTED"
-                                }
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <div className="text-xs text-ink-subtle">Order No</div>
+                  <div className="text-sm font-semibold text-ink">{selectedViewOrder.orderNo}</div>
                 </div>
+                <div>
+                  <div className="text-xs text-ink-subtle">Customer</div>
+                  <div className="text-sm font-semibold text-ink">
+                    {selectedViewOrder.customer?.firmName || "-"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-ink-subtle">Order Date</div>
+                  <div className="text-sm font-semibold text-ink">
+                    {formatDate(selectedViewOrder.orderDate)}
+                  </div>
+                </div>
+              </div>
+              <h6 className="text-sm font-bold text-ink mb-2">Products & Production Stage</h6>
+              <div className="border border-line rounded-lg overflow-hidden">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead className="bg-card-2 border-b border-line text-ink-muted">
+                    <tr>
+                      <th className="p-2 font-semibold">PRODUCT CODE</th>
+                      <th className="p-2 font-semibold">PRODUCT NAME</th>
+                      <th className="p-2 font-semibold">ORDERED QTY</th>
+                      <th className="p-2 font-semibold">PRODUCTION STAGE</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line-soft bg-card">
+                    {selectedViewOrder.items?.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-card-2 transition-colors">
+                        <td className="p-2 text-ink-muted">{item.product?.productCode || "-"}</td>
+                        <td className="p-2 text-ink-muted">{item.product?.productName || "-"}</td>
+                        <td className="p-2 text-ink-muted">
+                          {item.quantity} {(item.product as any)?.uom?.name || "PCS"}
+                        </td>
+                        <td className="p-2">
+                          {loadingStages ? (
+                            <div className="animate-spin rounded-full border-b-2 border-accent h-4 w-4"></div>
+                          ) : (
+                            <StatusBadge
+                              status={
+                                orderProductionStages[item.productId.toString()] || "NOT_STARTED"
+                              }
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </>
           ) : (
-            <div className="text-muted text-center p-4">No order selected.</div>
+            <div className="text-ink-muted text-center p-4">No order selected.</div>
           )}
         </Modal.Body>
       </Modal>

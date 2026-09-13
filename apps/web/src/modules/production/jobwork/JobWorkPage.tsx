@@ -14,7 +14,6 @@ import {
   field,
   message,
   money,
-  primary,
   secondary,
   success,
   td,
@@ -29,12 +28,6 @@ import {
  * supply made on the day they left, with interest — so overdue comes first and stays visible.
  */
 type Tab = "challans" | "workers" | "itc04";
-const STATUS_STYLE: Record<ChallanRow["status"], string> = {
-  OPEN: "bg-amber-100 text-amber-800",
-  PART_RETURNED: "bg-sky-100 text-sky-800",
-  CLOSED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
-};
 const halfYearOptions = () => {
   const now = new Date();
   const out: { value: string; label: string }[] = [];
@@ -120,9 +113,7 @@ const JobWorkPage: React.FC = () => {
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
+              tab === key ? "border-b-2 border-accent text-accent" : "text-ink-muted hover:text-ink"
             }`}
           >
             {label}
@@ -135,12 +126,12 @@ const JobWorkPage: React.FC = () => {
       {tab === "challans" && (
         <>
           {overdue.length > 0 && !overdueOnly && (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm">
-              <strong className="text-rose-900">
+            <div className="rounded-lg border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 p-3 text-sm">
+              <strong className="text-[color:var(--color-danger)]">
                 {overdue.length} challan{overdue.length === 1 ? "" : "s"} past the return deadline.
               </strong>{" "}
               <button
-                className="font-semibold text-rose-800 underline"
+                className="font-semibold text-[color:var(--color-danger)] underline"
                 onClick={() => setOverdueOnly(true)}
               >
                 Show only those
@@ -184,7 +175,7 @@ const JobWorkPage: React.FC = () => {
                         {r.returnDueDate ? day(r.returnDueDate) : "—"}
                         {r.daysToReturn !== null && r.pendingQuantity > 0 && (
                           <div
-                            className={`text-xs ${r.overdue ? "font-semibold text-rose-700" : "text-ink-muted"}`}
+                            className={`text-xs ${r.overdue ? "font-semibold text-[color:var(--color-danger)]" : "text-ink-muted"}`}
                           >
                             {r.overdue
                               ? `${-r.daysToReturn} days late`
@@ -195,15 +186,13 @@ const JobWorkPage: React.FC = () => {
                       <td className={`${td} text-right`}>{r.pendingQuantity}</td>
                       <td className={`${td} text-right`}>{money(r.totalValue)}</td>
                       <td className={td}>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}
-                        >
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
                           {r.status.replace(/_/g, " ").toLowerCase()}
                         </span>
                       </td>
                       <td className={`${td} text-right`}>
                         <a
-                          className="mr-2 text-sm font-semibold text-blue-700 hover:underline"
+                          className="mr-2 text-sm font-semibold text-accent hover:underline"
                           href={`/api${jobWorkService.pdfUrl(r.id)}`}
                           target="_blank"
                           rel="noreferrer"
@@ -460,7 +449,7 @@ const ReceiveDialog: React.FC<{
         >
           Record
         </button>
-        <button className={primary.replace("bg-blue-600", "bg-slate-500")} onClick={onCancel}>
+        <button className={secondary} onClick={onCancel}>
           Cancel
         </button>
       </div>
