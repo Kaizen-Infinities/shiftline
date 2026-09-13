@@ -29,19 +29,20 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
   });
 
   const reportData = useMemo(() => {
-    if (!selectedDate) return {
-      machineWise: [],
-      totals: {
-        machinesPlanned: 0,
-        machinesExecuted: 0,
-        plannedCapacity: 0,
-        actualProduction: 0,
-        pendingQuantity: 0,
-        efficiency: 0,
-        runningHours: 0,
-        hourlyEntries: 0
-      }
-    };
+    if (!selectedDate)
+      return {
+        machineWise: [],
+        totals: {
+          machinesPlanned: 0,
+          machinesExecuted: 0,
+          plannedCapacity: 0,
+          actualProduction: 0,
+          pendingQuantity: 0,
+          efficiency: 0,
+          runningHours: 0,
+          hourlyEntries: 0,
+        },
+      };
 
     // Filter plans for the selected date
     const plansForDate = dailyPlans.filter((p: any) => {
@@ -63,10 +64,10 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
     let totalActualProduction = 0;
     let totalPendingQuantity = 0;
     let totalRunningHours = 0;
-    
+
     // Process machine-wise data
     const machineWise: any[] = [];
-    
+
     // To calculate executed machines (machines that have >0 actual production)
     const executedMachineIds = new Set<string>();
     const plannedMachineIds = new Set<string>();
@@ -75,24 +76,29 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
       if (plan.status === "CANCELLED") return;
 
       const plannedCapacity = Number(plan.targetQty) || Number(plan.plannedQuantity) || 0;
-      
-      const planHourly = Array.isArray(plan.hourlyProductions) ? plan.hourlyProductions : hourlyForDate.filter((hp: any) => 
-        hp.dailyPlanId === plan.id || 
-        hp.productionOrderId === plan.productionOrderId
-      );
 
-      const actualProduction = planHourly.reduce((sum: number, hp: any) => sum + (Number(hp.qtyProduced) || 0), 0);
+      const planHourly = Array.isArray(plan.hourlyProductions)
+        ? plan.hourlyProductions
+        : hourlyForDate.filter(
+            (hp: any) =>
+              hp.dailyPlanId === plan.id || hp.productionOrderId === plan.productionOrderId
+          );
+
+      const actualProduction = planHourly.reduce(
+        (sum: number, hp: any) => sum + (Number(hp.qtyProduced) || 0),
+        0
+      );
       const pendingQty = Math.max(0, plannedCapacity - actualProduction);
-      
+
       const efficiency = plannedCapacity > 0 ? (actualProduction / plannedCapacity) * 100 : 0;
-      
+
       let status = "Low";
       if (actualProduction >= plannedCapacity) {
         status = "Highest";
       } else if (efficiency >= 90) {
         status = "Medium";
       }
-      
+
       totalPlannedCapacity += plannedCapacity;
       totalActualProduction += actualProduction;
       totalPendingQuantity += pendingQty;
@@ -110,19 +116,19 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
       if (plan.machineId || plan.machineMachineId) {
         plannedMachineIds.add(plan.machineId || plan.machineMachineId);
       }
-      
+
       if (actualProduction > 0 && (plan.machineId || plan.machineMachineId)) {
         executedMachineIds.add(plan.machineId || plan.machineMachineId);
       }
 
       let shiftName = plan.shift?.shiftName || "Unknown";
       if (!plan.shift?.shiftName && plan.shiftId) {
-         const s = shifts.find(sh => sh.id === plan.shiftId || sh.shiftCode === plan.shiftId);
-         if (s) shiftName = s.shiftName;
+        const s = shifts.find((sh) => sh.id === plan.shiftId || sh.shiftCode === plan.shiftId);
+        if (s) shiftName = s.shiftName;
       }
 
       const productName = plan.product?.productName || "Unknown";
-      
+
       machineWise.push({
         id: plan.id,
         machineName,
@@ -134,13 +140,12 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
         pendingQty,
         efficiency: efficiency.toFixed(1),
         status,
-        planStatus: plan.status
+        planStatus: plan.status,
       });
     });
 
-    const overallEfficiency = totalPlannedCapacity > 0 
-      ? (totalActualProduction / totalPlannedCapacity) * 100 
-      : 0;
+    const overallEfficiency =
+      totalPlannedCapacity > 0 ? (totalActualProduction / totalPlannedCapacity) * 100 : 0;
 
     return {
       machineWise,
@@ -152,49 +157,80 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
         pendingQuantity: totalPendingQuantity,
         efficiency: overallEfficiency.toFixed(1),
         runningHours: totalRunningHours,
-        hourlyEntries: hourlyForDate.length
-      }
+        hourlyEntries: hourlyForDate.length,
+      },
     };
   }, [selectedDate, dailyPlans, hourlyProductions, machines, shifts]);
 
   const columns: DataTableColumn<any>[] = [
-    { header: "MACHINE", render: (item) => <span className="font-semibold text-ink">{item.machineName}</span> },
-    { header: "PROD. ORDER", render: (item) => <span className="text-ink-muted">{item.productionOrder}</span> },
-    { header: "PRODUCT", render: (item) => <span className="text-ink font-medium">{item.productName}</span> },
-    { header: "SHIFT", render: (item) => <span className="text-ink-subtle">{item.shiftName}</span> },
-    { header: "PLANNED CAP.", render: (item) => <span className="text-ink-muted">{item.plannedCapacity}</span> },
-    { header: "ACTUAL PROD.", render: (item) => <span className="text-emerald-400 font-semibold">{item.actualProduction}</span> },
-    { header: "PENDING QTY", render: (item) => <span className="text-amber-400 font-medium">{item.pendingQty}</span> },
-    { 
-      header: "EFFICIENCY %", 
+    {
+      header: "MACHINE",
+      render: (item) => <span className="font-semibold text-ink">{item.machineName}</span>,
+    },
+    {
+      header: "PROD. ORDER",
+      render: (item) => <span className="text-ink-muted">{item.productionOrder}</span>,
+    },
+    {
+      header: "PRODUCT",
+      render: (item) => <span className="text-ink font-medium">{item.productName}</span>,
+    },
+    {
+      header: "SHIFT",
+      render: (item) => <span className="text-ink-subtle">{item.shiftName}</span>,
+    },
+    {
+      header: "PLANNED CAP.",
+      render: (item) => <span className="text-ink-muted">{item.plannedCapacity}</span>,
+    },
+    {
+      header: "ACTUAL PROD.",
       render: (item) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-          Number(item.efficiency) >= 90
-            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-            : Number(item.efficiency) >= 50
-            ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-            : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-        }`}>
+        <span className="text-[color:var(--color-success)] font-semibold">
+          {item.actualProduction}
+        </span>
+      ),
+    },
+    {
+      header: "PENDING QTY",
+      render: (item) => (
+        <span className="text-[color:var(--color-warning)] font-medium">{item.pendingQty}</span>
+      ),
+    },
+    {
+      header: "EFFICIENCY %",
+      render: (item) => (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-semibold border ${
+            Number(item.efficiency) >= 90
+              ? "border-[color:var(--color-success)] text-[color:var(--color-success)]"
+              : Number(item.efficiency) >= 50
+                ? "border-line text-ink-muted"
+                : "border-[color:var(--color-danger)] text-[color:var(--color-danger)]"
+          }`}
+        >
           {item.efficiency}%
         </span>
-      )
+      ),
     },
-    { 
-      header: "STATUS", 
+    {
+      header: "STATUS",
       render: (item) => {
-        let badgeClass = "bg-rose-500/10 text-rose-400 border border-rose-500/20";
-        if (item.status === 'Highest') {
-          badgeClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-        } else if (item.status === 'Medium') {
-          badgeClass = "bg-blue-500/10 text-blue-400 border border-blue-500/20";
+        let badgeClass = "border-[color:var(--color-danger)] text-[color:var(--color-danger)]";
+        if (item.status === "Highest") {
+          badgeClass = "border-[color:var(--color-success)] text-[color:var(--color-success)]";
+        } else if (item.status === "Medium") {
+          badgeClass = "border-line text-ink-muted";
         }
         return (
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}>
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-semibold border ${badgeClass}`}
+          >
             {item.status}
           </span>
         );
-      }
-    }
+      },
+    },
   ];
 
   const csvColumns = [
@@ -214,33 +250,28 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
   };
 
   return (
-    <CommonModal
-      show={show}
-      onHide={onHide}
-      title="Daily Production Report"
-      maxWidth="xl"
-    >
+    <CommonModal show={show} onHide={onHide} title="Daily Production Report" maxWidth="xl">
       <div className="report-print-container flex flex-col gap-6" id="daily-production-report">
         {/* Header Controls */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card-2 p-4 rounded-xl border border-line">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card-2 p-4 rounded-md border border-line">
           <div className="flex items-center gap-3">
             <label className="text-sm font-semibold text-ink-muted">Select Date:</label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               className="bg-card border border-line-soft rounded-lg px-3 py-1.5 text-sm text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-all cursor-pointer [color-scheme:dark]"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
             />
           </div>
-          
+
           <div className="flex items-center gap-2 no-print">
-            <ExportCSVButton 
-              data={reportData.machineWise} 
-              columns={csvColumns} 
-              filename={`Daily_Production_Report_${selectedDate}.csv`} 
-              text="Excel" 
+            <ExportCSVButton
+              data={reportData.machineWise}
+              columns={csvColumns}
+              filename={`Daily_Production_Report_${selectedDate}.csv`}
+              text="Excel"
             />
-            <CustomButton 
+            <CustomButton
               variant="secondary"
               text="Print / PDF"
               icon={FaPrint}
@@ -251,61 +282,79 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card p-4 rounded-xl border border-line shadow-sm flex flex-col justify-between">
-            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">Machines</span>
+          <div className="bg-card p-4 rounded-md border border-line flex flex-col justify-between">
+            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">
+              Machines
+            </span>
             <div className="flex justify-between items-end">
               <div>
-                <div className="text-2xl font-bold text-ink">{reportData.totals.machinesExecuted}</div>
-                <div className="text-xs text-ink-subtle">of {reportData.totals.machinesPlanned} Planned</div>
+                <div className="text-2xl font-bold text-ink">
+                  {reportData.totals.machinesExecuted}
+                </div>
+                <div className="text-xs text-ink-subtle">
+                  of {reportData.totals.machinesPlanned} Planned
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-md border border-line text-ink-subtle flex items-center justify-center">
                 <FaIndustry className="text-xl" />
               </div>
             </div>
           </div>
 
-          <div className="bg-card p-4 rounded-xl border border-line shadow-sm flex flex-col justify-between">
-            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">Production</span>
+          <div className="bg-card p-4 rounded-md border border-line flex flex-col justify-between">
+            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">
+              Production
+            </span>
             <div className="flex justify-between items-end">
               <div>
-                <div className="text-2xl font-bold text-emerald-400">{reportData.totals.actualProduction}</div>
-                <div className="text-xs text-ink-subtle">of {reportData.totals.plannedCapacity} Target</div>
+                <div className="text-2xl font-bold text-[color:var(--color-success)]">
+                  {reportData.totals.actualProduction}
+                </div>
+                <div className="text-xs text-ink-subtle">
+                  of {reportData.totals.plannedCapacity} Target
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-md border border-[color:var(--color-success)] text-[color:var(--color-success)] flex items-center justify-center">
                 <FaCheckCircle className="text-xl" />
               </div>
             </div>
           </div>
 
-          <div className="bg-card p-4 rounded-xl border border-line shadow-sm flex flex-col justify-between">
-            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">Pending</span>
+          <div className="bg-card p-4 rounded-md border border-line flex flex-col justify-between">
+            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">
+              Pending
+            </span>
             <div className="flex justify-between items-end">
               <div>
-                <div className="text-2xl font-bold text-amber-400">{reportData.totals.pendingQuantity}</div>
+                <div className="text-2xl font-bold text-[color:var(--color-warning)]">
+                  {reportData.totals.pendingQuantity}
+                </div>
                 <div className="text-xs text-ink-subtle">Units Remaining</div>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-md border border-[color:var(--color-warning)] text-[color:var(--color-warning)] flex items-center justify-center">
                 <FaExclamationCircle className="text-xl" />
               </div>
             </div>
           </div>
 
-          <div className="bg-card p-4 rounded-xl border border-line shadow-sm flex flex-col justify-between">
-            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">Efficiency</span>
+          <div className="bg-card p-4 rounded-md border border-line flex flex-col justify-between">
+            <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-1">
+              Efficiency
+            </span>
             <div className="flex justify-between items-end">
               <div>
-                <div className="text-2xl font-bold text-cyan-400">{reportData.totals.efficiency}%</div>
+                <div className="text-2xl font-bold text-ink">{reportData.totals.efficiency}%</div>
                 <div className="text-xs text-ink-subtle">Overall OEE</div>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                <span className="text-[11px] font-bold text-cyan-400">{reportData.totals.efficiency}%</span>
+              <div className="w-10 h-10 rounded-md border border-line text-ink-subtle flex items-center justify-center">
+                <span className="text-[11px] font-bold">{reportData.totals.efficiency}%</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Overall Progress Bar */}
-        <div className="bg-card p-5 rounded-xl border border-line shadow-sm">
+        <div className="bg-card p-5 rounded-md border border-line">
           <div className="flex justify-between items-center mb-2">
             <span className="font-semibold text-sm text-ink">Overall Daily Progress</span>
             <span className="font-semibold text-xs text-ink bg-card-2 border border-line-soft px-2.5 py-1 rounded-full">
@@ -313,8 +362,8 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
             </span>
           </div>
           <div className="w-full bg-card-2 rounded-full h-3 overflow-hidden border border-line-soft">
-            <div 
-              className="bg-gradient-to-r from-accent to-emerald-500 h-full rounded-full transition-all duration-500"
+            <div
+              className="bg-accent h-full rounded-full transition-all duration-500"
               style={{ width: `${Math.min(100, Number(reportData.totals.efficiency) || 0)}%` }}
             ></div>
           </div>
@@ -324,26 +373,32 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
               {reportData.totals.runningHours} Running Hours
             </span>
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+              <span className="w-2 h-2 rounded-full bg-ink-subtle"></span>
               {reportData.totals.hourlyEntries} Hourly Records
             </span>
           </div>
         </div>
 
         {/* Machine-wise Production Table */}
-        <div className="bg-card rounded-xl border border-line shadow-sm overflow-hidden">
+        <div className="bg-card rounded-sm border border-line overflow-hidden">
           <div className="p-4 border-b border-line">
             <h3 className="font-bold text-base text-ink">Machine-wise Production Summary</h3>
           </div>
           <DataTable
             columns={columns}
             data={reportData.machineWise}
-            rowKey={(row) => row.id ?? row.machineId ?? `${row.machineName ?? ""}-${row.productName ?? ""}-${row.shiftName ?? ""}`}
+            rowKey={(row) =>
+              row.id ??
+              row.machineId ??
+              `${row.machineName ?? ""}-${row.productName ?? ""}-${row.shiftName ?? ""}`
+            }
             emptyMessage="No production records found for the selected date."
           />
         </div>
-        
-        <style dangerouslySetInnerHTML={{__html: `
+
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           @media print {
             body * {
               visibility: hidden;
@@ -374,7 +429,9 @@ export const DailyProductionReportModal: React.FC<DailyProductionReportModalProp
               display: none !important;
             }
           }
-        `}} />
+        `,
+          }}
+        />
       </div>
     </CommonModal>
   );
