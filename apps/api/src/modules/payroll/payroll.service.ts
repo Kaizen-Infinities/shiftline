@@ -2,6 +2,7 @@ import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
+import { OVERTIME_MULTIPLIER } from "./labour.calc";
 
 /** Convert a period string (YYYY-MM or YYYY-Www) to a date range { start, end } in YYYY-MM-DD */
 function periodToDateRange(period: string): { start: string; end: string } {
@@ -314,15 +315,21 @@ function computeResult(
   earnedSalary = Math.max(0, earnedSalary);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 4 — OT Pay  (otHours × ratePerHour)
+  // STEP 4 — OT Pay (P2T-02): the Labour Code, not the company's own rate, decides what an
+  // overtime hour is worth — twice the ordinary hourly rate, always. `otRatePerHour`/`otSlabs`
+  // no longer set the rate; `otEnabled` still gates whether OT is paid at all.
   // ─────────────────────────────────────────────────────────────────────────────
   const otEnabled = settings.otEnabled !== false;
   let otPay = 0;
   let otH = 0;
   const effectiveOtHours = att.otHours;
-  if (otEnabled && effectiveOtHours > 0 && settings.otRatePerHour > 0) {
+  if (otEnabled && effectiveOtHours > 0) {
     otH = effectiveOtHours;
-    otPay = otH * settings.otRatePerHour;
+    const workingHoursPerDay =
+      settings.defaultWorkingHoursPerDay > 0 ? settings.defaultWorkingHoursPerDay : 8;
+    const ordinaryHourlyRate = dailyRate / workingHoursPerDay;
+    otPay =
+      Math.round((otH * ordinaryHourlyRate * OVERTIME_MULTIPLIER + Number.EPSILON) * 100) / 100;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
