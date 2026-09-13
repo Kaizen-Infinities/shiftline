@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-09-13T15:08:20.285Z",
+        "reason": "Operate-mode direction contract calls for a plain workhorse grotesk (not a distinctive display face); Inter was already the self-hosted font before this session"
+      }
+    ]
+  }
+}

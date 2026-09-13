@@ -678,7 +678,7 @@ const HorizontalNav = () => {
             const hasChildren = !!menu.children && menu.children.length > 0;
             const isOpen = activeMenuId === menu.title;
 
-            const navItemClass = `cursor-pointer px-3 py-1.5 rounded-sm flex items-center gap-1.5 border-b-2 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-nav ${
+            const navItemClass = `cursor-pointer px-3 py-1.5 rounded-t-sm flex items-center gap-1.5 border-b-2 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-nav ${
               menuActive
                 ? "border-accent text-accent font-bold"
                 : isOpen
