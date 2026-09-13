@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Container, Row, Col, Modal } from "../../../components/ui/TailwindPrimitives";
-import { FaSearch, FaChevronLeft, FaChevronRight, FaSave } from "react-icons/fa";
+import { Search } from "lucide-react";
+import { FaSave } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
@@ -10,8 +10,10 @@ import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import { useUsers } from "../../../hooks/useUsers";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
+import CommonModal from "../../../components/ui/Modal/CommonModal";
 import { usePermission } from "../../../hooks/usePermission";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
+import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { userService } from "../../../services/userService";
 
@@ -134,204 +136,168 @@ const UserList: React.FC = () => {
     }
   };
 
-  return (
-    <div className="inner-container">
-      <Container fluid>
-        {/* Page Header */}
-        <div className="page-header">
-          <Row className="align-items-center g-3">
-            <Col lg={6} md={12}>
-              <div className="page-header-info">
-                <h2 className="page-title">User Management</h2>
-              </div>
-            </Col>
-            <Col lg={6} md={12}>
-              <div className="page-header-actions">
-                <div className="page-search-wrap">
-                  <FaSearch className="page-search-icon" />
-                  <input
-                    type="text"
-                    className="page-search-input"
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={handleSearch}
-                    data-search-input
-                  />
-                </div>
-                {can("users.export") && (
-                  <ExportCSVButton
-                    fetchData={fetchUsersForExport}
-                    columns={csvColumns}
-                    filename={csvFilename}
-                    text="Export"
-                  />
-                )}
-              </div>
-            </Col>
-          </Row>
+  const columns: DataTableColumn<any>[] = [
+    {
+      header: "#",
+      width: "60px",
+      align: "center",
+      render: (_, index) => (
+        <span className="text-ink-subtle font-mono text-xs">
+          {String(startIndex + index + 1).padStart(2, "0")}
+        </span>
+      ),
+    },
+    { header: "Username", accessor: "username" },
+    { header: "Full Name", accessor: "fullName" },
+    { header: "Email", render: (user) => user.email || "N/A" },
+    { header: "Role", accessor: "roleId" },
+    { header: "Status", render: (user) => <StatusBadge status={user.status} />, align: "center" },
+    {
+      header: "Actions",
+      width: "100px",
+      align: "center",
+      render: (user) => (
+        <div className="flex items-center gap-2">
+          <ViewButton onClick={() => handleOpenView(user)} />
+          {canEdit && <EditButton onClick={() => handleOpenEdit(user)} />}
         </div>
+      ),
+    },
+  ];
 
-        {/* Users Table */}
-        <div className="master-table-body table-wrap">
-          <div className="master-table-body">
-            {loading && users.length === 0 ? (
-              <div className="text-center p-5">
-                <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-8 w-8"></div>
-              </div>
-            ) : (
-              <table className="master-data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: "60px" }}>#</th>
-                    <th>Username</th>
-                    <th>Full Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedUsers.length > 0 ? (
-                    paginatedUsers.map((user, index) => (
-                      <tr key={user.userId} className="master-data-row">
-                        <td className="master-data-cell">
-                          {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
-                        </td>
-                        <td className="master-data-cell">{user.username}</td>
-                        <td className="master-data-cell">{user.fullName}</td>
-                        <td className="master-data-cell">{user.email || "N/A"}</td>
-                        <td className="master-data-cell">{user.roleId}</td>
-                        <td className="master-data-cell">
-                          <StatusBadge status={user.status} />
-                        </td>
-                        <td className="master-data-cell">
-                          <div className="table-action-group">
-                            <ViewButton onClick={() => handleOpenView(user)} />
-                            {canEdit && <EditButton onClick={() => handleOpenEdit(user)} />}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={7} className="text-center p-4">
-                        No users found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pagination-wrap">
-                <button
-                  className="pagination-btn"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((prev) => prev - 1)}
-                >
-                  <FaChevronLeft />
-                </button>
-                <div className="pagination-info">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <button
-                  className="pagination-btn"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((prev) => prev + 1)}
-                >
-                  <FaChevronRight />
-                </button>
-              </div>
+  return (
+    <div>
+      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
+          <div>
+            <h2 className="text-base font-bold text-ink">User Management</h2>
+          </div>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full md:w-64">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
+                size={15}
+              />
+              <input
+                type="text"
+                className="w-full pl-10 pr-4 py-2 bg-card-2 border border-line-soft rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={handleSearch}
+                data-search-input
+              />
+            </div>
+            {can("users.export") && (
+              <ExportCSVButton
+                fetchData={fetchUsersForExport}
+                columns={csvColumns}
+                filename={csvFilename}
+                text="Export"
+              />
             )}
           </div>
         </div>
 
-        {/* Edit Modal */}
-        <Modal show={showFormModal} onHide={() => setShowFormModal(false)} centered>
-          <Modal.Header closeButton>
-            <Modal.Title>Edit User Status</Modal.Title>
-          </Modal.Header>
-          <form onSubmit={handleSubmit}>
-            <Modal.Body>
-              <Row className="g-3">
-                <Col md={12}>
-                  <TextInput
-                    label="Username"
-                    name="username"
-                    value={formData.username}
-                    disabled
-                    onChange={handleChange}
-                  />
-                </Col>
-                <Col md={12}>
-                  <TextInput
-                    label="Full Name"
-                    name="fullName"
-                    value={formData.fullName}
-                    disabled
-                    onChange={handleChange}
-                  />
-                </Col>
-                <Col md={12}>
-                  <SelectInput
-                    label="Status"
-                    name="isActive"
-                    value={formData.isActive}
-                    options={[
-                      { value: "true", label: "Active" },
-                      { value: "false", label: "Inactive/Suspended" },
-                    ]}
-                    onChange={handleChange}
-                  />
-                </Col>
-              </Row>
-            </Modal.Body>
-            <Modal.Footer>
-              {canCreate && (
-                <CustomButton text="Update" icon={FaSave} type="submit" disabled={loading} />
-              )}
-            </Modal.Footer>
-          </form>
-        </Modal>
+        {/* Users Table */}
+        <div className="p-0">
+          <DataTable
+            columns={columns}
+            data={paginatedUsers}
+            rowKey={(row) => row.userId}
+            loading={loading}
+            emptyMessage="No users found."
+            pagination={
+              totalPages > 1
+                ? {
+                    currentPage,
+                    totalPages,
+                    onPageChange: setCurrentPage,
+                  }
+                : undefined
+            }
+          />
+        </div>
+      </div>
 
-        {/* View Details Modal */}
-        <CommonViewModal
-          show={showViewModal}
-          onHide={() => setShowViewModal(false)}
-          modalTitle="User Details"
-          avatarText={selectedUser ? selectedUser.fullName.charAt(0).toUpperCase() : ""}
-          headerTitle={selectedUser ? selectedUser.fullName : ""}
-          headerSubtitle={selectedUser ? `@${selectedUser.username}` : ""}
-          sections={
-            selectedUser
-              ? [
-                  {
-                    fields: [
-                      { label: "Role", value: selectedUser.roleId || "N/A" },
-                      {
-                        label: "Status",
-                        value: <StatusBadge status={selectedUser.status} />,
-                      },
-                      { label: "Email", value: selectedUser.email || "N/A", xs: 12 },
-                      {
-                        label: "User ID",
-                        value: (
-                          <span className="font-monospace small text-muted">
-                            {selectedUser.userId}
-                          </span>
-                        ),
-                        xs: 12,
-                      },
-                    ],
-                  },
-                ]
-              : []
-          }
-        />
-      </Container>
+      {/* Edit Modal */}
+      <CommonModal
+        show={showFormModal}
+        onHide={() => setShowFormModal(false)}
+        title="Edit User Status"
+        overflowVisible={true}
+        footer={
+          canCreate ? (
+            <div className="flex items-center justify-end gap-2 w-full">
+              <CustomButton text="Update" icon={FaSave} onClick={handleSubmit} disabled={loading} />
+            </div>
+          ) : undefined
+        }
+      >
+        <form id="userStatusForm" onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <TextInput
+              label="Username"
+              name="username"
+              value={formData.username}
+              disabled
+              onChange={handleChange}
+            />
+            <TextInput
+              label="Full Name"
+              name="fullName"
+              value={formData.fullName}
+              disabled
+              onChange={handleChange}
+            />
+            <SelectInput
+              label="Status"
+              name="isActive"
+              value={formData.isActive}
+              options={[
+                { value: "true", label: "Active" },
+                { value: "false", label: "Inactive/Suspended" },
+              ]}
+              onChange={handleChange}
+            />
+          </div>
+        </form>
+      </CommonModal>
+
+      {/* View Details Modal */}
+      <CommonViewModal
+        show={showViewModal}
+        onHide={() => setShowViewModal(false)}
+        modalTitle="User Details"
+        avatarText={selectedUser ? selectedUser.fullName.charAt(0).toUpperCase() : ""}
+        headerTitle={selectedUser ? selectedUser.fullName : ""}
+        headerSubtitle={selectedUser ? `@${selectedUser.username}` : ""}
+        sections={
+          selectedUser
+            ? [
+                {
+                  fields: [
+                    { label: "Role", value: selectedUser.roleId || "N/A" },
+                    {
+                      label: "Status",
+                      value: <StatusBadge status={selectedUser.status} />,
+                    },
+                    { label: "Email", value: selectedUser.email || "N/A", xs: 12 },
+                    {
+                      label: "User ID",
+                      value: (
+                        <span className="text-ink-subtle font-mono text-xs">
+                          {selectedUser.userId}
+                        </span>
+                      ),
+                      xs: 12,
+                    },
+                  ],
+                },
+              ]
+            : []
+        }
+      />
     </div>
   );
 };
