@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FaBars, FaUser, FaSignOutAlt, FaCheckCircle } from 'react-icons/fa';
-import ThemeToggle from './ThemeToggle';
-import LiveBadge from '../ui/LiveBadge/LiveBadge';
-import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { logoutUser } from '../../features/auth/authSlice';
-import CommonConfirmModal from '../ui/CommonConfirmModal/CommonConfirmModal';
+import React, { useState, useEffect, useRef } from "react";
+import { FaBars, FaUser, FaSignOutAlt, FaCheckCircle } from "react-icons/fa";
+import ThemeToggle from "./ThemeToggle";
+import LiveBadge from "../ui/LiveBadge/LiveBadge";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../../features/auth/authSlice";
+import CommonConfirmModal from "../ui/CommonConfirmModal/CommonConfirmModal";
 
 export interface UserProfile {
   fullName: string;
@@ -24,11 +24,7 @@ export interface NavbarProps {
   onProfileClick?: () => void;
 }
 
-const TopNavbar: React.FC<NavbarProps> = ({
-  onMenuClick,
-  user,
-  onProfileClick,
-}) => {
+const TopNavbar: React.FC<NavbarProps> = ({ onMenuClick, user, onProfileClick }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -85,7 +81,7 @@ const TopNavbar: React.FC<NavbarProps> = ({
     (user as any)?.profileImage;
 
   return (
-    <header className="flex items-center justify-between h-[72px] bg-nav border-b border-line-soft px-4 md:px-6 shadow-sm shrink-0">
+    <header className="flex items-center justify-between h-[72px] bg-nav border-b border-line px-4 md:px-6 shrink-0">
       {/* Left Section */}
       <div className="flex items-center gap-4">
         {/* Mobile Menu */}
@@ -125,15 +121,13 @@ const TopNavbar: React.FC<NavbarProps> = ({
               <span className="text-sm font-semibold text-ink leading-tight">
                 {user ? user.fullName : "Guest"}
               </span>
-              <span className="text-xs text-ink-muted leading-tight">
-                {formatRole(user)}
-              </span>
+              <span className="text-xs text-ink-muted leading-tight">{formatRole(user)}</span>
             </div>
           </div>
 
           {/* Dropdown Menu */}
           {showDropdown && (
-            <div className="absolute right-0 top-16 w-40 bg-card border border-line rounded-xl shadow-[0px_8px_30px_rgba(0,0,0,0.3)] py-2.5 z-50">
+            <div className="absolute right-0 top-16 w-40 bg-card border border-line rounded-sm shadow-md py-2.5 z-50">
               {/* Menu Items */}
               <div className="px-1.5 space-y-0.5">
                 <button
@@ -142,9 +136,9 @@ const TopNavbar: React.FC<NavbarProps> = ({
                     setShowDropdown(false);
                     onProfileClick?.();
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-ink-muted hover:bg-card-2 hover:text-ink rounded-lg transition-colors text-left border-none outline-none cursor-pointer"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-ink-muted hover:bg-card-2 hover:text-ink rounded-sm transition-colors text-left border-none outline-none cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-sm bg-card-2 text-accent flex items-center justify-center shrink-0">
                     <FaUser size={13} />
                   </div>
                   <span className="font-semibold">My Profile</span>
@@ -156,9 +150,9 @@ const TopNavbar: React.FC<NavbarProps> = ({
                     setShowDropdown(false);
                     setShowLogoutModal(true);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 rounded-lg transition-colors text-left border-none outline-none cursor-pointer pt-2"
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[color:var(--color-danger)] hover:bg-card-2 rounded-sm transition-colors text-left border-none outline-none cursor-pointer pt-2"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-sm bg-card-2 text-[color:var(--color-danger)] flex items-center justify-center shrink-0">
                     <FaSignOutAlt size={13} />
                   </div>
                   <span className="font-bold">Logout</span>
@@ -171,9 +165,9 @@ const TopNavbar: React.FC<NavbarProps> = ({
         {/* MD Approval Shortcut */}
         <button
           type="button"
-          onClick={() => navigate('/pending-quotations')}
+          onClick={() => navigate("/pending-quotations")}
           title="MD Approvals"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/20 text-teal-300 hover:bg-teal-500 hover:text-white transition-all font-semibold text-xs border border-teal-500/30 cursor-pointer shadow-xs"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-transparent text-accent hover:bg-card-2 transition-colors font-semibold text-xs border border-accent/40 cursor-pointer"
         >
           <FaCheckCircle size={13} />
           <span className="hidden sm:inline">MD Approvals</span>
@@ -186,7 +180,7 @@ const TopNavbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={() => setShowLogoutModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all font-semibold text-xs border border-red-500/30 cursor-pointer shadow-xs"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-transparent text-[color:var(--color-danger)] hover:bg-card-2 transition-colors font-semibold text-xs border border-[color:var(--color-danger)]/40 cursor-pointer"
           title="Logout"
         >
           <FaSignOutAlt className="text-sm" />

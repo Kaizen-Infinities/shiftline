@@ -51,46 +51,50 @@
   root
 ================================ */
 :root {
-  /* Brand Colors */
-  --color-primary: #5d87ff;
-  --color-primary-light: #1e3a5f;
+  /* Brand — one reserved registry-ink accent; --color-primary is an alias of
+     it, not a second brand color (The One Ink Rule: one accent, one job). */
+  --color-primary: #a6321f;
+  --color-primary-light: #c94a35;
 
-  --color-secondary: #cbd5e1;
-  --color-secondary-light: #1c273c;
+  --color-secondary: #d9cfb4;
+  --color-secondary-light: #3a3325;
 
-  --color-neutral: #94a3b8;
-  --color-neutral-light: #1c273c;
+  --color-neutral: #837c64;
+  --color-neutral-light: #3a3325;
 
-  /* Text (dark) */
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-text-muted: #94a3b8;
+  /* Text (dark fallback) */
+  --color-text-primary: #f2ebda;
+  --color-text-secondary: #c2b89e;
+  --color-text-muted: #8f866d;
 
-  /* Background (dark) */
-  --color-bg: #0b1120;
-  --color-surface: #131b2e;
-  --color-border: #28354a;
+  /* Background (dark fallback) */
+  --color-bg: #17140f;
+  --color-surface: #211c15;
+  --color-border: #3a3325;
 
-  /* Status */
-  --color-success: #22c55e;
-  --color-warning: #fdb702;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  /* Status — muted stamp inks, not bright modern SaaS hues */
+  --color-success: #3f7d4a;
+  --color-warning: #a6791f;
+  --color-danger: #b3402c;
+  --color-info: #3a5a8f;
   --color-black: #000000;
   --color-white: #ffffff;
 
-  /* Fonts */
-  --font-head: "Inter", sans-serif;
-  --font-body: "Inter", sans-serif;
+  /* Fonts — a plain workhorse grotesk for chrome and labels; numerals get
+     tabular figures everywhere via .tabular-nums / the numeric-nums utility */
+  --font-head: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
 
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  /* Radius — small, print-derived; a sheet has corners, not a bubble */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
 
-  /* Shadow */
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  /* Shadow — reserved for genuinely elevated, transient surfaces (modals,
+     dropdowns), never for a resting card or nav; persistent chrome divides
+     with a hairline instead. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.22);
 
   /* Transition */
   --transition-fast: 0.2s ease;
@@ -100,71 +104,66 @@
 }
 
 /* ===============================
-   Dark theme tokens
+   Dark theme tokens — graphite-charcoal ledger at night
 ================================ */
 :root[data-theme="dark"] {
-  --color-page: #0b1120;
-  --color-card: #131b2e;
-  --color-card-2: #1c273c;
-  --color-ink: #f8fafc;
-  --color-ink-muted: #cbd5e1;
-  --color-ink-subtle: #94a3b8;
-  --color-line: #28354a;
-  --color-line-soft: #1e2a3e;
-  --color-head: #1a2438;
-  --color-nav: #0f172a;
-  --color-nav-fg: #94a3b8;
-  --color-nav-hover: #1e293b;
-  --color-nav-active: #0d9488;
-  --color-nav-active-fg: #ffffff;
-  --color-accent: #2dd4bf;
+  --color-page: #17140f;
+  --color-card: #211c15;
+  --color-card-2: #2b251c;
+  --color-ink: #f2ebda;
+  --color-ink-muted: #c2b89e;
+  --color-ink-subtle: #8f866d;
+  --color-line: #3a3325;
+  --color-line-soft: #2e2919;
+  --color-head: #2b251c;
+  --color-nav: #211c15;
+  --color-nav-fg: #f2ebda;
+  --color-nav-hover: #2b251c;
+  --color-nav-active: transparent;
+  --color-nav-active-fg: #e2604b;
+  --color-accent: #e2604b;
   color-scheme: dark;
 }
 
 /* ===============================
-   Light theme tokens
+   Light theme tokens — warm ledger-paper
 ================================ */
 :root[data-theme="light"] {
-  --color-page: #f8fafc;
-  --color-card: #ffffff;
-  --color-card-2: #f8fafc;
-  --color-ink: #0f172a;
-  --color-ink-muted: #334155;
-  --color-ink-subtle: #64748b;
-  --color-line: #e2e8f0;
-  --color-line-soft: #eef2f6;
-  --color-head: #f8fafc;
-  --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
-  --color-text-muted: #64748b;
-  --color-nav: #1e293b;
-  --color-nav-fg: #94a3b8;
-  --color-nav-hover: #334155;
-  --color-nav-active: #0d9488;
-  --color-nav-active-fg: #ffffff;
-  --color-accent: #0d9488;
+  --color-page: #f7f3e8;
+  --color-card: #fffffb;
+  --color-card-2: #efe8d6;
+  --color-ink: #211c13;
+  --color-ink-muted: #55503f;
+  --color-ink-subtle: #837c64;
+  --color-line: #d9cfb4;
+  --color-line-soft: #e9e2cc;
+  --color-head: #efe8d6;
+  --color-surface: #fffffb;
+  --color-border: #d9cfb4;
+  --color-text-primary: #211c13;
+  --color-text-secondary: #55503f;
+  --color-text-muted: #837c64;
+  --color-nav: #fffffb;
+  --color-nav-fg: #211c13;
+  --color-nav-hover: #efe8d6;
+  --color-nav-active: transparent;
+  --color-nav-active-fg: #a6321f;
+  --color-accent: #a6321f;
   color-scheme: light;
 }
 
-/* Clean modern soft shadow for Light theme (Dashboard cards & tables) */
+/* Persistent chrome (nav, resting cards, tables) stays flat — a bordered
+   sheet, not a floating tile. Only transient overlays (modals, dropdown
+   portals) keep a real shadow; see TailwindPrimitives.tsx. */
 :root[data-theme="light"] .shadow-md,
 :root[data-theme="light"] .shadow-lg,
-:root[data-theme="light"] .shadow-xl {
-  box-shadow:
-    0 4px 16px -2px rgba(15, 23, 42, 0.08),
-    0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
-}
-
+:root[data-theme="light"] .shadow-xl,
 :root[data-theme="light"] .shadow-sm {
-  box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.06) !important;
+  box-shadow: none !important;
 }
 
 :root[data-theme="light"] .bg-card {
-  box-shadow:
-    0 4px 16px -2px rgba(15, 23, 42, 0.08),
-    0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 /* ===============================
@@ -238,7 +237,7 @@ ul {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #003428;
+  color: var(--color-ink);
 }
 
 /* 
@@ -259,10 +258,10 @@ ul {
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
   background: var(--color-card);
-  color: #334155;
+  color: var(--color-ink-muted);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -270,10 +269,8 @@ ul {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: #f4a100;
-  color: #f4a100;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(244, 161, 0, 0.15);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .pagination-btn:disabled {
@@ -289,12 +286,12 @@ ul {
   min-width: 120px;
   height: 40px;
   padding: 0 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
   background: var(--color-card);
   font-size: 14px;
   font-weight: 600;
-  color: #475569;
+  color: var(--color-ink-muted);
 }
 
 /* ===========================
@@ -306,17 +303,16 @@ ul {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: linear-gradient(135deg, var(--color-bg), #f5f7f4);
+  background: var(--color-page);
 }
 
 .not-found-card {
   width: 100%;
   text-align: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 24px;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
   padding: 40px;
-  box-shadow: 0 15px 40px rgba(0, 52, 40, 0.08);
   animation: notFoundFadeIn 0.8s ease;
 }
 
@@ -340,20 +336,18 @@ ul {
   align-items: center;
   justify-content: center;
   padding: 14px 28px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: none;
   text-decoration: none;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  background: var(--color-accent);
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .not-found-btn:hover {
-  transform: translateY(-3px);
-
-  box-shadow: 0 10px 25px rgba(0, 52, 40, 0.25);
+  filter: brightness(1.1);
 }
 
 .not-found-btn:active {
@@ -405,11 +399,10 @@ ul {
 .master-data-table {
   width: 100%;
   border-collapse: collapse;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 .master-data-table thead {
-  background: rgba(203, 122, 33, 0.08);
+  background: var(--color-head);
 }
 
 .master-data-table th {
@@ -445,7 +438,7 @@ ul {
 }
 
 .master-data-row:hover {
-  background: rgba(0, 52, 40, 0.03);
+  background: var(--color-card-2);
 }
 
 .master-data-row:hover .master-data-cell:first-child {
@@ -606,8 +599,8 @@ ul {
 }
 
 .inner-container .page-search-input:focus {
-  border-color: #f4a100;
-  box-shadow: 0 0 0 3px rgba(244, 161, 0, 0.15);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 /* image input css */
