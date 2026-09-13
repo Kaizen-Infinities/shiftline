@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
-import { asDemoTenant, demoCompany } from "../factories";
+import { asDemoTenant } from "../factories";
 
 /**
  * The scheduling gap the Phase 1 completion note left behind (P2-T): subscription invoices,
