@@ -6,7 +6,7 @@ import { transporterService, type TransporterRow } from "../../../services/ewayB
 
 /** Transporter master (P1-12): the carriers that go on e-way bills. Retired, never deleted. */
 const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
+const primary = `${btn} bg-accent text-white hover:brightness-110`;
 const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
 const field = "rounded-lg border border-line-soft bg-card-2 px-3 py-1.5 text-sm text-ink";
 const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
@@ -76,7 +76,7 @@ const TransportersPage: React.FC = () => {
         </p>
       </div>
       {can(editing ? "transporters.edit" : "transporters.create") && (
-        <div className="grid gap-2 rounded-xl border border-line-soft bg-card p-3 sm:grid-cols-3">
+        <div className="grid gap-2 rounded-lg border border-line-soft bg-card p-3 sm:grid-cols-3">
           <input
             className={field}
             placeholder="Code"
@@ -139,7 +139,7 @@ const TransportersPage: React.FC = () => {
         />{" "}
         Show retired
       </label>
-      <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
+      <div className="overflow-x-auto rounded-lg border border-line-soft bg-card">
         <table className="min-w-full divide-y divide-line-soft">
           <thead>
             <tr>
@@ -163,7 +163,7 @@ const TransportersPage: React.FC = () => {
                   {r.isActive && can("transporters.edit") && (
                     <button
                       type="button"
-                      className="mr-3 text-sm font-semibold text-blue-600 hover:underline"
+                      className="mr-3 text-sm font-semibold text-accent hover:underline"
                       onClick={() => {
                         setEditing(r.id);
                         setForm({
@@ -181,7 +181,7 @@ const TransportersPage: React.FC = () => {
                   {r.isActive && can("transporters.delete") && (
                     <button
                       type="button"
-                      className="text-sm font-semibold text-rose-700 hover:underline"
+                      className="text-sm font-semibold text-[color:var(--color-danger)] hover:underline"
                       onClick={() => retire(r.id)}
                     >
                       Retire
