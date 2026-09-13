@@ -199,6 +199,11 @@ export const sidebarItems: SidebarItem[] = [
             permission: "payroll.view",
           },
           {
+            title: "Statutory Registers",
+            path: "/payroll/registers",
+            permission: "statutory-registers.view",
+          },
+          {
             title: "Payment Links",
             path: "/accounts/payment-links",
             permission: "payments.view",
@@ -822,6 +827,7 @@ export const sidebarItems: SidebarItem[] = [
       { permission: "payroll-settings.view", path: "/payroll/settings" },
       { permission: "payroll-attendance.view", path: "/payroll/attendance" },
       { permission: "payroll-advance.view", path: "/payroll/advance" },
+      { permission: "statutory-registers.view", path: "/payroll/registers" },
     ],
     children: [
       { title: "Payroll Dashboard", path: "/payroll", permission: "payroll.view" },
@@ -839,6 +845,11 @@ export const sidebarItems: SidebarItem[] = [
         path: "/payroll/monthly-report",
         permission: "payroll.view",
       },
+      {
+        title: "Statutory Registers",
+        path: "/payroll/registers",
+        permission: "statutory-registers.view",
+      },
     ],
     activePaths: [
       "/payroll",
@@ -848,6 +859,7 @@ export const sidebarItems: SidebarItem[] = [
       "/payroll/advance",
       "/payroll/weekly-report",
       "/payroll/monthly-report",
+      "/payroll/registers",
     ],
     permissionAny: [
       "payroll.view",
@@ -855,6 +867,7 @@ export const sidebarItems: SidebarItem[] = [
       "payroll-settings.view",
       "payroll-attendance.view",
       "payroll-advance.view",
+      "statutory-registers.view",
     ],
   },
 

@@ -178,6 +178,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
           "company-settings",
           "payroll",
           "payroll-run",
+          "statutory-registers",
           "profile",
           "year-end",
         ],

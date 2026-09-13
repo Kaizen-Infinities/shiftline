@@ -254,6 +254,15 @@ export const API_PATHS = {
     declarations: "/payroll-statutory/declarations",
     runs: "/payroll-statutory/runs",
   },
+  statutoryRegisters: {
+    base: "/statutory-registers",
+    musterRoll: "/statutory-registers/muster-roll",
+    wages: "/statutory-registers/wages",
+    overtime: "/statutory-registers/overtime",
+    fines: "/statutory-registers/fines",
+    deductions: "/statutory-registers/deductions",
+    advances: "/statutory-registers/advances",
+  },
   banking: {
     base: "/banking",
     statements: "/banking/statements",
