@@ -19,7 +19,7 @@ const CommonViewModal: React.FC<CommonViewModalProps> = ({
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && show) onHide();
+      if (e.key === "Escape" && show) onHide();
     };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
@@ -54,16 +54,16 @@ const CommonViewModal: React.FC<CommonViewModalProps> = ({
 
       <div
         ref={modalRef}
-        className={`relative w-full ${sizeClasses[size]} max-h-[90vh] bg-card border border-line-soft rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300`}
+        className={`relative w-full ${sizeClasses[size]} max-h-[90vh] bg-card border border-line rounded-sm shadow-md flex flex-col overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300`}
         role="dialog"
         aria-modal="true"
       >
         {/* Header with title info */}
-        <div className="px-6 py-5 border-b border-line-soft">
+        <div className="px-6 py-5 border-b border-line">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {avatarText && (
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-emerald-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0">
+                <div className="w-10 h-10 rounded-sm bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0">
                   {avatarText}
                 </div>
               )}
@@ -76,13 +76,15 @@ const CommonViewModal: React.FC<CommonViewModalProps> = ({
                   <p className="text-xs text-ink-muted mt-0.5">{headerSubtitle}</p>
                 )}
                 {modalTitle && headerTitle && (
-                  <p className="text-[10px] text-ink-subtle uppercase tracking-widest font-bold mt-0.5">{modalTitle}</p>
+                  <p className="text-[10px] text-ink-subtle uppercase tracking-widest font-bold mt-0.5">
+                    {modalTitle}
+                  </p>
                 )}
               </div>
             </div>
             <button
               onClick={onHide}
-              className="w-8 h-8 flex items-center justify-center text-ink-subtle hover:text-ink transition-all rounded-lg hover:bg-card-2 border border-transparent hover:border-line-soft cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center text-ink-subtle hover:text-ink transition-colors rounded-sm hover:bg-card-2 border border-transparent hover:border-line-soft cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <X size={16} />
             </button>
@@ -95,13 +97,20 @@ const CommonViewModal: React.FC<CommonViewModalProps> = ({
             <div key={sIdx}>
               {section.title && (
                 <div className="px-6 py-2.5 bg-card-2/50 border-b border-line-soft/50">
-                  <span className="text-[10px] font-extrabold text-ink-subtle uppercase tracking-[2px]">{section.title}</span>
+                  <span className="text-[10px] font-extrabold text-ink-subtle uppercase tracking-[2px]">
+                    {section.title}
+                  </span>
                 </div>
               )}
               <div className="divide-y divide-line-soft/40">
                 {section.fields.map((field, fIdx) => (
-                  <div key={fIdx} className={`flex items-center px-6 py-3 hover:bg-card-2/30 transition-colors ${field.xs === 12 ? 'col-span-full' : ''}`}>
-                    <span className="text-xs text-ink-subtle w-[160px] shrink-0">{field.label}</span>
+                  <div
+                    key={fIdx}
+                    className={`flex items-center px-6 py-3 hover:bg-card-2/30 transition-colors ${field.xs === 12 ? "col-span-full" : ""}`}
+                  >
+                    <span className="text-xs text-ink-subtle w-[160px] shrink-0">
+                      {field.label}
+                    </span>
                     <span className="text-sm font-semibold text-ink">{field.value || "-"}</span>
                   </div>
                 ))}
@@ -114,7 +123,7 @@ const CommonViewModal: React.FC<CommonViewModalProps> = ({
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-3.5 border-t border-line-soft bg-card-2/50 flex items-center justify-end gap-2.5 rounded-b-2xl">
+          <div className="px-6 py-3.5 border-t border-line-soft bg-card-2/50 flex items-center justify-end gap-2.5 rounded-b-sm">
             {footer}
           </div>
         )}

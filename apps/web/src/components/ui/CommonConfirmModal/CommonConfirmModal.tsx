@@ -41,33 +41,31 @@ const CommonConfirmModal: React.FC<CommonConfirmModalProps> = ({
     <div
       className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={handleClose}
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
     >
       <div
-        className="bg-card border border-line-soft rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 relative my-auto"
+        className="bg-card border border-line rounded-sm shadow-md w-full max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 relative my-auto"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 text-center">
           {/* Icon */}
-          <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full mb-4 ${dangerMode ? "bg-red-500/15 border border-red-500/20" : "bg-accent/15 border border-accent/20"}`}>
-            <AlertTriangle className={dangerMode ? "text-red-400" : "text-accent"} size={24} />
+          <div
+            className={`mx-auto flex h-14 w-14 items-center justify-center rounded-sm border-2 mb-4 ${dangerMode ? "border-[color:var(--color-danger)] text-[color:var(--color-danger)]" : "border-accent text-accent"}`}
+          >
+            <AlertTriangle size={24} />
           </div>
 
-          <h5 className={`text-lg font-bold mb-2 ${dangerMode ? "text-red-400" : "text-ink"}`}>
+          <h5
+            className={`text-lg font-bold mb-2 ${dangerMode ? "text-[color:var(--color-danger)]" : "text-ink"}`}
+          >
             {title}
           </h5>
 
-          <p className="text-sm text-ink-muted mb-1.5">
-            {message}
-          </p>
+          <p className="text-sm text-ink-muted mb-1.5">{message}</p>
 
-          {warningText && (
-            <p className="text-xs text-ink-subtle font-medium">
-              {warningText}
-            </p>
-          )}
+          {warningText && <p className="text-xs text-ink-subtle font-medium">{warningText}</p>}
 
           <div className="flex justify-center gap-2.5 mt-6">
             <CustomButton

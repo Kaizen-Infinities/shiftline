@@ -14,20 +14,9 @@ const ViewButton: React.FC<ViewButtonProps> = ({ onClick, disabled, onMouseEnter
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       disabled={disabled}
-      className="
-        w-7 h-7
-        flex items-center justify-center
-        border border-blue-500/20 rounded-sm
-        cursor-pointer
-        bg-blue-500/20 text-blue-400 border-blue-500/30
-        transition-all duration-[250ms] ease-in-out
-        hover:-translate-y-[2px]
-        hover:bg-blue-500 hover:text-white
-        hover:shadow-[0_4px_12px_rgba(59,130,246,0.25)]
-        active:scale-95
-        disabled:opacity-50
-        disabled:cursor-not-allowed
-      "
+      aria-label="View"
+      title="View"
+      className="w-7 h-7 flex items-center justify-center rounded-sm border border-line bg-card text-ink-muted transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
     >
       <FiEye className="text-[13px]" />
     </button>
