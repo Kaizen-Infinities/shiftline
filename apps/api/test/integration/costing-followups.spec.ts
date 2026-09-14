@@ -90,8 +90,11 @@ describe("costing follow-ups", () => {
     });
 
     const first = await asDemoTenant(() => valuationService.backfill({ userId: ownerUser.userId }));
-    expect(first.created).toBe(2);
-    expect(first.skipped).toBeGreaterThanOrEqual(1);
+    // The tenant-wide count depends on whatever else the database holds (seed rows, other
+    // specs); this item's own pair report is the assertion.
+    const pair = first.pairs.find((p) => p.itemId === rm.rawMaterialId && p.storeId === STORE);
+    expect(pair?.filled).toBe(2);
+    expect(pair?.skipped).toBeGreaterThanOrEqual(1);
 
     const entries = await asDemoTenant(async () => {
       const prisma = await getPrisma();
