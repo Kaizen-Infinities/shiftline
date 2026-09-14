@@ -12,6 +12,7 @@ import { periodService } from "../accounts/period.service";
 import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
 import { valuationService } from "../costing/valuation.service";
+import { tdsService } from "../tds/tds.service";
 import { splitGst } from "../gst/gst.calc";
 import {
   cessOn,
@@ -222,6 +223,21 @@ class GrnInvoiceService {
     }
 
     const updateStockEnabled = data.updateStock === true || (data.updateStock as any) === "true";
+
+    // P2-05: TDS is worked out on the taxable value, not the GST-inclusive bill.
+    const tdsBaseAmount = Math.max(0, Number(subtotal) - Number(totalDiscount));
+    let tdsPreview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
+    if (data.tdsSectionCode) {
+      tdsPreview = await tdsService.rateFor({
+        sectionCode: data.tdsSectionCode,
+        supplierId: Number(data.supplierId),
+        deducteePan: supplier.pan,
+        deducteeType: supplier.deducteeType ?? undefined,
+        higherRate: supplier.higherRate206AB ?? false,
+        amount: tdsBaseAmount,
+        on: new Date(data.grnDate),
+      });
+    }
 
     const rawPayments =
       typeof (data as any).payments === "string"
@@ -545,7 +561,52 @@ class GrnInvoiceService {
       );
     }
 
-    return grnInvoice;
+    // P2-05: accepting the TDS preview records the deduction and posts its journal — the
+    // supplier's payable balance and TDS-<section> ledger both move.
+    if (data.deductTds && data.tdsSectionCode) {
+      try {
+        const deduction = await tdsService.deduct(
+          {
+            sectionCode: data.tdsSectionCode,
+            supplierId: Number(data.supplierId),
+            docType: "GRN_INVOICE",
+            docId: grnInvoice.id,
+            docNo: grnInvoice.grnNumber,
+            deductionDate: grnInvoice.grnDate,
+            amount: tdsBaseAmount,
+          },
+          { userId: currentUser.userId }
+        );
+        const tdsAmount = Number(deduction.tdsAmount);
+        if (tdsAmount > 0) {
+          await tdsService.postDeductionVoucher(deduction.id, prisma);
+          const payable = Number(grnInvoice.netAmount) - tdsAmount;
+          const totalPaid =
+            Math.round(
+              (Array.isArray(grnInvoice.payments) ? (grnInvoice.payments as any[]) : []).reduce(
+                (s: number, p: any) => s + Number(p.amount || 0),
+                0
+              ) * 100
+            ) / 100;
+          const paymentStatus =
+            totalPaid === 0 ? "Unpaid" : totalPaid >= payable ? "Closed" : "Partial";
+          await prisma.grnInvoice.update({
+            where: { id: grnInvoice.id },
+            data: { tdsAmount, tdsSectionCode: data.tdsSectionCode, paymentStatus },
+          });
+        }
+      } catch (tdsErr) {
+        logger.error({ err: tdsErr }, "[GRN TDS] Failed to record TDS deduction:");
+      }
+    }
+
+    const finalInvoice = await prisma.grnInvoice.findUniqueOrThrow({
+      where: { id: grnInvoice.id },
+      include: { items: true },
+    });
+    // Offer the preview only when it was not already accepted — once accepted the row itself
+    // carries tdsAmount/tdsSectionCode.
+    return data.deductTds ? finalInvoice : { ...finalInvoice, tdsPreview };
   }
 
   // ── Get All ─────────────────────────────────────────────────────────────────
@@ -1368,6 +1429,14 @@ class GrnInvoiceService {
           ["GRN_INVOICE", "GRN_PAYMENT"],
           [existing.id, ...payments.map((p) => String(p.id)).filter(Boolean)],
           { reason, actor },
+          tx
+        );
+        // P2-05: a cancelled bill's TDS deduction (if any) is reversed alongside it.
+        await tdsService.reverseForDoc(
+          "GRN_INVOICE",
+          existing.id,
+          reason?.trim() || `GRN ${existing.grnNumber} cancelled`,
+          actor,
           tx
         );
         if (existing.updateStock) {

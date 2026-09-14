@@ -91,6 +91,11 @@ export const CreateSalesInvoiceSchema = z.object({
   totalDiscount: z.coerce.number().optional().default(0),
   taxTotal: z.coerce.number().optional(),
   grandTotal: z.coerce.number().optional(),
+
+  /** P2-05: TCS (section 394) — scrap sales (206C(1)) or a buyer above the annual threshold
+   * (206C(1H)). Accepting the preview collects it; the preview alone does not. */
+  collectTcs: z.preprocess((val) => val === true || val === "true", z.boolean().optional()),
+  tcsSectionCode: z.preprocess(blankToUndefined, z.string().max(20).optional()),
 });
 
 export const UpdateSalesInvoiceSchema = CreateSalesInvoiceSchema.partial();

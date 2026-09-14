@@ -22,6 +22,7 @@ import { periodService } from "../accounts/period.service";
 import { BASE_CURRENCY, currencyService } from "../currency/currency.service";
 import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
+import { tdsService } from "../tds/tds.service";
 
 type SaleItemInput = CreateSalesInvoiceInput["items"][number];
 type SaleHeaderInput = {
@@ -272,8 +273,38 @@ class SalesInvoiceService {
       }
     }
 
+    // P2-05: TCS (section 394) on scrap sales or on a buyer above the annual threshold. Offered
+    // as a preview unless collectTcs is accepted; either way it rides on the receivable.
+    let tcsPreview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
+    let tcsAmount = 0;
+    const tcsSectionCode = (data as any).tcsSectionCode as string | undefined;
+    if (tcsSectionCode) {
+      // No PAN field on the customer master; the GSTIN carries it (characters 3-12).
+      const customerPan =
+        customer.gstin && customer.gstin.length >= 12
+          ? customer.gstin.slice(2, 12).toUpperCase()
+          : null;
+      tcsPreview = await tdsService.rateFor({
+        sectionCode: tcsSectionCode,
+        customerId: data.customerId,
+        deducteePan: customerPan,
+        amount: taxableAmount,
+        on: new Date(data.invoiceDate),
+      });
+      if ((data as any).collectTcs) {
+        tcsAmount = Math.round((tcsPreview.base * tcsPreview.rate) / 100 + Number.EPSILON) * 1;
+        tcsAmount = Math.round(tcsAmount * 100) / 100;
+      }
+    }
+
     const grandTotal =
-      taxableAmount + taxTotal + cessTotal + chargeAdditions - chargeDeductions + billSundryTotal;
+      taxableAmount +
+      taxTotal +
+      cessTotal +
+      chargeAdditions -
+      chargeDeductions +
+      billSundryTotal +
+      tcsAmount;
 
     const exportHeader = {
       exportType: (data as SaleExportInput).exportType ?? null,
@@ -351,6 +382,8 @@ class SalesInvoiceService {
             totalDiscount,
             taxTotal,
             grandTotal,
+            tcsAmount,
+            tcsSectionCode: (data as any).collectTcs ? (tcsSectionCode ?? null) : null,
             companyId: currentUser.companyId,
             createdBy: currentUser.userId,
             status: computedStatus,
@@ -545,7 +578,32 @@ class SalesInvoiceService {
       }
     }
 
-    return serializeInvoice(invoice);
+    // P2-05: accepting the TCS preview records the collection (for the quarterly return and the
+    // buyer threshold); the payable ledger itself is credited inside postSalesVoucher above,
+    // since the invoice's own receivable already carries the amount — a second journal would
+    // debit the customer twice.
+    if ((data as any).collectTcs && tcsSectionCode && tcsAmount > 0) {
+      try {
+        await tdsService.deduct(
+          {
+            sectionCode: tcsSectionCode,
+            customerId: data.customerId,
+            kind: "ON_COLLECTION",
+            docType: "SALES_INVOICE",
+            docId: invoice.id,
+            docNo: invoice.invoiceNo,
+            deductionDate: invoice.invoiceDate,
+            amount: taxableAmount,
+          },
+          { userId: currentUser.userId }
+        );
+      } catch (tcsErr) {
+        logger.error({ err: tcsErr }, "[Sales Invoice TCS] Failed to record TCS collection:");
+      }
+    }
+
+    const result = serializeInvoice(invoice);
+    return tcsPreview && !(data as any).collectTcs ? { ...result, tcsPreview } : result;
   }
 
   async getAllSalesInvoices(params: {
@@ -709,6 +767,15 @@ class SalesInvoiceService {
           ["SALES_INVOICE", "SALES_PAYMENT"],
           [invoice.id, ...paymentIds],
           { reason, actor },
+          tx
+        );
+        // P2-05: the TCS collection (if any) was folded into the sales voucher above; the
+        // TdsDeduction row itself is marked cancelled so it drops out of the quarterly return.
+        await tdsService.reverseForDoc(
+          "SALES_INVOICE",
+          invoice.id,
+          reason?.trim() || `Invoice ${invoice.invoiceNo} cancelled`,
+          actor,
           tx
         );
 

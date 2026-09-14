@@ -4,6 +4,7 @@ import { logger } from "../../lib/logger";
 import { computeExpenseTax } from "./expense.tax";
 import { periodService } from "../accounts/period.service";
 import { cancellationService } from "../accounts/cancellation.service";
+import { tdsService } from "../tds/tds.service";
 
 /** Expense claim statuses (P1-10d). */
 const DRAFT = "Draft";
@@ -61,6 +62,50 @@ class ExpenseService {
       },
     });
 
+    // P2-05: offer or accept the TDS deduction on this bill. Accepting it re-derives the
+    // authoritative rate/amount (threshold, 206AA/206AB) through tdsService and records a
+    // TdsDeduction row so it feeds the quarterly return; the raw tdsRate/tdsAmount the caller
+    // sent are only a preview unless deductTds is true.
+    let tdsPreview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
+    if (data.tdsSection) {
+      const taxable = Number(newExpense.taxableAmount ?? newExpense.amount);
+      if (data.deductTds) {
+        try {
+          const deduction = await tdsService.deduct(
+            {
+              sectionCode: data.tdsSection,
+              supplierId: newExpense.supplierId ?? undefined,
+              docType: "EXPENSE",
+              docId: newExpense.id,
+              docNo: newExpense.expenseNumber,
+              deductionDate: newExpense.date,
+              amount: taxable,
+            },
+            { userId: currentUser.userId }
+          );
+          await prisma.expense.update({
+            where: { id: newExpense.id },
+            data: {
+              tdsSection: data.tdsSection,
+              tdsRate: deduction.rate,
+              tdsAmount: deduction.tdsAmount,
+            },
+          });
+          newExpense.tdsRate = deduction.rate;
+          newExpense.tdsAmount = deduction.tdsAmount;
+        } catch (tdsErr) {
+          logger.error({ err: tdsErr }, "[Expense TDS] Failed to record TDS deduction:");
+        }
+      } else {
+        tdsPreview = await tdsService.rateFor({
+          sectionCode: data.tdsSection,
+          supplierId: newExpense.supplierId ?? undefined,
+          amount: taxable,
+          on: newExpense.date,
+        });
+      }
+    }
+
     // P1-10d: an expense claim reaches the books only once it is approved. A record created
     // straight as Approved (a paid-and-filed bill) posts its EXPENSE voucher at once.
     if (newExpense.status === APPROVED) {
@@ -99,7 +144,7 @@ class ExpenseService {
       );
     }
 
-    return newExpense;
+    return tdsPreview ? { ...newExpense, tdsPreview } : newExpense;
   }
 
   /**
@@ -380,6 +425,15 @@ class ExpenseService {
     }
     return prisma.$transaction(async (tx) => {
       await cancellationService.cancelVouchersFor(["EXPENSE"], [id], { reason, actor }, tx);
+      // P2-05: the EXPENSE voucher above already carried the TDS credit line, so this only
+      // marks the TdsDeduction row cancelled (no second voucher to reverse).
+      await tdsService.reverseForDoc(
+        "EXPENSE",
+        id,
+        reason?.trim() || `Expense ${expense.expenseNumber} cancelled`,
+        actor,
+        tx
+      );
       await tx.pettyCashEntry.updateMany({
         where: { entryNo: `PC-EXP-${expense.expenseNumber}`, cancelledAt: null },
         data: {

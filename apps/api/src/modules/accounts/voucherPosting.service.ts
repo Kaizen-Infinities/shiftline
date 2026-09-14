@@ -621,19 +621,21 @@ class VoucherPostingService {
       const totalIgst = items.reduce((s: number, i: any) => s + Number(i.igstAmount || 0), 0);
       const totalGst = totalCgst + totalSgst + totalIgst;
       const cessTotal = Number((salesInvoice as any).cessTotal || 0);
+      // P2-05: TCS rides on the receivable but is not revenue — it is owed to the government.
+      const tcsTotal = Number((salesInvoice as any).tcsAmount || 0);
 
       // Validation: Ensure total GST does not exceed the grand total amount.
       // If total GST > grandTotalNum (due to inconsistent/corrupted source data), the sales base
       // would be negative and posting a voucher would result in unbalanced debits and credits.
-      if (totalGst > grandTotalNum) {
+      if (totalGst + tcsTotal > grandTotalNum) {
         logger.error(
-          `[Auto-Post Voucher Error] Inconsistent GST data on Sales Invoice ${salesInvoice.id}: ` +
-            `Total GST (${totalGst}) exceeds Grand Total (${grandTotalNum}). Voucher posting aborted.`
+          `[Auto-Post Voucher Error] Inconsistent GST/TCS data on Sales Invoice ${salesInvoice.id}: ` +
+            `Total GST + TCS (${totalGst + tcsTotal}) exceeds Grand Total (${grandTotalNum}). Voucher posting aborted.`
         );
         return null;
       }
 
-      const salesBase = grandTotalNum - totalGst - cessTotal;
+      const salesBase = grandTotalNum - totalGst - cessTotal - tcsTotal;
 
       const salesJournalItems: any[] = [
         // Debit Customer for full grand total
@@ -708,6 +710,26 @@ class VoucherPostingService {
             "Payable"
           ))
         );
+      }
+
+      if (tcsTotal > 0) {
+        const tcsSectionCode = (salesInvoice as any).tcsSectionCode as string | null;
+        const tcsSection = tcsSectionCode
+          ? await db.tdsSection.findFirst({ where: { code: tcsSectionCode } })
+          : null;
+        const tcsLedger = await ledgerByCode(db, tcsSection?.ledgerCode ?? "TDS-LIA-001");
+        if (tcsLedger) {
+          salesJournalItems.push({
+            creditLedgerId: tcsLedger.id,
+            debitAmount: new Prisma.Decimal(0),
+            creditAmount: new Prisma.Decimal(tcsTotal),
+            narration: `TCS collected${tcsSectionCode ? ` u/s ${tcsSectionCode}` : ""}`,
+          });
+        } else {
+          logger.error(
+            `[Auto-Post Voucher Error] Missing TCS payable ledger for section ${tcsSectionCode}`
+          );
+        }
       }
 
       voucher = await safeCreateVoucher(
@@ -1493,7 +1515,14 @@ class VoucherPostingService {
       lines.push(...(await gstLines(db, "debit", "REC", split, "Input Tax Credit")));
     }
     if (tds > 0) {
-      const tdsLedger = await ledgerByCode(db, "TDS-LIA-001");
+      // P2-05: credit the section's own payable ledger only when this bill went through the
+      // TDS deduction flow (a TdsDeduction row on file for it) — the generic TDS-LIA-001 stays
+      // the ledger for a bill where tdsRate/tdsAmount were only typed in by hand.
+      const recorded = await db.tdsDeduction.findFirst({
+        where: { docType: "EXPENSE", docId: expense.id, cancelledAt: null },
+        include: { section: true },
+      });
+      const tdsLedger = await ledgerByCode(db, recorded?.section.ledgerCode ?? "TDS-LIA-001");
       if (tdsLedger) {
         lines.push(
           credit(

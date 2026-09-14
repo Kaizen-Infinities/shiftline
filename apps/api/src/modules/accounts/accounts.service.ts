@@ -6,6 +6,7 @@ import { CreateLedgerInput, UpdateLedgerInput } from "./accounts.types";
 import { logger } from "../../lib/logger";
 import { ledgerGroupService } from "./ledgerGroup.service";
 import { YEAR_END_REF } from "../year-end/year-end.constants";
+import { TDS_SECTION_SEEDS } from "../tds/tds.sections";
 
 /** Voucher filter that leaves out year-end closing entries (P1-09e) but keeps manual ones. */
 const NOT_YEAR_END: Prisma.VoucherWhereInput[] = [
@@ -246,6 +247,14 @@ const DEFAULT_SEED_LEDGERS = [
     type: LedgerType.LIABILITY,
     group: "Tax Liabilities",
   },
+  // P2-05: one payable ledger per TDS/TCS section, so a challan reconciles against a single
+  // account instead of the catch-all TDS-LIA-001 above (kept for expenses posted before this).
+  ...TDS_SECTION_SEEDS.map((s) => ({
+    code: s.ledgerCode,
+    name: `${s.isTcs ? "TCS" : "TDS"} Payable — ${s.code}`,
+    type: LedgerType.LIABILITY,
+    group: "Tax Liabilities",
+  })),
 ];
 
 class AccountsService {
