@@ -224,6 +224,8 @@ class JobWorkService {
       // The one-step receipt: a return raised against a parent posts to its lines here, in the
       // same transaction, instead of a separate `receive` call afterwards.
       let parentId: string | null = null;
+      let parentStoreId: string | null = null;
+      const parentItemsById = new Map<string, { rawMaterialId: string | null }>();
       const deltas = new Map<string, { returned: number; scrap: number }>();
       if (isReturn && input.parentChallanId) {
         const parent = await tx.deliveryChallan.findUnique({
@@ -268,6 +270,8 @@ class JobWorkService {
           }
         }
         parentId = parent.id;
+        parentStoreId = parent.storeId;
+        for (const i of parent.items) parentItemsById.set(i.id, { rawMaterialId: i.rawMaterialId });
       }
 
       const challanNo = await documentNumberService.next(
@@ -358,6 +362,64 @@ class JobWorkService {
               quantityScrap: { increment: d.scrap },
             },
           });
+        }
+        // The goods that came back move stock too: out of the job-work location and into the
+        // store they left from, at the rate they carry there; scrap leaves for good (P2-04/P2-08).
+        if (parentStoreId) {
+          for (const [pid, d] of deltas) {
+            const rawMaterialId = parentItemsById.get(pid)?.rawMaterialId;
+            if (!rawMaterialId) continue;
+            if (d.returned > 0) {
+              const out = await valuationService.record(
+                {
+                  itemType: "RAW_MATERIAL",
+                  itemId: rawMaterialId,
+                  storeId: JOB_WORK_STORE_ID,
+                  movedOn: date,
+                  kind: "ISSUE",
+                  quantity: d.returned,
+                  refDocType: "JOB_WORK_CHALLAN",
+                  refDocId: created.id,
+                  narration: `Returned from job work — ${challanNo}`,
+                },
+                actor,
+                tx
+              );
+              await valuationService.record(
+                {
+                  itemType: "RAW_MATERIAL",
+                  itemId: rawMaterialId,
+                  storeId: parentStoreId,
+                  movedOn: date,
+                  kind: "RETURN_IN",
+                  quantity: d.returned,
+                  rate: Number(out.avgRate),
+                  refDocType: "JOB_WORK_CHALLAN",
+                  refDocId: created.id,
+                  narration: `Returned from job work — ${challanNo}`,
+                },
+                actor,
+                tx
+              );
+            }
+            if (d.scrap > 0) {
+              await valuationService.record(
+                {
+                  itemType: "RAW_MATERIAL",
+                  itemId: rawMaterialId,
+                  storeId: JOB_WORK_STORE_ID,
+                  movedOn: date,
+                  kind: "SCRAP",
+                  quantity: d.scrap,
+                  refDocType: "JOB_WORK_CHALLAN",
+                  refDocId: created.id,
+                  narration: `Scrapped at job work — ${challanNo}`,
+                },
+                actor,
+                tx
+              );
+            }
+          }
         }
         await this.restate(tx, parentId, actor);
       }

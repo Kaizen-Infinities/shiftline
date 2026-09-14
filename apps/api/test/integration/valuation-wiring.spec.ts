@@ -456,6 +456,73 @@ describe("valuation wiring and WIP", () => {
     expect(jobWorkAfterIn.quantity).toBe(0);
   });
 
+  it("a return challan against an out challan moves the goods back into the store in one step", async () => {
+    const rm = await createRawMaterial({
+      rawMaterialId: `RM-JWR-${sfx}`,
+      storeId: STORE,
+      onHandQty: 0 as any,
+      rate: 0 as any,
+    });
+    await asDemoTenant(() =>
+      valuationService.record({
+        itemType: "RAW_MATERIAL",
+        itemId: rm.rawMaterialId,
+        storeId: STORE,
+        movedOn: "2034-02-01",
+        kind: "RECEIPT",
+        quantity: 40,
+        rate: 25,
+      })
+    );
+    const jobWorker = await asDemoTenant(async () => {
+      const prisma = await getPrisma();
+      return prisma.jobWorker.create({
+        data: { code: `JWR-${sfx}`, name: "Return Job Worker" },
+      });
+    });
+    const out = await asDemoTenant(() =>
+      jobWorkService.create(
+        {
+          kind: "JOB_WORK_OUT" as any,
+          challanDate: "2034-02-05",
+          jobWorkerId: jobWorker.id,
+          storeId: STORE,
+          items: [{ rawMaterialId: rm.rawMaterialId, uom: rm.baseUom, quantity: 15 }],
+        },
+        { userId: ownerUser.userId }
+      )
+    );
+    await asDemoTenant(() =>
+      jobWorkService.create(
+        {
+          kind: "JOB_WORK_RETURN" as any,
+          challanDate: "2034-02-12",
+          jobWorkerId: jobWorker.id,
+          parentChallanId: out.id,
+          storeId: STORE,
+          items: [
+            {
+              rawMaterialId: rm.rawMaterialId,
+              uom: rm.baseUom,
+              quantity: 12,
+              scrap: 3,
+              parentItemId: out.items[0].id,
+            },
+          ],
+        } as any,
+        { userId: ownerUser.userId }
+      )
+    );
+    const store = await asDemoTenant(() =>
+      valuationService.balanceAt("RAW_MATERIAL", rm.rawMaterialId, STORE)
+    );
+    expect(store.quantity).toBe(37); // 40 out of which 15 went, 12 came back, 3 were scrapped.
+    const jobWork = await asDemoTenant(() =>
+      valuationService.balanceAt("RAW_MATERIAL", rm.rawMaterialId, JOB_WORK_STORE_ID)
+    );
+    expect(jobWork.quantity).toBe(0);
+  });
+
   it("backfills historical raw-material transactions idempotently", async () => {
     const rm = await createRawMaterial({
       rawMaterialId: `RM-BF-${sfx}`,
