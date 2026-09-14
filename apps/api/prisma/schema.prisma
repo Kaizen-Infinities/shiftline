@@ -105,6 +105,7 @@ model Employee {
   payrollResults             PayrollResult[]
   salaryAdvances             SalaryAdvance[]
   permanentDeductions        EmployeePermanentDeduction[]
+  fineDeductions             EmployeeFineDeduction[]
   salesOrdersAsSource        SalesOrder[]                 @relation("SalesOrderSourceEmployee")
 
   company Company @relation("CompanyEmployee", fields: [companyId], references: [id], onDelete: Restrict)
@@ -587,6 +588,7 @@ model Company {
   emailConfigs                EmailConfig[]                @relation("CompanyEmailConfig")
   employeePayrollConfigs      EmployeePayrollConfig[]      @relation("CompanyEmployeePayrollConfig")
   employeePermanentDeductions EmployeePermanentDeduction[] @relation("CompanyEmployeePermanentDeduction")
+  employeeFineDeductions      EmployeeFineDeduction[]      @relation("CompanyEmployeeFineDeduction")
   employees                   Employee[]                   @relation("CompanyEmployee")
   eodStockSnapshots           EodStockSnapshot[]           @relation("CompanyEodStockSnapshot")
   expenses                    Expense[]                    @relation("CompanyExpense")
@@ -3447,6 +3449,30 @@ model EmployeePermanentDeduction {
 
   @@index([companyId])
   @@map("employee_permanent_deductions")
+}
+
+/// A dated fine (Payment of Wages Act s.8) or a deduction for damage/loss (s.10) against an
+/// employee — the inspector's fines and deductions registers (P2-03). Kept apart from
+/// EmployeePermanentDeduction, which is a recurring payroll-run deduction (loan EMI, etc.),
+/// not a dated incident with a cause and a show-cause record.
+model EmployeeFineDeduction {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId       BigInt
+  kind             String // "FINE" | "DEDUCTION"
+  occurredOn       DateTime @db.Date
+  cause            String
+  amount           Decimal  @db.Decimal(14, 2)
+  shownCauseGiven  Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  employee         Employee @relation(fields: [employeeId], references: [id])
+
+  company Company @relation("CompanyEmployeeFineDeduction", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([employeeId, occurredOn])
+  @@map("employee_fine_deductions")
 }
 
 /// Per-tenant, per-document-type number series (replaces ad-hoc max()+1 generators).

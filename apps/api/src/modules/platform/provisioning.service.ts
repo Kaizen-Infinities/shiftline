@@ -184,6 +184,11 @@ export const ROLE_DEFS = (): RoleDef[] => [
         ["view"]
       ),
       ...keysFor(["audit-reports"], ["view", "export"]),
+      // The inspector's registers (P2-03): the auditor already reads payroll, and these are
+      // exactly the reports a labour inspector asks for. Export stays with the owner, like every
+      // other export outside audit-reports — the auditor role is read-only by design (see the
+      // audit-trail suite's "no non-view keys beyond audit-reports.export" check).
+      ...keysFor(["registers"], ["view"]),
     ],
   },
 ];

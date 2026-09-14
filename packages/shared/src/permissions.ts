@@ -461,6 +461,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "export"],
     description: "Extended Compensation",
   },
+  {
+    module: "registers",
+    actions: ["view", "export"],
+    description:
+      "Inspector's Registers (muster roll, wages, overtime, fines, deductions, advances)",
+  },
 ];
 
 /**

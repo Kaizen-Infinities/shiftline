@@ -50,6 +50,7 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "EmailConfig",
   "ConsolidatedEwayBill",
   "EInvoice",
+  "EmployeeFineDeduction",
   "EInvoiceConfig",
   "EwayBill",
   "ItcEntry",
