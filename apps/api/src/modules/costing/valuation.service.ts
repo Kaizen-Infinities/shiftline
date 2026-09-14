@@ -154,6 +154,224 @@ class ValuationService {
     });
   }
 
+  /**
+   * Reverses every not-yet-reversed movement recorded against a document, as a new row each —
+   * never a delete, never an edit of the original (P2-04 / CLAUDE.md books are never deleted).
+   *
+   * An inward movement (a receipt) is undone by taking the same quantity out again at the exact
+   * rate it came in at, not at today's average — the point is to leave the ledger exactly as if
+   * the movement had never happened, not to record a fresh issue. An outward movement (an issue,
+   * a wastage) is undone by putting the same quantity back at the rate it left at.
+   */
+  async reverseDocument(
+    refDocType: string,
+    refDocId: string,
+    actor: { userId?: string } = {},
+    db: Db = prisma
+  ) {
+    const originals = await db.stockValuationEntry.findMany({
+      where: { refDocType, refDocId, reversedEntryId: null },
+      orderBy: [{ movedOn: "asc" }, { createdAt: "asc" }],
+    });
+    const alreadyReversed = new Set(
+      (
+        await db.stockValuationEntry.findMany({
+          where: { refDocType, refDocId, reversedEntryId: { not: null } },
+          select: { reversedEntryId: true },
+        })
+      ).map((r) => r.reversedEntryId)
+    );
+    const reversed = [];
+    for (const original of originals) {
+      if (alreadyReversed.has(original.id)) continue;
+      reversed.push(await this.reverseEntry(original, actor, db));
+    }
+    return reversed;
+  }
+
+  /** The one-row reversal behind {@link reverseDocument}. */
+  private async reverseEntry(
+    original: {
+      id: string;
+      itemType: string;
+      itemId: string;
+      storeId: string | null;
+      movedOn: Date;
+      kind: StockMoveKind;
+      quantity: unknown;
+      rate: unknown;
+      refDocType: string | null;
+      refDocId: string | null;
+    },
+    actor: { userId?: string },
+    db: Db
+  ) {
+    const wasInward = INWARD.has(original.kind);
+    const quantity = n3(Math.abs(Number(original.quantity)));
+    const rate = n4(Number(original.rate));
+    const value = n2(quantity * rate);
+    const opening = await this.balanceAt(
+      original.itemType,
+      original.itemId,
+      original.storeId,
+      undefined,
+      db
+    );
+    const balanceQuantity = n3(
+      wasInward ? opening.quantity - quantity : opening.quantity + quantity
+    );
+    const balanceValue = n2(wasInward ? opening.value - value : opening.value + value);
+    const avgRate =
+      balanceQuantity > 0
+        ? n4(balanceValue / balanceQuantity)
+        : wasInward
+          ? opening.avgRate
+          : n4(rate);
+    return db.stockValuationEntry.create({
+      data: {
+        itemType: original.itemType,
+        itemId: original.itemId,
+        storeId: original.storeId,
+        // Same business date as what it undoes — the ledger orders by that date, and a reversal
+        // dated "today" would sort ahead of a movement dated later in the same document's own
+        // history, undoing the wrong thing as far as the average is concerned.
+        movedOn: original.movedOn,
+        kind: "ADJUSTMENT",
+        quantity,
+        rate,
+        value,
+        balanceQuantity,
+        balanceValue,
+        avgRate,
+        wentNegative: balanceQuantity < 0,
+        refDocType: original.refDocType,
+        refDocId: original.refDocId,
+        narration: `Reversal of ${original.kind} entry`,
+        reversedEntryId: original.id,
+        createdBy: actor.userId?.slice(0, 36) ?? null,
+      },
+    });
+  }
+
+  /**
+   * Adds cost to stock already on hand without moving quantity — a bill of entry's landed cost
+   * apportioned onto a receipt already recorded, so the average rises without a second movement
+   * pretending goods arrived twice.
+   */
+  async recordCostAdjustment(
+    input: {
+      itemType: "RAW_MATERIAL" | "PRODUCT";
+      itemId: string;
+      storeId?: string | null;
+      movedOn: string | Date;
+      amount: number;
+      refDocType?: string | null;
+      refDocId?: string | null;
+      narration?: string | null;
+    },
+    actor: { userId?: string } = {},
+    db: Db = prisma
+  ) {
+    const amount = n2(input.amount);
+    if (amount === 0) return null;
+    const movedOn = asDate(input.movedOn);
+    const opening = await this.balanceAt(
+      input.itemType,
+      input.itemId,
+      input.storeId ?? null,
+      undefined,
+      db
+    );
+    const balanceQuantity = opening.quantity;
+    const balanceValue = n2(opening.value + amount);
+    const avgRate = balanceQuantity > 0 ? n4(balanceValue / balanceQuantity) : opening.avgRate;
+    return db.stockValuationEntry.create({
+      data: {
+        itemType: input.itemType,
+        itemId: input.itemId,
+        storeId: input.storeId ?? null,
+        movedOn,
+        kind: "ADJUSTMENT",
+        quantity: 0,
+        rate: 0,
+        value: amount,
+        balanceQuantity,
+        balanceValue,
+        avgRate,
+        wentNegative: balanceQuantity < 0,
+        refDocType: input.refDocType ?? null,
+        refDocId: input.refDocId ?? null,
+        narration: input.narration ?? null,
+        createdBy: actor.userId?.slice(0, 36) ?? null,
+      },
+    });
+  }
+
+  /**
+   * Values historical raw-material movements that predate this wiring and never reached the
+   * ledger.
+   *
+   * Idempotent two ways: a transaction whose item and store already carry *any* valuation entry
+   * is left alone entirely — wiring already values it going forward, and mixing a guessed
+   * historical rate into a real ledger would misstate the average — and every row this does write
+   * is tagged `RM_TXN_BACKFILL` against the transaction it came from, so a second run only visits
+   * what the first one could not reach and never doubles a row it already wrote.
+   */
+  async backfill(actor: { userId?: string } = {}, db: Db = prisma) {
+    const already = await db.stockValuationEntry.findMany({
+      where: { itemType: "RAW_MATERIAL" },
+      distinct: ["itemId", "storeId"],
+      select: { itemId: true, storeId: true },
+    });
+    const excluded = new Set(already.map((e) => `${e.itemId}|${e.storeId ?? ""}`));
+
+    const txns = await db.rawMaterialTransaction.findMany({
+      orderBy: { txnDateTime: "asc" },
+      include: { rawMaterial: { select: { rate: true } } },
+    });
+    let created = 0;
+    let skipped = 0;
+    for (const t of txns) {
+      if (excluded.has(`${t.rawMaterialId}|${t.storeId ?? ""}`)) {
+        skipped++;
+        continue;
+      }
+      const refDocId = t.rmTxnId.toString();
+      const exists = await db.stockValuationEntry.findFirst({
+        where: { refDocType: "RM_TXN_BACKFILL", refDocId },
+        select: { id: true },
+      });
+      if (exists) {
+        skipped++;
+        continue;
+      }
+      const qty = Number(t.qty);
+      if (qty === 0) {
+        skipped++;
+        continue;
+      }
+      const inward = qty > 0;
+      await this.record(
+        {
+          itemType: "RAW_MATERIAL",
+          itemId: t.rawMaterialId,
+          storeId: t.storeId,
+          movedOn: t.txnDateTime,
+          kind: inward ? "RECEIPT" : "ISSUE",
+          quantity: Math.abs(qty),
+          rate: inward ? Number(t.rawMaterial?.rate ?? 0) : undefined,
+          refDocType: "RM_TXN_BACKFILL",
+          refDocId,
+          narration: `Backfilled from ${t.txnType} (${refDocId})`,
+        },
+        actor,
+        db
+      );
+      created++;
+    }
+    return { scanned: txns.length, created, skipped };
+  }
+
   /** Every movement for an item, newest first — the answer to "why is the average that?". */
   async ledger(params: {
     itemType?: string;

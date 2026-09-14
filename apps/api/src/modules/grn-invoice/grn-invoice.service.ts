@@ -11,6 +11,7 @@ import { documentNumberService } from "../documents/document-number.service";
 import { periodService } from "../accounts/period.service";
 import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
+import { valuationService } from "../costing/valuation.service";
 import { splitGst } from "../gst/gst.calc";
 import {
   cessOn,
@@ -402,6 +403,25 @@ class GrnInvoiceService {
                 remarks: `GRN Created (Auto Adjustment): ${grnNumber}`,
               },
             });
+
+            // Values the receipt at the line's landed-free cost; a linked bill of entry tops the
+            // average up with landed cost separately (P2-04).
+            await valuationService.record(
+              {
+                itemType: "RAW_MATERIAL",
+                itemId: item.productId,
+                storeId: data.storeId,
+                movedOn: data.grnDate,
+                kind: "RECEIPT",
+                quantity: receivedQtyNum,
+                rate: Number(item.unitPrice) / (mult || 1),
+                refDocType: "GRN",
+                refDocId: grnInvoice.id,
+                narration: `GRN ${grnNumber}`,
+              },
+              { userId: currentUser.userId },
+              tx
+            );
           }
 
           await tx.stockAdjustment.create({
@@ -1283,6 +1303,9 @@ class GrnInvoiceService {
           tx
         );
         if (existing.updateStock) {
+          // Undo every valuation row this GRN raised — a reversal row each, never a delete.
+          await valuationService.reverseDocument("GRN", existing.id, actor, tx);
+
           const revAdjustmentNumber = `ADJ-REV-${existing.grnNumber}`;
           const revAdjustmentItems = [];
 

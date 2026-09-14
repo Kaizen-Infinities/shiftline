@@ -6,6 +6,7 @@ import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { periodService } from "../accounts/period.service";
 import { valuationService } from "./valuation.service";
+import { wipService } from "./wip.service";
 
 /**
  * Cost centres, budgets, the product cost sheet and the closing-stock posting (P1-19).
@@ -385,8 +386,19 @@ class CostingService {
     const opening = (await valuationService.closingStock(dayBefore)).total;
     const closing = (await valuationService.closingStock(period.to)).total;
     const movement = n2(closing - opening);
+    // Material issued to an open production order already left the raw-material balance above —
+    // this is what it left as, shown separately rather than posted, so raw-material stock and WIP
+    // are never added into one number that hides which is which.
+    const wip = (await wipService.total()).total;
     if (Math.abs(movement) < 0.01) {
-      return { posted: false, opening, closing, movement: 0, voucherId: null as number | null };
+      return {
+        posted: false,
+        opening,
+        closing,
+        movement: 0,
+        wip,
+        voucherId: null as number | null,
+      };
     }
 
     return prisma.$transaction(async (tx) => {
@@ -403,7 +415,7 @@ class CostingService {
         where: { refDocType: "CLOSING_STOCK", refDocId: periodKey, status: "POSTED" },
       });
       if (existing) {
-        return { posted: false, opening, closing, movement, voucherId: existing.id };
+        return { posted: false, opening, closing, movement, wip, voucherId: existing.id };
       }
 
       const D = (n: number) => new Prisma.Decimal(n2(n));
@@ -452,7 +464,7 @@ class CostingService {
           items: { create: items },
         },
       });
-      return { posted: true, opening, closing, movement, voucherId: voucher.id };
+      return { posted: true, opening, closing, movement, wip, voucherId: voucher.id };
     });
   }
 }

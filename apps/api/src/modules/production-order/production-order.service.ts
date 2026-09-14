@@ -9,6 +9,7 @@ import { Prisma } from "@prisma/client";
 import { StatusSyncService } from "../../utils/status-sync.util";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
+import { valuationService } from "../costing/valuation.service";
 
 /** Normalize UOM aliases to canonical short form */
 function normalizeUom(uom: string): string {
@@ -1058,6 +1059,23 @@ class ProductionOrderService {
                 : `Issued for Production Order ${productionOrderId} on production start`,
             },
           });
+
+          // Leaves at the current weighted average — it does not get to pick a rate (P2-04).
+          await valuationService.record(
+            {
+              itemType: "RAW_MATERIAL",
+              itemId: rawMaterialId,
+              storeId,
+              movedOn: now,
+              kind: "ISSUE",
+              quantity: qty,
+              refDocType: "PRODUCTION_ORDER",
+              refDocId: productionOrderId,
+              narration: `Issued for Production Order ${productionOrderId}`,
+            },
+            { userId },
+            tx
+          );
         }
 
         // 6. Update production order status to IN_PRODUCTION
@@ -1287,6 +1305,22 @@ class ProductionOrderService {
               productionOrderId,
             },
           });
+
+          await valuationService.record(
+            {
+              itemType: "RAW_MATERIAL",
+              itemId: rawMaterialId,
+              storeId,
+              movedOn: now,
+              kind: "ISSUE",
+              quantity: convertedQty,
+              refDocType: "PRODUCTION_ORDER",
+              refDocId: productionOrderId,
+              narration: remarks || `Issued for Production Order ${productionOrderId}`,
+            },
+            { userId },
+            tx
+          );
 
           await tx.stockAdjustmentItem.create({
             data: {

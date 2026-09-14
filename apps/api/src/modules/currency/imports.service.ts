@@ -4,6 +4,7 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { periodService } from "../accounts/period.service";
+import { valuationService } from "../costing/valuation.service";
 
 /**
  * Imports and the bill of entry (P1-17).
@@ -199,7 +200,7 @@ class ImportsService {
             })
           : null;
 
-      return tx.billOfEntry.create({
+      const created = await tx.billOfEntry.create({
         data: {
           beNumber: input.beNumber.trim().slice(0, 20),
           beDate,
@@ -221,6 +222,43 @@ class ImportsService {
           createdBy: actor.userId?.slice(0, 36) ?? null,
         },
       });
+
+      // Raises the average of the stock already received by the landed cost apportioned to each
+      // line — a second, cost-only movement, not a second receipt (P2-04).
+      if (input.grnInvoiceId && landedCost > 0) {
+        const grn = await tx.grnInvoice.findUnique({
+          where: { id: input.grnInvoiceId },
+          include: { items: true },
+        });
+        if (grn) {
+          const lines = grn.items.map((i) => ({
+            id: String(i.id),
+            productId: i.productId,
+            value: n2(Number(i.quantity) * Number(i.unitPrice)),
+          }));
+          const shares = apportion(landedCost, lines);
+          for (const line of lines) {
+            const share = shares.find((s) => s.id === line.id)?.share ?? 0;
+            if (share <= 0) continue;
+            await valuationService.recordCostAdjustment(
+              {
+                itemType: "RAW_MATERIAL",
+                itemId: line.productId,
+                storeId: grn.storeId,
+                movedOn: beDate,
+                amount: share,
+                refDocType: "BILL_OF_ENTRY",
+                refDocId: created.id,
+                narration: `Landed cost — BE ${input.beNumber}`,
+              },
+              actor,
+              tx
+            );
+          }
+        }
+      }
+
+      return created;
     });
   }
 

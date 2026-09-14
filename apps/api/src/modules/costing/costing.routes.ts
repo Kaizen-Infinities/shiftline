@@ -7,6 +7,7 @@ import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { OVERHEAD_BASES, costingService } from "./costing.service";
 import { valuationService } from "./valuation.service";
+import { wipService } from "./wip.service";
 
 /**
  * /api/costing (P1-19): the valuation ledger, cost centres, budgets and the cost sheet.
@@ -77,6 +78,36 @@ router.post(
     res
       .status(201)
       .json(new ApiResponse("Recorded", await valuationService.record(body, actorOf(req))));
+  })
+);
+
+router.post(
+  "/valuation/backfill",
+  requirePermission("costing.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(new ApiResponse("Backfill complete", await valuationService.backfill(actorOf(req))));
+  })
+);
+
+// ── Work in progress ────────────────────────────────────────────────────────────
+router.get(
+  "/wip",
+  requirePermission("costing.view"),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(new ApiResponse("Work in progress", await wipService.total()));
+  })
+);
+
+router.get(
+  "/wip/:productionOrderId",
+  requirePermission("costing.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(
+      new ApiResponse(
+        "Work in progress",
+        await wipService.wipFor(String(req.params.productionOrderId))
+      )
+    );
   })
 );
 
