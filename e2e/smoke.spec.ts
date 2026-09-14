@@ -54,6 +54,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/accounts/payment-links", marker: /Payment Links/ },
   { path: "/settings/sms", marker: /SMS and OTP/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
+  { path: "/settings/machine-gateways", marker: /Machine gateways/i },
 ];
 
 const trackApi = (page: Page) => {

@@ -56,6 +56,10 @@ export const QUEUES = {
   LEAVE_ACCRUAL: "payroll.leave-accrual",
   /** One SMS send per job (P2-T); keeps a slow gateway off the request path. */
   SMS_SEND: "notifications.sms.send",
+  /** Every minute: enqueue a poll job for every active MachineGateway due this cycle (P2-01). */
+  MACHINE_TELEMETRY_FANOUT: "shop-floor.machine-telemetry.fanout",
+  /** One gateway poll per job; connects, reads, writes the batch, rolls up cycles. */
+  MACHINE_TELEMETRY_POLL: "shop-floor.machine-telemetry.poll",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -67,6 +71,9 @@ const TENANT_QUEUES: ReadonlySet<string> = new Set([
   QUEUES.ACCOUNT_EXPORT,
   QUEUES.BILLING_CYCLE,
   QUEUES.LEAVE_ACCRUAL,
+  // Per-gateway, not per-tenant, but the same "one queued, one active" stately policy applies:
+  // its singletonKey is `${companyId}:${gatewayId}`, not companyId alone.
+  QUEUES.MACHINE_TELEMETRY_POLL,
 ]);
 
 let boss: PgBoss | undefined;

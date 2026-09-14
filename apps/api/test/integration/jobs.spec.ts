@@ -106,6 +106,7 @@ describe("retention sweep job", () => {
         "EOD_SNAPSHOTS",
         "FILINGS",
         "LOGIN_ATTEMPTS",
+        "MACHINE_TELEMETRY",
         "NOTIFICATIONS",
         "PAYROLL",
         "SESSIONS",
@@ -114,7 +115,7 @@ describe("retention sweep job", () => {
     );
     expect(out.every((r) => r.affected === 0 && r.error === null)).toBe(true);
     const after = await asDemoTenant(() => prisma.retentionSweep.count());
-    expect(after - before).toBe(10);
+    expect(after - before).toBe(11);
   });
 
   it("purges only this tenant's expired sessions", async () => {

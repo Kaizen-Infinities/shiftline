@@ -130,6 +130,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
       "products",
       "raw_materials",
       "insights",
+      "machine-telemetry",
     ]),
   },
   {

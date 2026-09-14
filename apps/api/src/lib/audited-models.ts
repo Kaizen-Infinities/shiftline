@@ -89,6 +89,10 @@ export const AUDITED_MODELS = [
   "LeaveType",
   "LeaveBalance",
   "FinalSettlement",
+  // shop floor (Phase 2)
+  "MachineGateway",
+  "MachineSignalMap",
+  "MachineCycle",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

@@ -466,6 +466,13 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "export"],
     description: "Statutory Registers (muster roll, wages, overtime, fines, deductions, advances)",
   },
+
+  // ── Shop floor (Phase 2) ────────────────────────────────────────────────────
+  {
+    module: "machine-telemetry",
+    actions: ["view", "configure", "ingest"],
+    description: "Machine telemetry: gateways, signal maps, cycles",
+  },
 ];
 
 /**

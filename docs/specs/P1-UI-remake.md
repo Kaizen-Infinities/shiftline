@@ -25,7 +25,7 @@ The inventory is grouped by user task rather than source folder. A checked group
 - [ ] **People:** employees, departments, shifts, roles, permission mapping, users, attendance, payroll dashboard/settings/runs, salary advances, payslips and weekly/monthly reports.
 - [ ] **Finance:** bank accounts, chart of accounts, vouchers, expenses, petty cash, ageing, statements, books, audit trail, year-end and finance reports.
 - [ ] **Compliance:** GST/HSN masters, filing approvals, e-invoice register/panels, e-way bills/panels and transporters.
-- [ ] **Tenant settings:** company profile/settings, invoice and email settings, WhatsApp, imports, export, devices and profile.
+- [ ] **Tenant settings:** company profile/settings, invoice and email settings, WhatsApp, imports, export, devices, profile and machine gateways (Phase 2, new direction from creation).
 - [ ] **Platform:** overview, tenants/detail and plans, all behind the super-admin boundary.
 
 Route declarations in `AppRoutes.tsx` are the canonical detailed inventory. A route is not removed or renamed as part of visual migration. Existing smoke entries remain the release inventory; marker text changes only when the corresponding page heading changes.

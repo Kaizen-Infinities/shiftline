@@ -20,6 +20,10 @@ import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 import { billingCycleFanoutHandler, billingCycleHandler } from "./billing-cycle.job";
 import { leaveAccrualFanoutHandler, leaveAccrualHandler } from "./leave-accrual.job";
 import { smsSendHandler } from "./sms-send.job";
+import {
+  machineTelemetryFanoutHandler,
+  machineTelemetryPollHandler,
+} from "./machine-telemetry-poll.job";
 
 const IST = "Asia/Kolkata";
 
@@ -77,6 +81,8 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.LEAVE_ACCRUAL_FANOUT, work, each(leaveAccrualFanoutHandler));
   await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
   await boss.work(QUEUES.SMS_SEND, work, each(smsSendHandler));
+  await boss.work(QUEUES.MACHINE_TELEMETRY_FANOUT, work, each(machineTelemetryFanoutHandler));
+  await boss.work(QUEUES.MACHINE_TELEMETRY_POLL, work, each(machineTelemetryPollHandler));
 };
 
 /**
@@ -106,4 +112,6 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.BILLING_CYCLE_FANOUT, "0 5 * * *", {}, { tz: IST });
   // 1st of the month, after the billing fan-out: leave accrual for the month just closed.
   await boss.schedule(QUEUES.LEAVE_ACCRUAL_FANOUT, "0 6 1 * *", {}, { tz: IST });
+  // Every minute: the per-gateway poll interval is checked inside the handler (P2-01).
+  await boss.schedule(QUEUES.MACHINE_TELEMETRY_FANOUT, "* * * * *", {}, { tz: IST });
 };
