@@ -17,6 +17,7 @@ import { msmeClockHandler } from "./msme.job";
 import { depreciationRunHandler } from "./assets.job";
 import { fxRatesHandler } from "./fx.job";
 import { leaveAccrualHandler } from "./leave.job";
+import { taxDeclarationReminderHandler } from "./payroll-declaration.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 import { billingSweepHandler } from "./billing.job";
 import { chequeDueHandler } from "./banking.job";
@@ -79,6 +80,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.TALLY_EXPORT_SWEEP, work, each(tallyExportSweepHandler));
   await boss.work(QUEUES.SMS_SEND, work, each(smsSendHandler));
   await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
+  await boss.work(QUEUES.TAX_DECLARATION_REMINDER, work, each(taxDeclarationReminderHandler));
 };
 
 /**
@@ -112,4 +114,7 @@ export const registerSchedules = async (): Promise<void> => {
   // 02:00 IST on the 1st, before the depreciation run: last month's attendance is settled by
   // then and the leave ledger should be current before anyone applies against it.
   await boss.schedule(QUEUES.LEAVE_ACCRUAL, "0 2 1 * *", {}, { tz: IST });
+  // 09:00 IST on the 1st: after payroll's own settlement runs, remind whoever still has no tax
+  // declaration on file for the financial year.
+  await boss.schedule(QUEUES.TAX_DECLARATION_REMINDER, "0 9 1 * *", {}, { tz: IST });
 };

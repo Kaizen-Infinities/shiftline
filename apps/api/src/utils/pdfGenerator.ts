@@ -1,6 +1,12 @@
 import puppeteer from 'puppeteer';
 
-export const generatePdfFromHtml = async (htmlContent: string): Promise<Buffer> => {
+export interface PdfOptions {
+    /** A4 landscape instead of the default portrait — for a table too wide to read in portrait
+     *  (P2-16), e.g. a 31-day muster roll. */
+    landscape?: boolean;
+}
+
+export const generatePdfFromHtml = async (htmlContent: string, options: PdfOptions = {}): Promise<Buffer> => {
     // Launch headless browser
     const browser = await puppeteer.launch({
         headless: true,
@@ -9,13 +15,14 @@ export const generatePdfFromHtml = async (htmlContent: string): Promise<Buffer> 
 
     try {
         const page = await browser.newPage();
-        
+
         // Set HTML content
         await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-        
+
         // Generate PDF
         const pdfBuffer = await page.pdf({
             format: 'A4',
+            landscape: options.landscape ?? false,
             printBackground: true,
             margin: {
                 top: '20px',

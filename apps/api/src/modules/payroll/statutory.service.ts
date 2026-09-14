@@ -8,6 +8,7 @@ import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { periodService } from "../accounts/period.service";
 import { filingApprovalService } from "../filings/filing-approval.service";
+import { notify } from "../notifications/notify";
 import {
   DEFAULT_STATUTORY_RULES,
   ESI_WAGE_LIMIT,
@@ -18,6 +19,7 @@ import {
   wageCheck,
   type PtSlab,
 } from "./statutory.calc";
+import { QUARTERLY_OVERTIME_CAP } from "./labour.calc";
 import {
   build24QRows,
   buildBankTransferFile,
@@ -74,6 +76,25 @@ export const esiPeriodBoundsFor = (periodKey: string): { key: string; start: Dat
     key: `${octYear}-H2`,
     start: new Date(Date.UTC(octYear, 9, 1)),
     end: new Date(Date.UTC(octYear + 1, 2, 31)),
+  };
+};
+
+/**
+ * The calendar quarter (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec) a "YYYY-MM-DD" date falls in — the
+ * OSH Code's 125-hour overtime cap is reckoned quarter-to-date (P2-16), matching the same
+ * calendar quarters the overtime register (P2-03) already groups attendance by.
+ */
+export const quarterBoundsFor = (dateStr: string): { key: string; start: Date; end: Date } => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!m) throw new ApiError(400, "A date looks like 2026-08-15");
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const qIndex = Math.floor((month - 1) / 3); // 0..3
+  const startMonth = qIndex * 3;
+  return {
+    key: `${year}-Q${qIndex + 1}`,
+    start: new Date(Date.UTC(year, startMonth, 1)),
+    end: new Date(Date.UTC(year, startMonth + 3, 0)),
   };
 };
 
@@ -135,6 +156,110 @@ class StatutoryPayrollService {
       },
     });
     return row.eligible;
+  }
+
+  /**
+   * The quarter-to-date overtime hours already banked for an employee, before this run's own
+   * hours are added (P2-16) — what `labour.calc`'s `overtimeForWeek` needs as
+   * `quarterToDateHours` to compute a real `hoursOverCap` instead of one measured against a
+   * blank quarter every time.
+   */
+  async peekOvertimeQuarterHours(employeeId: bigint, dateStr: string): Promise<number> {
+    const { key } = quarterBoundsFor(dateStr);
+    const row = await prisma.overtimeQuarterPeriod.findUnique({
+      where: { companyId_employeeId_quarterKey: { companyId: requireTenantId(), employeeId, quarterKey: key } },
+      select: { hoursAccrued: true },
+    });
+    return row ? n2(row.hoursAccrued) : 0;
+  }
+
+  /**
+   * Banks this run's overtime hours onto the employee's running quarterly total and returns the
+   * new total plus whether the OSH Code's 125-hour cap has been breached (P2-16). `breached` is
+   * sticky for the quarter: once true it stays true even if a later run in the same quarter adds
+   * no overtime of its own.
+   */
+  async recordOvertimeQuarterHours(
+    employeeId: bigint,
+    dateStr: string,
+    totalHours: number
+  ): Promise<{ totalHours: number; breached: boolean }> {
+    const { key, start, end } = quarterBoundsFor(dateStr);
+    const breached = totalHours > QUARTERLY_OVERTIME_CAP;
+    const row = await prisma.overtimeQuarterPeriod.upsert({
+      where: { companyId_employeeId_quarterKey: { companyId: requireTenantId(), employeeId, quarterKey: key } },
+      update: { hoursAccrued: n2(totalHours), breached: breached ? true : undefined },
+      create: {
+        companyId: requireTenantId(),
+        employeeId,
+        quarterKey: key,
+        quarterStart: start,
+        quarterEnd: end,
+        hoursAccrued: n2(totalHours),
+        breached,
+      },
+    });
+    return { totalHours: n2(row.hoursAccrued), breached: row.breached };
+  }
+
+  /**
+   * Employees with no `EmployeeTaxDeclaration` on file for a financial year (P2-16): the payroll
+   * run taxes them under the new regime with zero deductions by default, which is correct per
+   * `statutory.calc.salaryTax`'s own rule but worth reminding them to file one.
+   */
+  async missingDeclarations(
+    fyCode: string
+  ): Promise<Array<{ employeeId: string; employeeCode: string; employeeName: string }>> {
+    const employees = await prisma.employee.findMany({
+      where: { status: "active" },
+      select: { id: true, empCode: true, fullName: true },
+    });
+    if (employees.length === 0) return [];
+    const declarations = await prisma.employeeTaxDeclaration.findMany({
+      where: { fyCode, employeeId: { in: employees.map((e) => e.id) } },
+      select: { employeeId: true },
+    });
+    const declared = new Set(declarations.map((d) => d.employeeId.toString()));
+    return employees
+      .filter((e) => !declared.has(e.id.toString()))
+      .map((e) => ({ employeeId: e.id.toString(), employeeCode: e.empCode, employeeName: e.fullName }));
+  }
+
+  /**
+   * Notifies each missing-declaration employee's linked user, once per employee per FY (P2-16):
+   * the monthly job's tenant-scoped step, kept here next to `missingDeclarations` so the same
+   * list feeds both the run screen's reminder and the notification. Idempotent by construction —
+   * `notify`'s own row is checked by `category` + `link` (unique per employee and FY) before
+   * sending, so calling this twice in the same month sends nothing the second time.
+   */
+  async remindMissingDeclarations(fyCode: string): Promise<{ checked: number; sent: number }> {
+    const missing = await this.missingDeclarations(fyCode);
+    let sent = 0;
+    for (const m of missing) {
+      const link = `/payroll/statutory?employeeId=${m.employeeId}&fy=${fyCode}`;
+      // Only an employee with a linked login can be told in-app; one with none simply has
+      // nobody to notify here — HR still sees them on the payroll run screen's own list.
+      const user = await prisma.user.findFirst({
+        where: { employeeId: BigInt(m.employeeId), status: "active" },
+        select: { userId: true },
+      });
+      if (!user) continue;
+      const already = await prisma.notification.findFirst({
+        where: { category: "payroll-tax-declaration", link },
+        select: { id: true },
+      });
+      if (already) continue;
+      await notify({
+        category: "payroll-tax-declaration",
+        title: `File your tax declaration for FY ${fyCode}`,
+        body: `No income-tax declaration is on file for FY ${fyCode} yet. Without one, tax on salary is deducted under the new regime with no deductions.`,
+        link,
+        to: { userIds: [user.userId] },
+        level: "INFO",
+      });
+      sent++;
+    }
+    return { checked: missing.length, sent };
   }
 
   async upsertRule(input: {

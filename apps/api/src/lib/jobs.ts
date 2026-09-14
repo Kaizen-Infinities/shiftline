@@ -56,6 +56,8 @@ export const QUEUES = {
   SMS_SEND: "comms.sms.send",
   /** Monthly on the 1st: accrue leave from last month's attendance, every tenant (P2-09). */
   LEAVE_ACCRUAL: "payroll.leave.accrual",
+  /** Monthly on the 1st: remind employees with no tax declaration on file for the FY (P2-16). */
+  TAX_DECLARATION_REMINDER: "payroll.tax-declaration.reminder",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

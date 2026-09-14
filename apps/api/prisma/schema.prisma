@@ -719,6 +719,7 @@ model Company {
   payrollStatutory      PayrollStatutory[]       @relation("CompanyPayrollStatutory")
   taxDeclarations       EmployeeTaxDeclaration[] @relation("CompanyEmployeeTaxDeclaration")
   esiContributionPeriods EsiContributionPeriod[] @relation("CompanyEsiContributionPeriod")
+  overtimeQuarterPeriods OvertimeQuarterPeriod[] @relation("CompanyOvertimeQuarterPeriod")
   holidays              Holiday[]                @relation("CompanyHoliday")
   leaveTypes            LeaveType[]              @relation("CompanyLeaveType")
   leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
@@ -3412,6 +3413,10 @@ model PayrollResult {
   grossSalary         Decimal    @default(0) @db.Decimal(14, 2)
   otHours             Decimal    @default(0) @db.Decimal(10, 2)
   otPay               Decimal    @default(0) @db.Decimal(14, 2)
+  /// Overtime hours this run pushed past the OSH Code's 125-hour quarterly cap (P2-16), from the
+  /// running total in `OvertimeQuarterPeriod`. Zero means no breach; paid either way — the cap is
+  /// a compliance breach for the company, never a reason to withhold OT pay already earned.
+  otHoursOverCap      Decimal    @default(0) @map("ot_hours_over_cap") @db.Decimal(10, 2)
   pfWage              Decimal    @default(0) @db.Decimal(14, 2)
   employeePf          Decimal    @default(0) @db.Decimal(14, 2)
   employerPf          Decimal    @default(0) @db.Decimal(14, 2)
@@ -5507,6 +5512,31 @@ model EsiContributionPeriod {
 
   @@unique([companyId, employeeId, periodKey])
   @@map("esi_contribution_periods")
+}
+
+/// Overtime worked, running per employee per calendar quarter (P2-16): the OSH Code's 125-hour
+/// cap (`QUARTERLY_OVERTIME_CAP` in `labour.calc.ts`) is a quarter-to-date figure, not a
+/// per-run one, so each payroll run adds its own overtime hours onto the total already banked
+/// for the quarter instead of computing the cap against a blank slate. `breached` is sticky
+/// within the quarter once any run has pushed the total past the cap, even if a later run's own
+/// hours are zero.
+model OvertimeQuarterPeriod {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId   BigInt   @map("employee_id")
+  /// e.g. "2026-Q3" (July-September 2026), a calendar quarter.
+  quarterKey   String   @map("quarter_key") @db.VarChar(7)
+  quarterStart DateTime @map("quarter_start") @db.Date
+  quarterEnd   DateTime @map("quarter_end") @db.Date
+  hoursAccrued Decimal  @default(0) @map("hours_accrued") @db.Decimal(10, 2)
+  breached     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyOvertimeQuarterPeriod", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, quarterKey])
+  @@map("overtime_quarter_periods")
 }
 
 // ── Labour Code entitlements (P1-17b) ─────────────────────────────────────────
