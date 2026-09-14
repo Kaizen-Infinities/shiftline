@@ -398,6 +398,40 @@ class ProductionWastageService {
             },
           });
 
+          // No estimate on the log to receive it at? Fall back to what the recovered material is
+          // actually worth: its own running weighted average, or — for a material that has never
+          // been valued — its master rate. Either way the entry's narration says which one it
+          // used, so "why is this rate what it is" never needs a trip back to the wastage log.
+          let rate: number;
+          let rateSource: string;
+          if (existing.estimatedValue) {
+            rate = Number(existing.estimatedValue) / Number(existing.quantity);
+            rateSource = "the log's own estimate";
+          } else {
+            const hasValuation = await tx.stockValuationEntry.findFirst({
+              where: {
+                itemType: "RAW_MATERIAL",
+                itemId: existing.targetWastageProductId,
+                storeId: wastageStoreId,
+              },
+              select: { id: true },
+            });
+            if (hasValuation) {
+              const balance = await valuationService.balanceAt(
+                "RAW_MATERIAL",
+                existing.targetWastageProductId,
+                wastageStoreId,
+                undefined,
+                tx
+              );
+              rate = balance.avgRate;
+              rateSource = "its current weighted average";
+            } else {
+              rate = Number(targetProduct.rate ?? 0);
+              rateSource = "its master rate (never valued before)";
+            }
+          }
+
           await valuationService.record(
             {
               itemType: "RAW_MATERIAL",
@@ -406,12 +440,10 @@ class ProductionWastageService {
               movedOn: existing.wastageDate,
               kind: "RECEIPT",
               quantity: Number(qty),
-              rate: existing.estimatedValue
-                ? Number(existing.estimatedValue) / Number(existing.quantity)
-                : 0,
+              rate,
               refDocType: "PRODUCTION_WASTAGE",
               refDocId: String(existing.id),
-              narration: `Recovered from wastage ${existing.wastageNo}`,
+              narration: `Recovered from wastage ${existing.wastageNo}, received at ${rateSource}`,
             },
             { userId },
             tx

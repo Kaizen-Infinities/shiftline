@@ -24,6 +24,7 @@ const n3 = (v: unknown) => Math.round((Number(v ?? 0) || 0) * 1000) / 1000;
 const n4 = (v: unknown) => Math.round((Number(v ?? 0) || 0) * 10000) / 10000;
 const asDate = (v: string | Date) =>
   new Date(typeof v === "string" ? `${v.slice(0, 10)}T00:00:00Z` : v);
+const iso = (v: Date) => v.toISOString().slice(0, 10);
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -82,6 +83,45 @@ class ValuationService {
   }
 
   /**
+   * The two-rule average math, factored out so both a live {@link record} (which always moves
+   * off the *latest* balance, because a live movement is always the newest thing that ever
+   * happened) and a historical {@link backfill} (which has to move off a running balance it
+   * carries itself, since it is inserting rows *before* the latest one) compute an entry the
+   * same way.
+   */
+  private computeMovement(opening: Balance, kind: StockMoveKind, quantity: number, rate: number) {
+    const inward = INWARD.has(kind);
+    let outRate: number;
+    let value: number;
+    let balanceQuantity: number;
+    let balanceValue: number;
+
+    if (inward) {
+      outRate = n4(rate);
+      value = n2(quantity * outRate);
+      balanceQuantity = n3(opening.quantity + quantity);
+      balanceValue = n2(opening.value + value);
+    } else {
+      // The average of the day, not the last receipt's rate and not a recomputation.
+      outRate = opening.avgRate;
+      value = n2(quantity * outRate);
+      balanceQuantity = n3(opening.quantity - quantity);
+      balanceValue = n2(opening.value - value);
+    }
+
+    // A balance at zero keeps the last average rather than dividing by nothing; the next receipt
+    // will set it afresh anyway, and a zero average would price the next issue at nothing.
+    const avgRate =
+      balanceQuantity > 0
+        ? n4(balanceValue / balanceQuantity)
+        : inward
+          ? n4(outRate)
+          : opening.avgRate;
+
+    return { rate: outRate, value, balanceQuantity, balanceValue, avgRate };
+  }
+
+  /**
    * Records a movement and works out the new average.
    *
    * An outward movement always leaves at the running average, whatever rate the caller passes,
@@ -104,32 +144,12 @@ class ValuationService {
       db
     );
 
-    let rate: number;
-    let value: number;
-    let balanceQuantity: number;
-    let balanceValue: number;
-
-    if (inward) {
-      rate = n4(input.rate ?? 0);
-      value = n2(quantity * rate);
-      balanceQuantity = n3(opening.quantity + quantity);
-      balanceValue = n2(opening.value + value);
-    } else {
-      // The average of the day, not the last receipt's rate and not a recomputation.
-      rate = opening.avgRate;
-      value = n2(quantity * rate);
-      balanceQuantity = n3(opening.quantity - quantity);
-      balanceValue = n2(opening.value - value);
-    }
-
-    // A balance at zero keeps the last average rather than dividing by nothing; the next receipt
-    // will set it afresh anyway, and a zero average would price the next issue at nothing.
-    const avgRate =
-      balanceQuantity > 0
-        ? n4(balanceValue / balanceQuantity)
-        : inward
-          ? n4(rate)
-          : opening.avgRate;
+    const { rate, value, balanceQuantity, balanceValue, avgRate } = this.computeMovement(
+      opening,
+      input.kind,
+      quantity,
+      n4(input.rate ?? 0)
+    );
     const wentNegative = balanceQuantity < 0;
 
     return db.stockValuationEntry.create({
@@ -311,65 +331,139 @@ class ValuationService {
    * Values historical raw-material movements that predate this wiring and never reached the
    * ledger.
    *
-   * Idempotent two ways: a transaction whose item and store already carry *any* valuation entry
-   * is left alone entirely — wiring already values it going forward, and mixing a guessed
-   * historical rate into a real ledger would misstate the average — and every row this does write
-   * is tagged `RM_TXN_BACKFILL` against the transaction it came from, so a second run only visits
-   * what the first one could not reach and never doubles a row it already wrote.
+   * Per item/store pair, this fills every transaction dated *before* the pair's earliest existing
+   * valuation entry (whatever wrote that entry — this backfill on an earlier run, or a wired
+   * movement) and never touches a transaction on or after it: that first entry is real and its
+   * own average must not move. A pair with no valuation entry at all gets its whole history
+   * filled, same as before this fix. Rows before the cut-off are inserted in date order against a
+   * running balance carried locally — {@link record}'s own opening balance is always the *latest*
+   * entry, which would be wrong here since every row this writes is older than the ledger's
+   * current tip.
+   *
+   * Each inward transaction is valued at, in order: the transaction's own rate (raw-material
+   * transactions do not carry one today, so this never fires yet, but the rule holds for any that
+   * later do), else the item master's current rate ("at the time" is the best this ledger can do
+   * without a price-history table of its own), else — when the master carries no rate — the rate
+   * of the pair's first known valuation entry, so a zero rate is never guessed into the ledger
+   * while a real one is known.
+   *
+   * Idempotent two ways: a row already tagged `RM_TXN_BACKFILL` against its transaction is left
+   * as it stands rather than rewritten, and a transaction on or after the cut-off is never
+   * touched — so a second run creates nothing and reports every row as skipped.
    */
   async backfill(actor: { userId?: string } = {}, db: Db = prisma) {
-    const already = await db.stockValuationEntry.findMany({
-      where: { itemType: "RAW_MATERIAL" },
-      distinct: ["itemId", "storeId"],
-      select: { itemId: true, storeId: true },
-    });
-    const excluded = new Set(already.map((e) => `${e.itemId}|${e.storeId ?? ""}`));
-
     const txns = await db.rawMaterialTransaction.findMany({
       orderBy: { txnDateTime: "asc" },
       include: { rawMaterial: { select: { rate: true } } },
     });
+
+    const byPair = new Map<string, typeof txns>();
+    for (const t of txns) {
+      const key = `${t.rawMaterialId}|${t.storeId ?? ""}`;
+      const list = byPair.get(key);
+      if (list) list.push(t);
+      else byPair.set(key, [t]);
+    }
+
     let created = 0;
     let skipped = 0;
-    for (const t of txns) {
-      if (excluded.has(`${t.rawMaterialId}|${t.storeId ?? ""}`)) {
-        skipped++;
-        continue;
-      }
-      const refDocId = t.rmTxnId.toString();
-      const exists = await db.stockValuationEntry.findFirst({
-        where: { refDocType: "RM_TXN_BACKFILL", refDocId },
-        select: { id: true },
+    const pairs: Array<{
+      itemId: string;
+      storeId: string | null;
+      filled: number;
+      skipped: number;
+      reasons: string[];
+    }> = [];
+
+    for (const [, pairTxns] of byPair) {
+      const itemId = pairTxns[0].rawMaterialId;
+      const storeId = pairTxns[0].storeId ?? null;
+
+      const earliest = await db.stockValuationEntry.findFirst({
+        where: { itemType: "RAW_MATERIAL", itemId, storeId },
+        orderBy: [{ movedOn: "asc" }, { createdAt: "asc" }],
       });
-      if (exists) {
-        skipped++;
-        continue;
+      const cutoff = earliest?.movedOn ?? null;
+      const firstKnownRate = earliest ? n4(earliest.rate) : 0;
+
+      let pairFilled = 0;
+      let pairSkipped = 0;
+      const reasons: string[] = [];
+      let opening: Balance = { quantity: 0, value: 0, avgRate: 0 };
+
+      for (const t of pairTxns) {
+        const refDocId = t.rmTxnId.toString();
+
+        if (cutoff && t.txnDateTime >= cutoff) {
+          pairSkipped++;
+          reasons.push(`${refDocId}: on or after the first existing entry (${iso(cutoff)})`);
+          continue;
+        }
+
+        const existing = await db.stockValuationEntry.findFirst({
+          where: { refDocType: "RM_TXN_BACKFILL", refDocId },
+          select: { balanceQuantity: true, balanceValue: true, avgRate: true },
+        });
+        if (existing) {
+          pairSkipped++;
+          reasons.push(`${refDocId}: already backfilled`);
+          opening = {
+            quantity: n3(existing.balanceQuantity),
+            value: n2(existing.balanceValue),
+            avgRate: n4(existing.avgRate),
+          };
+          continue;
+        }
+
+        const qty = Number(t.qty);
+        if (qty === 0) {
+          pairSkipped++;
+          reasons.push(`${refDocId}: zero quantity`);
+          continue;
+        }
+
+        const inward = qty > 0;
+        const quantity = n3(Math.abs(qty));
+        const rate = inward ? Number(t.rawMaterial?.rate ?? 0) || firstKnownRate : 0;
+        const kind: StockMoveKind = inward ? "RECEIPT" : "ISSUE";
+        const entry = this.computeMovement(opening, kind, quantity, rate);
+
+        await db.stockValuationEntry.create({
+          data: {
+            itemType: "RAW_MATERIAL",
+            itemId,
+            storeId,
+            movedOn: t.txnDateTime,
+            kind,
+            quantity,
+            rate: entry.rate,
+            value: entry.value,
+            balanceQuantity: entry.balanceQuantity,
+            balanceValue: entry.balanceValue,
+            avgRate: entry.avgRate,
+            wentNegative: entry.balanceQuantity < 0,
+            refDocType: "RM_TXN_BACKFILL",
+            refDocId,
+            narration: `Backfilled from ${t.txnType} (${refDocId})`,
+            createdBy: actor.userId?.slice(0, 36) ?? null,
+          },
+        });
+        opening = {
+          quantity: entry.balanceQuantity,
+          value: entry.balanceValue,
+          avgRate: entry.avgRate,
+        };
+        pairFilled++;
+        created++;
       }
-      const qty = Number(t.qty);
-      if (qty === 0) {
-        skipped++;
-        continue;
+
+      skipped += pairSkipped;
+      if (pairFilled > 0 || pairSkipped > 0) {
+        pairs.push({ itemId, storeId, filled: pairFilled, skipped: pairSkipped, reasons });
       }
-      const inward = qty > 0;
-      await this.record(
-        {
-          itemType: "RAW_MATERIAL",
-          itemId: t.rawMaterialId,
-          storeId: t.storeId,
-          movedOn: t.txnDateTime,
-          kind: inward ? "RECEIPT" : "ISSUE",
-          quantity: Math.abs(qty),
-          rate: inward ? Number(t.rawMaterial?.rate ?? 0) : undefined,
-          refDocType: "RM_TXN_BACKFILL",
-          refDocId,
-          narration: `Backfilled from ${t.txnType} (${refDocId})`,
-        },
-        actor,
-        db
-      );
-      created++;
     }
-    return { scanned: txns.length, created, skipped };
+
+    return { scanned: txns.length, created, skipped, pairs };
   }
 
   /** Every movement for an item, newest first — the answer to "why is the average that?". */

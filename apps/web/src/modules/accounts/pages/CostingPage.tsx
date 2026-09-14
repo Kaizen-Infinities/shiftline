@@ -41,6 +41,10 @@ const CostingPage: React.FC = () => {
   const years = useMemo(() => fyOptions(3), []);
   const [tab, setTab] = useState<Tab>("stock");
   const [periodKey, setPeriodKey] = useState(months[1]?.value ?? months[0].value);
+  // The stock tab's own period, independent of the cost-centres tab's selector above — the two
+  // answer different questions ("what was stock worth in July" vs "how did July's spend compare
+  // to plan") and sharing one control meant changing one always changed the other by accident.
+  const [stockPeriodKey, setStockPeriodKey] = useState(months[1]?.value ?? months[0].value);
   const [fyCode, setFyCode] = useState(years[0].value);
   const [stock, setStock] = useState<ClosingStock | null>(null);
   const [wip, setWip] = useState<WipTotal | null>(null);
@@ -64,9 +68,11 @@ const CostingPage: React.FC = () => {
     setLoading(true);
     try {
       if (tab === "stock") {
-        setStock(await costingService.closingStock());
+        const [sy, sm] = stockPeriodKey.split("-").map(Number);
+        const stockAsOn = new Date(Date.UTC(sy, sm, 0)).toISOString().slice(0, 10);
+        setStock(await costingService.closingStock(stockAsOn));
         setWip(await costingService.wip());
-        setWipStatus(await costingService.closingStockStatus(periodKey));
+        setWipStatus(await costingService.closingStockStatus(stockPeriodKey));
         if (can("costing.manage")) {
           const [settings, ledgers] = await Promise.all([
             costingService.settings(),
@@ -90,7 +96,7 @@ const CostingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [tab, periodKey, fyCode, can]);
+  }, [tab, periodKey, stockPeriodKey, fyCode, can]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -106,6 +112,20 @@ const CostingPage: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {tab === "stock" && (
+            <select
+              className={field}
+              value={stockPeriodKey}
+              onChange={(e) => setStockPeriodKey(e.target.value)}
+              aria-label="Stock period"
+            >
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          )}
           {tab === "centres" && (
             <select
               className={field}
@@ -141,7 +161,7 @@ const CostingPage: React.FC = () => {
               onClick={async () => {
                 setBusy(true);
                 try {
-                  const out = await costingService.postClosingStock(periodKey);
+                  const out = await costingService.postClosingStock(stockPeriodKey);
                   toast.success(
                     out.posted
                       ? `Posted the movement of ${out.movement}`
@@ -155,7 +175,7 @@ const CostingPage: React.FC = () => {
                 }
               }}
             >
-              Post {periodKey} stock movement
+              Post {stockPeriodKey} stock movement
             </button>
           )}
         </div>
@@ -220,9 +240,9 @@ const CostingPage: React.FC = () => {
                 >
                   {wipStatus.posted
                     ? wipStatus.upToDate
-                      ? `Posted for ${periodKey}, and matches the current figure.`
-                      : `Posted for ${periodKey} at ${money(wipStatus.wipPosted ?? 0)} — WIP has moved since; post again to bring it current.`
-                    : `Not posted for ${periodKey} yet.`}
+                      ? `Posted for ${stockPeriodKey}, and matches the current figure.`
+                      : `Posted for ${stockPeriodKey} at ${money(wipStatus.wipPosted ?? 0)} — WIP has moved since; post again to bring it current.`
+                    : `Not posted for ${stockPeriodKey} yet.`}
                 </p>
               )}
               {can("costing.manage") && (
