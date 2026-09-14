@@ -165,6 +165,8 @@ jobs:
       FRONTEND_URL: http://localhost:5173
       BACKEND_URL: http://localhost:5000
       VITE_API_URL: http://localhost:5000/api
+      # The smoke suite renders every screen from one IP; the production ceiling would refuse the tail.
+      GLOBAL_RATE_LIMIT_MAX: "20000"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

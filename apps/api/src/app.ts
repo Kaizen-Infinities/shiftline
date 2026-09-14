@@ -77,7 +77,7 @@ app.use(
 /** Rate limits: a global ceiling per IP, and a tight one on credential endpoints. */
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 1200,
+  limit: env.GLOBAL_RATE_LIMIT_MAX,
   skip: () => isTest,
   standardHeaders: "draft-7",
   legacyHeaders: false,

@@ -31,6 +31,7 @@ const envSchema = z
     REFRESH_REUSE_GRACE_MS: z.coerce.number().int().min(0).max(60_000).default(10_000),
     /** Login and password-reset requests per IP per 15 minutes; browser suites raise it. */
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(5).max(10_000).default(30),
+    GLOBAL_RATE_LIMIT_MAX: z.coerce.number().int().min(100).max(1_000_000).default(1200),
     REFRESH_COOKIE_SAMESITE: z.enum(["lax", "strict", "none"]).optional(),
     COOKIE_SECURE: z
       .enum(["true", "false"])
