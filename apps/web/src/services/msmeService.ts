@@ -8,6 +8,7 @@ export type MsmeCategory = "MICRO" | "SMALL" | "MEDIUM" | "NOT_REGISTERED";
 export interface MsmeBillRow {
   grnId: string;
   grnNumber: string;
+  source: "GRN" | "EXPENSE";
   invoiceNo: string;
   supplierId: number;
   supplierName: string;
@@ -58,6 +59,11 @@ export interface MsmeForm1 {
   filing: { id: string; status: string } | null;
 }
 
+/** A payment about to touch a small supplier's clock (P2-10) — a warning, never a block. */
+export type MsmePaymentWarning =
+  | { type: "PAYEE_SMALL"; bills: MsmeBillRow[]; count: number; amount: number }
+  | { type: "OTHER_SMALL"; count: number; amount: number };
+
 const p = API_PATHS.msme;
 
 export const msmeService = {
@@ -70,4 +76,6 @@ export const msmeService = {
     (await apiClient.get(`${p.form1}/${periodKey}`)).data.data,
   registerForm1: async (periodKey: string): Promise<MsmeForm1> =>
     (await apiClient.post(`${p.form1}/${periodKey}/register`)).data.data,
+  paymentWarning: async (supplierId?: number): Promise<MsmePaymentWarning> =>
+    (await apiClient.get(p.paymentWarning, { params: { supplierId } })).data.data,
 };

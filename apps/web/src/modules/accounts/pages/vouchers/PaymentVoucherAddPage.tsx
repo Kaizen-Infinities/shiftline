@@ -3,9 +3,16 @@ import { useFormShortcuts } from "../../../../hooks/useFormShortcuts";
 import { useNavigate } from "react-router-dom";
 import { FaMoneyBillWave, FaPlus } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { voucherService, displayVoucherNo, type Voucher } from "../../../../services/voucherService";
+import {
+  voucherService,
+  displayVoucherNo,
+  type Voucher,
+} from "../../../../services/voucherService";
 import { accountService, type AccountLedger } from "../../../../services/accountService";
-import LedgerSearchInput, { isBankOrCashLedger } from "../../../../components/form/LedgerSearchInput/LedgerSearchInput";
+import { msmeService, type MsmePaymentWarning } from "../../../../services/msmeService";
+import LedgerSearchInput, {
+  isBankOrCashLedger,
+} from "../../../../components/form/LedgerSearchInput/LedgerSearchInput";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import { useListCache, prependToListCacheByPrefix } from "../../../../hooks/useListCache";
 
@@ -75,6 +82,38 @@ const PaymentVoucherAddPage: React.FC = () => {
 
   const paidFromLedger = ledgers.find((l) => String(l.id) === creditLedgerId);
 
+  // P2-10: as soon as a payee with a supplier ledger is picked, ask the MSME clock whether this
+  // payment run is about to make a small supplier's bill go overdue. Never blocks the payment.
+  const [msmeWarning, setMsmeWarning] = useState<MsmePaymentWarning | null>(null);
+  const payeeSupplierIds = Array.from(
+    new Set(
+      rows
+        .map((r) => ledgers.find((l) => String(l.id) === r.debitLedgerId)?.supplierId)
+        .filter((id): id is number => typeof id === "number")
+    )
+  );
+  const payeeSupplierKey = payeeSupplierIds.join(",");
+  useEffect(() => {
+    if (payeeSupplierIds.length === 0) {
+      setMsmeWarning(null);
+      return;
+    }
+    let cancelled = false;
+    // One payee at a time is the common case; the first supplier row drives the warning.
+    msmeService
+      .paymentWarning(payeeSupplierIds[0])
+      .then((w) => {
+        if (!cancelled) setMsmeWarning(w);
+      })
+      .catch(() => {
+        if (!cancelled) setMsmeWarning(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payeeSupplierKey]);
+
   // Cur.Bal for the selected Payment Mode account, as of the entry date.
   // Fetched from the ledger statement (closingBalance up to that date).
   // For an ASSET ledger (bank/cash), positive = Dr (money in hand),
@@ -121,12 +160,9 @@ const PaymentVoucherAddPage: React.FC = () => {
 
   const focusCell = (rowIdx: number, field: "account" | "amount" | "narration") => {
     if (!tableRef.current) return;
-    const wrap = tableRef.current.querySelector<HTMLElement>(
-      `[data-cell="${rowIdx}-${field}"]`
-    );
+    const wrap = tableRef.current.querySelector<HTMLElement>(`[data-cell="${rowIdx}-${field}"]`);
     if (!wrap) return;
-    const el =
-      wrap.tagName === "INPUT" ? (wrap as HTMLInputElement) : wrap.querySelector("input");
+    const el = wrap.tagName === "INPUT" ? (wrap as HTMLInputElement) : wrap.querySelector("input");
     if (el) {
       el.focus();
       if (el.select) el.select();
@@ -266,6 +302,24 @@ const PaymentVoucherAddPage: React.FC = () => {
             Add Payment Voucher
           </div>
 
+          {msmeWarning &&
+            (msmeWarning.type === "PAYEE_SMALL"
+              ? msmeWarning.count > 0 && (
+                  <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                    This is a micro/small supplier: {msmeWarning.count} bill(s) worth{" "}
+                    {msmeWarning.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })} are
+                    due within 5 days or already overdue on the section 15 clock.
+                  </div>
+                )
+              : msmeWarning.count > 0 && (
+                  <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                    {msmeWarning.count} bill(s) to other micro/small suppliers, worth{" "}
+                    {msmeWarning.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}, are
+                    about to breach the section 15 clock — this payment is money that could have
+                    gone to them instead.
+                  </div>
+                ))}
+
           {/* Top meta section — Busy layout: compact labels + inline values */}
           <div className="px-3 py-2 border-b border-line grid grid-cols-12 gap-x-3 gap-y-1.5 text-[11px] items-center">
             {/* Voucher Series (readonly)
@@ -274,7 +328,12 @@ const PaymentVoucherAddPage: React.FC = () => {
 
             <label className="col-span-2 text-ink-subtle font-semibold">Date</label>
             <div className="col-span-4">
-              <DatePickerCalendar name="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+              <DatePickerCalendar
+                name="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
             </div>
 
             <label className="col-span-2 text-ink-subtle font-semibold">Vch No.</label>
@@ -349,55 +408,57 @@ const PaymentVoucherAddPage: React.FC = () => {
                 {rows.map((row, idx) => {
                   const unlocked = isRowUnlocked(idx);
                   return (
-                  <tr
-                    key={row.id}
-                    className={`border-b border-line-soft last:border-b-0 ${unlocked ? "" : "bg-card-2/10"}`}
-                  >
-                    <td className={`w-10 px-2 py-0 text-center border-r border-line font-mono text-[11px] ${unlocked ? "text-ink-subtle bg-card-2/40" : "text-ink-subtle/40 bg-card-2/20"}`}>
-                      {idx + 1}
-                    </td>
-                    <td className="px-0 py-0 border-r border-line">
-                      <div data-cell={`${idx}-account`}>
-                        <LedgerSearchInput
-                          value={row.debitLedgerId}
-                          ledgers={ledgers}
-                          onChange={(val) => updateRow(row.id, "debitLedgerId", val)}
+                    <tr
+                      key={row.id}
+                      className={`border-b border-line-soft last:border-b-0 ${unlocked ? "" : "bg-card-2/10"}`}
+                    >
+                      <td
+                        className={`w-10 px-2 py-0 text-center border-r border-line font-mono text-[11px] ${unlocked ? "text-ink-subtle bg-card-2/40" : "text-ink-subtle/40 bg-card-2/20"}`}
+                      >
+                        {idx + 1}
+                      </td>
+                      <td className="px-0 py-0 border-r border-line">
+                        <div data-cell={`${idx}-account`}>
+                          <LedgerSearchInput
+                            value={row.debitLedgerId}
+                            ledgers={ledgers}
+                            onChange={(val) => updateRow(row.id, "debitLedgerId", val)}
+                            placeholder=""
+                            filterFn={(l) => !isBankOrCashLedger(l)}
+                            accentColor="red-500"
+                            variant="cell"
+                            onSelected={() => focusCell(idx, "amount")}
+                            disabled={!unlocked}
+                          />
+                        </div>
+                      </td>
+                      <td className="w-32 px-0 py-0 border-r border-line">
+                        <input
+                          data-cell={`${idx}-amount`}
+                          type="number"
+                          step="0.01"
+                          min="0"
                           placeholder=""
-                          filterFn={(l) => !isBankOrCashLedger(l)}
-                          accentColor="red-500"
-                          variant="cell"
-                          onSelected={() => focusCell(idx, "amount")}
+                          value={row.amount}
+                          onChange={(e) => updateRow(row.id, "amount", e.target.value)}
+                          onKeyDown={(e) => handleAmountKeyDown(e, idx)}
                           disabled={!unlocked}
+                          className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-ink text-right font-mono focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
                         />
-                      </div>
-                    </td>
-                    <td className="w-32 px-0 py-0 border-r border-line">
-                      <input
-                        data-cell={`${idx}-amount`}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder=""
-                        value={row.amount}
-                        onChange={(e) => updateRow(row.id, "amount", e.target.value)}
-                        onKeyDown={(e) => handleAmountKeyDown(e, idx)}
-                        disabled={!unlocked}
-                        className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-ink text-right font-mono focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
-                      />
-                    </td>
-                    <td className="px-0 py-0">
-                      <input
-                        data-cell={`${idx}-narration`}
-                        type="text"
-                        placeholder=""
-                        value={row.narration}
-                        onChange={(e) => updateRow(row.id, "narration", e.target.value)}
-                        onKeyDown={(e) => handleNarrationKeyDown(e, idx)}
-                        disabled={!unlocked}
-                        className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-ink focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
-                      />
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-0 py-0">
+                        <input
+                          data-cell={`${idx}-narration`}
+                          type="text"
+                          placeholder=""
+                          value={row.narration}
+                          onChange={(e) => updateRow(row.id, "narration", e.target.value)}
+                          onKeyDown={(e) => handleNarrationKeyDown(e, idx)}
+                          disabled={!unlocked}
+                          className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-ink focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
+                        />
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -413,7 +474,10 @@ const PaymentVoucherAddPage: React.FC = () => {
                     </button>
                   </td>
                   <td className="w-32 px-2 py-1 text-right font-mono font-bold text-ink border-l border-line">
-                    {totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {totalAmount.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </td>
                   <td className="px-2 py-1 text-[10px] text-ink-subtle italic">
                     {validCount} valid entries
@@ -428,9 +492,11 @@ const PaymentVoucherAddPage: React.FC = () => {
             <div className="flex items-center gap-2 text-[11px] text-ink-subtle">
               <FaMoneyBillWave className="text-red-500" />
               <span>
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Enter</kbd> /
-                {" "}<kbd className="px-1 border border-line rounded bg-card text-[10px]">Tab</kbd> to move forward •
-                {" "}<kbd className="px-1 border border-line rounded bg-card text-[10px]">↑↓</kbd> in dropdown
+                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Enter</kbd> /{" "}
+                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Tab</kbd> to
+                move forward •{" "}
+                <kbd className="px-1 border border-line rounded bg-card text-[10px]">↑↓</kbd> in
+                dropdown
               </span>
             </div>
             <div className="flex gap-2">

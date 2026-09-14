@@ -168,6 +168,7 @@ const MsmePage: React.FC = () => {
                   <tr>
                     <th className={th}>Supplier</th>
                     <th className={th}>Bill</th>
+                    <th className={th}>Source</th>
                     <th className={th}>Accepted</th>
                     <th className={th}>Pay by</th>
                     <th className={`${th} text-right`}>Outstanding</th>
@@ -185,6 +186,17 @@ const MsmePage: React.FC = () => {
                         </div>
                       </td>
                       <td className={td}>{b.invoiceNo}</td>
+                      <td className={td}>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            b.source === "EXPENSE"
+                              ? "bg-sky-100 text-sky-800"
+                              : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {b.source === "EXPENSE" ? "Expense" : "GRN"}
+                        </span>
+                      </td>
                       <td className={td}>{day(b.acceptedOn)}</td>
                       <td className={td}>
                         {day(b.dueDate)}
@@ -204,7 +216,7 @@ const MsmePage: React.FC = () => {
                   ))}
                   {bills.length === 0 && !loading && (
                     <tr>
-                      <td className={`${td} text-ink-muted`} colSpan={6}>
+                      <td className={`${td} text-ink-muted`} colSpan={7}>
                         Nothing is outstanding to a micro or small supplier.
                       </td>
                     </tr>

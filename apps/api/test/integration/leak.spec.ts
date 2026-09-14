@@ -55,6 +55,8 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "ItcEntry",
   "Gstr2bRecord",
   "ImsAction",
+  "Gstr2bSettings",
+  "SupplierFollowUp",
   "AdvanceReceipt",
   "AdvanceAdjustment",
   "DeliveryChallan",

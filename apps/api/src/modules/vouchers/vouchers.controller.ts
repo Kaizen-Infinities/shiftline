@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { VoucherType } from "@prisma/client";
 import { vouchersService } from "./vouchers.service";
 import { createVoucherSchema, getVouchersQuerySchema } from "./vouchers.types";
+import { msmeService } from "../msme/msme.service";
+import { logger } from "../../lib/logger";
 
 class VouchersController {
   async getVouchers(req: Request, res: Response, next: NextFunction) {
@@ -60,10 +62,24 @@ class VouchersController {
         emitToTenant("accountLedger:updated", { source: "voucher" });
       } catch (e) {}
 
+      // P2-10: a PAYMENT voucher's payee is whichever ledger carries a supplierId; the MSME
+      // clock warning rides along on the response, never blocking the payment itself.
+      let msmeWarning: unknown = null;
+      if (input.type === "PAYMENT") {
+        try {
+          const payeeSupplierId = (voucher as any)?.items
+            ?.map((i: any) => i.debitLedger?.supplierId)
+            .find((id: unknown): id is number => typeof id === "number");
+          msmeWarning = await msmeService.paymentWarning(payeeSupplierId ?? undefined);
+        } catch (err) {
+          logger.warn({ err }, "MSME payment warning could not be computed");
+        }
+      }
+
       return res.status(201).json({
         success: true,
         message: "Voucher created successfully",
-        data: voucher,
+        data: { ...voucher, msmeWarning },
       });
     } catch (error) {
       next(error);

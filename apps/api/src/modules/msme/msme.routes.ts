@@ -40,6 +40,17 @@ router.get(
 );
 
 router.get(
+  "/payment-warning",
+  requirePermission("payable.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = z.object({ supplierId: z.coerce.number().int().optional() }).parse(req.query);
+    res.json(
+      new ApiResponse("MSME payment warning", await msmeService.paymentWarning(q.supplierId))
+    );
+  })
+);
+
+router.get(
   "/disallowance/:fyCode",
   requirePermission("payable.view"),
   asyncHandler(async (req: Request, res: Response) => {
