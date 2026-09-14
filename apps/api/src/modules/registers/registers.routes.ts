@@ -37,6 +37,9 @@ async function respond(
     rows: Array<Record<string, unknown>>;
     json: unknown;
     fileStem: string;
+    /** A4 landscape instead of portrait — for a register wide enough to run off the page in
+     *  portrait, e.g. one column per day (P2-16). */
+    landscape?: boolean;
   }
 ) {
   if (format === "csv") {
@@ -53,7 +56,7 @@ async function respond(
       columns: opts.columns,
       rows: opts.rows,
     });
-    const pdf = await toPdf(html);
+    const pdf = await toPdf(html, opts.landscape ?? false);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${opts.fileStem}.pdf"`);
     res.send(pdf);
@@ -109,6 +112,7 @@ router.get(
       rows: flatRows,
       json: data,
       fileStem: `muster-roll-${q.month}`,
+      landscape: true,
     });
   })
 );
@@ -150,6 +154,7 @@ router.get(
       rows: data.rows,
       json: data,
       fileStem: `wages-${q.month}`,
+      landscape: true,
     });
   })
 );
@@ -166,6 +171,7 @@ const OT_COLUMNS: RegisterColumn[] = [
   { key: "cumulativeQuarterHours", label: "Quarter Cumulative Hours" },
   { key: "quarterlyCap", label: "Quarterly Cap" },
   { key: "overCap", label: "Over Cap" },
+  { key: "payrollBreach", label: "Payroll Breach" },
 ];
 
 router.get(

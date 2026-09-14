@@ -106,6 +106,8 @@ export interface ApiPayrollResult {
   esiApplicable: boolean;
   professionalTax: number;
   salaryTds: number;
+  /** Overtime hours this run pushed past the OSH Code's 125-hour quarterly cap; 0 = no breach. */
+  otHoursOverCap?: number;
   lateEntryDeduction: number;
   lateMinutes?: number;
   permissionDeduction: number;
@@ -146,6 +148,9 @@ export interface ApiPayrollRun {
   approvedAt: string | null;
   lockedAt: string | null;
   results: ApiPayrollResult[];
+  /** Active employees with no EmployeeTaxDeclaration on file for the run's financial year (P2-16),
+   *  MONTHLY runs only. */
+  missingTaxDeclarations?: Array<{ employeeId: string; employeeCode: string; employeeName: string }>;
 }
 
 export interface ApiSalaryAdvance {

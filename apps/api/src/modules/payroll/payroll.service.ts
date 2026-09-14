@@ -255,7 +255,8 @@ async function computeResult(
   salaryAdvanceOverride = 0,
   runType: "MONTHLY" | "WEEKLY" = "MONTHLY",
   monthCalendarDays = 0, // actual month's days (28-31) for MONTHLY_BY_CALENDAR formula
-  statutoryCtx?: StatutoryContext
+  statutoryCtx?: StatutoryContext,
+  periodStart?: string // "YYYY-MM-DD", the run's first attended date — for the OT quarterly cap (P2-16)
 ) {
   const pc = getEffectivePayrollConfig(emp);
   if (!pc) return null;
@@ -341,22 +342,40 @@ async function computeResult(
   // settings carry — so this delegates to labour.calc instead of multiplying otHours by a
   // configured rate. The attendance-recorded OT hours are treated as the excess beyond a single
   // nine-hour day, which is exactly what the daily trigger measures.
+  //
+  // The quarterly cap (P2-16): `overtimeForWeek` needs this quarter's hours already banked
+  // before this run to compute a real `hoursOverCap`, rather than one measured against a blank
+  // quarter — so the running total is read first and, once this run's hours are known, banked
+  // back for the next run (and the next quarter's overtime register) to build on.
   // ─────────────────────────────────────────────────────────────────────────────
   const otEnabled = settings.otEnabled !== false;
   let otPay = 0;
   let otH = 0;
+  let otHoursOverCap = 0;
   const effectiveOtHours = att.otHours;
   if (otEnabled && effectiveOtHours > 0) {
     const workingHoursPerDay =
       settings.defaultWorkingHoursPerDay > 0 ? settings.defaultWorkingHoursPerDay : 8;
     const ordinaryHourlyRate = workingHoursPerDay > 0 ? dailyRate / workingHoursPerDay : 0;
     if (ordinaryHourlyRate > 0) {
+      const quarterToDateHours = periodStart
+        ? await statutoryPayrollService.peekOvertimeQuarterHours(emp.id, periodStart)
+        : 0;
       const ot = overtimeForWeek({
         dailyHours: [DAILY_HOURS + effectiveOtHours],
         hourlyRate: ordinaryHourlyRate,
+        quarterToDateHours,
       });
       otH = ot.overtimeHours;
       otPay = ot.amount;
+      otHoursOverCap = ot.hoursOverCap;
+      if (periodStart && otH > 0) {
+        await statutoryPayrollService.recordOvertimeQuarterHours(
+          emp.id,
+          periodStart,
+          quarterToDateHours + otH
+        );
+      }
     }
   }
 
@@ -545,6 +564,7 @@ async function computeResult(
     grossSalary,
     otHours: otH || att.otHours,
     otPay,
+    otHoursOverCap,
     pfWage,
     employeePf,
     employerPf,
@@ -1084,6 +1104,11 @@ class PayrollService {
     // Monthly only: PT, salary TDS and the ESI half-year register are monthly concepts, and a
     // WEEKLY run leaves them for the monthly run that follows to collect once.
     let statutoryCtx: StatutoryContext | undefined;
+    let missingTaxDeclarations: Array<{
+      employeeId: string;
+      employeeCode: string;
+      employeeName: string;
+    }> = [];
     if (opts.type === "MONTHLY") {
       const periodKey = /^\d{4}-\d{2}$/.test(opts.period) ? opts.period : periodStart.slice(0, 7);
       const monthMatch = /^\d{4}-(\d{2})$/.exec(periodKey);
@@ -1122,6 +1147,17 @@ class PayrollService {
         rulesByState,
         declarationByEmployee,
       };
+
+      // Tax declaration reminder (P2-16): every employee in this run with nothing on file for
+      // the financial year, surfaced on the response so the run screen can nudge them — the same
+      // list the monthly reminder job notifies, kept in sync by reading the same table.
+      missingTaxDeclarations = (employees as EmployeePayrollData[])
+        .filter((e) => !declarationByEmployee.has(String(e.id)))
+        .map((e) => ({
+          employeeId: e.id.toString(),
+          employeeCode: e.empCode,
+          employeeName: e.fullName,
+        }));
     }
 
     // 4. Emit start
@@ -1151,7 +1187,8 @@ class PayrollService {
         advanceToUse,
         opts.type,
         monthCalendarDays,
-        statutoryCtx
+        statutoryCtx,
+        periodStart
       );
       if (result) results.push(result);
 
@@ -1221,6 +1258,7 @@ class PayrollService {
           grossSalary: r!.grossSalary,
           otHours: r!.otHours,
           otPay: r!.otPay,
+          otHoursOverCap: r!.otHoursOverCap,
           pfWage: r!.pfWage,
           employeePf: r!.employeePf,
           employerPf: r!.employerPf,
@@ -1291,7 +1329,7 @@ class PayrollService {
       variances: results.filter((r) => r!.hasVariance).length,
     });
 
-    return run;
+    return run ? { ...run, missingTaxDeclarations } : run;
   }
 
   async approveRun(id: number, userId: string) {

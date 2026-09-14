@@ -66,7 +66,9 @@ ${subtitle ? `<h2>${escapeHtml(subtitle)}</h2>` : ""}
 </body></html>`;
 }
 
-/** Renders the register HTML to a PDF buffer via the shared puppeteer helper. */
-export async function toPdf(html: string): Promise<Buffer> {
-  return generatePdfFromHtml(html);
+/** Renders the register HTML to a PDF buffer via the shared puppeteer helper. `landscape` (P2-16)
+ *  keeps a wide table — the muster roll's one column per day, the wages register's long row —
+ *  readable instead of running off a portrait A4 page. */
+export async function toPdf(html: string, landscape = false): Promise<Buffer> {
+  return generatePdfFromHtml(html, { landscape });
 }

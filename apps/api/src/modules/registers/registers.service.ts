@@ -10,6 +10,7 @@ import { requireTenantId } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { OVERTIME_MULTIPLIER, QUARTERLY_OVERTIME_CAP } from "../payroll/labour.calc";
 import { payrollService } from "../payroll/payroll.service";
+import { quarterBoundsFor } from "../payroll/statutory.service";
 
 const n2 = (v: unknown) => Math.round((Number(v ?? 0) || 0) * 100) / 100;
 
@@ -154,9 +155,8 @@ class RegistersService {
         pf: Number(r.employeePf),
         esi: Number(r.employeeEsi),
         professionalTax: Number(r.professionalTax),
-        // No salary-TDS field is persisted yet (P2-02 is adding statutory TDS to the payroll
-        // run in parallel); reported as 0 until that lands.
-        tds: 0,
+        // Tax on salary for the month, from PayrollResult.salaryTds (P2-02/P2-16).
+        tds: Number(r.salaryTds),
         fines: fine,
         advancesRecovered: Number(r.salaryAdvance),
         others: Number(r.otherDeductions) + Number(r.loanRecovery) + otherFromRegister,
@@ -164,6 +164,7 @@ class RegistersService {
           Number(r.employeePf) +
           Number(r.employeeEsi) +
           Number(r.professionalTax) +
+          Number(r.salaryTds) +
           fine +
           Number(r.salaryAdvance) +
           Number(r.otherDeductions) +
@@ -207,6 +208,20 @@ class RegistersService {
       quarterTotals.set(key, (quarterTotals.get(key) ?? 0) + Number(r.otHours));
     }
 
+    // The real breach, as flagged by payroll runs against the running quarterly total (P2-16) —
+    // not the ad-hoc `cumulativeQuarterHours > cap` above, which is an attendance-only estimate
+    // that can differ from what a run actually banked once the running-hours count of a run and
+    // this month's raw attendance no longer coincide (a corrected attendance entry, a deleted
+    // run, and so on).
+    const { key: quarterKey } = quarterBoundsFor(`${month}-01`);
+    const quarterPeriods = await prisma.overtimeQuarterPeriod.findMany({
+      where: { quarterKey },
+      select: { employeeId: true, hoursAccrued: true, breached: true },
+    });
+    const breachByEmployee = new Map(
+      quarterPeriods.map((p) => [p.employeeId.toString(), p.breached])
+    );
+
     // Best available daily rate per employee: the persisted result for this period if the run
     // exists, else the current payroll config (not a point-in-time snapshot — documented gap).
     const results = await prisma.payrollResult.findMany({
@@ -246,6 +261,9 @@ class RegistersService {
         cumulativeQuarterHours,
         quarterlyCap: QUARTERLY_OVERTIME_CAP,
         overCap: cumulativeQuarterHours > QUARTERLY_OVERTIME_CAP,
+        // The breach payroll itself recorded for the quarter (P2-16); false when no run has
+        // posted for this quarter yet, distinct from `overCap` above, which is only an estimate.
+        payrollBreach: breachByEmployee.get(key) ?? false,
       };
     });
 

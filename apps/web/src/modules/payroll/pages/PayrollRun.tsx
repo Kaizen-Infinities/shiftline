@@ -1203,6 +1203,8 @@ const Step3: React.FC<{
 }> = ({ run, onBack, onNext, onAdvanceChange }) => {
   const results = run.results || [];
   const variances = results.filter((r) => r.hasVariance);
+  const missingDeclarations = run.missingTaxDeclarations || [];
+  const otBreaches = results.filter((r) => Number(r.otHoursOverCap || 0) > 0);
 
   const totalOnRecordNet =
     run.totalNetSalary || results.reduce((s, r) => s + Number(r.netSalary || 0), 0);
@@ -1586,6 +1588,36 @@ const Step3: React.FC<{
               <span className="font-semibold">{v.employeeName}:</span> {v.varianceNote}
             </p>
           ))}
+        </div>
+      )}
+
+      {/* Overtime quarterly cap breach */}
+      {otBreaches.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center gap-2 text-red-700 font-semibold text-sm">
+            <AlertTriangle size={15} /> {otBreaches.length} employee{otBreaches.length > 1 ? "s" : ""}{" "}
+            over the 125-hour quarterly overtime cap
+          </div>
+          {otBreaches.map((v) => (
+            <p key={v.employeeId} className="text-xs text-red-600 pl-6">
+              <span className="font-semibold">{v.employeeName}:</span> {Number(v.otHoursOverCap).toFixed(2)} hour(s)
+              over the OSH Code's quarterly limit — still paid in full; the breach is the company's to answer for.
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* No tax declaration on file */}
+      {missingDeclarations.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1.5">
+          <div className="flex items-center gap-2 text-amber-700 font-semibold text-sm">
+            <AlertTriangle size={15} /> {missingDeclarations.length} employee{missingDeclarations.length > 1 ? "s" : ""}{" "}
+            with no tax declaration on file this year
+          </div>
+          <p className="text-xs text-amber-600 pl-6">
+            {missingDeclarations.map((m) => m.employeeName).join(", ")} — taxed under the new regime with
+            no deductions until they file one at Payroll → Statutory.
+          </p>
         </div>
       )}
 

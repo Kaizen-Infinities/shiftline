@@ -634,16 +634,9 @@ const PayrollSettings: React.FC = () => {
           <div>
             <h3 className="text-sm font-extrabold text-ink mb-3">Overtime</h3>
             <Toggle checked={config.otEnabled ?? true} onChange={v => set({ otEnabled: v })} label="Enable Overtime" />
-            {config.otEnabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                <TextInput
-                  label="Rate per Hour (₹)"
-                  name="otRatePerHour" type="number"
-                  value={String(config.otRatePerHour ?? 0)}
-                  onChange={e => set({ otRatePerHour: Number(e.target.value) })}
-                />
-              </div>
-            )}
+            <p className="text-xs text-ink-subtle mt-2">
+              Overtime is always paid at double the ordinary hourly rate (Labour Codes), so there is no rate to configure here.
+            </p>
           </div>
 
           <hr className="border-line-soft" />
@@ -704,15 +697,9 @@ const PayrollSettings: React.FC = () => {
           {/* Professional Tax */}
           <div>
             <h3 className="text-sm font-extrabold text-ink mb-3">Professional Tax</h3>
-            <Toggle checked={config.professionalTaxEnabled ?? false} onChange={v => set({ professionalTaxEnabled: v })} label="Enable Professional Tax" />
-            {config.professionalTaxEnabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                <TextInput label="Professional Tax Amount (₹/month)" name="professionalTaxAmount" type="number"
-                  value={String(config.professionalTaxAmount ?? 200)}
-                  onChange={e => set({ professionalTaxAmount: Number(e.target.value) })}
-                />
-              </div>
-            )}
+            <p className="text-xs text-ink-subtle">
+              Professional tax is computed per employee from their own work state's slabs, not a flat company-wide amount — set an employee's work state on their profile. Toggle it per employee under "Professional Tax" there.
+            </p>
           </div>
         </div>
       ),
