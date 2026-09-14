@@ -81,6 +81,7 @@ export const AUDITED_MODELS = [
   "StockValuationEntry",
   "CostCentre",
   "Budget",
+  "CostingSetting",
   "Cheque",
   "BankStatement",
   "PayrollStatutory",

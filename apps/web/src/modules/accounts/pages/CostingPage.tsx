@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
 import { usePermission } from "../../../hooks/usePermission";
+import { accountService, type AccountLedger } from "../../../services/accountService";
 import {
   costingService,
   type ClosingStock,
@@ -43,6 +44,15 @@ const CostingPage: React.FC = () => {
   const [fyCode, setFyCode] = useState(years[0].value);
   const [stock, setStock] = useState<ClosingStock | null>(null);
   const [wip, setWip] = useState<WipTotal | null>(null);
+  const [wipStatus, setWipStatus] = useState<{
+    posted: boolean;
+    wip: number;
+    wipPosted: number | null;
+    upToDate: boolean;
+  } | null>(null);
+  const [wipLedgerCode, setWipLedgerCode] = useState("WIP");
+  const [assetLedgers, setAssetLedgers] = useState<AccountLedger[]>([]);
+  const [savingWipLedger, setSavingWipLedger] = useState(false);
   const [ledger, setLedger] = useState<ValuationEntry[]>([]);
   const [pl, setPl] = useState<CostCentrePl | null>(null);
   const [variance, setVariance] = useState<VarianceReport | null>(null);
@@ -56,6 +66,15 @@ const CostingPage: React.FC = () => {
       if (tab === "stock") {
         setStock(await costingService.closingStock());
         setWip(await costingService.wip());
+        setWipStatus(await costingService.closingStockStatus(periodKey));
+        if (can("costing.manage")) {
+          const [settings, ledgers] = await Promise.all([
+            costingService.settings(),
+            accountService.fetchLedgers({ type: "ASSET", limit: 500 }),
+          ]);
+          setWipLedgerCode(settings.wipLedgerCode);
+          setAssetLedgers(ledgers.ledgers);
+        }
       }
       if (tab === "ledger") setLedger(await costingService.ledger());
       if (tab === "centres") {
@@ -71,7 +90,7 @@ const CostingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [tab, periodKey, fyCode]);
+  }, [tab, periodKey, fyCode, can]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -191,6 +210,60 @@ const CostingPage: React.FC = () => {
                 Material issued to {wip.rows.length} open production order(s), still on the floor —
                 not in raw-material stock above, and not yet finished goods.
               </p>
+              {wipStatus && (
+                <p
+                  className={`mt-2 rounded-lg border p-2 text-sm ${
+                    wipStatus.upToDate
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                      : "border-amber-300 bg-amber-50 text-amber-900"
+                  }`}
+                >
+                  {wipStatus.posted
+                    ? wipStatus.upToDate
+                      ? `Posted for ${periodKey}, and matches the current figure.`
+                      : `Posted for ${periodKey} at ${money(wipStatus.wipPosted ?? 0)} — WIP has moved since; post again to bring it current.`
+                    : `Not posted for ${periodKey} yet.`}
+                </p>
+              )}
+              {can("costing.manage") && (
+                <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line-soft pt-3">
+                  <label className="text-xs text-ink-muted">
+                    WIP ledger
+                    <select
+                      className={`${field} mt-1 block`}
+                      value={wipLedgerCode}
+                      onChange={(e) => setWipLedgerCode(e.target.value)}
+                    >
+                      {!assetLedgers.some((l) => l.code === wipLedgerCode) && (
+                        <option value={wipLedgerCode}>{wipLedgerCode}</option>
+                      )}
+                      {assetLedgers.map((l) => (
+                        <option key={l.id} value={l.code}>
+                          {l.name} ({l.code})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className={primary}
+                    disabled={savingWipLedger}
+                    onClick={async () => {
+                      setSavingWipLedger(true);
+                      try {
+                        await costingService.saveSettings(wipLedgerCode);
+                        toast.success(`WIP now posts to ${wipLedgerCode}`);
+                        await load();
+                      } catch (err) {
+                        toast.error(message(err));
+                      } finally {
+                        setSavingWipLedger(false);
+                      }
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
               {wip.rows.length > 0 && (
                 <div className="mt-3 overflow-x-auto">
                   <table className="min-w-full">

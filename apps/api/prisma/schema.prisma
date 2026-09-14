@@ -702,6 +702,7 @@ model Company {
   costCentres           CostCentre[]             @relation("CompanyCostCentre")
   budgets               Budget[]                 @relation("CompanyBudget")
   productCostSheets     ProductCostSheet[]       @relation("CompanyProductCostSheet")
+  costingSetting        CostingSetting?          @relation("CompanyCostingSetting")
   jobWorkers            JobWorker[]              @relation("CompanyJobWorker")
   deliveryChallans      DeliveryChallan[]        @relation("CompanyDeliveryChallan")
   deliveryChallanItems  DeliveryChallanItem[]    @relation("CompanyDeliveryChallanItem")
@@ -5196,6 +5197,21 @@ model ProductCostSheet {
   @@unique([companyId, productId, periodKey])
   @@index([companyId, periodKey])
   @@map("product_cost_sheets")
+}
+
+/// Which ledger work-in-progress posts to (P2-14). One row per tenant, created on first write;
+/// a tenant that never visits the setting reads the "WIP" default without one.
+model CostingSetting {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  wipLedgerCode String   @default("WIP") @map("wip_ledger_code") @db.VarChar(20)
+  updatedBy     String?  @map("updated_by") @db.VarChar(36)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyCostingSetting", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("costing_settings")
 }
 
 // ── Bank reconciliation and cheques (P1-20) ───────────────────────────────────
