@@ -12,7 +12,7 @@ const levelDot: Record<AppNotification["level"], string> = {
 };
 
 const isNudgeNotification = (n: AppNotification): boolean => {
-  return n.category === "gst-returns" && n.link?.includes("record=") ?? false;
+  return n.category === "gst-returns" && (n.link?.includes("record=") ?? false);
 };
 
 export const timeAgo = (iso: string) => {
