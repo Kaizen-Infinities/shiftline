@@ -7,6 +7,7 @@ import {
   createSalesInvoiceRequestSchema,
   updateSalesInvoiceRequestSchema,
   salesInvoiceIdRequestSchema,
+  recordReceiptRequestSchema,
 } from "./sales-invoice.validation";
 
 const router = Router();
@@ -71,6 +72,26 @@ router.post(
   requirePermission("sales-invoices.whatsapp-email"),
   validateMiddleware(salesInvoiceIdRequestSchema),
   salesInvoiceController.whatsappInvoice
+);
+
+// P2-12: a receipt recorded by hand against a sales invoice (cash/bank/cheque, with a
+// settlement rate for a foreign-currency invoice). Gated by the same permission as editing the
+// invoice itself, by analogy with how a GRN invoice's payments array is gated by the purchase
+// module's edit access.
+router.post(
+  "/:id/receipts",
+  authMiddleware,
+  requirePermission("sales-invoices.edit"),
+  validateMiddleware(recordReceiptRequestSchema),
+  salesInvoiceController.recordReceipt
+);
+
+router.get(
+  "/:id/receipts",
+  authMiddleware,
+  requirePermission("sales-invoices.view"),
+  validateMiddleware(salesInvoiceIdRequestSchema),
+  salesInvoiceController.listReceipts
 );
 
 export default router;

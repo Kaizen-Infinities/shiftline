@@ -232,6 +232,43 @@ class SalesInvoiceController {
 
     return res.status(200).json(new ApiResponse("WhatsApp message sent successfully!"));
   });
+
+  /** P2-12: record a receipt (cash/bank/cheque) against a sales invoice by hand. */
+  recordReceipt = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      throw new ApiError(401, "Unauthorized: missing user context");
+    }
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
+    if (!company) {
+      throw new ApiError(500, "Internal Server Error: No company found in the system");
+    }
+
+    const id = req.params.id as string;
+    const invoice = await salesInvoiceService.recordReceipt(id, req.body, {
+      userId,
+      companyId: company.id,
+    });
+
+    emitToTenant("salesInvoice:updated", invoice);
+    try {
+      emitToTenant("voucher:created", { source: "salesInvoiceReceipt" });
+      emitToTenant("payment:created", { source: "salesInvoiceReceipt" });
+      emitToTenant("accountLedger:updated", { source: "salesInvoiceReceipt" });
+    } catch (e) {}
+
+    return res.status(201).json(new ApiResponse("Receipt recorded", invoice));
+  });
+
+  listReceipts = asyncHandler(async (req: Request, res: Response) => {
+    const company = await prisma.company.findFirst({ where: { id: requireTenantId() } });
+    if (!company) {
+      throw new ApiError(500, "Internal Server Error: No company found in the system");
+    }
+    const id = req.params.id as string;
+    const receipts = await salesInvoiceService.listReceipts(id, company.id);
+    return res.status(200).json(new ApiResponse("Receipts fetched", receipts));
+  });
 }
 
 export const salesInvoiceController = new SalesInvoiceController();

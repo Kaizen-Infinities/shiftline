@@ -36,6 +36,10 @@ interface Expense {
   notes: string;
   receiptInvoice: string;
   rejectReason?: string | null;
+  /** P2-05: the deduction recorded when this bill was created with `deductTds: true`. */
+  tdsSection?: string | null;
+  tdsRate?: string | number | null;
+  tdsAmount?: string | number | null;
 }
 
 const ExpensesList: React.FC = () => {
@@ -422,6 +426,33 @@ const ExpensesList: React.FC = () => {
                       { label: "Internal Notes", value: selectedExpense.notes || "N/A" },
                     ],
                   },
+                  ...(Number(selectedExpense.tdsAmount) > 0
+                    ? [
+                        {
+                          title: "TDS Deducted (P2-05)",
+                          fields: [
+                            { label: "Section", value: selectedExpense.tdsSection || "N/A" },
+                            {
+                              label: "Rate",
+                              value: `${Number(selectedExpense.tdsRate || 0)}%`,
+                            },
+                            {
+                              label: "TDS Amount",
+                              value: `₹${Number(selectedExpense.tdsAmount).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                              })}`,
+                            },
+                            {
+                              label: "Net Payable",
+                              value: `₹${(
+                                parseFloat(selectedExpense.amount) -
+                                Number(selectedExpense.tdsAmount)
+                              ).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+                            },
+                          ],
+                        },
+                      ]
+                    : []),
                   {
                     title: "Attachment",
                     fields: [

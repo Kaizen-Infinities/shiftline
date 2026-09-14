@@ -13,6 +13,11 @@ import { fetchCompany } from "../../features/company/companySlice";
 import { customerService } from "../../services/customerService";
 import EInvoicePanel from "../compliance/components/EInvoicePanel";
 import EwayBillPanel from "../compliance/components/EwayBillPanel";
+import CommonModal from "../../components/ui/Modal/CommonModal";
+import TextInput from "../../components/form/TextInput/TextInput";
+import SelectInput from "../../components/form/SelectInput/SelectInput";
+import DateInput from "../../components/form/DateInput/DateInput";
+import { usePermission } from "../../hooks/usePermission";
 
 const stateName = (code?: string | null) =>
   GST_STATES.find((st) => st.code === code)?.name ?? code ?? "";
@@ -126,6 +131,24 @@ const SalesInvoiceView: React.FC = () => {
   );
 
   const { data: company } = useSelector((state: any) => state.company);
+  const { can } = usePermission();
+
+  // P2-12: receipts recorded on this invoice, and the "Record receipt" dialog.
+  const [receipts, setReceipts] = useState<any[]>([]);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [recordingReceipt, setRecordingReceipt] = useState(false);
+  const [receiptForm, setReceiptForm] = useState({
+    amount: "",
+    paymentDate: new Date().toISOString().split("T")[0],
+    instrumentType: "CASH" as "CASH" | "BANK" | "CHEQUE",
+    referenceNumber: "",
+    chequeNo: "",
+    chequeDate: "",
+    chequeBank: "",
+    chequeParty: "",
+    settlementRate: "",
+  });
+  const [receiptErrors, setReceiptErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     dispatch(fetchCompany());
@@ -175,6 +198,20 @@ const SalesInvoiceView: React.FC = () => {
     loadDetail(id.toString());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idParam]);
+
+  // P2-12: the receipts recorded on this invoice (cheque status joined in by the server).
+  const loadReceipts = useCallback(async (invoiceId: string) => {
+    try {
+      const list = await salesInvoiceService.fetchReceipts(invoiceId);
+      setReceipts(Array.isArray(list) ? list : []);
+    } catch {
+      setReceipts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (invoice?.id) loadReceipts(invoice.id);
+  }, [invoice?.id, loadReceipts]);
 
   // Fetch customer balance when invoice loads
   useEffect(() => {
@@ -428,6 +465,70 @@ const SalesInvoiceView: React.FC = () => {
     }
   };
 
+  // P2-12: how much of the invoice is still outstanding (grand total plus TCS, less receipts).
+  const alreadyReceived = useMemo(
+    () => receipts.reduce((s, p: any) => s + (Number(p.amount) || 0), 0),
+    [receipts]
+  );
+  const outstanding = Math.max(0, Math.round((grandTotal - alreadyReceived) * 100) / 100);
+  const isForeign = invoice?.currencyCode && invoice.currencyCode !== "INR";
+
+  const validateReceipt = (): boolean => {
+    const errs: Record<string, string> = {};
+    const amt = Number(receiptForm.amount);
+    if (!amt || amt <= 0) errs.amount = "Amount must be greater than 0";
+    else if (amt > outstanding + 0.01)
+      errs.amount = `Exceeds the outstanding balance (₹${formatMoney(outstanding)})`;
+    if (!receiptForm.paymentDate) errs.paymentDate = "Date is required";
+    if (receiptForm.instrumentType === "CHEQUE" && !receiptForm.chequeNo.trim())
+      errs.chequeNo = "Cheque number is required";
+    setReceiptErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleRecordReceipt = async () => {
+    if (!invoice?.id || !validateReceipt()) return;
+    setRecordingReceipt(true);
+    try {
+      const payload: any = {
+        amount: Number(receiptForm.amount),
+        paymentDate: receiptForm.paymentDate,
+        instrumentType: receiptForm.instrumentType,
+        referenceNumber: receiptForm.referenceNumber || undefined,
+      };
+      if (receiptForm.instrumentType === "CHEQUE") {
+        payload.chequeNo = receiptForm.chequeNo;
+        payload.chequeDate = receiptForm.chequeDate || receiptForm.paymentDate;
+        payload.chequeBank = receiptForm.chequeBank || undefined;
+        payload.chequeParty = receiptForm.chequeParty || undefined;
+      }
+      if (isForeign && receiptForm.settlementRate) {
+        payload.settlementRate = Number(receiptForm.settlementRate);
+      }
+      const updated = await salesInvoiceService.recordReceipt(invoice.id, payload);
+      setInvoice(updated);
+      await loadReceipts(invoice.id);
+      toast.success("Receipt recorded");
+      setShowReceiptModal(false);
+      setReceiptForm({
+        amount: "",
+        paymentDate: new Date().toISOString().split("T")[0],
+        instrumentType: "CASH",
+        referenceNumber: "",
+        chequeNo: "",
+        chequeDate: "",
+        chequeBank: "",
+        chequeParty: "",
+        settlementRate: "",
+      });
+      setReceiptErrors({});
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to record receipt");
+    } finally {
+      setRecordingReceipt(false);
+    }
+  };
+
   return (
     <div className="flex bg-page overflow-hidden h-[calc(100vh-115px)] print:block print:h-auto print:overflow-visible print:bg-white">
       {/* ── Left Sidebar (Invoice List) ── */}
@@ -518,7 +619,72 @@ const SalesInvoiceView: React.FC = () => {
                   variant="secondary"
                   onClick={handleDownloadPdf}
                 />
+                {can("sales-invoices.edit") && !invoice.cancelledAt && outstanding > 0 && (
+                  <CustomButton
+                    text="Record Receipt"
+                    variant="primary"
+                    onClick={() => setShowReceiptModal(true)}
+                  />
+                )}
               </div>
+            </div>
+
+            {/* Receipts (P2-12): cash, bank or cheque, and the cheque register's own status */}
+            <div className="mb-6 no-print border border-line-soft rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2 bg-card-2">
+                <span className="text-sm font-semibold text-ink">Receipts</span>
+                <span className="text-xs text-ink-subtle">
+                  Received ₹{formatMoney(alreadyReceived)} · Outstanding ₹{formatMoney(outstanding)}
+                </span>
+              </div>
+              {receipts.length === 0 ? (
+                <div className="px-4 py-3 text-xs text-ink-subtle">No receipts recorded yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-line-soft text-ink-subtle">
+                        <th className="text-left px-4 py-2 font-semibold">Date</th>
+                        <th className="text-left px-4 py-2 font-semibold">Method</th>
+                        <th className="text-left px-4 py-2 font-semibold">Reference</th>
+                        <th className="text-left px-4 py-2 font-semibold">Cheque Status</th>
+                        <th className="text-right px-4 py-2 font-semibold">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {receipts.map((p: any, idx: number) => (
+                        <tr key={p.id || idx} className="border-b border-line-soft last:border-b-0">
+                          <td className="px-4 py-2 text-ink">{formatDate(p.paymentDate)}</td>
+                          <td className="px-4 py-2 text-ink">{p.paymentMethod || "—"}</td>
+                          <td className="px-4 py-2 text-ink-subtle">
+                            {p.referenceNumber || p.chequeNo || "—"}
+                          </td>
+                          <td className="px-4 py-2">
+                            {p.cheque ? (
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  p.cheque.status === "CLEARED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : p.cheque.status === "BOUNCED"
+                                      ? "bg-rose-100 text-rose-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                }`}
+                              >
+                                {p.cheque.status}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-right font-semibold text-ink">
+                            ₹{formatMoney(p.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* E-invoice (P1-11) */}
@@ -878,6 +1044,20 @@ const SalesInvoiceView: React.FC = () => {
                           </tr>
                         </>
                       ))}
+                    {Number(invoice.tcsAmount) > 0 && (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="border border-black px-2 py-1 text-right text-[13px]"
+                        >
+                          TCS{invoice.tcsSectionCode ? ` (u/s ${invoice.tcsSectionCode})` : ""}
+                        </td>
+                        <td className="border border-black px-2 py-1 wt-hide"></td>
+                        <td className="border border-black px-2 py-1 text-right text-[13px]">
+                          + {formatMoney(invoice.tcsAmount)}
+                        </td>
+                      </tr>
+                    )}
                     {viewChargeRows.map((cr: any, idx: number) => (
                       <tr key={idx}>
                         <td
@@ -996,6 +1176,121 @@ const SalesInvoiceView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* P2-12: Record receipt dialog */}
+      <CommonModal
+        show={showReceiptModal}
+        onHide={() => {
+          setShowReceiptModal(false);
+          setReceiptErrors({});
+        }}
+        title="Record Receipt"
+        maxWidth="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <CustomButton
+              text="Cancel"
+              variant="secondary"
+              onClick={() => {
+                setShowReceiptModal(false);
+                setReceiptErrors({});
+              }}
+              disabled={recordingReceipt}
+            />
+            <CustomButton
+              text={recordingReceipt ? "Recording..." : "Record Receipt"}
+              onClick={handleRecordReceipt}
+              disabled={recordingReceipt}
+            />
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div className="text-xs text-ink-subtle">
+            Outstanding: <span className="font-semibold text-ink">₹{formatMoney(outstanding)}</span>
+          </div>
+          <TextInput
+            label="Amount (₹) *"
+            name="amount"
+            type="number"
+            value={receiptForm.amount}
+            onChange={(e) => setReceiptForm((p) => ({ ...p, amount: e.target.value }))}
+            error={receiptErrors.amount}
+          />
+          <DateInput
+            label="Payment Date *"
+            name="paymentDate"
+            value={receiptForm.paymentDate}
+            onChange={(e) => setReceiptForm((p) => ({ ...p, paymentDate: e.target.value }))}
+          />
+          {receiptErrors.paymentDate && (
+            <span className="text-red-500 text-xs block">{receiptErrors.paymentDate}</span>
+          )}
+          <SelectInput
+            label="Instrument"
+            name="instrumentType"
+            value={receiptForm.instrumentType}
+            options={[
+              { label: "Cash", value: "CASH" },
+              { label: "Bank Transfer", value: "BANK" },
+              { label: "Cheque", value: "CHEQUE" },
+            ]}
+            onChange={(e) =>
+              setReceiptForm((p) => ({ ...p, instrumentType: e.target.value as any }))
+            }
+          />
+          {receiptForm.instrumentType !== "CHEQUE" && (
+            <TextInput
+              label="Reference Number"
+              name="referenceNumber"
+              value={receiptForm.referenceNumber}
+              onChange={(e) => setReceiptForm((p) => ({ ...p, referenceNumber: e.target.value }))}
+            />
+          )}
+          {receiptForm.instrumentType === "CHEQUE" && (
+            <div className="grid grid-cols-2 gap-3">
+              <TextInput
+                label="Cheque No. *"
+                name="chequeNo"
+                value={receiptForm.chequeNo}
+                onChange={(e) => setReceiptForm((p) => ({ ...p, chequeNo: e.target.value }))}
+                error={receiptErrors.chequeNo}
+              />
+              <DateInput
+                label="Cheque Date"
+                name="chequeDate"
+                value={receiptForm.chequeDate}
+                onChange={(e) => setReceiptForm((p) => ({ ...p, chequeDate: e.target.value }))}
+              />
+              <TextInput
+                label="Bank"
+                name="chequeBank"
+                value={receiptForm.chequeBank}
+                onChange={(e) => setReceiptForm((p) => ({ ...p, chequeBank: e.target.value }))}
+              />
+              <TextInput
+                label="Drawer"
+                name="chequeParty"
+                value={receiptForm.chequeParty}
+                onChange={(e) => setReceiptForm((p) => ({ ...p, chequeParty: e.target.value }))}
+              />
+              <p className="col-span-2 text-[11px] text-ink-subtle">
+                A cheque dated after the payment date is treated as post-dated: the register row is
+                created now, and the receipt posts only once it clears.
+              </p>
+            </div>
+          )}
+          {isForeign && (
+            <TextInput
+              label={`Settlement Rate (1 ${invoice?.currencyCode} = ₹, defaults to the rate table)`}
+              name="settlementRate"
+              type="number"
+              value={receiptForm.settlementRate}
+              onChange={(e) => setReceiptForm((p) => ({ ...p, settlementRate: e.target.value }))}
+            />
+          )}
+        </div>
+      </CommonModal>
     </div>
   );
 };

@@ -576,6 +576,8 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "PUT /api/sales-invoices/:id",
   "POST /api/sales-invoices/:id/cancel",
   "POST /api/sales-invoices/:id/email-invoice",
+  "GET /api/sales-invoices/:id/receipts",
+  "POST /api/sales-invoices/:id/receipts",
   "POST /api/sales-invoices/:id/whatsapp-invoice",
   "GET /api/sales-orders",
   "POST /api/sales-orders",

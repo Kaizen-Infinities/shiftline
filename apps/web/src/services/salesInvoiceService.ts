@@ -56,5 +56,17 @@ export const salesInvoiceService = {
     });
     return response.data?.data || response.data;
   },
+
+  /** P2-12: record a receipt (cash/bank/cheque) against a sales invoice by hand. */
+  recordReceipt: async (id: string, data: any): Promise<any> => {
+    const response = await apiClient.post(`${getBaseUrl()}/${id}/receipts`, data);
+    return response.data?.data || response.data;
+  },
+
+  /** P2-12: the receipts recorded on this invoice, each joined with its cheque status. */
+  fetchReceipts: async (id: string): Promise<any[]> => {
+    const response = await apiClient.get(`${getBaseUrl()}/${id}/receipts`);
+    return response.data?.data || response.data || [];
+  },
 };
 export default salesInvoiceService;
