@@ -4,7 +4,7 @@ import type { SalesDocumentType, SupplyType } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import type { Db } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateSalesInvoiceInput } from "./sales-invoice.validation";
+import { CreateSalesInvoiceInput, RecordReceiptInput } from "./sales-invoice.validation";
 import crypto from "crypto";
 import { logger } from "../../lib/logger";
 import { documentNumberService } from "../documents/document-number.service";
@@ -23,6 +23,7 @@ import { BASE_CURRENCY, currencyService } from "../currency/currency.service";
 import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
 import { tdsService } from "../tds/tds.service";
+import { extractPaymentsArray } from "../../utils/payments";
 
 type SaleItemInput = CreateSalesInvoiceInput["items"][number];
 type SaleHeaderInput = {
@@ -1150,6 +1151,190 @@ class SalesInvoiceService {
       },
       { maxWait: 10000, timeout: 30000 }
     );
+  }
+
+  /**
+   * P2-12: a receipt recorded by hand against a sales invoice — cash, bank or cheque, and for a
+   * foreign-currency invoice a settlement rate (defaulted from the rate table when omitted). It
+   * rides on `postReceiptVouchersForSales` (P2-06), the same helper the payment-gateway capture
+   * path uses, so the cheque register row and any FX realisation happen exactly the same way a
+   * counter receipt would produce them.
+   */
+  async recordReceipt(
+    id: string,
+    data: RecordReceiptInput,
+    currentUser: { userId: string; companyId: string }
+  ) {
+    const invoice = await prisma.salesInvoice.findFirst({
+      where: { id, companyId: currentUser.companyId },
+    });
+    if (!invoice) throw new ApiError(404, "Sales Invoice not found");
+    if (invoice.cancelledAt) {
+      throw new ApiError(
+        409,
+        `Invoice ${invoice.invoiceNo} is cancelled; it cannot record a receipt`,
+        "INVOICE_CANCELLED"
+      );
+    }
+
+    await periodService.assertPostingAllowed(new Date(data.paymentDate), currentUser);
+
+    const isForeign = Boolean(invoice.currencyCode && invoice.currencyCode !== BASE_CURRENCY);
+    const existingPayments = extractPaymentsArray(invoice.payments);
+    const amount = Math.round(Number(data.amount) * 100) / 100;
+
+    // A foreign-currency invoice settles at the day's rate unless one was given explicitly
+    // (P2-06's realiseFxForPayment would default it too, but resolving it here means the
+    // receipt on file shows the rate it was actually recorded at, and the over-receipt check
+    // below can compare in the currency the invoice was actually raised in).
+    let settlementRate = data.settlementRate ?? null;
+    if (!settlementRate && isForeign) {
+      settlementRate = await currencyService.rateFor(
+        invoice.currencyCode,
+        new Date(data.paymentDate)
+      );
+    }
+
+    // The outstanding balance: in rupees for a rupee invoice; in the invoice's own foreign
+    // currency for a foreign one, since a receipt settling at a different rate than the
+    // invoice was booked at legitimately moves a different rupee figure without over- or
+    // under-collecting the debt itself (that difference is exactly the realised FX gain/loss).
+    let outstandingDisplay: number;
+    if (isForeign) {
+      const bookedRate = Number(invoice.exchangeRate ?? 1) || 1;
+      const foreignAlreadyPaid = existingPayments.reduce((s, p: any) => {
+        const rate = Number(p.settlementRate) > 0 ? Number(p.settlementRate) : bookedRate;
+        return s + (Number(p.amount) || 0) / rate;
+      }, 0);
+      const foreignOutstanding =
+        Math.round((Number(invoice.foreignTotal ?? 0) - foreignAlreadyPaid) * 100) / 100;
+      const rateForThisReceipt = settlementRate ?? bookedRate;
+      const inrCeiling = Math.round(foreignOutstanding * rateForThisReceipt * 100) / 100;
+      outstandingDisplay = inrCeiling;
+      if (amount > inrCeiling + 1) {
+        // Foreign-currency roundings can differ by a few paise per rupee of rate; a rupee of
+        // slack per unit of rate is generous enough to absorb that without hiding a real
+        // over-receipt.
+        throw new ApiError(
+          400,
+          `Receipt exceeds the outstanding balance (₹${Math.max(inrCeiling, 0)}) on invoice ${invoice.invoiceNo}`,
+          "OVER_RECEIPT"
+        );
+      }
+    } else {
+      const alreadyPaid =
+        Math.round(existingPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0) * 100) /
+        100;
+      outstandingDisplay = Math.round((Number(invoice.grandTotal) - alreadyPaid) * 100) / 100;
+      if (amount > outstandingDisplay + 0.01) {
+        throw new ApiError(
+          400,
+          `Receipt of ${amount} exceeds the outstanding balance of ${Math.max(outstandingDisplay, 0)} on invoice ${invoice.invoiceNo}`,
+          "OVER_RECEIPT"
+        );
+      }
+    }
+
+    const methodLabel =
+      data.instrumentType === "CHEQUE"
+        ? "Cheque"
+        : data.instrumentType === "BANK"
+          ? "Bank Transfer"
+          : "Cash";
+
+    const paymentId = crypto.randomUUID();
+    const payment: Record<string, unknown> = {
+      id: paymentId,
+      amount,
+      paymentMethod: methodLabel,
+      referenceNumber: data.referenceNumber ?? null,
+      paymentDate: data.paymentDate,
+      instrumentType: data.instrumentType,
+      recordedBy: currentUser.userId,
+      createdAt: new Date().toISOString(),
+      source: "MANUAL",
+    };
+    if (data.instrumentType === "CHEQUE") {
+      payment.chequeNo = data.chequeNo;
+      payment.chequeDate = data.chequeDate ?? data.paymentDate;
+      payment.chequeBank = data.chequeBank ?? null;
+      payment.chequeParty = data.chequeParty ?? null;
+    }
+    if (settlementRate) payment.settlementRate = settlementRate;
+
+    const allPayments = [...existingPayments, payment];
+    const totalPaid = allPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+    const fullyPaid = totalPaid >= Number(invoice.grandTotal) - 0.01;
+
+    return prisma.$transaction(
+      async (tx) => {
+        await tx.salesInvoice.update({
+          where: { id },
+          data: {
+            payments: allPayments as any,
+            ...(fullyPaid ? { status: "PAID" } : {}),
+          },
+        });
+
+        await tx.salesInvoicePayment.create({
+          data: {
+            salesInvoiceId: id,
+            amount,
+            paymentMethod: methodLabel,
+            referenceNumber: data.referenceNumber ? data.referenceNumber.slice(0, 100) : null,
+            paymentDate: new Date(`${data.paymentDate.slice(0, 10)}T00:00:00Z`),
+            recordedBy: currentUser.userId,
+            voucherPosted: false,
+          },
+        });
+
+        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
+        await voucherPostingService.postReceiptVouchersForSales(id, tx);
+
+        const updated = await tx.salesInvoice.findUnique({
+          where: { id },
+          include: {
+            customer: { select: { id: true, firmName: true, displayName: true, email: true } },
+          },
+        });
+        return serializeInvoice(updated);
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
+  }
+
+  /**
+   * P2-12: every receipt recorded on this invoice (both by hand and via the payment-gateway
+   * capture path), joined with the cheque register row when the instrument was a cheque, so the
+   * view page can show its status (IN_HAND / DEPOSITED / CLEARED / BOUNCED) without a second call.
+   */
+  async listReceipts(id: string, companyId: string) {
+    const invoice = await prisma.salesInvoice.findFirst({
+      where: { id, companyId },
+      select: { payments: true },
+    });
+    if (!invoice) throw new ApiError(404, "Sales Invoice not found");
+
+    const payments = extractPaymentsArray(invoice.payments);
+    const cheques = await prisma.cheque.findMany({
+      where: { refDocType: "SALES_PAYMENT", sourceDocId: id },
+    });
+    const chequeByRef = new Map(cheques.map((c) => [c.refDocId, c]));
+
+    return payments.map((p: any) => {
+      const cheque = p.id ? chequeByRef.get(String(p.id)) : undefined;
+      return {
+        ...p,
+        cheque: cheque
+          ? {
+              status: cheque.status,
+              chequeNo: cheque.chequeNo,
+              chequeDate: cheque.chequeDate,
+              bankName: cheque.bankName,
+            }
+          : null,
+      };
+    });
   }
 }
 

@@ -26,6 +26,13 @@ interface ExpenseFormData {
   receiptInvoice: string;
 }
 
+interface TdsPreview {
+  rate: number;
+  reason: string;
+  base: number;
+  belowThreshold: boolean;
+}
+
 interface ExpensesCreateProps {
   onSaveComplete: () => void;
   onCancel: () => void;
@@ -55,9 +62,19 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
   };
 
   const [formData, setFormData] = useState<ExpenseFormData>(defaultFormData);
-  const [suppliers, setSuppliers] = useState<Array<{ label: string; value: string; id: number }>>([]);
+  const [suppliers, setSuppliers] = useState<Array<{ label: string; value: string; id: number }>>(
+    []
+  );
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // P2-12: TDS on the bill (P2-05 accepts these fields; the form did not offer them yet).
+  const [deductTds, setDeductTds] = useState(false);
+  const [tdsSection, setTdsSection] = useState("");
+  const [tdsSections, setTdsSections] = useState<Array<{ code: string; name: string }>>([]);
+  const [tdsPreview, setTdsPreview] = useState<TdsPreview | null>(null);
+  const [tdsLoading, setTdsLoading] = useState(false);
+  const [existingTdsAmount, setExistingTdsAmount] = useState<number | null>(null);
 
   useFormShortcuts({});
 
@@ -67,7 +84,11 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
       try {
         const response = await apiClient.get("/suppliers?limit=100");
         const rawData = response.data?.data;
-        const list = Array.isArray(rawData) ? rawData : (Array.isArray(rawData?.suppliers) ? rawData.suppliers : []);
+        const list = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData?.suppliers)
+            ? rawData.suppliers
+            : [];
         if (list.length > 0) {
           const formatted = list.map((sup: any) => ({
             label: `${sup.supplierCode ? sup.supplierCode + " - " : ""}${sup.legalName || "Supplier"}`,
@@ -81,6 +102,22 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
       }
     };
     fetchSuppliers();
+  }, []);
+
+  // P2-12: TDS sections (deduction ones only; TCS sections belong on the sales side).
+  useEffect(() => {
+    const fetchTdsSections = async () => {
+      try {
+        const response = await apiClient.get("/tds/sections");
+        const list = Array.isArray(response.data?.data) ? response.data.data : [];
+        setTdsSections(
+          list.filter((s: any) => !s.isTcs).map((s: any) => ({ code: s.code, name: s.name }))
+        );
+      } catch (error) {
+        console.error("Error fetching TDS sections:", error);
+      }
+    };
+    fetchTdsSections();
   }, []);
 
   // Fetch next expense code if not editing
@@ -112,8 +149,53 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
         notes: initialData.notes || "",
         receiptInvoice: initialData.receiptInvoice || "",
       });
+      if (initialData.tdsSection) {
+        setTdsSection(initialData.tdsSection);
+        setDeductTds(Number(initialData.tdsAmount) > 0);
+        setExistingTdsAmount(Number(initialData.tdsAmount) || 0);
+      }
     }
   }, [initialData]);
+
+  // P2-12: a live preview (rate, amount, net) whenever the section, amount or supplier changes.
+  // Editing an already-deducted expense keeps its own figures instead of re-previewing them.
+  useEffect(() => {
+    if (isEdit && existingTdsAmount !== null) return;
+    if (!tdsSection || !formData.amount || Number(formData.amount) <= 0) {
+      setTdsPreview(null);
+      return;
+    }
+    const matchedSupplier = suppliers.find((s) => s.value === formData.supplier);
+    let cancelled = false;
+    setTdsLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await apiClient.post("/tds/preview", {
+          sectionCode: tdsSection,
+          supplierId: matchedSupplier?.id ?? null,
+          amount: Number(formData.amount),
+          on: formData.date || undefined,
+        });
+        if (!cancelled) setTdsPreview(res.data?.data ?? null);
+      } catch (error) {
+        if (!cancelled) setTdsPreview(null);
+      } finally {
+        if (!cancelled) setTdsLoading(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [
+    tdsSection,
+    formData.amount,
+    formData.supplier,
+    formData.date,
+    suppliers,
+    isEdit,
+    existingTdsAmount,
+  ]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -161,6 +243,9 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
     if (!formData.paymentMethod.trim()) {
       newErrors.paymentMethod = "Payment Method is required";
     }
+    if (deductTds && !tdsSection) {
+      newErrors.tdsSection = "Pick a TDS section, or turn off Deduct TDS";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -192,6 +277,9 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
         notes: formData.notes?.trim() || null,
         receiptInvoice: formData.receiptInvoice?.trim() || null,
         supplierId: supplierId,
+        // P2-12: naming a section always sends a preview back; deductTds accepts it.
+        tdsSection: tdsSection || null,
+        deductTds: Boolean(tdsSection) && deductTds,
       };
 
       if (isEdit) {
@@ -248,11 +336,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
               </h2>
             </div>
             <div>
-              <BackButton
-                text="Back to List"
-
-
-              />
+              <BackButton text="Back to List" />
             </div>
           </div>
         </div>
@@ -294,7 +378,9 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
                   disabled={saving}
                   onChange={handleChange}
                 />
-                {errors.date && <span className="text-red-500 text-sm mt-1 block">{errors.date}</span>}
+                {errors.date && (
+                  <span className="text-red-500 text-sm mt-1 block">{errors.date}</span>
+                )}
               </div>
 
               <TextInput
@@ -324,7 +410,9 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
                 label="Supplier (Optional)"
                 name="supplier"
                 value={formData.supplier}
-                options={suppliers.length > 0 ? suppliers : [{ label: "No suppliers loaded", value: "" }]}
+                options={
+                  suppliers.length > 0 ? suppliers : [{ label: "No suppliers loaded", value: "" }]
+                }
                 defaultOptionLabel="Select Supplier"
                 disabled={saving}
                 onChange={handleChange}
@@ -350,10 +438,94 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
               />
 
               <FileUpload
-                label={formData.receiptInvoice ? `Receipt: ${formData.receiptInvoice}` : "Upload Receipt/Invoice"}
+                label={
+                  formData.receiptInvoice
+                    ? `Receipt: ${formData.receiptInvoice}`
+                    : "Upload Receipt/Invoice"
+                }
                 name="receiptInvoice"
                 onChange={handleFileChange}
               />
+            </div>
+          </div>
+
+          {/* TDS (P2-05/P2-12) */}
+          <div className="mt-6">
+            <h6 className="text-lg font-semibold text-ink mb-4">Tax Deducted at Source</h6>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-end">
+              <label className="flex items-center gap-2 text-sm font-medium text-ink pb-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deductTds}
+                  disabled={saving || (isEdit && existingTdsAmount !== null)}
+                  onChange={(e) => setDeductTds(e.target.checked)}
+                  className="w-4 h-4 accent-blue-600"
+                />
+                Deduct TDS
+              </label>
+
+              <SelectInput
+                label="Section"
+                name="tdsSection"
+                value={tdsSection}
+                options={tdsSections.map((s) => ({
+                  label: `${s.code} — ${s.name}`,
+                  value: s.code,
+                }))}
+                defaultOptionLabel="Select Section"
+                disabled={saving || (isEdit && existingTdsAmount !== null)}
+                onChange={(e) => setTdsSection(e.target.value)}
+                error={errors.tdsSection}
+              />
+
+              {isEdit && existingTdsAmount !== null ? (
+                <div className="md:col-span-2 text-sm rounded-md border border-line-soft bg-card-2 p-3">
+                  <div className="flex justify-between">
+                    <span className="text-ink-subtle">Deducted (section {tdsSection})</span>
+                    <span className="font-semibold text-ink">
+                      ₹{existingTdsAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              ) : deductTds && tdsSection ? (
+                <div className="md:col-span-2 text-sm rounded-md border border-line-soft bg-card-2 p-3">
+                  {tdsLoading ? (
+                    <span className="text-ink-subtle">Calculating…</span>
+                  ) : tdsPreview ? (
+                    tdsPreview.belowThreshold ? (
+                      <span className="text-ink-subtle">{tdsPreview.reason}</span>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-ink-subtle">Rate</span>
+                          <span className="font-semibold text-ink">{tdsPreview.rate}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-ink-subtle">TDS Amount</span>
+                          <span className="font-semibold text-rose-500">
+                            ₹
+                            {((tdsPreview.base * tdsPreview.rate) / 100).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-line-soft pt-1">
+                          <span className="text-ink-subtle">Net Payable</span>
+                          <span className="font-bold text-ink">
+                            ₹
+                            {(
+                              Number(formData.amount || 0) -
+                              (tdsPreview.base * tdsPreview.rate) / 100
+                            ).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <span className="text-ink-subtle">Enter an amount to see the deduction</span>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
 

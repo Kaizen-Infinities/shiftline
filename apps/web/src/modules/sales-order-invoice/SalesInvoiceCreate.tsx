@@ -11,7 +11,9 @@ import AutocompleteInput from "../../components/form/AutocompleteInput/Autocompl
 import CustomButton from "../../components/ui/Button/Button";
 import BackButton from "../../components/ui/BackButton/BackButton";
 import CommonLoader from "../../components/ui/Loader/CommonLoader";
-import BusyItemsTable, { DEFAULT_SUNDRY_OPTIONS } from "../../components/form/OrderItemsTable/BusyItemsTable";
+import BusyItemsTable, {
+  DEFAULT_SUNDRY_OPTIONS,
+} from "../../components/form/OrderItemsTable/BusyItemsTable";
 import type { BusyColumn, SundryRow } from "../../components/form/OrderItemsTable/BusyItemsTable";
 import {
   type ChargeRow,
@@ -32,6 +34,7 @@ import { finishedGoodsStockService } from "../../services/finishedGoodsStockServ
 import { useSocketSync } from "../../hooks/useSocketSync";
 import { GST_STATES } from "@shiftline/shared";
 import { documentsService } from "../../services/documentsService";
+import apiClient from "../../api/apiClient";
 
 // ---- Types ----
 interface InvoiceLineItem {
@@ -78,7 +81,6 @@ const emptyLine = (): InvoiceLineItem => ({
   total: 0,
 });
 
-
 // ---- Component ----
 const SalesInvoiceForm: React.FC = () => {
   const navigate = useNavigate();
@@ -112,10 +114,20 @@ const SalesInvoiceForm: React.FC = () => {
   const [excludedComponents, setExcludedComponents] = useState<Record<string, Set<string>>>({});
   const [discountType, setDiscountType] = useState<string>("PERCENT");
   const [discountValue, setDiscountValue] = useState<string>("");
-  const [billingAddress, setBillingAddress] = useState({ line1: "", city: "", state: "", pincode: "" });
+  const [billingAddress, setBillingAddress] = useState({
+    line1: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
   const [customerAddresses, setCustomerAddresses] = useState<any[]>([]);
   const [selectedShippingIdx, setSelectedShippingIdx] = useState<number>(0);
-  const [newShippingAddress, _setNewShippingAddress] = useState({ line1: "", city: "", state: "", pincode: "" });
+  const [newShippingAddress, _setNewShippingAddress] = useState({
+    line1: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
   const [addingNewAddress, setAddingNewAddress] = useState(false);
   const [editInvoiceSalesOrder, setEditInvoiceSalesOrder] = useState<any>(null);
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState("");
@@ -125,12 +137,43 @@ const SalesInvoiceForm: React.FC = () => {
   const [sundryRows, setSundryRows] = useState<SundryRow[]>([]);
   const [invoiceStatus, setInvoiceStatus] = useState<string>("DRAFT");
   const [customerTransports, setCustomerTransports] = useState<any[]>([]);
-  
+
   const [selectedTransport, setSelectedTransport] = useState<any>(null);
-  
+
   const [numberOfBundle, setNumberOfBundle] = useState<string>("");
 
+  // P2-12: TCS collection (P2-05 accepts collectTcs/tcsSectionCode; the form did not offer them).
+  const [collectTcs, setCollectTcs] = useState(false);
+  const [tcsSectionCode, setTcsSectionCode] = useState("");
+  const [tcsSections, setTcsSections] = useState<Array<{ code: string; name: string }>>([]);
+  const [tcsSectionTouched, setTcsSectionTouched] = useState(false);
+  const [existingTcsAmount, setExistingTcsAmount] = useState<number | null>(null);
+
   useFormShortcuts({});
+
+  // TCS sections (394 table: scrap 206C(1), buyer threshold 206C(1H)).
+  useEffect(() => {
+    apiClient
+      .get("/tds/sections")
+      .then((res: any) => {
+        const list = Array.isArray(res.data?.data) ? res.data.data : [];
+        setTcsSections(
+          list.filter((s: any) => s.isTcs).map((s: any) => ({ code: s.code, name: s.name }))
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  // Default to the scrap section (206C(1)) once the invoice carries an item the item master
+  // marks as scrap — going by the product's own name/category, since there is no dedicated
+  // "is scrap" flag on the item master to key off instead.
+  useEffect(() => {
+    if (tcsSectionTouched || tcsSectionCode || (isEditMode && existingTcsAmount !== null)) return;
+    const looksLikeScrap = lines.some((l) => /scrap/i.test(l.itemName || ""));
+    if (looksLikeScrap && tcsSections.some((s) => s.code === "206C(1)")) {
+      setTcsSectionCode("206C(1)");
+    }
+  }, [lines, tcsSections, tcsSectionTouched, isEditMode, existingTcsAmount]);
 
   useEffect(() => {
     dispatch(fetchCompany());
@@ -139,7 +182,8 @@ const SalesInvoiceForm: React.FC = () => {
   // ---- Load existing invoice (edit mode) ----
   useEffect(() => {
     if (!id) return;
-    salesInvoiceService.fetchById(id)
+    salesInvoiceService
+      .fetchById(id)
       .then((invoice: any) => {
         if (!invoice) return;
         if (invoice.status === "PAID") {
@@ -157,92 +201,147 @@ const SalesInvoiceForm: React.FC = () => {
         }
         // Fetch full sales order to get addresses, bill sundry, and correct item mapping
         if (invoice.salesOrderId) {
-          salesOrderService.fetchById(invoice.salesOrderId).then((fullOrder: any) => {
-            if (!fullOrder) return;
-            setEditInvoiceSalesOrder(fullOrder);
-            const cust = fullOrder.customer;
-            const addresses = cust?.addresses || [];
-            setCustomerAddresses(addresses);
-            setCustomerTransports(cust?.transports || []);
-            const defaultAddr = addresses[0]?.address || {};
-            setBillingAddress({
-              line1: fullOrder.billingAddressLine1 || cust?.billingAddressLine1 || defaultAddr.addressLine1 || "",
-              city: fullOrder.billingCity || cust?.billingCity || defaultAddr.city || "",
-              state: fullOrder.billingState || cust?.billingState || defaultAddr.state || "",
-              pincode: fullOrder.billingPincode || cust?.billingPincode || defaultAddr.pincode || "",
-            });
-            setSelectedShippingIdx(0);
-            // Build lines from invoice items grouped by salesProductId
-            const invoiceItems: any[] = invoice.items || [];
-            const orderItems: any[] = fullOrder.items || [];
-            if (invoiceItems.length > 0) {
-              const grouped = new Map<string, any[]>();
-              invoiceItems.forEach((ii: any) => {
-                const spId = ii.salesProductId ? String(ii.salesProductId) : String(ii.productId);
-                if (!grouped.has(spId)) grouped.set(spId, []);
-                grouped.get(spId)!.push(ii);
+          salesOrderService
+            .fetchById(invoice.salesOrderId)
+            .then((fullOrder: any) => {
+              if (!fullOrder) return;
+              setEditInvoiceSalesOrder(fullOrder);
+              const cust = fullOrder.customer;
+              const addresses = cust?.addresses || [];
+              setCustomerAddresses(addresses);
+              setCustomerTransports(cust?.transports || []);
+              const defaultAddr = addresses[0]?.address || {};
+              setBillingAddress({
+                line1:
+                  fullOrder.billingAddressLine1 ||
+                  cust?.billingAddressLine1 ||
+                  defaultAddr.addressLine1 ||
+                  "",
+                city: fullOrder.billingCity || cust?.billingCity || defaultAddr.city || "",
+                state: fullOrder.billingState || cust?.billingState || defaultAddr.state || "",
+                pincode:
+                  fullOrder.billingPincode || cust?.billingPincode || defaultAddr.pincode || "",
               });
-              const rebuilt: any[] = [];
-              grouped.forEach((items, spId) => {
-                // Find sales product name from order items or product relation
-                const orderItem = orderItems.find((oi: any) => String(oi.salesProductId) === spId);
-                const spFromOrder = orderItem?.salesProduct;
-                const spName = spFromOrder?.salesProductName || spFromOrder?.salesProductCode
-                  || items[0]?.product?.productName || items[0]?.description || `Product #${spId}`;
-                const totalQty = items.reduce((s: number, ii: any) => s + Number(ii.quantity || 0), 0);
-                const totalAmount = items.reduce((s: number, ii: any) => s + (Number(ii.unitPrice || 0) * Number(ii.quantity || 0)), 0);
-                const totalWeight = items.reduce((s: number, ii: any) => s + Number(ii.weight || 0), 0);
-                // Calculate order qty from component perUnit
-                const compDef = orderItems.find((oi: any) => String(oi.salesProductId) === spId);
-                const perUnit = compDef ? Number(compDef.quantity || totalQty) / Math.max(1, totalQty) : 1;
-                const orderQty = perUnit > 0 ? Math.max(1, Math.round(totalQty / (items.length > 1 ? Number(items[0]?.quantity || totalQty) / Math.max(1, totalQty) : 1))) : totalQty;
-                const unitPrice = orderQty > 0 ? Math.round((totalAmount / orderQty) * 100) / 100 : 0;
-                const taxPercent = Number(items[0]?.igstRate) > 0
-                  ? Number(items[0]?.igstRate)
-                  : (Number(items[0]?.cgstRate || 0) + Number(items[0]?.sgstRate || 0));
-                const amount = orderQty * unitPrice;
-                const taxAmount = (amount * taxPercent) / 100;
-                rebuilt.push({
-                  id: crypto.randomUUID(),
-                  itemId: spId,
-                  itemName: spName,
-                  qty: orderQty,
-                  rate: unitPrice,
-                  weight: totalWeight,
-                  discountAmount: 0,
-                  taxPercent,
-                  amount,
-                  taxAmount,
-                  total: amount + taxAmount,
+              setSelectedShippingIdx(0);
+              // Build lines from invoice items grouped by salesProductId
+              const invoiceItems: any[] = invoice.items || [];
+              const orderItems: any[] = fullOrder.items || [];
+              if (invoiceItems.length > 0) {
+                const grouped = new Map<string, any[]>();
+                invoiceItems.forEach((ii: any) => {
+                  const spId = ii.salesProductId ? String(ii.salesProductId) : String(ii.productId);
+                  if (!grouped.has(spId)) grouped.set(spId, []);
+                  grouped.get(spId)!.push(ii);
                 });
-              });
-              if (rebuilt.length > 0) setLines(rebuilt);
-            }
-            // Load bill sundry from full order if not already loaded from invoice
-            if (sundryRows.length === 0 && Array.isArray(fullOrder.billSundry) && fullOrder.billSundry.length > 0) {
-              setSundryRows(fullOrder.billSundry);
-            }
-          }).catch(() => {});
+                const rebuilt: any[] = [];
+                grouped.forEach((items, spId) => {
+                  // Find sales product name from order items or product relation
+                  const orderItem = orderItems.find(
+                    (oi: any) => String(oi.salesProductId) === spId
+                  );
+                  const spFromOrder = orderItem?.salesProduct;
+                  const spName =
+                    spFromOrder?.salesProductName ||
+                    spFromOrder?.salesProductCode ||
+                    items[0]?.product?.productName ||
+                    items[0]?.description ||
+                    `Product #${spId}`;
+                  const totalQty = items.reduce(
+                    (s: number, ii: any) => s + Number(ii.quantity || 0),
+                    0
+                  );
+                  const totalAmount = items.reduce(
+                    (s: number, ii: any) =>
+                      s + Number(ii.unitPrice || 0) * Number(ii.quantity || 0),
+                    0
+                  );
+                  const totalWeight = items.reduce(
+                    (s: number, ii: any) => s + Number(ii.weight || 0),
+                    0
+                  );
+                  // Calculate order qty from component perUnit
+                  const compDef = orderItems.find((oi: any) => String(oi.salesProductId) === spId);
+                  const perUnit = compDef
+                    ? Number(compDef.quantity || totalQty) / Math.max(1, totalQty)
+                    : 1;
+                  const orderQty =
+                    perUnit > 0
+                      ? Math.max(
+                          1,
+                          Math.round(
+                            totalQty /
+                              (items.length > 1
+                                ? Number(items[0]?.quantity || totalQty) / Math.max(1, totalQty)
+                                : 1)
+                          )
+                        )
+                      : totalQty;
+                  const unitPrice =
+                    orderQty > 0 ? Math.round((totalAmount / orderQty) * 100) / 100 : 0;
+                  const taxPercent =
+                    Number(items[0]?.igstRate) > 0
+                      ? Number(items[0]?.igstRate)
+                      : Number(items[0]?.cgstRate || 0) + Number(items[0]?.sgstRate || 0);
+                  const amount = orderQty * unitPrice;
+                  const taxAmount = (amount * taxPercent) / 100;
+                  rebuilt.push({
+                    id: crypto.randomUUID(),
+                    itemId: spId,
+                    itemName: spName,
+                    qty: orderQty,
+                    rate: unitPrice,
+                    weight: totalWeight,
+                    discountAmount: 0,
+                    taxPercent,
+                    amount,
+                    taxAmount,
+                    total: amount + taxAmount,
+                  });
+                });
+                if (rebuilt.length > 0) setLines(rebuilt);
+              }
+              // Load bill sundry from full order if not already loaded from invoice
+              if (
+                sundryRows.length === 0 &&
+                Array.isArray(fullOrder.billSundry) &&
+                fullOrder.billSundry.length > 0
+              ) {
+                setSundryRows(fullOrder.billSundry);
+              }
+            })
+            .catch(() => {});
         }
         if (invoice.invoiceDate) setInvoiceDate(invoice.invoiceDate.split("T")[0]);
         if (invoice.dueDate) setDueDate(invoice.dueDate.split("T")[0]);
         setNotes(invoice.notes || "");
         setPreviewInvoiceNo(invoice.invoiceNo || "");
+        if (invoice.tcsSectionCode) {
+          setTcsSectionCode(invoice.tcsSectionCode);
+          setCollectTcs(Number(invoice.tcsAmount) > 0);
+          setExistingTcsAmount(Number(invoice.tcsAmount) || 0);
+          setTcsSectionTouched(true);
+        }
 
         if (invoice.items?.length > 0) {
-          setLines(invoice.items.map((item: any) => ({
-            id: crypto.randomUUID(),
-            itemId: String(item.productId || ""),
-            itemName: item.product?.productName || "Unknown Item",
-            qty: Number(item.quantity) || 0,
-            rate: Number(item.unitPrice) || 0,
-            weight: Number(item.weight) || 0,
-            discountAmount: Number(item.discountAmount) || 0,
-            taxPercent: Number(item.taxRate) || (Number(item.cgstRate || 0) + Number(item.sgstRate || 0) + Number(item.igstRate || 0)),
-            amount: Number(item.lineTotal) || (Number(item.quantity) * Number(item.unitPrice)),
-            taxAmount: Number(item.taxAmount) || 0,
-            total: (Number(item.lineTotal) || 0) + (Number(item.taxAmount) || 0),
-          })));
+          setLines(
+            invoice.items.map((item: any) => ({
+              id: crypto.randomUUID(),
+              itemId: String(item.productId || ""),
+              itemName: item.product?.productName || "Unknown Item",
+              qty: Number(item.quantity) || 0,
+              rate: Number(item.unitPrice) || 0,
+              weight: Number(item.weight) || 0,
+              discountAmount: Number(item.discountAmount) || 0,
+              taxPercent:
+                Number(item.taxRate) ||
+                Number(item.cgstRate || 0) +
+                  Number(item.sgstRate || 0) +
+                  Number(item.igstRate || 0),
+              amount: Number(item.lineTotal) || Number(item.quantity) * Number(item.unitPrice),
+              taxAmount: Number(item.taxAmount) || 0,
+              total: (Number(item.lineTotal) || 0) + (Number(item.taxAmount) || 0),
+            }))
+          );
         }
         setChargeRows(parseChargeRowsFromNarration((invoice as any).narration));
 
@@ -265,87 +364,116 @@ const SalesInvoiceForm: React.FC = () => {
       customerService.fetchAll({ limit: 1000 } as any).catch(() => ({ customers: [] })),
       productService.fetchAll().catch(() => []),
       invoiceSettingsService.getConfig().catch(() => null),
-      salesInvoiceService.fetchAll({ pageSize: 100 }).catch(() => ({ data: [] } as any)),
-      salesOrderService.fetchAll({ pageSize: 100 }).catch(() => ({ data: [] } as any)),
+      salesInvoiceService.fetchAll({ pageSize: 100 }).catch(() => ({ data: [] }) as any),
+      salesOrderService.fetchAll({ pageSize: 100 }).catch(() => ({ data: [] }) as any),
       finishedGoodsStockService.fetchAll().catch(() => []),
       salesProductService.fetchAll().catch(() => []),
     ])
-      .then(([customerList, productList, settings, ordersResponse, salesOrdersResponse, fgStockResponse, salesProductsData]) => {
-        const customersArray = Array.isArray(customerList)
-          ? customerList
-          : (customerList as any)?.customers || (customerList as any)?.data || [];
-        setCustomers(customersArray.map((c: any) => ({
-          id: c.id,
-          name: c.firmName || c.displayName || c.customerCode || "Unknown Customer",
-        })));
-        setCustomersRaw(customersArray);
+      .then(
+        ([
+          customerList,
+          productList,
+          settings,
+          ordersResponse,
+          salesOrdersResponse,
+          fgStockResponse,
+          salesProductsData,
+        ]) => {
+          const customersArray = Array.isArray(customerList)
+            ? customerList
+            : (customerList as any)?.customers || (customerList as any)?.data || [];
+          setCustomers(
+            customersArray.map((c: any) => ({
+              id: c.id,
+              name: c.firmName || c.displayName || c.customerCode || "Unknown Customer",
+            }))
+          );
+          setCustomersRaw(customersArray);
 
-        setItems((productList || [])
-          .filter((p: any) => p.productType === 'SALES_PRODUCTION')
-          .map((p: any) => ({
-            id: String(p.id),
-            name: p.productName,
-            defaultRate: Number(p.mrp) || Number(p.b2b) || 0,
-            // The product's own rate, else its HSN's default (P1-08).
-            gstRate:
-              p.gstRate !== null && p.gstRate !== undefined && p.gstRate !== ""
-                ? Number(p.gstRate)
-                : Number(p.hsnCode?.gstRate ?? 0),
-            hsnCode: p.hsnCode?.code ?? null,
-          })));
+          setItems(
+            (productList || [])
+              .filter((p: any) => p.productType === "SALES_PRODUCTION")
+              .map((p: any) => ({
+                id: String(p.id),
+                name: p.productName,
+                defaultRate: Number(p.mrp) || Number(p.b2b) || 0,
+                // The product's own rate, else its HSN's default (P1-08).
+                gstRate:
+                  p.gstRate !== null && p.gstRate !== undefined && p.gstRate !== ""
+                    ? Number(p.gstRate)
+                    : Number(p.hsnCode?.gstRate ?? 0),
+                hsnCode: p.hsnCode?.code ?? null,
+              }))
+          );
 
-        const ordersList = ordersResponse?.data || (ordersResponse as any)?.orders || [];
-        setAllOrders(ordersList);
+          const ordersList = ordersResponse?.data || (ordersResponse as any)?.orders || [];
+          setAllOrders(ordersList);
 
-        const rawSalesOrdersList: any[] = salesOrdersResponse?.data || (salesOrdersResponse as any)?.orders || [];
-        setSalesOrders(rawSalesOrdersList.filter((so: any) => so && ['CONFIRMED', 'QUOTED'].includes(so.status)));
+          const rawSalesOrdersList: any[] =
+            salesOrdersResponse?.data || (salesOrdersResponse as any)?.orders || [];
+          setSalesOrders(
+            rawSalesOrdersList.filter(
+              (so: any) => so && ["CONFIRMED", "QUOTED"].includes(so.status)
+            )
+          );
 
-        const fgList: any[] = Array.isArray(fgStockResponse) ? fgStockResponse : (fgStockResponse as any).data || [];
-        const fgStockMap = new Map<string, number>();
-        fgList.forEach((fg: any) => {
-          const prodId = (fg.productItemId || fg.productId)?.toString();
-          if (prodId) fgStockMap.set(prodId, (fgStockMap.get(prodId) || 0) + Number(fg.onHandQty || 0));
-        });
-        setStockMap(fgStockMap);
+          const fgList: any[] = Array.isArray(fgStockResponse)
+            ? fgStockResponse
+            : (fgStockResponse as any).data || [];
+          const fgStockMap = new Map<string, number>();
+          fgList.forEach((fg: any) => {
+            const prodId = (fg.productItemId || fg.productId)?.toString();
+            if (prodId)
+              fgStockMap.set(prodId, (fgStockMap.get(prodId) || 0) + Number(fg.onHandQty || 0));
+          });
+          setStockMap(fgStockMap);
 
-        const spList = Array.isArray(salesProductsData) ? salesProductsData.filter((sp: any) => sp.isActive !== false) : [];
-        setSalesProducts(spList);
+          const spList = Array.isArray(salesProductsData)
+            ? salesProductsData.filter((sp: any) => sp.isActive !== false)
+            : [];
+          setSalesProducts(spList);
 
-        if (settings) {
-          setInvoiceSettings(settings);
-          if (!id) {
-            const todayStr = new Date().toISOString().split("T")[0];
+          if (settings) {
+            setInvoiceSettings(settings);
+            if (!id) {
+              const todayStr = new Date().toISOString().split("T")[0];
+            }
+          }
+
+          // Auto-populate when navigated from Quotation List
+          if (preselectedOrderId) {
+            salesOrderService
+              .fetchById(preselectedOrderId)
+              .then((fullOrder: any) => {
+                if (!fullOrder) return;
+                const custId =
+                  fullOrder.customerId?.toString() || fullOrder.customer?.id?.toString() || "";
+                if (custId) setCustomerId(custId);
+                setSelectedSalesOrderId(String(fullOrder.id));
+                setSalesOrders((prev: any[]) => {
+                  const exists = prev.some((o: any) => String(o.id) === String(fullOrder.id));
+                  return exists ? prev : [...prev, fullOrder];
+                });
+                const mapped = mapOrderToLines(fullOrder);
+                if (mapped.length > 0) setLines(mapped);
+                setChargeRows(parseChargeRowsFromNarration((fullOrder as any).narration));
+              })
+              .catch(() => {});
           }
         }
-
-        // Auto-populate when navigated from Quotation List
-        if (preselectedOrderId) {
-          salesOrderService.fetchById(preselectedOrderId)
-            .then((fullOrder: any) => {
-              if (!fullOrder) return;
-              const custId = fullOrder.customerId?.toString() || fullOrder.customer?.id?.toString() || "";
-              if (custId) setCustomerId(custId);
-              setSelectedSalesOrderId(String(fullOrder.id));
-              setSalesOrders((prev: any[]) => {
-                const exists = prev.some((o: any) => String(o.id) === String(fullOrder.id));
-                return exists ? prev : [...prev, fullOrder];
-              });
-              const mapped = mapOrderToLines(fullOrder);
-              if (mapped.length > 0) setLines(mapped);
-              setChargeRows(parseChargeRowsFromNarration((fullOrder as any).narration));
-            })
-            .catch(() => {});
-        }
-      })
+      )
       .catch(() => toast.error("Failed to load customers/items"))
       .finally(() => setLoading(false));
   }, []);
 
   const loadCustomerOrders = useCallback((custId: string) => {
     if (!custId) return;
-    salesOrderService.fetchAll({ customerId: custId, pageSize: 500 })
+    salesOrderService
+      .fetchAll({ customerId: custId, pageSize: 500 })
       .then((res: any) => {
-        const list = (res?.data || res || []).filter((so: any) => ['CONFIRMED', 'QUOTED'].includes(so.status));
+        const list = (res?.data || res || []).filter((so: any) =>
+          ["CONFIRMED", "QUOTED"].includes(so.status)
+        );
         setSalesOrders((prev: any[]) => {
           const map = new Map<string, any>();
           prev.forEach((o: any) => map.set(String(o.id), o));
@@ -390,27 +518,35 @@ const SalesInvoiceForm: React.FC = () => {
     // Process grouped items (sales products)
     grouped.forEach((items, spIdStr) => {
       const sp = salesProducts.find((s: any) => String(s.id) === spIdStr);
-      const spComps = (sp?.components || []).filter((c: any) => c.componentProduct?.productType === "SALES_PRODUCTION");
+      const spComps = (sp?.components || []).filter(
+        (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+      );
       const firstItem = items[0];
 
       // Calculate order qty from first component's perUnit
-      const matchingComp = spComps.find((c: any) => String(c.componentProductId) === String(firstItem.productId));
+      const matchingComp = spComps.find(
+        (c: any) => String(c.componentProductId) === String(firstItem.productId)
+      );
       const perUnit = Number(matchingComp?.quantity || 1);
       const orderQty = Math.max(1, Math.round(Number(firstItem.quantity || 1) / perUnit));
 
       // Sum up the total price across all component items
       const totalPrice = items.reduce((sum: number, oi: any) => {
-        const rate = Number(oi.quotationUnitPrice) > 0 ? Number(oi.quotationUnitPrice)
-          : Number(oi.unitPrice) > 0 ? Number(oi.unitPrice)
-          : Number(oi.rate) || 0;
+        const rate =
+          Number(oi.quotationUnitPrice) > 0
+            ? Number(oi.quotationUnitPrice)
+            : Number(oi.unitPrice) > 0
+              ? Number(oi.unitPrice)
+              : Number(oi.rate) || 0;
         return sum + rate * Number(oi.quantity || 0);
       }, 0);
       const unitPrice = orderQty > 0 ? Math.round((totalPrice / orderQty) * 100) / 100 : 0;
 
       // Get GST from order item; fall back to product's gstRate if order has 0%
-      let taxPercent = Number(firstItem.igstRate) > 0
-        ? Number(firstItem.igstRate)
-        : (Number(firstItem.cgstRate || 0) + Number(firstItem.sgstRate || 0));
+      let taxPercent =
+        Number(firstItem.igstRate) > 0
+          ? Number(firstItem.igstRate)
+          : Number(firstItem.cgstRate || 0) + Number(firstItem.sgstRate || 0);
       if (taxPercent === 0) {
         const productMatch = items.find((i) => i.id === spIdStr);
         if (productMatch) taxPercent = productMatch.gstRate ?? 0;
@@ -450,9 +586,10 @@ const SalesInvoiceForm: React.FC = () => {
       if (Number(item.quotationUnitPrice) > 0) rate = Number(item.quotationUnitPrice);
       else if (Number(item.unitPrice) > 0) rate = Number(item.unitPrice);
       else if (Number(item.rate) > 0) rate = Number(item.rate);
-      let taxPercent = Number(item.igstRate) > 0
-        ? Number(item.igstRate)
-        : (Number(item.cgstRate || 0) + Number(item.sgstRate || 0));
+      let taxPercent =
+        Number(item.igstRate) > 0
+          ? Number(item.igstRate)
+          : Number(item.cgstRate || 0) + Number(item.sgstRate || 0);
       if (taxPercent === 0) {
         const productMatch = items.find((i) => i.id === String(item.productId));
         if (productMatch) taxPercent = productMatch.gstRate ?? 0;
@@ -463,9 +600,18 @@ const SalesInvoiceForm: React.FC = () => {
         id: crypto.randomUUID(),
         itemId: String(item.productId || ""),
         itemName: item.product?.productName || item.productName || "Unknown Item",
-        qty, rate,
-        weight: (() => { const rw = Number(item.product?.weightPerPiece || 0); const wu = (item.product?.weightUom || "kg").toLowerCase().trim(); return (wu === "g" ? rw / 1000 : rw) * qty; })(),
-        discountAmount: 0, taxPercent, amount, taxAmount, total: amount + taxAmount,
+        qty,
+        rate,
+        weight: (() => {
+          const rw = Number(item.product?.weightPerPiece || 0);
+          const wu = (item.product?.weightUom || "kg").toLowerCase().trim();
+          return (wu === "g" ? rw / 1000 : rw) * qty;
+        })(),
+        discountAmount: 0,
+        taxPercent,
+        amount,
+        taxAmount,
+        total: amount + taxAmount,
       });
     });
 
@@ -474,11 +620,16 @@ const SalesInvoiceForm: React.FC = () => {
 
   const handleSalesOrderChange = async (soId: string) => {
     setSelectedSalesOrderId(soId);
-    if (!soId) { setLines([emptyLine()]); return; }
+    if (!soId) {
+      setLines([emptyLine()]);
+      return;
+    }
     try {
       // Refresh stock data to get latest values
       const freshStock = await finishedGoodsStockService.fetchAll().catch(() => []);
-      const freshList: any[] = Array.isArray(freshStock) ? freshStock : (freshStock as any).data || [];
+      const freshList: any[] = Array.isArray(freshStock)
+        ? freshStock
+        : (freshStock as any).data || [];
       const freshMap = new Map<string, number>();
       freshList.forEach((fg: any) => {
         const prodId = (fg.productItemId || fg.productId)?.toString();
@@ -496,7 +647,10 @@ const SalesInvoiceForm: React.FC = () => {
       setChargeRows(parseChargeRowsFromNarration((fullOrder as any).narration));
 
       // Load bill sundry from sales order
-      if (Array.isArray((fullOrder as any).billSundry) && (fullOrder as any).billSundry.length > 0) {
+      if (
+        Array.isArray((fullOrder as any).billSundry) &&
+        (fullOrder as any).billSundry.length > 0
+      ) {
         setSundryRows((fullOrder as any).billSundry);
       } else {
         setSundryRows([]);
@@ -508,7 +662,9 @@ const SalesInvoiceForm: React.FC = () => {
       const newExcluded: Record<string, Set<string>> = {};
       mapped.forEach((line) => {
         const sp = salesProducts.find((s: any) => String(s.id) === line.itemId);
-        const spComps = (sp?.components || []).filter((c: any) => c.componentProduct?.productType === "SALES_PRODUCTION");
+        const spComps = (sp?.components || []).filter(
+          (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+        );
         const excluded = new Set<string>();
         spComps.forEach((c: any) => {
           if (!orderProductIds.has(String(c.componentProductId))) {
@@ -520,8 +676,10 @@ const SalesInvoiceForm: React.FC = () => {
       setExcludedComponents(newExcluded);
 
       // Load discount from sales order
-      if ((fullOrder as any).orderDiscountType) setDiscountType((fullOrder as any).orderDiscountType);
-      if ((fullOrder as any).orderDiscountValue != null) setDiscountValue(String((fullOrder as any).orderDiscountValue));
+      if ((fullOrder as any).orderDiscountType)
+        setDiscountType((fullOrder as any).orderDiscountType);
+      if ((fullOrder as any).orderDiscountValue != null)
+        setDiscountValue(String((fullOrder as any).orderDiscountValue));
       else setDiscountValue("");
 
       // Populate address from order/customer
@@ -595,7 +753,13 @@ const SalesInvoiceForm: React.FC = () => {
   const stateCodeOf = (code?: string | null, gstin?: string | null, stateName?: string | null) =>
     code ||
     (gstin && /^\d{2}/.test(gstin) ? gstin.slice(0, 2) : "") ||
-    GST_STATES.find((s) => s.name.toLowerCase() === String(stateName ?? "").trim().toLowerCase())?.code ||
+    GST_STATES.find(
+      (s) =>
+        s.name.toLowerCase() ===
+        String(stateName ?? "")
+          .trim()
+          .toLowerCase()
+    )?.code ||
     "";
   const chargesGst = !["COMPOSITION", "UNREGISTERED"].includes(
     String(company?.gstRegistrationType ?? "REGULAR")
@@ -663,10 +827,10 @@ const SalesInvoiceForm: React.FC = () => {
     const taxableAmount = subTotal - totalDiscount;
     let taxTotal = 0;
     if (subTotal > 0) {
-      lines.forEach(l => {
+      lines.forEach((l) => {
         const lineAmount = l.qty * l.rate;
         const share = lineAmount / subTotal;
-        const lineTaxable = lineAmount - (totalDiscount * share);
+        const lineTaxable = lineAmount - totalDiscount * share;
         taxTotal += (lineTaxable * (chargesGst ? l.taxPercent : 0)) / 100;
       });
     }
@@ -676,8 +840,70 @@ const SalesInvoiceForm: React.FC = () => {
     const cgst = isInterState ? 0 : taxTotal / 2;
     const sgst = isInterState ? 0 : taxTotal / 2;
     const igst = isInterState ? taxTotal : 0;
-    return { subTotal, totalDiscount, taxTotal, grandTotal, cgst, sgst, igst, additions, deductions, discountLabel: discNum > 0 ? `${discNum}${discountType === "PERCENT" ? "%" : " Flat"}` : "" };
+    return {
+      subTotal,
+      totalDiscount,
+      taxTotal,
+      grandTotal,
+      cgst,
+      sgst,
+      igst,
+      additions,
+      deductions,
+      discountLabel: discNum > 0 ? `${discNum}${discountType === "PERCENT" ? "%" : " Flat"}` : "",
+    };
   }, [lines, isInterState, chargesGst, chargeRows, discountValue, discountType]);
+
+  // ---- TCS preview (P2-12): a live rate/amount from the same /tds/preview the server accepts,
+  // keyed to the taxable amount so it tracks the items exactly the way the server will compute it.
+  const [tcsPreview, setTcsPreview] = useState<{
+    rate: number;
+    base: number;
+    belowThreshold: boolean;
+    reason: string;
+  } | null>(null);
+  useEffect(() => {
+    if (isEditMode && existingTcsAmount !== null) return;
+    if (!collectTcs || !tcsSectionCode || !customerId || totals.subTotal <= 0) {
+      setTcsPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      apiClient
+        .post("/tds/preview", {
+          sectionCode: tcsSectionCode,
+          customerId,
+          amount: totals.subTotal - totals.totalDiscount,
+          on: invoiceDate || undefined,
+        })
+        .then((res: any) => {
+          if (!cancelled) setTcsPreview(res.data?.data ?? null);
+        })
+        .catch(() => {
+          if (!cancelled) setTcsPreview(null);
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [
+    collectTcs,
+    tcsSectionCode,
+    customerId,
+    totals.subTotal,
+    totals.totalDiscount,
+    invoiceDate,
+    isEditMode,
+    existingTcsAmount,
+  ]);
+
+  const tcsAmount = useMemo(() => {
+    if (isEditMode && existingTcsAmount !== null) return existingTcsAmount;
+    if (!collectTcs || !tcsPreview || tcsPreview.belowThreshold) return 0;
+    return Math.round(((tcsPreview.base * tcsPreview.rate) / 100) * 100) / 100;
+  }, [collectTcs, tcsPreview, isEditMode, existingTcsAmount]);
 
   // ---- Credit Limit Check ----
   const limitExceeded = useMemo(() => {
@@ -685,7 +911,10 @@ const SalesInvoiceForm: React.FC = () => {
     if (!selectedCustomer) return false;
     const creditLimit = Number(selectedCustomer.creditLimit || 0);
     // Use netBalance (actual balance from receivables) instead of raw outstandingAmount
-    const currentOutstanding = Math.max(0, Number(selectedCustomer.netBalance ?? selectedCustomer.outstandingAmount ?? 0));
+    const currentOutstanding = Math.max(
+      0,
+      Number(selectedCustomer.netBalance ?? selectedCustomer.outstandingAmount ?? 0)
+    );
     const remainingAmount = creditLimit - currentOutstanding;
     const exceededBy = totals.grandTotal - remainingAmount;
     return exceededBy > 0 ? { exceededBy, remainingAmount } : false;
@@ -733,7 +962,7 @@ const SalesInvoiceForm: React.FC = () => {
           const base = JSON.parse(serializeChargeRowsToNarration(chargeRows));
           // Store excluded components per sales product in narration
           const excl: Record<string, string[]> = {};
-          lines.forEach(l => {
+          lines.forEach((l) => {
             const ex = excludedComponents[l.id];
             if (ex && ex.size > 0) excl[l.itemId] = Array.from(ex);
           });
@@ -744,8 +973,15 @@ const SalesInvoiceForm: React.FC = () => {
         shippingAddress: (() => {
           if (addingNewAddress) return newShippingAddress;
           if (customerAddresses.length > 0) {
-            const addr = customerAddresses[selectedShippingIdx]?.address || customerAddresses[selectedShippingIdx];
-            return { line1: addr?.addressLine1 || "", city: addr?.city || "", state: addr?.state || "", pincode: addr?.pincode || "" };
+            const addr =
+              customerAddresses[selectedShippingIdx]?.address ||
+              customerAddresses[selectedShippingIdx];
+            return {
+              line1: addr?.addressLine1 || "",
+              city: addr?.city || "",
+              state: addr?.state || "",
+              pincode: addr?.pincode || "",
+            };
           }
           return null;
         })(),
@@ -762,7 +998,9 @@ const SalesInvoiceForm: React.FC = () => {
             amount: l.amount,
             taxAmount: l.taxAmount,
             total: l.total,
-            excludedComponents: excludedComponents[l.id] ? Array.from(excludedComponents[l.id]) : [],
+            excludedComponents: excludedComponents[l.id]
+              ? Array.from(excludedComponents[l.id])
+              : [],
           })),
         discountType: Number(discountValue) > 0 ? discountType : null,
         discountValue: Number(discountValue) || 0,
@@ -770,6 +1008,9 @@ const SalesInvoiceForm: React.FC = () => {
         transport: selectedTransport || null,
         numberOfBundle: numberOfBundle ? Number(numberOfBundle) : null,
         payments: [],
+        // P2-12: naming a section always sends a preview back; collectTcs accepts it.
+        tcsSectionCode: tcsSectionCode || null,
+        collectTcs: Boolean(tcsSectionCode) && collectTcs,
       };
 
       if (isEditMode && id) {
@@ -788,29 +1029,32 @@ const SalesInvoiceForm: React.FC = () => {
   };
 
   // ---- Customer / product select options ----
-  const customerAutocompleteOptions = useMemo(() =>
-    customersRaw.map((c: any) => {
-      const name = c.displayName || c.firmName || String(c.id);
-      const group = c.customerType?.name || "—";
-      const grade = c.customerGrade?.name || "—";
-      const bal = Number(c.balanceAmount ?? c.netBalance ?? c.openingBalance ?? 0);
-      const bType = (c.balanceType || c.openingBalanceType || "").toString().toUpperCase();
-      const isDr = bType.startsWith("D");
-      const balLabel = `₹${bal.toLocaleString("en-IN")} ${isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "—"}`;
+  const customerAutocompleteOptions = useMemo(
+    () =>
+      customersRaw.map((c: any) => {
+        const name = c.displayName || c.firmName || String(c.id);
+        const group = c.customerType?.name || "—";
+        const grade = c.customerGrade?.name || "—";
+        const bal = Number(c.balanceAmount ?? c.netBalance ?? c.openingBalance ?? 0);
+        const bType = (c.balanceType || c.openingBalanceType || "").toString().toUpperCase();
+        const isDr = bType.startsWith("D");
+        const balLabel = `₹${bal.toLocaleString("en-IN")} ${isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "—"}`;
 
-      return {
-        value: String(c.id),
-        label: name,
-        selectedLabel: `${name} · ${group} · ${grade} · ${balLabel}`,
-        info: (
-          <div className="flex items-center gap-3 text-[11px]">
-            <span className="text-ink-subtle">{group}</span>
-            <span className="text-ink-subtle">{grade}</span>
-            <span className={`font-semibold ${isDr ? "text-rose-500" : "text-emerald-500"}`}>{balLabel}</span>
-          </div>
-        ),
-      };
-    }),
+        return {
+          value: String(c.id),
+          label: name,
+          selectedLabel: `${name} · ${group} · ${grade} · ${balLabel}`,
+          info: (
+            <div className="flex items-center gap-3 text-[11px]">
+              <span className="text-ink-subtle">{group}</span>
+              <span className="text-ink-subtle">{grade}</span>
+              <span className={`font-semibold ${isDr ? "text-rose-500" : "text-emerald-500"}`}>
+                {balLabel}
+              </span>
+            </div>
+          ),
+        };
+      }),
     [customersRaw]
   );
 
@@ -825,11 +1069,16 @@ const SalesInvoiceForm: React.FC = () => {
     return filtered.map((so) => {
       const dateStr = so.orderDate || so.createdAt;
       const formattedDate = dateStr
-        ? new Date(dateStr).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })
+        ? new Date(dateStr).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })
         : "";
-      const formattedAmt = so.netAmount !== undefined
-        ? `₹${Number(so.netAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
-        : "";
+      const formattedAmt =
+        so.netAmount !== undefined
+          ? `₹${Number(so.netAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+          : "";
       const label = formattedAmt
         ? `${so.orderNo}${formattedDate ? ` (${formattedDate})` : ""} — ${formattedAmt}`
         : `${so.orderNo}${formattedDate ? ` (${formattedDate})` : ""}`;
@@ -837,202 +1086,301 @@ const SalesInvoiceForm: React.FC = () => {
     });
   }, [salesOrders, customerId, isEditMode, editInvoiceSalesOrder]);
 
-  const productOptions = useMemo(() => [
-    { value: "", label: "-- Select Product --" },
-    ...items.map((i) => {
-      const liveStock = stockMap.get(i.id) ?? 0;
-      const badge = (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
-          liveStock > 0
-            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-            : "bg-rose-500/10 text-rose-600 border border-rose-500/20"
-        }`}>
-          {liveStock} pcs
-        </span>
-      );
-      return {
-        value: i.id,
-        selectedLabel: i.name,
-        badge,
-        label: (
-          <div className="flex items-center justify-between w-full gap-2">
-            <span className="truncate">{i.name}</span>
-            {badge}
-          </div>
-        ),
-      };
-    }),
-  ], [items, stockMap]);
+  const productOptions = useMemo(
+    () => [
+      { value: "", label: "-- Select Product --" },
+      ...items.map((i) => {
+        const liveStock = stockMap.get(i.id) ?? 0;
+        const badge = (
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+              liveStock > 0
+                ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+                : "bg-rose-500/10 text-rose-600 border border-rose-500/20"
+            }`}
+          >
+            {liveStock} pcs
+          </span>
+        );
+        return {
+          value: i.id,
+          selectedLabel: i.name,
+          badge,
+          label: (
+            <div className="flex items-center justify-between w-full gap-2">
+              <span className="truncate">{i.name}</span>
+              {badge}
+            </div>
+          ),
+        };
+      }),
+    ],
+    [items, stockMap]
+  );
 
   // ---- Derived (non-hook) values ----
   // ── Invoice item columns for BusyItemsTable ──
-  const invoiceColumns: BusyColumn<InvoiceLineItem>[] = useMemo(() => [
-    {
-      key: "itemName",
-      header: selectedSalesOrderId ? "Sales Product" : "Product",
-      width: "1fr",
-      render: (row: InvoiceLineItem) => {
-        if (selectedSalesOrderId) {
-          // Compute live stock from component products
-          const sp = salesProducts.find((s: any) => String(s.id) === row.itemId);
-          let liveStock = stockMap.get(row.itemId) ?? 0;
-          if (sp) {
-            const comps = (sp.components || []).filter((c: any) => c?.componentProduct?.productType === "SALES_PRODUCTION");
-            if (comps.length > 0) {
-              const possible = comps.map((c: any) => {
-                const compStock = stockMap.get(String(c.componentProductId)) ?? 0;
-                const perUnit = Number(c.quantity || 1);
-                return perUnit > 0 ? Math.floor(compStock / perUnit) : 0;
-              });
-              liveStock = Math.max(0, Math.min(...possible));
+  const invoiceColumns: BusyColumn<InvoiceLineItem>[] = useMemo(
+    () => [
+      {
+        key: "itemName",
+        header: selectedSalesOrderId ? "Sales Product" : "Product",
+        width: "1fr",
+        render: (row: InvoiceLineItem) => {
+          if (selectedSalesOrderId) {
+            // Compute live stock from component products
+            const sp = salesProducts.find((s: any) => String(s.id) === row.itemId);
+            let liveStock = stockMap.get(row.itemId) ?? 0;
+            if (sp) {
+              const comps = (sp.components || []).filter(
+                (c: any) => c?.componentProduct?.productType === "SALES_PRODUCTION"
+              );
+              if (comps.length > 0) {
+                const possible = comps.map((c: any) => {
+                  const compStock = stockMap.get(String(c.componentProductId)) ?? 0;
+                  const perUnit = Number(c.quantity || 1);
+                  return perUnit > 0 ? Math.floor(compStock / perUnit) : 0;
+                });
+                liveStock = Math.max(0, Math.min(...possible));
+              }
             }
-          }
-          return (
-            <div className="flex items-center justify-between w-full gap-2 text-[13px]">
-              <span className="text-ink font-medium truncate">{row.itemName || "—"}</span>
-              <span className={`text-[11px] font-semibold shrink-0 ${liveStock > 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                {liveStock} pcs
-              </span>
-            </div>
-          );
-        }
-        return (
-          <SelectInput hideLabel label="" name={`item-${row.id}`} value={row.itemId} disabled={isLocked} options={productOptions} searchable
-            onChange={(e) => updateLine(row.id, "itemId", (e as any).target ? (e as any).target.value : String(e))} />
-        );
-      },
-    },
-    {
-      key: "hsnCode",
-      header: "HSN",
-      width: "90px",
-      align: "center" as const,
-      render: (row: InvoiceLineItem) => (
-        <input type="text" inputMode="numeric" value={row.hsnCode || ""} disabled={isLocked}
-          onChange={(e) => updateLine(row.id, "hsnCode", e.target.value.replace(/\D/g, "").slice(0, 8))}
-          className="w-full bg-transparent text-[12px] font-mono text-ink text-center outline-none border-none p-0 h-full" placeholder="—" />
-      ),
-    },
-    {
-      key: "qty",
-      header: "Qty",
-      width: "80px",
-      align: "center" as const,
-      render: (row: InvoiceLineItem) => (
-        <div>
-          <input type="text" inputMode="numeric" value={String(row.qty)} disabled={isLocked}
-            onChange={(e) => updateLine(row.id, "qty", Number(e.target.value))}
-            className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0 h-full" placeholder="0" />
-          {row.itemId && row.qty > (stockMap.get(row.itemId) || 0) && (
-            <div className="text-red-500 text-[10px] font-medium whitespace-nowrap">Avail: {Math.round((stockMap.get(row.itemId) || 0) * 100) / 100}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "rate",
-      header: "Unit Price",
-      width: "100px",
-      align: "right" as const,
-      render: (row: InvoiceLineItem) => (
-        <input type="text" inputMode="decimal" value={String(row.rate)} disabled={isLocked}
-          onChange={(e) => updateLine(row.id, "rate", Number(e.target.value))}
-          className="w-full bg-transparent text-[13px] text-ink text-right outline-none border-none p-0 h-full" placeholder="0" />
-      ),
-    },
-    {
-      key: "weight",
-      header: "Weight (kg)",
-      width: "90px",
-      align: "center" as const,
-      render: (row: InvoiceLineItem) => (
-        <input type="text" inputMode="decimal" value={String(row.weight || 0)} disabled={isLocked}
-          onChange={(e) => updateLine(row.id, "weight", Number(e.target.value))}
-          className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0 h-full" placeholder="0" />
-      ),
-    },
-    {
-      key: "total",
-      header: "Total",
-      width: "110px",
-      align: "right" as const,
-      render: (row: InvoiceLineItem) => {
-        if (row.amount <= 0) return <span className="text-[13px] text-ink-subtle">—</span>;
-        return (
-          <div className="text-right">
-            <span className="text-emerald-500 text-[13px] font-bold">₹{row.total.toFixed(2)}</span>
-            {row.taxAmount > 0 && (<span className="block text-[10px] text-ink-subtle">(+₹{row.taxAmount.toFixed(2)})</span>)}
-          </div>
-        );
-      },
-    },
-  ], [selectedSalesOrderId, salesProducts, isLocked, productOptions, stockMap, lines, updateLine]);
-
-  // ── Expanded components renderer for BusyItemsTable ──
-  const renderExpandedComponents = useCallback((row: InvoiceLineItem, _index: number) => {
-    const sp = selectedSalesOrderId ? salesProducts.find((s: any) => String(s.id) === row.itemId) : null;
-    const spComps = (sp?.components || []).filter((c: any) => c.componentProduct?.productType === "SALES_PRODUCTION");
-    if (spComps.length === 0) return null;
-
-    return (
-      <div className="px-4 py-2">
-        <div className="ml-6 rounded-md border border-line-soft overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto_80px] gap-2 px-3 py-1.5 bg-card-2 border-b border-line-soft">
-            <div className="w-4" />
-            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">Component</span>
-            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">Per Unit</span>
-            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">Qty</span>
-          </div>
-          {spComps.map((comp: any) => {
-            const compId = String(comp.componentProductId);
-            const compPerUnit = Number(comp.quantity || 1);
-            const isExcluded = excludedComponents[row.id]?.has(compId) || false;
-            const compQty = isExcluded ? 0 : compPerUnit * row.qty;
             return (
-              <div key={compId} className={`grid grid-cols-[auto_1fr_auto_80px] gap-2 items-center px-3 py-1.5 border-b border-line-soft last:border-b-0 ${isExcluded ? "bg-card-2 opacity-60" : "bg-card"}`}>
-                <input type="checkbox" checked={!isExcluded}
-                  onChange={() => {
-                    setExcludedComponents(prev => {
-                      const lineSet = new Set(prev[row.id] || []);
-                      if (lineSet.has(compId)) lineSet.delete(compId);
-                      else lineSet.add(compId);
-                      const newExcluded = { ...prev, [row.id]: lineSet };
-                      setLines(prevLines => prevLines.map(l => {
-                        if (l.id !== row.id) return l;
-                        let w = 0;
-                        let ratePerUnit = 0;
-                        spComps.forEach((c: any) => {
-                          if (!lineSet.has(String(c.componentProductId))) {
-                            w += Number(c.componentProduct?.weightPerPiece || 0) * Number(c.quantity || 1);
-                            ratePerUnit += Number(c.componentProduct?.rate || 0) * Number(c.quantity || 1);
-                          }
-                        });
-                        const newRate = ratePerUnit;
-                        const newAmount = newRate * l.qty;
-                        const taxableAmount = newAmount - (l.discountAmount || 0);
-                        const newTaxAmount = (taxableAmount * l.taxPercent) / 100;
-                        return { ...l, weight: w * l.qty, rate: newRate, amount: newAmount, taxAmount: newTaxAmount, total: taxableAmount + newTaxAmount };
-                      }));
-                      return newExcluded;
-                    });
-                  }}
-                  className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer" />
-                <span className={`text-xs ${isExcluded ? "line-through text-ink-subtle" : "text-ink font-medium"}`}>
-                  {comp.componentProduct?.productName || comp.componentProduct?.productCode || `Product #${compId}`}
+              <div className="flex items-center justify-between w-full gap-2 text-[13px]">
+                <span className="text-ink font-medium truncate">{row.itemName || "—"}</span>
+                <span
+                  className={`text-[11px] font-semibold shrink-0 ${liveStock > 0 ? "text-emerald-500" : "text-rose-500"}`}
+                >
+                  {liveStock} pcs
                 </span>
-                <span className="text-[11px] text-ink-subtle text-center w-12">x{compPerUnit}</span>
-                <span className="text-xs text-ink font-medium text-center">{isExcluded ? "0" : compQty}</span>
               </div>
             );
-          })}
+          }
+          return (
+            <SelectInput
+              hideLabel
+              label=""
+              name={`item-${row.id}`}
+              value={row.itemId}
+              disabled={isLocked}
+              options={productOptions}
+              searchable
+              onChange={(e) =>
+                updateLine(
+                  row.id,
+                  "itemId",
+                  (e as any).target ? (e as any).target.value : String(e)
+                )
+              }
+            />
+          );
+        },
+      },
+      {
+        key: "hsnCode",
+        header: "HSN",
+        width: "90px",
+        align: "center" as const,
+        render: (row: InvoiceLineItem) => (
+          <input
+            type="text"
+            inputMode="numeric"
+            value={row.hsnCode || ""}
+            disabled={isLocked}
+            onChange={(e) =>
+              updateLine(row.id, "hsnCode", e.target.value.replace(/\D/g, "").slice(0, 8))
+            }
+            className="w-full bg-transparent text-[12px] font-mono text-ink text-center outline-none border-none p-0 h-full"
+            placeholder="—"
+          />
+        ),
+      },
+      {
+        key: "qty",
+        header: "Qty",
+        width: "80px",
+        align: "center" as const,
+        render: (row: InvoiceLineItem) => (
+          <div>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={String(row.qty)}
+              disabled={isLocked}
+              onChange={(e) => updateLine(row.id, "qty", Number(e.target.value))}
+              className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0 h-full"
+              placeholder="0"
+            />
+            {row.itemId && row.qty > (stockMap.get(row.itemId) || 0) && (
+              <div className="text-red-500 text-[10px] font-medium whitespace-nowrap">
+                Avail: {Math.round((stockMap.get(row.itemId) || 0) * 100) / 100}
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "rate",
+        header: "Unit Price",
+        width: "100px",
+        align: "right" as const,
+        render: (row: InvoiceLineItem) => (
+          <input
+            type="text"
+            inputMode="decimal"
+            value={String(row.rate)}
+            disabled={isLocked}
+            onChange={(e) => updateLine(row.id, "rate", Number(e.target.value))}
+            className="w-full bg-transparent text-[13px] text-ink text-right outline-none border-none p-0 h-full"
+            placeholder="0"
+          />
+        ),
+      },
+      {
+        key: "weight",
+        header: "Weight (kg)",
+        width: "90px",
+        align: "center" as const,
+        render: (row: InvoiceLineItem) => (
+          <input
+            type="text"
+            inputMode="decimal"
+            value={String(row.weight || 0)}
+            disabled={isLocked}
+            onChange={(e) => updateLine(row.id, "weight", Number(e.target.value))}
+            className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0 h-full"
+            placeholder="0"
+          />
+        ),
+      },
+      {
+        key: "total",
+        header: "Total",
+        width: "110px",
+        align: "right" as const,
+        render: (row: InvoiceLineItem) => {
+          if (row.amount <= 0) return <span className="text-[13px] text-ink-subtle">—</span>;
+          return (
+            <div className="text-right">
+              <span className="text-emerald-500 text-[13px] font-bold">
+                ₹{row.total.toFixed(2)}
+              </span>
+              {row.taxAmount > 0 && (
+                <span className="block text-[10px] text-ink-subtle">
+                  (+₹{row.taxAmount.toFixed(2)})
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+    ],
+    [selectedSalesOrderId, salesProducts, isLocked, productOptions, stockMap, lines, updateLine]
+  );
+
+  // ── Expanded components renderer for BusyItemsTable ──
+  const renderExpandedComponents = useCallback(
+    (row: InvoiceLineItem, _index: number) => {
+      const sp = selectedSalesOrderId
+        ? salesProducts.find((s: any) => String(s.id) === row.itemId)
+        : null;
+      const spComps = (sp?.components || []).filter(
+        (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+      );
+      if (spComps.length === 0) return null;
+
+      return (
+        <div className="px-4 py-2">
+          <div className="ml-6 rounded-md border border-line-soft overflow-hidden">
+            <div className="grid grid-cols-[auto_1fr_auto_80px] gap-2 px-3 py-1.5 bg-card-2 border-b border-line-soft">
+              <div className="w-4" />
+              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                Component
+              </span>
+              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">
+                Per Unit
+              </span>
+              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">
+                Qty
+              </span>
+            </div>
+            {spComps.map((comp: any) => {
+              const compId = String(comp.componentProductId);
+              const compPerUnit = Number(comp.quantity || 1);
+              const isExcluded = excludedComponents[row.id]?.has(compId) || false;
+              const compQty = isExcluded ? 0 : compPerUnit * row.qty;
+              return (
+                <div
+                  key={compId}
+                  className={`grid grid-cols-[auto_1fr_auto_80px] gap-2 items-center px-3 py-1.5 border-b border-line-soft last:border-b-0 ${isExcluded ? "bg-card-2 opacity-60" : "bg-card"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!isExcluded}
+                    onChange={() => {
+                      setExcludedComponents((prev) => {
+                        const lineSet = new Set(prev[row.id] || []);
+                        if (lineSet.has(compId)) lineSet.delete(compId);
+                        else lineSet.add(compId);
+                        const newExcluded = { ...prev, [row.id]: lineSet };
+                        setLines((prevLines) =>
+                          prevLines.map((l) => {
+                            if (l.id !== row.id) return l;
+                            let w = 0;
+                            let ratePerUnit = 0;
+                            spComps.forEach((c: any) => {
+                              if (!lineSet.has(String(c.componentProductId))) {
+                                w +=
+                                  Number(c.componentProduct?.weightPerPiece || 0) *
+                                  Number(c.quantity || 1);
+                                ratePerUnit +=
+                                  Number(c.componentProduct?.rate || 0) * Number(c.quantity || 1);
+                              }
+                            });
+                            const newRate = ratePerUnit;
+                            const newAmount = newRate * l.qty;
+                            const taxableAmount = newAmount - (l.discountAmount || 0);
+                            const newTaxAmount = (taxableAmount * l.taxPercent) / 100;
+                            return {
+                              ...l,
+                              weight: w * l.qty,
+                              rate: newRate,
+                              amount: newAmount,
+                              taxAmount: newTaxAmount,
+                              total: taxableAmount + newTaxAmount,
+                            };
+                          })
+                        );
+                        return newExcluded;
+                      });
+                    }}
+                    className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer"
+                  />
+                  <span
+                    className={`text-xs ${isExcluded ? "line-through text-ink-subtle" : "text-ink font-medium"}`}
+                  >
+                    {comp.componentProduct?.productName ||
+                      comp.componentProduct?.productCode ||
+                      `Product #${compId}`}
+                  </span>
+                  <span className="text-[11px] text-ink-subtle text-center w-12">
+                    x{compPerUnit}
+                  </span>
+                  <span className="text-xs text-ink font-medium text-center">
+                    {isExcluded ? "0" : compQty}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    );
-  }, [selectedSalesOrderId, salesProducts, excludedComponents, lines]);
+      );
+    },
+    [selectedSalesOrderId, salesProducts, excludedComponents, lines]
+  );
 
   // ── Bill Sundry columns for BusyItemsTable ──
   const sundryColumns: BusyColumn<SundryRow>[] = useMemo(() => {
-    const usedTypes = new Set(sundryRows.map(r => r.type));
+    const usedTypes = new Set(sundryRows.map((r) => r.type));
     return [
       {
         key: "type",
@@ -1041,11 +1389,23 @@ const SalesInvoiceForm: React.FC = () => {
         render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => (
           <select
             value={row.type}
-            onChange={e => update({ type: e.target.value })}
-            style={{ width: "100%", background: "transparent", border: "none", outline: "none", fontSize: 13, color: "var(--color-ink)", cursor: "pointer" }}
+            onChange={(e) => update({ type: e.target.value })}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              fontSize: 13,
+              color: "var(--color-ink)",
+              cursor: "pointer",
+            }}
           >
-            {DEFAULT_SUNDRY_OPTIONS.map(o => (
-              <option key={o.value} value={o.value} disabled={o.value !== row.type && usedTypes.has(o.value)}>
+            {DEFAULT_SUNDRY_OPTIONS.map((o) => (
+              <option
+                key={o.value}
+                value={o.value}
+                disabled={o.value !== row.type && usedTypes.has(o.value)}
+              >
                 {o.label}
               </option>
             ))}
@@ -1066,10 +1426,10 @@ const SalesInvoiceForm: React.FC = () => {
                 type="text"
                 inputMode="decimal"
                 value={row.rate}
-                onChange={e => {
+                onChange={(e) => {
                   const rate = e.target.value.replace(/[^0-9.]/g, "");
                   const rateNum = Number(rate) || 0;
-                  const calcAmount = (totals.subTotal * rateNum / 100).toFixed(2);
+                  const calcAmount = ((totals.subTotal * rateNum) / 100).toFixed(2);
                   update({ rate, amount: rateNum > 0 ? calcAmount : "" });
                 }}
                 placeholder="0.000"
@@ -1086,13 +1446,13 @@ const SalesInvoiceForm: React.FC = () => {
         width: "120px",
         align: "right" as const,
         render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => {
-          const isNeg = DEFAULT_SUNDRY_OPTIONS.find(o => o.value === row.type)?.sign === -1;
+          const isNeg = DEFAULT_SUNDRY_OPTIONS.find((o) => o.value === row.type)?.sign === -1;
           return (
             <input
               type="text"
               inputMode="decimal"
               value={row.amount}
-              onChange={e => update({ amount: e.target.value.replace(/[^0-9.]/g, ""), rate: "" })}
+              onChange={(e) => update({ amount: e.target.value.replace(/[^0-9.]/g, ""), rate: "" })}
               placeholder="0.00"
               className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right font-semibold"
               style={{ color: isNeg ? "#ef4444" : "var(--color-ink)" }}
@@ -1104,15 +1464,18 @@ const SalesInvoiceForm: React.FC = () => {
   }, [sundryRows, totals.subTotal]);
 
   const sundryEmptyRow: SundryRow = useMemo(() => {
-    const usedTypes = new Set(sundryRows.map(r => r.type));
-    const next = DEFAULT_SUNDRY_OPTIONS.find(o => !usedTypes.has(o.value))?.value ?? DEFAULT_SUNDRY_OPTIONS[0]?.value ?? "";
+    const usedTypes = new Set(sundryRows.map((r) => r.type));
+    const next =
+      DEFAULT_SUNDRY_OPTIONS.find((o) => !usedTypes.has(o.value))?.value ??
+      DEFAULT_SUNDRY_OPTIONS[0]?.value ??
+      "";
     return { id: `${Date.now()}-${Math.random()}`, type: next, rate: "", amount: "" };
   }, [sundryRows]);
 
   // ── Find expanded line index for BusyItemsTable ──
   const expandedLineIndex = useMemo(() => {
     if (!expandedLineId) return null;
-    const idx = lines.findIndex(l => l.id === expandedLineId);
+    const idx = lines.findIndex((l) => l.id === expandedLineId);
     return idx >= 0 ? idx : null;
   }, [expandedLineId, lines]);
 
@@ -1123,12 +1486,13 @@ const SalesInvoiceForm: React.FC = () => {
   return (
     <div className="w-full">
       <div className="bg-card rounded-2xl shadow-sm border border-line max-w-[1600px] overflow-visible">
-
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
           <h2 className="text-lg font-bold text-ink flex items-start">
             {isEditMode ? "Edit Sales Invoice" : "Create Sales Invoice"}
-            <span className="text-purple-400 text-sm ml-1 mt-0.5 leading-none">*{previewInvoiceNo || "Auto"}</span>
+            <span className="text-purple-400 text-sm ml-1 mt-0.5 leading-none">
+              *{previewInvoiceNo || "Auto"}
+            </span>
             <span
               className="ml-2 rounded-full border border-line-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-muted"
               title="Decided by your GST registration and the customer's state"
@@ -1141,272 +1505,418 @@ const SalesInvoiceForm: React.FC = () => {
 
         <form className="px-5 py-3 space-y-2" noValidate>
           <div className="flex flex-col gap-2">
-          {/* ── Full-width Form ── */}
-          <div className="w-full space-y-2">
+            {/* ── Full-width Form ── */}
+            <div className="w-full space-y-2">
+              {/* Credit limit warning */}
+              {limitExceeded !== false && (
+                <div className="bg-red-500/10 border-l-4 border-red-500 p-2 rounded-md flex items-start gap-2">
+                  <FaExclamationTriangle className="text-red-500 mt-0.5 flex-shrink-0 text-xs" />
+                  <p className="text-red-500 text-xs">
+                    Credit exceeded by{" "}
+                    <span className="font-bold">
+                      ₹
+                      {(limitExceeded as any).exceededBy.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </p>
+                </div>
+              )}
 
-          {/* Credit limit warning */}
-          {limitExceeded !== false && (
-            <div className="bg-red-500/10 border-l-4 border-red-500 p-2 rounded-md flex items-start gap-2">
-              <FaExclamationTriangle className="text-red-500 mt-0.5 flex-shrink-0 text-xs" />
-              <p className="text-red-500 text-xs">
-                Credit exceeded by <span className="font-bold">₹{(limitExceeded as any).exceededBy.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-              </p>
-            </div>
-          )}
-
-          {/* ── Row 1: Customer & Sales Order ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-            <AutocompleteInput
-              horizontal
-              label="Customer"
-              name="customerId"
-              required
-              value={customerId}
-              disabled={isLocked}
-              error={errors.customerId}
-              options={customerAutocompleteOptions}
-              placeholder="Type to search customer..."
-              onChange={(val) => {
-                setCustomerId(val);
-                if (val) loadCustomerOrders(val);
-                if (selectedSalesOrderId) {
-                  const selOrder = salesOrders.find((o) => String(o.id) === String(selectedSalesOrderId));
-                  if (selOrder) {
-                    const orderCustId = String(selOrder.customerId || selOrder.customer?.id || "");
-                    if (orderCustId !== val) { setSelectedSalesOrderId(""); setLines([emptyLine()]); }
-                  }
-                }
-              }}
-            />
-            <AutocompleteInput
-              horizontal
-              label="Sales Order"
-              name="selectedSalesOrderId"
-              value={selectedSalesOrderId}
-              disabled={isEditMode || !customerId}
-              options={salesOrderAutocompleteOptions}
-              placeholder={customerId ? "Type to search order..." : "Select customer first"}
-              onChange={(val) => handleSalesOrderChange(val)}
-            />
-          </div>
-
-          {/* ── Row 2: Invoice Date, Due Date, Transport, No. of Bundle ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1">
-            <DatePickerCalendar
-              label="Invoice Date"
-              name="invoiceDate"
-              value={invoiceDate}
-              disabled={isLocked}
-              onChange={(e) => setInvoiceDate(e.target.value)}
-              required
-              error={errors.invoiceDate}
-              horizontal
-            />
-            <DatePickerCalendar
-              label="Due Date"
-              name="dueDate"
-              value={dueDate}
-              disabled={isLocked}
-              onChange={(e) => setDueDate(e.target.value)}
-              horizontal
-            />
-            <AutocompleteInput
-              horizontal
-              label="Transport"
-              name="transport"
-              value={selectedTransport ? String(customerTransports.findIndex((t: any) => t.name === selectedTransport.name)) : ""}
-              options={customerTransports.map((t: any, idx: number) => ({
-                value: String(idx),
-                label: t.name || `Transport ${idx + 1}`,
-                info: t.phone ? <span className="text-[11px] text-ink-subtle">{t.phone}</span> : undefined,
-              }))}
-              placeholder={customerTransports.length > 0 ? "Select transport..." : "No transports"}
-              disabled={isLocked || customerTransports.length === 0}
-              onChange={(val) => {
-                const idx = Number(val);
-                setSelectedTransport(customerTransports[idx] || null);
-              }}
-            />
-            <TextInput
-              horizontal
-              label="No. of Bundle"
-              name="numberOfBundle"
-              type="number"
-              value={numberOfBundle}
-              placeholder="Enter"
-              disabled={isLocked}
-              onChange={(e) => setNumberOfBundle(e.target.value)}
-            />
-          </div>
-
-          {/* ── Addresses ── */}
-          {(billingAddress.line1 || billingAddress.city) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-2 border border-line-soft rounded-lg bg-card">
-                <span className="text-[10px] font-bold text-ink uppercase tracking-wide">Billing Address</span>
-                <p className="text-xs text-ink-subtle mt-1">
-                  {[billingAddress.line1, billingAddress.city, billingAddress.state, billingAddress.pincode].filter(Boolean).join(", ")}
-                </p>
-              </div>
-              <div className="p-2 border border-line-soft rounded-lg bg-card">
-                <span className="text-[10px] font-bold text-ink uppercase tracking-wide">Shipping Address</span>
-                {customerAddresses.length > 0 ? (
-                  <div className="space-y-1 mt-1">
-                    {customerAddresses.map((a: any, idx: number) => {
-                      const addr = a.address || a;
-                      const addrLabel = [addr.addressLine1, addr.city, addr.state, addr.pincode].filter(Boolean).join(", ");
-                      return (
-                        <label key={idx} className={`flex items-start gap-1.5 cursor-pointer text-xs p-1.5 rounded ${selectedShippingIdx === idx ? "bg-primary/10 text-primary" : "text-ink-subtle hover:bg-card-2"}`}>
-                          <input type="radio" name="shippingAddr" checked={selectedShippingIdx === idx} onChange={() => setSelectedShippingIdx(idx)} className="mt-0.5 w-3 h-3 accent-blue-600" />
-                          <span>{a.label || `Address ${idx + 1}`}: {addrLabel}</span>
-                        </label>
+              {/* ── Row 1: Customer & Sales Order ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                <AutocompleteInput
+                  horizontal
+                  label="Customer"
+                  name="customerId"
+                  required
+                  value={customerId}
+                  disabled={isLocked}
+                  error={errors.customerId}
+                  options={customerAutocompleteOptions}
+                  placeholder="Type to search customer..."
+                  onChange={(val) => {
+                    setCustomerId(val);
+                    if (val) loadCustomerOrders(val);
+                    if (selectedSalesOrderId) {
+                      const selOrder = salesOrders.find(
+                        (o) => String(o.id) === String(selectedSalesOrderId)
                       );
-                    })}
+                      if (selOrder) {
+                        const orderCustId = String(
+                          selOrder.customerId || selOrder.customer?.id || ""
+                        );
+                        if (orderCustId !== val) {
+                          setSelectedSalesOrderId("");
+                          setLines([emptyLine()]);
+                        }
+                      }
+                    }
+                  }}
+                />
+                <AutocompleteInput
+                  horizontal
+                  label="Sales Order"
+                  name="selectedSalesOrderId"
+                  value={selectedSalesOrderId}
+                  disabled={isEditMode || !customerId}
+                  options={salesOrderAutocompleteOptions}
+                  placeholder={customerId ? "Type to search order..." : "Select customer first"}
+                  onChange={(val) => handleSalesOrderChange(val)}
+                />
+              </div>
+
+              {/* ── Row 2: Invoice Date, Due Date, Transport, No. of Bundle ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1">
+                <DatePickerCalendar
+                  label="Invoice Date"
+                  name="invoiceDate"
+                  value={invoiceDate}
+                  disabled={isLocked}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  required
+                  error={errors.invoiceDate}
+                  horizontal
+                />
+                <DatePickerCalendar
+                  label="Due Date"
+                  name="dueDate"
+                  value={dueDate}
+                  disabled={isLocked}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  horizontal
+                />
+                <AutocompleteInput
+                  horizontal
+                  label="Transport"
+                  name="transport"
+                  value={
+                    selectedTransport
+                      ? String(
+                          customerTransports.findIndex(
+                            (t: any) => t.name === selectedTransport.name
+                          )
+                        )
+                      : ""
+                  }
+                  options={customerTransports.map((t: any, idx: number) => ({
+                    value: String(idx),
+                    label: t.name || `Transport ${idx + 1}`,
+                    info: t.phone ? (
+                      <span className="text-[11px] text-ink-subtle">{t.phone}</span>
+                    ) : undefined,
+                  }))}
+                  placeholder={
+                    customerTransports.length > 0 ? "Select transport..." : "No transports"
+                  }
+                  disabled={isLocked || customerTransports.length === 0}
+                  onChange={(val) => {
+                    const idx = Number(val);
+                    setSelectedTransport(customerTransports[idx] || null);
+                  }}
+                />
+                <TextInput
+                  horizontal
+                  label="No. of Bundle"
+                  name="numberOfBundle"
+                  type="number"
+                  value={numberOfBundle}
+                  placeholder="Enter"
+                  disabled={isLocked}
+                  onChange={(e) => setNumberOfBundle(e.target.value)}
+                />
+              </div>
+
+              {/* ── Addresses ── */}
+              {(billingAddress.line1 || billingAddress.city) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-2 border border-line-soft rounded-lg bg-card">
+                    <span className="text-[10px] font-bold text-ink uppercase tracking-wide">
+                      Billing Address
+                    </span>
+                    <p className="text-xs text-ink-subtle mt-1">
+                      {[
+                        billingAddress.line1,
+                        billingAddress.city,
+                        billingAddress.state,
+                        billingAddress.pincode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-xs text-ink-subtle mt-1">Same as billing</p>
-                )}
-              </div>
-            </div>
-          )}
+                  <div className="p-2 border border-line-soft rounded-lg bg-card">
+                    <span className="text-[10px] font-bold text-ink uppercase tracking-wide">
+                      Shipping Address
+                    </span>
+                    {customerAddresses.length > 0 ? (
+                      <div className="space-y-1 mt-1">
+                        {customerAddresses.map((a: any, idx: number) => {
+                          const addr = a.address || a;
+                          const addrLabel = [addr.addressLine1, addr.city, addr.state, addr.pincode]
+                            .filter(Boolean)
+                            .join(", ");
+                          return (
+                            <label
+                              key={idx}
+                              className={`flex items-start gap-1.5 cursor-pointer text-xs p-1.5 rounded ${selectedShippingIdx === idx ? "bg-primary/10 text-primary" : "text-ink-subtle hover:bg-card-2"}`}
+                            >
+                              <input
+                                type="radio"
+                                name="shippingAddr"
+                                checked={selectedShippingIdx === idx}
+                                onChange={() => setSelectedShippingIdx(idx)}
+                                className="mt-0.5 w-3 h-3 accent-blue-600"
+                              />
+                              <span>
+                                {a.label || `Address ${idx + 1}`}: {addrLabel}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-ink-subtle mt-1">Same as billing</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
-          {/* ── Line Items ── */}
-          {errors.lines && (
-            <div className="text-red-500 text-xs mb-2 bg-red-500/10 p-2 rounded-md border border-red-500/20">{errors.lines}</div>
-          )}
+              {/* ── Line Items ── */}
+              {errors.lines && (
+                <div className="text-red-500 text-xs mb-2 bg-red-500/10 p-2 rounded-md border border-red-500/20">
+                  {errors.lines}
+                </div>
+              )}
 
-          {/* ── Invoice Items (65%) + Bill Sundry (35%) ── */}
-          <div className="flex gap-3">
-            <div className="w-[65%]">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-semibold text-ink">Invoice Items</span>
-              </div>
-              <BusyItemsTable
-                columns={invoiceColumns}
-                rows={lines}
-                onAdd={() => setLines((prev) => [...prev, emptyLine()])}
-                onRemove={(i) => setLines((prev) => prev.length > 1 ? prev.filter((_, j) => j !== i) : prev)}
-                editable={!isEditMode && lines.length > 1}
-                expandable={Boolean(selectedSalesOrderId)}
-                canExpand={(row) => {
-                  const sp = salesProducts.find((s: any) => String(s.id) === row.itemId);
-                  const spComps = (sp?.components || []).filter((c: any) => c.componentProduct?.productType === "SALES_PRODUCTION");
-                  return spComps.length > 0;
-                }}
-                expandedIndex={expandedLineIndex}
-                onExpandToggle={(i) => {
-                  const lineId = lines[i]?.id;
-                  setExpandedLineId(expandedLineId === lineId ? null : lineId);
-                }}
-                renderExpandedRow={renderExpandedComponents}
-                showTotals={[
-                  { colKey: "qty", value: lines.reduce((s, l) => s + l.qty, 0) },
-                  { colKey: "weight", value: lines.reduce((s, l) => s + (l.weight || 0), 0).toFixed(1) },
-                  { colKey: "total", value: `₹${totals.subTotal.toFixed(2)}` },
-                ]}
-                visibleRows={10}
-              />
-            </div>
-            <div className="w-[35%]">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-semibold text-ink">Bill Sundry</span>
-              </div>
-              <BusyItemsTable
-                columns={sundryColumns}
-                rows={sundryRows}
-                onChange={setSundryRows}
-                emptyRow={sundryEmptyRow}
-                editable={false}
-                visibleRows={5}
-                showTotals={[
-                  {
-                    colKey: "amount",
-                    value: (() => {
-                      const t = sundryRows.reduce((s, r) => {
-                        const a = Number(r.amount) || 0;
-                        const o = DEFAULT_SUNDRY_OPTIONS.find(x => x.value === r.type);
-                        return s + (o?.sign === -1 ? -a : a);
-                      }, 0);
-                      return t !== 0 ? `${t > 0 ? "+" : "-"} ₹${Math.abs(t).toFixed(2)}` : "0.00";
-                    })(),
-                  },
-                ]}
-              />
-              {/* ── Full Amount ── */}
-              <div className="flex justify-end mt-2 px-2 py-2 border border-line rounded-md bg-card-2">
-                <div className="text-right">
-                  <span className="text-base font-bold text-blue-600">
-                    ₹{(() => {
+              {/* ── Invoice Items (65%) + Bill Sundry (35%) ── */}
+              <div className="flex gap-3">
+                <div className="w-[65%]">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-semibold text-ink">Invoice Items</span>
+                  </div>
+                  <BusyItemsTable
+                    columns={invoiceColumns}
+                    rows={lines}
+                    onAdd={() => setLines((prev) => [...prev, emptyLine()])}
+                    onRemove={(i) =>
+                      setLines((prev) => (prev.length > 1 ? prev.filter((_, j) => j !== i) : prev))
+                    }
+                    editable={!isEditMode && lines.length > 1}
+                    expandable={Boolean(selectedSalesOrderId)}
+                    canExpand={(row) => {
+                      const sp = salesProducts.find((s: any) => String(s.id) === row.itemId);
+                      const spComps = (sp?.components || []).filter(
+                        (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+                      );
+                      return spComps.length > 0;
+                    }}
+                    expandedIndex={expandedLineIndex}
+                    onExpandToggle={(i) => {
+                      const lineId = lines[i]?.id;
+                      setExpandedLineId(expandedLineId === lineId ? null : lineId);
+                    }}
+                    renderExpandedRow={renderExpandedComponents}
+                    showTotals={[
+                      { colKey: "qty", value: lines.reduce((s, l) => s + l.qty, 0) },
+                      {
+                        colKey: "weight",
+                        value: lines.reduce((s, l) => s + (l.weight || 0), 0).toFixed(1),
+                      },
+                      { colKey: "total", value: `₹${totals.subTotal.toFixed(2)}` },
+                    ]}
+                    visibleRows={10}
+                  />
+                </div>
+                <div className="w-[35%]">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-semibold text-ink">Bill Sundry</span>
+                  </div>
+                  <BusyItemsTable
+                    columns={sundryColumns}
+                    rows={sundryRows}
+                    onChange={setSundryRows}
+                    emptyRow={sundryEmptyRow}
+                    editable={false}
+                    visibleRows={5}
+                    showTotals={[
+                      {
+                        colKey: "amount",
+                        value: (() => {
+                          const t = sundryRows.reduce((s, r) => {
+                            const a = Number(r.amount) || 0;
+                            const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
+                            return s + (o?.sign === -1 ? -a : a);
+                          }, 0);
+                          return t !== 0
+                            ? `${t > 0 ? "+" : "-"} ₹${Math.abs(t).toFixed(2)}`
+                            : "0.00";
+                        })(),
+                      },
+                    ]}
+                  />
+                  {/* ── TCS (P2-05/P2-12): scrap sales (206C(1)) or a buyer above the annual threshold ── */}
+                  <div className="mt-2 p-2 border border-line-soft rounded-md bg-card">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={collectTcs}
+                        disabled={isLocked}
+                        onChange={(e) => setCollectTcs(e.target.checked)}
+                        className="w-3.5 h-3.5 accent-blue-600"
+                      />
+                      Collect TCS
+                    </label>
+                    {collectTcs && (
+                      <div className="mt-2 space-y-1.5">
+                        <SelectInput
+                          hideLabel
+                          label=""
+                          name="tcsSectionCode"
+                          value={tcsSectionCode}
+                          disabled={isLocked}
+                          options={tcsSections.map((s) => ({
+                            label: `${s.code} — ${s.name}`,
+                            value: s.code,
+                          }))}
+                          defaultOptionLabel="Select Section"
+                          onChange={(e) => {
+                            setTcsSectionTouched(true);
+                            setTcsSectionCode(e.target.value);
+                          }}
+                        />
+                        {tcsSectionCode && (
+                          <div className="text-[11px] text-ink-subtle flex justify-between">
+                            <span>
+                              {tcsPreview?.belowThreshold
+                                ? tcsPreview.reason
+                                : `${tcsPreview?.rate ?? 0}% TCS`}
+                            </span>
+                            <span className="font-semibold text-rose-500">
+                              + ₹{tcsAmount.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Full Amount ── */}
+                  <div className="flex justify-end mt-2 px-2 py-2 border border-line rounded-md bg-card-2">
+                    <div className="text-right">
+                      <span className="text-base font-bold text-blue-600">
+                        ₹
+                        {(() => {
+                          const sundryTotal = sundryRows.reduce((s, r) => {
+                            const a = Number(r.amount) || 0;
+                            const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
+                            return s + (o?.sign === -1 ? -a : a);
+                          }, 0);
+                          return (totals.grandTotal + sundryTotal + tcsAmount).toFixed(2);
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ── Customer Balance Summary ── */}
+                  {customerId &&
+                    (() => {
+                      const cust = customersRaw.find((c: any) => String(c.id) === customerId);
+                      if (!cust) return null;
+                      const openBal = Number(
+                        cust.balanceAmount ?? cust.netBalance ?? cust.openingBalance ?? 0
+                      );
+                      const bType = (cust.balanceType || cust.openingBalanceType || "")
+                        .toString()
+                        .toUpperCase();
+                      const isDr = bType.startsWith("D");
+                      const openLabel = isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "";
                       const sundryTotal = sundryRows.reduce((s, r) => {
                         const a = Number(r.amount) || 0;
-                        const o = DEFAULT_SUNDRY_OPTIONS.find(x => x.value === r.type);
+                        const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
                         return s + (o?.sign === -1 ? -a : a);
                       }, 0);
-                      return (totals.grandTotal + sundryTotal).toFixed(2);
+                      const invoiceAmt = totals.grandTotal + sundryTotal + tcsAmount || 0;
+                      const closingRaw = isDr ? openBal + invoiceAmt : openBal - invoiceAmt;
+                      const closingAbs = Math.abs(closingRaw);
+                      const closingType =
+                        closingRaw > 0
+                          ? isDr
+                            ? "Dr"
+                            : "Cr"
+                          : closingRaw < 0
+                            ? isDr
+                              ? "Cr"
+                              : "Dr"
+                            : "";
+
+                      return (
+                        <div className="mt-3 border border-line-soft rounded-lg overflow-hidden text-xs">
+                          <div className="flex justify-between px-3 py-2 border-b border-line-soft bg-card-2">
+                            <span className="font-semibold text-ink-muted">Opening Balance</span>
+                            <span
+                              className={`font-bold ${isDr ? "text-rose-500" : "text-emerald-500"}`}
+                            >
+                              ₹{openBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}{" "}
+                              {openLabel}
+                            </span>
+                          </div>
+                          <div className="flex justify-between px-3 py-2 border-b border-line-soft">
+                            <span className="font-semibold text-ink-muted">Invoice Amount</span>
+                            <span className="font-bold text-blue-500">
+                              ₹{invoiceAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between px-3 py-2 bg-card-2">
+                            <span className="font-bold text-ink">Closing Balance</span>
+                            <span
+                              className={`font-bold ${closingType === "Dr" ? "text-rose-500" : "text-emerald-500"}`}
+                            >
+                              ₹{closingAbs.toLocaleString("en-IN", { minimumFractionDigits: 2 })}{" "}
+                              {closingType}
+                            </span>
+                          </div>
+                        </div>
+                      );
                     })()}
-                  </span>
                 </div>
               </div>
 
-              {/* ── Customer Balance Summary ── */}
-              {customerId && (() => {
-                const cust = customersRaw.find((c: any) => String(c.id) === customerId);
-                if (!cust) return null;
-                const openBal = Number(cust.balanceAmount ?? cust.netBalance ?? cust.openingBalance ?? 0);
-                const bType = (cust.balanceType || cust.openingBalanceType || "").toString().toUpperCase();
-                const isDr = bType.startsWith("D");
-                const openLabel = isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "";
-                const sundryTotal = sundryRows.reduce((s, r) => {
-                  const a = Number(r.amount) || 0;
-                  const o = DEFAULT_SUNDRY_OPTIONS.find(x => x.value === r.type);
-                  return s + (o?.sign === -1 ? -a : a);
-                }, 0);
-                const invoiceAmt = (totals.grandTotal + sundryTotal) || 0;
-                const closingRaw = isDr ? openBal + invoiceAmt : openBal - invoiceAmt;
-                const closingAbs = Math.abs(closingRaw);
-                const closingType = closingRaw > 0 ? (isDr ? "Dr" : "Cr") : closingRaw < 0 ? (isDr ? "Cr" : "Dr") : "";
-
-                return (
-                  <div className="mt-3 border border-line-soft rounded-lg overflow-hidden text-xs">
-                    <div className="flex justify-between px-3 py-2 border-b border-line-soft bg-card-2">
-                      <span className="font-semibold text-ink-muted">Opening Balance</span>
-                      <span className={`font-bold ${isDr ? "text-rose-500" : "text-emerald-500"}`}>
-                        ₹{openBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} {openLabel}
-                      </span>
-                    </div>
-                    <div className="flex justify-between px-3 py-2 border-b border-line-soft">
-                      <span className="font-semibold text-ink-muted">Invoice Amount</span>
-                      <span className="font-bold text-blue-500">₹{invoiceAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between px-3 py-2 bg-card-2">
-                      <span className="font-bold text-ink">Closing Balance</span>
-                      <span className={`font-bold ${closingType === "Dr" ? "text-rose-500" : "text-emerald-500"}`}>
-                        ₹{closingAbs.toLocaleString("en-IN", { minimumFractionDigits: 2 })} {closingType}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
+              {/* ── Notes ── */}
+              <div className="w-full md:w-1/2">
+                <TextInput
+                  as="textarea"
+                  label="Notes"
+                  name="notes"
+                  rows={2}
+                  value={notes}
+                  disabled={isLocked}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Optional notes..."
+                />
+              </div>
             </div>
+            {/* end full-width column */}
           </div>
-
-          {/* ── Notes ── */}
-          <div className="w-full md:w-1/2">
-            <TextInput as="textarea" label="Notes" name="notes" rows={2} value={notes} disabled={isLocked}
-              onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." />
-          </div>
-
-          </div>{/* end full-width column */}
-
-          </div>{/* end flex column */}
-
+          {/* end flex column */}
         </form>
 
         {/* ── Actions ── */}
         <div className="flex justify-end gap-3 px-5 py-3 border-t border-line">
-          <CustomButton text="Cancel" type="button" variant="secondary" onClick={() => navigate(-1)} />
-          <CustomButton text={saving ? "Saving..." : isEditMode ? "Update Invoice" : "Confirm Invoice"}
-            icon={FaSave} type="button" disabled={saving || isStockNotEnough} variant="primary" onClick={(e) => handleSubmit(e, false)} />
+          <CustomButton
+            text="Cancel"
+            type="button"
+            variant="secondary"
+            onClick={() => navigate(-1)}
+          />
+          <CustomButton
+            text={saving ? "Saving..." : isEditMode ? "Update Invoice" : "Confirm Invoice"}
+            icon={FaSave}
+            type="button"
+            disabled={saving || isStockNotEnough}
+            variant="primary"
+            onClick={(e) => handleSubmit(e, false)}
+          />
         </div>
       </div>
     </div>
