@@ -510,8 +510,18 @@ const GrnInvoiceViewPage: React.FC = () => {
                           String(p.paymentMethod ?? "")
                             .toLowerCase()
                             .includes("cheque");
+                        // Matched by cheque number AND cheque date within this bill's own cheques
+                        // (P2-17) — `cheques` is already scoped to this GRN's `sourceDocId`, but
+                        // two payments on the same bill can share a re-typed cheque number, so
+                        // the date disambiguates which register row is which.
                         const cheque = isCheque
-                          ? cheques.find((c) => c.chequeNo === p.chequeNo)
+                          ? cheques.find(
+                              (c) =>
+                                c.chequeNo === p.chequeNo &&
+                                (!p.chequeDate ||
+                                  String(c.chequeDate).slice(0, 10) ===
+                                    String(p.chequeDate).slice(0, 10))
+                            )
                           : undefined;
                         const postDated =
                           isCheque &&

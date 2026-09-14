@@ -30,6 +30,9 @@ export const createProductSchema = z.object({
 
     // FormData booleans also arrive as the literal strings "true"/"false"
     isActive: z.union([z.literal("true"), z.literal("false")]).optional(),
+    /** Scrap/waste output (P2-17): the sales-invoice TCS default (206C(1)) checks this before
+     * falling back to a name heuristic. */
+    isScrap: z.union([z.literal("true"), z.literal("false")]).optional(),
 
     openingStockQty: z.string().max(20).optional(),
     openingStockStoreId: z.string().max(20).optional(),

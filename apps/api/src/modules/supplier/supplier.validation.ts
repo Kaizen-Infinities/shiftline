@@ -109,6 +109,14 @@ export const createSupplierSchema = z.object({
     /** The TDS section this supplier is usually deducted under (P2-11); the GRN form defaults
      * its section picker from this when the caller does not name one. */
     defaultTdsSectionCode: z.string().max(20).nullable().optional(),
+    /** Who the payee is for TDS rate purposes (P2-17); COMPANY when unset, same as `deduct`'s
+     * own default. */
+    deducteeType: z
+      .enum(["COMPANY", "INDIVIDUAL_HUF", "FIRM", "AOP_BOI", "LOCAL_AUTHORITY", "NON_RESIDENT"])
+      .nullable()
+      .optional(),
+    /** The payee has not filed their returns, so TDS comes off at the higher 206AB rate (P2-17). */
+    higherRate206AB: z.boolean().optional(),
     addresses: z.array(supplierAddressInputSchema).optional(),
   }),
 });

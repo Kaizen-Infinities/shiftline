@@ -984,6 +984,9 @@ model Product {
   weightPerPiece            Decimal?                   @db.Decimal(10, 2)
   weightUom                 String                     @default("g") @map("weight_uom") @db.VarChar(10)
   isActive                  Boolean                    @default(true)
+  /// Scrap/waste output (P2-17): the sales-invoice TCS default (206C(1)) uses this first, the
+  /// item name heuristic second.
+  isScrap                   Boolean                    @default(false) @map("is_scrap")
   createdBy                 String?
   modifiedBy                String?
   createdAt                 DateTime                   @default(now())

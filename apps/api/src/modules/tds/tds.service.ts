@@ -146,15 +146,27 @@ class TdsService {
     const amount = n2(input.amount);
     const { fyCode } = fyAndQuarter(input.on);
 
+    // 206C(1H) taxes a buyer, and the same real-world buyer can be entered as more than one
+    // Customer row (a branch, a typo'd duplicate); the section's threshold is theirs, not any
+    // one row's, so when a PAN is on file the aggregate pools every row sharing it (P2-17).
+    // Without a PAN — or for any other section — the threshold stays per document-party row,
+    // same as before.
+    const pooledPan =
+      section.code === "206C(1H)" && input.customerId && isValidPan(input.deducteePan)
+        ? input.deducteePan!.trim().toUpperCase()
+        : null;
+
     // What has already gone to this payee under this section this year.
     const prior =
       input.supplierId || input.customerId
         ? await db.tdsDeduction.aggregate({
             where: {
               sectionId: section.id,
-              ...(input.supplierId
-                ? { supplierId: input.supplierId }
-                : { customerId: input.customerId }),
+              ...(pooledPan
+                ? { deducteePan: pooledPan }
+                : input.supplierId
+                  ? { supplierId: input.supplierId }
+                  : { customerId: input.customerId }),
               fyCode,
               cancelledAt: null,
             },
@@ -517,6 +529,16 @@ class TdsService {
         "MIXED_QUARTER"
       );
     }
+    // A section with no ledgerCode used to fall back to TDS-LIA-001 here, silently posting the
+    // wrong section's liability off the books (P2-17); refused instead — fix the section master.
+    const noLedger = deductions.find((d) => !d.section.ledgerCode);
+    if (noLedger) {
+      throw new ApiError(
+        409,
+        `Section ${noLedger.section.code} has no payable ledger on file; set one before paying this challan`,
+        "SECTION_NO_LEDGER"
+      );
+    }
 
     const tdsAmount = n2(deductions.reduce((s, d) => s + Number(d.tdsAmount), 0));
     const totalAmount = n2(
@@ -583,9 +605,12 @@ class TdsService {
     const { VoucherType, Prisma: PrismaNs } = await import("@prisma/client");
     await accountsService.ensureSystemLedgersExist(db);
 
+    // `payChallan` already refuses a section with no `ledgerCode` (P2-17: SECTION_NO_LEDGER)
+    // before this runs, so every deduction here has one — no silent TDS-LIA-001 fallback.
     const bySection = new Map<string, number>();
     for (const d of deductions) {
-      const code = d.section.ledgerCode ?? "TDS-LIA-001";
+      const code = d.section.ledgerCode;
+      if (!code) continue;
       bySection.set(code, n2((bySection.get(code) ?? 0) + Number(d.tdsAmount)));
     }
     const items: Array<{
