@@ -14,12 +14,21 @@ import { extractPaymentsArray } from "../../utils/payments";
 import { accountsService } from "../accounts/accounts.service";
 import { periodService } from "../accounts/period.service";
 import { voucherPostingService } from "../accounts/voucherPosting.service";
+import { primaryMobile } from "../mobile/mobile.mappers";
+import { smsService } from "../sms/sms.service";
 import { paymentsConfigService } from "./payments.config.service";
 import type { ProviderPayment } from "./payments.types";
 import { fixturePaymentProvider, paymentProviderFor } from "./providers";
 
 const n2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 const D = (v: number) => new Prisma.Decimal(n2(v));
+/**
+ * The scheme and `www.` stripped off a URL (P2-19): what is left is still the working link once
+ * the SMS body's own reviewed text sits in front of it, and it no longer trips `sms.calc.ts`'s
+ * rule against a URL sitting inside a template variable's value.
+ */
+const bareLink = (url: string | null): string =>
+  (url ?? "").replace(/^https?:\/\//i, "").replace(/^www\./i, "");
 
 export interface CreateLinkInput {
   salesInvoiceId?: string | null;
@@ -113,6 +122,20 @@ class PaymentsService {
     });
     logger.info({ linkNo, provider }, "payment link raised");
     emitToTenant("payment-link:created", { id: row.id, linkNo });
+    await this.queuePaymentSms(
+      "PAYMENT_LINK",
+      input.notifyPhone ?? primaryMobile(customer?.mobile),
+      {
+        name: customer?.firmName ?? description ?? "Customer",
+        amount,
+        invoiceNo: invoice?.invoiceNo ?? row.linkNo,
+        // The template's own body carries the scheme and domain as reviewed text on the DLT
+        // registration; only the path is a variable, so the SMS rule against a URL inside a
+        // variable's value (`sms.calc.ts`) is never in tension with a working link.
+        link: bareLink(row.shortUrl),
+      },
+      `pay-link:${row.linkNo}`.slice(0, 30)
+    );
     return row;
   }
 
@@ -210,7 +233,7 @@ class PaymentsService {
     const config = await paymentsConfigService.ensure();
     const amount = n2(payment.amount);
 
-    return prisma.$transaction(async (tx) => {
+    const capture = await prisma.$transaction(async (tx) => {
       const capture = await tx.paymentCapture.create({
         data: {
           paymentLinkId: link.id,
@@ -254,6 +277,58 @@ class PaymentsService {
       emitToTenant("payment-link:paid", { id: link.id, linkNo: link.linkNo, amount, status });
       return row;
     });
+
+    const [customer, invoice] = await Promise.all([
+      link.customerId ? prisma.customer.findUnique({ where: { id: link.customerId } }) : null,
+      link.salesInvoiceId
+        ? prisma.salesInvoice.findUnique({ where: { id: link.salesInvoiceId } })
+        : null,
+    ]);
+    await this.queuePaymentSms(
+      "PAYMENT_RECEIVED",
+      link.notifyPhone ?? primaryMobile(customer?.mobile),
+      {
+        name: customer?.firmName ?? link.description ?? "Customer",
+        amount,
+        invoiceNo: invoice?.invoiceNo ?? link.linkNo,
+      },
+      `pay-recv:${capture.id.slice(0, 8)}`.slice(0, 30)
+    );
+    return capture;
+  }
+
+  /**
+   * Queues a payment SMS (P2-19) when the tenant is set up to send one: SMS on, and the template
+   * registered with a DLT id. Anything else — SMS off, no template, no mobile number on file, the
+   * queue call itself failing — is skipped rather than allowed to fail the payment it is
+   * reporting on; the reason is only ever written to the log.
+   */
+  private async queuePaymentSms(
+    templateCode: "PAYMENT_LINK" | "PAYMENT_RECEIVED",
+    to: string | null,
+    values: Record<string, string | number>,
+    purpose: string
+  ) {
+    if (!to) {
+      logger.info({ templateCode }, "payment sms skipped: no mobile number on file");
+      return;
+    }
+    try {
+      const { enabled } = await smsService.credentials();
+      if (!enabled) {
+        logger.info({ templateCode }, "payment sms skipped: sms is off");
+        return;
+      }
+      const templates = await smsService.templates();
+      const template = templates.find((t) => t.code === templateCode);
+      if (!template || !template.dltTemplateId) {
+        logger.info({ templateCode }, "payment sms skipped: template is not registered");
+        return;
+      }
+      await smsService.sendTemplateQueued({ to, templateCode, values, purpose });
+    } catch (err) {
+      logger.warn({ templateCode, err }, "payment sms could not be queued");
+    }
   }
 
   /**

@@ -28,7 +28,11 @@ class BillingService {
     return runAsTenant(companyId, async () => {
       const subscription = await prisma.subscription.findFirst({ include: { plan: true } });
       if (!subscription) throw new ApiError(404, "That tenant has no subscription");
-      const amount = input.amount ?? Number(subscription.plan.priceInrMonthly ?? 0);
+      // A hand-negotiated price (set only by a platform admin) overrides the plan's list price;
+      // an amount given explicitly to this call overrides both.
+      const amount =
+        input.amount ??
+        Number(subscription.negotiatedMonthlyPrice ?? subscription.plan.priceInrMonthly ?? 0);
       if (amount <= 0) {
         throw new ApiError(400, "That plan has no price; give the amount explicitly", "NO_PRICE");
       }

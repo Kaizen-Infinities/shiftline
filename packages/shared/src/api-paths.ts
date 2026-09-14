@@ -300,6 +300,7 @@ export const API_PATHS = {
     depreciation: "/assets/depreciation",
     opening: "/assets/opening",
     openingImport: "/assets/opening/import",
+    openingTemplate: "/assets/opening/template.csv",
     capitalise: "/assets/capitalise",
     depreciationRuns: "/assets/depreciation-runs",
   },

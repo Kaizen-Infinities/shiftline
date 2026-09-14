@@ -66,6 +66,9 @@ export const updateSubscriptionSchema = z.object({
     trialEndsAt: z.coerce.date().nullable().optional(),
     currentPeriodEnd: z.coerce.date().nullable().optional(),
     notes: z.string().max(500).nullable().optional(),
+    /// A hand-negotiated monthly price (P2-19), overriding the plan's list price for the
+    /// scheduled billing sweep; null clears it back to the plan's own price.
+    negotiatedMonthlyPrice: z.coerce.number().positive().max(10_000_000).nullable().optional(),
   }),
 });
 
@@ -189,6 +192,9 @@ export const tenantsController = {
         ...(body.trialEndsAt !== undefined ? { trialEndsAt: body.trialEndsAt } : {}),
         ...(body.currentPeriodEnd !== undefined ? { currentPeriodEnd: body.currentPeriodEnd } : {}),
         ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        ...(body.negotiatedMonthlyPrice !== undefined
+          ? { negotiatedMonthlyPrice: body.negotiatedMonthlyPrice }
+          : {}),
         ...(body.status === "CANCELLED" ? { cancelledAt: new Date() } : {}),
         updatedBy: actor,
       };
