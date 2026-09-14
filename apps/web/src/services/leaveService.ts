@@ -22,6 +22,7 @@ export interface LeaveRequestRow {
   comments: string | null;
   createdAt: string;
   leaveType: { code: string; name: string };
+  employee: { empCode: string; fullName: string };
 }
 
 export interface CalendarRow {

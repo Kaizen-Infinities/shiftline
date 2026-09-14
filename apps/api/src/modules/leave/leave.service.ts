@@ -127,7 +127,10 @@ class LeaveService {
         ...(filters.from ? { toDate: { gte: asDate(filters.from) } } : {}),
         ...(filters.to ? { fromDate: { lte: asDate(filters.to) } } : {}),
       },
-      include: { leaveType: { select: { code: true, name: true } } },
+      include: {
+        leaveType: { select: { code: true, name: true } },
+        employee: { select: { empCode: true, fullName: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 500,
     });
