@@ -19,25 +19,11 @@ const includeDefaults = {
   components: {
     include: {
       componentProduct: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          isScrap: true,
-          finishedGoodsStocks: {
-            select: {
-              id: true,
-              storeId: true,
-              onHandQty: true,
-            },
-          },
-          uom: {
-            select: {
-              id: true,
-              name: true,
-              abbreviation: true,
-            },
-          },
+        // A full include: every scalar (including `isScrap`, which the sales-invoice TCS default
+        // reads) plus the stock and unit relations. Never narrow this to a select.
+        include: {
+          finishedGoodsStocks: true,
+          uom: true,
         },
       },
     },
