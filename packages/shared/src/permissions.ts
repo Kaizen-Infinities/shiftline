@@ -262,7 +262,7 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   },
   {
     module: "job-work",
-    actions: ["view", "create", "manage", "export"],
+    actions: ["view", "create", "manage", "export", "cancel", "file"],
     description: "Job work, delivery challans and ITC-04",
   },
   {

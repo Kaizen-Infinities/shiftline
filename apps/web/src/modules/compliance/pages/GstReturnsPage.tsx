@@ -14,6 +14,8 @@ import {
   type ImsStatus,
   type TaxAmounts,
 } from "../../../services/gstReturnsService";
+import { jobWorkService, type Itc04Registered } from "../../../services/jobWorkService";
+import ApprovalPanel from "../components/ApprovalPanel";
 import {
   money,
   monthOptions,
@@ -29,6 +31,22 @@ import {
 import Gstr2bWorkbench from "../components/Gstr2bWorkbench";
 import ImsWorkbench from "../components/ImsWorkbench";
 
+/** Half-years, newest first, as `2026-H1` / `2026-H2` — ITC-04's period key. */
+const halfYearOptions = () => {
+  const now = new Date();
+  const out: { value: string; label: string }[] = [];
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i * 6, 1));
+    const first = d.getUTCMonth() >= 3 && d.getUTCMonth() < 9;
+    const year = d.getUTCMonth() < 3 ? d.getUTCFullYear() - 1 : d.getUTCFullYear();
+    const key = `${year}-H${first ? 1 : 2}`;
+    if (!out.some((o) => o.value === key)) {
+      out.push({ value: key, label: first ? `Apr–Sep ${year}` : `Oct ${year} – Mar ${year + 1}` });
+    }
+  }
+  return out;
+};
+
 /**
  * The GST returns hub (P1-13d): one period, one GSTIN, and every return the month needs — what
  * was sold (GSTR-1), what is owed (GSTR-3B), what the suppliers filed (GSTR-2B), the decision on
@@ -37,13 +55,14 @@ import ImsWorkbench from "../components/ImsWorkbench";
  * They share a period and a registration because that is how the work is actually done: an
  * accountant closes a month across all of them rather than opening five screens.
  */
-type Tab = "gstr1" | "gstr3b" | "gstr2b" | "ims" | "gstr9";
+type Tab = "gstr1" | "gstr3b" | "gstr2b" | "ims" | "gstr9" | "itc04";
 const TABS: { key: Tab; label: string }[] = [
   { key: "gstr1", label: "GSTR-1" },
   { key: "gstr3b", label: "GSTR-3B" },
   { key: "gstr2b", label: "GSTR-2B" },
   { key: "ims", label: "IMS" },
   { key: "gstr9", label: "GSTR-9" },
+  { key: "itc04", label: "ITC-04" },
 ];
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -66,6 +85,9 @@ const GstReturnsPage: React.FC = () => {
   const [two, setTwo] = useState<Gstr2bSummary | null>(null);
   const [ims, setIms] = useState<Gstr2bRecordRow[]>([]);
   const [nine, setNine] = useState<Gstr9Return | null>(null);
+  const halfYears = useMemo(() => halfYearOptions(), []);
+  const [halfYear, setHalfYear] = useState(params.get("halfYear") || halfYears[0].value);
+  const [itc04, setItc04] = useState<Itc04Registered | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -83,13 +105,25 @@ const GstReturnsPage: React.FC = () => {
     const next = new URLSearchParams(params);
     next.set("tab", tab);
     next.set("period", period);
+    next.set("halfYear", halfYear);
     if (gstin) next.set("gstin", gstin);
     setParams(next, { replace: true });
     // The URL is the state here so a period can be linked to from a notification.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, period, gstin, fy]);
+  }, [tab, period, gstin, fy, halfYear]);
 
   const load = useCallback(async () => {
+    if (tab === "itc04") {
+      setLoading(true);
+      try {
+        setItc04(await jobWorkService.itc04(halfYear));
+      } catch (err) {
+        toast.error(message(err));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     if (!gstin) return;
     setLoading(true);
     try {
@@ -103,7 +137,7 @@ const GstReturnsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [tab, period, fy, gstin]);
+  }, [tab, period, fy, gstin, halfYear]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -114,6 +148,7 @@ const GstReturnsPage: React.FC = () => {
       if (tab === "gstr1") setGstr1(await gstReturnsService.gstr1Register(period, gstin));
       if (tab === "gstr3b") setGstr3b(await gstReturnsService.gstr3bRegister(period, gstin));
       if (tab === "gstr9") setNine(await gstReturnsService.gstr9Register(fy, gstin));
+      if (tab === "itc04") setItc04(await jobWorkService.registerItc04(halfYear));
       toast.success("Registered for approval");
     } catch (err) {
       toast.error(message(err));
@@ -162,6 +197,19 @@ const GstReturnsPage: React.FC = () => {
                 </option>
               ))}
             </select>
+          ) : tab === "itc04" ? (
+            <select
+              className={field}
+              value={halfYear}
+              onChange={(e) => setHalfYear(e.target.value)}
+              aria-label="Half year"
+            >
+              {halfYears.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           ) : (
             <select
               className={field}
@@ -179,11 +227,27 @@ const GstReturnsPage: React.FC = () => {
           <button className={secondary} onClick={() => void load()} disabled={loading}>
             Refresh
           </button>
-          {can("gst-returns.prepare") && tab !== "gstr2b" && tab !== "ims" && (
-            <button className={primary} onClick={() => void register()} disabled={busy || loading}>
-              Register for approval
-            </button>
-          )}
+          {tab === "itc04"
+            ? can("job-work.manage") && (
+                <button
+                  className={primary}
+                  onClick={() => void register()}
+                  disabled={busy || loading}
+                >
+                  Register for approval
+                </button>
+              )
+            : can("gst-returns.prepare") &&
+              tab !== "gstr2b" &&
+              tab !== "ims" && (
+                <button
+                  className={primary}
+                  onClick={() => void register()}
+                  disabled={busy || loading}
+                >
+                  Register for approval
+                </button>
+              )}
         </div>
       </header>
 
@@ -216,6 +280,52 @@ const GstReturnsPage: React.FC = () => {
         <ImsWorkbench rows={ims} period={period} gstin={gstin} onDecide={decide} onChange={load} />
       )}
       {tab === "gstr9" && nine && <Gstr9View ret={nine} />}
+      {tab === "itc04" && itc04 && (
+        <Card
+          title={`ITC-04 · ${itc04.from} to ${itc04.to}`}
+          actions={
+            itc04.json && (
+              <button
+                className={secondary}
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(itc04.json, null, 2)], {
+                    type: "application/json",
+                  });
+                  window.open(URL.createObjectURL(blob), "_blank");
+                }}
+              >
+                Download JSON
+              </button>
+            )
+          }
+        >
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ["Challans sent", String(itc04.totals.challansIssued)],
+              ["Quantity sent", String(itc04.totals.quantitySent)],
+              ["Value sent", money(itc04.totals.valueSent)],
+              ["Received back", String(itc04.totals.challansReceived)],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-line-soft bg-card-2 p-3">
+                <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
+                <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-ink-muted">
+            Table 4 (sent), 5A (received back), 5B (worker to worker) and 5C (direct supply) are on
+            the Job Work screen's ITC-04 tab, line by line.
+          </p>
+          {itc04.filing && (
+            <div className="mt-3">
+              <ApprovalPanel
+                row={itc04.filing}
+                onChange={(f) => setItc04({ ...itc04, filing: f })}
+              />
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 };

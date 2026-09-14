@@ -4,7 +4,13 @@
  * authentication and the response envelope; the document mapping lives in
  * `e-invoice.payload.ts` and is provider-independent.
  */
-export type EInvoiceDocType = "INV" | "CRN" | "DBN";
+/**
+ * "JWC" (job-work challan) never has an e-invoice row — a challan carries no tax, nothing is
+ * supplied — but it is a valid `docType` so `assertDocumentCancellable` can be called on it like
+ * any other document's cancel path (P2-08); `forDocument` then always finds nothing and the
+ * check is a no-op.
+ */
+export type EInvoiceDocType = "INV" | "CRN" | "DBN" | "JWC";
 
 export interface IrnAddress {
   Gstin: string;

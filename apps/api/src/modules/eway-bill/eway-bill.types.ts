@@ -3,7 +3,7 @@
  * portal's "generate e-way bill by IRN" call; providers carry transport and the response
  * envelope, the mapping from Shiftline documents lives in `eway-bill.payload.ts`.
  */
-export type EwbDocType = "INV" | "CHL";
+export type EwbDocType = "INV" | "CHL" | "JWC";
 
 /** 1 road, 2 rail, 3 air, 4 ship */
 export type TransMode = "1" | "2" | "3" | "4";

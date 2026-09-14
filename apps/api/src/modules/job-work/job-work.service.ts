@@ -6,6 +6,9 @@ import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { valuationService } from "../costing/valuation.service";
 import { documentNumberService } from "../documents/document-number.service";
+import { eInvoiceService } from "../e-invoice/e-invoice.service";
+import { ewayBillService } from "../eway-bill/eway-bill.service";
+import { filingApprovalService, hashPayload } from "../filings/filing-approval.service";
 import { splitGst, supplyTypeFor } from "../gst/gst.calc";
 import { companyGstProfile, resolveIssuingPlace, stateOfGstin } from "../gst/gst.context";
 import { notify } from "../notifications/notify";
@@ -66,12 +69,24 @@ export interface ChallanItemInput {
   quantity: number;
   rate?: number | null;
   gstRate?: number | null;
+  /**
+   * On a `JOB_WORK_RETURN` line: the parent challan's line this one is returning against. When
+   * set, `quantity` is posted to the parent's `quantityReturned` and `scrap` to its
+   * `quantityScrap` in the same transaction the return challan is created in — the one-step
+   * receipt. Omitted, the line is recorded on the return challan only and the separate
+   * `receive` endpoint still applies it to the parent, as before.
+   */
+  parentItemId?: string | null;
+  /** Scrap recorded together with this return (only meaningful with `parentItemId` set). */
+  scrap?: number;
 }
 
 export interface ChallanInput {
   kind: ChallanKind;
   challanDate: string | Date;
   jobWorkerId?: string | null;
+  /** ITC-04 table 5B: the worker the goods leave from, when this moves worker to worker. */
+  fromJobWorkerId?: string | null;
   parentChallanId?: string | null;
   businessPlaceId?: string | number | null;
   toBusinessPlaceId?: string | number | null;
@@ -195,6 +210,8 @@ class JobWorkService {
         uom: i.uom ?? null,
         hsnCode: i.hsnCode ?? null,
         quantitySent: qty,
+        quantityScrap: n3(i.scrap ?? 0),
+        parentItemId: i.parentItemId ?? null,
         rate,
         taxableAmount: lineValue,
         gstRate,
@@ -202,7 +219,57 @@ class JobWorkService {
     });
 
     const capitalGoods = Boolean(input.capitalGoods);
+    const isReturn = input.kind === "JOB_WORK_RETURN";
     return prisma.$transaction(async (tx) => {
+      // The one-step receipt: a return raised against a parent posts to its lines here, in the
+      // same transaction, instead of a separate `receive` call afterwards.
+      let parentId: string | null = null;
+      const deltas = new Map<string, { returned: number; scrap: number }>();
+      if (isReturn && input.parentChallanId) {
+        const parent = await tx.deliveryChallan.findUnique({
+          where: { id: input.parentChallanId },
+          include: { items: true },
+        });
+        if (!parent) throw new ApiError(404, "The parent challan does not exist");
+        if (parent.cancelledAt) {
+          throw new ApiError(409, "The parent challan was cancelled", "CANCELLED");
+        }
+        if (parent.kind !== "JOB_WORK_OUT") {
+          throw new ApiError(400, "Only a job-work challan takes goods back", "NOT_JOB_WORK");
+        }
+        const byId = new Map(parent.items.map((i) => [i.id, i]));
+        for (const i of input.items) {
+          if (!i.parentItemId) continue;
+          if (!byId.has(i.parentItemId)) {
+            throw new ApiError(404, `Line ${i.parentItemId} is not on the parent challan`);
+          }
+          const d = deltas.get(i.parentItemId) ?? { returned: 0, scrap: 0 };
+          d.returned = n3(d.returned + n3(i.quantity));
+          d.scrap = n3(d.scrap + n3(i.scrap ?? 0));
+          deltas.set(i.parentItemId, d);
+        }
+        for (const [pid, d] of deltas) {
+          const pItem = byId.get(pid)!;
+          const total = n3(
+            Number(pItem.quantityReturned) +
+              Number(pItem.quantityConsumed) +
+              Number(pItem.quantityScrap) +
+              Number(pItem.quantityDirectSupply) +
+              d.returned +
+              d.scrap
+          );
+          if (total > n3(pItem.quantitySent) + 0.0005) {
+            throw new ApiError(
+              400,
+              `More was accounted for than was sent on that line (${n3(pItem.quantitySent)} sent)`,
+              "OVER_RECEIVED",
+              { itemId: pid, sent: n3(pItem.quantitySent) }
+            );
+          }
+        }
+        parentId = parent.id;
+      }
+
       const challanNo = await documentNumberService.next(
         input.kind === "JOB_WORK_OUT" || input.kind === "JOB_WORK_RETURN"
           ? "JOB_WORK_CHALLAN"
@@ -215,6 +282,7 @@ class JobWorkService {
           challanDate: date,
           kind: input.kind,
           jobWorkerId: input.jobWorkerId ?? null,
+          fromJobWorkerId: input.fromJobWorkerId ?? null,
           parentChallanId: input.parentChallanId ?? null,
           businessPlaceId: place.id,
           toBusinessPlaceId: input.toBusinessPlaceId ? BigInt(input.toBusinessPlaceId) : null,
@@ -281,6 +349,18 @@ class JobWorkService {
         }
       }
 
+      if (parentId) {
+        for (const [pid, d] of deltas) {
+          await tx.deliveryChallanItem.update({
+            where: { id: pid },
+            data: {
+              quantityReturned: { increment: d.returned },
+              quantityScrap: { increment: d.scrap },
+            },
+          });
+        }
+        await this.restate(tx, parentId, actor);
+      }
       return created;
     });
   }
@@ -294,7 +374,16 @@ class JobWorkService {
     challanId: string,
     input: {
       receivedOn?: string | Date;
-      lines: { itemId: string; returned?: number; consumed?: number; scrap?: number }[];
+      lines: {
+        itemId: string;
+        returned?: number;
+        consumed?: number;
+        scrap?: number;
+        /** ITC-04 table 5C: supplied directly from the job worker's premises, not returned. */
+        directSupply?: number;
+        directSupplyInvoiceNo?: string | null;
+        directSupplyInvoiceDate?: string | Date | null;
+      }[];
     },
     actor: { userId?: string }
   ) {
@@ -316,7 +405,8 @@ class JobWorkService {
       const returned = n3(item.quantityReturned) + n3(line.returned ?? 0);
       const consumed = n3(item.quantityConsumed) + n3(line.consumed ?? 0);
       const scrap = n3(item.quantityScrap) + n3(line.scrap ?? 0);
-      if (n3(returned + consumed + scrap) > n3(item.quantitySent) + 0.0005) {
+      const directSupply = n3(item.quantityDirectSupply) + n3(line.directSupply ?? 0);
+      if (n3(returned + consumed + scrap + directSupply) > n3(item.quantitySent) + 0.0005) {
         throw new ApiError(
           400,
           `More was accounted for than was sent on that line (${n3(item.quantitySent)} sent)`,
@@ -336,6 +426,17 @@ class JobWorkService {
             quantityReturned: n3(Number(item.quantityReturned) + Number(line.returned ?? 0)),
             quantityConsumed: n3(Number(item.quantityConsumed) + Number(line.consumed ?? 0)),
             quantityScrap: n3(Number(item.quantityScrap) + Number(line.scrap ?? 0)),
+            quantityDirectSupply: n3(
+              Number(item.quantityDirectSupply) + Number(line.directSupply ?? 0)
+            ),
+            ...(line.directSupply
+              ? {
+                  directSupplyInvoiceNo: line.directSupplyInvoiceNo ?? item.directSupplyInvoiceNo,
+                  directSupplyInvoiceDate: line.directSupplyInvoiceDate
+                    ? new Date(line.directSupplyInvoiceDate)
+                    : item.directSupplyInvoiceDate,
+                }
+              : {}),
           },
         });
 
@@ -400,6 +501,75 @@ class JobWorkService {
     });
   }
 
+  /**
+   * Cancels a challan: refused once a return has been recorded against it (its own lines, or a
+   * child return challan not itself cancelled), goes through the same e-invoice cancellability
+   * gate as any other document, and takes any live e-way bill down with it. A cancelled return
+   * challan reverses what it posted to its parent. Never deleted (MCA Rule 3(1)).
+   */
+  async cancel(challanId: string, reason: string, actor: { userId?: string }) {
+    const challan = await prisma.deliveryChallan.findUnique({
+      where: { id: challanId },
+      include: { items: true, returns: true },
+    });
+    if (!challan) throw new ApiError(404, "That challan does not exist");
+    if (challan.cancelledAt) {
+      throw new ApiError(409, `${challan.challanNo} is already cancelled`, "ALREADY_CANCELLED");
+    }
+    if (challan.kind === "JOB_WORK_OUT") {
+      const returnRecorded =
+        challan.status !== "OPEN" || challan.returns.some((r) => !r.cancelledAt);
+      if (returnRecorded) {
+        throw new ApiError(
+          409,
+          `A return has been recorded against ${challan.challanNo}; it cannot be cancelled`,
+          "RETURN_RECORDED"
+        );
+      }
+    }
+
+    await eInvoiceService.assertDocumentCancellable("JWC", challanId);
+
+    const liveEwb = await ewayBillService.activeFor("JWC", challanId);
+    if (liveEwb) {
+      await ewayBillService.cancel(
+        liveEwb.id,
+        "2",
+        `Job-work challan ${challan.challanNo} cancelled: ${reason}`.slice(0, 100),
+        actor
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      // A return challan being cancelled gives back what it posted to its parent.
+      if (challan.kind === "JOB_WORK_RETURN" && challan.parentChallanId) {
+        for (const it of challan.items) {
+          if (!it.parentItemId) continue;
+          await tx.deliveryChallanItem.update({
+            where: { id: it.parentItemId },
+            data: {
+              // On a return challan's own line, `quantitySent` is the quantity being returned
+              // and `quantityScrap` the scrap recorded alongside it (see `create`).
+              quantityReturned: { decrement: n3(it.quantitySent) },
+              quantityScrap: { decrement: n3(it.quantityScrap) },
+            },
+          });
+        }
+        await this.restate(tx, challan.parentChallanId, actor);
+      }
+      return tx.deliveryChallan.update({
+        where: { id: challanId },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelledBy: actor.userId ?? null,
+          cancelReason: reason.slice(0, 255),
+        },
+        include: { items: true, jobWorker: true },
+      });
+    });
+  }
+
   /** Sets the challan's status from what its lines now say. */
   private async restate(
     tx: Prisma.TransactionClient,
@@ -410,7 +580,11 @@ class JobWorkService {
     const sent = items.reduce((s, i) => s + Number(i.quantitySent), 0);
     const back = items.reduce(
       (s, i) =>
-        s + Number(i.quantityReturned) + Number(i.quantityConsumed) + Number(i.quantityScrap),
+        s +
+        Number(i.quantityReturned) +
+        Number(i.quantityConsumed) +
+        Number(i.quantityScrap) +
+        Number(i.quantityDirectSupply),
       0
     );
     const status = back <= 0 ? "OPEN" : n3(back) >= n3(sent) - 0.0005 ? "CLOSED" : "PART_RETURNED";
@@ -442,8 +616,10 @@ class JobWorkService {
         quantityReturned: unknown;
         quantityConsumed: unknown;
         quantityScrap: unknown;
+        quantityDirectSupply: unknown;
       }[];
       returnDueDate: Date | null;
+      cancelledAt: Date | null;
     },
   >(row: T) {
     const items = row.items.map((i) => ({
@@ -452,7 +628,8 @@ class JobWorkService {
         Number(i.quantitySent) -
           Number(i.quantityReturned) -
           Number(i.quantityConsumed) -
-          Number(i.quantityScrap)
+          Number(i.quantityScrap) -
+          Number(i.quantityDirectSupply)
       ),
     }));
     const pending = n3(items.reduce((s, i) => s + i.balance, 0));
@@ -462,9 +639,10 @@ class JobWorkService {
     return {
       ...row,
       items,
-      pendingQuantity: pending,
+      // A cancelled challan carries no credit at risk: it is never overdue.
+      pendingQuantity: row.cancelledAt ? 0 : pending,
       daysToReturn: daysLeft,
-      overdue: pending > 0 && daysLeft !== null && daysLeft < 0,
+      overdue: !row.cancelledAt && pending > 0 && daysLeft !== null && daysLeft < 0,
     };
   }
 
@@ -503,7 +681,10 @@ class JobWorkService {
    * auditor asks for, and the one that shows the credit at risk.
    */
   async register(params: { from?: Date; to?: Date; jobWorkerId?: string } = {}) {
-    const rows = await this.list({ ...params, kind: "JOB_WORK_OUT" });
+    // A cancelled challan carries no credit at risk and no deadline to chase.
+    const rows = (await this.list({ ...params, kind: "JOB_WORK_OUT" })).filter(
+      (r) => r.status !== "CANCELLED"
+    );
     const byWorker = new Map<
       string,
       {
@@ -533,9 +714,66 @@ class JobWorkService {
   }
 
   /**
-   * ITC-04 for a half-year: goods sent to a job worker (table 4) and goods received back
-   * (table 5A). The return is per half-year — April to September, October to March — and the
-   * period key is `2026-H1` or `2026-H2`.
+   * The ITC-04 portal JSON, in the offline utility's shape — schema version `GST-ITC04-2.1`,
+   * field names abbreviated the way the GSTR-1 builder's are (`chln_no`, `taxable_val`, …), since
+   * the department has not published a machine-readable schema to match byte-for-byte.
+   */
+  private async itc04Json(halfYearKey: string, tables: Awaited<ReturnType<typeof this.itc04>>) {
+    const profile = await companyGstProfile(prisma);
+    return {
+      gstin: profile.gstin ?? "",
+      fp: halfYearKey,
+      version: "GST-ITC04-2.1",
+      table4: tables.table4.map((r) => ({
+        jw_gstin: r.jobWorkerGstin,
+        jw_regd: r.registered,
+        chln_no: r.challanNo,
+        chln_dt: r.challanDate,
+        hsn_cd: r.hsnCode,
+        desc: r.description,
+        uqc: r.uom,
+        qty: r.quantity,
+        taxable_val: r.taxable,
+        cap_goods: r.capitalGoods,
+      })),
+      table5a: tables.table5A.map((r) => ({
+        jw_gstin: r.jobWorkerGstin,
+        chln_no: r.challanNo,
+        chln_dt: r.challanDate,
+        orig_chln_no: r.originalChallanNo,
+        orig_chln_dt: r.originalChallanDate,
+        desc: r.description,
+        uqc: r.uom,
+        qty: r.quantity,
+      })),
+      table5b: tables.table5B.map((r) => ({
+        from_jw_gstin: r.fromJobWorkerGstin,
+        to_jw_gstin: r.toJobWorkerGstin,
+        chln_no: r.challanNo,
+        chln_dt: r.challanDate,
+        desc: r.description,
+        uqc: r.uom,
+        qty: r.quantity,
+        taxable_val: r.taxable,
+      })),
+      table5c: tables.table5C.map((r) => ({
+        jw_gstin: r.jobWorkerGstin,
+        chln_no: r.challanNo,
+        chln_dt: r.challanDate,
+        inv_no: r.invoiceNo,
+        inv_dt: r.invoiceDate,
+        desc: r.description,
+        uqc: r.uom,
+        qty: r.quantity,
+      })),
+    };
+  }
+
+  /**
+   * ITC-04 for a half-year: goods sent to a job worker (table 4), received back (table 5A),
+   * moved from one job worker to another (table 5B) and supplied directly from a job worker's
+   * premises (table 5C). The return is per half-year — April to September, October to March —
+   * and the period key is `2026-H1` or `2026-H2`.
    */
   async itc04(halfYearKey: string) {
     const m = halfYearKey.match(/^(\d{4})-H([12])$/);
@@ -561,6 +799,31 @@ class JobWorkService {
         parentChallan: { select: { challanNo: true, challanDate: true } },
       },
       orderBy: { challanDate: "asc" },
+    });
+
+    // Table 5B: movements between two job workers, marked by `fromJobWorkerId` on the challan.
+    const transferred = await prisma.deliveryChallan.findMany({
+      where: {
+        fromJobWorkerId: { not: null },
+        challanDate: { gte: from, lt: to },
+        cancelledAt: null,
+      },
+      include: { items: true, jobWorker: true, fromJobWorker: true },
+      orderBy: { challanDate: "asc" },
+    });
+
+    // Table 5C: supplied directly from the job worker's premises, recorded per line.
+    const directSupplied = await prisma.deliveryChallanItem.findMany({
+      where: {
+        quantityDirectSupply: { gt: 0 },
+        challan: { kind: "JOB_WORK_OUT", cancelledAt: null },
+        OR: [
+          { directSupplyInvoiceDate: { gte: from, lt: to } },
+          { directSupplyInvoiceDate: null, challan: { challanDate: { gte: from, lt: to } } },
+        ],
+      },
+      include: { challan: { include: { jobWorker: true } } },
+      orderBy: { challanId: "asc" },
     });
 
     const line = (c: (typeof sent)[number]) =>
@@ -598,6 +861,30 @@ class JobWorkService {
           quantity: n3(i.quantitySent),
         }))
       ),
+      /** Table 5B: goods sent from one job worker to another. */
+      table5B: transferred.flatMap((c) =>
+        c.items.map((i) => ({
+          challanNo: c.challanNo,
+          challanDate: c.challanDate.toISOString().slice(0, 10),
+          fromJobWorkerGstin: c.fromJobWorker?.gstin ?? null,
+          toJobWorkerGstin: c.jobWorker?.gstin ?? null,
+          description: i.description ?? i.rawMaterialId ?? "",
+          uom: i.uom,
+          quantity: n3(i.quantitySent),
+          taxable: n2(i.taxableAmount),
+        }))
+      ),
+      /** Table 5C: goods supplied directly from the job worker's premises. */
+      table5C: directSupplied.map((i) => ({
+        challanNo: i.challan.challanNo,
+        challanDate: i.challan.challanDate.toISOString().slice(0, 10),
+        jobWorkerGstin: i.challan.jobWorker?.gstin ?? null,
+        invoiceNo: i.directSupplyInvoiceNo,
+        invoiceDate: i.directSupplyInvoiceDate?.toISOString().slice(0, 10) ?? null,
+        description: i.description ?? i.rawMaterialId ?? "",
+        uom: i.uom,
+        quantity: n3(i.quantityDirectSupply),
+      })),
       totals: {
         challansIssued: sent.length,
         quantitySent: n3(
@@ -605,8 +892,49 @@ class JobWorkService {
         ),
         valueSent: n2(sent.reduce((s, c) => s + Number(c.taxable), 0)),
         challansReceived: received.length,
+        challansTransferred: transferred.length,
+        directSupplyLines: directSupplied.length,
       },
     };
+  }
+
+  /** Registers (or refreshes) the half-year on the filing gate with a hash of the ITC-04 JSON. */
+  async registerItc04(halfYearKey: string, actor: { userId?: string }) {
+    const tables = await this.itc04(halfYearKey);
+    const json = await this.itc04Json(halfYearKey, tables);
+    const payloadHash = hashPayload(json);
+    const row = await filingApprovalService.upsertDraft(
+      {
+        filingType: "ITC04",
+        periodKey: halfYearKey,
+        businessPlaceId: null,
+        payloadHash,
+        summary: {
+          challansSent: tables.totals.challansIssued,
+          quantitySent: tables.totals.quantitySent,
+          valueSent: tables.totals.valueSent,
+          challansReceived: tables.totals.challansReceived,
+          challansTransferred: tables.totals.challansTransferred,
+          directSupplyLines: tables.totals.directSupplyLines,
+        },
+      },
+      actor
+    );
+    return { ...tables, json, payloadHash, filing: row };
+  }
+
+  /** The gate: approved and unchanged since approval; then the period is marked filed. */
+  async markItc04Filed(
+    halfYearKey: string,
+    submissionRef: string | null,
+    actor: { userId?: string }
+  ) {
+    const tables = await this.itc04(halfYearKey);
+    const json = await this.itc04Json(halfYearKey, tables);
+    const payloadHash = hashPayload(json);
+    const gate = await filingApprovalService.assertSubmittable("ITC04", halfYearKey, payloadHash);
+    const row = await filingApprovalService.markSubmitted(gate.id, submissionRef, actor);
+    return { ...tables, json, payloadHash, filing: row };
   }
 
   /**
