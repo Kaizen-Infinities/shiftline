@@ -68,6 +68,92 @@ const createVoucher = async (
 };
 
 export const assetPosting = {
+  /**
+   * One opening-balance journal for one asset class (P2-07): Dr the asset at cost, Cr the
+   * accumulated depreciation given, Cr the opening-balance equity for what is left of the cost.
+   * `createVoucher` already returns the existing voucher rather than posting twice, which is what
+   * makes "only when the class has no opening yet" true without a separate check here.
+   */
+  async openingBalanceForClass(
+    db: Db,
+    cls: {
+      id: string;
+      code: string;
+      name: string;
+      assetLedgerCode: string;
+      accumDepLedgerCode: string;
+    },
+    totals: { cost: number; accumulatedDepreciation: number },
+    on: Date,
+    createdBy?: string
+  ) {
+    if (totals.cost <= 0) return null;
+    const assetLedger = await ledgerByCode(db, cls.assetLedgerCode);
+    const eqLedger = await ledgerByCode(db, "EQ-001");
+    const items: Line[] = [debit(assetLedger.id, totals.cost, `Opening cost — ${cls.name}`)];
+    const accum = D(totals.accumulatedDepreciation).toNumber();
+    if (accum > 0) {
+      const accumLedger = await ledgerByCode(db, cls.accumDepLedgerCode);
+      items.push(credit(accumLedger.id, accum, `Opening accumulated depreciation — ${cls.name}`));
+    }
+    const wdv = D(totals.cost - accum).toNumber();
+    if (wdv > 0) items.push(credit(eqLedger.id, wdv, `Opening written-down value — ${cls.name}`));
+
+    return createVoucher(
+      db,
+      {
+        voucherNo: `FA-OP-${cls.code}`,
+        type: VoucherType.JOURNAL,
+        date: on,
+        narration: `Opening balance — ${cls.name}`,
+        refDocType: "ASSET_OPENING_BALANCE",
+        refDocId: cls.id,
+        createdBy: createdBy ?? null,
+        items: { create: items },
+      },
+      "ASSET_OPENING_BALANCE",
+      cls.id
+    );
+  },
+
+  /**
+   * Moves cost off a purchase or expense ledger and onto the asset ledger (P2-07): the amount
+   * that was debited to `PURCH-001` or `EXP-001` for this line becomes the asset's opening cost
+   * instead.
+   */
+  async capitalise(
+    db: Db,
+    asset: { id: string; code: string; name: string; assetLedgerCode: string },
+    amount: number,
+    sourceLedgerCode: string,
+    on: Date,
+    createdBy?: string
+  ) {
+    if (amount <= 0) return null;
+    const assetLedger = await ledgerByCode(db, asset.assetLedgerCode);
+    const sourceLedger = await ledgerByCode(db, sourceLedgerCode);
+    return createVoucher(
+      db,
+      {
+        voucherNo: `FA-CAP-${asset.code}`,
+        type: VoucherType.JOURNAL,
+        date: on,
+        narration: `Capitalised as ${asset.name}`,
+        refDocType: "ASSET_CAPITALISATION",
+        refDocId: asset.id,
+        createdBy: createdBy ?? null,
+        items: {
+          create: [
+            debit(assetLedger.id, amount, `Capitalised as ${asset.name}`),
+            credit(sourceLedger.id, amount, `Capitalised as ${asset.name}`),
+          ],
+        },
+      },
+      "ASSET_CAPITALISATION",
+      asset.id
+    );
+  },
+
   /** One journal for the month, with a debit and a credit per class. */
   async depreciation(
     db: Db,

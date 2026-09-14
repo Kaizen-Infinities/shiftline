@@ -4671,6 +4671,7 @@ enum DepreciationRunStatus {
   DRAFT
   POSTED
   CANCELLED
+  REVERSED
 }
 
 /// A class of asset (P1-18): what its useful life is under Schedule II, and which income-tax
@@ -4733,6 +4734,14 @@ model FixedAsset {
   /// Where it was capitalised from, when it came off a bill rather than being typed.
   sourceDocType           String?            @map("source_doc_type") @db.VarChar(20)
   sourceDocId             String?            @map("source_doc_id") @db.VarChar(40)
+  /// The specific line on the source document (a GRN line), when capitalisation is line-level.
+  sourceLineId            String?            @map("source_line_id") @db.VarChar(40)
+  /// True for an asset brought in by the opening-balance import (P2-07) rather than bought after
+  /// the books began; its accumulated depreciation is what the import said, not what has been run.
+  openingBalance          Boolean            @default(false) @map("opening_balance")
+  /// The income-tax written-down value at the moment of an opening-balance import — the pool
+  /// figure the block report starts from, since section 32 depreciation is a pool, not per asset.
+  openingItWdv            Decimal?           @map("opening_it_wdv") @db.Decimal(14, 2)
   supplierId              Int?               @map("supplier_id")
   disposedOn              DateTime?          @map("disposed_on") @db.Date
   disposalProceeds        Decimal            @default(0) @map("disposal_proceeds") @db.Decimal(14, 2)
@@ -4795,6 +4804,11 @@ model DepreciationRun {
   preparedBy  String?               @map("prepared_by") @db.VarChar(36)
   postedBy    String?               @map("posted_by") @db.VarChar(36)
   postedAt    DateTime?             @map("posted_at") @db.Timestamptz(6)
+  /// Set when the run is reversed (P2-07): the reversal voucher cancels the original one and
+  /// every asset's accumulated depreciation is moved back.
+  reversedBy  String?               @map("reversed_by") @db.VarChar(36)
+  reversedAt  DateTime?             @map("reversed_at") @db.Timestamptz(6)
+  reversalVoucherId Int?            @map("reversal_voucher_id")
   notes       String?               @db.VarChar(255)
   createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)

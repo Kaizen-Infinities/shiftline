@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
+import { ApiError } from "../../utils/ApiError";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { assetService } from "./asset.service";
@@ -175,6 +176,90 @@ router.post(
   })
 );
 
+// ── Opening balances (P2-07) ────────────────────────────────────────────────────
+const openingRow = z.record(z.string(), z.union([z.string(), z.number()])).transform((r) => {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(r)) if (v !== undefined && v !== null) out[k] = String(v);
+  return out;
+});
+
+router.post(
+  "/opening",
+  requirePermission("assets.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = openingRow.parse(req.body ?? {});
+    res
+      .status(201)
+      .json(
+        new ApiResponse(
+          "Asset added to the register",
+          await assetService.createOpening(body, actorOf(req))
+        )
+      );
+  })
+);
+
+router.post(
+  "/opening/import",
+  requirePermission("assets.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z
+      .object({
+        csv: z.string().max(2_000_000).optional(),
+        rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))).optional(),
+      })
+      .refine((b) => !!b.csv || !!b.rows, "Send csv or rows")
+      .parse(req.body ?? {});
+    let rows: Partial<Record<string, string>>[];
+    if (body.rows) {
+      rows = body.rows.map((r) => openingRow.parse(r));
+    } else {
+      const { parseOpeningCsv } = await import("./asset.opening.js");
+      const parsed = parseOpeningCsv(body.csv as string);
+      if (parsed.headerErrors.length > 0) {
+        throw new ApiError(400, "The sheet is missing required columns", "OPENING_IMPORT_HEADERS", {
+          errors: parsed.headerErrors,
+        });
+      }
+      rows = parsed.rows;
+    }
+    res.json(
+      new ApiResponse(
+        "Opening balances imported",
+        await assetService.importOpening(rows, actorOf(req))
+      )
+    );
+  })
+);
+
+// ── Capitalisation from a document (P2-07) ──────────────────────────────────────
+router.post(
+  "/capitalise",
+  requirePermission("assets.create"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z
+      .object({
+        sourceDocType: z.enum(["GRN_INVOICE", "EXPENSE"]),
+        sourceDocId: z.string().min(1).max(40),
+        lineId: z.string().max(40).optional(),
+        classId: z.string().uuid(),
+        code: z.string().min(1).max(30),
+        name: z.string().min(1).max(160),
+        capitalisedOn: z.string().optional(),
+        businessPlaceId: z.string().optional().nullable(),
+        quantity: z.coerce.number().positive().optional(),
+        serialNo: z.string().max(80).optional().nullable(),
+        location: z.string().max(120).optional().nullable(),
+        cost: z.coerce.number().positive().optional(),
+        notes: z.string().max(255).optional().nullable(),
+      })
+      .parse(req.body);
+    res
+      .status(201)
+      .json(new ApiResponse("Capitalised", await assetService.capitalise(body, actorOf(req))));
+  })
+);
+
 // ── Depreciation ──────────────────────────────────────────────────────────────
 router.get(
   "/depreciation/runs",
@@ -218,6 +303,19 @@ router.post(
       new ApiResponse(
         "Depreciation posted",
         await assetService.postRun(idParam.parse(req.params.id), actorOf(req))
+      )
+    );
+  })
+);
+
+router.post(
+  "/depreciation-runs/:id/reverse",
+  requirePermission("assets.depreciate"),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(
+      new ApiResponse(
+        "Depreciation run reversed",
+        await assetService.reverseRun(idParam.parse(req.params.id), actorOf(req))
       )
     );
   })

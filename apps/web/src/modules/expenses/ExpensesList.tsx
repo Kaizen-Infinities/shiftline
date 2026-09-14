@@ -18,6 +18,7 @@ import ExpensesCreate from "./Expensescreate";
 import { useExpenses } from "../../hooks/useExpenses";
 import CommonModal from "../../components/ui/Modal/CommonModal";
 import { useSocketSync } from "../../hooks/useSocketSync";
+import { assetService, type AssetClassRow } from "../../services/assetService";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -42,6 +43,7 @@ const ExpensesList: React.FC = () => {
     useExpenses();
   const { can } = usePermission();
   const [rejecting, setRejecting] = useState<string | null>(null);
+  const [capitalising, setCapitalising] = useState<Expense | null>(null);
 
   const [viewMode, setViewMode] = useState<"list" | "create" | "edit">("list");
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -350,6 +352,16 @@ const ExpensesList: React.FC = () => {
                         </button>
                       </>
                     )}
+                    {s === "Approved" && can("assets.create") && (
+                      <button
+                        type="button"
+                        className="rounded border border-line px-2 py-1 text-[11px] font-semibold text-ink hover:bg-card-2"
+                        onClick={() => setCapitalising(item)}
+                        title="Put this expense on the fixed-asset register instead of the P&L"
+                      >
+                        Capitalise as asset
+                      </button>
+                    )}
                     {open && can("expenses.delete") && (
                       <DeleteButton onClick={() => triggerDelete(item.id)} />
                     )}
@@ -495,6 +507,123 @@ const ExpensesList: React.FC = () => {
           message="The claimant sees the reason and can correct and resubmit the claim."
           confirmText="Reject claim"
         />
+        {capitalising && (
+          <CapitaliseExpenseDialog
+            expense={capitalising}
+            onCancel={() => setCapitalising(null)}
+            onDone={() => {
+              setCapitalising(null);
+              toast.success("Capitalised as a fixed asset");
+              loadExpenses();
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+/** Moves an approved expense's cost onto the fixed-asset register instead of the P&L (P2-07). */
+const CapitaliseExpenseDialog: React.FC<{
+  expense: Expense;
+  onCancel: () => void;
+  onDone: () => void;
+}> = ({ expense, onCancel, onDone }) => {
+  const [classes, setClasses] = useState<AssetClassRow[]>([]);
+  const [classId, setClassId] = useState("");
+  const [code, setCode] = useState("");
+  const [name, setName] = useState(expense.expense);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void assetService.classes().then((rows) => {
+      setClasses(rows);
+      if (rows[0]) setClassId(rows[0].id);
+    });
+  }, []);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await assetService.capitalise({
+        sourceDocType: "EXPENSE",
+        sourceDocId: expense.id,
+        classId,
+        code: code.trim(),
+        name: name.trim(),
+      });
+      onDone();
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "Could not capitalise this expense"
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-xl border border-line-soft bg-card p-4">
+        <h2 className="text-lg font-semibold text-ink">Capitalise as an asset</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          {expense.expense} — ₹
+          {parseFloat(expense.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}. The
+          cost moves off the expense ledger and onto the asset ledger.
+        </p>
+        <div className="mt-3 grid grid-cols-1 gap-3">
+          <label className="text-sm text-ink-muted">
+            Asset class
+            <select
+              className="mt-1 w-full rounded border border-line px-2 py-1.5 text-sm"
+              value={classId}
+              onChange={(e) => setClassId(e.target.value)}
+            >
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.usefulLifeYears} yrs, {c.method})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-ink-muted">
+            Asset code
+            <input
+              className="mt-1 w-full rounded border border-line px-2 py-1.5 text-sm"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="FA-0001"
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Asset name
+            <input
+              className="mt-1 w-full rounded border border-line px-2 py-1.5 text-sm"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+        </div>
+        {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            className="rounded border border-line px-3 py-1.5 text-sm font-semibold text-ink"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+            disabled={busy || !classId || !code.trim() || !name.trim()}
+            onClick={submit}
+          >
+            Capitalise
+          </button>
+        </div>
       </div>
     </div>
   );

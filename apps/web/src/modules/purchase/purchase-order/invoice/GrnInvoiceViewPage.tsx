@@ -11,6 +11,8 @@ import CustomButton from "../../../../components/ui/Button/Button";
 import SearchInput from "../../../../components/ui/SearchInput/SearchInput";
 import { fetchCompany } from "../../../../features/company/companySlice";
 import CommonLoader from "../../../../components/ui/Loader/CommonLoader";
+import { usePermission } from "../../../../hooks/usePermission";
+import { assetService, type AssetClassRow } from "../../../../services/assetService";
 
 // ─── Formatting helpers ─────────────────────────────────────────────────
 const formatMoney = (val: string | number | null | undefined) => {
@@ -94,6 +96,10 @@ const GrnInvoiceViewPage: React.FC = () => {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const { can } = usePermission();
+  const [capitalisingLine, setCapitalisingLine] = useState<{ id: string; label: string } | null>(
+    null
+  );
 
   // Fetch company settings on mount
   useEffect(() => {
@@ -761,9 +767,58 @@ const GrnInvoiceViewPage: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Capitalise a line as a fixed asset (P2-07) */}
+            {can("assets.create") && itemsWithTax.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200 no-print">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                  Capitalise as a fixed asset
+                </div>
+                <div className="flex flex-col gap-2">
+                  {itemsWithTax.map((item: any, idx: number) => (
+                    <div
+                      key={item.id || idx}
+                      className="flex items-center justify-between gap-3 rounded border border-gray-200 px-3 py-2 text-sm"
+                    >
+                      <span>
+                        {item.rawMaterial?.materialName || item.description || "Line " + (idx + 1)}
+                        {" — "}
+                        {formatMoney(item.amount)}
+                      </span>
+                      <button
+                        type="button"
+                        className="rounded border border-blue-300 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                        disabled={!item.id}
+                        onClick={() =>
+                          setCapitalisingLine({
+                            id: item.id,
+                            label: item.rawMaterial?.materialName || item.description || "",
+                          })
+                        }
+                      >
+                        Capitalise as asset
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {capitalisingLine && selectedItem && (
+        <CapitaliseGrnLineDialog
+          grnId={selectedItem.id}
+          lineId={capitalisingLine.id}
+          label={capitalisingLine.label}
+          onCancel={() => setCapitalisingLine(null)}
+          onDone={() => {
+            setCapitalisingLine(null);
+            toast.success("Capitalised as a fixed asset");
+          }}
+        />
+      )}
 
       {/* Cancel with reason (P1-10d) */}
       <CancelReasonModal
@@ -804,5 +859,112 @@ const Td: React.FC<{ children?: React.ReactNode; align?: "left" | "center" | "ri
 }) => (
   <td className={`border border-black px-2.5 py-1.5 align-middle text-${align}`}>{children}</td>
 );
+
+/** Moves a GRN line's cost off the purchase ledger and onto the fixed-asset register (P2-07). */
+const CapitaliseGrnLineDialog: React.FC<{
+  grnId: string;
+  lineId: string;
+  label: string;
+  onCancel: () => void;
+  onDone: () => void;
+}> = ({ grnId, lineId, label, onCancel, onDone }) => {
+  const [classes, setClasses] = useState<AssetClassRow[]>([]);
+  const [classId, setClassId] = useState("");
+  const [code, setCode] = useState("");
+  const [name, setName] = useState(label);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void assetService.classes().then((rows) => {
+      setClasses(rows);
+      if (rows[0]) setClassId(rows[0].id);
+    });
+  }, []);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await assetService.capitalise({
+        sourceDocType: "GRN_INVOICE",
+        sourceDocId: grnId,
+        lineId,
+        classId,
+        code: code.trim(),
+        name: name.trim(),
+      });
+      onDone();
+    } catch (err) {
+      setError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "Could not capitalise this line"
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-4">
+        <h2 className="text-lg font-semibold text-gray-900">Capitalise as an asset</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          {label}. The cost moves off the purchase ledger and onto the asset ledger.
+        </p>
+        <div className="mt-3 grid grid-cols-1 gap-3">
+          <label className="text-sm text-gray-500">
+            Asset class
+            <select
+              className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              value={classId}
+              onChange={(e) => setClassId(e.target.value)}
+            >
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.usefulLifeYears} yrs, {c.method})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm text-gray-500">
+            Asset code
+            <input
+              className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="FA-0001"
+            />
+          </label>
+          <label className="text-sm text-gray-500">
+            Asset name
+            <input
+              className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+        </div>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+            disabled={busy || !classId || !code.trim() || !name.trim()}
+            onClick={submit}
+          >
+            Capitalise
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default GrnInvoiceViewPage;

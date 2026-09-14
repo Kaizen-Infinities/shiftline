@@ -55,11 +55,41 @@ export interface DepreciationPreview {
 export interface DepreciationRunRow {
   id: string;
   periodKey: string;
-  status: "DRAFT" | "POSTED" | "CANCELLED";
+  status: "DRAFT" | "POSTED" | "CANCELLED" | "REVERSED";
   totalAmount: string;
   assetCount: number;
   voucherId: number | null;
   postedAt: string | null;
+  reversedAt?: string | null;
+}
+
+export interface OpeningRowFields {
+  classCode: string;
+  code: string;
+  name: string;
+  businessPlaceCode?: string;
+  capitalisedOn: string;
+  cost: number | string;
+  accumulatedDepreciation: number | string;
+  method?: DepreciationMethod;
+  remainingLifeMonths?: number | string;
+  wdvRatePercent?: number | string;
+  itBlockName?: string;
+  quantity?: number | string;
+  serialNo?: string;
+  location?: string;
+  residualValue?: number | string;
+}
+
+export interface OpeningImportResult {
+  imported: number;
+  vouchers: number;
+  assets: { id: string; code: string; name: string }[];
+}
+
+export interface OpeningRowError {
+  row: number;
+  message: string;
 }
 
 export interface AssetRegister {
@@ -139,4 +169,37 @@ export const assetService = {
     (await apiClient.get(`${p.register}/${fyCode}`)).data.data,
   itBlocks: async (fyCode: string): Promise<ItBlocks> =>
     (await apiClient.get(`${p.itBlocks}/${fyCode}`)).data.data,
+  upsertClass: async (body: {
+    id?: string;
+    code: string;
+    name: string;
+    usefulLifeYears: number;
+    method?: DepreciationMethod;
+    residualPercent?: number;
+    scheduleIiHead?: string | null;
+    itBlockName?: string | null;
+    itBlockRate?: number;
+    isActive?: boolean;
+  }): Promise<AssetClassRow> => (await apiClient.post(p.classes, body)).data.data,
+  reverseRun: async (id: string): Promise<DepreciationRunRow> =>
+    (await apiClient.post(`${p.depreciationRuns}/${id}/reverse`)).data.data,
+  createOpening: async (row: OpeningRowFields) =>
+    (await apiClient.post(p.opening, row)).data.data as { id: string; code: string; name: string },
+  importOpeningRows: async (rows: OpeningRowFields[]): Promise<OpeningImportResult> =>
+    (await apiClient.post(p.openingImport, { rows })).data.data,
+  importOpeningCsv: async (csv: string): Promise<OpeningImportResult> =>
+    (await apiClient.post(p.openingImport, { csv })).data.data,
+  capitalise: async (body: {
+    sourceDocType: "GRN_INVOICE" | "EXPENSE";
+    sourceDocId: string;
+    lineId?: string;
+    classId: string;
+    code: string;
+    name: string;
+    capitalisedOn?: string;
+    businessPlaceId?: string | null;
+    cost?: number;
+    notes?: string | null;
+  }): Promise<AssetRow & { voucherId: string | null }> =>
+    (await apiClient.post(p.capitalise, body)).data.data,
 };
