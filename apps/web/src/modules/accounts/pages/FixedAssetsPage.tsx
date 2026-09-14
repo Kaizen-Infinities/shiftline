@@ -9,6 +9,7 @@ import {
   type AssetRow,
   type DepreciationMethod,
   type DepreciationPreview,
+  type DepreciationRunDetail,
   type DepreciationRunRow,
   type ItBlocks,
   type OpeningRowError,
@@ -61,6 +62,7 @@ const FixedAssetsPage: React.FC = () => {
   const [disposing, setDisposing] = useState<AssetRow | null>(null);
   const [importingOpening, setImportingOpening] = useState(false);
   const [editingClass, setEditingClass] = useState<AssetClassRow | "new" | null>(null);
+  const [viewingRunId, setViewingRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -339,7 +341,12 @@ const FixedAssetsPage: React.FC = () => {
                       <td className={`${td} text-right`}>{money(r.totalAmount)}</td>
                       <td className={td}>{r.status.toLowerCase()}</td>
                       <td className={td}>{r.postedAt ? day(r.postedAt) : "—"}</td>
-                      <td className={`${td} text-right`}>
+                      <td className={`${td} text-right space-x-2`}>
+                        {r.status === "REVERSED" && (
+                          <button className={secondary} onClick={() => setViewingRunId(r.id)}>
+                            View
+                          </button>
+                        )}
                         {r.status === "POSTED" && can("assets.depreciate") && (
                           <button
                             className={secondary}
@@ -569,6 +576,93 @@ const FixedAssetsPage: React.FC = () => {
           }
         />
       )}
+
+      {viewingRunId && (
+        <RunDetailDialog runId={viewingRunId} onClose={() => setViewingRunId(null)} />
+      )}
+    </div>
+  );
+};
+
+/**
+ * A reversed run's restored figures against each asset (P2-19), in one place: what this run
+ * charged, and what the asset's accumulated depreciation was before and after the reversal put it
+ * back — instead of checking the asset row and the run separately.
+ */
+const RunDetailDialog: React.FC<{ runId: string; onClose: () => void }> = ({ runId, onClose }) => {
+  const [detail, setDetail] = useState<DepreciationRunDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    assetService
+      .runDetail(runId)
+      .then((d) => {
+        if (!cancelled) setDetail(d);
+      })
+      .catch((err) => toast.error(message(err)))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [runId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line-soft bg-card p-4">
+        <h2 className="text-lg font-semibold text-ink">
+          Depreciation run {detail?.periodKey ?? ""}
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Reversed. What each asset&apos;s accumulated depreciation was before the reversal (with
+          this run&apos;s charge still on it) and after (restored).
+        </p>
+        {loading && <p className="mt-3 text-sm text-ink-muted">Loading…</p>}
+        {detail && (
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Asset</th>
+                  <th className={`${th} text-right`}>This run&apos;s charge</th>
+                  <th className={`${th} text-right`}>Accum. dep. before</th>
+                  <th className={`${th} text-right`}>Accum. dep. after</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.lines.map((l) => (
+                  <tr key={l.assetId} className="border-t border-line-soft">
+                    <td className={td}>
+                      {l.name}
+                      <div className="text-xs text-ink-muted">{l.code}</div>
+                    </td>
+                    <td className={`${td} text-right`}>{money(l.amount)}</td>
+                    <td className={`${td} text-right`}>{money(l.accumulatedDepreciationBefore)}</td>
+                    <td className={`${td} text-right font-semibold`}>
+                      {money(l.accumulatedDepreciationAfter)}
+                    </td>
+                  </tr>
+                ))}
+                {detail.lines.length === 0 && (
+                  <tr>
+                    <td className={`${td} text-ink-muted`} colSpan={4}>
+                      No lines on this run.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="mt-4 flex justify-end">
+          <button className={secondary} onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -793,6 +887,20 @@ const OpeningImportDialog: React.FC<{
     reader.readAsText(file);
   };
 
+  const downloadTemplate = async () => {
+    try {
+      const blob = await assetService.openingTemplate();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shiftline-asset-opening-template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(message(err));
+    }
+  };
+
   const submit = async () => {
     setBusy(true);
     setError(null);
@@ -831,15 +939,8 @@ const OpeningImportDialog: React.FC<{
             onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
             className="text-sm text-ink-muted"
           />
-          <button
-            className={secondary}
-            onClick={() => {
-              const blob = new Blob([OPENING_TEMPLATE], { type: "text/csv" });
-              const url = URL.createObjectURL(blob);
-              window.open(url, "_blank");
-            }}
-          >
-            See an example
+          <button className={secondary} onClick={downloadTemplate}>
+            Download the template
           </button>
         </div>
         <textarea

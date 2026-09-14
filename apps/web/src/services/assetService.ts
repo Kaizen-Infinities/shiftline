@@ -63,6 +63,17 @@ export interface DepreciationRunRow {
   reversedAt?: string | null;
 }
 
+export interface DepreciationRunDetail extends DepreciationRunRow {
+  lines: {
+    assetId: string;
+    code: string;
+    name: string;
+    amount: number;
+    accumulatedDepreciationBefore: number;
+    accumulatedDepreciationAfter: number;
+  }[];
+}
+
 export interface OpeningRowFields {
   classCode: string;
   code: string;
@@ -183,12 +194,16 @@ export const assetService = {
   }): Promise<AssetClassRow> => (await apiClient.post(p.classes, body)).data.data,
   reverseRun: async (id: string): Promise<DepreciationRunRow> =>
     (await apiClient.post(`${p.depreciationRuns}/${id}/reverse`)).data.data,
+  runDetail: async (id: string): Promise<DepreciationRunDetail> =>
+    (await apiClient.get(`${p.depreciationRuns}/${id}`)).data.data,
   createOpening: async (row: OpeningRowFields) =>
     (await apiClient.post(p.opening, row)).data.data as { id: string; code: string; name: string },
   importOpeningRows: async (rows: OpeningRowFields[]): Promise<OpeningImportResult> =>
     (await apiClient.post(p.openingImport, { rows })).data.data,
   importOpeningCsv: async (csv: string): Promise<OpeningImportResult> =>
     (await apiClient.post(p.openingImport, { csv })).data.data,
+  openingTemplate: async (): Promise<Blob> =>
+    (await apiClient.get(p.openingTemplate, { responseType: "blob" })).data as Blob,
   capitalise: async (body: {
     sourceDocType: "GRN_INVOICE" | "EXPENSE";
     sourceDocId: string;

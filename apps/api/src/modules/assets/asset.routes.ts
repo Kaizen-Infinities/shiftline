@@ -183,6 +183,20 @@ const openingRow = z.record(z.string(), z.union([z.string(), z.number()])).trans
   return out;
 });
 
+/** A downloadable template for the opening-balance import (P2-19). */
+router.get(
+  "/opening/template.csv",
+  requirePermission("assets.manage"),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="shiftline-asset-opening-template.csv"'
+    );
+    res.send(assetService.openingTemplateCsv());
+  })
+);
+
 router.post(
   "/opening",
   requirePermission("assets.manage"),
@@ -303,6 +317,20 @@ router.post(
       new ApiResponse(
         "Depreciation posted",
         await assetService.postRun(idParam.parse(req.params.id), actorOf(req))
+      )
+    );
+  })
+);
+
+/** One run's lines against each asset's current accumulated depreciation (P2-19). */
+router.get(
+  "/depreciation-runs/:id",
+  requirePermission("assets.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(
+      new ApiResponse(
+        "Depreciation run",
+        await assetService.runDetail(idParam.parse(req.params.id))
       )
     );
   })

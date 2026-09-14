@@ -2901,6 +2901,9 @@ model Subscription {
   /// The gateway's own ids, when the subscription is billed through one (P1-21).
   providerSubscriptionId String?            @map("provider_subscription_id") @db.VarChar(120)
   providerCustomerId     String?            @map("provider_customer_id") @db.VarChar(120)
+  /// A hand-negotiated monthly price that overrides the plan's list price when set (P2-19);
+  /// settable only by a platform admin, and it is what the monthly billing sweep bills.
+  negotiatedMonthlyPrice Decimal?           @map("negotiated_monthly_price") @db.Decimal(12, 2)
   createdBy              String?            @map("created_by") @db.VarChar(36)
   updatedBy              String?            @map("updated_by") @db.VarChar(36)
   createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)

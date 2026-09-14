@@ -47,7 +47,13 @@ const TenantDetailPage: React.FC = () => {
   const [audit, setAudit] = useState<{ data: AuditEntry[]; total: number } | null>(null);
   const [history, setHistory] = useState<ImpersonationRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [sub, setSub] = useState({ planCode: "", status: "", seats: "", apiLimit: "" });
+  const [sub, setSub] = useState({
+    planCode: "",
+    status: "",
+    seats: "",
+    apiLimit: "",
+    negotiatedMonthlyPrice: "",
+  });
   const [override, setOverride] = useState({ feature: "", enabled: "true", reason: "" });
 
   const load = useCallback(async () => {
@@ -63,6 +69,7 @@ const TenantDetailPage: React.FC = () => {
         status: detail.subscription?.status ?? "",
         seats: detail.subscription?.seats?.toString() ?? "",
         apiLimit: detail.subscription?.apiLimit?.toString() ?? "",
+        negotiatedMonthlyPrice: detail.subscription?.negotiatedMonthlyPrice?.toString() ?? "",
       });
     } catch (err) {
       toast.error(message(err));
@@ -124,6 +131,8 @@ const TenantDetailPage: React.FC = () => {
         ...(sub.status && { status: sub.status }),
         seats: sub.seats === "" ? null : Number(sub.seats),
         apiLimit: sub.apiLimit === "" ? null : Number(sub.apiLimit),
+        negotiatedMonthlyPrice:
+          sub.negotiatedMonthlyPrice === "" ? null : Number(sub.negotiatedMonthlyPrice),
       })
     );
 
@@ -286,6 +295,15 @@ const TenantDetailPage: React.FC = () => {
                 value={sub.apiLimit}
                 onChange={(e) => setSub({ ...sub, apiLimit: e.target.value })}
                 inputMode="numeric"
+              />
+            </label>
+            <label className="text-xs font-medium text-ink-muted">
+              Negotiated monthly price ₹ (blank = plan price)
+              <input
+                className={`${input} block w-full`}
+                value={sub.negotiatedMonthlyPrice}
+                onChange={(e) => setSub({ ...sub, negotiatedMonthlyPrice: e.target.value })}
+                inputMode="decimal"
               />
             </label>
           </div>

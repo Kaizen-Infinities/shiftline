@@ -66,6 +66,7 @@ export interface TenantDetail {
     trialEndsAt: string | null;
     currentPeriodEnd: string | null;
     notes: string | null;
+    negotiatedMonthlyPrice: string | null;
     plan: { code: string; name: string };
   } | null;
   overrides: OverrideRow[];
@@ -173,6 +174,7 @@ export const platformService = {
       seats?: number | null;
       apiLimit?: number | null;
       notes?: string | null;
+      negotiatedMonthlyPrice?: number | null;
     }
   ) => data<unknown>(apiClient.put(`/platform/tenants/${id}/subscription`, body)),
   setOverride: (id: string, feature: string, body: { enabled: boolean; reason?: string | null }) =>

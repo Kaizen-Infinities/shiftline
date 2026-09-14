@@ -7,8 +7,10 @@ import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { cancellationService } from "../accounts/cancellation.service";
 import { periodService } from "../accounts/period.service";
+import { toCsv } from "../imports/imports.csv";
 import { assetPosting } from "./asset.posting";
 import {
+  OPENING_COLUMNS,
   type OpeningRowInput,
   type RowError,
   parseOpeningRow,
@@ -469,6 +471,15 @@ class AssetService {
       vouchers: created.vouchers.length,
       assets: created.rows.map((r) => ({ id: r.id, code: r.code, name: r.name })),
     };
+  }
+
+  /**
+   * A downloadable template for the opening-balance import (P2-19): the same columns
+   * `parseOpeningCsv` reads, with one example row, so the import dialog does not have to keep its
+   * own in-memory copy of the shape.
+   */
+  openingTemplateCsv(): string {
+    return toCsv([OPENING_COLUMNS.map((c) => c.key), OPENING_COLUMNS.map((c) => c.example)]);
   }
 
   /** The single-row opening-balance endpoint: the same path, one row. */
@@ -1038,6 +1049,42 @@ class AssetService {
 
   async runs(limit = 24) {
     return prisma.depreciationRun.findMany({ orderBy: { periodKey: "desc" }, take: limit });
+  }
+
+  /**
+   * One run's lines against the current state of each asset (P2-19), so a reversed run's restored
+   * figures show against the run in one place instead of the asset row and the run needing to be
+   * checked separately. For a `REVERSED` run, "after" is the asset's current accumulated
+   * depreciation (what the reversal restored it to) and "before" is what this run had charged it
+   * before that reversal — the current figure plus this run's own amount. For any other status
+   * the two are the same: nothing has moved this run's charge back.
+   */
+  async runDetail(id: string) {
+    const run = await prisma.depreciationRun.findUnique({
+      where: { id },
+      include: {
+        lines: {
+          include: { asset: { select: { code: true, name: true, accumulatedDepreciation: true } } },
+          orderBy: { amount: "desc" },
+        },
+      },
+    });
+    if (!run) throw new ApiError(404, "That depreciation run does not exist");
+    const restored = run.status === "REVERSED";
+    return {
+      ...run,
+      lines: run.lines.map((l) => {
+        const after = n2(l.asset.accumulatedDepreciation);
+        return {
+          assetId: l.assetId,
+          code: l.asset.code,
+          name: l.asset.name,
+          amount: n2(l.amount),
+          accumulatedDepreciationAfter: after,
+          accumulatedDepreciationBefore: restored ? n2(after + Number(l.amount)) : after,
+        };
+      }),
+    };
   }
 
   /**
