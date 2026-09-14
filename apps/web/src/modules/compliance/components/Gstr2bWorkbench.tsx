@@ -1,13 +1,14 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
   gstReturnsService,
+  type FollowUpPreview,
   type Gstr2bSummary,
   type MatchStatus,
 } from "../../../services/gstReturnsService";
-import { Card, day, danger, message, money, primary, secondary, td, th } from "./gstUi";
+import { Card, day, danger, field, message, money, primary, secondary, td, th } from "./gstUi";
 
 /**
  * The GSTR-2B reconciliation workbench (P1-13c, P1-13d).
@@ -36,6 +37,247 @@ interface Props {
   gstin: string;
   onChange: () => void | Promise<void>;
 }
+
+/** Per-tenant matching tolerances (P2-10): how many days and how many rupees still count as a match. */
+const ToleranceSettings: React.FC = () => {
+  const { can } = usePermission();
+  const [days, setDays] = useState(7);
+  const [value, setValue] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    gstReturnsService
+      .gstr2bSettings()
+      .then((s) => {
+        setDays(s.dateToleranceDays);
+        setValue(s.valueTolerance);
+      })
+      .catch(() => {});
+  }, []);
+
+  if (!can("gst-returns.prepare")) return null;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const s = await gstReturnsService.gstr2bSettingsUpdate({
+        dateToleranceDays: days,
+        valueTolerance: value,
+      });
+      setDays(s.dateToleranceDays);
+      setValue(s.valueTolerance);
+      toast.success("Tolerances saved — they apply from the next reconciliation");
+    } catch (err) {
+      toast.error(message(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card
+      title="Matching tolerances"
+      actions={
+        <button className={secondary} onClick={() => setOpen((o) => !o)}>
+          {open ? "Hide" : "Change"}
+        </button>
+      }
+    >
+      {open ? (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-sm text-ink-muted">
+            Days either side of the document date
+            <input
+              type="number"
+              min={0}
+              max={60}
+              className={`${field} mt-1 block w-28`}
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Rupees of difference still a match
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              className={`${field} mt-1 block w-32`}
+              value={value}
+              onChange={(e) => setValue(Number(e.target.value))}
+            />
+          </label>
+          <button className={primary} onClick={save} disabled={saving}>
+            Save
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-ink-muted">
+          A record within {days} day(s) and {money(value)} of the books still counts as a match.
+        </p>
+      )}
+    </Card>
+  );
+};
+
+/** Chasing a supplier over the records the reconciliation named (P2-10). */
+const FollowUpPanel: React.FC<{
+  summary: Gstr2bSummary;
+  period: string;
+  gstin: string;
+  onChange: () => void | Promise<void>;
+}> = ({ summary, period, gstin, onChange }) => {
+  const { can } = usePermission();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [channel, setChannel] = useState<"WHATSAPP" | "EMAIL">("WHATSAPP");
+  const [preview, setPreview] = useState<FollowUpPreview | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const chaseable = [
+    ...summary.records
+      .filter((r) => r.matchStatus === "MISMATCH")
+      .map((r) => ({
+        recordId: r.id,
+        supplierGstin: r.supplierGstin,
+        supplierName: r.supplierName,
+        docNo: r.docNo,
+        docDate: r.docDate,
+      })),
+    ...summary.missingIn2b.map((b) => ({
+      recordId: `${b.docType}:${b.docId}`,
+      supplierGstin: b.supplierGstin ?? undefined,
+      supplierName: null as string | null,
+      docNo: b.docNo,
+      docDate: b.docDate,
+    })),
+  ];
+
+  if (!can("gst-returns.prepare") || chaseable.length === 0) return null;
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const lastBySupplier = new Map(summary.followUps.map((f) => [f.supplierGstin, f]));
+
+  const act = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await fn();
+    } catch (err) {
+      toast.error(message(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card title="Chase a supplier">
+      <p className="mb-2 text-xs text-ink-muted">
+        Pick the records to name, a channel, and preview the message before it goes.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead>
+            <tr>
+              <th className={th}></th>
+              <th className={th}>Document</th>
+              <th className={th}>Date</th>
+              <th className={th}>Last sent</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chaseable.map((c) => {
+              const last = c.supplierGstin ? lastBySupplier.get(c.supplierGstin) : undefined;
+              return (
+                <tr key={c.recordId} className="border-t border-line-soft">
+                  <td className={td}>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(c.recordId)}
+                      onChange={() => toggle(c.recordId)}
+                    />
+                  </td>
+                  <td className={td}>
+                    {c.docNo}
+                    {c.supplierName ? (
+                      <span className="ml-1 text-xs text-ink-muted">{c.supplierName}</span>
+                    ) : null}
+                  </td>
+                  <td className={td}>{day(c.docDate)}</td>
+                  <td className={`${td} text-xs text-ink-muted`}>
+                    {last
+                      ? `${last.channel === "WHATSAPP" ? "WhatsApp" : "Email"} · ${day(last.sentAt)} · ${last.status === "SENT" ? "sent" : "failed"}`
+                      : "never"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <select
+          className={field}
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as "WHATSAPP" | "EMAIL")}
+          aria-label="Channel"
+        >
+          <option value="WHATSAPP">WhatsApp</option>
+          <option value="EMAIL">Email</option>
+        </select>
+        <button
+          className={secondary}
+          disabled={busy || selected.size === 0}
+          onClick={() =>
+            act(async () => {
+              const p = await gstReturnsService.gstr2bFollowUpPreview(period, {
+                gstin,
+                channel,
+                recordIds: [...selected],
+              });
+              setPreview(p);
+            })
+          }
+        >
+          Preview
+        </button>
+        <button
+          className={primary}
+          disabled={busy || selected.size === 0}
+          onClick={() =>
+            act(async () => {
+              await gstReturnsService.gstr2bFollowUp(period, {
+                gstin,
+                channel,
+                recordIds: [...selected],
+              });
+              toast.success("Follow-up sent");
+              setSelected(new Set());
+              setPreview(null);
+              await onChange();
+            })
+          }
+        >
+          Send
+        </button>
+      </div>
+      {preview && (
+        <div className="mt-3 whitespace-pre-wrap rounded-lg border border-line-soft bg-card-2 p-3 text-sm text-ink">
+          <p className="mb-1 text-xs uppercase tracking-wide text-ink-muted">
+            To {preview.supplierName ?? preview.supplierGstin}
+          </p>
+          {preview.message}
+        </div>
+      )}
+    </Card>
+  );
+};
 
 const Gstr2bWorkbench: React.FC<Props> = ({ summary, period, gstin, onChange }) => {
   const { can } = usePermission();
@@ -75,6 +317,7 @@ const Gstr2bWorkbench: React.FC<Props> = ({ summary, period, gstin, onChange }) 
 
   return (
     <div className="space-y-4">
+      <ToleranceSettings />
       <Card
         title="Reconciliation"
         actions={
@@ -219,6 +462,8 @@ const Gstr2bWorkbench: React.FC<Props> = ({ summary, period, gstin, onChange }) 
           </table>
         </div>
       </Card>
+
+      <FollowUpPanel summary={summary} period={period} gstin={gstin} onChange={onChange} />
 
       {summary.missingIn2b.length > 0 && (
         <Card title="In our books, not filed by the supplier">

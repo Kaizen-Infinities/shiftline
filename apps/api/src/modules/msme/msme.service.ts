@@ -47,8 +47,12 @@ const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400000);
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 export interface MsmeBillRow {
+  /** GRN invoice id, or expense id when `source` is "EXPENSE". */
   grnId: string;
+  /** GRN number, or the expense number when `source` is "EXPENSE". */
   grnNumber: string;
+  /** GRN invoices carry the section 15 clock from acceptance; supplier expenses from the expense date (P2-10). */
+  source: "GRN" | "EXPENSE";
   invoiceNo: string;
   supplierId: number;
   supplierName: string;
@@ -153,6 +157,7 @@ class MsmeService {
       out.push({
         grnId: g.id,
         grnNumber: g.grnNumber,
+        source: "GRN",
         invoiceNo: g.invoiceNo,
         supplierId: g.supplier.id,
         supplierName: g.supplier.legalName,
@@ -170,6 +175,82 @@ class MsmeService {
         paidLate: Boolean(settled) && startOfDay(settled as Date) > dueDate,
       });
     }
+
+    // Supplier expenses (P2-10): only a GRN invoice carried the section 15 clock until now, but
+    // a bill against a micro or small supplier booked as an expense is exactly the same risk.
+    // There is no instalment table for an expense — it is either still awaiting approval (fully
+    // outstanding) or Approved, which is also the day `voucherPostingService` posts it as paid.
+    const expenses = await prisma.expense.findMany({
+      where: {
+        supplier: { msmeCategory: { in: COVERED } },
+        supplierId: { not: null },
+        cancelledAt: null,
+        status: { in: ["Pending", "Approved"] },
+        ...(opts.supplierId ? { supplierId: opts.supplierId } : {}),
+        ...(opts.from || opts.to
+          ? {
+              date: {
+                ...(opts.from ? { gte: opts.from } : {}),
+                ...(opts.to ? { lte: opts.to } : {}),
+              },
+            }
+          : {}),
+      },
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            legalName: true,
+            msmeCategory: true,
+            udyamNumber: true,
+            hasWrittenContract: true,
+            agreedPaymentDays: true,
+          },
+        },
+      },
+      orderBy: { date: "asc" },
+      take: 2000,
+    });
+
+    for (const e of expenses) {
+      if (!e.supplier) continue;
+      const billAmount = n2(e.amount);
+      const isApproved = e.status === "Approved";
+      const approvedOn = e.approvedAt ?? e.date;
+      const paid = isApproved && startOfDay(approvedOn) <= asOn ? billAmount : 0;
+      const outstanding = n2(billAmount - paid);
+      const acceptedOn = startOfDay(e.date);
+      const limitDays = limitFor(e.supplier);
+      const dueDate = addDays(acceptedOn, limitDays);
+      const settled = paid > 0 ? approvedOn : null;
+
+      if (opts.openOnly && outstanding <= 0.009) continue;
+      const overdue = outstanding > 0.009 && asOn > dueDate;
+      if (opts.overdueOnly && !overdue) continue;
+
+      out.push({
+        grnId: e.id,
+        grnNumber: e.expenseNumber,
+        source: "EXPENSE",
+        invoiceNo: e.expenseNumber,
+        supplierId: e.supplier.id,
+        supplierName: e.supplier.legalName,
+        udyamNumber: e.supplier.udyamNumber,
+        category: e.supplier.msmeCategory,
+        acceptedOn: iso(acceptedOn),
+        limitDays,
+        dueDate: iso(dueDate),
+        billAmount,
+        paid,
+        outstanding: Math.max(outstanding, 0),
+        settledOn: settled ? iso(startOfDay(settled)) : null,
+        daysLeft: Math.round((dueDate.getTime() - asOn.getTime()) / 86400000),
+        overdue,
+        paidLate: Boolean(settled) && startOfDay(settled as Date) > dueDate,
+      });
+    }
+
+    out.sort((a, b) => a.acceptedOn.localeCompare(b.acceptedOn));
     return out;
   }
 
@@ -307,7 +388,7 @@ class MsmeService {
     let sent = 0;
     for (const b of rows) {
       if (!WARN_DAYS_LEFT.includes(b.daysLeft)) continue;
-      const link = `/payable/msme?grn=${b.grnId}&d=${b.daysLeft}`;
+      const link = `/payable/msme?grn=${b.grnId}&d=${b.daysLeft}&source=${b.source}`;
       const already = await prisma.notification.findFirst({
         where: { category: "msme", link },
         select: { id: true },
@@ -326,6 +407,46 @@ class MsmeService {
       sent++;
     }
     return { checked: rows.length, sent };
+  }
+
+  /**
+   * What a payment run should know before it pays somebody (P2-10). Paying a micro or small
+   * supplier directly shows that supplier's own bills about to breach the clock; paying anyone
+   * else shows how many small-supplier bills elsewhere are about to breach, since the money that
+   * goes out today is money that cannot go to them instead. Never a reason to block the payment.
+   */
+  async paymentWarning(
+    payeeSupplierId?: number,
+    asOn = new Date()
+  ): Promise<
+    | { type: "PAYEE_SMALL"; bills: MsmeBillRow[]; count: number; amount: number }
+    | { type: "OTHER_SMALL"; count: number; amount: number }
+  > {
+    const dueSoon = (rows: MsmeBillRow[]) => rows.filter((b) => b.overdue || b.daysLeft <= 5);
+
+    if (payeeSupplierId) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id: payeeSupplierId },
+        select: { msmeCategory: true },
+      });
+      if (supplier && COVERED.includes(supplier.msmeCategory)) {
+        const bills = dueSoon(
+          await this.bills({ asOn, supplierId: payeeSupplierId, openOnly: true })
+        );
+        return {
+          type: "PAYEE_SMALL",
+          bills,
+          count: bills.length,
+          amount: n2(bills.reduce((s, b) => s + b.outstanding, 0)),
+        };
+      }
+    }
+    const bills = dueSoon(await this.bills({ asOn, openOnly: true }));
+    return {
+      type: "OTHER_SMALL",
+      count: bills.length,
+      amount: n2(bills.reduce((s, b) => s + b.outstanding, 0)),
+    };
   }
 
   /** The daily sweep across every tenant. */

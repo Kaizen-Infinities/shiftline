@@ -182,6 +182,9 @@ export const API_PATHS = {
     gstr9: "/gst-returns/gstr9",
     calendar: "/gst-returns/calendar",
     itc: "/gst-returns/itc",
+    gstr2bSettings: "/gst-returns/gstr2b/settings",
+    /** `${gstr2bFollowUpBase}/<period>/follow-up` and `.../follow-up/preview`. */
+    gstr2bFollowUpBase: "/gst-returns/gstr2b",
   },
   status: "/status",
   notifications: {
@@ -301,6 +304,7 @@ export const API_PATHS = {
     bills: "/msme/bills",
     disallowance: "/msme/disallowance",
     form1: "/msme/form1",
+    paymentWarning: "/msme/payment-warning",
   },
   tally: {
     base: "/tally",

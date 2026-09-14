@@ -5,9 +5,9 @@ import { logger } from "../../lib/logger";
 import { requireTenantId } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { monthRange, placeFilter, scopeFor, type GstinScope } from "./gst-period";
+import { gstr2bSettingsService } from "./gstr2b-settings.service";
 import { envelopeOf, normaliseDocNo, parse2b } from "./gstr2b.parse";
 import {
-  DEFAULT_TOLERANCE,
   type BookDocument,
   type Gstr2bJson,
   type MatchTolerance,
@@ -222,12 +222,9 @@ class Gstr2bService {
    * Nothing is matched twice: a document already claimed by one record is out of the running for
    * the next, so two invoices with the same number cannot both point at it.
    */
-  async reconcile(
-    periodKey: string,
-    gstin?: string | null,
-    tolerance: MatchTolerance = DEFAULT_TOLERANCE
-  ) {
+  async reconcile(periodKey: string, gstin?: string | null, tolerance?: MatchTolerance) {
     const scope = await scopeFor(gstin);
+    const tol = tolerance ?? (await gstr2bSettingsService.tolerance());
     const [records, books] = await Promise.all([
       prisma.gstr2bRecord.findMany({
         where: { periodKey, gstin: scope.gstin },
@@ -272,7 +269,7 @@ class Gstr2bService {
           sgst: n2(rec.sgst),
           cess: n2(rec.cess),
         },
-        tolerance
+        tol
       );
       await prisma.gstr2bRecord.update({
         where: { id: rec.id },
@@ -321,7 +318,14 @@ class Gstr2bService {
         ...missingIn2b,
       ]),
     };
-    return { periodKey, gstin, summary, records, missingIn2b };
+    // The last time each supplier was chased, so the workbench does not have to ask twice.
+    const followUps = await prisma.supplierFollowUp.findMany({
+      where: { periodKey, gstin },
+      orderBy: { sentAt: "desc" },
+      distinct: ["supplierGstin"],
+      select: { supplierGstin: true, channel: true, status: true, sentAt: true, recipient: true },
+    });
+    return { periodKey, gstin, summary, records, missingIn2b, followUps };
   }
 
   async list(periodKey: string, gstin: string | null | undefined, status?: Gstr2bMatchStatus) {
@@ -331,6 +335,54 @@ class Gstr2bService {
       include: { imsAction: true },
       orderBy: [{ supplierGstin: "asc" }, { docDate: "asc" }],
     });
+  }
+
+  /**
+   * One book document by its `docType:docId`, for the follow-up message: a `MISSING_IN_2B`
+   * record has no `Gstr2bRecord` row of its own, only the GRN or expense the books hold.
+   */
+  async resolveBookDocument(docType: string, docId: string): Promise<BookDocument | null> {
+    if (docType === "GRN") {
+      const g = await prisma.grnInvoice.findUnique({
+        where: { id: docId },
+        include: { items: { select: { taxableAmount: true } } },
+      });
+      if (!g) return null;
+      const docNo = g.invoiceNo || g.grnNumber;
+      return {
+        docType: "GRN",
+        docId: g.id,
+        docNo,
+        docNoNorm: normaliseDocNo(docNo),
+        docDate: g.supplierInvoiceDate ?? g.grnDate,
+        supplierGstin: g.supplierGstin,
+        taxable: n2(g.items.reduce((s, i) => s + Number(i.taxableAmount), 0)),
+        igst: n2(g.totalIgst),
+        cgst: n2(g.totalCgst),
+        sgst: n2(g.totalSgst),
+        cess: n2(g.totalCess),
+        docValue: n2(g.netAmount),
+      };
+    }
+    if (docType === "EXPENSE") {
+      const e = await prisma.expense.findUnique({ where: { id: docId } });
+      if (!e) return null;
+      return {
+        docType: "EXPENSE",
+        docId: e.id,
+        docNo: e.expenseNumber,
+        docNoNorm: normaliseDocNo(e.expenseNumber),
+        docDate: e.date,
+        supplierGstin: e.vendorGstin,
+        taxable: n2(e.taxableAmount ?? 0),
+        igst: n2(e.igstAmount),
+        cgst: n2(e.cgstAmount),
+        sgst: n2(e.sgstAmount),
+        cess: 0,
+        docValue: n2(e.amount),
+      };
+    }
+    return null;
   }
 }
 

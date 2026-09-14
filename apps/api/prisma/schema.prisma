@@ -733,6 +733,9 @@ model Company {
   otpChallenges         OtpChallenge[]           @relation("CompanyOtpChallenge")
   tallyConfig           TallyConfig?             @relation("CompanyTallyConfig")
 
+  gstr2bSettings        Gstr2bSettings?          @relation("CompanyGstr2bSettings")
+  supplierFollowUps     SupplierFollowUp[]       @relation("CompanySupplierFollowUp")
+
   @@map("companies")
 }
 
@@ -4134,6 +4137,61 @@ model ImsAction {
 
   @@index([companyId, status])
   @@map("ims_actions")
+}
+
+/// Per-tenant tolerances for the GSTR-2B reconciliation (P2-10): how many days and how many
+/// rupees a book document may differ from the supplier's filing and still count as a match.
+/// One row per company, created with the package defaults the first time it is read.
+model Gstr2bSettings {
+  id                String   @id @default(uuid()) @db.Uuid
+  companyId         String   @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  dateToleranceDays Int      @default(7) @map("date_tolerance_days")
+  valueTolerance    Decimal  @default(1.00) @map("value_tolerance") @db.Decimal(10, 2)
+  updatedBy         String?  @map("updated_by") @db.VarChar(36)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyGstr2bSettings", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("gstr2b_settings")
+}
+
+/// A supplier chased over a MISSING_IN_2B or MISMATCH record of the month's reconciliation
+/// (P2-10). Operational history, not a book or a document, so it is not audited — but it is
+/// tenant-scoped like everything else, and it is the record of who was told what and when.
+model SupplierFollowUp {
+  id            String              @id @default(uuid()) @db.Uuid
+  companyId     String              @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  periodKey     String              @map("period_key") @db.VarChar(7)
+  gstin         String              @db.VarChar(15)
+  supplierGstin String              @map("supplier_gstin") @db.VarChar(15)
+  supplierName  String?             @map("supplier_name") @db.VarChar(160)
+  channel       FollowUpChannel
+  /// The record ids the message names: a Gstr2bRecord uuid for a mismatch, or `DOCTYPE:docId`
+  /// for a book document the supplier never filed.
+  recordIds     Json                @map("record_ids")
+  recipient     String              @db.VarChar(160)
+  message       String
+  status        FollowUpStatus
+  error         String?             @db.VarChar(255)
+  sentAt        DateTime            @default(now()) @map("sent_at") @db.Timestamptz(6)
+  sentBy        String?             @map("sent_by") @db.VarChar(36)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanySupplierFollowUp", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, periodKey, gstin, supplierGstin, sentAt])
+  @@map("supplier_follow_ups")
+}
+
+enum FollowUpChannel {
+  WHATSAPP
+  EMAIL
+}
+
+enum FollowUpStatus {
+  SENT
+  FAILED
 }
 
 /// How an export or SEZ supply was made: under a bond/LUT with no tax, or on payment of IGST.
