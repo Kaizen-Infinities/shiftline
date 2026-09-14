@@ -245,6 +245,7 @@ const LabourEntitlementsPage = lazy(
 const LeaveHrPage = lazy(() => import("../modules/leave/pages/LeaveHrPage"));
 const MyLeavePage = lazy(() => import("../modules/leave/pages/MyLeavePage"));
 const RegistersPage = lazy(() => import("../modules/payroll/pages/RegistersPage"));
+const FinesPage = lazy(() => import("../modules/payroll/pages/FinesPage"));
 const PaymentLinksPage = lazy(() => import("../modules/payments/pages/PaymentLinksPage"));
 const SmsPage = lazy(() => import("../modules/sms/pages/SmsPage"));
 const ComplianceCalendarPage = lazy(
@@ -630,6 +631,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="registers.view" />}>
                 <Route path="/hr/registers" element={<RegistersPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="fines.view" />}>
+                <Route path="/hr/fines" element={<FinesPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="payments.view" />}>
                 <Route path="/accounts/payment-links" element={<PaymentLinksPage />} />

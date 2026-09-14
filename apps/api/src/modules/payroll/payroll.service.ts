@@ -983,6 +983,28 @@ class PayrollService {
       permanentDeductionMap.set(row.employeeId, existing);
     }
 
+    // 3c. Fines and deductions (P2-13): approved, not-yet-recovered EmployeeFineDeduction rows
+    // for this exact wage period feed into "other deductions" the same way a permanent deduction
+    // does. Only rows still unstamped are picked up, so a period already recovered by an earlier
+    // run for it is never recovered twice; the ids are stamped with the resulting PayrollResult
+    // id inside the same transaction that creates the results, below.
+    const fineDeductionRows = await prisma.employeeFineDeduction.findMany({
+      where: {
+        employeeId: { in: employees.map((e) => e.id) },
+        status: "APPROVED",
+        wagePeriod: opts.period,
+        recoveredInPayrollResultId: null,
+      },
+      select: { id: true, employeeId: true, amount: true },
+    });
+    const fineDeductionMap = new Map<bigint, { total: number; ids: string[] }>();
+    for (const row of fineDeductionRows) {
+      const existing = fineDeductionMap.get(row.employeeId) ?? { total: 0, ids: [] };
+      existing.total = n2(existing.total + Number(row.amount));
+      existing.ids.push(row.id);
+      fineDeductionMap.set(row.employeeId, existing);
+    }
+
     // Load salary advances disbursed within THIS period only.
     // IMPORTANT: ISO period 2026-W31 = July 27–Aug 2 in ISO calendar, but the user's
     // "Week 1 Aug 1–7" is saved with period='2026-W31' because Aug 1 (Sat) falls in W31.
@@ -1114,6 +1136,8 @@ class PayrollService {
       if (!attInput) continue;
 
       const permDed = permanentDeductionMap.get(emp.id) ?? { loan: 0, other: 0 };
+      const fineDed = fineDeductionMap.get(emp.id);
+      const otherWithFines = n2(permDed.other + (fineDed?.total ?? 0));
       const pendingAdvance = salaryAdvanceMap.get(emp.id) ?? 0;
       const advanceToUse =
         attInput.advance !== undefined ? Number(attInput.advance) : pendingAdvance;
@@ -1123,7 +1147,7 @@ class PayrollService {
         settings,
         opts.calendarDays,
         permDed.loan,
-        permDed.other,
+        otherWithFines,
         advanceToUse,
         opts.type,
         monthCalendarDays,
@@ -1224,6 +1248,19 @@ class PayrollService {
         where: { id: newRun.id },
         include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
       });
+
+      // Stamp every fine/deduction this run's "other deductions" figure used with the resulting
+      // PayrollResult id, so a later run for the same period never picks the same row up again.
+      if (dbRun) {
+        for (const dbRes of dbRun.results) {
+          const fineDed = fineDeductionMap.get(dbRes.employeeId);
+          if (!fineDed || fineDed.ids.length === 0) continue;
+          await tx.employeeFineDeduction.updateMany({
+            where: { id: { in: fineDed.ids } },
+            data: { recoveredInPayrollResultId: dbRes.id, recoveredAt: new Date() },
+          });
+        }
+      }
 
       if (dbRun && dbRun.results) {
         dbRun.results = dbRun.results.map((dbRes) => {
@@ -1350,11 +1387,27 @@ class PayrollService {
   }
 
   async deleteRun(id: number) {
-    const run = await prisma.payrollRun.findUnique({ where: { id } });
+    const run = await prisma.payrollRun.findUnique({
+      where: { id },
+      include: { results: { select: { id: true } } },
+    });
     if (!run) throw new ApiError(404, "Payroll run not found");
     if (run.status !== "DRAFT")
       throw new ApiError(400, "Cannot delete an approved or locked payroll run");
-    await prisma.payrollRun.delete({ where: { id } });
+
+    const resultIds = run.results.map((r) => r.id);
+    await prisma.$transaction(async (tx) => {
+      // Release any fine/deduction this DRAFT run had claimed (P2-13), so a following run for
+      // the same period can pick it up again — otherwise it would be stranded, recovered by
+      // nothing, forever.
+      if (resultIds.length > 0) {
+        await tx.employeeFineDeduction.updateMany({
+          where: { recoveredInPayrollResultId: { in: resultIds } },
+          data: { recoveredInPayrollResultId: null, recoveredAt: null },
+        });
+      }
+      await tx.payrollRun.delete({ where: { id } });
+    });
     emitToTenant("payroll:deleted", { runId: id });
   }
 

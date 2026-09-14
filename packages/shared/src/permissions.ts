@@ -472,6 +472,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description:
       "Inspector's Registers (muster roll, wages, overtime, fines, deductions, advances)",
   },
+  {
+    module: "fines",
+    actions: ["view", "manage", "approve"],
+    description: "Fines and Deductions",
+  },
 ];
 
 /**

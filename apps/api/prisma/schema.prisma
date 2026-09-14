@@ -3435,6 +3435,7 @@ model PayrollResult {
   cashInHand          Decimal    @default(0) @db.Decimal(14, 2)
   payrollRun          PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
   employee            Employee   @relation(fields: [employeeId], references: [id])
+  recoveredFineDeductions EmployeeFineDeduction[] @relation("FineDeductionRecovery")
 
   company Company @relation("CompanyPayrollResult", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -3486,22 +3487,43 @@ model EmployeePermanentDeduction {
 /// EmployeePermanentDeduction, which is a recurring payroll-run deduction (loan EMI, etc.),
 /// not a dated incident with a cause and a show-cause record.
 model EmployeeFineDeduction {
-  id               String   @id @default(uuid()) @db.Uuid
-  companyId        String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  employeeId       BigInt
-  kind             String // "FINE" | "DEDUCTION"
-  occurredOn       DateTime @db.Date
-  cause            String
-  amount           Decimal  @db.Decimal(14, 2)
-  shownCauseGiven  Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  employee         Employee @relation(fields: [employeeId], references: [id])
+  id              String    @id @default(uuid()) @db.Uuid
+  companyId       String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId      BigInt
+  kind            String // "FINE" | "DEDUCTION"
+  occurredOn      DateTime  @db.Date
+  cause           String
+  amount          Decimal   @db.Decimal(14, 2)
+  shownCauseGiven Boolean   @default(false)
+  /// Workflow state (P2-13): PENDING | APPROVED | CANCELLED. A FINE cannot move to APPROVED
+  /// until shownCauseGiven is true; the 3% ceiling (Payment of Wages Act s.8(3)) is re-checked
+  /// on approve.
+  status          String    @default("PENDING")
+  /// The payroll period ("YYYY-MM" or "YYYY-Www") this incident is recovered against.
+  wagePeriod      String    @map("wage_period") @db.VarChar(7)
+  showCauseDate   DateTime? @map("show_cause_date") @db.Date
+  showCauseRemarks String?  @map("show_cause_remarks")
+  approvedAt      DateTime? @map("approved_at")
+  approvedById    String?   @map("approved_by_id")
+  cancelledAt     DateTime? @map("cancelled_at")
+  cancelledById   String?   @map("cancelled_by_id")
+  cancelReason    String?   @map("cancel_reason")
+  /// Set, with recoveredAt, in the same transaction that saves the PayrollResult row which took
+  /// it as an "other deduction" (P2-13); a run for the same period only ever picks up rows still
+  /// null here, so recovery happens once. Cleared back to null if that DRAFT run is deleted.
+  recoveredInPayrollResultId Int?     @map("recovered_in_payroll_result_id")
+  recoveredAt                DateTime? @map("recovered_at")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  recoveredInPayrollResult PayrollResult? @relation("FineDeductionRecovery", fields: [recoveredInPayrollResultId], references: [id], onDelete: SetNull)
 
   company Company @relation("CompanyEmployeeFineDeduction", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([companyId])
   @@index([employeeId, occurredOn])
+  @@index([wagePeriod, status])
+  @@index([recoveredInPayrollResultId])
   @@map("employee_fine_deductions")
 }
 

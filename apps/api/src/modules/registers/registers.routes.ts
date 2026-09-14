@@ -194,6 +194,7 @@ const FINE_COLUMNS: RegisterColumn[] = [
   { key: "cause", label: "Act/Omission" },
   { key: "amount", label: "Amount" },
   { key: "shownCauseGiven", label: "Shown Cause" },
+  { key: "recovered", label: "Recovered" },
 ];
 
 router.get(

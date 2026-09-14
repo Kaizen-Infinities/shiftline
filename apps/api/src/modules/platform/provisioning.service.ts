@@ -90,6 +90,9 @@ export const ROLE_DEFS = (): RoleDef[] => [
       // Leave (P2-09): the accountant is the office's HR contact in a company this size and
       // approves requests; every employee-mapped role below gets view/request for themselves.
       ...keysFor(["leave"]),
+      // Fines and deductions (P2-13): the accountant is the payroll operator here too — raises,
+      // records the show-cause and approves, the same as the rest of payroll it already runs.
+      ...keysFor(["fines"]),
     ],
   },
   {
@@ -203,6 +206,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       // other export outside audit-reports — the auditor role is read-only by design (see the
       // audit-trail suite's "no non-view keys beyond audit-reports.export" check).
       ...keysFor(["registers"], ["view"]),
+      // Fines and deductions (P2-13): read-only, same shape as the registers above.
+      ...keysFor(["fines"], ["view"]),
     ],
   },
 ];
