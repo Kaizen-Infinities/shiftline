@@ -117,6 +117,10 @@ export const CreateGrnInvoiceSchema = z.object({
     },
     z.array(ItemSchema).min(1, "At least one item is required")
   ),
+
+  /** P2-05: accept the TDS preview offered on this bill (see /api/tds/preview). */
+  deductTds: z.preprocess((val) => val === true || val === "true", z.boolean().optional()),
+  tdsSectionCode: z.preprocess(blankToUndefined, z.string().max(20).optional()),
 });
 
 export const UpdateGrnInvoiceSchema = CreateGrnInvoiceSchema.partial();

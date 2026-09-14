@@ -34,6 +34,8 @@ const gstFields = {
   tdsSection: z.string().max(10).optional().nullable(),
   tdsRate: optionalNumber,
   tdsAmount: optionalNumber,
+  /** P2-05: accept the TDS preview computed for tdsSection (see /api/tds/preview). */
+  deductTds: z.boolean().optional(),
 };
 
 export const createExpenseSchema = z.object({

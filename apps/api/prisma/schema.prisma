@@ -504,6 +504,7 @@ model Customer {
   salesReturns          SalesReturn[]
   advanceReceipts       AdvanceReceipt[]
   cheques               Cheque[]
+  tdsDeductions         TdsDeduction[]        @relation("CustomerTdsDeduction")
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -1878,6 +1879,10 @@ model GrnInvoice {
   totalIgst            Decimal             @default(0) @db.Decimal(12, 2)
   netAmount            Decimal             @default(0) @db.Decimal(12, 2)
   totalCess            Decimal             @default(0) @db.Decimal(12, 2)
+  /// P2-05: TDS withheld from this bill; the section that decided it, and what it came to. The
+  /// payable to the supplier is netAmount minus this.
+  tdsSectionCode       String?             @map("tds_section_code") @db.VarChar(20)
+  tdsAmount            Decimal             @default(0) @map("tds_amount") @db.Decimal(14, 2)
   businessPlaceId      BigInt?             @map("business_place_id")
   placeOfSupply        String?             @map("place_of_supply") @db.VarChar(2)
   supplyType           SupplyType          @default(INTRA_STATE) @map("supply_type")
@@ -2218,6 +2223,10 @@ model SalesInvoice {
   currencyCode         String                @default("INR") @map("currency_code") @db.VarChar(3)
   exchangeRate         Decimal               @default(1) @map("exchange_rate") @db.Decimal(14, 6)
   foreignTotal         Decimal?              @map("foreign_total") @db.Decimal(14, 2)
+  /// P2-05: TCS collected on this invoice (section 394, e.g. 206C(1) scrap or 206C(1H) above the
+  /// buyer threshold). Included in grandTotal — the customer owes it too.
+  tcsSectionCode       String?               @map("tcs_section_code") @db.VarChar(20)
+  tcsAmount            Decimal               @default(0) @map("tcs_amount") @db.Decimal(14, 2)
   items                SalesInvoiceItem[]
   paymentRecords       SalesInvoicePayment[]
   customer             Customer              @relation(fields: [customerId], references: [id])
@@ -4459,6 +4468,9 @@ model TdsDeduction {
   sectionId     String             @map("section_id") @db.Uuid
   /// The payee. A supplier for 26Q; a non-resident payee is still a supplier row (27Q).
   supplierId    Int?               @map("supplier_id")
+  /// P2-05: the buyer a TCS collection (section 394) was raised on. Deductions and collections
+  /// are the same row shape but never share a payee type.
+  customerId    String?            @map("customer_id") @db.Uuid
   /// Copied at the time of deduction: the return carries what was true then.
   deducteeName  String             @map("deductee_name") @db.VarChar(160)
   deducteePan   String?            @map("deductee_pan") @db.VarChar(10)
@@ -4494,6 +4506,7 @@ model TdsDeduction {
 
   section  TdsSection  @relation(fields: [sectionId], references: [id])
   supplier Supplier?   @relation(fields: [supplierId], references: [id])
+  customer Customer?   @relation("CustomerTdsDeduction", fields: [customerId], references: [id])
   challan  TdsChallan? @relation(fields: [challanId], references: [id])
 
   company Company @relation("CompanyTdsDeduction", fields: [companyId], references: [id], onDelete: Restrict)
@@ -4502,6 +4515,7 @@ model TdsDeduction {
   @@index([companyId, fyCode, quarter])
   @@index([companyId, status])
   @@index([challanId])
+  @@index([customerId])
   @@map("tds_deductions")
 }
 
