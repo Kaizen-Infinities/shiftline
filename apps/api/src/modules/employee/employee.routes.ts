@@ -26,12 +26,7 @@ router.post(
 /**
  * Get All Employees
  */
-router.get(
-  "/",
-  authMiddleware,
-  requirePermission("employees.view"),
-  employeeController.findAll
-);
+router.get("/", authMiddleware, requirePermission("employees.view"), employeeController.findAll);
 
 /**
  * Get Next Employee Code
@@ -44,15 +39,23 @@ router.get(
 );
 
 /**
+ * Employee search (P2-15): a light typeahead behind "employees.search" rather than
+ * "employees.view", for screens (leave, fines) that need to pick an employee without holding
+ * payroll.view. Must be registered before "/:id" below, same reason as "/me".
+ */
+router.get(
+  "/search",
+  authMiddleware,
+  requirePermission("employees.search"),
+  employeeController.search
+);
+
+/**
  * Get My Own Profile (logged-in user's linked employee record)
  * IMPORTANT: must be registered BEFORE "/:id" below, otherwise Express
  * matches "me" as the :id param and BigInt("me") throws.
  */
-router.get(
-  "/me",
-  authMiddleware,
-  employeeController.getMyProfile
-);
+router.get("/me", authMiddleware, employeeController.getMyProfile);
 
 /**
  * Get Employee By Id

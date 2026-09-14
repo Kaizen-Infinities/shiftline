@@ -163,6 +163,7 @@ interface FormState {
   probationPeriod: string;
   noticePeriod: string;
   shiftId: string;
+  businessPlaceId: string;
   // Payroll — salary structure
   salaryType: string;
   // Monthly
@@ -259,6 +260,7 @@ const INITIAL_STATE: FormState = {
   probationPeriod: "",
   noticePeriod: "",
   shiftId: "",
+  businessPlaceId: "",
   salaryType: "MONTHLY",
   monthlySalary: "",
   basicSalary: "",
@@ -444,6 +446,7 @@ const EmployeeForm: React.FC = () => {
             probationPeriod: emp.probationPeriod ? String(emp.probationPeriod) : "",
             noticePeriod: emp.noticePeriod ? String(emp.noticePeriod) : "",
             shiftId: emp.shiftId ? String(emp.shiftId) : "",
+            businessPlaceId: emp.businessPlaceId ? String(emp.businessPlaceId) : "",
             salaryType: (emp.salaryType || "monthly").toUpperCase(),
             monthlySalary:
               emp.salaryType?.toLowerCase() === "monthly" ? String(emp.grossSalary || "") : "",
@@ -886,6 +889,7 @@ const EmployeeForm: React.FC = () => {
       if (form.noticePeriod) fd.append("noticePeriod", form.noticePeriod);
 
       if (form.shiftId) fd.append("shiftId", form.shiftId);
+      fd.append("businessPlaceId", form.businessPlaceId || "");
 
       if (form.salaryType) fd.append("salaryType", form.salaryType.toLowerCase());
       const st = (form.salaryType || "MONTHLY").toUpperCase();
@@ -1476,6 +1480,14 @@ const EmployeeForm: React.FC = () => {
           defaultOptionLabel="Select Shift"
           options={shiftOptions}
           searchable
+        />
+        <TextInput
+          horizontal
+          label="Business Place ID"
+          name="businessPlaceId"
+          value={form.businessPlaceId}
+          onChange={handleChange}
+          placeholder="For the registers' business-place filter"
         />
       </div>
     </div>

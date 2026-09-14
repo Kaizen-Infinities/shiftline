@@ -7,6 +7,19 @@ import bcrypt from "bcrypt";
 import { logger } from "../../lib/logger";
 
 class EmployeeService {
+  /** Validates a business-place id belongs to this tenant (P2-15) and converts it to a BigInt,
+   *  the same string-in/BigInt-out shape asset.service.ts uses for the same column elsewhere. */
+  private async resolveBusinessPlaceId(
+    businessPlaceId: string | null | undefined
+  ): Promise<bigint | null | undefined> {
+    if (businessPlaceId === undefined) return undefined;
+    if (businessPlaceId === null || businessPlaceId === "") return null;
+    const id = BigInt(businessPlaceId);
+    const place = await prisma.businessPlace.findUnique({ where: { id } });
+    if (!place) throw new ApiError(400, "That business place does not exist");
+    return id;
+  }
+
   async create(data: any) {
     const {
       createLoginAccount,
@@ -15,8 +28,11 @@ class EmployeeService {
       hra,
       otherAllowance,
       cashInHand,
+      businessPlaceId,
       ...employeeData
     } = data;
+
+    employeeData.businessPlaceId = await this.resolveBusinessPlaceId(businessPlaceId);
 
     if (employeeData.createdBy && employeeData.createdBy.startsWith("admin_")) {
       employeeData.createdBy = null;
@@ -168,7 +184,13 @@ class EmployeeService {
       // Return employee with user & role included
       return tx.employee.findUnique({
         where: { id: employee.id },
-        include: { user: { include: { role: true } }, role: true, department: true, shift: true },
+        include: {
+          user: { include: { role: true } },
+          role: true,
+          department: true,
+          shift: true,
+          businessPlace: true,
+        },
       });
     }))!;
 
@@ -196,6 +218,43 @@ class EmployeeService {
     }
 
     return createdEmployee;
+  }
+
+  /**
+   * A light typeahead (P2-15) behind `employees.search` rather than `employees.view`, for
+   * screens (leave, fines) that need to pick an employee without holding payroll.view. Capped
+   * at 20 rows; no payroll or identity fields leak through it.
+   */
+  async search(q: string) {
+    const trimmed = q.trim();
+    if (!trimmed) return [];
+    const employees = await prisma.employee.findMany({
+      where: {
+        status: "active",
+        OR: [
+          { empCode: { contains: trimmed, mode: "insensitive" } },
+          { fullName: { contains: trimmed, mode: "insensitive" } },
+        ],
+      },
+      select: {
+        id: true,
+        empCode: true,
+        fullName: true,
+        department: { select: { name: true } },
+        businessPlace: { select: { id: true, name: true } },
+      },
+      orderBy: { fullName: "asc" },
+      take: 20,
+    });
+    return employees.map((e) => ({
+      id: e.id.toString(),
+      empCode: e.empCode,
+      fullName: e.fullName,
+      department: e.department?.name ?? null,
+      businessPlace: e.businessPlace
+        ? { id: e.businessPlace.id.toString(), name: e.businessPlace.name }
+        : null,
+    }));
   }
 
   async findAll(params: {
@@ -241,6 +300,7 @@ class EmployeeService {
           department: true,
           shift: true,
           payrollConfig: true,
+          businessPlace: true,
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -279,6 +339,7 @@ class EmployeeService {
         department: true,
         shift: true,
         payrollConfig: true,
+        businessPlace: true,
       },
     });
 
@@ -324,8 +385,14 @@ class EmployeeService {
       hra,
       otherAllowance,
       cashInHand,
+      businessPlaceId,
       ...employeeData
     } = data;
+
+    const resolvedBusinessPlaceId = await this.resolveBusinessPlaceId(businessPlaceId);
+    if (resolvedBusinessPlaceId !== undefined) {
+      employeeData.businessPlaceId = resolvedBusinessPlaceId;
+    }
 
     if (employeeData.updatedBy && employeeData.updatedBy.startsWith("admin_")) {
       employeeData.updatedBy = null;
@@ -507,7 +574,12 @@ class EmployeeService {
       // Return employee with user included
       return tx.employee.findUnique({
         where: { id },
-        include: { user: { include: { role: true } }, department: true, shift: true },
+        include: {
+          user: { include: { role: true } },
+          department: true,
+          shift: true,
+          businessPlace: true,
+        },
       });
     }))!;
 

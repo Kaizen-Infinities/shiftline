@@ -2,8 +2,26 @@ import apiClient from "../api/apiClient";
 import config from "../api/config";
 import type { Employee, CreateEmployeeDto, UpdateEmployeeDto } from "../features/employee/types";
 
+/** A search result row (P2-15) — the light shape `GET /employees/search` returns, behind
+ *  "employees.search" rather than "employees.view", for a picker that does not need every
+ *  field a full employee record carries. */
+export interface EmployeeSearchRow {
+  id: string;
+  empCode: string;
+  fullName: string;
+  department: string | null;
+  businessPlace: { id: string; name: string } | null;
+}
+
 export const employeeService = {
-  fetchAll: async (params?: { search?: string; departmentId?: string | number; roleId?: string | number; status?: string; page?: number; limit?: number }): Promise<any> => {
+  fetchAll: async (params?: {
+    search?: string;
+    departmentId?: string | number;
+    roleId?: string | number;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> => {
     const response = await apiClient.get(config.employee.base, { params });
     return response.data?.data || response.data;
   },
@@ -36,5 +54,11 @@ export const employeeService = {
   fetchNextCode: async (): Promise<string> => {
     const response = await apiClient.get(config.employee.nextCode);
     return response.data?.data?.nextCode || "";
+  },
+
+  search: async (q: string): Promise<EmployeeSearchRow[]> => {
+    if (!q.trim()) return [];
+    const response = await apiClient.get(config.employee.search, { params: { q } });
+    return response.data?.data || [];
   },
 };

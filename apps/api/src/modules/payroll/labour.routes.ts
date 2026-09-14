@@ -69,6 +69,9 @@ router.post(
         isPaid: z.boolean().optional(),
         carryForwardMax: z.coerce.number().min(0).max(365).optional(),
         encashable: z.boolean().optional(),
+        // Leave without pay allowed (P2-09/P2-15): a request against this type may take the
+        // balance negative instead of being refused for insufficient leave.
+        allowNegative: z.boolean().optional(),
         isActive: z.boolean().optional(),
       })
       .parse(req.body);

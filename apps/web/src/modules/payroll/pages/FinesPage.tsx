@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
+import { EmployeePicker } from "../../../components/common/EmployeePicker";
 import { usePermission } from "../../../hooks/usePermission";
 import {
   finesService,
@@ -53,6 +54,13 @@ const FinesPage: React.FC = () => {
   const [showCauseDate, setShowCauseDate] = useState("");
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    occurredOn: "",
+    cause: "",
+    amount: "",
+    wagePeriod: "",
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,6 +96,10 @@ const FinesPage: React.FC = () => {
 
   const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.employeeId.trim()) {
+      toast.error("Pick an employee first");
+      return;
+    }
     await act(async () => {
       await finesService.create({
         employeeId: form.employeeId.trim(),
@@ -124,6 +136,20 @@ const FinesPage: React.FC = () => {
       setCancelId(null);
       setCancelReason("");
     }, "Cancelled");
+  };
+
+  const submitEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editId) return;
+    await act(async () => {
+      await finesService.update(editId, {
+        occurredOn: editForm.occurredOn,
+        cause: editForm.cause.trim(),
+        amount: Number(editForm.amount),
+        wagePeriod: editForm.wagePeriod.trim(),
+      });
+      setEditId(null);
+    }, "Updated");
   };
 
   return (
@@ -175,11 +201,9 @@ const FinesPage: React.FC = () => {
             onSubmit={submitCreate}
             className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-line-soft p-3 sm:grid-cols-3"
           >
-            <input
-              className={field}
-              placeholder="Employee ID"
+            <EmployeePicker
               value={form.employeeId}
-              onChange={(e) => setForm((f) => ({ ...f, employeeId: e.target.value }))}
+              onChange={(employeeId) => setForm((f) => ({ ...f, employeeId }))}
               required
             />
             <select
@@ -270,6 +294,63 @@ const FinesPage: React.FC = () => {
           </form>
         )}
 
+        {editId && (
+          <form
+            onSubmit={submitEdit}
+            className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-line-soft bg-card-2 p-3 sm:grid-cols-3"
+          >
+            <p className="text-xs text-ink-muted sm:col-span-3">
+              Editing a pending entry — this is refused once a show-cause is recorded or it is
+              approved.
+            </p>
+            <label className="text-xs text-ink-muted">
+              Wage period
+              <input
+                className={`${field} mt-1 w-full`}
+                placeholder="YYYY-MM"
+                value={editForm.wagePeriod}
+                onChange={(e) => setEditForm((f) => ({ ...f, wagePeriod: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="text-xs text-ink-muted">
+              Date
+              <input
+                type="date"
+                className={`${field} mt-1 w-full`}
+                value={editForm.occurredOn}
+                onChange={(e) => setEditForm((f) => ({ ...f, occurredOn: e.target.value }))}
+                required
+              />
+            </label>
+            <input
+              className={field}
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Amount"
+              value={editForm.amount}
+              onChange={(e) => setEditForm((f) => ({ ...f, amount: e.target.value }))}
+              required
+            />
+            <input
+              className={`${field} sm:col-span-3`}
+              placeholder="Cause / act or omission"
+              value={editForm.cause}
+              onChange={(e) => setEditForm((f) => ({ ...f, cause: e.target.value }))}
+              required
+            />
+            <div className="flex gap-2 sm:col-span-3">
+              <button className={primary} disabled={busy} type="submit">
+                Save
+              </button>
+              <button type="button" className={secondary} onClick={() => setEditId(null)}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
         {cancelId && (
           <form
             onSubmit={submitCancel}
@@ -337,6 +418,23 @@ const FinesPage: React.FC = () => {
                   </td>
                   <td className={td}>{r.recovered ? "Recovered" : "—"}</td>
                   <td className={`${td} space-x-2`}>
+                    {r.status === "PENDING" && !r.shownCauseGiven && can("fines.manage") && (
+                      <button
+                        className="text-xs font-semibold text-slate-700 hover:underline"
+                        disabled={busy}
+                        onClick={() => {
+                          setEditId(r.id);
+                          setEditForm({
+                            occurredOn: r.occurredOn.slice(0, 10),
+                            cause: r.cause,
+                            amount: String(r.amount),
+                            wagePeriod: r.wagePeriod,
+                          });
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
                     {r.status === "PENDING" &&
                       r.kind === "FINE" &&
                       !r.shownCauseGiven &&

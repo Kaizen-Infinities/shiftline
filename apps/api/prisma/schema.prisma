@@ -74,6 +74,11 @@ model Employee {
   // Section 8: Shift
   shiftId String?
 
+  /// The business place this employee is attached to (P2-15), for the registers'
+  /// business-place filter. Nullable — a fresh migration defaults it only where a tenant has
+  /// exactly one business place; a multi-branch tenant must set it explicitly.
+  businessPlaceId BigInt? @map("business_place_id")
+
   // Section 9: Payroll & Statutory
   salaryType        SalaryType?
   basicSalary       Decimal?    @db.Decimal(12, 2)
@@ -104,6 +109,7 @@ model Employee {
   user                       User?
   role                       Role?                        @relation(fields: [roleId], references: [id])
   shift                      Shift?                       @relation(fields: [companyId, shiftId], references: [companyId, shiftCode])
+  businessPlace              BusinessPlace?               @relation("EmployeeBusinessPlace", fields: [businessPlaceId], references: [id])
   payrollConfig              EmployeePayrollConfig?
   payrollResults             PayrollResult[]
   salaryAdvances             SalaryAdvance[]
@@ -124,6 +130,7 @@ model Employee {
   @@index([roleId])
   @@index([status])
   @@index([shiftId])
+  @@index([businessPlaceId])
   @@map("employees")
 }
 
@@ -806,6 +813,7 @@ model BusinessPlace {
   pettyCashEntries PettyCashEntry[]  @relation("PettyCashBusinessPlace")
   advanceReceipts  AdvanceReceipt[]  @relation("AdvanceReceiptBusinessPlace")
   deliveryChallans DeliveryChallan[] @relation("ChallanBusinessPlace")
+  employees        Employee[]        @relation("EmployeeBusinessPlace")
 
   company Company @relation("CompanyBusinessPlace", fields: [companyId], references: [id], onDelete: Restrict)
 

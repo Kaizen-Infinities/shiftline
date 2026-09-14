@@ -43,22 +43,36 @@ const ATTENDANCE_CODE: Record<string, "P" | "A" | "H" | "L" | "WO"> = {
 };
 
 class RegistersService {
-  /** businessPlaceId has no real link to Employee/AttendanceRecord in the schema today (P2-03
-   *  known gap — see hand-off note); we still validate the id belongs to this tenant so a bad
-   *  filter is rejected rather than silently ignored. */
-  private async assertBusinessPlace(businessPlaceId?: string) {
-    if (!businessPlaceId) return;
-    const bp = await prisma.businessPlace.findUnique({ where: { id: BigInt(businessPlaceId) } });
+  /** Validates a business-place filter belongs to this tenant, so a bad id is rejected rather
+   *  than silently ignored, and returns it as a BigInt for the filter itself. Every register
+   *  filters by `Employee.businessPlaceId` (P2-15) — `AttendanceRecord` still carries no
+   *  business-place link, so the muster roll and overtime registers filter by the employee set
+   *  a business place resolves to. */
+  private async assertBusinessPlace(businessPlaceId?: string): Promise<bigint | undefined> {
+    if (!businessPlaceId) return undefined;
+    const id = BigInt(businessPlaceId);
+    const bp = await prisma.businessPlace.findUnique({ where: { id } });
     if (!bp) throw new ApiError(400, "Business place not found");
+    return id;
+  }
+
+  /** The active employee ids attached to a business place, for registers (muster roll, overtime)
+   *  that filter `AttendanceRecord` rows rather than `Employee` rows directly. */
+  private async employeeIdsFor(businessPlaceId: bigint): Promise<bigint[]> {
+    const rows = await prisma.employee.findMany({
+      where: { businessPlaceId },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
   }
 
   // ── 1. Muster roll ────────────────────────────────────────────────────────────
-  async musterRoll(month: string, businessPlaceId?: string) {
-    await this.assertBusinessPlace(businessPlaceId);
+  async musterRoll(month: string, businessPlaceIdInput?: string) {
+    const businessPlaceId = await this.assertBusinessPlace(businessPlaceIdInput);
     const totalDays = daysInMonth(month);
 
     const employees = await prisma.employee.findMany({
-      where: { status: "active" },
+      where: { status: "active", ...(businessPlaceId ? { businessPlaceId } : {}) },
       include: { department: { select: { name: true } } },
       orderBy: { empCode: "asc" },
     });
@@ -119,11 +133,14 @@ class RegistersService {
   }
 
   // ── 2. Wages register ────────────────────────────────────────────────────────
-  async wages(month: string, businessPlaceId?: string) {
-    await this.assertBusinessPlace(businessPlaceId);
+  async wages(month: string, businessPlaceIdInput?: string) {
+    const businessPlaceId = await this.assertBusinessPlace(businessPlaceIdInput);
 
     const results = await prisma.payrollResult.findMany({
-      where: { payrollRun: { period: month } },
+      where: {
+        payrollRun: { period: month },
+        ...(businessPlaceId ? { employee: { businessPlaceId } } : {}),
+      },
       include: {
         payrollRun: true,
         employee: { include: { payrollConfig: true } },
@@ -180,15 +197,20 @@ class RegistersService {
   }
 
   // ── 3. Overtime register ─────────────────────────────────────────────────────
-  async overtime(month: string, businessPlaceId?: string) {
-    await this.assertBusinessPlace(businessPlaceId);
+  async overtime(month: string, businessPlaceIdInput?: string) {
+    const businessPlaceId = await this.assertBusinessPlace(businessPlaceIdInput);
+    const employeeFilter = businessPlaceId ? await this.employeeIdsFor(businessPlaceId) : null;
     const companyId = requireTenantId();
     const config = await payrollService.getConfig(companyId);
     const workingHours =
       Number(config.defaultWorkingHoursPerDay) > 0 ? Number(config.defaultWorkingHoursPerDay) : 8;
 
     const records = await prisma.attendanceRecord.findMany({
-      where: { date: { startsWith: month }, otHours: { gt: 0 } },
+      where: {
+        date: { startsWith: month },
+        otHours: { gt: 0 },
+        ...(employeeFilter ? { employeeId: { in: employeeFilter } } : {}),
+      },
       orderBy: [{ employeeId: "asc" }, { date: "asc" }],
     });
     const employees = await prisma.employee.findMany({
@@ -295,12 +317,18 @@ class RegistersService {
     return totals;
   }
 
-  private async finesOrDeductions(kind: "FINE" | "DEDUCTION", from: string, to: string) {
+  private async finesOrDeductions(
+    kind: "FINE" | "DEDUCTION",
+    from: string,
+    to: string,
+    businessPlaceId?: bigint
+  ) {
     const rows = await prisma.employeeFineDeduction.findMany({
       where: {
         kind,
         status: "APPROVED",
         occurredOn: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59Z`) },
+        ...(businessPlaceId ? { employee: { businessPlaceId } } : {}),
       },
       include: { employee: { select: { empCode: true, fullName: true } } },
       orderBy: [{ occurredOn: "asc" }],
@@ -381,23 +409,29 @@ class RegistersService {
     return { from, to, rows: lines, total, ceilingChecks };
   }
 
-  async fines(from: string, to: string, businessPlaceId?: string) {
-    await this.assertBusinessPlace(businessPlaceId);
-    return this.finesOrDeductions("FINE", from, to);
+  async fines(from: string, to: string, businessPlaceIdInput?: string) {
+    const businessPlaceId = await this.assertBusinessPlace(businessPlaceIdInput);
+    return this.finesOrDeductions("FINE", from, to, businessPlaceId);
   }
 
-  async deductions(from: string, to: string, businessPlaceId?: string) {
-    await this.assertBusinessPlace(businessPlaceId);
-    const { ceilingChecks, ...rest } = await this.finesOrDeductions("DEDUCTION", from, to);
+  async deductions(from: string, to: string, businessPlaceIdInput?: string) {
+    const businessPlaceId = await this.assertBusinessPlace(businessPlaceIdInput);
+    const { ceilingChecks, ...rest } = await this.finesOrDeductions(
+      "DEDUCTION",
+      from,
+      to,
+      businessPlaceId
+    );
     return rest;
   }
 
   // ── 6. Advances register ─────────────────────────────────────────────────────
-  async advances(from: string, to: string, businessPlaceId?: string) {
-    await this.assertBusinessPlace(businessPlaceId);
+  async advances(from: string, to: string, businessPlaceIdInput?: string) {
+    const businessPlaceId = await this.assertBusinessPlace(businessPlaceIdInput);
     const rows = await prisma.salaryAdvance.findMany({
       where: {
         disbursedDate: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59Z`) },
+        ...(businessPlaceId ? { employee: { businessPlaceId } } : {}),
       },
       include: { employee: { select: { empCode: true, fullName: true } } },
       orderBy: { disbursedDate: "asc" },

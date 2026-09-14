@@ -97,7 +97,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   // ── HR & Organization ───────────────────────────────────────────────────────
   {
     module: "employees",
-    actions: ["view", "create", "edit", "delete", "export"],
+    // "search" (P2-15) is a lighter key than "view": a typeahead over id/code/name/department/
+    // business place for the HR screens that need to pick an employee (leave, fines) but do not
+    // hold payroll.view — granted to every role that already holds leave.view, fines.view or
+    // payroll.view (see provisioning.service.ts).
+    actions: ["view", "create", "edit", "delete", "export", "search"],
     description: "Employees",
   },
   {

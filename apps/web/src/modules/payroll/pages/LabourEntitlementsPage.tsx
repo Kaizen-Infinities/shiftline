@@ -8,6 +8,7 @@ import {
   type GratuityReport,
   type HolidayRow,
   type LeaveBalanceRow,
+  type LeaveTypeRow,
   type SettlementRow,
 } from "../../../services/labourService";
 import {
@@ -46,6 +47,7 @@ const LabourEntitlementsPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>("leave");
   const [fyCode, setFyCode] = useState(years[0].value);
   const [balances, setBalances] = useState<LeaveBalanceRow[]>([]);
+  const [leaveTypes, setLeaveTypes] = useState<LeaveTypeRow[]>([]);
   const [gratuity, setGratuity] = useState<GratuityReport | null>(null);
   const [bonus, setBonus] = useState<BonusReport | null>(null);
   const [settlements, setSettlements] = useState<SettlementRow[]>([]);
@@ -56,7 +58,10 @@ const LabourEntitlementsPage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (tab === "leave") setBalances(await labourService.balances(fyCode));
+      if (tab === "leave") {
+        setBalances(await labourService.balances(fyCode));
+        setLeaveTypes(await labourService.leaveTypes(true));
+      }
       if (tab === "gratuity") setGratuity(await labourService.gratuity());
       if (tab === "bonus") setBonus(await labourService.bonus(fyCode));
       if (tab === "settlements") setSettlements(await labourService.settlements());
@@ -70,6 +75,23 @@ const LabourEntitlementsPage: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const toggleAllowNegative = (t: LeaveTypeRow) =>
+    act(
+      () =>
+        labourService.saveLeaveType({
+          code: t.code,
+          name: t.name,
+          daysPerYear: Number(t.daysPerYear),
+          basis: t.basis,
+          daysWorkedPerDay: t.daysWorkedPerDay,
+          carryForwardMax: Number(t.carryForwardMax),
+          encashable: t.encashable,
+          isActive: t.isActive,
+          allowNegative: !t.allowNegative,
+        }),
+      t.allowNegative ? "Leave without pay turned off" : "Leave without pay allowed"
+    );
 
   const act = async (what: () => Promise<unknown>, done: string) => {
     setBusy(true);
@@ -151,6 +173,56 @@ const LabourEntitlementsPage: React.FC = () => {
       </nav>
 
       {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+
+      {tab === "leave" && (
+        <Card title="Leave types">
+          <p className="mb-3 text-xs text-ink-muted">
+            "Leave without pay allowed" lets a request against this type take an employee's balance
+            negative instead of being refused for insufficient leave.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Code</th>
+                  <th className={th}>Name</th>
+                  <th className={`${th} text-right`}>Days/year</th>
+                  <th className={th}>Leave without pay allowed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaveTypes.map((t) => (
+                  <tr key={t.id} className="border-t border-line-soft">
+                    <td className={td}>{t.code}</td>
+                    <td className={td}>{t.name}</td>
+                    <td className={`${td} text-right`}>{Number(t.daysPerYear)}</td>
+                    <td className={td}>
+                      {can("payroll-settings.edit") ? (
+                        <button
+                          className={t.allowNegative ? success : secondary}
+                          disabled={busy}
+                          onClick={() => void toggleAllowNegative(t)}
+                        >
+                          {t.allowNegative ? "Allowed" : "Not allowed"}
+                        </button>
+                      ) : (
+                        <span>{t.allowNegative ? "Allowed" : "Not allowed"}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {leaveTypes.length === 0 && !loading && (
+                  <tr>
+                    <td className={`${td} text-ink-muted`} colSpan={4}>
+                      No leave types configured yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {tab === "leave" && (
         <Card title={`Leave balances · FY ${fyCode}`}>
