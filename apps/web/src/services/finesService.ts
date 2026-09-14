@@ -50,6 +50,18 @@ export const finesService = {
     wagePeriod: string;
   }): Promise<FineRow> => (await apiClient.post(p.base, body)).data.data,
 
+  /** Edits a still-PENDING item (P2-15) — refused once a show-cause is recorded or it is
+   *  approved. */
+  update: async (
+    id: string,
+    body: Partial<{
+      occurredOn: string;
+      cause: string;
+      amount: number;
+      wagePeriod: string;
+    }>
+  ): Promise<FineRow> => (await apiClient.patch(`${p.base}/${id}`, body)).data.data,
+
   showCause: async (
     id: string,
     body: { showCauseDate: string; showCauseRemarks: string }

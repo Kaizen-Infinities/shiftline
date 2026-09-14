@@ -18,6 +18,17 @@ export const createFineSchema = z.object({
 });
 export type CreateFineInput = z.infer<typeof createFineSchema>;
 
+/** PATCH /api/fines/:id (P2-15): edits a still-PENDING item — at least one field. */
+export const updateFineSchema = z
+  .object({
+    occurredOn: isoDate.optional(),
+    cause: z.string().trim().min(1, "A cause is required").max(2000).optional(),
+    amount: z.coerce.number().positive().optional(),
+    wagePeriod: wagePeriod.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "Nothing to update" });
+export type UpdateFineInput = z.infer<typeof updateFineSchema>;
+
 export const showCauseSchema = z.object({
   showCauseDate: isoDate,
   showCauseRemarks: z.string().trim().min(1, "Remarks are required").max(2000),

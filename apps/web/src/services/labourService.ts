@@ -21,6 +21,7 @@ export interface LeaveTypeRow {
   daysWorkedPerDay: number;
   carryForwardMax: string;
   encashable: boolean;
+  allowNegative: boolean;
   isActive: boolean;
 }
 
@@ -95,6 +96,19 @@ export const labourService = {
     (await apiClient.post(p.holidays, body)).data.data,
   leaveTypes: async (all = false): Promise<LeaveTypeRow[]> =>
     (await apiClient.get(p.leaveTypes, { params: { all } })).data.data,
+  /** Upserts a leave type by code (P2-09/P2-15) — used by the entitlements screen's
+   *  `allowNegative` toggle, which sends the whole row back with just that field flipped. */
+  saveLeaveType: async (body: {
+    code: string;
+    name: string;
+    daysPerYear: number;
+    basis?: LeaveTypeRow["basis"];
+    daysWorkedPerDay?: number;
+    carryForwardMax?: number;
+    encashable?: boolean;
+    allowNegative?: boolean;
+    isActive?: boolean;
+  }): Promise<LeaveTypeRow> => (await apiClient.post(p.leaveTypes, body)).data.data,
   balances: async (fyCode: string, employeeId?: string): Promise<LeaveBalanceRow[]> =>
     (await apiClient.get(`${p.leaveBalances}/${fyCode}`, { params: { employeeId } })).data.data,
   closeLeaveYear: async (fyCode: string) =>

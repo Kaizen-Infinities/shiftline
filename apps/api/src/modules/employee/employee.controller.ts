@@ -116,6 +116,9 @@ function parseEmployeeBody(body: Record<string, any>) {
   // ── Numeric fields ─────────────────────────────────────────────────────────
   if ("departmentId" in body) parsed.departmentId = parseNum(body.departmentId) ?? null;
   if ("roleId" in body) parsed.roleId = parseNum(body.roleId) ?? null;
+  // businessPlaceId (P2-15) is a BigInt column — kept as a string here (converted and validated
+  // in employeeService, the same way asset.service.ts handles a business-place id).
+  if ("businessPlaceId" in body) parsed.businessPlaceId = parseNullableString(body.businessPlaceId);
   if ("probationPeriod" in body) parsed.probationPeriod = parseNum(body.probationPeriod) ?? null;
   if ("noticePeriod" in body) parsed.noticePeriod = parseNum(body.noticePeriod) ?? null;
   if ("basicSalary" in body) parsed.basicSalary = parseNum(body.basicSalary) ?? null;
@@ -272,6 +275,12 @@ class EmployeeController {
     const employee = await employeeService.findById(userRecord.employeeId);
 
     return res.status(200).json(new ApiResponse("Profile fetched successfully", employee));
+  });
+
+  search = asyncHandler(async (req: Request, res: Response) => {
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    const results = await employeeService.search(q);
+    return res.status(200).json(new ApiResponse("Employees matching your search", results));
   });
 
   getNextCode = asyncHandler(async (_req: Request, res: Response) => {

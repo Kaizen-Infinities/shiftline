@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
+import { EmployeePicker } from "../../../components/common/EmployeePicker";
 import { usePermission } from "../../../hooks/usePermission";
 import { labourService, type LeaveTypeRow } from "../../../services/labourService";
 import {
@@ -33,6 +34,49 @@ const STATUS_STYLE: Record<LeaveRequestStatus, string> = {
   CANCELLED: "bg-slate-100 text-slate-700",
 };
 
+const daysInMonth = (month: string): number => {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+};
+
+/** One row per employee, one column per day of the month — built client-side from the flat list
+ *  the calendar endpoint already returns (P2-15); no backend change since a day-by-day grid is
+ *  cheap to fold from a month's worth of approved requests. */
+interface CalendarGridRow {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  departmentName: string | null;
+  cells: (string | null)[];
+}
+
+const buildCalendarGrid = (rows: CalendarRow[], month: string): CalendarGridRow[] => {
+  const totalDays = daysInMonth(month);
+  const byEmployee = new Map<string, CalendarGridRow>();
+  for (const r of rows) {
+    let grid = byEmployee.get(r.employeeId);
+    if (!grid) {
+      grid = {
+        employeeId: r.employeeId,
+        employeeCode: r.employeeCode,
+        employeeName: r.employeeName,
+        departmentName: r.departmentName,
+        cells: new Array(totalDays).fill(null),
+      };
+      byEmployee.set(r.employeeId, grid);
+    }
+    const from = new Date(`${r.fromDate}T00:00:00Z`).getTime();
+    const to = new Date(`${r.toDate}T00:00:00Z`).getTime();
+    for (let d = 1; d <= totalDays; d++) {
+      const asDate = new Date(`${month}-${String(d).padStart(2, "0")}T00:00:00Z`).getTime();
+      if (asDate >= from && asDate <= to) grid.cells[d - 1] = r.leaveTypeCode;
+    }
+  }
+  return Array.from(byEmployee.values()).sort((a, b) =>
+    a.employeeName.localeCompare(b.employeeName)
+  );
+};
+
 const emptyForm = {
   employeeId: "",
   leaveTypeCode: "",
@@ -56,6 +100,7 @@ const LeaveHrPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
+  const calendarGrid = useMemo(() => buildCalendarGrid(calendar, month), [calendar, month]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,6 +141,10 @@ const LeaveHrPage: React.FC = () => {
 
   const submitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.employeeId.trim()) {
+      toast.error("Pick an employee first");
+      return;
+    }
     await act(async () => {
       await leaveService.createRequest({
         employeeId: form.employeeId.trim(),
@@ -166,11 +215,9 @@ const LeaveHrPage: React.FC = () => {
               onSubmit={submitRequest}
               className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-line-soft p-3 sm:grid-cols-3"
             >
-              <input
-                className={field}
-                placeholder="Employee ID"
+              <EmployeePicker
                 value={form.employeeId}
-                onChange={(e) => setForm((f) => ({ ...f, employeeId: e.target.value }))}
+                onChange={(employeeId) => setForm((f) => ({ ...f, employeeId }))}
                 required
               />
               <select
@@ -325,41 +372,45 @@ const LeaveHrPage: React.FC = () => {
             </select>
           }
         >
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-line-soft">
-                  <th className={th}>Employee</th>
-                  <th className={th}>Department</th>
-                  <th className={th}>Type</th>
-                  <th className={th}>From</th>
-                  <th className={th}>To</th>
-                  <th className={th}>Days</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!loading && calendar.length === 0 && (
-                  <tr>
-                    <td className={td} colSpan={6}>
-                      Nobody is off this month.
-                    </td>
+          {!loading && calendarGrid.length === 0 && (
+            <p className="text-sm text-ink-muted">Nobody is off this month.</p>
+          )}
+          {calendarGrid.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-line-soft">
+                    <th className={`${th} sticky left-0 bg-card`}>Employee</th>
+                    {Array.from({ length: daysInMonth(month) }, (_, i) => i + 1).map((d) => (
+                      <th key={d} className={`${th} text-center`}>
+                        {d}
+                      </th>
+                    ))}
                   </tr>
-                )}
-                {calendar.map((c) => (
-                  <tr key={c.requestId} className="border-b border-line-soft/60">
-                    <td className={td}>
-                      {c.employeeName} ({c.employeeCode})
-                    </td>
-                    <td className={td}>{c.departmentName ?? "—"}</td>
-                    <td className={td}>{c.leaveTypeCode}</td>
-                    <td className={td}>{day(c.fromDate)}</td>
-                    <td className={td}>{day(c.toDate)}</td>
-                    <td className={td}>{c.days}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {calendarGrid.map((row) => (
+                    <tr key={row.employeeId} className="border-b border-line-soft/60">
+                      <td className={`${td} sticky left-0 bg-card whitespace-nowrap`}>
+                        {row.employeeName} ({row.employeeCode})
+                        {row.departmentName && (
+                          <div className="text-xs text-ink-muted">{row.departmentName}</div>
+                        )}
+                      </td>
+                      {row.cells.map((c, i) => (
+                        <td
+                          key={i}
+                          className={`${td} text-center ${c ? "bg-amber-50 font-semibold text-amber-800" : ""}`}
+                        >
+                          {c ?? ""}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       )}
     </div>

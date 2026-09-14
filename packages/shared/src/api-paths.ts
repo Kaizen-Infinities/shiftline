@@ -21,6 +21,9 @@ export const API_PATHS = {
     base: "/employees",
     nextCode: "/employees/next-code",
     me: "/employees/me",
+    // A light typeahead (P2-15) behind "employees.search" rather than "employees.view", for
+    // screens (leave, fines) that need to pick an employee without holding payroll.view.
+    search: "/employees/search",
   },
   designation: {
     base: "/designations",

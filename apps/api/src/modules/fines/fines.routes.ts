@@ -11,6 +11,7 @@ import {
   createFineSchema,
   listFinesQuery,
   showCauseSchema,
+  updateFineSchema,
 } from "./fines.validation";
 
 /**
@@ -48,6 +49,16 @@ router.post(
     const body = createFineSchema.parse(req.body);
     const row = await finesService.create(body);
     res.status(201).json(new ApiResponse("Fine or deduction recorded", row));
+  })
+);
+
+router.patch(
+  "/:id",
+  requirePermission("fines.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = updateFineSchema.parse(req.body);
+    const row = await finesService.update(idParam(req), body);
+    res.json(new ApiResponse("Fine or deduction updated", row));
   })
 );
 

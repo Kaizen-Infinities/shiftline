@@ -93,6 +93,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       // Fines and deductions (P2-13): the accountant is the payroll operator here too — raises,
       // records the show-cause and approves, the same as the rest of payroll it already runs.
       ...keysFor(["fines"]),
+      // Employee search (P2-15): a light picker for the leave and fines screens this role runs.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
   {
@@ -119,6 +121,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ]),
       // Leave (P2-09): self-service for whoever here has an employee record.
       ...keysFor(["leave"], ["view", "request"]),
+      // Employee search (P2-15): the picker on the leave screen this role holds view/request on.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
   {
@@ -143,6 +147,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ]),
       // Leave (P2-09): self-service for whoever here has an employee record.
       ...keysFor(["leave"], ["view", "request"]),
+      // Employee search (P2-15): the picker on the leave screen this role holds view/request on.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
   {
@@ -155,6 +161,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["insights"]),
       // Leave (P2-09): self-service for whoever here has an employee record.
       ...keysFor(["leave"], ["view", "request"]),
+      // Employee search (P2-15): the picker on the leave screen this role holds view/request on.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
   {
@@ -208,6 +216,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["registers"], ["view"]),
       // Fines and deductions (P2-13): read-only, same shape as the registers above.
       ...keysFor(["fines"], ["view"]),
+      // Employee search (P2-15): the picker used wherever this role reads leave/fines/payroll.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
 ];

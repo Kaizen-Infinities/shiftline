@@ -10,7 +10,13 @@
  */
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
-import type { CreateFineInput, ListFinesQuery, ShowCauseInput } from "./fines.validation";
+import { notify } from "../notifications/notify";
+import type {
+  CreateFineInput,
+  ListFinesQuery,
+  ShowCauseInput,
+  UpdateFineInput,
+} from "./fines.validation";
 
 const n2 = (v: unknown) => Math.round((Number(v ?? 0) || 0) * 100) / 100;
 
@@ -30,6 +36,57 @@ class FinesService {
         amount: n2(input.amount),
         wagePeriod: input.wagePeriod,
         status: "PENDING",
+      },
+      include: { employee: EMPLOYEE_SELECT },
+    });
+  }
+
+  /** Notifies the employee's linked user, if any, the same way leave decisions notify (P2-15).
+   *  Never throws into the caller's flow — `notify` already swallows its own errors. */
+  private async notifyEmployee(
+    row: { employeeId: bigint; id: string; kind: string; amount: unknown },
+    title: string,
+    body: string
+  ) {
+    const user = await prisma.user.findUnique({
+      where: { employeeId: row.employeeId },
+      select: { userId: true },
+    });
+    if (!user) return;
+    await notify({
+      category: "fines",
+      title,
+      body,
+      link: `/hr/fines?id=${row.id}`,
+      to: { userIds: [user.userId] },
+      level: row.kind === "FINE" ? "WARNING" : "INFO",
+    });
+  }
+
+  /** Edits a PENDING item's amount, cause, date or wage period (P2-15) — refused once a
+   *  show-cause has been recorded or the item is approved, so an edit can never rewrite what an
+   *  employee was actually heard on or what was approved. */
+  async update(id: string, input: UpdateFineInput) {
+    const row = await this.findOrThrow(id);
+    if (row.status !== "PENDING") {
+      throw new ApiError(409, "Only a pending item can be edited", "NOT_PENDING");
+    }
+    if (row.shownCauseGiven) {
+      throw new ApiError(
+        409,
+        "This item already has a show-cause notice recorded and can no longer be edited",
+        "SHOW_CAUSE_RECORDED"
+      );
+    }
+    return prisma.employeeFineDeduction.update({
+      where: { id },
+      data: {
+        ...(input.occurredOn !== undefined && {
+          occurredOn: new Date(`${input.occurredOn}T00:00:00Z`),
+        }),
+        ...(input.cause !== undefined && { cause: input.cause }),
+        ...(input.amount !== undefined && { amount: n2(input.amount) }),
+        ...(input.wagePeriod !== undefined && { wagePeriod: input.wagePeriod }),
       },
       include: { employee: EMPLOYEE_SELECT },
     });
@@ -77,7 +134,7 @@ class FinesService {
     if (row.status !== "PENDING") {
       throw new ApiError(409, "Only a pending item can record a show-cause notice", "NOT_PENDING");
     }
-    return prisma.employeeFineDeduction.update({
+    const updated = await prisma.employeeFineDeduction.update({
       where: { id },
       data: {
         shownCauseGiven: true,
@@ -86,6 +143,12 @@ class FinesService {
       },
       include: { employee: EMPLOYEE_SELECT },
     });
+    await this.notifyEmployee(
+      updated,
+      `A show-cause notice was recorded against you`,
+      `${updated.cause} — ₹${Number(updated.amount).toFixed(2)}. ${input.showCauseRemarks}`
+    );
+    return updated;
   }
 
   /**
@@ -137,11 +200,17 @@ class FinesService {
       }
     }
 
-    return prisma.employeeFineDeduction.update({
+    const updated = await prisma.employeeFineDeduction.update({
       where: { id },
       data: { status: "APPROVED", approvedAt: new Date(), approvedById: actor.userId ?? null },
       include: { employee: EMPLOYEE_SELECT },
     });
+    await this.notifyEmployee(
+      updated,
+      `A ${updated.kind === "FINE" ? "fine" : "deduction"} of ₹${Number(updated.amount).toFixed(2)} was approved`,
+      `${updated.cause} — wage period ${updated.wagePeriod}.`
+    );
+    return updated;
   }
 
   /** Cancels a fine or deduction; refused once payroll has already recovered it. */
