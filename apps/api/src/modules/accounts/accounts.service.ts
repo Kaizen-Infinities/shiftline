@@ -156,6 +156,15 @@ const DEFAULT_SEED_LEDGERS = [
     group: "Direct Expenses",
   },
   {
+    // P2-14: material issued to an open production order is neither raw material nor finished
+    // goods any more — its own current-asset ledger, so the closing-stock posting can carve it
+    // out of the blended stock figure instead of leaving it unposted.
+    code: "WIP",
+    name: "Work in Progress",
+    type: LedgerType.ASSET,
+    group: "Stock-in-Hand",
+  },
+  {
     // P1-17: the rupee moves between raising a bill and settling it, and the difference is real
     // income or a real expense — not an adjustment to the sale.
     code: "FX-GAIN-001",
@@ -1370,6 +1379,42 @@ class AccountsService {
       if (row.type === "ASSET") assets.push(item);
       else if (row.type === "LIABILITY") liabilities.push(item);
       else if (row.type === "EQUITY") equity.push(item);
+    }
+
+    // P2-14: the blended "Closing Stock" ledger (STOCK-001) carries raw material and finished
+    // goods together — Schedule III wants the inventory line legible, and so does anyone reading
+    // it. The split is computed from the valuation ledger's own item types, in the same ratio,
+    // and its two halves still add up to exactly what STOCK-001 books — nothing here changes the
+    // total, only how it is shown. Work in progress already books to its own ledger (P2-14), so it
+    // needs no splitting and appears in the list on its own.
+    const stockIdx = assets.findIndex((a) => a.code === "STOCK-001");
+    if (stockIdx >= 0 && Math.abs(assets[stockIdx].balance) > 0.01) {
+      const { valuationService } = await import("../costing/valuation.service.js");
+      const asOn = options.asOnDate ? new Date(options.asOnDate) : new Date();
+      const closing = await valuationService.closingStock(asOn);
+      const rm = closing.rows
+        .filter((r) => r.itemType === "RAW_MATERIAL")
+        .reduce((s, r) => s + r.value, 0);
+      const fg = closing.rows
+        .filter((r) => r.itemType === "PRODUCT")
+        .reduce((s, r) => s + r.value, 0);
+      const valuationTotal = rm + fg;
+      if (valuationTotal > 0.01) {
+        const stockItem = assets[stockIdx];
+        const round2 = (v: number) => Math.round(v * 100) / 100;
+        const rmShare = round2((stockItem.balance * rm) / valuationTotal);
+        assets.splice(
+          stockIdx,
+          1,
+          { ...stockItem, code: "STOCK-001-RM", name: "Raw Material Stock", balance: rmShare },
+          {
+            ...stockItem,
+            code: "STOCK-001-FG",
+            name: "Finished Goods Stock",
+            balance: round2(stockItem.balance - rmShare),
+          }
+        );
+      }
     }
 
     // Get P&L net profit up to asOnDate and add to equity

@@ -283,6 +283,7 @@ export const API_PATHS = {
     costCentres: "/costing/cost-centres",
     budgets: "/costing/budgets",
     costSheets: "/costing/cost-sheets",
+    settings: "/costing/settings",
   },
   fx: {
     base: "/fx",
