@@ -890,6 +890,8 @@ model Supplier {
   agreedPaymentDays   Int?                    @map("agreed_payment_days")
   /// The payee has not filed their returns, so tax comes off at the higher rate (206AB).
   higherRate206AB     Boolean                 @default(false) @map("higher_rate_206ab")
+  /// Section this supplier is usually deducted under (P2-11); the GRN form defaults to it.
+  defaultTdsSectionCode String?               @map("default_tds_section_code") @db.VarChar(20)
   materialPrices      SupplierMaterialPrice[]
   tdsDeductions       TdsDeduction[]
   expenses            Expense[]

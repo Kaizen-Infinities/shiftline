@@ -325,6 +325,37 @@ describe("TDS/TCS on documents", () => {
     expect(voucher?.status).toBe("CANCELLED");
   });
 
+  it("stores and returns a supplier's default TDS section (P2-11: the GRN form defaults from it)", async () => {
+    const owner = await authed("demo.owner");
+    const client = await api();
+
+    const created = await client
+      .post("/api/suppliers")
+      .set(owner.auth)
+      .send({
+        supplierCode: `TDSDEF-${sfx}`,
+        legalName: "Default Section Supplier (Test)",
+        billingAddressLine1: "1 Demo Road",
+        billingCity: "Chennai",
+        billingState: "Tamil Nadu",
+        billingPincode: "600001",
+        stateCode: "33",
+        defaultTdsSectionCode: "194C",
+      });
+    expect(created.status, JSON.stringify(created.body).slice(0, 300)).toBe(201);
+    expect(created.body.data.defaultTdsSectionCode).toBe("194C");
+
+    const fetched = await client.get(`/api/suppliers/${created.body.data.id}`).set(owner.auth);
+    expect(fetched.body.data.defaultTdsSectionCode).toBe("194C");
+
+    const updated = await client
+      .put(`/api/suppliers/${created.body.data.id}`)
+      .set(owner.auth)
+      .send({ defaultTdsSectionCode: "194J" });
+    expect(updated.status, JSON.stringify(updated.body).slice(0, 300)).toBe(200);
+    expect(updated.body.data.defaultTdsSectionCode).toBe("194J");
+  });
+
   it("refuses TDS section edits without the permission", async () => {
     const supervisor = await authed("demo.production");
     const client = await api();

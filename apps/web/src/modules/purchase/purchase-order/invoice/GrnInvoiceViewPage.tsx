@@ -13,6 +13,7 @@ import { fetchCompany } from "../../../../features/company/companySlice";
 import CommonLoader from "../../../../components/ui/Loader/CommonLoader";
 import { usePermission } from "../../../../hooks/usePermission";
 import { assetService, type AssetClassRow } from "../../../../services/assetService";
+import { bankingService, type ChequeRow } from "../../../../services/bankingService";
 
 // ─── Formatting helpers ─────────────────────────────────────────────────
 const formatMoney = (val: string | number | null | undefined) => {
@@ -100,6 +101,8 @@ const GrnInvoiceViewPage: React.FC = () => {
   const [capitalisingLine, setCapitalisingLine] = useState<{ id: string; label: string } | null>(
     null
   );
+  // Cheque register rows for this GRN's payments (P2-06/P2-11) — sourceDocId names the invoice.
+  const [cheques, setCheques] = useState<ChequeRow[]>([]);
 
   // Fetch company settings on mount
   useEffect(() => {
@@ -148,6 +151,20 @@ const GrnInvoiceViewPage: React.FC = () => {
       loadDetail(idParam);
     }
   }, [idParam, loadDetail]);
+
+  // Cheque register rows for this bill's cheque payments (P2-11).
+  useEffect(() => {
+    if (!selectedItem?.id) {
+      setCheques([]);
+      return;
+    }
+    bankingService
+      .cheques({ kind: "ISSUED" })
+      .then((rows) =>
+        setCheques((rows as any[]).filter((c) => c.sourceDocId === selectedItem.id) as ChequeRow[])
+      )
+      .catch(() => setCheques([]));
+  }, [selectedItem?.id]);
 
   const handleSocketUpdate = useCallback(() => {
     fetchInvoicesList();
@@ -442,6 +459,104 @@ const GrnInvoiceViewPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Currency / TDS / Payments summary (P2-11) */}
+            {(selectedItem.currencyCode && selectedItem.currencyCode !== "INR") ||
+            Number(selectedItem.tdsAmount) > 0 ||
+            (Array.isArray(selectedItem.payments) && selectedItem.payments.length > 0) ? (
+              <div className="mb-6 no-print rounded-lg border border-gray-200 bg-white px-4 py-3 space-y-2 text-sm">
+                {selectedItem.currencyCode && selectedItem.currencyCode !== "INR" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-xs">
+                      {selectedItem.currencyCode}
+                    </span>
+                    <span className="text-gray-700">
+                      {selectedItem.currencyCode}{" "}
+                      {Number(selectedItem.foreignTotal ?? 0).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      @ ₹{Number(selectedItem.exchangeRate ?? 1).toFixed(4)} = ₹
+                      {formatMoney(selectedItem.netAmount)}
+                    </span>
+                  </div>
+                )}
+                {Number(selectedItem.tdsAmount) > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-bold text-xs">
+                      TDS {selectedItem.tdsSectionCode}
+                    </span>
+                    <span className="text-gray-700">
+                      ₹{formatMoney(selectedItem.tdsAmount)} deducted — net payable ₹
+                      {formatMoney(Number(selectedItem.netAmount) - Number(selectedItem.tdsAmount))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/compliance/tds")}
+                      className="text-blue-600 hover:underline bg-transparent border-none p-0 cursor-pointer text-xs font-semibold"
+                    >
+                      View deduction →
+                    </button>
+                  </div>
+                )}
+                {Array.isArray(selectedItem.payments) && selectedItem.payments.length > 0 && (
+                  <div>
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">
+                      Payments
+                    </div>
+                    <div className="space-y-1">
+                      {(selectedItem.payments as any[]).map((p: any, idx: number) => {
+                        const isCheque =
+                          String(p.instrumentType ?? "").toUpperCase() === "CHEQUE" ||
+                          String(p.paymentMethod ?? "")
+                            .toLowerCase()
+                            .includes("cheque");
+                        const cheque = isCheque
+                          ? cheques.find((c) => c.chequeNo === p.chequeNo)
+                          : undefined;
+                        const postDated =
+                          isCheque &&
+                          p.chequeDate &&
+                          new Date(p.chequeDate).getTime() > new Date(p.paymentDate).getTime();
+                        return (
+                          <div
+                            key={p.id || idx}
+                            className="flex flex-wrap items-center gap-2 text-xs"
+                          >
+                            <span className="text-gray-500">{formatDate(p.paymentDate)}</span>
+                            <span className="font-semibold text-gray-800">{p.paymentMethod}</span>
+                            <span className="font-bold text-gray-900">
+                              ₹{formatMoney(p.amount)}
+                            </span>
+                            {isCheque && p.chequeNo && (
+                              <span className="text-gray-500">Cheque #{p.chequeNo}</span>
+                            )}
+                            {postDated && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">
+                                POST-DATED
+                              </span>
+                            )}
+                            {cheque && (
+                              <span
+                                className={`px-1.5 py-0.5 rounded font-bold ${
+                                  cheque.status === "CLEARED"
+                                    ? "bg-green-100 text-green-700"
+                                    : cheque.status === "BOUNCED"
+                                      ? "bg-rose-100 text-rose-700"
+                                      : "bg-blue-100 text-blue-700"
+                                }`}
+                              >
+                                {cheque.status}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
             {/* Print stylesheet */}
             <style>{`
                             @media print {
@@ -511,6 +626,12 @@ const GrnInvoiceViewPage: React.FC = () => {
                     <MetaRow
                       label="Reverse Charge"
                       value={selectedItem.reverseCharge ? "Yes" : "No"}
+                    />
+                  )}
+                  {selectedItem.currencyCode && selectedItem.currencyCode !== "INR" && (
+                    <MetaRow
+                      label="Currency"
+                      value={`${selectedItem.currencyCode} @ ₹${Number(selectedItem.exchangeRate ?? 1).toFixed(4)}`}
                     />
                   )}
                   {selectedItem.purchaseOrder?.poNumber && (
