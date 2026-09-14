@@ -5,6 +5,7 @@ import { usePermission } from "../../../hooks/usePermission";
 import { accountService, type AccountLedger } from "../../../services/accountService";
 import {
   costingService,
+  type BackfillResult,
   type ClosingStock,
   type CostCentrePl,
   type CostSheetRow,
@@ -61,6 +62,7 @@ const CostingPage: React.FC = () => {
   const [pl, setPl] = useState<CostCentrePl | null>(null);
   const [variance, setVariance] = useState<VarianceReport | null>(null);
   const [sheets, setSheets] = useState<CostSheetRow[]>([]);
+  const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -155,28 +157,50 @@ const CostingPage: React.FC = () => {
             </select>
           )}
           {tab === "stock" && can("costing.manage") && (
-            <button
-              className={primary}
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const out = await costingService.postClosingStock(stockPeriodKey);
-                  toast.success(
-                    out.posted
-                      ? `Posted the movement of ${out.movement}`
-                      : "Nothing to post for that month"
-                  );
-                  await load();
-                } catch (err) {
-                  toast.error(message(err));
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Post {stockPeriodKey} stock movement
-            </button>
+            <>
+              <button
+                className={primary}
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const out = await costingService.postClosingStock(stockPeriodKey);
+                    toast.success(
+                      out.posted
+                        ? `Posted the movement of ${out.movement}`
+                        : "Nothing to post for that month"
+                    );
+                    await load();
+                  } catch (err) {
+                    toast.error(message(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Post {stockPeriodKey} stock movement
+              </button>
+              <button
+                className={primary}
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const result = await costingService.backfillValuation();
+                    setBackfillResult(result);
+                    toast.success(
+                      `Backfilled ${result.created} valuation entries (${result.skipped} skipped)`
+                    );
+                  } catch (err) {
+                    toast.error(message(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Backfill valuation
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -353,6 +377,43 @@ const CostingPage: React.FC = () => {
               </table>
             </div>
           </Card>
+          {backfillResult && (
+            <Card title="Backfill valuation report">
+              <p className="mb-3 text-sm text-ink-muted">
+                Scanned {backfillResult.scanned} rows, filled {backfillResult.created}, skipped{" "}
+                {backfillResult.skipped}.
+              </p>
+              {backfillResult.pairs.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr>
+                        <th className={th}>Item</th>
+                        <th className={th}>Store</th>
+                        <th className={`${th} text-right`}>Filled</th>
+                        <th className={`${th} text-right`}>Skipped</th>
+                        <th className={th}>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {backfillResult.pairs.map((p) => (
+                        <tr
+                          key={`${p.itemCode}-${p.storeCode}`}
+                          className="border-t border-line-soft"
+                        >
+                          <td className={td}>{p.itemCode}</td>
+                          <td className={td}>{p.storeCode}</td>
+                          <td className={`${td} text-right`}>{p.filled}</td>
+                          <td className={`${td} text-right`}>{p.skipped}</td>
+                          <td className={td}>{p.skipReason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
         </>
       )}
 

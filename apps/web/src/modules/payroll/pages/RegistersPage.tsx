@@ -344,6 +344,7 @@ const OvertimeTable: React.FC<{ rows: OvertimeRow[] }> = ({ rows }) => (
               "Quarter Hours",
               "Cap",
               "Over Cap",
+              "Quarterly Breach",
             ].map((h) => (
               <th key={h} className={th}>
                 {h}
@@ -364,11 +365,19 @@ const OvertimeTable: React.FC<{ rows: OvertimeRow[] }> = ({ rows }) => (
               <td className={`${td} text-right`}>{r.cumulativeQuarterHours}</td>
               <td className={`${td} text-right`}>{r.quarterlyCap}</td>
               <td className={`${td} text-center`}>{r.overCap ? "Yes" : ""}</td>
+              <td
+                className={`${td} text-center ${
+                  r.payrollBreach ? "bg-red-50 font-semibold text-red-700" : ""
+                }`}
+                title={r.payrollBreach ? "Quarterly cap of 125 hours exceeded" : undefined}
+              >
+                {r.payrollBreach ? "Yes" : ""}
+              </td>
             </tr>
           ))}
           {rows.length === 0 && (
             <tr>
-              <td className={td} colSpan={10}>
+              <td className={td} colSpan={11}>
                 No overtime recorded for this month.
               </td>
             </tr>
