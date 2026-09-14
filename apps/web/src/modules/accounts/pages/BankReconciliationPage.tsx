@@ -66,8 +66,10 @@ const BankReconciliationPage: React.FC = () => {
   useEffect(() => {
     void (async () => {
       try {
-        const rows = (await apiClient.get("/accounts/bank-accounts")).data
-          .data as BankAccountOption[];
+        // The endpoint answers { accounts, totalBalance }; older builds returned the bare list.
+        const body = (await apiClient.get("/accounts/bank-accounts")).data.data as
+          BankAccountOption[] | { accounts?: BankAccountOption[] };
+        const rows = Array.isArray(body) ? body : (body?.accounts ?? []);
         setAccounts(rows);
         if (rows[0]) setBankAccountId(rows[0].id);
       } catch {
