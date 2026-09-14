@@ -35,7 +35,7 @@ describe("valuation wiring and WIP", () => {
     const found = await asDemoTenant(async () => {
       const prisma = await getPrisma();
       const user = await prisma.user.findUniqueOrThrow({ where: { username: "demo.owner" } });
-      const company = await prisma.company.findFirstOrThrow();
+      const company = await prisma.company.findUniqueOrThrow({ where: { companyCode: "DEMO" } });
       return { user, company };
     });
     ownerUser = found.user;
@@ -161,7 +161,7 @@ describe("valuation wiring and WIP", () => {
     const poId = `PO-${sfx}`;
     await asDemoTenant(async () => {
       const prisma = await getPrisma();
-      const company = await prisma.company.findFirstOrThrow();
+      const company = await prisma.company.findUniqueOrThrow({ where: { companyCode: "DEMO" } });
       await prisma.productionOrder.create({
         data: {
           productionOrderId: poId,
@@ -199,7 +199,7 @@ describe("valuation wiring and WIP", () => {
     // Closing the order (dispatch) drops the WIP to zero.
     await asDemoTenant(async () => {
       const prisma = await getPrisma();
-      const company = await prisma.company.findFirstOrThrow();
+      const company = await prisma.company.findUniqueOrThrow({ where: { companyCode: "DEMO" } });
       await prisma.productionOrder.update({
         where: { companyId_productionOrderId: { companyId: company.id, productionOrderId: poId } },
         data: { status: "DISPATCHED" },
