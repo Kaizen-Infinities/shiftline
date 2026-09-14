@@ -58,6 +58,8 @@ export const QUEUES = {
   LEAVE_ACCRUAL: "payroll.leave.accrual",
   /** Monthly on the 1st: remind employees with no tax declaration on file for the FY (P2-16). */
   TAX_DECLARATION_REMINDER: "payroll.tax-declaration.reminder",
+  /** Daily: flag a GSTR-2B MISSING_IN_2B/MISMATCH record nobody has followed up (P2-18). */
+  GSTR2B_NUDGE: "gst.gstr2b.nudge",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

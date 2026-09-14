@@ -11,6 +11,7 @@ import { eInvoiceHandler } from "./e-invoice.job";
 import { ewayBillExpiryHandler } from "./eway-bill.job";
 import { heartbeatHandler } from "./heartbeat.job";
 import { complianceCalendarHandler } from "./compliance.job";
+import { gstr2bNudgeHandler } from "./gstr2b-nudge.job";
 import { imsDeadlineHandler } from "./ims.job";
 import { jobWorkReturnHandler } from "./job-work.job";
 import { msmeClockHandler } from "./msme.job";
@@ -81,6 +82,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.SMS_SEND, work, each(smsSendHandler));
   await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
   await boss.work(QUEUES.TAX_DECLARATION_REMINDER, work, each(taxDeclarationReminderHandler));
+  await boss.work(QUEUES.GSTR2B_NUDGE, work, each(gstr2bNudgeHandler));
 };
 
 /**
@@ -117,4 +119,7 @@ export const registerSchedules = async (): Promise<void> => {
   // 09:00 IST on the 1st: after payroll's own settlement runs, remind whoever still has no tax
   // declaration on file for the financial year.
   await boss.schedule(QUEUES.TAX_DECLARATION_REMINDER, "0 9 1 * *", {}, { tz: IST });
+  // 09:00 IST daily, after the 2B/IMS/compliance nudges: today's reconciliation state is settled
+  // by then, and it lands after the other GST warnings rather than competing with them.
+  await boss.schedule(QUEUES.GSTR2B_NUDGE, "0 9 * * *", {}, { tz: IST });
 };

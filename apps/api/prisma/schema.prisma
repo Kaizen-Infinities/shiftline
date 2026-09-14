@@ -4205,6 +4205,13 @@ model Gstr2bSettings {
   companyId         String   @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   dateToleranceDays Int      @default(7) @map("date_tolerance_days")
   valueTolerance    Decimal  @default(1.00) @map("value_tolerance") @db.Decimal(10, 2)
+  /// FIXTURE never reaches a live gateway; LIVE sends through the real WhatsApp/email services.
+  /// Defaults to FIXTURE outside production so a demo tenant never sends for real by accident
+  /// (P2-18 — replaces the old NODE_ENV check in `followup.providers.ts`).
+  followUpProvider  FollowUpProviderKind @default(FIXTURE) @map("follow_up_provider")
+  /// Days a MISSING_IN_2B/MISMATCH record can sit with no follow-up before the daily nudge job
+  /// flags it (P2-18).
+  nudgeAfterDays    Int      @default(5) @map("nudge_after_days")
   updatedBy         String?  @map("updated_by") @db.VarChar(36)
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -4245,6 +4252,12 @@ model SupplierFollowUp {
 enum FollowUpChannel {
   WHATSAPP
   EMAIL
+}
+
+/// Which follow-up channel implementation `Gstr2bSettings.followUpProvider` selects (P2-18).
+enum FollowUpProviderKind {
+  FIXTURE
+  LIVE
 }
 
 enum FollowUpStatus {

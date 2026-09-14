@@ -415,24 +415,40 @@ class MsmeService {
    * else shows how many small-supplier bills elsewhere are about to breach, since the money that
    * goes out today is money that cannot go to them instead. Never a reason to block the payment.
    */
+  /**
+   * A payment run may pay several people in one voucher (the multi-row entry grid); every debit
+   * row with a `supplierId` is a payee, and the warning has to look at all of them, not just the
+   * first (P2-18). `payeeSupplierIds` accepts one id, several, or none.
+   */
   async paymentWarning(
-    payeeSupplierId?: number,
+    payeeSupplierIds?: number | number[],
     asOn = new Date()
   ): Promise<
     | { type: "PAYEE_SMALL"; bills: MsmeBillRow[]; count: number; amount: number }
     | { type: "OTHER_SMALL"; count: number; amount: number }
   > {
     const dueSoon = (rows: MsmeBillRow[]) => rows.filter((b) => b.overdue || b.daysLeft <= 5);
+    const ids = [
+      ...new Set(
+        (Array.isArray(payeeSupplierIds)
+          ? payeeSupplierIds
+          : payeeSupplierIds
+            ? [payeeSupplierIds]
+            : []
+        ).filter((id): id is number => typeof id === "number" && Number.isFinite(id))
+      ),
+    ];
 
-    if (payeeSupplierId) {
-      const supplier = await prisma.supplier.findUnique({
-        where: { id: payeeSupplierId },
-        select: { msmeCategory: true },
+    if (ids.length > 0) {
+      const covered = await prisma.supplier.findMany({
+        where: { id: { in: ids }, msmeCategory: { in: COVERED } },
+        select: { id: true },
       });
-      if (supplier && COVERED.includes(supplier.msmeCategory)) {
-        const bills = dueSoon(
-          await this.bills({ asOn, supplierId: payeeSupplierId, openOnly: true })
+      if (covered.length > 0) {
+        const perPayee = await Promise.all(
+          covered.map((s) => this.bills({ asOn, supplierId: s.id, openOnly: true }))
         );
+        const bills = dueSoon(perPayee.flat());
         return {
           type: "PAYEE_SMALL",
           bills,

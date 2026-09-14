@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { normaliseMobile } from "../sms/sms.calc";
 import { followUpProvider } from "./followup.providers";
 import { gstr2bService } from "./gstr2b.service";
+import { gstr2bSettingsService } from "./gstr2b-settings.service";
 import { scopeFor } from "./gst-period";
 
 /**
@@ -29,18 +31,31 @@ interface FollowUpLine {
   differs: string | null;
 }
 
+interface SupplierGroup {
+  supplierGstin: string;
+  supplierName: string | null;
+  recordIds: string[];
+  lines: FollowUpLine[];
+}
+
 class SupplierFollowUpService {
-  /** Every record id resolved to one line of the message, and the supplier it belongs to. */
-  private async lines(
+  /**
+   * Every record id resolved to one line of the message, grouped by the supplier it belongs to.
+   * A selection spanning several suppliers used to be refused outright (`MIXED_SUPPLIER`); it is
+   * now split into one group per supplier so `send`/`preview` can raise one message each (P2-18).
+   */
+  private async groupBySupplier(
     periodKey: string,
     gstin: string,
     recordIds: string[]
-  ): Promise<{ lines: FollowUpLine[]; supplierGstin: string; supplierName: string | null }> {
-    let supplierGstin: string | null = null;
-    let supplierName: string | null = null;
-    const lines: FollowUpLine[] = [];
+  ): Promise<SupplierGroup[]> {
+    const byGstin = new Map<string, SupplierGroup>();
 
     for (const recordId of recordIds) {
+      let supplierGstin: string;
+      let supplierName: string | null;
+      let line: FollowUpLine;
+
       if (recordId.includes(":")) {
         // A MISSING_IN_2B book document: `DOCTYPE:docId`.
         const [docType, docId] = recordId.split(":", 2);
@@ -48,49 +63,48 @@ class SupplierFollowUpService {
         if (!doc || !doc.supplierGstin) {
           throw new ApiError(404, "One of those records could not be found", "NO_RECORD");
         }
-        supplierGstin = supplierGstin ?? doc.supplierGstin;
-        if (doc.supplierGstin !== supplierGstin) {
-          throw new ApiError(
-            400,
-            "All the records must belong to the same supplier",
-            "MIXED_SUPPLIER"
-          );
-        }
-        lines.push({
+        supplierGstin = doc.supplierGstin;
+        supplierName = null;
+        line = {
           docNo: doc.docNo,
           docDate: doc.docDate.toISOString().slice(0, 10),
           taxable: doc.taxable,
           differs: "not filed against your GSTIN in the 2B for this period",
-        });
+        };
       } else {
         const rec = await prisma.gstr2bRecord.findUnique({ where: { id: recordId } });
         if (!rec || rec.periodKey !== periodKey || rec.gstin !== gstin) {
           throw new ApiError(404, "One of those records could not be found", "NO_RECORD");
         }
-        supplierGstin = supplierGstin ?? rec.supplierGstin;
-        if (rec.supplierGstin !== supplierGstin) {
-          throw new ApiError(
-            400,
-            "All the records must belong to the same supplier",
-            "MIXED_SUPPLIER"
-          );
-        }
-        supplierName = supplierName ?? rec.supplierName;
+        supplierGstin = rec.supplierGstin;
+        supplierName = rec.supplierName;
         const mismatch = Array.isArray(rec.mismatchFields)
           ? (rec.mismatchFields as { field: string; inBooks: unknown; inPortal: unknown }[])
               .map((f) => `${f.field}: we have ${f.inBooks}, you filed ${f.inPortal}`)
               .join("; ")
           : null;
-        lines.push({
+        line = {
           docNo: rec.docNo,
           docDate: rec.docDate.toISOString().slice(0, 10),
           taxable: Number(rec.taxable),
           differs: mismatch,
-        });
+        };
       }
+
+      const group = byGstin.get(supplierGstin) ?? {
+        supplierGstin,
+        supplierName,
+        recordIds: [],
+        lines: [],
+      };
+      group.supplierName = group.supplierName ?? supplierName;
+      group.recordIds.push(recordId);
+      group.lines.push(line);
+      byGstin.set(supplierGstin, group);
     }
-    if (!supplierGstin) throw new ApiError(400, "No supplier could be worked out", "NO_SUPPLIER");
-    return { lines, supplierGstin, supplierName };
+    if (byGstin.size === 0)
+      throw new ApiError(400, "No supplier could be worked out", "NO_SUPPLIER");
+    return [...byGstin.values()];
   }
 
   private compose(periodKey: string, lines: FollowUpLine[]): string {
@@ -108,85 +122,124 @@ class SupplierFollowUpService {
     );
   }
 
-  /** Composes the message without sending anything, and without writing a row. */
-  async preview(periodKey: string, input: FollowUpInput) {
-    const scope = await scopeFor(input.gstin);
-    const { lines, supplierGstin, supplierName } = await this.lines(
-      periodKey,
-      scope.gstin,
-      input.recordIds
-    );
-    return { supplierGstin, supplierName, message: this.compose(periodKey, lines), lines };
+  /** The supplier a group's recipient comes from: the caller's hint when there is exactly one
+   * group and it matches, the supplier on the group's own GSTIN otherwise. */
+  private async supplierFor(group: SupplierGroup, input: FollowUpInput, single: boolean) {
+    if (single && input.supplierId) {
+      const s = await prisma.supplier.findUnique({ where: { id: Number(input.supplierId) } });
+      if (s) return s;
+    }
+    if (single && input.supplierGstin && input.supplierGstin === group.supplierGstin) {
+      const s = await prisma.supplier.findFirst({ where: { gstin: input.supplierGstin } });
+      if (s) return s;
+    }
+    return prisma.supplier.findFirst({ where: { gstin: group.supplierGstin } });
   }
 
-  /** Composes, sends, and records the outcome whichever way it goes. */
+  /** Composes the message for every supplier the selection touches, without sending or writing
+   * anything. */
+  async preview(periodKey: string, input: FollowUpInput) {
+    const scope = await scopeFor(input.gstin);
+    const groups = await this.groupBySupplier(periodKey, scope.gstin, input.recordIds);
+    const previews = groups.map((g) => ({
+      supplierGstin: g.supplierGstin,
+      supplierName: g.supplierName,
+      message: this.compose(periodKey, g.lines),
+      lines: g.lines,
+    }));
+    return groups.length === 1 ? previews[0] : previews;
+  }
+
+  /**
+   * Composes, sends and records one message per supplier the selection touches — a selection
+   * spanning several suppliers raises one `SupplierFollowUp` row each rather than being refused
+   * (P2-18). Recipients are validated for every group before anything is sent, so a follow-up
+   * with one supplier missing a contact detail fails without messaging the others.
+   */
   async send(periodKey: string, input: FollowUpInput, actor: { userId?: string }) {
     const scope = await scopeFor(input.gstin);
-    const supplier = input.supplierId
-      ? await prisma.supplier.findUnique({ where: { id: Number(input.supplierId) } })
-      : input.supplierGstin
-        ? await prisma.supplier.findFirst({ where: { gstin: input.supplierGstin } })
-        : null;
+    const groups = await this.groupBySupplier(periodKey, scope.gstin, input.recordIds);
+    const single = groups.length === 1;
 
-    const { lines, supplierGstin, supplierName } = await this.lines(
-      periodKey,
-      scope.gstin,
-      input.recordIds
+    const prepared = await Promise.all(
+      groups.map(async (group) => {
+        const supplier = await this.supplierFor(group, input, single);
+        const rawRecipient =
+          input.channel === "WHATSAPP" ? (supplier?.whatsapp ?? null) : (supplier?.email ?? null);
+        const recipient =
+          input.channel === "WHATSAPP"
+            ? normaliseMobile(rawRecipient)
+            : rawRecipient?.trim() || null;
+        if (!recipient) {
+          throw new ApiError(
+            400,
+            input.channel === "WHATSAPP"
+              ? `${group.supplierGstin} has no valid WhatsApp number on file`
+              : `${group.supplierGstin} has no email address on file`,
+            "NO_CONTACT"
+          );
+        }
+        return {
+          group,
+          recipient,
+          supplierName: group.supplierName ?? supplier?.legalName ?? null,
+          message: this.compose(periodKey, group.lines),
+        };
+      })
     );
-    const message = this.compose(periodKey, lines);
 
-    const recipient =
-      input.channel === "WHATSAPP"
-        ? supplier?.whatsapp?.trim() || null
-        : supplier?.email?.trim() || null;
-    if (!recipient) {
-      throw new ApiError(
-        400,
-        input.channel === "WHATSAPP"
-          ? "This supplier has no WhatsApp number on file"
-          : "This supplier has no email address on file",
-        "NO_CONTACT"
-      );
+    const settings = await gstr2bSettingsService.get();
+    const provider = followUpProvider(settings.followUpProvider);
+
+    const results: Awaited<ReturnType<typeof prisma.supplierFollowUp.create>>[] = [];
+    let failed = false;
+    for (const p of prepared) {
+      try {
+        if (input.channel === "WHATSAPP") await provider.sendWhatsapp(p.recipient, p.message);
+        else await provider.sendEmail(p.recipient, `GSTR-2B follow-up: ${periodKey}`, p.message);
+
+        results.push(
+          await prisma.supplierFollowUp.create({
+            data: {
+              periodKey,
+              gstin: scope.gstin,
+              supplierGstin: p.group.supplierGstin,
+              supplierName: p.supplierName,
+              channel: input.channel,
+              recordIds: p.group.recordIds,
+              recipient: p.recipient,
+              message: p.message,
+              status: "SENT",
+              sentBy: actor.userId?.slice(0, 36) ?? null,
+            },
+          })
+        );
+      } catch (error) {
+        failed = true;
+        const detail = error instanceof Error ? error.message : "The channel refused the message";
+        results.push(
+          await prisma.supplierFollowUp.create({
+            data: {
+              periodKey,
+              gstin: scope.gstin,
+              supplierGstin: p.group.supplierGstin,
+              supplierName: p.supplierName,
+              channel: input.channel,
+              recordIds: p.group.recordIds,
+              recipient: p.recipient,
+              message: p.message,
+              status: "FAILED",
+              error: detail.slice(0, 255),
+              sentBy: actor.userId?.slice(0, 36) ?? null,
+            },
+          })
+        );
+      }
     }
-
-    const provider = followUpProvider();
-    try {
-      if (input.channel === "WHATSAPP") await provider.sendWhatsapp(recipient, message);
-      else await provider.sendEmail(recipient, `GSTR-2B follow-up: ${periodKey}`, message);
-
-      return prisma.supplierFollowUp.create({
-        data: {
-          periodKey,
-          gstin: scope.gstin,
-          supplierGstin,
-          supplierName: supplierName ?? supplier?.legalName ?? null,
-          channel: input.channel,
-          recordIds: input.recordIds,
-          recipient,
-          message,
-          status: "SENT",
-          sentBy: actor.userId?.slice(0, 36) ?? null,
-        },
-      });
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : "The channel refused the message";
-      await prisma.supplierFollowUp.create({
-        data: {
-          periodKey,
-          gstin: scope.gstin,
-          supplierGstin,
-          supplierName: supplierName ?? supplier?.legalName ?? null,
-          channel: input.channel,
-          recordIds: input.recordIds,
-          recipient,
-          message,
-          status: "FAILED",
-          error: detail.slice(0, 255),
-          sentBy: actor.userId?.slice(0, 36) ?? null,
-        },
-      });
-      throw new ApiError(502, "The follow-up could not be sent", "FOLLOWUP_FAILED");
-    }
+    if (failed) throw new ApiError(502, "The follow-up could not be sent", "FOLLOWUP_FAILED");
+    // A single-supplier selection (the common case, and every caller before this package) keeps
+    // getting back one row rather than an array of one.
+    return single ? results[0] : results;
   }
 }
 

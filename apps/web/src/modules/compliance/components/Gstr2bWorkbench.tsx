@@ -43,6 +43,8 @@ const ToleranceSettings: React.FC = () => {
   const { can } = usePermission();
   const [days, setDays] = useState(7);
   const [value, setValue] = useState(1);
+  const [followUpProvider, setFollowUpProvider] = useState<"FIXTURE" | "LIVE">("FIXTURE");
+  const [nudgeAfterDays, setNudgeAfterDays] = useState(5);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -52,6 +54,8 @@ const ToleranceSettings: React.FC = () => {
       .then((s) => {
         setDays(s.dateToleranceDays);
         setValue(s.valueTolerance);
+        if (s.followUpProvider) setFollowUpProvider(s.followUpProvider);
+        if (s.nudgeAfterDays) setNudgeAfterDays(s.nudgeAfterDays);
       })
       .catch(() => {});
   }, []);
@@ -64,10 +68,14 @@ const ToleranceSettings: React.FC = () => {
       const s = await gstReturnsService.gstr2bSettingsUpdate({
         dateToleranceDays: days,
         valueTolerance: value,
+        followUpProvider,
+        nudgeAfterDays,
       });
       setDays(s.dateToleranceDays);
       setValue(s.valueTolerance);
-      toast.success("Tolerances saved — they apply from the next reconciliation");
+      if (s.followUpProvider) setFollowUpProvider(s.followUpProvider);
+      if (s.nudgeAfterDays) setNudgeAfterDays(s.nudgeAfterDays);
+      toast.success("Settings saved — they apply from the next reconciliation");
     } catch (err) {
       toast.error(message(err));
     } finally {
@@ -77,7 +85,7 @@ const ToleranceSettings: React.FC = () => {
 
   return (
     <Card
-      title="Matching tolerances"
+      title="Matching tolerances and follow-ups"
       actions={
         <button className={secondary} onClick={() => setOpen((o) => !o)}>
           {open ? "Hide" : "Change"}
@@ -108,6 +116,28 @@ const ToleranceSettings: React.FC = () => {
               onChange={(e) => setValue(Number(e.target.value))}
             />
           </label>
+          <label className="text-sm text-ink-muted">
+            Follow-up channel
+            <select
+              className={`${field} mt-1 block w-36`}
+              value={followUpProvider}
+              onChange={(e) => setFollowUpProvider(e.target.value as "FIXTURE" | "LIVE")}
+            >
+              <option value="FIXTURE">Fixture (test)</option>
+              <option value="LIVE">Live</option>
+            </select>
+          </label>
+          <label className="text-sm text-ink-muted">
+            Nudge after (days unfollowed)
+            <input
+              type="number"
+              min={1}
+              max={60}
+              className={`${field} mt-1 block w-28`}
+              value={nudgeAfterDays}
+              onChange={(e) => setNudgeAfterDays(Number(e.target.value))}
+            />
+          </label>
           <button className={primary} onClick={save} disabled={saving}>
             Save
           </button>
@@ -115,6 +145,9 @@ const ToleranceSettings: React.FC = () => {
       ) : (
         <p className="text-sm text-ink-muted">
           A record within {days} day(s) and {money(value)} of the books still counts as a match.
+          Follow-ups send over the{" "}
+          <strong>{followUpProvider === "LIVE" ? "live" : "fixture"}</strong> channel; a record
+          unfollowed for {nudgeAfterDays} day(s) gets nudged automatically.
         </p>
       )}
     </Card>
