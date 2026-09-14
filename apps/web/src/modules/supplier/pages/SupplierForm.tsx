@@ -270,8 +270,8 @@ const SupplierForm: React.FC = () => {
     initForm();
   }, [id, isEdit, location.state, user]);
 
-  // TDS/TCS sections for the default-section picker (P2-17); skipped for a role without
-  // tds.view, same as the GRN form's own preview panel.
+  // TDS/TCS sections for the default-section picker (P2-17, P2-26): skipped for a role
+  // without tds.view, so the section text input falls back when they lack the permission.
   useEffect(() => {
     if (!canViewTds) return;
     tdsService
@@ -966,15 +966,13 @@ const SupplierForm: React.FC = () => {
                 </div>
               </div>
             </div>
-            {canViewTds && (
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                    TDS Defaults
-                  </h3>
-                </div>
-                <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                  <div>
+            <div className="mb-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">TDS Defaults</h3>
+              </div>
+              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
+                <div>
+                  {canViewTds ? (
                     <SelectInput
                       label="Default TDS Section"
                       name="defaultTdsSectionCode"
@@ -985,50 +983,59 @@ const SupplierForm: React.FC = () => {
                         .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
                       onChange={handleChange}
                     />
-                    <p className="mt-0.5 text-[10px] text-ink-muted">
-                      The GRN form's TDS picker defaults to this section for this supplier.
-                    </p>
-                  </div>
-                  <div>
-                    <SelectInput
-                      label="Deductee Type"
-                      name="deducteeType"
-                      value={String(formData.deducteeType ?? "")}
-                      defaultOptionLabel="-- Not set --"
-                      options={[
-                        { value: "COMPANY", label: "Company / Firm" },
-                        { value: "INDIVIDUAL_HUF", label: "Individual / HUF" },
-                        { value: "FIRM", label: "Firm" },
-                        { value: "AOP_BOI", label: "AOP / BOI" },
-                        { value: "LOCAL_AUTHORITY", label: "Local Authority" },
-                        { value: "NON_RESIDENT", label: "Non-Resident" },
-                      ]}
+                  ) : (
+                    <TextInput
+                      label="Default TDS Section"
+                      name="defaultTdsSectionCode"
+                      value={formData.defaultTdsSectionCode}
+                      placeholder="e.g. 194C(5)"
+                      error={errors.defaultTdsSectionCode}
                       onChange={handleChange}
                     />
-                  </div>
-                  <div>
-                    <SelectInput
-                      label="Higher Rate (206AB)"
-                      name="higherRate206AB"
-                      value={formData.higherRate206AB ? "yes" : "no"}
-                      options={[
-                        { value: "no", label: "No" },
-                        { value: "yes", label: "Yes — non-filer" },
-                      ]}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          higherRate206AB: e.target.value === "yes",
-                        }))
-                      }
-                    />
-                    <p className="mt-0.5 text-[10px] text-ink-muted">
-                      Doubles the TDS rate when this supplier has not filed their returns.
-                    </p>
-                  </div>
+                  )}
+                  <p className="mt-0.5 text-[10px] text-ink-muted">
+                    The GRN form's TDS picker defaults to this section for this supplier.
+                  </p>
+                </div>
+                <div>
+                  <SelectInput
+                    label="Deductee Type"
+                    name="deducteeType"
+                    value={String(formData.deducteeType ?? "")}
+                    defaultOptionLabel="-- Not set --"
+                    options={[
+                      { value: "COMPANY", label: "Company / Firm" },
+                      { value: "INDIVIDUAL_HUF", label: "Individual / HUF" },
+                      { value: "FIRM", label: "Firm" },
+                      { value: "AOP_BOI", label: "AOP / BOI" },
+                      { value: "LOCAL_AUTHORITY", label: "Local Authority" },
+                      { value: "NON_RESIDENT", label: "Non-Resident" },
+                    ]}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <SelectInput
+                    label="Higher Rate (206AB)"
+                    name="higherRate206AB"
+                    value={formData.higherRate206AB ? "yes" : "no"}
+                    options={[
+                      { value: "no", label: "No" },
+                      { value: "yes", label: "Yes — non-filer" },
+                    ]}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        higherRate206AB: e.target.value === "yes",
+                      }))
+                    }
+                  />
+                  <p className="mt-0.5 text-[10px] text-ink-muted">
+                    Doubles the TDS rate when this supplier has not filed their returns.
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Footer */}

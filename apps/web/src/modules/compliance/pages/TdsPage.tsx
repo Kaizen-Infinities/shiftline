@@ -437,6 +437,7 @@ const TdsPage: React.FC = () => {
                 <tr>
                   <th className={th}>Section</th>
                   <th className={th}>Name</th>
+                  <th className={th}>Ledger (P2-26)</th>
                   <th className={`${th} text-right`}>Company</th>
                   <th className={`${th} text-right`}>Individual / HUF</th>
                   <th className={`${th} text-right`}>No PAN</th>
@@ -461,6 +462,20 @@ const TdsPage: React.FC = () => {
                       <td className={td}>{s.name}</td>
                       {editing ? (
                         <>
+                          <td className={td}>
+                            <input
+                              className={`${field} w-32`}
+                              type="text"
+                              value={sectionDraft.ledgerCode ?? s.ledgerCode ?? ""}
+                              placeholder="e.g. TDS-LIA-001"
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({ ...d, ledgerCode: e.target.value }))
+                              }
+                            />
+                            {!(sectionDraft.ledgerCode ?? s.ledgerCode) && (
+                              <div className="text-xs text-rose-600 mt-0.5">Required</div>
+                            )}
+                          </td>
                           <td className={`${td} text-right`}>
                             <input
                               className={`${field} w-20 text-right`}
@@ -543,6 +558,7 @@ const TdsPage: React.FC = () => {
                                     actCode: s.actCode,
                                     name: s.name,
                                     isTcs: s.isTcs,
+                                    ledgerCode: sectionDraft.ledgerCode ?? s.ledgerCode,
                                     rateCompany: sectionDraft.rateCompany ?? s.rateCompany,
                                     rateIndividual: sectionDraft.rateIndividual ?? s.rateIndividual,
                                     rateNoPan: sectionDraft.rateNoPan ?? s.rateNoPan,
@@ -579,6 +595,13 @@ const TdsPage: React.FC = () => {
                         </>
                       ) : (
                         <>
+                          <td className={td}>
+                            {s.ledgerCode ? (
+                              s.ledgerCode
+                            ) : (
+                              <span className="text-rose-700 font-semibold">Missing</span>
+                            )}
+                          </td>
                           <td className={`${td} text-right`}>{Number(s.rateCompany)}%</td>
                           <td className={`${td} text-right`}>{Number(s.rateIndividual)}%</td>
                           <td className={`${td} text-right`}>{Number(s.rateNoPan)}%</td>

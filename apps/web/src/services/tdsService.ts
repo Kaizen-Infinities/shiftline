@@ -9,6 +9,7 @@ export interface TdsSectionRow {
   actCode: string | null;
   name: string;
   isTcs: boolean;
+  ledgerCode: string | null;
   rateCompany: number;
   rateIndividual: number;
   rateNoPan: number;

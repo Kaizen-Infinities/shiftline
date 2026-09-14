@@ -19,9 +19,25 @@ const includeDefaults = {
   components: {
     include: {
       componentProduct: {
-        include: {
-          finishedGoodsStocks: true,
-          uom: true,
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          isScrap: true,
+          finishedGoodsStocks: {
+            select: {
+              id: true,
+              storeId: true,
+              onHandQty: true,
+            },
+          },
+          uom: {
+            select: {
+              id: true,
+              name: true,
+              abbreviation: true,
+            },
+          },
         },
       },
     },
@@ -157,8 +173,12 @@ class SalesProductService {
     return prisma.salesProduct.update({
       where: { id },
       data: {
-        salesProductName: data.salesProductName !== undefined ? cleanString(data.salesProductName, 160)! : undefined,
-        description: data.description !== undefined ? cleanString(data.description, 255) : undefined,
+        salesProductName:
+          data.salesProductName !== undefined
+            ? cleanString(data.salesProductName, 160)!
+            : undefined,
+        description:
+          data.description !== undefined ? cleanString(data.description, 255) : undefined,
         rate: data.rate !== undefined ? toNumberOrNull(data.rate) : undefined,
         isActive: data.isActive !== undefined ? Boolean(data.isActive) : undefined,
       },
