@@ -282,6 +282,10 @@ export const API_PATHS = {
     register: "/assets/register",
     itBlocks: "/assets/it-blocks",
     depreciation: "/assets/depreciation",
+    opening: "/assets/opening",
+    openingImport: "/assets/opening/import",
+    capitalise: "/assets/capitalise",
+    depreciationRuns: "/assets/depreciation-runs",
   },
   msme: {
     base: "/msme",

@@ -1,11 +1,19 @@
-import type { DepreciationMethod } from "@prisma/client";
+import type { DepreciationMethod, Prisma } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { logger } from "../../lib/logger";
 import { requireTenantId, runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
+import { cancellationService } from "../accounts/cancellation.service";
+import { periodService } from "../accounts/period.service";
 import { assetPosting } from "./asset.posting";
+import {
+  type OpeningRowInput,
+  type RowError,
+  parseOpeningRow,
+  usefulLifeMonthsFromWdvRate,
+} from "./asset.opening";
 import { itBlockDepreciation, monthRange, monthlyCharge } from "./depreciation.calc";
 
 /**
@@ -240,6 +248,391 @@ class AssetService {
   }
 
   /**
+   * Validates one opening-balance row against the tenant's classes and codes already claimed —
+   * everything that needs the database, as opposed to `parseOpeningRow`'s pure shape check.
+   */
+  private async checkOpeningRow(
+    row: OpeningRowInput,
+    rowNo: number,
+    classesByCode: Map<string, Awaited<ReturnType<AssetService["classes"]>>[number]>
+  ): Promise<{ error?: RowError; cls?: Awaited<ReturnType<AssetService["classes"]>>[number] }> {
+    const cls = classesByCode.get(row.classCode);
+    if (!cls || !cls.isActive) {
+      return {
+        error: { row: rowNo, message: `Unknown or inactive asset class "${row.classCode}"` },
+      };
+    }
+    const existing = await prisma.fixedAsset.findFirst({ where: { code: row.code } });
+    if (existing) {
+      return {
+        error: { row: rowNo, message: `Asset code "${row.code}" is already on the register` },
+      };
+    }
+    if (
+      row.itBlockName &&
+      cls.itBlockName &&
+      row.itBlockName.trim().toLowerCase() !== cls.itBlockName.trim().toLowerCase()
+    ) {
+      return {
+        error: {
+          row: rowNo,
+          message: `Income-tax block "${row.itBlockName}" does not match ${cls.code}'s block (${cls.itBlockName})`,
+        },
+      };
+    }
+    if (row.businessPlaceCode) {
+      const place = await prisma.businessPlace.findFirst({
+        where: { code: row.businessPlaceCode },
+      });
+      if (!place) {
+        return {
+          error: { row: rowNo, message: `Unknown business place "${row.businessPlaceCode}"` },
+        };
+      }
+    }
+    return { cls };
+  }
+
+  /**
+   * Turns one validated row into the fields a `FixedAsset` needs, deriving the useful life the
+   * engine in `depreciation.calc.ts` wants from what the row actually gives:
+   *
+   *  - SLM gives a remaining life. The engine charges `(cost − residual) / usefulLifeMonths` every
+   *    month regardless of what has already been charged, so the life stored here is scaled up so
+   *    that dividing by it reproduces exactly `(cost − residual − accumulated) / remainingMonths` —
+   *    the asset finishes depreciating in exactly the remaining life it was given.
+   *  - WDV gives a rate directly (the annual rate applies to the opening WDV every period, so the
+   *    life already charged does not matter); `usefulLifeMonthsFromWdvRate` runs Schedule II's
+   *    rate formula backwards to the life that implies it.
+   */
+  private openingLifeMonths(
+    row: OpeningRowInput,
+    method: DepreciationMethod,
+    cost: number,
+    residual: number,
+    accumulated: number
+  ): number {
+    const depreciable = n2(cost - residual);
+    if (method === "WDV") {
+      return usefulLifeMonthsFromWdvRate(row.wdvRatePercent as number, cost, residual);
+    }
+    const remaining = Math.max(depreciable - accumulated, 0);
+    if (remaining <= 0 || depreciable <= 0) return row.remainingLifeMonths as number;
+    return Math.max(1, Math.round(((row.remainingLifeMonths as number) * depreciable) / remaining));
+  }
+
+  /**
+   * One asset via the opening-balance import (P2-07): built from a validated row inside the
+   * caller's transaction, never posting its own journal — `importOpening` posts one journal per
+   * class once every row is in.
+   */
+  private async buildOpeningAsset(
+    tx: Prisma.TransactionClient,
+    row: OpeningRowInput,
+    cls: Awaited<ReturnType<AssetService["classes"]>>[number],
+    businessPlaceId: bigint | null,
+    actor: { userId?: string }
+  ) {
+    const method = row.method ?? cls.method;
+    const residual = row.residualValue ?? n2((row.cost * Number(cls.residualPercent)) / 100);
+    const usefulLifeMonths = this.openingLifeMonths(
+      row,
+      method,
+      row.cost,
+      residual,
+      row.accumulatedDepreciation
+    );
+    return tx.fixedAsset.create({
+      data: {
+        code: row.code,
+        name: row.name.slice(0, 160),
+        classId: cls.id,
+        businessPlaceId,
+        acquiredOn: asDate(row.capitalisedOn),
+        capitalisedOn: asDate(row.capitalisedOn),
+        cost: row.cost,
+        residualValue: residual,
+        method,
+        usefulLifeMonths,
+        accumulatedDepreciation: row.accumulatedDepreciation,
+        quantity: row.quantity ?? 1,
+        serialNo: row.serialNo ?? null,
+        location: row.location ?? null,
+        openingBalance: true,
+        openingItWdv: n2(row.cost - row.accumulatedDepreciation),
+        createdBy: actor.userId?.slice(0, 36) ?? null,
+      },
+    });
+  }
+
+  /**
+   * Validates every row before writing anything (P2-07): a bad row anywhere in the sheet must
+   * leave the register untouched, so validation runs to completion first and the whole batch is
+   * rejected together rather than partly imported.
+   */
+  private async validateOpeningRows(raws: Partial<Record<string, string>>[]) {
+    const classes = await this.classes(true);
+    const classesByCode = new Map(classes.map((c) => [c.code, c]));
+    const errors: RowError[] = [];
+    const values: { row: OpeningRowInput; cls: (typeof classes)[number] }[] = [];
+
+    const parsedRows: (OpeningRowInput | null)[] = [];
+    const codeCounts = new Map<string, number>();
+    raws.forEach((raw, i) => {
+      const { value, errors: rowErrors } = parseOpeningRow(raw, i + 1);
+      parsedRows.push(value ?? null);
+      errors.push(...rowErrors);
+      if (value) codeCounts.set(value.code, (codeCounts.get(value.code) ?? 0) + 1);
+    });
+
+    // Business checks that touch the database run after the shape checks so a sheet full of typos
+    // reports every problem at once instead of stopping at the first database round trip.
+    for (let i = 0; i < raws.length; i++) {
+      const rowNo = i + 1;
+      const value = parsedRows[i];
+      if (!value) continue;
+      if ((codeCounts.get(value.code) ?? 0) > 1) {
+        errors.push({
+          row: rowNo,
+          message: `Asset code "${value.code}" is repeated in this import`,
+        });
+        continue;
+      }
+      const { error, cls } = await this.checkOpeningRow(value, rowNo, classesByCode);
+      if (error) errors.push(error);
+      else values.push({ row: value, cls: cls! });
+    }
+    return { errors, values: errors.length === 0 ? values : [] };
+  }
+
+  /**
+   * Opening balances (P2-07): a company migrating in mid-life brings in machines already
+   * part-depreciated. Every row is validated before anything is written — one bad row leaves the
+   * register untouched — and a journal is posted once per class, only for a class that has never
+   * had an opening posted before.
+   */
+  async importOpening(raws: Partial<Record<string, string>>[], actor: { userId?: string }) {
+    if (raws.length === 0) throw new ApiError(400, "Nothing to import");
+    if (raws.length > 2000) throw new ApiError(400, "At most 2000 rows at a time");
+    const { errors, values } = await this.validateOpeningRows(raws);
+    if (errors.length > 0) {
+      throw new ApiError(400, "Some rows could not be imported", "OPENING_IMPORT_INVALID", {
+        errors,
+      });
+    }
+
+    const places = await prisma.businessPlace.findMany({
+      where: {
+        code: { in: values.map((v) => v.row.businessPlaceCode).filter((c): c is string => !!c) },
+      },
+    });
+    const placeByCode = new Map(places.map((p) => [p.code, p.id]));
+
+    const created = await prisma.$transaction(async (tx) => {
+      await accountsService.ensureSystemLedgersExist(tx);
+      const rows = [];
+      for (const v of values) {
+        const businessPlaceId = v.row.businessPlaceCode
+          ? (placeByCode.get(v.row.businessPlaceCode) ?? null)
+          : null;
+        rows.push(await this.buildOpeningAsset(tx, v.row, v.cls, businessPlaceId, actor));
+      }
+
+      const byClass = new Map<
+        string,
+        { cls: (typeof values)[number]["cls"]; cost: number; accum: number }
+      >();
+      for (const v of values) {
+        const cur = byClass.get(v.cls.id) ?? { cls: v.cls, cost: 0, accum: 0 };
+        cur.cost = n2(cur.cost + v.row.cost);
+        cur.accum = n2(cur.accum + v.row.accumulatedDepreciation);
+        byClass.set(v.cls.id, cur);
+      }
+      const on = new Date();
+      const vouchers = [];
+      for (const g of byClass.values()) {
+        vouchers.push(
+          await assetPosting.openingBalanceForClass(
+            tx,
+            g.cls,
+            { cost: g.cost, accumulatedDepreciation: g.accum },
+            on,
+            actor.userId
+          )
+        );
+      }
+      return { rows, vouchers: vouchers.filter(Boolean) };
+    });
+
+    return {
+      imported: created.rows.length,
+      vouchers: created.vouchers.length,
+      assets: created.rows.map((r) => ({ id: r.id, code: r.code, name: r.name })),
+    };
+  }
+
+  /** The single-row opening-balance endpoint: the same path, one row. */
+  async createOpening(raw: Partial<Record<string, string>>, actor: { userId?: string }) {
+    const result = await this.importOpening([raw], actor);
+    if (result.imported !== 1) throw new ApiError(500, "The asset could not be created");
+    return result.assets[0];
+  }
+
+  /**
+   * Capitalises a GRN line or an expense (P2-07): the cost moves off the purchase or expense
+   * ledger and onto the asset ledger, and the same line can never be capitalised twice — a unique
+   * index on the source enforces it even under a race, and this check gives the friendly refusal.
+   */
+  async capitalise(
+    input: {
+      sourceDocType: "GRN_INVOICE" | "EXPENSE";
+      sourceDocId: string;
+      lineId?: string;
+      classId: string;
+      code: string;
+      name: string;
+      capitalisedOn?: string;
+      businessPlaceId?: string | null;
+      quantity?: number;
+      serialNo?: string | null;
+      location?: string | null;
+      cost?: number;
+      notes?: string | null;
+    },
+    actor: { userId?: string }
+  ) {
+    const cls = await prisma.assetClass.findUnique({ where: { id: input.classId } });
+    if (!cls || !cls.isActive) throw new ApiError(400, "That asset class does not exist");
+
+    const already = await prisma.fixedAsset.findFirst({
+      where: {
+        sourceDocType: input.sourceDocType,
+        sourceDocId: input.sourceDocId,
+        sourceLineId: input.lineId ?? null,
+      },
+    });
+    if (already) {
+      throw new ApiError(409, "That line has already been capitalised", "ALREADY_CAPITALISED");
+    }
+
+    let cost: number;
+    let capitalisedOn: Date;
+    let businessPlaceId: bigint | null = input.businessPlaceId
+      ? BigInt(input.businessPlaceId)
+      : null;
+    let supplierId: number | null = null;
+    let sourceLedgerCode: string;
+    let narrationSource: string;
+
+    if (input.sourceDocType === "GRN_INVOICE") {
+      if (!input.lineId) throw new ApiError(400, "A GRN line is required to capitalise from a GRN");
+      const grn = await prisma.grnInvoice.findUnique({ where: { id: input.sourceDocId } });
+      if (!grn) throw new ApiError(404, "That GRN invoice does not exist");
+      const line = await prisma.grnInvoiceItem.findFirst({
+        where: { id: input.lineId, grnInvoiceId: grn.id },
+      });
+      if (!line) throw new ApiError(404, "That GRN line does not exist");
+      const posted = await prisma.voucher.findFirst({
+        where: { refDocType: "GRN_INVOICE", refDocId: grn.id, status: "POSTED" },
+      });
+      if (!posted) {
+        throw new ApiError(400, "That GRN has not been posted to the books yet");
+      }
+      cost = input.cost ?? Number(line.taxableAmount);
+      capitalisedOn = asDate(input.capitalisedOn ?? grn.grnDate);
+      businessPlaceId = businessPlaceId ?? grn.businessPlaceId;
+      supplierId = grn.supplierId;
+      sourceLedgerCode = "PURCH-001";
+      narrationSource = `GRN ${grn.grnNumber || grn.invoiceNo}`;
+    } else if (input.sourceDocType === "EXPENSE") {
+      const expense = await prisma.expense.findUnique({ where: { id: input.sourceDocId } });
+      if (!expense) throw new ApiError(404, "That expense does not exist");
+      if (expense.status !== "Approved") {
+        throw new ApiError(400, "That expense has not been approved and posted yet");
+      }
+      const expensePosted = await prisma.voucher.findFirst({
+        where: { refDocType: "EXPENSE", refDocId: expense.id, status: "POSTED" },
+      });
+      if (!expensePosted) {
+        throw new ApiError(400, "That expense has not been posted to the books yet");
+      }
+      const taxable =
+        expense.taxableAmount !== null && expense.taxableAmount !== undefined
+          ? Number(expense.taxableAmount)
+          : Number(expense.amount) -
+            (Number(expense.cgstAmount) + Number(expense.sgstAmount) + Number(expense.igstAmount));
+      cost = input.cost ?? taxable;
+      capitalisedOn = asDate(input.capitalisedOn ?? expense.date);
+      businessPlaceId = businessPlaceId ?? expense.businessPlaceId;
+      supplierId = expense.supplierId;
+      sourceLedgerCode = "EXP-001";
+      narrationSource = expense.expense;
+    } else {
+      throw new ApiError(400, "Unknown source document type");
+    }
+
+    if (!(cost > 0)) throw new ApiError(400, "Nothing to capitalise: the cost is zero");
+    const residual = n2((cost * Number(cls.residualPercent)) / 100);
+
+    try {
+      return await prisma.$transaction(async (tx) => {
+        await accountsService.ensureSystemLedgersExist(tx);
+        const asset = await tx.fixedAsset.create({
+          data: {
+            code: input.code.trim().toUpperCase().slice(0, 30),
+            name: input.name.trim().slice(0, 160),
+            classId: cls.id,
+            businessPlaceId,
+            acquiredOn: capitalisedOn,
+            capitalisedOn,
+            cost,
+            residualValue: residual,
+            method: cls.method,
+            usefulLifeMonths: cls.usefulLifeYears * 12,
+            quantity: input.quantity ?? 1,
+            serialNo: input.serialNo ?? null,
+            location: input.location ?? null,
+            supplierId,
+            sourceDocType: input.sourceDocType,
+            sourceDocId: input.sourceDocId,
+            sourceLineId: input.lineId ?? null,
+            notes: input.notes ?? `Capitalised from ${narrationSource}`,
+            createdBy: actor.userId?.slice(0, 36) ?? null,
+          },
+        });
+        const voucher = await assetPosting.capitalise(
+          tx,
+          {
+            id: asset.id,
+            code: asset.code,
+            name: asset.name,
+            assetLedgerCode: cls.assetLedgerCode,
+          },
+          cost,
+          sourceLedgerCode,
+          capitalisedOn,
+          actor.userId
+        );
+        return {
+          ...asset,
+          businessPlaceId: asset.businessPlaceId === null ? null : String(asset.businessPlaceId),
+          voucherId: voucher?.id ?? null,
+        };
+      });
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code?: string }).code === "P2002"
+      ) {
+        throw new ApiError(409, "That line has already been capitalised", "ALREADY_CAPITALISED");
+      }
+      throw err;
+    }
+  }
+
+  /**
    * An addition, a revaluation or a transfer. An addition and a revaluation move the cost, which
    * changes every future month's charge but never a month already posted — depreciation already
    * charged is a fact, not a calculation to be redone.
@@ -440,23 +833,45 @@ class AssetService {
 
   /**
    * Prepares the month. A run is unique on the period, so a second attempt returns the first
-   * rather than charging twice — which is the whole reason the run exists as a row.
+   * rather than charging twice — which is the whole reason the run exists as a row. A cancelled or
+   * reversed run is prepared afresh into the same row (the period is still unique), rather than
+   * a second row the unique constraint would refuse anyway.
    */
   async prepareRun(periodKey: string, actor: { userId?: string }) {
     const existing = await prisma.depreciationRun.findFirst({ where: { periodKey } });
-    if (existing && existing.status !== "CANCELLED") {
+    if (existing && existing.status !== "CANCELLED" && existing.status !== "REVERSED") {
       return this.runWithLines(existing.id);
     }
     const preview = await this.previewRun(periodKey);
     const run = await prisma.$transaction(async (tx) => {
-      const created = await tx.depreciationRun.create({
-        data: {
-          periodKey,
-          totalAmount: preview.total,
-          assetCount: preview.lines.length,
-          preparedBy: actor.userId?.slice(0, 36) ?? null,
-        },
-      });
+      let created;
+      if (existing) {
+        await tx.assetDepreciation.deleteMany({ where: { runId: existing.id } });
+        created = await tx.depreciationRun.update({
+          where: { id: existing.id },
+          data: {
+            status: "DRAFT",
+            totalAmount: preview.total,
+            assetCount: preview.lines.length,
+            preparedBy: actor.userId?.slice(0, 36) ?? null,
+            voucherId: null,
+            postedBy: null,
+            postedAt: null,
+            reversedBy: null,
+            reversedAt: null,
+            reversalVoucherId: null,
+          },
+        });
+      } else {
+        created = await tx.depreciationRun.create({
+          data: {
+            periodKey,
+            totalAmount: preview.total,
+            assetCount: preview.lines.length,
+            preparedBy: actor.userId?.slice(0, 36) ?? null,
+          },
+        });
+      }
       if (preview.lines.length > 0) {
         await tx.assetDepreciation.createMany({
           data: preview.lines.map((l) => ({
@@ -491,6 +906,12 @@ class AssetService {
       throw new ApiError(409, "That month is already posted", "ALREADY_POSTED");
     if (run.status === "CANCELLED")
       throw new ApiError(409, "That run was cancelled", "RUN_CANCELLED");
+    if (run.status === "REVERSED")
+      throw new ApiError(
+        409,
+        "That run was reversed; prepare the month again to re-post it",
+        "RUN_REVERSED"
+      );
 
     const period = monthRange(run.periodKey);
     const byClass = new Map<
@@ -538,6 +959,65 @@ class AssetService {
           voucherId: voucher?.id ?? null,
           postedBy: actor.userId?.slice(0, 36) ?? null,
           postedAt: new Date(),
+        },
+      });
+    });
+  }
+
+  /**
+   * Reverses a posted month (P2-07): cancels its voucher through `cancellationService` (a
+   * reversal JOURNAL with the sides swapped — the original stays on file, never deleted) and moves
+   * every asset's accumulated depreciation back by what this run charged it. Refused out of order:
+   * a later month already posted has to be reversed first, or its own charge would be measured
+   * from a written-down value this run is about to move.
+   */
+  async reverseRun(id: string, actor: { userId?: string }) {
+    const run = await prisma.depreciationRun.findUnique({
+      where: { id },
+      include: { lines: true },
+    });
+    if (!run) throw new ApiError(404, "That depreciation run does not exist");
+    if (run.status !== "POSTED") {
+      throw new ApiError(409, "Only a posted run can be reversed", "NOT_POSTED");
+    }
+    const later = await prisma.depreciationRun.findFirst({
+      where: { periodKey: { gt: run.periodKey }, status: "POSTED" },
+      orderBy: { periodKey: "asc" },
+    });
+    if (later) {
+      throw new ApiError(
+        409,
+        `${later.periodKey} is posted and later than this run; reverse it first`,
+        "REVERSE_OUT_OF_ORDER"
+      );
+    }
+
+    const reversalDate = new Date();
+    await periodService.assertPostingAllowed(reversalDate, { userId: actor.userId });
+
+    return prisma.$transaction(async (tx) => {
+      let reversalVoucherId: number | null = null;
+      if (run.voucherId) {
+        const { reversal } = await cancellationService.cancelVoucher(
+          run.voucherId,
+          { reason: `Reversal of depreciation run ${run.periodKey}`, actor, date: reversalDate },
+          tx
+        );
+        reversalVoucherId = reversal.id;
+      }
+      for (const l of run.lines) {
+        await tx.fixedAsset.update({
+          where: { id: l.assetId },
+          data: { accumulatedDepreciation: { decrement: Number(l.amount) } },
+        });
+      }
+      return tx.depreciationRun.update({
+        where: { id: run.id },
+        data: {
+          status: "REVERSED",
+          reversedBy: actor.userId?.slice(0, 36) ?? null,
+          reversedAt: reversalDate,
+          reversalVoucherId,
         },
       });
     });
@@ -699,13 +1179,22 @@ class AssetService {
     }
 
     const rows = [...blocks.values()].map((b) => {
-      // Everything already on the books at the start of the year, at cost, is the opening pool.
-      // Without an imported opening balance this is the best the register can say, and it is
-      // said plainly rather than guessed at.
+      // Everything already on the books at the start of the year is the opening pool. An asset
+      // brought in by the opening-balance import (P2-07) contributes its opening written-down
+      // value, not its cost — the whole point of that import is to say what the pool already
+      // carries; anything typed in afresh still contributes cost, which is the best the register
+      // can say without an imported figure, and it is said plainly rather than guessed at.
       const opening = n2(
         b.assets
           .filter((a) => a.capitalisedOn < fyStart && (!a.disposedOn || a.disposedOn >= fyStart))
-          .reduce((s, a) => s + Number(a.cost), 0)
+          .reduce(
+            (s, a) =>
+              s +
+              (a.openingBalance && a.openingItWdv !== null
+                ? Number(a.openingItWdv)
+                : Number(a.cost)),
+            0
+          )
       );
       const result = itBlockDepreciation(
         opening,
