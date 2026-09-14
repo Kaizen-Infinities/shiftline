@@ -244,18 +244,22 @@ router.get(
   })
 );
 
-const periodQuery = z.object({ period: z.string().regex(/^\d{4}-H[12]$/) });
+const periodQuery = z.object({
+  period: z.string().regex(/^\d{4}-H[12]$/),
+  businessPlaceId: z.union([z.string(), z.number()]).optional().nullable(),
+});
 
 router.get(
   "/itc04",
   requirePermission("job-work.view"),
   asyncHandler(async (req: Request, res: Response) => {
     const q = periodQuery.parse(req.query);
-    res.json(new ApiResponse("ITC-04", await jobWorkService.itc04(q.period)));
+    res.json(new ApiResponse("ITC-04", await jobWorkService.itc04(q.period, q.businessPlaceId)));
   })
 );
 
-/** Registers the half-year on the filing gate with the JSON's hash, ready for approval. */
+/** Registers the half-year, for one business place's GSTIN, on the filing gate — same shape as
+ * GSTR-1's per-GSTIN gate in `gst-period.ts` (P2-18). */
 router.post(
   "/itc04/register",
   requirePermission("job-work.manage"),
@@ -264,7 +268,7 @@ router.post(
     res.json(
       new ApiResponse(
         "ITC-04 registered",
-        await jobWorkService.registerItc04(q.period, actorOf(req))
+        await jobWorkService.registerItc04(q.period, actorOf(req), q.businessPlaceId)
       )
     );
   })
@@ -281,7 +285,12 @@ router.post(
     res.json(
       new ApiResponse(
         "ITC-04 marked filed",
-        await jobWorkService.markItc04Filed(body.period, body.submissionRef ?? null, actorOf(req))
+        await jobWorkService.markItc04Filed(
+          body.period,
+          body.submissionRef ?? null,
+          actorOf(req),
+          body.businessPlaceId
+        )
       )
     );
   })

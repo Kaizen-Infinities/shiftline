@@ -62,6 +62,13 @@ class LiveFollowUpProvider implements FollowUpProvider {
 }
 export const liveFollowUpProvider = new LiveFollowUpProvider();
 
-/** Fixture in tests, so a suite never reaches a real gateway; live everywhere else. */
-export const followUpProvider = (): FollowUpProvider =>
-  process.env.NODE_ENV === "test" ? fixtureFollowUpProvider : liveFollowUpProvider;
+/**
+ * Selects the provider for a tenant. `kind` comes from `Gstr2bSettings.followUpProvider`
+ * (`FIXTURE` | `LIVE`, default `FIXTURE` outside production — P2-18); when it is not supplied
+ * (a caller with no tenant settings row yet) the same default applies, keyed off `NODE_ENV`
+ * instead, so a test process never reaches a real gateway even before the row exists.
+ */
+export const followUpProvider = (kind?: "FIXTURE" | "LIVE"): FollowUpProvider => {
+  const resolved = kind ?? (process.env.NODE_ENV === "production" ? "LIVE" : "FIXTURE");
+  return resolved === "LIVE" ? liveFollowUpProvider : fixtureFollowUpProvider;
+};

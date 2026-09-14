@@ -15,7 +15,7 @@ import {
   type TaxAmounts,
 } from "../../../services/gstReturnsService";
 import { jobWorkService, type Itc04Registered } from "../../../services/jobWorkService";
-import ApprovalPanel from "../components/ApprovalPanel";
+import Itc04Tables from "../components/Itc04Tables";
 import {
   money,
   monthOptions,
@@ -112,11 +112,15 @@ const GstReturnsPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, period, gstin, fy, halfYear]);
 
+  // ITC-04 is filed per registration, keyed the same way as GSTR-1's GSTIN selector: the
+  // business place behind the currently chosen GSTIN, null for the company's own.
+  const itc04BusinessPlaceId = gstins.find((g) => g.gstin === gstin)?.businessPlaceId ?? null;
+
   const load = useCallback(async () => {
     if (tab === "itc04") {
       setLoading(true);
       try {
-        setItc04(await jobWorkService.itc04(halfYear));
+        setItc04(await jobWorkService.itc04(halfYear, itc04BusinessPlaceId));
       } catch (err) {
         toast.error(message(err));
       } finally {
@@ -137,7 +141,7 @@ const GstReturnsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [tab, period, fy, gstin, halfYear]);
+  }, [tab, period, fy, gstin, halfYear, itc04BusinessPlaceId]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -148,7 +152,8 @@ const GstReturnsPage: React.FC = () => {
       if (tab === "gstr1") setGstr1(await gstReturnsService.gstr1Register(period, gstin));
       if (tab === "gstr3b") setGstr3b(await gstReturnsService.gstr3bRegister(period, gstin));
       if (tab === "gstr9") setNine(await gstReturnsService.gstr9Register(fy, gstin));
-      if (tab === "itc04") setItc04(await jobWorkService.registerItc04(halfYear));
+      if (tab === "itc04")
+        setItc04(await jobWorkService.registerItc04(halfYear, itc04BusinessPlaceId));
       toast.success("Registered for approval");
     } catch (err) {
       toast.error(message(err));
@@ -281,50 +286,13 @@ const GstReturnsPage: React.FC = () => {
       )}
       {tab === "gstr9" && nine && <Gstr9View ret={nine} />}
       {tab === "itc04" && itc04 && (
-        <Card
-          title={`ITC-04 · ${itc04.from} to ${itc04.to}`}
-          actions={
-            itc04.json && (
-              <button
-                className={secondary}
-                onClick={() => {
-                  const blob = new Blob([JSON.stringify(itc04.json, null, 2)], {
-                    type: "application/json",
-                  });
-                  window.open(URL.createObjectURL(blob), "_blank");
-                }}
-              >
-                Download JSON
-              </button>
-            )
-          }
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              ["Challans sent", String(itc04.totals.challansIssued)],
-              ["Quantity sent", String(itc04.totals.quantitySent)],
-              ["Value sent", money(itc04.totals.valueSent)],
-              ["Received back", String(itc04.totals.challansReceived)],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-line-soft bg-card-2 p-3">
-                <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
-                <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-ink-muted">
-            Table 4 (sent), 5A (received back), 5B (worker to worker) and 5C (direct supply) are on
-            the Job Work screen's ITC-04 tab, line by line.
-          </p>
-          {itc04.filing && (
-            <div className="mt-3">
-              <ApprovalPanel
-                row={itc04.filing}
-                onChange={(f) => setItc04({ ...itc04, filing: f })}
-              />
-            </div>
-          )}
-        </Card>
+        <Itc04Tables
+          itc={itc04}
+          canManage={can("job-work.manage")}
+          busy={busy}
+          onRegister={register}
+          onFilingChange={(f) => setItc04({ ...itc04, filing: f })}
+        />
       )}
     </div>
   );

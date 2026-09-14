@@ -56,6 +56,8 @@ export const QUEUES = {
   SMS_SEND: "comms.sms.send",
   /** Monthly on the 1st: accrue leave from last month's attendance, every tenant (P2-09). */
   LEAVE_ACCRUAL: "payroll.leave.accrual",
+  /** Daily: flag a GSTR-2B MISSING_IN_2B/MISMATCH record nobody has followed up (P2-18). */
+  GSTR2B_NUDGE: "gst.gstr2b.nudge",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

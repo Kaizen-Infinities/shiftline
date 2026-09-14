@@ -11,6 +11,7 @@ import { eInvoiceHandler } from "./e-invoice.job";
 import { ewayBillExpiryHandler } from "./eway-bill.job";
 import { heartbeatHandler } from "./heartbeat.job";
 import { complianceCalendarHandler } from "./compliance.job";
+import { gstr2bNudgeHandler } from "./gstr2b-nudge.job";
 import { imsDeadlineHandler } from "./ims.job";
 import { jobWorkReturnHandler } from "./job-work.job";
 import { msmeClockHandler } from "./msme.job";
@@ -79,6 +80,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.TALLY_EXPORT_SWEEP, work, each(tallyExportSweepHandler));
   await boss.work(QUEUES.SMS_SEND, work, each(smsSendHandler));
   await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
+  await boss.work(QUEUES.GSTR2B_NUDGE, work, each(gstr2bNudgeHandler));
 };
 
 /**
@@ -112,4 +114,7 @@ export const registerSchedules = async (): Promise<void> => {
   // 02:00 IST on the 1st, before the depreciation run: last month's attendance is settled by
   // then and the leave ledger should be current before anyone applies against it.
   await boss.schedule(QUEUES.LEAVE_ACCRUAL, "0 2 1 * *", {}, { tz: IST });
+  // 09:00 IST daily, after the 2B/IMS/compliance nudges: today's reconciliation state is settled
+  // by then, and it lands after the other GST warnings rather than competing with them.
+  await boss.schedule(QUEUES.GSTR2B_NUDGE, "0 9 * * *", {}, { tz: IST });
 };

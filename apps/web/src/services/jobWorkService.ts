@@ -130,10 +130,24 @@ export const jobWorkService = {
     (await apiClient.post(`${p.challans}/${id}/receive`, { lines })).data.data,
   register: async (q: { from?: string; to?: string } = {}) =>
     (await apiClient.get(p.register, { params: q })).data.data,
-  itc04: async (period: string): Promise<Itc04Registered> =>
-    (await apiClient.get(p.itc04, { params: { period } })).data.data,
-  registerItc04: async (period: string): Promise<Itc04Registered> =>
-    (await apiClient.post(p.itc04Register, { period })).data.data,
+  /** ITC-04 is filed per registration, so a half-year is scoped to one business place's GSTIN
+   * (undefined/null means the company's own GSTIN) — same shape as GSTR-1's GSTIN selector. */
+  itc04: async (period: string, businessPlaceId?: string | null): Promise<Itc04Registered> =>
+    (
+      await apiClient.get(p.itc04, {
+        params: { period, businessPlaceId: businessPlaceId || undefined },
+      })
+    ).data.data,
+  registerItc04: async (
+    period: string,
+    businessPlaceId?: string | null
+  ): Promise<Itc04Registered> =>
+    (
+      await apiClient.post(p.itc04Register, {
+        period,
+        businessPlaceId: businessPlaceId || undefined,
+      })
+    ).data.data,
   pdfUrl: (id: string) => `${p.challans}/${id}/pdf`,
   cancel: async (id: string, reason: string): Promise<ChallanRow> =>
     (await apiClient.post(`${p.challans}/${id}/cancel`, { reason })).data.data,

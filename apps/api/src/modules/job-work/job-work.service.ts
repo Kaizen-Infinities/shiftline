@@ -161,6 +161,15 @@ class JobWorkService {
     if (input.kind === "JOB_WORK_OUT" && !input.jobWorkerId) {
       throw new ApiError(400, "Job work needs a job worker", "JOB_WORKER_REQUIRED");
     }
+    // A transfer between job workers (table 5B) and a return against a parent (table 5A) are two
+    // different things; a challan cannot be both at once (P2-18).
+    if (input.parentChallanId && input.fromJobWorkerId) {
+      throw new ApiError(
+        400,
+        "A challan cannot both return goods to a parent and transfer them from another job worker",
+        "RETURN_AND_TRANSFER"
+      );
+    }
 
     const profile = await companyGstProfile(prisma);
     const place = await resolveIssuingPlace(input.businessPlaceId, profile, prisma);
@@ -837,7 +846,7 @@ class JobWorkService {
    * premises (table 5C). The return is per half-year — April to September, October to March —
    * and the period key is `2026-H1` or `2026-H2`.
    */
-  async itc04(halfYearKey: string) {
+  async itc04(halfYearKey: string, businessPlaceId?: string | number | bigint | null) {
     const m = halfYearKey.match(/^(\d{4})-H([12])$/);
     if (!m) throw new ApiError(400, `Period ${halfYearKey} must look like 2026-H1`);
     const year = Number(m[1]);
@@ -845,16 +854,30 @@ class JobWorkService {
     // H1 is April to September of the year; H2 is October to the following March.
     const from = new Date(Date.UTC(year, first ? 3 : 9, 1));
     const to = new Date(Date.UTC(first ? year : year + 1, first ? 9 : 3, 1));
+    // ITC-04 is filed per registration (P2-18), same as GSTR-1 in `gst-period.ts`: a place with
+    // no GSTIN of its own is undefined here.
+    const placeId = businessPlaceId != null ? BigInt(businessPlaceId) : null;
+    const placeWhere = placeId !== null ? { businessPlaceId: placeId } : {};
 
     const sent = await prisma.deliveryChallan.findMany({
-      where: { kind: "JOB_WORK_OUT", challanDate: { gte: from, lt: to }, cancelledAt: null },
+      where: {
+        kind: "JOB_WORK_OUT",
+        challanDate: { gte: from, lt: to },
+        cancelledAt: null,
+        ...placeWhere,
+      },
       include: { items: true, jobWorker: true },
       orderBy: { challanDate: "asc" },
     });
     // Goods coming back are recorded on the out challan, so the receipts in the window are the
     // return challans raised against one.
     const received = await prisma.deliveryChallan.findMany({
-      where: { kind: "JOB_WORK_RETURN", challanDate: { gte: from, lt: to }, cancelledAt: null },
+      where: {
+        kind: "JOB_WORK_RETURN",
+        challanDate: { gte: from, lt: to },
+        cancelledAt: null,
+        ...placeWhere,
+      },
       include: {
         items: true,
         jobWorker: true,
@@ -869,6 +892,7 @@ class JobWorkService {
         fromJobWorkerId: { not: null },
         challanDate: { gte: from, lt: to },
         cancelledAt: null,
+        ...placeWhere,
       },
       include: { items: true, jobWorker: true, fromJobWorker: true },
       orderBy: { challanDate: "asc" },
@@ -878,7 +902,7 @@ class JobWorkService {
     const directSupplied = await prisma.deliveryChallanItem.findMany({
       where: {
         quantityDirectSupply: { gt: 0 },
-        challan: { kind: "JOB_WORK_OUT", cancelledAt: null },
+        challan: { kind: "JOB_WORK_OUT", cancelledAt: null, ...placeWhere },
         OR: [
           { directSupplyInvoiceDate: { gte: from, lt: to } },
           { directSupplyInvoiceDate: null, challan: { challanDate: { gte: from, lt: to } } },
@@ -906,6 +930,7 @@ class JobWorkService {
 
     return {
       periodKey: halfYearKey,
+      businessPlaceId: placeId,
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),
       /** Table 4: details of inputs and capital goods sent for job work. */
@@ -961,15 +986,19 @@ class JobWorkService {
   }
 
   /** Registers (or refreshes) the half-year on the filing gate with a hash of the ITC-04 JSON. */
-  async registerItc04(halfYearKey: string, actor: { userId?: string }) {
-    const tables = await this.itc04(halfYearKey);
+  async registerItc04(
+    halfYearKey: string,
+    actor: { userId?: string },
+    businessPlaceId?: string | number | bigint | null
+  ) {
+    const tables = await this.itc04(halfYearKey, businessPlaceId);
     const json = await this.itc04Json(halfYearKey, tables);
     const payloadHash = hashPayload(json);
     const row = await filingApprovalService.upsertDraft(
       {
         filingType: "ITC04",
         periodKey: halfYearKey,
-        businessPlaceId: null,
+        businessPlaceId: tables.businessPlaceId !== null ? Number(tables.businessPlaceId) : null,
         payloadHash,
         summary: {
           challansSent: tables.totals.challansIssued,
@@ -989,12 +1018,18 @@ class JobWorkService {
   async markItc04Filed(
     halfYearKey: string,
     submissionRef: string | null,
-    actor: { userId?: string }
+    actor: { userId?: string },
+    businessPlaceId?: string | number | bigint | null
   ) {
-    const tables = await this.itc04(halfYearKey);
+    const tables = await this.itc04(halfYearKey, businessPlaceId);
     const json = await this.itc04Json(halfYearKey, tables);
     const payloadHash = hashPayload(json);
-    const gate = await filingApprovalService.assertSubmittable("ITC04", halfYearKey, payloadHash);
+    const gate = await filingApprovalService.assertSubmittable(
+      "ITC04",
+      halfYearKey,
+      payloadHash,
+      tables.businessPlaceId !== null ? Number(tables.businessPlaceId) : null
+    );
     const row = await filingApprovalService.markSubmitted(gate.id, submissionRef, actor);
     return { ...tables, json, payloadHash, filing: row };
   }

@@ -180,6 +180,10 @@ export interface Gstr9Return {
 export interface Gstr2bSettingsRow {
   dateToleranceDays: number;
   valueTolerance: number;
+  /** FIXTURE never reaches a live gateway; LIVE sends through WhatsApp/email for real (P2-18). */
+  followUpProvider?: "FIXTURE" | "LIVE";
+  /** Days an unfollowed MISSING_IN_2B/MISMATCH record sits before the daily nudge flags it. */
+  nudgeAfterDays?: number;
 }
 export interface FollowUpLine {
   docNo: string;
