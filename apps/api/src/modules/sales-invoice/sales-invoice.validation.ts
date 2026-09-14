@@ -27,6 +27,7 @@ const ItemSchema = z.object({
 });
 
 const PaymentSchema = z.object({
+  id: z.string().optional(),
   amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
   paymentMethod: z.string().min(1, "Payment method is required"),
   referenceNumber: z.string().optional().nullable(),
@@ -34,6 +35,15 @@ const PaymentSchema = z.object({
     const d = new Date(val);
     return !isNaN(d.getTime()) && d <= new Date(new Date().setHours(23, 59, 59, 999));
   }, "Payment date must be a valid date and not in the future"),
+  /** A cheque instrument (P2-06) schedules the receipt for its own clearing rather than posting
+   * today; the register row is created either way. */
+  instrumentType: z.preprocess(blankToUndefined, z.enum(["CASH", "BANK", "CHEQUE"]).optional()),
+  chequeNo: z.preprocess(blankToUndefined, z.string().max(20).optional()),
+  chequeDate: z.preprocess(blankToUndefined, z.string().optional()),
+  chequeBank: z.preprocess(blankToUndefined, z.string().max(120).optional()),
+  chequeParty: z.preprocess(blankToUndefined, z.string().max(160).optional()),
+  /** The settlement rate for a foreign-currency invoice; defaults to the day's rate table. */
+  settlementRate: z.preprocess(blankToUndefined, z.coerce.number().positive().optional()),
 });
 
 export const CreateSalesInvoiceSchema = z.object({

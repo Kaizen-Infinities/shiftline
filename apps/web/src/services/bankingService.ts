@@ -129,4 +129,7 @@ export const bankingService = {
       bounceReason?: string;
     }
   ): Promise<ChequeRow> => (await apiClient.post(`${p.cheques}/${id}/status`, body)).data.data,
+  /** Posts the receipt/payment again and moves a BOUNCED cheque to DEPOSITED (P2-06). */
+  rePresent: async (id: string): Promise<ChequeRow> =>
+    (await apiClient.post(`${p.cheques}/${id}/re-present`)).data.data,
 };

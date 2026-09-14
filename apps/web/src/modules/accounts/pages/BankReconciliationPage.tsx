@@ -407,6 +407,20 @@ const BankReconciliationPage: React.FC = () => {
                             </button>
                           </>
                         )}
+                      {can("banking.manage") && c.status === "BOUNCED" && (
+                        <button
+                          className={secondary}
+                          disabled={busy}
+                          onClick={() =>
+                            act(
+                              () => bankingService.rePresent(c.id),
+                              "Re-presented — posted again and back in the bank"
+                            )
+                          }
+                        >
+                          Re-present
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

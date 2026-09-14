@@ -259,7 +259,7 @@ export const API_PATHS = {
     statements: "/banking/statements",
     lines: "/banking/lines",
     brs: "/banking/brs",
-    cheques: "/banking/cheques",
+    cheques: "/banking/cheques", // ← service appends /:id/re-present
     autoMatch: "/banking/auto-match",
   },
   costing: {

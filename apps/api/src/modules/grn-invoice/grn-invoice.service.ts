@@ -18,6 +18,7 @@ import {
   rawMaterialTaxDefaults,
   type PurchaseGstContext,
 } from "../gst/gst.context";
+import { currencyService } from "../currency/currency.service";
 
 function getUomMultiplier(uom: string = "", baseUom: string = ""): number {
   const u = (uom || "").trim().toLowerCase();
@@ -175,6 +176,24 @@ class GrnInvoiceService {
     const items = typeof data.items === "string" ? JSON.parse(data.items) : data.items;
     const sameAsBilling = (data.sameAsBilling as any) === "true" || data.sameAsBilling === true;
 
+    // Foreign currency (P2-06, mirroring what P1-14 did for the sales invoice). The line rates
+    // arrive in the bill's currency; converting them here means every figure computed below —
+    // and every voucher and the exposure/restatement downstream — is already in rupees.
+    const currencyCode = String(data.currencyCode ?? "INR").toUpperCase();
+    const exchangeRate =
+      currencyCode === "INR"
+        ? 1
+        : (data.exchangeRate ??
+          (await currencyService.rateFor(currencyCode, new Date(data.grnDate))));
+    const itemsInInr =
+      exchangeRate === 1
+        ? items
+        : items.map((i: any) => ({
+            ...i,
+            unitPrice: Number(i.unitPrice) * exchangeRate,
+            discountAmount: Number(i.discountAmount ?? 0) * exchangeRate,
+          }));
+
     const {
       itemsWithTotals,
       subtotal,
@@ -185,7 +204,9 @@ class GrnInvoiceService {
       totalIgst,
       totalCess,
       netAmount,
-    } = await this.calculateTotals(items, gst, discountType, discountValue, roundingAdjust);
+    } = await this.calculateTotals(itemsInInr, gst, discountType, discountValue, roundingAdjust);
+    const foreignTotal =
+      exchangeRate === 1 ? null : Math.round((netAmount / exchangeRate) * 100) / 100;
 
     // Upload invoice image to ImageKit if provided
     let invoiceImageUrl: string | null = null;
@@ -213,6 +234,14 @@ class GrnInvoiceService {
       paymentDate: p.paymentDate,
       recordedBy: currentUser.userId,
       createdAt: new Date().toISOString(),
+      // Cheque instrument and settlement rate (P2-06); posting these is voucherPostingService's
+      // job, not this one — a payment here is just recorded, converted to a voucher afterwards.
+      instrumentType: p.instrumentType ?? undefined,
+      chequeNo: p.chequeNo ?? undefined,
+      chequeDate: p.chequeDate ?? undefined,
+      chequeBank: p.chequeBank ?? undefined,
+      chequeParty: p.chequeParty ?? undefined,
+      settlementRate: p.settlementRate ?? undefined,
     }));
     const totalPaid =
       Math.round(
@@ -295,6 +324,9 @@ class GrnInvoiceService {
             totalIgst,
             totalCess,
             netAmount,
+            currencyCode,
+            exchangeRate,
+            foreignTotal,
 
             companyId: currentUser.companyId,
             createdBy: currentUser.userId,
@@ -669,10 +701,36 @@ class GrnInvoiceService {
       let netAmount = Number(existing.netAmount);
 
       let itemsToCreate = existing.items;
+      let currencyCode = existing.currencyCode ?? "INR";
+      let exchangeRate = Number(existing.exchangeRate ?? 1);
+      let foreignTotal =
+        existing.foreignTotal !== null && existing.foreignTotal !== undefined
+          ? Number(existing.foreignTotal)
+          : null;
+
+      if (data.currencyCode !== undefined) currencyCode = String(data.currencyCode).toUpperCase();
+      if (currencyCode !== "INR" && data.exchangeRate !== undefined) {
+        exchangeRate = Number(data.exchangeRate);
+      } else if (currencyCode === "INR") {
+        exchangeRate = 1;
+      } else if (!exchangeRate || exchangeRate <= 0) {
+        exchangeRate = await currencyService.rateFor(
+          currencyCode,
+          data.grnDate ? new Date(data.grnDate) : existing.grnDate
+        );
+      }
 
       if (items) {
+        const itemsInInr =
+          exchangeRate === 1
+            ? items
+            : items.map((i: any) => ({
+                ...i,
+                unitPrice: Number(i.unitPrice) * exchangeRate,
+                discountAmount: Number(i.discountAmount ?? 0) * exchangeRate,
+              }));
         const totals = await this.calculateTotals(
-          items,
+          itemsInInr,
           gst,
           discountType,
           discountValue,
@@ -693,6 +751,7 @@ class GrnInvoiceService {
           where: { grnInvoiceId: id },
         });
       }
+      foreignTotal = exchangeRate === 1 ? null : Math.round((netAmount / exchangeRate) * 100) / 100;
 
       let processedPayments = existing.payments
         ? ((typeof existing.payments === "string"
@@ -710,6 +769,12 @@ class GrnInvoiceService {
           paymentDate: p.paymentDate,
           recordedBy: "System",
           createdAt: p.createdAt || new Date().toISOString(),
+          instrumentType: p.instrumentType ?? undefined,
+          chequeNo: p.chequeNo ?? undefined,
+          chequeDate: p.chequeDate ?? undefined,
+          chequeBank: p.chequeBank ?? undefined,
+          chequeParty: p.chequeParty ?? undefined,
+          settlementRate: p.settlementRate ?? undefined,
         }));
         const totalPaid =
           Math.round(
@@ -803,6 +868,9 @@ class GrnInvoiceService {
           totalSgst,
           totalIgst,
           netAmount,
+          currencyCode,
+          exchangeRate,
+          foreignTotal,
           poId: data.poId !== undefined ? data.poId : existing.poId,
 
           ...(data.items && {
