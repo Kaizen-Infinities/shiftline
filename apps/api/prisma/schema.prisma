@@ -116,6 +116,7 @@ model Employee {
   permanentDeductions        EmployeePermanentDeduction[]
   fineDeductions             EmployeeFineDeduction[]
   salesOrdersAsSource        SalesOrder[]                 @relation("SalesOrderSourceEmployee")
+  leaveRequests              LeaveRequest[]
 
   company Company @relation("CompanyEmployee", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -6064,6 +6065,7 @@ model LeaveRequest {
 
   leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
   company   Company   @relation("CompanyLeaveRequest", fields: [companyId], references: [id], onDelete: Restrict)
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
 
   @@index([companyId, employeeId, status])
   @@index([companyId, fromDate, toDate])

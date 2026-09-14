@@ -11,6 +11,10 @@ const levelDot: Record<AppNotification["level"], string> = {
   ERROR: "bg-red-500",
 };
 
+const isNudgeNotification = (n: AppNotification): boolean => {
+  return n.category === "gst-returns" && n.link?.includes("record=") ?? false;
+};
+
 export const timeAgo = (iso: string) => {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const m = Math.floor(diff / 60_000);
@@ -105,9 +109,16 @@ const NotificationBell: React.FC = () => {
                 >
                   <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${levelDot[n.level]}`} />
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-sm ${n.readAt ? "" : "font-semibold"}`}>
-                      {n.title}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`block truncate text-sm ${n.readAt ? "" : "font-semibold"}`}>
+                        {n.title}
+                      </span>
+                      {isNudgeNotification(n) && (
+                        <span className="shrink-0 inline-block rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                          Nudge
+                        </span>
+                      )}
+                    </div>
                     {n.body && (
                       <span className="block truncate text-xs text-ink-muted">{n.body}</span>
                     )}

@@ -89,6 +89,19 @@ export interface WipTotal {
   total: number;
 }
 
+export interface BackfillResult {
+  scanned: number;
+  created: number;
+  skipped: number;
+  pairs: {
+    itemCode: string;
+    storeCode: string;
+    filled: number;
+    skipped: number;
+    skipReason: string;
+  }[];
+}
+
 export interface CostSheetRow {
   id: string;
   productId: string;
@@ -128,7 +141,7 @@ export const costingService = {
     (await apiClient.get(p.settings)).data.data,
   saveSettings: async (wipLedgerCode: string): Promise<{ wipLedgerCode: string }> =>
     (await apiClient.put(p.settings, { wipLedgerCode })).data.data,
-  backfillValuation: async (): Promise<{ scanned: number; created: number; skipped: number }> =>
+  backfillValuation: async (): Promise<BackfillResult> =>
     (await apiClient.post(`${p.valuation}/backfill`)).data.data,
   costCentres: async (all = false): Promise<CostCentreRow[]> =>
     (await apiClient.get(p.costCentres, { params: { all } })).data.data,

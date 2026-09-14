@@ -308,7 +308,9 @@ const LeaveHrPage: React.FC = () => {
                 )}
                 {requests.map((r) => (
                   <tr key={r.id} className="border-b border-line-soft/60">
-                    <td className={td}>{r.employeeId}</td>
+                    <td className={td}>
+                      {r.employee.empCode} — {r.employee.fullName}
+                    </td>
                     <td className={td}>{r.leaveType.code}</td>
                     <td className={td}>{day(r.fromDate)}</td>
                     <td className={td}>{day(r.toDate)}</td>

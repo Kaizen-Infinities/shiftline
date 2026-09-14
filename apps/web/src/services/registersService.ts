@@ -68,6 +68,7 @@ export interface OvertimeRow {
   cumulativeQuarterHours: number;
   quarterlyCap: number;
   overCap: boolean;
+  payrollBreach?: boolean;
 }
 
 export interface FineDeductionRow {
