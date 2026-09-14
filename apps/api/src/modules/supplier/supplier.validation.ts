@@ -106,6 +106,9 @@ export const createSupplierSchema = z.object({
     msmeVerifiedOn: z.coerce.date().nullable().optional(),
     hasWrittenContract: z.boolean().optional(),
     agreedPaymentDays: z.number().int().min(0).max(365).nullable().optional(),
+    /** The TDS section this supplier is usually deducted under (P2-11); the GRN form defaults
+     * its section picker from this when the caller does not name one. */
+    defaultTdsSectionCode: z.string().max(20).nullable().optional(),
     addresses: z.array(supplierAddressInputSchema).optional(),
   }),
 });

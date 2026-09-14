@@ -31,12 +31,19 @@ import type { PurchaseOrder } from "../../../../features/purchaseOrder/types";
 import { useAppDispatch, useAppSelector } from "../../../../hooks/reduxHooks";
 import { useSuppliers } from "../../../../hooks/useSuppliers";
 import { useUOMs } from "../../../../hooks/useUOMs";
+import { usePermission } from "../../../../hooks/usePermission";
 import { rawMaterialService } from "../../../../services/rawMaterialService";
 import { fetchStores } from "../../../../features/stores/storeSlice";
 import { useSelector } from "react-redux";
 import FileUpload from "../../../../components/form/FileUpload/FileUpload";
 import CommonLoader from "../../../../components/ui/Loader/CommonLoader";
 import { getUomMultiplier } from "../pages/PurchaseOrderForm";
+import {
+  tdsService,
+  type TdsSectionRow,
+  type TdsRateDecision,
+} from "../../../../services/tdsService";
+import { currencyService, type CurrencyRow } from "../../../../services/advanceService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface GRNItem {
@@ -87,6 +94,8 @@ const InvoiceDetailPage: React.FC = () => {
   const { activeUOMs, loadActiveUOMs } = useUOMs();
   const { data: company } = useSelector((state: any) => state.company);
   const companyState = company?.state;
+  const { can } = usePermission();
+  const canViewTds = can("tds.view");
 
   const [saving, setSaving] = useState(false);
   const [loadingPOs, setLoadingPOs] = useState(true);
@@ -101,7 +110,25 @@ const InvoiceDetailPage: React.FC = () => {
     paymentMethod: "Bank Transfer",
     referenceNumber: "",
     paymentDate: new Date().toISOString().split("T")[0],
+    // Instrument type (P2-06): a cheque payment schedules for its own clearing and gets its
+    // own register row; cash/bank transfer post immediately as before.
+    instrumentType: "BANK" as "CASH" | "BANK" | "CHEQUE",
+    chequeNo: "",
+    chequeDate: "",
+    chequeBank: "",
+    chequeParty: "",
   });
+  const [paymentErrors, setPaymentErrors] = useState<Record<string, string>>({});
+
+  // ── TDS (P2-05/P2-11) ─────────────────────────────────────────────────────────
+  const [tdsSections, setTdsSections] = useState<TdsSectionRow[]>([]);
+  const [tdsPreview, setTdsPreview] = useState<TdsRateDecision | null>(null);
+  const [tdsPreviewLoading, setTdsPreviewLoading] = useState(false);
+  const [tdsSectionTouched, setTdsSectionTouched] = useState(false);
+
+  // ── Currency (P2-06/P2-11) ───────────────────────────────────────────────────
+  const [currencies, setCurrencies] = useState<CurrencyRow[]>([]);
+  const [exchangeRateTouched, setExchangeRateTouched] = useState(false);
 
   // ── Form ─────────────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
@@ -147,6 +174,12 @@ const InvoiceDetailPage: React.FC = () => {
     updateStock: true,
     // Tax payable by us under reverse charge (unregistered supplier, notified goods/services).
     reverseCharge: false,
+    // TDS on this bill (P2-05): offered as a toggle + section, the preview before it's accepted.
+    deductTds: false,
+    tdsSectionCode: "",
+    // Foreign-currency bill (P2-06): item rates arrive in this currency and convert to rupees.
+    currencyCode: "INR",
+    exchangeRate: 1,
   });
 
   const [items, setItems] = useState<GRNItem[]>([]);
@@ -199,7 +232,23 @@ const InvoiceDetailPage: React.FC = () => {
         })
         .catch((err) => console.error("Failed to fetch next GRN number:", err));
     }
-  }, [dispatch, loadSuppliers, loadActiveUOMs, id]);
+
+    currencyService
+      .list(false)
+      .then((rows) => setCurrencies(rows))
+      .catch(() => {
+        /* the picker just falls back to INR-only */
+      });
+
+    if (canViewTds) {
+      tdsService
+        .sections()
+        .then((rows) => setTdsSections(rows.filter((s) => !s.isTcs)))
+        .catch(() => {
+          /* the toggle just has nothing to offer */
+        });
+    }
+  }, [dispatch, loadSuppliers, loadActiveUOMs, id, canViewTds]);
 
   useEffect(() => {
     if (id) {
@@ -243,7 +292,28 @@ const InvoiceDetailPage: React.FC = () => {
             paymentStatus: invoice.paymentStatus || "Unpaid",
             updateStock: invoice.updateStock ?? true,
             reverseCharge: Boolean(invoice.reverseCharge),
+            deductTds: Boolean(invoice.tdsAmount),
+            tdsSectionCode: invoice.tdsSectionCode || "",
+            currencyCode: invoice.currencyCode || "INR",
+            exchangeRate: Number(invoice.exchangeRate) || 1,
           }));
+          setExchangeRateTouched(true);
+          if (invoice.tdsSectionCode) {
+            setTdsSectionTouched(true);
+            setTdsPreview({
+              rate:
+                Number(invoice.tdsAmount) > 0
+                  ? Math.round(
+                      (Number(invoice.tdsAmount) /
+                        Math.max(0.01, Number(invoice.subtotal) - Number(invoice.totalDiscount))) *
+                        10000
+                    ) / 100
+                  : 0,
+              reason: "Already deducted on this bill",
+              base: Number(invoice.subtotal) - Number(invoice.totalDiscount),
+              belowThreshold: false,
+            });
+          }
 
           const mappedItems = (invoice.items || []).map((item: any) => {
             const qty = Number(item.quantity);
@@ -571,6 +641,44 @@ const InvoiceDetailPage: React.FC = () => {
     }
   }, [form.supplierId, form.poId, suppliers]);
 
+  const selectedSupplier = useMemo(
+    () => (suppliers || []).find((s: any) => String(s.id) === String(form.supplierId)) as any,
+    [suppliers, form.supplierId]
+  );
+
+  // ── Default the TDS section from the supplier master (P2-11) ──────────────────
+  // Only while the person has not picked a section themselves — picking one by hand always wins.
+  useEffect(() => {
+    if (isEditMode || tdsSectionTouched) return;
+    if (selectedSupplier?.defaultTdsSectionCode && !form.tdsSectionCode) {
+      setForm((prev) => ({ ...prev, tdsSectionCode: selectedSupplier.defaultTdsSectionCode }));
+    }
+  }, [selectedSupplier, isEditMode, tdsSectionTouched, form.tdsSectionCode]);
+
+  // ── Default the exchange rate from the rate table for the invoice date (P2-11) ─
+  useEffect(() => {
+    if (isEditMode || exchangeRateTouched) return;
+    if (form.currencyCode === "INR" || !form.grnDate) return;
+    let cancelled = false;
+    currencyService
+      .rates({ currencyCode: form.currencyCode })
+      .then((rows) => {
+        if (cancelled) return;
+        const asOn = new Date(form.grnDate).getTime();
+        const onOrBefore = rows
+          .filter((r) => new Date(r.rateDate).getTime() <= asOn)
+          .sort((a, b) => new Date(b.rateDate).getTime() - new Date(a.rateDate).getTime());
+        const best = onOrBefore[0] || rows[0];
+        if (best) setForm((prev) => ({ ...prev, exchangeRate: Number(best.rate) }));
+      })
+      .catch(() => {
+        /* the rate stays whatever it was; the field is still editable */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.currencyCode, form.grnDate, isEditMode, exchangeRateTouched]);
+
   // ── When store selected manually → auto-fill shipping from store address ──────
   useEffect(() => {
     if (form.poId || !form.storeId) return;
@@ -732,6 +840,66 @@ const InvoiceDetailPage: React.FC = () => {
     return subtotal - discountAmount + (form.reverseCharge ? 0 : totalTax) + rounding;
   }, [subtotal, discountAmount, totalTax, form.roundingAdjust, roundingSign, form.reverseCharge]);
 
+  // ── Live TDS preview (P2-11) ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!canViewTds || !form.deductTds || !form.tdsSectionCode || !form.supplierId) {
+      if (!form.deductTds) setTdsPreview(null);
+      return;
+    }
+    if (isEditMode) return; // already-saved deductions are shown from the invoice itself
+    const base = Math.max(0, subtotal - discountAmount);
+    if (base <= 0) {
+      setTdsPreview(null);
+      return;
+    }
+    let cancelled = false;
+    setTdsPreviewLoading(true);
+    tdsService
+      .preview({
+        sectionCode: form.tdsSectionCode,
+        supplierId: Number(form.supplierId),
+        deducteePan: selectedSupplier?.pan ?? null,
+        deducteeType: selectedSupplier?.deducteeType ?? undefined,
+        higherRate: selectedSupplier?.higherRate206AB ?? false,
+        amount: base,
+        on: form.grnDate || undefined,
+      })
+      .then((res) => {
+        if (!cancelled) setTdsPreview(res);
+      })
+      .catch(() => {
+        if (!cancelled) setTdsPreview(null);
+      })
+      .finally(() => {
+        if (!cancelled) setTdsPreviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    canViewTds,
+    form.deductTds,
+    form.tdsSectionCode,
+    form.supplierId,
+    form.grnDate,
+    selectedSupplier,
+    subtotal,
+    discountAmount,
+    isEditMode,
+  ]);
+
+  const tdsAmount = useMemo(() => {
+    if (!tdsPreview) return 0;
+    return Math.round(((tdsPreview.base * tdsPreview.rate) / 100) * 100) / 100;
+  }, [tdsPreview]);
+
+  const foreignTotal = useMemo(() => {
+    if (form.currencyCode === "INR" || !form.exchangeRate) return null;
+    return Math.round((grandTotal / form.exchangeRate) * 100) / 100;
+  }, [form.currencyCode, form.exchangeRate, grandTotal]);
+
+  const netPayable = useMemo(() => Math.max(0, grandTotal - tdsAmount), [grandTotal, tdsAmount]);
+
   const totalPaid = useMemo(
     () => payments.reduce((sum, p) => sum + Number(p.amount || 0), 0),
     [payments]
@@ -744,26 +912,38 @@ const InvoiceDetailPage: React.FC = () => {
     return "Partial";
   }, [totalPaid, grandTotal]);
 
+  const isChequeInstrument = newPayment.instrumentType === "CHEQUE";
+  const isPostDatedCheque = useMemo(() => {
+    if (!isChequeInstrument || !newPayment.chequeDate || !newPayment.paymentDate) return false;
+    return new Date(newPayment.chequeDate).getTime() > new Date(newPayment.paymentDate).getTime();
+  }, [isChequeInstrument, newPayment.chequeDate, newPayment.paymentDate]);
+
   const handleAddPayment = () => {
+    const errs: Record<string, string> = {};
     const amt = Number(newPayment.amount);
-    if (isNaN(amt) || amt <= 0) {
-      toast.error("Payment amount must be greater than 0");
-      return;
-    }
+    if (isNaN(amt) || amt <= 0) errs.amount = "Amount must be greater than 0";
     if (isEditMode && amt > balanceDue) {
-      toast.error(
-        `Payment amount cannot exceed the remaining balance due of ₹${balanceDue.toFixed(2)}`
-      );
-      return;
+      errs.amount = `Cannot exceed the remaining balance due of ₹${balanceDue.toFixed(2)}`;
     }
     if (newPayment.paymentMethod.toLowerCase() !== "cash" && !newPayment.referenceNumber.trim()) {
-      toast.error("Reference number is required for non-cash methods");
+      errs.referenceNumber = "Reference number is required for non-cash methods";
+    }
+    if (!newPayment.paymentDate || new Date(newPayment.paymentDate) > new Date()) {
+      errs.paymentDate = "Payment date must be a valid date and not in the future";
+    }
+    if (isChequeInstrument) {
+      if (!newPayment.chequeNo.trim()) errs.chequeNo = "Cheque number is required";
+      else if (newPayment.chequeNo.length > 20) errs.chequeNo = "Max 20 characters";
+      if (!newPayment.chequeDate) errs.chequeDate = "Cheque date is required";
+      if (newPayment.chequeBank.length > 120) errs.chequeBank = "Max 120 characters";
+      if (newPayment.chequeParty.length > 160) errs.chequeParty = "Max 160 characters";
+    }
+    if (Object.keys(errs).length > 0) {
+      setPaymentErrors(errs);
+      toast.error(Object.values(errs)[0]);
       return;
     }
-    if (new Date(newPayment.paymentDate) > new Date()) {
-      toast.error("Payment date cannot be in the future");
-      return;
-    }
+    setPaymentErrors({});
 
     setPayments((prev) => [
       ...prev,
@@ -771,6 +951,14 @@ const InvoiceDetailPage: React.FC = () => {
         ...newPayment,
         amount: amt,
         id: Math.random().toString(36).substr(2, 9),
+        ...(isChequeInstrument
+          ? {}
+          : {
+              chequeNo: undefined,
+              chequeDate: undefined,
+              chequeBank: undefined,
+              chequeParty: undefined,
+            }),
       },
     ]);
 
@@ -780,6 +968,11 @@ const InvoiceDetailPage: React.FC = () => {
       paymentMethod: "Bank Transfer",
       referenceNumber: "",
       paymentDate: new Date().toISOString().split("T")[0],
+      instrumentType: "BANK",
+      chequeNo: "",
+      chequeDate: "",
+      chequeBank: "",
+      chequeParty: "",
     });
   };
 
@@ -931,6 +1124,16 @@ const InvoiceDetailPage: React.FC = () => {
       return;
     }
 
+    if (form.deductTds && !form.tdsSectionCode) {
+      errs.tdsSectionCode = "Pick a section to deduct TDS";
+    }
+    if (form.currencyCode !== "INR") {
+      if (form.currencyCode.length !== 3) errs.currencyCode = "A currency code is 3 letters";
+      if (!form.exchangeRate || Number(form.exchangeRate) <= 0) {
+        errs.exchangeRate = "Exchange rate must be greater than 0";
+      }
+    }
+
     items.forEach((item, idx) => {
       if (!item.productId) {
         errs[`items.${idx}.productId`] = "Required";
@@ -957,6 +1160,16 @@ const InvoiceDetailPage: React.FC = () => {
       payload.append("supplierId", String(form.supplierId));
       payload.append("storeId", form.storeId);
       payload.append("reverseCharge", form.reverseCharge ? "true" : "false");
+      payload.append("currencyCode", form.currencyCode || "INR");
+      if (form.currencyCode !== "INR") {
+        payload.append("exchangeRate", String(form.exchangeRate));
+      }
+      if (!isEditMode) {
+        // P2-05: the TDS toggle is only wired for creation; an already-saved GRN's deduction
+        // is fixed and shown read-only (the update endpoint does not re-run it).
+        payload.append("deductTds", form.deductTds ? "true" : "false");
+        if (form.tdsSectionCode) payload.append("tdsSectionCode", form.tdsSectionCode);
+      }
       payload.append("billingAddressLine1", form.billingAddressLine1);
       payload.append("billingCountry", form.billingCountry || "India");
       payload.append("billingCity", form.billingCity);
@@ -1151,6 +1364,53 @@ const InvoiceDetailPage: React.FC = () => {
                   />
                   Reverse charge (GST payable by us)
                 </label>
+                <SelectInput
+                  label="Currency"
+                  name="currencyCode"
+                  value={form.currencyCode}
+                  options={[
+                    { value: "INR", label: "INR — Indian Rupee" },
+                    ...currencies
+                      .filter((c) => c.code !== "INR")
+                      .map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` })),
+                  ]}
+                  onChange={(e) => {
+                    setForm((p) => ({ ...p, currencyCode: e.target.value }));
+                    setExchangeRateTouched(false);
+                  }}
+                  disabled={isEditMode}
+                  error={errors.currencyCode}
+                />
+                {form.currencyCode !== "INR" && (
+                  <>
+                    <TextInput
+                      label="Exchange Rate (₹ per unit)"
+                      name="exchangeRate"
+                      type="number"
+                      step="0.0001"
+                      preventNegative
+                      value={String(form.exchangeRate)}
+                      onChange={(e) => {
+                        setExchangeRateTouched(true);
+                        setForm((p) => ({ ...p, exchangeRate: Number(e.target.value) }));
+                      }}
+                      error={errors.exchangeRate}
+                      disabled={isEditMode}
+                    />
+                    <div className="self-end pb-2 text-[11px] font-semibold text-ink-muted">
+                      Foreign Total:{" "}
+                      <span className="text-ink font-extrabold">
+                        {form.currencyCode}{" "}
+                        {foreignTotal !== null
+                          ? foreignTotal.toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })
+                          : "—"}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1506,6 +1766,287 @@ const InvoiceDetailPage: React.FC = () => {
               </div>
             </div>
 
+            {/* ── Section 5.5: TDS ── */}
+            {canViewTds && (
+              <div>
+                <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
+                  <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
+                    TDS Deduction
+                  </h3>
+                </div>
+                <div className="rounded-lg border border-line-soft bg-card-2 px-3 py-2.5">
+                  <label className="flex items-center gap-2 text-[11px] font-semibold text-ink-muted mb-2">
+                    <input
+                      type="checkbox"
+                      checked={form.deductTds}
+                      onChange={(e) => setForm((p) => ({ ...p, deductTds: e.target.checked }))}
+                      disabled={isEditMode && !form.deductTds}
+                    />
+                    Deduct TDS on this bill
+                  </label>
+                  {form.deductTds && (
+                    <div className="grid grid-cols-4 gap-x-4 gap-y-1.5 items-end">
+                      <SelectInput
+                        label="Section"
+                        name="tdsSectionCode"
+                        value={form.tdsSectionCode}
+                        options={[
+                          { value: "", label: "Select section" },
+                          ...tdsSections.map((s) => ({
+                            value: s.code,
+                            label: `${s.code} — ${s.name}`,
+                          })),
+                        ]}
+                        onChange={(e) => {
+                          setTdsSectionTouched(true);
+                          setForm((p) => ({ ...p, tdsSectionCode: e.target.value }));
+                        }}
+                        disabled={isEditMode}
+                        error={errors.tdsSectionCode}
+                      />
+                      <div className="col-span-3 text-[11px] font-semibold text-ink-muted">
+                        {tdsPreviewLoading ? (
+                          <span>Calculating…</span>
+                        ) : tdsPreview ? (
+                          tdsPreview.belowThreshold ? (
+                            <span className="text-amber-600">{tdsPreview.reason}</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-x-5 gap-y-1">
+                              <span>
+                                Rate:{" "}
+                                <span className="text-ink font-extrabold">{tdsPreview.rate}%</span>
+                              </span>
+                              <span>
+                                TDS Amount:{" "}
+                                <span className="text-ink font-extrabold">
+                                  ₹
+                                  {tdsAmount.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </span>
+                              <span>
+                                Net Payable:{" "}
+                                <span className="text-primary font-extrabold">
+                                  ₹
+                                  {netPayable.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </span>
+                              <span className="text-ink-subtle italic">{tdsPreview.reason}</span>
+                            </div>
+                          )
+                        ) : form.tdsSectionCode ? (
+                          <span className="text-ink-subtle">Pick a supplier to see the rate.</span>
+                        ) : (
+                          <span className="text-ink-subtle">
+                            Pick a section to preview the deduction.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Section 5.7: Payments ── */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">Payments</h3>
+              </div>
+              <div className="rounded-lg border border-line-soft bg-card-2 px-3 py-2.5 space-y-2">
+                {payments.length > 0 && (
+                  <table className="min-w-full divide-y divide-line-soft text-[11px]">
+                    <thead>
+                      <tr className="text-ink-subtle uppercase text-[10px]">
+                        <th className="text-left px-2 py-1">Date</th>
+                        <th className="text-left px-2 py-1">Instrument</th>
+                        <th className="text-left px-2 py-1">Details</th>
+                        <th className="text-right px-2 py-1">Amount (₹)</th>
+                        <th className="px-2 py-1 w-8"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line-soft">
+                      {payments.map((p) => {
+                        const isCheque =
+                          String(p.instrumentType ?? "").toUpperCase() === "CHEQUE" ||
+                          String(p.paymentMethod ?? "")
+                            .toLowerCase()
+                            .includes("cheque");
+                        const postDated =
+                          isCheque &&
+                          p.chequeDate &&
+                          new Date(p.chequeDate).getTime() > new Date(p.paymentDate).getTime();
+                        return (
+                          <tr key={p.id}>
+                            <td className="px-2 py-1">
+                              {p.paymentDate
+                                ? new Date(p.paymentDate).toLocaleDateString("en-IN")
+                                : "—"}
+                            </td>
+                            <td className="px-2 py-1">
+                              {p.paymentMethod}
+                              {postDated && (
+                                <span className="ml-1.5 px-1 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-bold uppercase">
+                                  Post-dated
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-2 py-1 text-ink-subtle">
+                              {isCheque
+                                ? [
+                                    p.chequeNo ? `Cheque #${p.chequeNo}` : null,
+                                    p.chequeBank || null,
+                                    p.chequeDate
+                                      ? new Date(p.chequeDate).toLocaleDateString("en-IN")
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")
+                                : p.referenceNumber || "—"}
+                            </td>
+                            <td className="px-2 py-1 text-right font-bold">
+                              {Number(p.amount).toLocaleString("en-IN", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                            </td>
+                            <td className="px-2 py-1 text-center">
+                              {!p.isPersisted && (
+                                <button
+                                  type="button"
+                                  className="text-rose-400 hover:text-rose-600"
+                                  onClick={() => handleRemovePayment(p.id)}
+                                >
+                                  <FaTrash size={10} />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+
+                {(!isEditMode || balanceDue > 0) && (
+                  <div className="grid grid-cols-5 gap-x-3 gap-y-1.5 items-end pt-2 border-t border-line-soft">
+                    <TextInput
+                      label="Amount (₹)"
+                      name="paymentAmount"
+                      type="number"
+                      step="0.01"
+                      preventNegative
+                      value={newPayment.amount}
+                      onChange={(e) => setNewPayment((p) => ({ ...p, amount: e.target.value }))}
+                      error={paymentErrors.amount}
+                    />
+                    <SelectInput
+                      label="Instrument"
+                      name="instrumentType"
+                      value={newPayment.instrumentType}
+                      options={[
+                        { value: "CASH", label: "Cash" },
+                        { value: "BANK", label: "Bank Transfer" },
+                        { value: "CHEQUE", label: "Cheque" },
+                      ]}
+                      onChange={(e) => {
+                        const val = e.target.value as "CASH" | "BANK" | "CHEQUE";
+                        const label =
+                          val === "CASH" ? "Cash" : val === "CHEQUE" ? "Cheque" : "Bank Transfer";
+                        setNewPayment((p) => ({ ...p, instrumentType: val, paymentMethod: label }));
+                      }}
+                    />
+                    {!isChequeInstrument && (
+                      <TextInput
+                        label="Reference No."
+                        name="referenceNumber"
+                        value={newPayment.referenceNumber}
+                        onChange={(e) =>
+                          setNewPayment((p) => ({ ...p, referenceNumber: e.target.value }))
+                        }
+                        error={paymentErrors.referenceNumber}
+                      />
+                    )}
+                    <DatePickerCalendar
+                      label="Payment Date"
+                      name="paymentDate"
+                      value={newPayment.paymentDate}
+                      onChange={(e) =>
+                        setNewPayment((p) => ({ ...p, paymentDate: e.target.value }))
+                      }
+                      error={paymentErrors.paymentDate}
+                    />
+                    {isChequeInstrument && (
+                      <>
+                        <TextInput
+                          label="Cheque No."
+                          name="chequeNo"
+                          value={newPayment.chequeNo}
+                          onChange={(e) =>
+                            setNewPayment((p) => ({ ...p, chequeNo: e.target.value.slice(0, 20) }))
+                          }
+                          error={paymentErrors.chequeNo}
+                        />
+                        <DatePickerCalendar
+                          label="Cheque Date"
+                          name="chequeDate"
+                          value={newPayment.chequeDate}
+                          onChange={(e) =>
+                            setNewPayment((p) => ({ ...p, chequeDate: e.target.value }))
+                          }
+                          error={paymentErrors.chequeDate}
+                        />
+                        <TextInput
+                          label="Bank"
+                          name="chequeBank"
+                          value={newPayment.chequeBank}
+                          onChange={(e) =>
+                            setNewPayment((p) => ({
+                              ...p,
+                              chequeBank: e.target.value.slice(0, 120),
+                            }))
+                          }
+                          error={paymentErrors.chequeBank}
+                        />
+                        <TextInput
+                          label="Drawer"
+                          name="chequeParty"
+                          value={newPayment.chequeParty}
+                          onChange={(e) =>
+                            setNewPayment((p) => ({
+                              ...p,
+                              chequeParty: e.target.value.slice(0, 160),
+                            }))
+                          }
+                          error={paymentErrors.chequeParty}
+                        />
+                        {isPostDatedCheque && (
+                          <div className="col-span-5 text-[10px] font-semibold text-amber-600">
+                            Post-dated: this cheque will post only when it is marked cleared in the
+                            cheque register.
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <div className={isChequeInstrument ? "col-span-5" : ""}>
+                      <CustomButton
+                        text="Add Payment"
+                        icon={FaPlus}
+                        type="button"
+                        size="sm"
+                        onClick={handleAddPayment}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* ── Section 6: Remarks + Summary ── */}
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2">
@@ -1634,6 +2175,26 @@ const InvoiceDetailPage: React.FC = () => {
                   <span>Net Amount:</span>
                   <span className="text-primary font-black">₹{grandTotal.toFixed(2)}</span>
                 </div>
+                {form.currencyCode !== "INR" && foreignTotal !== null && (
+                  <div className="flex justify-between mt-1 text-[11px] font-semibold text-ink-muted">
+                    <span>Foreign Total:</span>
+                    <span className="text-ink font-extrabold">
+                      {form.currencyCode} {foreignTotal.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {form.deductTds && tdsPreview && !tdsPreview.belowThreshold && (
+                  <>
+                    <div className="flex justify-between mt-1 text-[11px] font-semibold text-rose-500">
+                      <span>Less: TDS ({form.tdsSectionCode}):</span>
+                      <span>-₹{tdsAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between mt-1 text-[11px] font-extrabold text-ink">
+                      <span>Net Payable:</span>
+                      <span className="text-primary font-black">₹{netPayable.toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
