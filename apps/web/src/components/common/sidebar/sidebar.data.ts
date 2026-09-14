@@ -839,6 +839,8 @@ export const sidebarItems: SidebarItem[] = [
         path: "/payroll/monthly-report",
         permission: "payroll.view",
       },
+      { title: "Leave Requests", path: "/hr/leave", permission: "leave.view" },
+      { title: "My Leave", path: "/me/leave", permission: "leave.view" },
     ],
     activePaths: [
       "/payroll",
@@ -848,6 +850,8 @@ export const sidebarItems: SidebarItem[] = [
       "/payroll/advance",
       "/payroll/weekly-report",
       "/payroll/monthly-report",
+      "/hr/leave",
+      "/me/leave",
     ],
     permissionAny: [
       "payroll.view",
@@ -855,6 +859,7 @@ export const sidebarItems: SidebarItem[] = [
       "payroll-settings.view",
       "payroll-attendance.view",
       "payroll-advance.view",
+      "leave.view",
     ],
   },
 

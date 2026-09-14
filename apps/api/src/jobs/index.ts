@@ -16,6 +16,7 @@ import { jobWorkReturnHandler } from "./job-work.job";
 import { msmeClockHandler } from "./msme.job";
 import { depreciationRunHandler } from "./assets.job";
 import { fxRatesHandler } from "./fx.job";
+import { leaveAccrualHandler } from "./leave.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 
 const IST = "Asia/Kolkata";
@@ -69,6 +70,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.MSME_CLOCK, work, each(msmeClockHandler));
   await boss.work(QUEUES.DEPRECIATION_RUN, work, each(depreciationRunHandler));
   await boss.work(QUEUES.FX_RATES, work, each(fxRatesHandler));
+  await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
 };
 
 /**
@@ -93,4 +95,7 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.DEPRECIATION_RUN, "0 3 1 * *", {}, { tz: IST });
   // 14:00 IST: the RBI publishes its reference rate around 13:30 and not at all on a holiday.
   await boss.schedule(QUEUES.FX_RATES, "0 14 * * *", {}, { tz: IST });
+  // 02:00 IST on the 1st, before the depreciation run: last month's attendance is settled by
+  // then and the leave ledger should be current before anyone applies against it.
+  await boss.schedule(QUEUES.LEAVE_ACCRUAL, "0 2 1 * *", {}, { tz: IST });
 };

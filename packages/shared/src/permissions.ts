@@ -461,6 +461,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "export"],
     description: "Extended Compensation",
   },
+  {
+    module: "leave",
+    actions: ["view", "request", "approve"],
+    description: "Leave Requests and Calendar",
+  },
 ];
 
 /**

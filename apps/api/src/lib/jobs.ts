@@ -46,6 +46,8 @@ export const QUEUES = {
   DEPRECIATION_RUN: "accounts.depreciation.run",
   /** Daily: pull the day's exchange rates for every tenant (P1-17). */
   FX_RATES: "accounts.fx.rates",
+  /** Monthly on the 1st: accrue leave from last month's attendance, every tenant (P2-09). */
+  LEAVE_ACCRUAL: "payroll.leave.accrual",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

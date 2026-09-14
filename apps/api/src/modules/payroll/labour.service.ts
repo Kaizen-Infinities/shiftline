@@ -63,6 +63,16 @@ export const DEFAULT_LEAVE_TYPES = [
     carryForwardMax: 0,
     encashable: false,
   },
+  {
+    code: "LWP",
+    name: "Leave Without Pay",
+    daysPerYear: 0,
+    basis: "ANNUAL" as LeaveAccrualBasis,
+    daysWorkedPerDay: 20,
+    carryForwardMax: 0,
+    encashable: false,
+    allowNegative: true,
+  },
 ];
 
 class LabourService {
@@ -128,6 +138,7 @@ class LabourService {
     isPaid?: boolean;
     carryForwardMax?: number;
     encashable?: boolean;
+    allowNegative?: boolean;
     isActive?: boolean;
   }) {
     const code = input.code.trim().toUpperCase();
@@ -139,6 +150,7 @@ class LabourService {
       isPaid: input.isPaid ?? true,
       carryForwardMax: input.carryForwardMax ?? 0,
       encashable: input.encashable ?? false,
+      allowNegative: input.allowNegative ?? false,
       isActive: input.isActive ?? true,
     };
     return prisma.leaveType.upsert({
