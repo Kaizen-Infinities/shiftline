@@ -1,13 +1,16 @@
 import { prisma } from "../../config/prisma";
-import { getISTDateParts } from "../../utils/dateUtils";
+import { getISTDateParts, getISTDayStartUtc } from "../../utils/dateUtils";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-const normCategory = (category?: string): "RAW_MATERIAL" | "FINISHED_PRODUCT" | "WASTAGE" | null | undefined => {
+const normCategory = (
+  category?: string
+): "RAW_MATERIAL" | "FINISHED_PRODUCT" | "WASTAGE" | null | undefined => {
   if (!category) return undefined;
   const n = category.toUpperCase().trim();
   if (n === "RAW_MATERIAL" || n === "RAW_MATERIALS" || n === "RAW") return "RAW_MATERIAL";
-  if (n === "FINISHED_PRODUCT" || n === "FINISHED_PRODUCTS" || n === "FINISHED" || n === "PRODUCT") return "FINISHED_PRODUCT";
+  if (n === "FINISHED_PRODUCT" || n === "FINISHED_PRODUCTS" || n === "FINISHED" || n === "PRODUCT")
+    return "FINISHED_PRODUCT";
   if (n === "WASTAGE") return "WASTAGE";
   return null; // unknown → return empty
 };
@@ -47,9 +50,18 @@ class InventoryService {
 
     const now = new Date();
     const nowParts = getISTDateParts(now);
+    // Calendar-day identity, built the same way as the controller's `date` param — only ever
+    // compared for equality against it, never against a real timestamp.
     const todayISTStart = new Date(Date.UTC(nowParts.year, nowParts.month, nowParts.day));
     const isToday = date.getTime() === todayISTStart.getTime();
-    const yesterday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - 1));
+    const yesterday = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - 1)
+    );
+    // The real UTC instant IST midnight falls at (~5.5 hours before todayISTStart) — this is
+    // what "today's transactions" must be filtered against, not the calendar-identity marker
+    // above; that marker lands 5.5 hours late and silently drops every transaction from the
+    // first stretch of the IST day.
+    const todayISTStartUtc = getISTDayStartUtc(now);
 
     const catFilter = normCategory(category);
     if (catFilter === null) return { data: [], total: 0 }; // unknown category
@@ -63,10 +75,10 @@ class InventoryService {
         prisma.eodStockSnapshot.findMany({ where: { snapshotDate: date } }),
         prisma.eodStockSnapshot.findMany({ where: { snapshotDate: yesterday } }),
         prisma.rawMaterialTransaction.findMany({
-          where: { txnDateTime: { gte: todayISTStart } },
+          where: { txnDateTime: { gte: todayISTStartUtc } },
         }),
         prisma.finishedGoodsTransaction.findMany({
-          where: { txnDateTime: { gte: todayISTStart } },
+          where: { txnDateTime: { gte: todayISTStartUtc } },
         }),
       ]);
 
@@ -86,8 +98,16 @@ class InventoryService {
         const typ = t.txnType.toUpperCase();
         const q = Number(t.qty) || 0;
         // IN types add stock, OUT types subtract stock
-        const isIn = typ.includes("IN") || typ.includes("RECEIPT") || typ.includes("OPENING") || typ.includes("RETURN");
-        const isOut = typ.includes("OUT") || typ.includes("ISSUE") || typ.includes("CONSUMPTION") || typ.includes("DISPATCH");
+        const isIn =
+          typ.includes("IN") ||
+          typ.includes("RECEIPT") ||
+          typ.includes("OPENING") ||
+          typ.includes("RETURN");
+        const isOut =
+          typ.includes("OUT") ||
+          typ.includes("ISSUE") ||
+          typ.includes("CONSUMPTION") ||
+          typ.includes("DISPATCH");
         const delta = isIn ? q : isOut ? -q : 0;
         rmNetMap.set(t.rawMaterialId, (rmNetMap.get(t.rawMaterialId) || 0) + delta);
       }
@@ -97,7 +117,11 @@ class InventoryService {
       for (const t of todayFgTxns) {
         const typ = t.txnType.toUpperCase();
         const q = Number(t.qty) || 0;
-        const isIn = typ.includes("IN") || typ.includes("RECEIPT") || typ.includes("OPENING") || typ.includes("RETURN");
+        const isIn =
+          typ.includes("IN") ||
+          typ.includes("RECEIPT") ||
+          typ.includes("OPENING") ||
+          typ.includes("RETURN");
         const isOut = typ.includes("OUT") || typ.includes("ISSUE") || typ.includes("DISPATCH");
         const delta = isIn ? q : isOut ? -q : 0;
         const key = `${t.productItemId}_${t.storeId}`;
@@ -108,7 +132,12 @@ class InventoryService {
       // 1) Today's locked snapshot startQty (if EOD job already ran today)
       // 2) Yesterday's snapshot eodQty (yesterday's closing = today's opening)
       // 3) currentQty − netChangeToday (reverse today's transactions to get opening)
-      const calcStartQty = (todaySnap: any, yesterdaySnap: any, currentQty: number, netChangeToday: number): number => {
+      const calcStartQty = (
+        todaySnap: any,
+        yesterdaySnap: any,
+        currentQty: number,
+        netChangeToday: number
+      ): number => {
         if (todaySnap) return Number(todaySnap.startQty);
         if (yesterdaySnap) return Number(yesterdaySnap.eodQty);
         return currentQty - netChangeToday;
@@ -136,8 +165,8 @@ class InventoryService {
           storeId: storeIdVal,
           snapshotDate: date,
           startQty,
-          eodQty: currentQty,   // always show live current qty throughout the day
-          recordedAt: null,      // null = live / not locked yet
+          eodQty: currentQty, // always show live current qty throughout the day
+          recordedAt: null, // null = live / not locked yet
         };
       });
 
@@ -161,7 +190,9 @@ class InventoryService {
         const startQty = calcStartQty(todaySnap, yestSnap, currentQty, netChangeToday);
 
         fgRows.push({
-          id: todaySnap ? String(todaySnap.id) : `temp-FINISHED_PRODUCT-${itemIdStr}-${row.storeId}`,
+          id: todaySnap
+            ? String(todaySnap.id)
+            : `temp-FINISHED_PRODUCT-${itemIdStr}-${row.storeId}`,
           category: "FINISHED_PRODUCT" as any,
           itemId: itemIdStr,
           itemCode: row.product.productCode,

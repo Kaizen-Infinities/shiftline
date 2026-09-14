@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { api, authed, ADMIN } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
@@ -69,6 +69,57 @@ describe("inventory — EOD stock view and manual snapshot trigger", () => {
     // Never locked yet: the id is a synthetic placeholder, not a snapshot row id.
     expect(row.id).toBe(`temp-RAW_MATERIAL-${rm.rawMaterialId}-ST-RM`);
     expect(row.recordedAt).toBeNull();
+  });
+
+  it("counts a transaction from the first 5.5 hours of the IST day as today's, not dropped (regression: IST-midnight bug)", async () => {
+    // getEodStock used to mark "today's start" as UTC midnight of the IST calendar day's own
+    // date (`Date.UTC(year, month, day)` from getISTDateParts) rather than the real UTC instant
+    // IST midnight falls at (IST is UTC+5:30, so real IST midnight is 18:30 UTC the *previous*
+    // day) -- landing the marker 5.5 hours late. Any transaction in that gap (00:00-05:30 IST)
+    // was silently excluded from "today's net change", so startQty came out equal to the live
+    // qty as if nothing had moved. Pinned here with fixed, fake wall-clock times rather than
+    // "now" so this doesn't depend on what time the suite happens to run.
+    const rm = await createRawMaterial(); // onHandQty 500 by default
+    const prisma = await getPrisma();
+    const inventoryService = (await import("../../src/modules/inventory/inventory.service"))
+      .default;
+
+    // 2030-06-15T00:30:00+05:30 == 2030-06-14T19:00:00.000Z: inside the IST day 2030-06-15's
+    // first 5.5 hours -- exactly the window the bug used to drop transactions from.
+    const pinned = new Date("2030-06-14T19:00:00.000Z");
+    const targetDate = new Date(Date.UTC(2030, 5, 15));
+
+    await asDemoTenant(() =>
+      prisma.rawMaterialTransaction.create({
+        data: {
+          storeId: "ST-RM",
+          rawMaterialId: rm.rawMaterialId,
+          txnType: "RECEIPT_GRN",
+          qty: 200,
+          txnDateTime: pinned,
+        },
+      })
+    );
+
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(pinned);
+    try {
+      const result = await asDemoTenant(() =>
+        inventoryService.getEodStock({
+          date: targetDate,
+          search: rm.rawMaterialId,
+          page: 1,
+          limit: 20,
+        })
+      );
+      const row = result.data.find((r: any) => r.itemCode === rm.rawMaterialId);
+      expect(row).toBeTruthy();
+      expect(Number(row.eodQty)).toBe(500);
+      // 500 live minus the +200 received at 00:30 IST today reverses to an opening of 300.
+      expect(Number(row.startQty)).toBe(300);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("omitting the date defaults to yesterday, not today — a snapshot-only view with no live fallback", async () => {
