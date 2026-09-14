@@ -157,6 +157,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "payroll-attendance",
       "payroll-advance",
       "payroll-extended-comp",
+      "leave",
     ],
   },
   {

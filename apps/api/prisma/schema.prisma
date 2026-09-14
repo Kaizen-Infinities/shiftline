@@ -715,6 +715,7 @@ model Company {
   leaveTypes            LeaveType[]              @relation("CompanyLeaveType")
   leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
   finalSettlements      FinalSettlement[]        @relation("CompanyFinalSettlement")
+  leaveRequests         LeaveRequest[]           @relation("CompanyLeaveRequest")
   paymentGateway        PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
   paymentLinks          PaymentLink[]            @relation("CompanyPaymentLink")
   paymentCaptures       PaymentCapture[]         @relation("CompanyPaymentCapture")
@@ -5343,11 +5344,15 @@ model LeaveType {
   /// How much may be carried into the next year; the rest lapses.
   carryForwardMax  Decimal           @default(0) @map("carry_forward_max") @db.Decimal(6, 2)
   encashable       Boolean           @default(false)
+  /// Leave without pay: a request against this type may be approved even when it takes the
+  /// balance negative (P2-09), instead of being refused for insufficient balance.
+  allowNegative    Boolean           @default(false) @map("allow_negative")
   isActive         Boolean           @default(true) @map("is_active")
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   balances LeaveBalance[]
+  requests LeaveRequest[]
   company  Company        @relation("CompanyLeaveType", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, code])
@@ -5745,4 +5750,50 @@ model TallyConfig {
   company Company @relation("CompanyTallyConfig", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@map("tally_configs")
+}
+
+// ─── Leave management (P2-09) ─────────────────────────────────────────────────
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// A dated leave application against the leave ledger (P2-09). Approval deducts from the
+/// `LeaveBalance` via the existing ledger functions in `labour.service.ts`; cancelling an
+/// approved request restores the balance with a reversing entry rather than deleting the row —
+/// the request stays as the record of what happened and when it was undone.
+model LeaveRequest {
+  id            String             @id @default(uuid()) @db.Uuid
+  companyId     String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId    BigInt             @map("employee_id")
+  leaveTypeId   String             @map("leave_type_id") @db.Uuid
+  fyCode        String             @map("fy_code") @db.VarChar(10)
+  fromDate      DateTime           @map("from_date") @db.Date
+  toDate        DateTime           @map("to_date") @db.Date
+  /// The first day is only a half day.
+  halfDayStart  Boolean            @default(false) @map("half_day_start")
+  /// The last day is only a half day.
+  halfDayEnd    Boolean            @default(false) @map("half_day_end")
+  /// Calendar span minus weekly-offs and holidays, minus the two half-day flags.
+  days          Decimal            @default(0) @db.Decimal(6, 2)
+  reason        String?            @db.VarChar(255)
+  status        LeaveRequestStatus @default(PENDING)
+  appliedBy     String?            @map("applied_by") @db.VarChar(36)
+  approverId    String?            @map("approver_id") @db.VarChar(36)
+  decidedAt     DateTime?          @map("decided_at") @db.Timestamptz(6)
+  comments      String?            @db.VarChar(255)
+  /// Set when an APPROVED request is CANCELLED, so the reversing ledger entry can be traced.
+  cancelledAt   DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  company   Company   @relation("CompanyLeaveRequest", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, employeeId, status])
+  @@index([companyId, fromDate, toDate])
+  @@map("leave_requests")
 }

@@ -54,6 +54,8 @@ export const QUEUES = {
   TALLY_EXPORT_SWEEP: "accounts.tally.export.sweep",
   /** One SMS send per job, queued off the request path; retried by pg-boss (P1-22, P2-01). */
   SMS_SEND: "comms.sms.send",
+  /** Monthly on the 1st: accrue leave from last month's attendance, every tenant (P2-09). */
+  LEAVE_ACCRUAL: "payroll.leave.accrual",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

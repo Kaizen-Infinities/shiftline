@@ -329,6 +329,12 @@ export const API_PATHS = {
   inventory: {
     eodStock: "/inventory/eod-stock",
   },
+  leave: {
+    base: "/leave",
+    requests: "/leave/requests",
+    calendar: "/leave/calendar",
+    me: "/leave/me",
+  },
 };
 
 export type ApiPaths = typeof API_PATHS;

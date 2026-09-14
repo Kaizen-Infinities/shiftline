@@ -16,6 +16,7 @@ import { jobWorkReturnHandler } from "./job-work.job";
 import { msmeClockHandler } from "./msme.job";
 import { depreciationRunHandler } from "./assets.job";
 import { fxRatesHandler } from "./fx.job";
+import { leaveAccrualHandler } from "./leave.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
 import { billingSweepHandler } from "./billing.job";
 import { chequeDueHandler } from "./banking.job";
@@ -77,6 +78,7 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.CHEQUE_DUE, work, each(chequeDueHandler));
   await boss.work(QUEUES.TALLY_EXPORT_SWEEP, work, each(tallyExportSweepHandler));
   await boss.work(QUEUES.SMS_SEND, work, each(smsSendHandler));
+  await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
 };
 
 /**
@@ -107,4 +109,7 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.CHEQUE_DUE, "30 8 * * *", {}, { tz: IST });
   // 04:00 IST on the 1st, after billing: prepare last month's Tally export for opted-in tenants.
   await boss.schedule(QUEUES.TALLY_EXPORT_SWEEP, "0 4 1 * *", {}, { tz: IST });
+  // 02:00 IST on the 1st, before the depreciation run: last month's attendance is settled by
+  // then and the leave ledger should be current before anyone applies against it.
+  await boss.schedule(QUEUES.LEAVE_ACCRUAL, "0 2 1 * *", {}, { tz: IST });
 };
