@@ -246,6 +246,9 @@ export const API_PATHS = {
     deductions: "/registers/deductions",
     advances: "/registers/advances",
   },
+  fines: {
+    base: "/fines",
+  },
   payments: {
     base: "/payments",
     links: "/payments/links",

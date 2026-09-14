@@ -823,6 +823,7 @@ export const sidebarItems: SidebarItem[] = [
       { permission: "payroll-attendance.view", path: "/payroll/attendance" },
       { permission: "payroll-advance.view", path: "/payroll/advance" },
       { permission: "registers.view", path: "/hr/registers" },
+      { permission: "fines.view", path: "/hr/fines" },
     ],
     children: [
       { title: "Payroll Dashboard", path: "/payroll", permission: "payroll.view" },
@@ -847,6 +848,11 @@ export const sidebarItems: SidebarItem[] = [
         path: "/hr/registers",
         permission: "registers.view",
       },
+      {
+        title: "Fines and Deductions",
+        path: "/hr/fines",
+        permission: "fines.view",
+      },
     ],
     activePaths: [
       "/payroll",
@@ -859,6 +865,7 @@ export const sidebarItems: SidebarItem[] = [
       "/hr/leave",
       "/me/leave",
       "/hr/registers",
+      "/hr/fines",
     ],
     permissionAny: [
       "payroll.view",
@@ -868,6 +875,7 @@ export const sidebarItems: SidebarItem[] = [
       "payroll-advance.view",
       "leave.view",
       "registers.view",
+      "fines.view",
     ],
   },
 

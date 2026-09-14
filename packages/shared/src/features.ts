@@ -159,6 +159,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "payroll-extended-comp",
       "leave",
       "registers",
+      "fines",
     ],
   },
   {

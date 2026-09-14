@@ -261,6 +261,7 @@ class RegistersService {
     const rows = await prisma.employeeFineDeduction.findMany({
       where: {
         kind,
+        status: "APPROVED",
         occurredOn: {
           gte: new Date(`${month}-01T00:00:00Z`),
           lte: new Date(`${monthEnd(month)}T23:59:59Z`),
@@ -280,6 +281,7 @@ class RegistersService {
     const rows = await prisma.employeeFineDeduction.findMany({
       where: {
         kind,
+        status: "APPROVED",
         occurredOn: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59Z`) },
       },
       include: { employee: { select: { empCode: true, fullName: true } } },
@@ -295,6 +297,9 @@ class RegistersService {
       cause: r.cause,
       amount: Number(r.amount),
       shownCauseGiven: r.shownCauseGiven,
+      // P2-13: whether payroll has already taken this as an "other deduction".
+      recovered: r.recoveredInPayrollResultId !== null,
+      recoveredInPayrollResultId: r.recoveredInPayrollResultId,
     }));
     const total = n2(lines.reduce((s, l) => s + l.amount, 0));
 

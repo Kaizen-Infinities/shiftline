@@ -214,13 +214,18 @@ export const createFineDeduction = async (
 ) => {
   return asDemoTenant(async () => {
     const prisma = await getPrisma();
+    const occurredOn = overrides.occurredOn ? new Date(overrides.occurredOn as any) : new Date();
     return prisma.employeeFineDeduction.create({
       data: {
         kind: "FINE",
-        occurredOn: new Date(),
+        occurredOn,
         cause: "Late to shift without notice",
         amount: D(50),
         shownCauseGiven: true,
+        // Registers (P2-03/P2-13) only show APPROVED rows; factory-created rows simulate
+        // already-approved data unless a test overrides status explicitly.
+        status: "APPROVED",
+        wagePeriod: occurredOn.toISOString().slice(0, 7),
         ...overrides,
       },
     });
