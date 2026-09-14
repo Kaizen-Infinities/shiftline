@@ -4,10 +4,30 @@ import { prisma } from "../../config/prisma";
 import { logger } from "../../lib/logger";
 import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
+import { valuationService } from "../costing/valuation.service";
 import { documentNumberService } from "../documents/document-number.service";
 import { splitGst, supplyTypeFor } from "../gst/gst.calc";
 import { companyGstProfile, resolveIssuingPlace, stateOfGstin } from "../gst/gst.context";
 import { notify } from "../notifications/notify";
+
+/** The one shared location goods sit at while they are out with any job worker — a store, like
+ * any other, not a second inventory system (P2-04). */
+export const JOB_WORK_STORE_ID = "JOB-WORK";
+
+async function ensureJobWorkStore(tx: Prisma.TransactionClient, userId?: string) {
+  const existing = await tx.store.findFirst({ where: { storeId: JOB_WORK_STORE_ID } });
+  if (existing) return existing;
+  return tx.store.create({
+    data: {
+      storeId: JOB_WORK_STORE_ID,
+      storeName: "Job work — in transit",
+      storeCategory: "JOB_WORK",
+      allowNegative: true,
+      isActive: true,
+      createdBy: userId ?? null,
+    },
+  });
+}
 
 /**
  * Job work and delivery challans (P1-14).
@@ -189,7 +209,7 @@ class JobWorkService {
           : "DELIVERY_CHALLAN",
         { date, businessPlaceId: place.id, tx }
       );
-      return tx.deliveryChallan.create({
+      const created = await tx.deliveryChallan.create({
         data: {
           challanNo,
           challanDate: date,
@@ -218,6 +238,50 @@ class JobWorkService {
         },
         include: { items: true, jobWorker: true },
       });
+
+      // Goods sent out for job work move stock — a transfer to the job-work location, valued at
+      // what they leave the source store at, not invented afresh (P2-04).
+      if (input.kind === "JOB_WORK_OUT" && input.storeId) {
+        const jobWorkStore = await ensureJobWorkStore(tx, actor.userId);
+        for (const item of created.items) {
+          if (!item.rawMaterialId) continue;
+          const qty = Number(item.quantitySent);
+          if (!(qty > 0)) continue;
+          const out = await valuationService.record(
+            {
+              itemType: "RAW_MATERIAL",
+              itemId: item.rawMaterialId,
+              storeId: input.storeId,
+              movedOn: date,
+              kind: "ISSUE",
+              quantity: qty,
+              refDocType: "JOB_WORK_CHALLAN",
+              refDocId: created.id,
+              narration: `Sent for job work — ${challanNo}`,
+            },
+            actor,
+            tx
+          );
+          await valuationService.record(
+            {
+              itemType: "RAW_MATERIAL",
+              itemId: item.rawMaterialId,
+              storeId: jobWorkStore.storeId,
+              movedOn: date,
+              kind: "RECEIPT",
+              quantity: qty,
+              rate: Number(out.avgRate),
+              refDocType: "JOB_WORK_CHALLAN",
+              refDocId: created.id,
+              narration: `Received at job work — ${challanNo}`,
+            },
+            actor,
+            tx
+          );
+        }
+      }
+
+      return created;
     });
   }
 
@@ -262,6 +326,7 @@ class JobWorkService {
       }
     }
 
+    const receivedOn = input.receivedOn ? new Date(input.receivedOn) : new Date();
     return prisma.$transaction(async (tx) => {
       for (const line of input.lines) {
         const item = byId.get(line.itemId)!;
@@ -273,6 +338,63 @@ class JobWorkService {
             quantityScrap: n3(Number(item.quantityScrap) + Number(line.scrap ?? 0)),
           },
         });
+
+        if (item.rawMaterialId && challan.storeId) {
+          const returned = n3(line.returned ?? 0);
+          const consumedOrScrapped = n3(Number(line.consumed ?? 0) + Number(line.scrap ?? 0));
+          if (returned > 0) {
+            const out = await valuationService.record(
+              {
+                itemType: "RAW_MATERIAL",
+                itemId: item.rawMaterialId,
+                storeId: JOB_WORK_STORE_ID,
+                movedOn: receivedOn,
+                kind: "ISSUE",
+                quantity: returned,
+                refDocType: "JOB_WORK_CHALLAN",
+                refDocId: challanId,
+                narration: `Returned from job work — ${challan.challanNo}`,
+              },
+              actor,
+              tx
+            );
+            await valuationService.record(
+              {
+                itemType: "RAW_MATERIAL",
+                itemId: item.rawMaterialId,
+                storeId: challan.storeId,
+                movedOn: receivedOn,
+                kind: "RETURN_IN",
+                quantity: returned,
+                rate: Number(out.avgRate),
+                refDocType: "JOB_WORK_CHALLAN",
+                refDocId: challanId,
+                narration: `Returned from job work — ${challan.challanNo}`,
+              },
+              actor,
+              tx
+            );
+          }
+          // Consumed by the process, or scrapped at the job worker's end: it leaves the job-work
+          // location for good, with nowhere else in this company's stock to land.
+          if (consumedOrScrapped > 0) {
+            await valuationService.record(
+              {
+                itemType: "RAW_MATERIAL",
+                itemId: item.rawMaterialId,
+                storeId: JOB_WORK_STORE_ID,
+                movedOn: receivedOn,
+                kind: "SCRAP",
+                quantity: consumedOrScrapped,
+                refDocType: "JOB_WORK_CHALLAN",
+                refDocId: challanId,
+                narration: `Consumed/scrapped at job work — ${challan.challanNo}`,
+              },
+              actor,
+              tx
+            );
+          }
+        }
       }
       return this.restate(tx, challanId, actor);
     });

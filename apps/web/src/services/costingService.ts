@@ -77,6 +77,18 @@ export interface VarianceReport {
   totals: { budget: number; actual: number; adverse: number };
 }
 
+export interface WipRow {
+  productionOrderId: string;
+  status: string;
+  open: boolean;
+  value: number;
+}
+
+export interface WipTotal {
+  rows: WipRow[];
+  total: number;
+}
+
 export interface CostSheetRow {
   id: string;
   productId: string;
@@ -105,7 +117,11 @@ export const costingService = {
       opening: number;
       closing: number;
       movement: number;
+      wip: number;
     },
+  wip: async (): Promise<WipTotal> => (await apiClient.get(`${p.base}/wip`)).data.data,
+  backfillValuation: async (): Promise<{ scanned: number; created: number; skipped: number }> =>
+    (await apiClient.post(`${p.valuation}/backfill`)).data.data,
   costCentres: async (all = false): Promise<CostCentreRow[]> =>
     (await apiClient.get(p.costCentres, { params: { all } })).data.data,
   saveCostCentre: async (body: {

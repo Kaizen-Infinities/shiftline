@@ -9,6 +9,7 @@ import {
   type CostSheetRow,
   type ValuationEntry,
   type VarianceReport,
+  type WipTotal,
 } from "../../../services/costingService";
 import {
   Card,
@@ -41,6 +42,7 @@ const CostingPage: React.FC = () => {
   const [periodKey, setPeriodKey] = useState(months[1]?.value ?? months[0].value);
   const [fyCode, setFyCode] = useState(years[0].value);
   const [stock, setStock] = useState<ClosingStock | null>(null);
+  const [wip, setWip] = useState<WipTotal | null>(null);
   const [ledger, setLedger] = useState<ValuationEntry[]>([]);
   const [pl, setPl] = useState<CostCentrePl | null>(null);
   const [variance, setVariance] = useState<VarianceReport | null>(null);
@@ -51,7 +53,10 @@ const CostingPage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (tab === "stock") setStock(await costingService.closingStock());
+      if (tab === "stock") {
+        setStock(await costingService.closingStock());
+        setWip(await costingService.wip());
+      }
       if (tab === "ledger") setLedger(await costingService.ledger());
       if (tab === "centres") {
         const [y, m] = periodKey.split("-").map(Number);
@@ -179,6 +184,37 @@ const CostingPage: React.FC = () => {
               </p>
             )}
           </Card>
+          {wip && (
+            <Card title="Work in progress">
+              <p className="text-2xl font-semibold text-ink">{money(wip.total)}</p>
+              <p className="mt-1 text-xs text-ink-muted">
+                Material issued to {wip.rows.length} open production order(s), still on the floor —
+                not in raw-material stock above, and not yet finished goods.
+              </p>
+              {wip.rows.length > 0 && (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr>
+                        <th className={th}>Production order</th>
+                        <th className={th}>Status</th>
+                        <th className={`${th} text-right`}>WIP value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {wip.rows.map((r) => (
+                        <tr key={r.productionOrderId} className="border-t border-line-soft">
+                          <td className={td}>{r.productionOrderId}</td>
+                          <td className={td}>{r.status}</td>
+                          <td className={`${td} text-right`}>{money(r.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
           <Card title="By item">
             <div className="overflow-x-auto">
               <table className="min-w-full">

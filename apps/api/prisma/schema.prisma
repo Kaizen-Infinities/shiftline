@@ -2586,6 +2586,8 @@ enum StoreCategory {
   RAW_MATERIAL
   FINISHED_GOODS
   WASTAGE
+  /// Goods out with a job worker, tracked as a location rather than a second inventory system.
+  JOB_WORK
 }
 
 enum ProductType {
@@ -4954,6 +4956,9 @@ model StockValuationEntry {
   refDocType      String?       @map("ref_doc_type") @db.VarChar(30)
   refDocId        String?       @map("ref_doc_id") @db.VarChar(40)
   narration       String?       @db.VarChar(255)
+  /// Set on a reversal row: the entry it undoes. Never set on the row being reversed — a
+  /// cancellation adds a new row, it never edits or deletes the original (P2-04).
+  reversedEntryId String?       @map("reversed_entry_id") @db.Uuid
   createdBy       String?       @map("created_by") @db.VarChar(36)
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
