@@ -7,6 +7,26 @@ import { logger } from "../../lib/logger";
 import { ApiError } from "../../utils/ApiError";
 import { companyGstProfile, stateOfGstin } from "../gst/gst.context";
 import { periodService } from "./period.service";
+import { currencyService } from "../currency/currency.service";
+import { fxService } from "../currency/fx.service";
+
+/** A payment entry's own settlement date, cheque date and cheque due-ness (P2-06). */
+const asPaymentDate = (v: string | Date) =>
+  new Date(typeof v === "string" ? `${v.slice(0, 10)}T00:00:00Z` : v);
+const isChequePayment = (p: any) =>
+  String(p.instrumentType ?? "").toUpperCase() === "CHEQUE" ||
+  String(p.paymentMethod ?? "")
+    .toLowerCase()
+    .includes("cheque");
+/**
+ * Post-dated: the cheque is written for a date after the one it was received/issued on — the
+ * ordinary definition, and one that needs no comparison against the system clock (a cheque dated
+ * next month is post-dated the day it arrives, whatever today happens to be).
+ */
+const isPostDatedCheque = (p: any) =>
+  isChequePayment(p) &&
+  !!p.chequeDate &&
+  asPaymentDate(p.chequeDate).getTime() > asPaymentDate(p.paymentDate).getTime();
 
 type Db = Prisma.TransactionClient | typeof prisma;
 type JournalLine = {
@@ -149,7 +169,7 @@ export async function freeVoucherNo(db: Db, voucherNo: string): Promise<string> 
  * Without rolling back to a SAVEPOINT before executing the fallback query, any subsequent commands (like `db.voucher.findFirst`)
  * inside the `catch` block would fail with "current transaction is aborted, commands ignored until end of transaction block".
  */
-async function safeCreateVoucher(
+export async function safeCreateVoucher(
   db: Prisma.TransactionClient | typeof prisma,
   data: Prisma.XOR<Prisma.VoucherCreateInput, Prisma.VoucherUncheckedCreateInput>,
   refDocType: string,
@@ -370,13 +390,16 @@ class VoucherPostingService {
    */
   async postPaymentVouchersForGRN(
     grnInvoiceId: string,
-    txClient?: Prisma.TransactionClient
+    txClient?: Prisma.TransactionClient,
+    /** refDocIds to post even if flagged as a still-pending PDC — a cheque that has just cleared
+     * (P2-06) needs its payment forced through this once, from `banking.service.ts`. */
+    forcePost?: string[]
   ): Promise<any[]> {
     if (!txClient) {
       // Configured with generous maxWait & timeout to handle GRN invoices with many payment lines
       return prisma.$transaction(
         async (tx) => {
-          return this.postPaymentVouchersForGRN(grnInvoiceId, tx);
+          return this.postPaymentVouchersForGRN(grnInvoiceId, tx, forcePost);
         },
         { maxWait: 10000, timeout: 30000 }
       );
@@ -413,6 +436,26 @@ class VoucherPostingService {
       if (amountDec.lte(0)) continue;
 
       const refDocId = deriveStablePaymentRefId(grnInvoice.id, "pay", p, index);
+      const pDate = p.paymentDate
+        ? new Date(p.paymentDate)
+        : grnInvoice.grnDate || grnInvoice.createdAt;
+
+      // A post-dated cheque issued to a supplier (P1-20/P2-06): the register row now, the
+      // voucher only when the cheque actually clears.
+      if (isPostDatedCheque(p) && !forcePost?.includes(refDocId)) {
+        await this.ensureChequeForPayment(db, {
+          kind: "ISSUED",
+          refDocType: "GRN_PAYMENT",
+          refDocId,
+          sourceDocId: grnInvoice.id,
+          p,
+          amount: amountDec,
+          partyName: grnInvoice.supplier.legalName,
+          supplierId: grnInvoice.supplierId,
+          voucherId: null,
+        });
+        continue;
+      }
 
       const existing = await db.voucher.findFirst({
         where: {
@@ -422,56 +465,81 @@ class VoucherPostingService {
         },
       });
 
-      if (existing) {
-        if (!p.sourceVoucherId) {
-          p.sourceVoucherId = String(existing.id);
-        }
-        postedVouchers.push(existing);
-        continue;
+      let voucher = existing;
+      if (!voucher) {
+        const method = (p.paymentMethod || "").toLowerCase();
+        const isCash = method.includes("cash");
+        const payLedgerId = isCash ? cashLedger.id : bankLedger.id;
+        const payLedgerName = isCash ? "Cash in Hand" : "Main Bank Account";
+
+        const suffix = rawPayments.length > 1 ? `-${index + 1}` : "";
+        const voucherNo = `PAY-${grnInvoice.grnNumber || grnInvoice.invoiceNo || grnInvoice.id.slice(-6)}${suffix}`;
+
+        voucher = await safeCreateVoucher(
+          db,
+          {
+            voucherNo,
+            type: VoucherType.PAYMENT,
+            date: pDate,
+            narration: `Payment made to ${grnInvoice.supplier.legalName} for GRN ${grnInvoice.grnNumber || grnInvoice.invoiceNo}${p.referenceNumber ? ` (Ref: ${p.referenceNumber})` : ""}`,
+            refDocType: "GRN_PAYMENT",
+            refDocId: refDocId,
+            items: {
+              create: [
+                {
+                  debitLedgerId: supplierLedger.id,
+                  debitAmount: amountDec,
+                  creditAmount: new Prisma.Decimal(0),
+                  narration: `Liability settled for ${grnInvoice.supplier.legalName}`,
+                },
+                {
+                  creditLedgerId: payLedgerId,
+                  debitAmount: new Prisma.Decimal(0),
+                  creditAmount: amountDec,
+                  narration: `Paid via ${p.paymentMethod || payLedgerName}`,
+                },
+              ],
+            },
+          },
+          "GRN_PAYMENT",
+          refDocId
+        );
       }
 
-      const method = (p.paymentMethod || "").toLowerCase();
-      const isCash = method.includes("cash");
-      const payLedgerId = isCash ? cashLedger.id : bankLedger.id;
-      const payLedgerName = isCash ? "Cash in Hand" : "Main Bank Account";
+      if (isChequePayment(p)) {
+        await this.ensureChequeForPayment(db, {
+          kind: "ISSUED",
+          refDocType: "GRN_PAYMENT",
+          refDocId,
+          sourceDocId: grnInvoice.id,
+          p,
+          amount: amountDec,
+          partyName: grnInvoice.supplier.legalName,
+          supplierId: grnInvoice.supplierId,
+          voucherId: voucher.id,
+        });
+      }
 
-      const suffix = rawPayments.length > 1 ? `-${index + 1}` : "";
-      const voucherNo = `PAY-${grnInvoice.grnNumber || grnInvoice.invoiceNo || grnInvoice.id.slice(-6)}${suffix}`;
-      const pDate = p.paymentDate
-        ? new Date(p.paymentDate)
-        : grnInvoice.grnDate || grnInvoice.createdAt;
-
-      const voucher = await safeCreateVoucher(
+      // FX realisation (P2-06): the payment settles the bill at the day's rate.
+      await this.realiseFxForPayment(
         db,
         {
-          voucherNo,
-          type: VoucherType.PAYMENT,
-          date: pDate,
-          narration: `Payment made to ${grnInvoice.supplier.legalName} for GRN ${grnInvoice.grnNumber || grnInvoice.invoiceNo}${p.referenceNumber ? ` (Ref: ${p.referenceNumber})` : ""}`,
-          refDocType: "GRN_PAYMENT",
-          refDocId: refDocId,
-          items: {
-            create: [
-              {
-                debitLedgerId: supplierLedger.id,
-                debitAmount: amountDec,
-                creditAmount: new Prisma.Decimal(0),
-                narration: `Liability settled for ${grnInvoice.supplier.legalName}`,
-              },
-              {
-                creditLedgerId: payLedgerId,
-                debitAmount: new Prisma.Decimal(0),
-                creditAmount: amountDec,
-                narration: `Paid via ${p.paymentMethod || payLedgerName}`,
-              },
-            ],
-          },
+          documentType: "GRN_PAYMENT",
+          refDocId,
+          documentNo: `${grnInvoice.invoiceNo}${rawPayments.length > 1 ? `-${index + 1}` : ""}`,
+          partyLedgerCode: supplierLedger.code,
+          currencyCode: grnInvoice.currencyCode,
+          bookedRate: Number(grnInvoice.exchangeRate ?? 1),
+          amountInr: Number(amountDec),
+          on: pDate,
+          settlementRate: p.settlementRate,
         },
-        "GRN_PAYMENT",
-        refDocId
+        {}
       );
 
-      p.sourceVoucherId = String(voucher.id);
+      if (!p.sourceVoucherId) {
+        p.sourceVoucherId = String(voucher.id);
+      }
       postedVouchers.push(voucher);
     }
 
@@ -670,15 +738,122 @@ class VoucherPostingService {
    * Debit: Cash in Hand (CASH-001) or Main Bank Account (BANK-001) (Asset increase)
    * Credit: Customer Account Ledger (Asset / Receivable decrease)
    */
+  /**
+   * The cheque register row for a receipt/payment's cheque instrument (P2-06), created or updated
+   * in the same transaction as the voucher it belongs to (or, for a PDC, with no voucher yet).
+   * Idempotent on `refDocType`/`refDocId` so calling this again for an already-processed payment
+   * is a no-op beyond linking a voucher that has since been posted.
+   */
+  private async ensureChequeForPayment(
+    db: Db,
+    input: {
+      kind: "RECEIVED" | "ISSUED";
+      refDocType: string;
+      refDocId: string;
+      sourceDocId: string;
+      p: any;
+      amount: Prisma.Decimal;
+      partyName: string | null;
+      customerId?: string | null;
+      supplierId?: number | null;
+      voucherId: number | null;
+    }
+  ) {
+    const existing = await db.cheque.findFirst({
+      where: { refDocType: input.refDocType, refDocId: input.refDocId },
+    });
+    if (existing) {
+      if (input.voucherId && !existing.voucherId) {
+        return db.cheque.update({
+          where: { id: existing.id },
+          data: { voucherId: input.voucherId },
+        });
+      }
+      return existing;
+    }
+    if (!input.p.chequeNo) {
+      throw new ApiError(400, "A cheque payment needs a cheque number", "CHEQUE_NO_REQUIRED");
+    }
+    const chequeDate = input.p.chequeDate
+      ? asPaymentDate(input.p.chequeDate)
+      : asPaymentDate(input.p.paymentDate);
+    return db.cheque.create({
+      data: {
+        kind: input.kind,
+        chequeNo: String(input.p.chequeNo).trim().slice(0, 20),
+        chequeDate,
+        amount: input.amount,
+        bankName: input.p.chequeBank ?? null,
+        partyName: input.p.chequeParty ?? input.partyName ?? null,
+        customerId: input.customerId ?? null,
+        supplierId: input.supplierId ?? null,
+        refDocType: input.refDocType,
+        refDocId: input.refDocId,
+        sourceDocId: input.sourceDocId,
+        voucherId: input.voucherId,
+      },
+    });
+  }
+
+  /**
+   * The realised FX gain/loss on a receipt/payment against a foreign-currency document (P2-06),
+   * posted inside the same transaction so a receipt and its exchange difference either both land
+   * or neither does. A no-op for a rupee document; `fxService.realise` dedupes per settlement.
+   */
+  private async realiseFxForPayment(
+    db: Db,
+    input: {
+      documentType: "SALES_PAYMENT" | "GRN_PAYMENT";
+      refDocId: string;
+      documentNo: string;
+      partyLedgerCode: string;
+      currencyCode: string;
+      bookedRate: number;
+      amountInr: number;
+      on: Date;
+      settlementRate?: number | null;
+    },
+    actor: { userId?: string }
+  ) {
+    if (!input.currencyCode || input.currencyCode === "INR" || input.bookedRate <= 0) return;
+    const settledRate =
+      input.settlementRate && input.settlementRate > 0
+        ? input.settlementRate
+        : await currencyService.rateFor(input.currencyCode, input.on);
+    // The amount recorded is what actually changed hands, in rupees, at the settlement rate — so
+    // dividing by the settlement rate (not the rate the document was booked at) is what recovers
+    // the foreign amount actually realised.
+    const foreignAmount = round2(input.amountInr / settledRate);
+    if (foreignAmount <= 0) return;
+    await fxService.realise(
+      {
+        documentType: input.documentType,
+        documentId: input.refDocId,
+        documentNo: input.documentNo,
+        partyLedgerCode: input.partyLedgerCode,
+        currencyCode: input.currencyCode,
+        foreignAmount,
+        bookedRate: input.bookedRate,
+        settledRate,
+        on: input.on,
+      },
+      actor,
+      db
+    );
+  }
+
   async postReceiptVouchersForSales(
     salesInvoiceId: string,
-    txClient?: Prisma.TransactionClient
+    txClient?: Prisma.TransactionClient,
+    /** refDocIds to post even if flagged as a still-pending PDC — a cheque that has just cleared
+     * (P2-06) needs its payment forced through this once, from `banking.service.ts`. */
+    forcePost?: string[]
   ): Promise<any[]> {
     if (!txClient) {
       // Configured with generous maxWait & timeout to handle sales invoices with many receipt lines
       return prisma.$transaction(
         async (tx) => {
-          return this.postReceiptVouchersForSales(salesInvoiceId, tx);
+          return this.postReceiptVouchersForSales(salesInvoiceId, tx, forcePost);
         },
         { maxWait: 10000, timeout: 30000 }
       );
@@ -715,6 +890,26 @@ class VoucherPostingService {
       if (amountDec.lte(0)) continue;
 
       const refDocId = deriveStablePaymentRefId(salesInvoice.id, "rcpt", p, index);
+      const pDate = p.paymentDate
+        ? new Date(p.paymentDate)
+        : salesInvoice.invoiceDate || salesInvoice.createdAt;
+
+      // A post-dated cheque (P1-20/P2-06) is a receivable that becomes money on its own date —
+      // the register row is created now, the voucher only when the cheque actually clears.
+      if (isPostDatedCheque(p) && !forcePost?.includes(refDocId)) {
+        await this.ensureChequeForPayment(db, {
+          kind: "RECEIVED",
+          refDocType: "SALES_PAYMENT",
+          refDocId,
+          sourceDocId: salesInvoice.id,
+          p,
+          amount: amountDec,
+          partyName: salesInvoice.customer.firmName,
+          customerId: salesInvoice.customerId,
+          voucherId: null,
+        });
+        continue;
+      }
 
       const existing = await db.voucher.findFirst({
         where: {
@@ -724,50 +919,77 @@ class VoucherPostingService {
         },
       });
 
-      if (existing) {
-        postedVouchers.push(existing);
-        continue;
+      let voucher = existing;
+      if (!voucher) {
+        const method = (p.paymentMethod || "").toLowerCase();
+        const isCash = method.includes("cash");
+        const payLedgerId = isCash ? cashLedger.id : bankLedger.id;
+        const payLedgerName = isCash ? "Cash in Hand" : "Main Bank Account";
+
+        const suffix = rawPayments.length > 1 ? `-${index + 1}` : "";
+        const voucherNo = `RCT-${salesInvoice.invoiceNo || salesInvoice.id.slice(-6)}${suffix}`;
+
+        voucher = await safeCreateVoucher(
+          db,
+          {
+            voucherNo,
+            type: VoucherType.RECEIPT,
+            date: pDate,
+            narration: `Payment received from ${salesInvoice.customer.firmName} for Invoice ${salesInvoice.invoiceNo}${p.referenceNumber ? ` (Ref: ${p.referenceNumber})` : ""}`,
+            refDocType: "SALES_PAYMENT",
+            refDocId: refDocId,
+            items: {
+              create: [
+                {
+                  debitLedgerId: payLedgerId,
+                  debitAmount: amountDec,
+                  creditAmount: new Prisma.Decimal(0),
+                  narration: `Received via ${p.paymentMethod || payLedgerName}`,
+                },
+                {
+                  creditLedgerId: customerLedger.id,
+                  debitAmount: new Prisma.Decimal(0),
+                  creditAmount: amountDec,
+                  narration: `Receivable settled for ${salesInvoice.customer.firmName}`,
+                },
+              ],
+            },
+          },
+          "SALES_PAYMENT",
+          refDocId
+        );
       }
 
-      const method = (p.paymentMethod || "").toLowerCase();
-      const isCash = method.includes("cash");
-      const payLedgerId = isCash ? cashLedger.id : bankLedger.id;
-      const payLedgerName = isCash ? "Cash in Hand" : "Main Bank Account";
+      if (isChequePayment(p)) {
+        await this.ensureChequeForPayment(db, {
+          kind: "RECEIVED",
+          refDocType: "SALES_PAYMENT",
+          refDocId,
+          sourceDocId: salesInvoice.id,
+          p,
+          amount: amountDec,
+          partyName: salesInvoice.customer.firmName,
+          customerId: salesInvoice.customerId,
+          voucherId: voucher.id,
+        });
+      }
 
-      const suffix = rawPayments.length > 1 ? `-${index + 1}` : "";
-      const voucherNo = `RCT-${salesInvoice.invoiceNo || salesInvoice.id.slice(-6)}${suffix}`;
-      const pDate = p.paymentDate
-        ? new Date(p.paymentDate)
-        : salesInvoice.invoiceDate || salesInvoice.createdAt;
-
-      const voucher = await safeCreateVoucher(
+      // FX realisation (P2-06): the receipt settles the invoice at the day's rate, which is
+      // almost never the rate it was raised at.
+      await this.realiseFxForPayment(
         db,
         {
-          voucherNo,
-          type: VoucherType.RECEIPT,
-          date: pDate,
-          narration: `Payment received from ${salesInvoice.customer.firmName} for Invoice ${salesInvoice.invoiceNo}${p.referenceNumber ? ` (Ref: ${p.referenceNumber})` : ""}`,
-          refDocType: "SALES_PAYMENT",
-          refDocId: refDocId,
-          items: {
-            create: [
-              {
-                debitLedgerId: payLedgerId,
-                debitAmount: amountDec,
-                creditAmount: new Prisma.Decimal(0),
-                narration: `Received via ${p.paymentMethod || payLedgerName}`,
-              },
-              {
-                creditLedgerId: customerLedger.id,
-                debitAmount: new Prisma.Decimal(0),
-                creditAmount: amountDec,
-                narration: `Receivable settled for ${salesInvoice.customer.firmName}`,
-              },
-            ],
-          },
+          documentType: "SALES_PAYMENT",
+          refDocId,
+          documentNo: `${salesInvoice.invoiceNo}${rawPayments.length > 1 ? `-${index + 1}` : ""}`,
+          partyLedgerCode: customerLedger.code,
+          currencyCode: salesInvoice.currencyCode,
+          bookedRate: Number(salesInvoice.exchangeRate ?? 1),
+          amountInr: Number(amountDec),
+          on: pDate,
+          settlementRate: p.settlementRate,
         },
-        "SALES_PAYMENT",
-        refDocId
+        {}
       );
 
       p.sourceVoucherId = String(voucher.id);

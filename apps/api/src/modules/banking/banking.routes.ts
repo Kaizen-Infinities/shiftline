@@ -212,4 +212,15 @@ router.post(
   })
 );
 
+router.post(
+  "/cheques/:id/re-present",
+  requirePermission("banking.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = idParam.parse(req.params.id);
+    res.json(
+      new ApiResponse("Cheque re-presented", await bankingService.rePresent(id, actorOf(req)))
+    );
+  })
+);
+
 export default router;

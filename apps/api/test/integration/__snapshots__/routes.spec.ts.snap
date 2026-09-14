@@ -88,6 +88,7 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "GET /api/banking/brs",
   "GET /api/banking/cheques",
   "POST /api/banking/cheques",
+  "POST /api/banking/cheques/:id/re-present",
   "POST /api/banking/cheques/:id/status",
   "GET /api/banking/cheques/due",
   "GET /api/banking/lines",

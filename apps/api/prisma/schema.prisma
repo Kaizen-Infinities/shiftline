@@ -1896,6 +1896,11 @@ model GrnInvoice {
   /// Tax is paid by the recipient under reverse charge; the supplier is credited net of GST.
   reverseCharge        Boolean             @default(false) @map("reverse_charge")
   supplierInvoiceDate  DateTime?           @map("supplier_invoice_date") @db.Date
+  /// A foreign-currency bill keeps both: the books are in INR at the rate it posted at (P2-06,
+  /// mirroring what P1-14 added to SalesInvoice).
+  currencyCode         String              @default("INR") @map("currency_code") @db.VarChar(3)
+  exchangeRate         Decimal             @default(1) @map("exchange_rate") @db.Decimal(14, 6)
+  foreignTotal         Decimal?            @map("foreign_total") @db.Decimal(14, 2)
   createdBy            String?             @map("created_by")
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
@@ -5289,8 +5294,14 @@ model Cheque {
   bounceReason      String?      @map("bounce_reason") @db.VarChar(160)
   refDocType        String?      @map("ref_doc_type") @db.VarChar(30)
   refDocId          String?      @map("ref_doc_id") @db.VarChar(40)
+  /// The sales invoice or GRN invoice this cheque's payment belongs to (P2-06); `refDocId` names
+  /// the payment line, this names the document, so a PDC that clears can re-run its posting.
+  sourceDocId       String?      @map("source_doc_id") @db.VarChar(36)
   voucherId         Int?         @map("voucher_id")
   reversalVoucherId Int?         @map("reversal_voucher_id")
+  /// How many times this cheque has been presented (P2-06); each re-presentation after a bounce
+  /// needs its own voucher reference so a repeat clear can never post the receipt twice.
+  presentedCount    Int          @default(0) @map("presented_count")
   notes             String?      @db.VarChar(255)
   createdBy         String?      @map("created_by") @db.VarChar(36)
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
