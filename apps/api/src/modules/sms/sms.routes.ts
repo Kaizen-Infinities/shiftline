@@ -89,8 +89,15 @@ router.post(
         templateCode: z.string().min(1).max(40),
         values: z.record(z.string(), z.union([z.string(), z.number()])).default({}),
         purpose: z.string().max(30).optional(),
+        /** Send through the pg-boss queue instead of inline (P2-01). */
+        queue: z.boolean().optional().default(false),
       })
       .parse(req.body);
+    if (body.queue) {
+      const { row, queued } = await smsService.sendTemplateQueued(body);
+      res.status(201).json(new ApiResponse(queued ? "Message queued" : "Message sent", row));
+      return;
+    }
     const row = await smsService.sendTemplate(body);
     res.status(201).json(new ApiResponse("Message sent", row));
   })

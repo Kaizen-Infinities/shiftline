@@ -17,6 +17,10 @@ import { msmeClockHandler } from "./msme.job";
 import { depreciationRunHandler } from "./assets.job";
 import { fxRatesHandler } from "./fx.job";
 import { retentionFanoutHandler, retentionSweepHandler } from "./retention.job";
+import { billingSweepHandler } from "./billing.job";
+import { chequeDueHandler } from "./banking.job";
+import { tallyExportSweepHandler } from "./tally.job";
+import { smsSendHandler } from "./sms.job";
 
 const IST = "Asia/Kolkata";
 
@@ -69,6 +73,10 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.MSME_CLOCK, work, each(msmeClockHandler));
   await boss.work(QUEUES.DEPRECIATION_RUN, work, each(depreciationRunHandler));
   await boss.work(QUEUES.FX_RATES, work, each(fxRatesHandler));
+  await boss.work(QUEUES.BILLING_SWEEP, work, each(billingSweepHandler));
+  await boss.work(QUEUES.CHEQUE_DUE, work, each(chequeDueHandler));
+  await boss.work(QUEUES.TALLY_EXPORT_SWEEP, work, each(tallyExportSweepHandler));
+  await boss.work(QUEUES.SMS_SEND, work, each(smsSendHandler));
 };
 
 /**
@@ -93,4 +101,10 @@ export const registerSchedules = async (): Promise<void> => {
   await boss.schedule(QUEUES.DEPRECIATION_RUN, "0 3 1 * *", {}, { tz: IST });
   // 14:00 IST: the RBI publishes its reference rate around 13:30 and not at all on a holiday.
   await boss.schedule(QUEUES.FX_RATES, "0 14 * * *", {}, { tz: IST });
+  // 03:30 IST on the 1st: raise the month's subscription invoices before the day starts.
+  await boss.schedule(QUEUES.BILLING_SWEEP, "30 3 1 * *", {}, { tz: IST });
+  // 08:30 IST daily: after the MSME clock, before the working day gets busy.
+  await boss.schedule(QUEUES.CHEQUE_DUE, "30 8 * * *", {}, { tz: IST });
+  // 04:00 IST on the 1st, after billing: prepare last month's Tally export for opted-in tenants.
+  await boss.schedule(QUEUES.TALLY_EXPORT_SWEEP, "0 4 1 * *", {}, { tz: IST });
 };

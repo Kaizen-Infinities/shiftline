@@ -724,6 +724,7 @@ model Company {
   smsTemplates          SmsTemplate[]            @relation("CompanySmsTemplate")
   smsMessages           SmsMessage[]             @relation("CompanySmsMessage")
   otpChallenges         OtpChallenge[]           @relation("CompanyOtpChallenge")
+  tallyConfig           TallyConfig?             @relation("CompanyTallyConfig")
 
   @@map("companies")
 }
@@ -5726,4 +5727,22 @@ model OtpChallenge {
 
   @@index([companyId, mobile, purpose])
   @@map("otp_challenges")
+}
+
+// ─── Scheduled work (P2-01) ───────────────────────────────────────────────────
+
+/// Per-tenant opt-in for the monthly Tally export job. Off by default: the export is manual
+/// unless a tenant asks for the file to be prepared for it every month.
+model TallyConfig {
+  id                String   @id @default(uuid()) @db.Uuid
+  companyId         String   @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  autoExportEnabled Boolean  @default(false) @map("auto_export_enabled")
+  createdBy         String?  @map("created_by") @db.VarChar(36)
+  updatedBy         String?  @map("updated_by") @db.VarChar(36)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyTallyConfig", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("tally_configs")
 }

@@ -38,6 +38,26 @@ const sendXml = (res: Response, fileName: string, xml: string) => {
   res.send(xml);
 };
 
+// ── Settings ──────────────────────────────────────────────────────────────────
+router.get(
+  "/settings",
+  requirePermission("tally.view"),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(new ApiResponse("Tally settings", await tallyService.settings()));
+  })
+);
+
+router.put(
+  "/settings",
+  requirePermission("tally.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z.object({ autoExportEnabled: z.boolean() }).parse(req.body);
+    res.json(
+      new ApiResponse("Tally settings saved", await tallyService.updateSettings(body, actorOf(req)))
+    );
+  })
+);
+
 // ── Files ─────────────────────────────────────────────────────────────────────
 router.get(
   "/masters",
