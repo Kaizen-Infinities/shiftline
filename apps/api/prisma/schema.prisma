@@ -85,6 +85,9 @@ model Employee {
   esiNumber         String?
   professionalTax   Boolean     @default(false)
   tdsApplicable     Boolean     @default(false)
+  /// The state the employee actually works in, for professional tax and the labour welfare fund
+  /// (P2-02). Defaults to the company's state when not set.
+  workStateCode     String?     @map("work_state_code") @db.VarChar(2)
   paymentMode       String?     @default("BANK")
   bankName          String?
   bankBranch        String?
@@ -711,6 +714,7 @@ model Company {
   statutoryRules        StatutoryRule[]          @relation("CompanyStatutoryRule")
   payrollStatutory      PayrollStatutory[]       @relation("CompanyPayrollStatutory")
   taxDeclarations       EmployeeTaxDeclaration[] @relation("CompanyEmployeeTaxDeclaration")
+  esiContributionPeriods EsiContributionPeriod[] @relation("CompanyEsiContributionPeriod")
   holidays              Holiday[]                @relation("CompanyHoliday")
   leaveTypes            LeaveType[]              @relation("CompanyLeaveType")
   leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
@@ -3390,6 +3394,9 @@ model PayrollResult {
   pfApplicable        Boolean    @default(false)
   esiApplicable       Boolean    @default(false)
   professionalTax     Decimal    @default(0) @db.Decimal(14, 2)
+  /// Tax on salary for the month (P2-02): a twelfth of the projected annual liability from
+  /// `statutory.calc`'s `salaryTax`, on the employee's declared regime.
+  salaryTds           Decimal    @default(0) @map("salary_tds") @db.Decimal(14, 2)
   permissionDeduction Decimal    @default(0) @db.Decimal(14, 2)
   salaryAdvance       Decimal    @default(0) @db.Decimal(14, 2)
   loanRecovery        Decimal    @default(0) @db.Decimal(14, 2)
@@ -5290,6 +5297,30 @@ model EmployeeTaxDeclaration {
 
   @@unique([companyId, employeeId, fyCode])
   @@map("employee_tax_declarations")
+}
+
+/// ESI eligibility fixed for a contribution half-year (P2-02): Apr-Sep or Oct-Mar. The scheme
+/// decides eligibility once, at the start of the period, from the wage that month — an employee
+/// who crosses the wage limit later keeps contributing until the period ends. Written once per
+/// employee per period and then left alone, the same reason the leave register is a table and not
+/// a recomputation.
+model EsiContributionPeriod {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  employeeId  BigInt   @map("employee_id")
+  /// e.g. "2026-H1" (April-September 2026) or "2026-H2" (October 2026-March 2027).
+  periodKey   String   @map("period_key") @db.VarChar(9)
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+  eligible    Boolean  @default(false)
+  wageAtStart Decimal  @default(0) @map("wage_at_start") @db.Decimal(14, 2)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyEsiContributionPeriod", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, employeeId, periodKey])
+  @@map("esi_contribution_periods")
 }
 
 // ── Labour Code entitlements (P1-17b) ─────────────────────────────────────────

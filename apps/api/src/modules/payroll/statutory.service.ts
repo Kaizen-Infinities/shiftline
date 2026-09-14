@@ -10,6 +10,7 @@ import { periodService } from "../accounts/period.service";
 import { filingApprovalService } from "../filings/filing-approval.service";
 import {
   DEFAULT_STATUTORY_RULES,
+  ESI_WAGE_LIMIT,
   esiSplit,
   pfSplit,
   professionalTax,
@@ -51,6 +52,31 @@ const monthEnd = (periodKey: string): Date => {
   return new Date(Date.UTC(Number(m[1]), Number(m[2]), 0));
 };
 
+/**
+ * ESI's contribution half-year for a payroll period: April-September or October-March. The
+ * period is keyed by the calendar year its first month falls in, so "2026-08" and "2026-04" both
+ * land in "2026-H1" and "2026-11" lands in "2026-H2" (which runs into March of the next year).
+ */
+export const esiPeriodBoundsFor = (periodKey: string): { key: string; start: Date; end: Date } => {
+  const m = /^(\d{4})-(\d{2})$/.exec(periodKey);
+  if (!m) throw new ApiError(400, "A period looks like 2026-08");
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (month >= 4 && month <= 9) {
+    return {
+      key: `${year}-H1`,
+      start: new Date(Date.UTC(year, 3, 1)),
+      end: new Date(Date.UTC(year, 8, 30)),
+    };
+  }
+  const octYear = month >= 10 ? year : year - 1;
+  return {
+    key: `${octYear}-H2`,
+    start: new Date(Date.UTC(octYear, 9, 1)),
+    end: new Date(Date.UTC(octYear + 1, 2, 31)),
+  };
+};
+
 class StatutoryPayrollService {
   /** The tenant's state rules, seeded on first use from the states a manufacturer is likely in. */
   async rules(includeInactive = false) {
@@ -72,6 +98,43 @@ class StatutoryPayrollService {
       return prisma.statutoryRule.findMany({ orderBy: { stateCode: "asc" } });
     }
     return includeInactive ? existing : existing.filter((r) => r.isActive);
+  }
+
+  /**
+   * ESI eligibility for a payroll period (P2-02): the scheme fixes it once, at the start of the
+   * contribution half-year, from that month's wage — a raise above the limit later does not stop
+   * the contribution until the period ends. The decision is written once per employee per period
+   * and left alone; a later call for the same period returns what was already decided rather than
+   * re-reading the current wage.
+   */
+  async resolveEsiEligibility(
+    employeeId: bigint,
+    periodKey: string,
+    grossWage: number,
+    applicable: boolean
+  ): Promise<boolean> {
+    if (!applicable) return false;
+    const { key, start, end } = esiPeriodBoundsFor(periodKey);
+    const row = await prisma.esiContributionPeriod.upsert({
+      where: {
+        companyId_employeeId_periodKey: {
+          companyId: requireTenantId(),
+          employeeId,
+          periodKey: key,
+        },
+      },
+      update: {},
+      create: {
+        companyId: requireTenantId(),
+        employeeId,
+        periodKey: key,
+        periodStart: start,
+        periodEnd: end,
+        eligible: n2(grossWage) <= ESI_WAGE_LIMIT,
+        wageAtStart: n2(grossWage),
+      },
+    });
+    return row.eligible;
   }
 
   async upsertRule(input: {

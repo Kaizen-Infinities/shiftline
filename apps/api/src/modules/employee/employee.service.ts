@@ -22,6 +22,13 @@ class EmployeeService {
       employeeData.createdBy = null;
     }
 
+    // The employee's own work state drives professional tax and the welfare fund (P2-02); when
+    // not given, they work where the company is registered.
+    if (!employeeData.workStateCode) {
+      const company = await prisma.company.findFirst({ select: { stateCode: true } });
+      employeeData.workStateCode = company?.stateCode ?? null;
+    }
+
     const createdEmployee = (await prisma.$transaction(async (tx) => {
       // Check if email already exists
       if (employeeData.email) {

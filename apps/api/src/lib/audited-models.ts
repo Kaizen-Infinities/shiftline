@@ -89,6 +89,7 @@ export const AUDITED_MODELS = [
   "LeaveType",
   "LeaveBalance",
   "FinalSettlement",
+  "EsiContributionPeriod",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];
