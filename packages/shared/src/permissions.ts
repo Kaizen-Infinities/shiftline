@@ -466,6 +466,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "request", "approve"],
     description: "Leave Requests and Calendar",
   },
+  {
+    module: "registers",
+    actions: ["view", "export"],
+    description:
+      "Inspector's Registers (muster roll, wages, overtime, fines, deductions, advances)",
+  },
 ];
 
 /**

@@ -70,6 +70,7 @@ import paymentsRoutes, {
   platformBillingRouter,
 } from "../modules/payments/payments.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
+import registersRoutes from "../modules/registers/registers.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
 import retentionRoutes from "../modules/retention/retention.routes";
@@ -176,6 +177,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/platform/billing", router: platformBillingRouter },
   { path: "/sms", router: smsRoutes },
   { path: "/payroll", router: payrollRoutes },
+  { path: "/registers", router: registersRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },
   { path: "/retention", router: retentionRoutes },
