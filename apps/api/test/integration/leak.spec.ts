@@ -88,6 +88,7 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "LeaveBalance",
   "FinalSettlement",
   "LeaveRequest",
+  "EsiContributionPeriod",
   "PaymentGatewayConfig",
   "PaymentLink",
   "PaymentCapture",

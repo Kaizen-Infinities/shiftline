@@ -2,6 +2,17 @@ import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
+import {
+  esiSplit,
+  pfSplit,
+  professionalTax as calcProfessionalTax,
+  salaryTax as calcSalaryTax,
+  type PtSlab,
+} from "./statutory.calc";
+import { overtimeForWeek, DAILY_HOURS } from "./labour.calc";
+import { statutoryPayrollService } from "./statutory.service";
+
+const n2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
 /** Convert a period string (YYYY-MM or YYYY-Www) to a date range { start, end } in YYYY-MM-DD */
 function periodToDateRange(period: string): { start: string; end: string } {
@@ -225,7 +236,16 @@ export function getEffectivePayrollConfig(emp: any) {
   };
 }
 
-function computeResult(
+/** What computeResult needs from the statutory and Labour Code calculators, one per run. */
+interface StatutoryContext {
+  periodKey: string;
+  month: number;
+  companyStateCode: string | null;
+  rulesByState: Map<string, { ptEnabled: boolean; ptSlabs: PtSlab[] }>;
+  declarationByEmployee: Map<string, { regime: "OLD" | "NEW"; deductions: number }>;
+}
+
+async function computeResult(
   emp: EmployeePayrollData,
   att: AttendanceInput,
   settings: PayrollSettings,
@@ -234,7 +254,8 @@ function computeResult(
   otherDeductionAmount = 0,
   salaryAdvanceOverride = 0,
   runType: "MONTHLY" | "WEEKLY" = "MONTHLY",
-  monthCalendarDays = 0 // actual month's days (28-31) for MONTHLY_BY_CALENDAR formula
+  monthCalendarDays = 0, // actual month's days (28-31) for MONTHLY_BY_CALENDAR formula
+  statutoryCtx?: StatutoryContext
 ) {
   const pc = getEffectivePayrollConfig(emp);
   if (!pc) return null;
@@ -314,15 +335,29 @@ function computeResult(
   earnedSalary = Math.max(0, earnedSalary);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 4 — OT Pay  (otHours × ratePerHour)
+  // STEP 4 — OT Pay, via the Labour Code calculator (P2-02)
+  //
+  // The Codes pay overtime at double the ordinary rate, not at whatever per-hour figure payroll
+  // settings carry — so this delegates to labour.calc instead of multiplying otHours by a
+  // configured rate. The attendance-recorded OT hours are treated as the excess beyond a single
+  // nine-hour day, which is exactly what the daily trigger measures.
   // ─────────────────────────────────────────────────────────────────────────────
   const otEnabled = settings.otEnabled !== false;
   let otPay = 0;
   let otH = 0;
   const effectiveOtHours = att.otHours;
-  if (otEnabled && effectiveOtHours > 0 && settings.otRatePerHour > 0) {
-    otH = effectiveOtHours;
-    otPay = otH * settings.otRatePerHour;
+  if (otEnabled && effectiveOtHours > 0) {
+    const workingHoursPerDay =
+      settings.defaultWorkingHoursPerDay > 0 ? settings.defaultWorkingHoursPerDay : 8;
+    const ordinaryHourlyRate = workingHoursPerDay > 0 ? dailyRate / workingHoursPerDay : 0;
+    if (ordinaryHourlyRate > 0) {
+      const ot = overtimeForWeek({
+        dailyHours: [DAILY_HOURS + effectiveOtHours],
+        hourlyRate: ordinaryHourlyRate,
+      });
+      otH = ot.overtimeHours;
+      otPay = ot.amount;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -331,7 +366,12 @@ function computeResult(
   const grossSalary = earnedSalary + otPay;
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 6 — PF (Provident Fund)
+  // STEP 6 — PF (Provident Fund), via statutory.calc's pfSplit (P2-02)
+  //
+  // The EPFO's 12% is not one number: 8.33% to the pension scheme on wages capped at ₹15,000,
+  // the balance to the provident fund, 0.50% EDLI and 0.50% admin on top. Delegating removes the
+  // old flat-12%-both-sides arithmetic, which is exactly what P1-16 already computes correctly
+  // for the filings — this is the same split, now feeding net pay too.
   // ─────────────────────────────────────────────────────────────────────────────
   const isPfApp = pc.pfApplicable ?? (emp as any).pfApplicable ?? true;
   const hasPf = isPfApp && (settings.pfEnabled ?? true);
@@ -339,61 +379,75 @@ function computeResult(
     employeePf = 0,
     employerPf = 0;
   if (hasPf) {
-    const maxPfCap = Number(settings.maxPfWage) > 0 ? Number(settings.maxPfWage) : 15000;
     const baseWage =
       settings.pfWageFormula === "GROSS"
         ? grossSalary
         : basicSalary > 0
           ? basicSalary
           : Math.round(grossSalary * 0.5);
-    pfWage = Math.min(baseWage, maxPfCap);
-    const empPfRate =
-      Number(settings.employeePfPercent) > 0 ? Number(settings.employeePfPercent) : 12;
-    const emrPfRate =
-      Number(settings.employerPfPercent) > 0 ? Number(settings.employerPfPercent) : 12;
-    employeePf = Math.round((pfWage * empPfRate) / 100);
-    employerPf = Math.round((pfWage * emrPfRate) / 100);
+    const pf = pfSplit({ pfWage: baseWage });
+    pfWage = pf.pfWage;
+    employeePf = pf.epfEmployee;
+    // The employer's total cost of the month: pension, PF, EDLI and admin together — a cost, not
+    // a deduction, which is why it is reported rather than netted off anyone's pay.
+    employerPf = pf.employerTotal;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 7 — ESI
-  // ESI applies only when gross ≤ max ESI salary (₹21,000 by default).
+  // STEP 7 — ESI, via statutory.calc's esiSplit (P2-02)
+  //
+  // Eligibility for a MONTHLY run comes from the contribution half-year register
+  // (`resolveEsiEligibility`): fixed at the period's first month and left alone even if the
+  // employee's wage later crosses the limit. A run with no statutory context (or a WEEKLY run,
+  // which the register does not cover) falls back to the plain wage-limit test.
   // ─────────────────────────────────────────────────────────────────────────────
   const isEsiApp = pc.esiApplicable ?? (emp as any).esiApplicable ?? true;
-  const maxEsiCap = Number(settings.maxEsiSalary) > 0 ? Number(settings.maxEsiSalary) : 21000;
-  const hasEsi = isEsiApp && (settings.esiEnabled ?? true) && grossSalary <= maxEsiCap;
-  let employeeEsi = 0,
-    employerEsi = 0;
-  if (hasEsi) {
-    const empEsiRate =
-      Number(settings.employeeEsiPercent) > 0 ? Number(settings.employeeEsiPercent) : 0.75;
-    const emrEsiRate =
-      Number(settings.employerEsiPercent) > 0 ? Number(settings.employerEsiPercent) : 3.25;
-    employeeEsi = Math.round((grossSalary * empEsiRate) / 100);
-    employerEsi = Math.round((grossSalary * emrEsiRate) / 100);
+  const esiEnabled = isEsiApp && (settings.esiEnabled ?? true);
+  let hasEsi: boolean;
+  if (statutoryCtx && runType === "MONTHLY") {
+    hasEsi = await statutoryPayrollService.resolveEsiEligibility(
+      emp.id,
+      statutoryCtx.periodKey,
+      grossSalary,
+      esiEnabled
+    );
+  } else {
+    const maxEsiCap = Number(settings.maxEsiSalary) > 0 ? Number(settings.maxEsiSalary) : 21000;
+    hasEsi = esiEnabled && grossSalary <= maxEsiCap;
   }
+  const esi = esiSplit(grossSalary, hasEsi);
+  const employeeEsi = esi.esiEmployee;
+  const employerEsi = esi.esiEmployer;
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 8 — Professional Tax
-  // PT is a monthly statutory deduction. Skip for WEEKLY runs to avoid applying
-  // it every week — it will be collected once during the monthly payroll run.
-  // Company-wide setting is the primary gate: if professionalTaxEnabled = false,
-  // PT is NEVER deducted regardless of any per-employee flag.
-  // Slab is applied to monthlySalary (not earned/gross of this period).
+  // STEP 8 — Professional tax and salary TDS, via statutory.calc (P2-02)
+  //
+  // PT follows the employee's own work state, not the company's, and its slab — never a flat
+  // company-wide figure. Salary TDS is a twelfth of the year's projected liability on the
+  // employee's declared regime. Both are monthly-only: a WEEKLY run leaves them for the monthly
+  // run to collect once.
   // ─────────────────────────────────────────────────────────────────────────────
   let professionalTax = 0;
+  let salaryTds = 0;
   const isPtApp = (emp as any).professionalTax ?? (pc as any)?.professionalTax ?? false;
-  if ((settings.professionalTaxEnabled || isPtApp) && runType === "MONTHLY") {
-    const ptBasis = monthlySalary; // always use monthly salary as PT slab basis
-    if (Number(settings.professionalTaxAmount) > 0) {
-      professionalTax = Number(settings.professionalTaxAmount);
-    } else {
-      if (ptBasis > 75000) professionalTax = 1083;
-      else if (ptBasis > 60000) professionalTax = 850;
-      else if (ptBasis > 45000) professionalTax = 600;
-      else if (ptBasis > 30000) professionalTax = 350;
-      else if (ptBasis > 21000) professionalTax = 208;
-      else professionalTax = 0;
+  const isTdsApp = (emp as any).tdsApplicable ?? false;
+  if (statutoryCtx && runType === "MONTHLY") {
+    if (isPtApp) {
+      const stateCode = (emp as any).workStateCode ?? statutoryCtx.companyStateCode ?? null;
+      const rule = stateCode ? statutoryCtx.rulesByState.get(stateCode) : undefined;
+      if (rule && rule.ptEnabled) {
+        professionalTax = calcProfessionalTax(grossSalary, rule.ptSlabs, statutoryCtx.month);
+      }
+    }
+    if (isTdsApp) {
+      const declaration = statutoryCtx.declarationByEmployee.get(String(emp.id));
+      const tax = calcSalaryTax({
+        annualGross: n2(grossSalary * 12),
+        regime: declaration?.regime ?? "NEW",
+        deductions: declaration?.deductions ?? 0,
+        professionalTaxPaid: n2(professionalTax * 12),
+      });
+      salaryTds = n2(tax.monthlyDeduction);
     }
   }
 
@@ -441,6 +495,7 @@ function computeResult(
     employeePf +
     employeeEsi +
     professionalTax +
+    salaryTds +
     lateEntryDeduction +
     permissionDeduction +
     salaryAdvanceOverride +
@@ -498,6 +553,7 @@ function computeResult(
     pfApplicable: hasPf,
     esiApplicable: hasEsi,
     professionalTax,
+    salaryTds,
     lateEntryDeduction,
     lateMinutes: att.lateMinutes,
     permissionDeduction,
@@ -1001,12 +1057,57 @@ class PayrollService {
       }
     }
 
+    // 3b. Statutory context (P2-02): PT/TDS need the state rules and this year's declarations,
+    // ESI needs the contribution-period register — all worked out once per run, not per employee.
+    // Monthly only: PT, salary TDS and the ESI half-year register are monthly concepts, and a
+    // WEEKLY run leaves them for the monthly run that follows to collect once.
+    let statutoryCtx: StatutoryContext | undefined;
+    if (opts.type === "MONTHLY") {
+      const periodKey = /^\d{4}-\d{2}$/.test(opts.period) ? opts.period : periodStart.slice(0, 7);
+      const monthMatch = /^\d{4}-(\d{2})$/.exec(periodKey);
+      const month = monthMatch ? Number(monthMatch[1]) : new Date(periodStart).getMonth() + 1;
+      const yearNum = Number(periodKey.slice(0, 4));
+      const fyStartYear = month >= 4 ? yearNum : yearNum - 1;
+      const fyCode = `${fyStartYear}-${String((fyStartYear + 1) % 100).padStart(2, "0")}`;
+
+      const company = await prisma.company.findFirst({ where: { id: opts.companyId } });
+      const rules = await statutoryPayrollService.rules(true);
+      const rulesByState = new Map(
+        rules.map((r) => [
+          r.stateCode,
+          { ptEnabled: r.ptEnabled, ptSlabs: r.ptSlabs as unknown as PtSlab[] },
+        ])
+      );
+      const declarations = await prisma.employeeTaxDeclaration.findMany({
+        where: { fyCode, employeeId: { in: employees.map((e) => e.id) } },
+      });
+      const declarationByEmployee = new Map(
+        declarations.map((d) => [
+          String(d.employeeId),
+          {
+            regime: d.regime as "OLD" | "NEW",
+            deductions: Object.values((d.declarations as Record<string, number>) ?? {}).reduce(
+              (s, v) => s + (Number(v) || 0),
+              0
+            ),
+          },
+        ])
+      );
+      statutoryCtx = {
+        periodKey,
+        month,
+        companyStateCode: company?.stateCode ?? null,
+        rulesByState,
+        declarationByEmployee,
+      };
+    }
+
     // 4. Emit start
     const runCode = `PR-${opts.period}-${Date.now().toString().slice(-5)}`;
     emitToTenant("payroll:computing", { runCode, period: opts.period, total: employees.length });
 
     // 5. Compute per employee with progress
-    const results: ReturnType<typeof computeResult>[] = [];
+    const results: Awaited<ReturnType<typeof computeResult>>[] = [];
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i] as EmployeePayrollData;
       const attInput = opts.attendance.find((a) => BigInt(a.employeeId) === emp.id);
@@ -1016,7 +1117,7 @@ class PayrollService {
       const pendingAdvance = salaryAdvanceMap.get(emp.id) ?? 0;
       const advanceToUse =
         attInput.advance !== undefined ? Number(attInput.advance) : pendingAdvance;
-      const result = computeResult(
+      const result = await computeResult(
         emp,
         attInput,
         settings,
@@ -1025,7 +1126,8 @@ class PayrollService {
         permDed.other,
         advanceToUse,
         opts.type,
-        monthCalendarDays
+        monthCalendarDays,
+        statutoryCtx
       );
       if (result) results.push(result);
 
@@ -1103,6 +1205,7 @@ class PayrollService {
           pfApplicable: r!.pfApplicable,
           esiApplicable: r!.esiApplicable,
           professionalTax: r!.professionalTax,
+          salaryTds: r!.salaryTds,
           lateEntryDeduction: r!.lateEntryDeduction,
           permissionDeduction: r!.permissionDeduction,
           salaryAdvance: r!.salaryAdvance,
@@ -1398,6 +1501,7 @@ class PayrollService {
         pfApplicable: result.pfApplicable,
         esiApplicable: result.esiApplicable,
         professionalTax: Number(result.professionalTax),
+        salaryTds: Number(result.salaryTds),
         lateEntryDeduction: Number(result.lateEntryDeduction),
         permissionDeduction: Number(result.permissionDeduction),
         salaryAdvance: Number(result.salaryAdvance),

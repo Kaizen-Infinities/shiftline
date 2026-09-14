@@ -1,6 +1,6 @@
-import apiClient from '../api/apiClient';
+import apiClient from "../api/apiClient";
 
-const BASE = '/payroll';
+const BASE = "/payroll";
 
 // ─── Types (API response shapes) ──────────────────────────────────────────────
 export interface ApiPayrollConfig {
@@ -46,7 +46,7 @@ export interface ApiEmployeePayroll {
   id: string;
   empCode: string;
   fullName: string;
-  salaryType?: string;   // raw Employee.salaryType from the DB (monthly|weekly|daily|hourly)
+  salaryType?: string; // raw Employee.salaryType from the DB (monthly|weekly|daily|hourly)
   designation: string | null;
   department: { name: string } | null;
   payrollConfig: {
@@ -73,7 +73,7 @@ export interface AttendanceInput {
   halfDays: number;
   otHours: number;
   lateMinutes: number;
-  dailyLateMinutes: number[];  // per-day late minutes for per-day slab deduction
+  dailyLateMinutes: number[]; // per-day late minutes for per-day slab deduction
   permissionMinutes: number;
   advance: number;
 }
@@ -105,6 +105,7 @@ export interface ApiPayrollResult {
   pfApplicable: boolean;
   esiApplicable: boolean;
   professionalTax: number;
+  salaryTds: number;
   lateEntryDeduction: number;
   lateMinutes?: number;
   permissionDeduction: number;
@@ -124,8 +125,8 @@ export interface ApiPayrollRun {
   id: number;
   runCode: string;
   period: string;
-  type: 'MONTHLY' | 'WEEKLY';
-  status: 'DRAFT' | 'APPROVED' | 'LOCKED';
+  type: "MONTHLY" | "WEEKLY";
+  status: "DRAFT" | "APPROVED" | "LOCKED";
   employeeCategory: string;
   calendarDays: number;
   totalEmployees: number;
@@ -154,92 +155,93 @@ export interface ApiSalaryAdvance {
   disbursedDate: string;
   reason?: string;
   recoveredAmount: number;
-  status: 'PENDING' | 'PARTIAL' | 'CLEARED';
+  status: "PENDING" | "PARTIAL" | "CLEARED";
   createdAt: string;
   employee: { empCode: string; fullName: string };
 }
 
 export interface ApiPayslipData {
   company: {
-    companyName:  string;
-    legalName:    string | null;
+    companyName: string;
+    legalName: string | null;
     addressLine1: string | null;
-    city:         string | null;
-    state:        string | null;
-    zipcode:      string | null;
-    phone:        string | null;
-    email:        string | null;
-    website:      string | null;
-    gstin:        string | null;
-    logoUrl:      string | null;
+    city: string | null;
+    state: string | null;
+    zipcode: string | null;
+    phone: string | null;
+    email: string | null;
+    website: string | null;
+    gstin: string | null;
+    logoUrl: string | null;
   } | null;
   run: {
-    id:       number;
-    runCode:  string;
-    period:   string;
-    type:     'MONTHLY' | 'WEEKLY';
-    status:   string;
+    id: number;
+    runCode: string;
+    period: string;
+    type: "MONTHLY" | "WEEKLY";
+    status: string;
     lockedAt: string | null;
   };
   employee: {
-    id:            string;
-    empCode:       string;
-    fullName:      string;
-    designation:   string | null;
-    employeeType:  string | null;
-    pfNumber:      string | null;
-    esiNumber:     string | null;
-    uanNumber:     string | null;
-    panNumber:     string | null;
-    bankName:      string | null;
+    id: string;
+    empCode: string;
+    fullName: string;
+    designation: string | null;
+    employeeType: string | null;
+    pfNumber: string | null;
+    esiNumber: string | null;
+    uanNumber: string | null;
+    panNumber: string | null;
+    bankName: string | null;
     accountNumber: string | null;
-    ifscCode:      string | null;
-    department:    string;
+    ifscCode: string | null;
+    department: string;
     dateOfJoining: string | null;
     payrollConfig: {
-      salaryType:     string;
-      monthlySalary:  number;
-      basicSalary:    number;
-      hra:            number;
-      da:             number;
+      salaryType: string;
+      monthlySalary: number;
+      basicSalary: number;
+      hra: number;
+      da: number;
       otherAllowance: number;
-      paymentMode:    string;
+      paymentMode: string;
     } | null;
   };
   result: {
-    id:                  number;
-    employeeCode:        string;
-    employeeName:        string;
-    salaryType:          string;
-    totalDays:           number;
-    presentDays:         number;
-    absentDays:          number;
-    lopDays:             number;
-    halfDays:            number;
-    lateMinutes:         number;
-    permissionMinutes:   number;
-    dailyRate:           number;
-    earnedSalary:        number;
-    grossSalary:         number;
-    otHours:             number;
-    otPay:               number;
-    pfWage:              number;
-    employeePf:          number;
-    employerPf:          number;
-    employeeEsi:         number;
-    employerEsi:         number;
-    pfApplicable:        boolean;
-    esiApplicable:       boolean;
-    professionalTax:     number;
-    lateEntryDeduction:  number;
+    id: number;
+    employeeCode: string;
+    employeeName: string;
+    salaryType: string;
+    totalDays: number;
+    presentDays: number;
+    absentDays: number;
+    lopDays: number;
+    halfDays: number;
+    lateMinutes: number;
+    permissionMinutes: number;
+    dailyRate: number;
+    earnedSalary: number;
+    grossSalary: number;
+    otHours: number;
+    otPay: number;
+    pfWage: number;
+    employeePf: number;
+    employerPf: number;
+    employeeEsi: number;
+    employerEsi: number;
+    pfApplicable: boolean;
+    esiApplicable: boolean;
+    professionalTax: number;
+    salaryTds: number;
+    lateEntryDeduction: number;
     permissionDeduction: number;
-    salaryAdvance:       number;
-    loanRecovery:        number;
-    otherDeductions:     number;
-    totalDeductions:     number;
-    netSalary:           number;
-    cashInHand:          number;
-    paymentMode:         string;
+    salaryAdvance: number;
+    loanRecovery: number;
+    otherDeductions: number;
+    totalDeductions: number;
+    netSalary: number;
+    cashInHand: number;
+    paymentMode: string;
   };
 }
 
@@ -247,7 +249,6 @@ export interface ApiPayslipData {
 
 /** Payroll Config */
 export const payrollService = {
-
   // Config
   getConfig: async (): Promise<ApiPayrollConfig> => {
     const { data } = await apiClient.get(`${BASE}/config`);
@@ -284,13 +285,26 @@ export const payrollService = {
     return data.data;
   },
 
-  bulkUpsertAttendance: async (period: string, records: any[], clearedDates?: { employeeId: number; date: string }[]) => {
+  bulkUpsertAttendance: async (
+    period: string,
+    records: any[],
+    clearedDates?: { employeeId: number; date: string }[]
+  ) => {
     const { data } = await apiClient.post(`${BASE}/attendance`, { period, records, clearedDates });
     return data.data;
   },
 
   // Payroll Runs
-  listRuns: async (params?: { period?: string; type?: string; status?: string; year?: string; month?: string; week?: string; page?: number; limit?: number }) => {
+  listRuns: async (params?: {
+    period?: string;
+    type?: string;
+    status?: string;
+    year?: string;
+    month?: string;
+    week?: string;
+    page?: number;
+    limit?: number;
+  }) => {
     const { data } = await apiClient.get(`${BASE}/runs`, { params });
     return data.data as { runs: ApiPayrollRun[]; total: number; page: number; limit: number };
   },
@@ -302,7 +316,7 @@ export const payrollService = {
 
   computeRun: async (payload: {
     period: string;
-    type: 'MONTHLY' | 'WEEKLY';
+    type: "MONTHLY" | "WEEKLY";
     employeeCategory: string;
     calendarDays: number;
     attendance: AttendanceInput[];
@@ -326,12 +340,22 @@ export const payrollService = {
   },
 
   // Salary Advances
-  listAdvances: async (params?: { employeeId?: number; status?: string; dateFrom?: string; dateTo?: string }): Promise<ApiSalaryAdvance[]> => {
+  listAdvances: async (params?: {
+    employeeId?: number;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<ApiSalaryAdvance[]> => {
     const { data } = await apiClient.get(`${BASE}/advances`, { params });
     return data.data;
   },
 
-  createAdvance: async (payload: { employeeId: number; amount: number; disbursedDate: string; reason?: string }): Promise<ApiSalaryAdvance> => {
+  createAdvance: async (payload: {
+    employeeId: number;
+    amount: number;
+    disbursedDate: string;
+    reason?: string;
+  }): Promise<ApiSalaryAdvance> => {
     const { data } = await apiClient.post(`${BASE}/advances`, payload);
     return data.data;
   },

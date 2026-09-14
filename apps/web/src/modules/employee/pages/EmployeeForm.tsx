@@ -4,10 +4,27 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 import {
-  FaUser, FaPhone, FaUsers, FaIdCard, FaMapMarkerAlt,
-  FaBriefcase, FaCalendarAlt, FaClock, FaMoneyBillWave, FaKey,
-  FaClipboardList, FaSave, FaChevronLeft, FaChevronRight, FaCamera,
-  FaRandom, FaEye, FaEyeSlash, FaCheck, FaTimes, FaSpinner,
+  FaUser,
+  FaPhone,
+  FaUsers,
+  FaIdCard,
+  FaMapMarkerAlt,
+  FaBriefcase,
+  FaCalendarAlt,
+  FaClock,
+  FaMoneyBillWave,
+  FaKey,
+  FaClipboardList,
+  FaSave,
+  FaChevronLeft,
+  FaChevronRight,
+  FaCamera,
+  FaRandom,
+  FaEye,
+  FaEyeSlash,
+  FaCheck,
+  FaTimes,
+  FaSpinner,
 } from "react-icons/fa";
 
 import TextInput from "../../../components/form/TextInput/TextInput";
@@ -42,7 +59,10 @@ function calcExperience(dateOfJoining: string): string {
   const now = new Date();
   let years = now.getFullYear() - start.getFullYear();
   let months = now.getMonth() - start.getMonth();
-  if (months < 0) { years--; months += 12; }
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
   if (years < 0) return "";
   const parts: string[] = [];
   if (years > 0) parts.push(`${years} year${years !== 1 ? "s" : ""}`);
@@ -60,7 +80,8 @@ function generatePassword(): string {
   const randomIndex = (n: number) => {
     const limit = 256 - (256 % n);
     const buf = new Uint8Array(1);
-    do crypto.getRandomValues(buf); while (buf[0] >= limit);
+    do crypto.getRandomValues(buf);
+    while (buf[0] >= limit);
     return buf[0] % n;
   };
   const rand = (s: string) => s[randomIndex(s.length)];
@@ -171,6 +192,7 @@ interface FormState {
   esiNumber: string;
   professionalTax: boolean;
   tdsApplicable: boolean;
+  workStateCode: string;
   // Bank
   paymentMode: string;
   bankName: string;
@@ -192,41 +214,99 @@ interface FormState {
 }
 
 const INITIAL_STATE: FormState = {
-  empCode: "", fullName: "", gender: "", dateOfBirth: "", bloodGroup: "",
-  maritalStatus: "", employeeStatus: "active", photoFile: null, photoPreview: "", existingPhotoUrl: "",
-  personalMobile: "", officialMobile: "", personalEmail: "", officialEmail: "",
-  emergencyContactName: "", emergencyContactNumber: "",
-  fatherName: "", motherName: "", spouseName: "", guardianName: "", guardianRelationship: "",
-  aadhaarNumber: "", panNumber: "", drivingLicense: "", voterId: "",
-  permAddress1: "", permAddress2: "", permCity: "", permState: "", permPincode: "",
+  empCode: "",
+  fullName: "",
+  gender: "",
+  dateOfBirth: "",
+  bloodGroup: "",
+  maritalStatus: "",
+  employeeStatus: "active",
+  photoFile: null,
+  photoPreview: "",
+  existingPhotoUrl: "",
+  personalMobile: "",
+  officialMobile: "",
+  personalEmail: "",
+  officialEmail: "",
+  emergencyContactName: "",
+  emergencyContactNumber: "",
+  fatherName: "",
+  motherName: "",
+  spouseName: "",
+  guardianName: "",
+  guardianRelationship: "",
+  aadhaarNumber: "",
+  panNumber: "",
+  drivingLicense: "",
+  voterId: "",
+  permAddress1: "",
+  permAddress2: "",
+  permCity: "",
+  permState: "",
+  permPincode: "",
   sameAsPermanent: false,
-  presAddress1: "", presAddress2: "", presCity: "", presState: "", presPincode: "",
-  departmentId: "", designation: "", employeeType: "",
-  dateOfJoining: "", relievingDate: "", previousExperience: "",
-  probationPeriod: "", noticePeriod: "",
+  presAddress1: "",
+  presAddress2: "",
+  presCity: "",
+  presState: "",
+  presPincode: "",
+  departmentId: "",
+  designation: "",
+  employeeType: "",
+  dateOfJoining: "",
+  relievingDate: "",
+  previousExperience: "",
+  probationPeriod: "",
+  noticePeriod: "",
   shiftId: "",
   salaryType: "MONTHLY",
-  monthlySalary: "", basicSalary: "", da: "", hra: "",
-  conveyanceAllowance: "", medicalAllowance: "", specialAllowance: "",
+  monthlySalary: "",
+  basicSalary: "",
+  da: "",
+  hra: "",
+  conveyanceAllowance: "",
+  medicalAllowance: "",
+  specialAllowance: "",
   otherAllowance: "",
   cashInHand: "",
   weeklySalary: "",
-  dailySalary: "", overtimeEligible: false,
-  hourlySalary: "", minWorkingHours: "", maxWorkingHours: "",
-  pfApplicable: false, pfNumber: "", uanNumber: "",
-  esiApplicable: false, esiNumber: "",
-  professionalTax: false, tdsApplicable: false,
+  dailySalary: "",
+  overtimeEligible: false,
+  hourlySalary: "",
+  minWorkingHours: "",
+  maxWorkingHours: "",
+  pfApplicable: false,
+  pfNumber: "",
+  uanNumber: "",
+  esiApplicable: false,
+  esiNumber: "",
+  professionalTax: false,
+  tdsApplicable: false,
+  workStateCode: "",
   paymentMode: "BANK",
-  bankName: "", bankBranch: "", accountNumber: "", ifscCode: "", accountHolderName: "",
-  createLoginAccount: false, username: "", password: "", roleId: "",
-  mustChangePw: false, loginEnabled: true,
-  createdBy: "", createdAt: "", updatedBy: "", updatedAt: "",
+  bankName: "",
+  bankBranch: "",
+  accountNumber: "",
+  ifscCode: "",
+  accountHolderName: "",
+  createLoginAccount: false,
+  username: "",
+  password: "",
+  roleId: "",
+  mustChangePw: false,
+  loginEnabled: true,
+  createdBy: "",
+  createdAt: "",
+  updatedBy: "",
+  updatedAt: "",
 };
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
 const SectionHeader: React.FC<{ icon: React.ElementType; title: string; color?: string }> = ({
-  icon: Icon, title, color = "text-primary",
+  icon: Icon,
+  title,
+  color = "text-primary",
 }) => (
   <div className="flex items-center gap-2 mb-5 pb-2 border-b border-line-soft">
     <Icon className={`${color} text-lg`} />
@@ -235,14 +315,25 @@ const SectionHeader: React.FC<{ icon: React.ElementType; title: string; color?: 
 );
 
 const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) => void }> = ({
-  label, value, onChange,
+  label,
+  value,
+  onChange,
 }) => (
   <div className="flex items-center gap-3">
     <label className="text-xs font-bold uppercase tracking-[0.5px] text-ink-muted">{label}</label>
     <label className="relative inline-flex cursor-pointer items-center">
-      <input type="checkbox" className="sr-only" checked={value} onChange={(e) => onChange(e.target.checked)} />
-      <div className={`block w-14 h-8 rounded-full transition-colors duration-300 ${value ? "bg-primary" : "bg-gray-300"}`} />
-      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ${value ? "transform translate-x-6" : ""}`} />
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={value}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <div
+        className={`block w-14 h-8 rounded-full transition-colors duration-300 ${value ? "bg-primary" : "bg-gray-300"}`}
+      />
+      <div
+        className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ${value ? "transform translate-x-6" : ""}`}
+      />
     </label>
     <span className="text-sm font-medium text-ink-muted">{value ? "YES" : "NO"}</span>
   </div>
@@ -265,17 +356,22 @@ const EmployeeForm: React.FC = () => {
   const [shifts, setShifts] = useState<any[]>([]);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [showPassword, setShowPassword] = useState(false);
-  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">(
+    "idle"
+  );
   const photoInputRef = useRef<HTMLInputElement>(null);
   const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useFormShortcuts({});
 
   const fetchShifts = useCallback(() => {
-    apiClient.get("/shifts").then((res) => {
-      const data = res.data?.data || res.data || [];
-      setShifts(Array.isArray(data) ? data : []);
-    }).catch(() => {});
+    apiClient
+      .get("/shifts")
+      .then((res) => {
+        const data = res.data?.data || res.data || [];
+        setShifts(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
   }, []);
 
   const fetchDeps = useCallback(() => {
@@ -299,125 +395,161 @@ const EmployeeForm: React.FC = () => {
 
     if (isEdit && id) {
       setIsLoading(true);
-      employeeService.fetchById(id).then((emp: any) => {
-        setForm({
-          empCode: emp.empCode || "",
-          fullName: emp.fullName || "",
-          gender: emp.gender || "",
-          dateOfBirth: fmtDate(emp.dateOfBirth),
-          bloodGroup: emp.bloodGroup || "",
-          maritalStatus: emp.maritalStatus || "",
-          employeeStatus: emp.status || "active",
-          photoFile: null,
-          photoPreview: "",
-          existingPhotoUrl: emp.photoUrl || "",
-          personalMobile: emp.personalMobile || "",
-          officialMobile: emp.mobile || "",
-          personalEmail: emp.personalEmail || "",
-          officialEmail: emp.email || "",
-          emergencyContactName: emp.emergencyContactName || "",
-          emergencyContactNumber: emp.emergencyContactNumber || "",
-          fatherName: emp.fatherName || "",
-          motherName: emp.motherName || "",
-          spouseName: emp.spouseName || "",
-          guardianName: emp.guardianName || "",
-          guardianRelationship: emp.guardianRelationship || "",
-          aadhaarNumber: emp.aadhaarNumber || "",
-          panNumber: emp.panNumber || "",
-          drivingLicense: emp.drivingLicense || "",
-          voterId: emp.voterId || "",
-          permAddress1: emp.permanentAddressLine1 || "",
-          permAddress2: emp.permanentAddressLine2 || "",
-          permCity: emp.permanentCity || "",
-          permState: emp.permanentState || "",
-          permPincode: emp.permanentPincode || "",
-          sameAsPermanent: false,
-          presAddress1: emp.presentAddressLine1 || "",
-          presAddress2: emp.presentAddressLine2 || "",
-          presCity: emp.presentCity || "",
-          presState: emp.presentState || "",
-          presPincode: emp.presentPincode || "",
-          departmentId: emp.departmentId ? String(emp.departmentId) : "",
-          designation: emp.designation || "",
-          employeeType: emp.employeeType || "",
-          dateOfJoining: fmtDate(emp.dateOfJoining),
-          relievingDate: fmtDate(emp.relievingDate),
-          previousExperience: emp.previousExperience || "",
-          probationPeriod: emp.probationPeriod ? String(emp.probationPeriod) : "",
-          noticePeriod: emp.noticePeriod ? String(emp.noticePeriod) : "",
-          shiftId: emp.shiftId ? String(emp.shiftId) : "",
-          salaryType: (emp.salaryType || "monthly").toUpperCase(),
-          monthlySalary:      emp.salaryType?.toLowerCase() === "monthly" ? String(emp.grossSalary || "") : "",
-          weeklySalary:       emp.salaryType?.toLowerCase() === "weekly"  ? String(emp.grossSalary || "") : "",
-          dailySalary:        emp.salaryType?.toLowerCase() === "daily"   ? String(emp.grossSalary || "") : "",
-          hourlySalary:       emp.salaryType?.toLowerCase() === "hourly"  ? String(emp.grossSalary || "") : "",
-          basicSalary:        (() => {
-            const raw = emp.basicSalary !== undefined && emp.basicSalary !== null ? String(emp.basicSalary) : (emp.payrollConfig?.basicSalary ? String(emp.payrollConfig.basicSalary) : "");
-            if (raw && parseFloat(raw) > 0) return raw;
-            const gross = Number(emp.grossSalary || 0);
-            return gross > 0 ? String(Math.round(gross * 0.50)) : "";
-          })(),
-          da:                 (() => {
-            const raw = emp.da !== undefined && emp.da !== null ? String(emp.da) : (emp.payrollConfig?.da ? String(emp.payrollConfig.da) : "");
-            if (raw && parseFloat(raw) > 0) return raw;
-            const gross = Number(emp.grossSalary || 0);
-            return gross > 0 ? String(Math.round(gross * 0.10)) : "";
-          })(),
-          hra:                (() => {
-            const raw = emp.hra !== undefined && emp.hra !== null ? String(emp.hra) : (emp.payrollConfig?.hra ? String(emp.payrollConfig.hra) : "");
-            if (raw && parseFloat(raw) > 0) return raw;
-            const gross = Number(emp.grossSalary || 0);
-            return gross > 0 ? String(Math.round(gross * 0.10)) : "";
-          })(),
-          conveyanceAllowance: "",
-          medicalAllowance:   "",
-          specialAllowance:   "",
-          otherAllowance:     (() => {
-            const raw = emp.otherAllowance !== undefined && emp.otherAllowance !== null ? String(emp.otherAllowance) : (emp.payrollConfig?.otherAllowance ? String(emp.payrollConfig.otherAllowance) : "");
-            if (raw && parseFloat(raw) > 0) return raw;
-            const gross = Number(emp.grossSalary || 0);
-            if (gross <= 0) return "";
-            const b = Math.round(gross * 0.50);
-            const d = Math.round(gross * 0.10);
-            const h = Math.round(gross * 0.10);
-            return String(Math.max(0, gross - b - d - h));
-          })(),
-          cashInHand:         emp.payrollConfig?.cashInHand ? String(emp.payrollConfig.cashInHand) : "",
-          overtimeEligible:   false,
-          minWorkingHours:    "",
-          maxWorkingHours:    "",
-          pfApplicable: !!emp.pfApplicable,
-          pfNumber: emp.pfNumber || "",
-          uanNumber: emp.uanNumber || "",
-          esiApplicable: !!emp.esiApplicable,
-          esiNumber: emp.esiNumber || "",
-          professionalTax: !!emp.professionalTax,
-          tdsApplicable: !!emp.tdsApplicable,
-          paymentMode: emp.paymentMode || "BANK",
-          bankName: emp.bankName || "",
-          bankBranch: emp.bankBranch || "",
-          accountNumber: emp.accountNumber || "",
-          ifscCode: emp.ifscCode || "",
-          accountHolderName: emp.accountHolderName || "",
-          createLoginAccount: !!emp.user,
-          username: emp.user?.username || "",
-          password: "",
-          roleId: emp.roleId ? String(emp.roleId) : (emp.user?.roleId ? String(emp.user.roleId) : ""),
-          mustChangePw: !!emp.user?.mustChangePw,
-          loginEnabled: emp.user ? emp.user.status === "active" : true,
-          createdBy: emp.createdByUser?.username || emp.createdBy || "",
-          createdAt: emp.createdAt ? new Date(emp.createdAt).toLocaleString() : "",
-          updatedBy: emp.updatedByUser?.username || emp.updatedBy || "",
-          updatedAt: emp.updatedAt ? new Date(emp.updatedAt).toLocaleString() : "",
-        });
-      }).catch(() => {
-        toast.error("Failed to load employee data");
-      }).finally(() => setIsLoading(false));
+      employeeService
+        .fetchById(id)
+        .then((emp: any) => {
+          setForm({
+            empCode: emp.empCode || "",
+            fullName: emp.fullName || "",
+            gender: emp.gender || "",
+            dateOfBirth: fmtDate(emp.dateOfBirth),
+            bloodGroup: emp.bloodGroup || "",
+            maritalStatus: emp.maritalStatus || "",
+            employeeStatus: emp.status || "active",
+            photoFile: null,
+            photoPreview: "",
+            existingPhotoUrl: emp.photoUrl || "",
+            personalMobile: emp.personalMobile || "",
+            officialMobile: emp.mobile || "",
+            personalEmail: emp.personalEmail || "",
+            officialEmail: emp.email || "",
+            emergencyContactName: emp.emergencyContactName || "",
+            emergencyContactNumber: emp.emergencyContactNumber || "",
+            fatherName: emp.fatherName || "",
+            motherName: emp.motherName || "",
+            spouseName: emp.spouseName || "",
+            guardianName: emp.guardianName || "",
+            guardianRelationship: emp.guardianRelationship || "",
+            aadhaarNumber: emp.aadhaarNumber || "",
+            panNumber: emp.panNumber || "",
+            drivingLicense: emp.drivingLicense || "",
+            voterId: emp.voterId || "",
+            permAddress1: emp.permanentAddressLine1 || "",
+            permAddress2: emp.permanentAddressLine2 || "",
+            permCity: emp.permanentCity || "",
+            permState: emp.permanentState || "",
+            permPincode: emp.permanentPincode || "",
+            sameAsPermanent: false,
+            presAddress1: emp.presentAddressLine1 || "",
+            presAddress2: emp.presentAddressLine2 || "",
+            presCity: emp.presentCity || "",
+            presState: emp.presentState || "",
+            presPincode: emp.presentPincode || "",
+            departmentId: emp.departmentId ? String(emp.departmentId) : "",
+            designation: emp.designation || "",
+            employeeType: emp.employeeType || "",
+            dateOfJoining: fmtDate(emp.dateOfJoining),
+            relievingDate: fmtDate(emp.relievingDate),
+            previousExperience: emp.previousExperience || "",
+            probationPeriod: emp.probationPeriod ? String(emp.probationPeriod) : "",
+            noticePeriod: emp.noticePeriod ? String(emp.noticePeriod) : "",
+            shiftId: emp.shiftId ? String(emp.shiftId) : "",
+            salaryType: (emp.salaryType || "monthly").toUpperCase(),
+            monthlySalary:
+              emp.salaryType?.toLowerCase() === "monthly" ? String(emp.grossSalary || "") : "",
+            weeklySalary:
+              emp.salaryType?.toLowerCase() === "weekly" ? String(emp.grossSalary || "") : "",
+            dailySalary:
+              emp.salaryType?.toLowerCase() === "daily" ? String(emp.grossSalary || "") : "",
+            hourlySalary:
+              emp.salaryType?.toLowerCase() === "hourly" ? String(emp.grossSalary || "") : "",
+            basicSalary: (() => {
+              const raw =
+                emp.basicSalary !== undefined && emp.basicSalary !== null
+                  ? String(emp.basicSalary)
+                  : emp.payrollConfig?.basicSalary
+                    ? String(emp.payrollConfig.basicSalary)
+                    : "";
+              if (raw && parseFloat(raw) > 0) return raw;
+              const gross = Number(emp.grossSalary || 0);
+              return gross > 0 ? String(Math.round(gross * 0.5)) : "";
+            })(),
+            da: (() => {
+              const raw =
+                emp.da !== undefined && emp.da !== null
+                  ? String(emp.da)
+                  : emp.payrollConfig?.da
+                    ? String(emp.payrollConfig.da)
+                    : "";
+              if (raw && parseFloat(raw) > 0) return raw;
+              const gross = Number(emp.grossSalary || 0);
+              return gross > 0 ? String(Math.round(gross * 0.1)) : "";
+            })(),
+            hra: (() => {
+              const raw =
+                emp.hra !== undefined && emp.hra !== null
+                  ? String(emp.hra)
+                  : emp.payrollConfig?.hra
+                    ? String(emp.payrollConfig.hra)
+                    : "";
+              if (raw && parseFloat(raw) > 0) return raw;
+              const gross = Number(emp.grossSalary || 0);
+              return gross > 0 ? String(Math.round(gross * 0.1)) : "";
+            })(),
+            conveyanceAllowance: "",
+            medicalAllowance: "",
+            specialAllowance: "",
+            otherAllowance: (() => {
+              const raw =
+                emp.otherAllowance !== undefined && emp.otherAllowance !== null
+                  ? String(emp.otherAllowance)
+                  : emp.payrollConfig?.otherAllowance
+                    ? String(emp.payrollConfig.otherAllowance)
+                    : "";
+              if (raw && parseFloat(raw) > 0) return raw;
+              const gross = Number(emp.grossSalary || 0);
+              if (gross <= 0) return "";
+              const b = Math.round(gross * 0.5);
+              const d = Math.round(gross * 0.1);
+              const h = Math.round(gross * 0.1);
+              return String(Math.max(0, gross - b - d - h));
+            })(),
+            cashInHand: emp.payrollConfig?.cashInHand ? String(emp.payrollConfig.cashInHand) : "",
+            overtimeEligible: false,
+            minWorkingHours: "",
+            maxWorkingHours: "",
+            pfApplicable: !!emp.pfApplicable,
+            pfNumber: emp.pfNumber || "",
+            uanNumber: emp.uanNumber || "",
+            esiApplicable: !!emp.esiApplicable,
+            esiNumber: emp.esiNumber || "",
+            professionalTax: !!emp.professionalTax,
+            tdsApplicable: !!emp.tdsApplicable,
+            workStateCode: emp.workStateCode || "",
+            paymentMode: emp.paymentMode || "BANK",
+            bankName: emp.bankName || "",
+            bankBranch: emp.bankBranch || "",
+            accountNumber: emp.accountNumber || "",
+            ifscCode: emp.ifscCode || "",
+            accountHolderName: emp.accountHolderName || "",
+            createLoginAccount: !!emp.user,
+            username: emp.user?.username || "",
+            password: "",
+            roleId: emp.roleId
+              ? String(emp.roleId)
+              : emp.user?.roleId
+                ? String(emp.user.roleId)
+                : "",
+            mustChangePw: !!emp.user?.mustChangePw,
+            loginEnabled: emp.user ? emp.user.status === "active" : true,
+            createdBy: emp.createdByUser?.username || emp.createdBy || "",
+            createdAt: emp.createdAt ? new Date(emp.createdAt).toLocaleString() : "",
+            updatedBy: emp.updatedByUser?.username || emp.updatedBy || "",
+            updatedAt: emp.updatedAt ? new Date(emp.updatedAt).toLocaleString() : "",
+          });
+        })
+        .catch(() => {
+          toast.error("Failed to load employee data");
+        })
+        .finally(() => setIsLoading(false));
     } else {
       // Create mode — fetch next employee code
-      employeeService.fetchNextCode().then((code: string) => {
-        if (code) setForm((p) => ({ ...p, empCode: code }));
-      }).catch(() => {});
+      employeeService
+        .fetchNextCode()
+        .then((code: string) => {
+          if (code) setForm((p) => ({ ...p, empCode: code }));
+        })
+        .catch(() => {});
     }
   }, [id, isEdit, loadDepartments, loadRoles]);
 
@@ -435,7 +567,8 @@ const EmployeeForm: React.FC = () => {
     setUsernameStatus("checking");
     if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current);
     usernameCheckTimer.current = setTimeout(() => {
-      apiClient.get(`/users/check-username/${encodeURIComponent(form.username.trim())}`)
+      apiClient
+        .get(`/users/check-username/${encodeURIComponent(form.username.trim())}`)
         .then((res) => {
           const data = res.data?.data || res.data;
           setUsernameStatus(data?.available ? "available" : "taken");
@@ -456,7 +589,9 @@ const EmployeeForm: React.FC = () => {
 
   // ── field change
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: any } }
+    e:
+      | React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+      | { target: { name: string; value: any } }
   ) => {
     let { name, value } = e.target;
 
@@ -464,11 +599,20 @@ const EmployeeForm: React.FC = () => {
     if (name === "aadhaarNumber") {
       value = String(value).replace(/\D/g, "").slice(0, 12);
     } else if (name === "panNumber") {
-      value = String(value).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+      value = String(value)
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 10);
     } else if (name === "drivingLicense") {
-      value = String(value).toUpperCase().replace(/[^A-Z0-9 -]/g, "").slice(0, 16);
+      value = String(value)
+        .toUpperCase()
+        .replace(/[^A-Z0-9 -]/g, "")
+        .slice(0, 16);
     } else if (name === "voterId") {
-      value = String(value).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+      value = String(value)
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 10);
     }
 
     setForm((p) => {
@@ -486,10 +630,16 @@ const EmployeeForm: React.FC = () => {
         }
       }
 
-      if (p.sameAsPermanent && ["permAddress1","permAddress2","permCity","permState","permPincode"].includes(name)) {
+      if (
+        p.sameAsPermanent &&
+        ["permAddress1", "permAddress2", "permCity", "permState", "permPincode"].includes(name)
+      ) {
         const map: Record<string, keyof FormState> = {
-          permAddress1: "presAddress1", permAddress2: "presAddress2",
-          permCity: "presCity", permState: "presState", permPincode: "presPincode",
+          permAddress1: "presAddress1",
+          permAddress2: "presAddress2",
+          permCity: "presCity",
+          permState: "presState",
+          permPincode: "presPincode",
         };
         (next as any)[map[name]] = value;
       }
@@ -508,7 +658,10 @@ const EmployeeForm: React.FC = () => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB"); return; }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Photo must be under 5 MB");
+      return;
+    }
     const preview = URL.createObjectURL(file);
     setForm((p) => ({ ...p, photoFile: file, photoPreview: preview }));
   };
@@ -518,8 +671,8 @@ const EmployeeForm: React.FC = () => {
   const currentExperience = calcExperience(form.dateOfJoining);
 
   // ── dropdown options
-  const departmentOptions = useMemo(() =>
-    departments.map((d) => ({ value: String(d.id), label: d.name })),
+  const departmentOptions = useMemo(
+    () => departments.map((d) => ({ value: String(d.id), label: d.name })),
     [departments]
   );
 
@@ -530,8 +683,8 @@ const EmployeeForm: React.FC = () => {
       .map((r) => ({ value: String(r.id), label: r.name }));
   }, [roles]);
 
-  const shiftOptions = useMemo(() =>
-    shifts.map((s: any) => ({ value: String(s.shiftCode), label: s.shiftName })),
+  const shiftOptions = useMemo(
+    () => shifts.map((s: any) => ({ value: String(s.shiftCode), label: s.shiftName })),
     [shifts]
   );
 
@@ -582,7 +735,8 @@ const EmployeeForm: React.FC = () => {
     if (form.createLoginAccount) {
       if (!form.roleId.trim()) e.roleId = "Role is required when login account is enabled";
       if (!form.username.trim()) e.username = "Username is required";
-      else if (form.username.trim().length < 3) e.username = "Username must be at least 3 characters";
+      else if (form.username.trim().length < 3)
+        e.username = "Username must be at least 3 characters";
       else if (!isEdit && usernameStatus === "taken") e.username = "Username is already taken";
 
       // Password: required in create mode, optional in edit mode
@@ -590,7 +744,8 @@ const EmployeeForm: React.FC = () => {
         if (!form.password.trim()) e.password = "Password is required";
         else if (form.password.length < 8) e.password = "Password must be at least 8 characters";
       } else {
-        if (form.password && form.password.length < 8) e.password = "Password must be at least 8 characters";
+        if (form.password && form.password.length < 8)
+          e.password = "Password must be at least 8 characters";
       }
     }
 
@@ -598,12 +753,9 @@ const EmployeeForm: React.FC = () => {
     const st = (form.salaryType || "").toUpperCase();
     if (st === "MONTHLY" && !form.monthlySalary)
       e.monthlySalary = "Monthly gross salary is required";
-    if (st === "WEEKLY" && !form.weeklySalary)
-      e.weeklySalary = "Weekly gross salary is required";
-    if (st === "DAILY" && !form.dailySalary)
-      e.dailySalary = "Daily wage is required";
-    if (st === "HOURLY" && !form.hourlySalary)
-      e.hourlySalary = "Hourly rate is required";
+    if (st === "WEEKLY" && !form.weeklySalary) e.weeklySalary = "Weekly gross salary is required";
+    if (st === "DAILY" && !form.dailySalary) e.dailySalary = "Daily wage is required";
+    if (st === "HOURLY" && !form.hourlySalary) e.hourlySalary = "Hourly rate is required";
 
     // PF validation
     if (form.paymentMode === "BANK" && form.pfApplicable) {
@@ -617,14 +769,19 @@ const EmployeeForm: React.FC = () => {
 
     // Bank validation
     if (form.paymentMode === "BANK") {
-      if (!form.bankName.trim())           e.bankName = "Bank Name is required for Bank Transfers";
-      if (!form.bankBranch.trim())         e.bankBranch = "Bank Branch is required for Bank Transfers";
-      if (!form.accountNumber.trim())      e.accountNumber = "Account Number is required for Bank Transfers";
-      if (!form.ifscCode.trim())            e.ifscCode = "IFSC Code is required for Bank Transfers";
-      if (!form.accountHolderName.trim())  e.accountHolderName = "Account Holder Name is required for Bank Transfers";
+      if (!form.bankName.trim()) e.bankName = "Bank Name is required for Bank Transfers";
+      if (!form.bankBranch.trim()) e.bankBranch = "Bank Branch is required for Bank Transfers";
+      if (!form.accountNumber.trim())
+        e.accountNumber = "Account Number is required for Bank Transfers";
+      if (!form.ifscCode.trim()) e.ifscCode = "IFSC Code is required for Bank Transfers";
+      if (!form.accountHolderName.trim())
+        e.accountHolderName = "Account Holder Name is required for Bank Transfers";
 
       // Validate component breakdown sum matches gross salary
-      const gross = parseFloat(form.monthlySalary || form.weeklySalary || form.dailySalary || form.hourlySalary || "0") || 0;
+      const gross =
+        parseFloat(
+          form.monthlySalary || form.weeklySalary || form.dailySalary || form.hourlySalary || "0"
+        ) || 0;
       if (gross > 0) {
         const basic = parseFloat(form.basicSalary || "0") || 0;
         const da = parseFloat(form.da || "0") || 0;
@@ -633,7 +790,7 @@ const EmployeeForm: React.FC = () => {
         const sum = basic + da + hra + other;
 
         if (Math.abs(sum - gross) > 0.01) {
-          e.otherAllowance = `Salary components sum (₹${sum.toLocaleString('en-IN')}) must equal Gross Salary (₹${gross.toLocaleString('en-IN')})`;
+          e.otherAllowance = `Salary components sum (₹${sum.toLocaleString("en-IN")}) must equal Gross Salary (₹${gross.toLocaleString("en-IN")})`;
         }
       }
     }
@@ -664,7 +821,7 @@ const EmployeeForm: React.FC = () => {
         return true;
       });
       if (duplicate) {
-        setErrors(p => ({ ...p, empCode: "Employee code already exists" }));
+        setErrors((p) => ({ ...p, empCode: "Employee code already exists" }));
         toast.error("Employee code already exists");
         setIsSubmitting(false);
         return;
@@ -685,41 +842,41 @@ const EmployeeForm: React.FC = () => {
 
       if (form.photoFile) fd.append("photo", form.photoFile);
 
-      fd.append("personalMobile",        form.personalMobile || "");
-      fd.append("mobile",                form.officialMobile || "");
-      fd.append("personalEmail",         form.personalEmail || "");
-      fd.append("email",                 form.officialEmail || "");
-      fd.append("emergencyContactName",  form.emergencyContactName || "");
+      fd.append("personalMobile", form.personalMobile || "");
+      fd.append("mobile", form.officialMobile || "");
+      fd.append("personalEmail", form.personalEmail || "");
+      fd.append("email", form.officialEmail || "");
+      fd.append("emergencyContactName", form.emergencyContactName || "");
       fd.append("emergencyContactNumber", form.emergencyContactNumber || "");
 
       // Family
-      fd.append("fatherName",           form.fatherName || "");
-      fd.append("motherName",           form.motherName || "");
-      fd.append("spouseName",           form.spouseName || "");
-      fd.append("guardianName",         form.guardianName || "");
+      fd.append("fatherName", form.fatherName || "");
+      fd.append("motherName", form.motherName || "");
+      fd.append("spouseName", form.spouseName || "");
+      fd.append("guardianName", form.guardianName || "");
       fd.append("guardianRelationship", form.guardianRelationship || "");
 
       // Identity
       fd.append("aadhaarNumber", form.aadhaarNumber || "");
-      fd.append("panNumber",     form.panNumber || "");
-      fd.append("drivingLicense",form.drivingLicense || "");
-      fd.append("voterId",       form.voterId || "");
+      fd.append("panNumber", form.panNumber || "");
+      fd.append("drivingLicense", form.drivingLicense || "");
+      fd.append("voterId", form.voterId || "");
 
       // Address
       fd.append("permanentAddressLine1", form.permAddress1 || "");
       fd.append("permanentAddressLine2", form.permAddress2 || "");
-      fd.append("permanentCity",         form.permCity || "");
-      fd.append("permanentState",        form.permState || "");
-      fd.append("permanentPincode",      form.permPincode || "");
-      fd.append("presentAddressLine1",   form.presAddress1 || "");
-      fd.append("presentAddressLine2",   form.presAddress2 || "");
-      fd.append("presentCity",           form.presCity || "");
-      fd.append("presentState",          form.presState || "");
-      fd.append("presentPincode",        form.presPincode || "");
+      fd.append("permanentCity", form.permCity || "");
+      fd.append("permanentState", form.permState || "");
+      fd.append("permanentPincode", form.permPincode || "");
+      fd.append("presentAddressLine1", form.presAddress1 || "");
+      fd.append("presentAddressLine2", form.presAddress2 || "");
+      fd.append("presentCity", form.presCity || "");
+      fd.append("presentState", form.presState || "");
+      fd.append("presentPincode", form.presPincode || "");
 
       if (form.departmentId) fd.append("departmentId", form.departmentId);
-      if (form.roleId)       fd.append("roleId",       form.roleId);
-      if (form.designation)  fd.append("designation",  form.designation);
+      if (form.roleId) fd.append("roleId", form.roleId);
+      if (form.designation) fd.append("designation", form.designation);
       if (form.employeeType) fd.append("employeeType", form.employeeType);
 
       if (form.dateOfJoining) fd.append("dateOfJoining", form.dateOfJoining);
@@ -735,28 +892,30 @@ const EmployeeForm: React.FC = () => {
       if (st === "MONTHLY") {
         if (form.monthlySalary) fd.append("grossSalary", form.monthlySalary);
       } else if (st === "WEEKLY") {
-        if (form.weeklySalary)  fd.append("grossSalary", form.weeklySalary);
+        if (form.weeklySalary) fd.append("grossSalary", form.weeklySalary);
       } else if (st === "DAILY") {
-        if (form.dailySalary)   fd.append("grossSalary", form.dailySalary);
+        if (form.dailySalary) fd.append("grossSalary", form.dailySalary);
       } else if (st === "HOURLY") {
-        if (form.hourlySalary)  fd.append("grossSalary", form.hourlySalary);
+        if (form.hourlySalary) fd.append("grossSalary", form.hourlySalary);
       }
 
       // Bank Transfer salary components
       if (form.paymentMode === "BANK") {
-        if (form.basicSalary)    fd.append("basicSalary", form.basicSalary);
-        if (form.da)             fd.append("da", form.da);
-        if (form.hra)            fd.append("hra", form.hra);
+        if (form.basicSalary) fd.append("basicSalary", form.basicSalary);
+        if (form.da) fd.append("da", form.da);
+        if (form.hra) fd.append("hra", form.hra);
         if (form.otherAllowance) fd.append("otherAllowance", form.otherAllowance);
       }
       if (form.cashInHand) fd.append("cashInHand", form.cashInHand);
       // Statutory
-      fd.append("pfApplicable",    String(form.pfApplicable));
-      if (form.pfNumber)  fd.append("pfNumber",  form.pfNumber);
+      fd.append("pfApplicable", String(form.pfApplicable));
+      if (form.pfNumber) fd.append("pfNumber", form.pfNumber);
       if (form.uanNumber) fd.append("uanNumber", form.uanNumber);
-      fd.append("esiApplicable",   String(form.esiApplicable));
+      fd.append("esiApplicable", String(form.esiApplicable));
       if (form.esiNumber) fd.append("esiNumber", form.esiNumber);
       fd.append("professionalTax", String(form.professionalTax));
+      if (form.workStateCode) fd.append("workStateCode", form.workStateCode);
+      fd.append("tdsApplicable", String(form.tdsApplicable));
       fd.append("paymentMode", form.paymentMode || "CASH");
       if (form.bankName) fd.append("bankName", form.bankName);
       if (form.bankBranch) fd.append("bankBranch", form.bankBranch);
@@ -787,7 +946,11 @@ const EmployeeForm: React.FC = () => {
       }
       navigate("/employees");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || `Failed to ${isEdit ? "update" : "create"} employee`);
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          `Failed to ${isEdit ? "update" : "create"} employee`
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -799,26 +962,96 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaUser} title="Basic Information" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <TextInput horizontal label="Employee Code" name="empCode" value={form.empCode} onChange={handleChange} required error={errors.empCode} placeholder="e.g. EMP001" disabled={isEdit} />
-        <TextInput horizontal label="Employee Name" name="fullName" value={form.fullName} onChange={handleChange} required error={errors.fullName} placeholder="Full name" />
-        <SelectInput horizontal label="Gender" name="gender" value={form.gender} onChange={handleChange}
+        <TextInput
+          horizontal
+          label="Employee Code"
+          name="empCode"
+          value={form.empCode}
+          onChange={handleChange}
+          required
+          error={errors.empCode}
+          placeholder="e.g. EMP001"
+          disabled={isEdit}
+        />
+        <TextInput
+          horizontal
+          label="Employee Name"
+          name="fullName"
+          value={form.fullName}
+          onChange={handleChange}
+          required
+          error={errors.fullName}
+          placeholder="Full name"
+        />
+        <SelectInput
+          horizontal
+          label="Gender"
+          name="gender"
+          value={form.gender}
+          onChange={handleChange}
           defaultOptionLabel="Select Gender"
-          options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
-        <DatePickerCalendar horizontal label="Date of Birth" name="dateOfBirth" value={form.dateOfBirth}
-          onChange={handleChange} placeholder="Select DOB" maxDate={new Date()} />
-        <TextInput horizontal label="Age (years)" name="_age" value={age} onChange={() => {}} disabled placeholder="Auto-calculated" />
-        <SelectInput horizontal label="Blood Group" name="bloodGroup" value={form.bloodGroup} onChange={handleChange}
-          defaultOptionLabel="Select Blood Group"
-          options={["A+","A-","B+","B-","O+","O-","AB+","AB-"].map((g) => ({ value: g, label: g }))} />
-        <SelectInput horizontal label="Marital Status" name="maritalStatus" value={form.maritalStatus} onChange={handleChange}
-          defaultOptionLabel="Select Status"
-          options={["Single","Married","Divorced","Widowed"].map((s) => ({ value: s.toLowerCase(), label: s }))} />
-        <SelectInput horizontal label="Employee Status" name="employeeStatus" value={form.employeeStatus} onChange={handleChange}
           options={[
-            { value: "active", label: "Active" }, { value: "inactive", label: "Inactive" },
-            { value: "resigned", label: "Resigned" }, { value: "retired", label: "Retired" },
+            { value: "male", label: "Male" },
+            { value: "female", label: "Female" },
+            { value: "other", label: "Other" },
+          ]}
+        />
+        <DatePickerCalendar
+          horizontal
+          label="Date of Birth"
+          name="dateOfBirth"
+          value={form.dateOfBirth}
+          onChange={handleChange}
+          placeholder="Select DOB"
+          maxDate={new Date()}
+        />
+        <TextInput
+          horizontal
+          label="Age (years)"
+          name="_age"
+          value={age}
+          onChange={() => {}}
+          disabled
+          placeholder="Auto-calculated"
+        />
+        <SelectInput
+          horizontal
+          label="Blood Group"
+          name="bloodGroup"
+          value={form.bloodGroup}
+          onChange={handleChange}
+          defaultOptionLabel="Select Blood Group"
+          options={["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((g) => ({
+            value: g,
+            label: g,
+          }))}
+        />
+        <SelectInput
+          horizontal
+          label="Marital Status"
+          name="maritalStatus"
+          value={form.maritalStatus}
+          onChange={handleChange}
+          defaultOptionLabel="Select Status"
+          options={["Single", "Married", "Divorced", "Widowed"].map((s) => ({
+            value: s.toLowerCase(),
+            label: s,
+          }))}
+        />
+        <SelectInput
+          horizontal
+          label="Employee Status"
+          name="employeeStatus"
+          value={form.employeeStatus}
+          onChange={handleChange}
+          options={[
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+            { value: "resigned", label: "Resigned" },
+            { value: "retired", label: "Retired" },
             { value: "terminated", label: "Terminated" },
-          ]} />
+          ]}
+        />
       </div>
 
       {/* Photo upload */}
@@ -830,11 +1063,17 @@ const EmployeeForm: React.FC = () => {
             onClick={() => photoInputRef.current?.click()}
           >
             {form.photoPreview ? (
-              <img src={form.photoPreview} alt="New preview" className="w-full h-full object-cover" />
+              <img
+                src={form.photoPreview}
+                alt="New preview"
+                className="w-full h-full object-cover"
+              />
             ) : form.existingPhotoUrl ? (
               <img
                 src={
-                  form.existingPhotoUrl.startsWith("http://") || form.existingPhotoUrl.startsWith("https://") || form.existingPhotoUrl.startsWith("data:")
+                  form.existingPhotoUrl.startsWith("http://") ||
+                  form.existingPhotoUrl.startsWith("https://") ||
+                  form.existingPhotoUrl.startsWith("data:")
                     ? form.existingPhotoUrl
                     : `${import.meta.env.VITE_API_BASE_URL?.replace("/api", "") || "http://localhost:5000"}/${form.existingPhotoUrl.replace(/^\//, "")}`
                 }
@@ -858,9 +1097,17 @@ const EmployeeForm: React.FC = () => {
             </button>
             <p className="text-xs text-ink-subtle mt-1.5 font-medium">JPG, PNG, GIF up to 5MB</p>
             {form.photoFile && (
-              <p className="text-xs text-emerald-600 mt-1">New photo selected: {form.photoFile.name}</p>
+              <p className="text-xs text-emerald-600 mt-1">
+                New photo selected: {form.photoFile.name}
+              </p>
             )}
-            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
           </div>
         </div>
       </div>
@@ -871,7 +1118,8 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaPhone} title="Contact Information" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <IndiaPhoneInput horizontal
+        <IndiaPhoneInput
+          horizontal
           label="Personal Mobile Number"
           name="personalMobile"
           value={form.personalMobile}
@@ -879,7 +1127,8 @@ const EmployeeForm: React.FC = () => {
           required={false}
           placeholder="98765 43210"
         />
-        <IndiaPhoneInput horizontal
+        <IndiaPhoneInput
+          horizontal
           label="Official Mobile Number"
           name="officialMobile"
           value={form.officialMobile}
@@ -888,10 +1137,35 @@ const EmployeeForm: React.FC = () => {
           error={errors.officialMobile}
           placeholder="98765 43210"
         />
-        <TextInput horizontal label="Personal Email Address" name="personalEmail" type="email" value={form.personalEmail} onChange={handleChange} placeholder="Personal email" />
-        <TextInput horizontal label="Official Email Address" name="officialEmail" type="email" value={form.officialEmail} onChange={handleChange} error={errors.officialEmail} placeholder="Official email" />
-        <TextInput horizontal label="Emergency Contact Name" name="emergencyContactName" value={form.emergencyContactName} onChange={handleChange} placeholder="Emergency contact name" />
-        <IndiaPhoneInput horizontal
+        <TextInput
+          horizontal
+          label="Personal Email Address"
+          name="personalEmail"
+          type="email"
+          value={form.personalEmail}
+          onChange={handleChange}
+          placeholder="Personal email"
+        />
+        <TextInput
+          horizontal
+          label="Official Email Address"
+          name="officialEmail"
+          type="email"
+          value={form.officialEmail}
+          onChange={handleChange}
+          error={errors.officialEmail}
+          placeholder="Official email"
+        />
+        <TextInput
+          horizontal
+          label="Emergency Contact Name"
+          name="emergencyContactName"
+          value={form.emergencyContactName}
+          onChange={handleChange}
+          placeholder="Emergency contact name"
+        />
+        <IndiaPhoneInput
+          horizontal
           label="Emergency Contact Number"
           name="emergencyContactNumber"
           value={form.emergencyContactNumber}
@@ -907,11 +1181,46 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaUsers} title="Family Details" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <TextInput horizontal label="Father Name"           name="fatherName"           value={form.fatherName}           onChange={handleChange} placeholder="Father's name" />
-        <TextInput horizontal label="Mother Name"           name="motherName"           value={form.motherName}           onChange={handleChange} placeholder="Mother's name" />
-        <TextInput horizontal label="Husband / Wife Name"   name="spouseName"           value={form.spouseName}           onChange={handleChange} placeholder="Spouse's name" />
-        <TextInput horizontal label="Guardian Name"         name="guardianName"         value={form.guardianName}         onChange={handleChange} placeholder="Guardian's name" />
-        <TextInput horizontal label="Guardian Relationship" name="guardianRelationship" value={form.guardianRelationship} onChange={handleChange} placeholder="e.g. Uncle, Brother, etc." />
+        <TextInput
+          horizontal
+          label="Father Name"
+          name="fatherName"
+          value={form.fatherName}
+          onChange={handleChange}
+          placeholder="Father's name"
+        />
+        <TextInput
+          horizontal
+          label="Mother Name"
+          name="motherName"
+          value={form.motherName}
+          onChange={handleChange}
+          placeholder="Mother's name"
+        />
+        <TextInput
+          horizontal
+          label="Husband / Wife Name"
+          name="spouseName"
+          value={form.spouseName}
+          onChange={handleChange}
+          placeholder="Spouse's name"
+        />
+        <TextInput
+          horizontal
+          label="Guardian Name"
+          name="guardianName"
+          value={form.guardianName}
+          onChange={handleChange}
+          placeholder="Guardian's name"
+        />
+        <TextInput
+          horizontal
+          label="Guardian Relationship"
+          name="guardianRelationship"
+          value={form.guardianRelationship}
+          onChange={handleChange}
+          placeholder="e.g. Uncle, Brother, etc."
+        />
       </div>
     </div>
   );
@@ -920,10 +1229,46 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaIdCard} title="Identity Documents" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <TextInput horizontal label="Aadhaar Number" name="aadhaarNumber" value={form.aadhaarNumber} onChange={handleChange} error={errors.aadhaarNumber} placeholder="12-digit Aadhaar number" maxLength={12} />
-        <TextInput horizontal label="PAN Number" name="panNumber" value={form.panNumber} onChange={handleChange} error={errors.panNumber} placeholder="e.g. ABCDE1234F" maxLength={10} />
-        <TextInput horizontal label="Driving License Number" name="drivingLicense" value={form.drivingLicense} onChange={handleChange} error={errors.drivingLicense} placeholder="Driving license number" maxLength={16} />
-        <TextInput horizontal label="Voter ID" name="voterId" value={form.voterId} onChange={handleChange} error={errors.voterId} placeholder="Voter ID number" maxLength={10} />
+        <TextInput
+          horizontal
+          label="Aadhaar Number"
+          name="aadhaarNumber"
+          value={form.aadhaarNumber}
+          onChange={handleChange}
+          error={errors.aadhaarNumber}
+          placeholder="12-digit Aadhaar number"
+          maxLength={12}
+        />
+        <TextInput
+          horizontal
+          label="PAN Number"
+          name="panNumber"
+          value={form.panNumber}
+          onChange={handleChange}
+          error={errors.panNumber}
+          placeholder="e.g. ABCDE1234F"
+          maxLength={10}
+        />
+        <TextInput
+          horizontal
+          label="Driving License Number"
+          name="drivingLicense"
+          value={form.drivingLicense}
+          onChange={handleChange}
+          error={errors.drivingLicense}
+          placeholder="Driving license number"
+          maxLength={16}
+        />
+        <TextInput
+          horizontal
+          label="Voter ID"
+          name="voterId"
+          value={form.voterId}
+          onChange={handleChange}
+          error={errors.voterId}
+          placeholder="Voter ID number"
+          maxLength={10}
+        />
       </div>
     </div>
   );
@@ -932,9 +1277,30 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaMapMarkerAlt} title="Permanent Address" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <TextInput horizontal label="Address Line 1" name="permAddress1" value={form.permAddress1} onChange={handleChange} placeholder="Street / Building / Plot" />
-        <TextInput horizontal label="Address Line 2" name="permAddress2" value={form.permAddress2} onChange={handleChange} placeholder="Area / Locality" />
-        <TextInput horizontal label="Pincode" name="permPincode" value={form.permPincode} onChange={handleChange} placeholder="6-digit pincode" />
+        <TextInput
+          horizontal
+          label="Address Line 1"
+          name="permAddress1"
+          value={form.permAddress1}
+          onChange={handleChange}
+          placeholder="Street / Building / Plot"
+        />
+        <TextInput
+          horizontal
+          label="Address Line 2"
+          name="permAddress2"
+          value={form.permAddress2}
+          onChange={handleChange}
+          placeholder="Area / Locality"
+        />
+        <TextInput
+          horizontal
+          label="Pincode"
+          name="permPincode"
+          value={form.permPincode}
+          onChange={handleChange}
+          placeholder="6-digit pincode"
+        />
         <CityStateSelect
           stateLabel="State"
           cityLabel="City"
@@ -952,19 +1318,48 @@ const EmployeeForm: React.FC = () => {
           type="checkbox"
           checked={form.sameAsPermanent}
           name="sameAsPermanent"
-          onChange={(e) => handleChange({ target: { name: "sameAsPermanent", value: e.target.checked } })}
+          onChange={(e) =>
+            handleChange({ target: { name: "sameAsPermanent", value: e.target.checked } })
+          }
           className="w-4 h-4 accent-primary cursor-pointer"
         />
-        <label htmlFor="sameAsPermanentForm" className="text-sm font-semibold text-ink-muted cursor-pointer select-none">
+        <label
+          htmlFor="sameAsPermanentForm"
+          className="text-sm font-semibold text-ink-muted cursor-pointer select-none"
+        >
           Same as Permanent Address
         </label>
       </div>
 
       <SectionHeader icon={FaMapMarkerAlt} title="Present Address" color="text-emerald-500" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <TextInput horizontal label="Address Line 1" name="presAddress1" value={form.presAddress1} onChange={handleChange} placeholder="Street / Building / Plot" disabled={form.sameAsPermanent} />
-        <TextInput horizontal label="Address Line 2" name="presAddress2" value={form.presAddress2} onChange={handleChange} placeholder="Area / Locality" disabled={form.sameAsPermanent} />
-        <TextInput horizontal label="Pincode" name="presPincode" value={form.presPincode} onChange={handleChange} placeholder="6-digit pincode" disabled={form.sameAsPermanent} />
+        <TextInput
+          horizontal
+          label="Address Line 1"
+          name="presAddress1"
+          value={form.presAddress1}
+          onChange={handleChange}
+          placeholder="Street / Building / Plot"
+          disabled={form.sameAsPermanent}
+        />
+        <TextInput
+          horizontal
+          label="Address Line 2"
+          name="presAddress2"
+          value={form.presAddress2}
+          onChange={handleChange}
+          placeholder="Area / Locality"
+          disabled={form.sameAsPermanent}
+        />
+        <TextInput
+          horizontal
+          label="Pincode"
+          name="presPincode"
+          value={form.presPincode}
+          onChange={handleChange}
+          placeholder="6-digit pincode"
+          disabled={form.sameAsPermanent}
+        />
         <CityStateSelect
           stateLabel="State"
           cityLabel="City"
@@ -983,21 +1378,55 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaBriefcase} title="Official Information" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <SelectInput horizontal label="Department" name="departmentId" value={form.departmentId} onChange={handleChange}
-          required error={errors.departmentId}
-          defaultOptionLabel="Select Department" options={departmentOptions} searchable />
-        <SelectInput horizontal label="Role" name="roleId" value={form.roleId} onChange={handleChange}
-          required={form.createLoginAccount} error={errors.roleId}
-          defaultOptionLabel="Select Role" options={roleOptions} searchable />
-        <SelectInput horizontal label="Employee Type" name="employeeType" value={form.employeeType} onChange={handleChange}
+        <SelectInput
+          horizontal
+          label="Department"
+          name="departmentId"
+          value={form.departmentId}
+          onChange={handleChange}
+          required
+          error={errors.departmentId}
+          defaultOptionLabel="Select Department"
+          options={departmentOptions}
+          searchable
+        />
+        <SelectInput
+          horizontal
+          label="Role"
+          name="roleId"
+          value={form.roleId}
+          onChange={handleChange}
+          required={form.createLoginAccount}
+          error={errors.roleId}
+          defaultOptionLabel="Select Role"
+          options={roleOptions}
+          searchable
+        />
+        <SelectInput
+          horizontal
+          label="Employee Type"
+          name="employeeType"
+          value={form.employeeType}
+          onChange={handleChange}
           defaultOptionLabel="Select Type"
-          options={["Permanent","Contract","Intern","Consultant","Operator","Supervisor"].map((t) => ({ value: t.toLowerCase(), label: t }))} />
-        <SelectInput horizontal label="Employment Status" name="employeeStatus" value={form.employeeStatus} onChange={handleChange}
+          options={["Permanent", "Contract", "Intern", "Consultant", "Operator", "Supervisor"].map(
+            (t) => ({ value: t.toLowerCase(), label: t })
+          )}
+        />
+        <SelectInput
+          horizontal
+          label="Employment Status"
+          name="employeeStatus"
+          value={form.employeeStatus}
+          onChange={handleChange}
           options={[
-            { value: "active", label: "Active" }, { value: "inactive", label: "Inactive" },
-            { value: "resigned", label: "Resigned" }, { value: "retired", label: "Retired" },
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+            { value: "resigned", label: "Resigned" },
+            { value: "retired", label: "Retired" },
             { value: "terminated", label: "Terminated" },
-          ]} />
+          ]}
+        />
       </div>
     </div>
   );
@@ -1006,9 +1435,30 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaCalendarAlt} title="Joining Details" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <DatePickerCalendar horizontal label="Date of Joining" name="dateOfJoining" value={form.dateOfJoining} onChange={handleChange} placeholder="Select joining date" />
-        <DatePickerCalendar horizontal label="Relieving Date" name="relievingDate" value={form.relievingDate} onChange={handleChange} placeholder="Select relieving date" />
-        <TextInput horizontal label="Previous Experience" name="previousExperience" value={form.previousExperience} onChange={handleChange} placeholder="e.g. 2 years 3 months" />
+        <DatePickerCalendar
+          horizontal
+          label="Date of Joining"
+          name="dateOfJoining"
+          value={form.dateOfJoining}
+          onChange={handleChange}
+          placeholder="Select joining date"
+        />
+        <DatePickerCalendar
+          horizontal
+          label="Relieving Date"
+          name="relievingDate"
+          value={form.relievingDate}
+          onChange={handleChange}
+          placeholder="Select relieving date"
+        />
+        <TextInput
+          horizontal
+          label="Previous Experience"
+          name="previousExperience"
+          value={form.previousExperience}
+          onChange={handleChange}
+          placeholder="e.g. 2 years 3 months"
+        />
       </div>
     </div>
   );
@@ -1017,18 +1467,29 @@ const EmployeeForm: React.FC = () => {
     <div>
       <SectionHeader icon={FaClock} title="Shift Assignment" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
-        <SelectInput horizontal label="Shift" name="shiftId" value={form.shiftId} onChange={handleChange}
-          defaultOptionLabel="Select Shift" options={shiftOptions} searchable />
+        <SelectInput
+          horizontal
+          label="Shift"
+          name="shiftId"
+          value={form.shiftId}
+          onChange={handleChange}
+          defaultOptionLabel="Select Shift"
+          options={shiftOptions}
+          searchable
+        />
       </div>
     </div>
   );
 
   const selectedShift = useMemo(() => {
     if (!form.shiftId) return null;
-    return shifts.find((s: any) =>
-      String(s.shiftCode || s.id) === String(form.shiftId) ||
-      String(s.id) === String(form.shiftId)
-    ) || null;
+    return (
+      shifts.find(
+        (s: any) =>
+          String(s.shiftCode || s.id) === String(form.shiftId) ||
+          String(s.id) === String(form.shiftId)
+      ) || null
+    );
   }, [form.shiftId, shifts]);
 
   const renderTab8 = () => (
@@ -1051,7 +1512,13 @@ const EmployeeForm: React.FC = () => {
           <h3 className="text-base font-semibold text-ink">Login Account</h3>
         </div>
         <Toggle
-          label={isEdit ? (form.createLoginAccount ? "Manage Login Account" : "Create Login Account") : "Create Login Account"}
+          label={
+            isEdit
+              ? form.createLoginAccount
+                ? "Manage Login Account"
+                : "Create Login Account"
+              : "Create Login Account"
+          }
           value={form.createLoginAccount}
           onChange={handleToggle("createLoginAccount")}
         />
@@ -1060,15 +1527,41 @@ const EmployeeForm: React.FC = () => {
       {form.createLoginAccount && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4 p-5 bg-card-2 rounded-xl border border-line-soft">
           <div className="flex flex-col gap-1">
-            <TextInput horizontal label="Username" name="username" value={form.username} onChange={handleChange} required error={errors.username} placeholder="Login username" />
+            <TextInput
+              horizontal
+              label="Username"
+              name="username"
+              value={form.username}
+              onChange={handleChange}
+              required
+              error={errors.username}
+              placeholder="Login username"
+            />
             {!isEdit && form.username.trim().length >= 3 && usernameStatus !== "idle" && (
-              <div className={`flex items-center gap-1.5 text-xs font-medium ${
-                usernameStatus === "checking" ? "text-ink-muted" :
-                usernameStatus === "available" ? "text-emerald-600" : "text-red-500"
-              }`}>
-                {usernameStatus === "checking" && <><FaSpinner className="animate-spin" size={11} /> Checking availability...</>}
-                {usernameStatus === "available" && <><FaCheck size={11} /> Username is available</>}
-                {usernameStatus === "taken" && <><FaTimes size={11} /> Username is already taken</>}
+              <div
+                className={`flex items-center gap-1.5 text-xs font-medium ${
+                  usernameStatus === "checking"
+                    ? "text-ink-muted"
+                    : usernameStatus === "available"
+                      ? "text-emerald-600"
+                      : "text-red-500"
+                }`}
+              >
+                {usernameStatus === "checking" && (
+                  <>
+                    <FaSpinner className="animate-spin" size={11} /> Checking availability...
+                  </>
+                )}
+                {usernameStatus === "available" && (
+                  <>
+                    <FaCheck size={11} /> Username is available
+                  </>
+                )}
+                {usernameStatus === "taken" && (
+                  <>
+                    <FaTimes size={11} /> Username is already taken
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1114,8 +1607,16 @@ const EmployeeForm: React.FC = () => {
             </button>
           </div>
           <div className="flex flex-col gap-4">
-            <Toggle label="Password Reset Required" value={form.mustChangePw} onChange={handleToggle("mustChangePw")} />
-            <Toggle label="Login Enabled" value={form.loginEnabled} onChange={handleToggle("loginEnabled")} />
+            <Toggle
+              label="Password Reset Required"
+              value={form.mustChangePw}
+              onChange={handleToggle("mustChangePw")}
+            />
+            <Toggle
+              label="Login Enabled"
+              value={form.loginEnabled}
+              onChange={handleToggle("loginEnabled")}
+            />
           </div>
         </div>
       )}
@@ -1123,8 +1624,16 @@ const EmployeeForm: React.FC = () => {
   );
 
   const tabRenderers = [
-    renderTab0, renderTab1, renderTab2, renderTab3, renderTab4,
-    renderTab5, renderTab6, renderTab7, renderTab8, renderTab9,
+    renderTab0,
+    renderTab1,
+    renderTab2,
+    renderTab3,
+    renderTab4,
+    renderTab5,
+    renderTab6,
+    renderTab7,
+    renderTab8,
+    renderTab9,
   ];
 
   // ─── render ───────────────────────────────────────────────────────────────
@@ -1146,7 +1655,9 @@ const EmployeeForm: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
           <div>
-            <h2 className="text-lg font-bold text-ink">{isEdit ? "Edit Employee" : "Create Employee"}</h2>
+            <h2 className="text-lg font-bold text-ink">
+              {isEdit ? "Edit Employee" : "Create Employee"}
+            </h2>
             {isEdit && (form.empCode || form.fullName) && (
               <p className="text-xs text-ink-muted mt-0.5">
                 {form.empCode && <span className="font-semibold text-primary">{form.empCode}</span>}
@@ -1157,7 +1668,7 @@ const EmployeeForm: React.FC = () => {
           <div className="flex items-center gap-3">
             <BackButton />
             <CustomButton
-              text={isSubmitting ? "Saving..." : (isEdit ? "Save Changes" : "Save Employee")}
+              text={isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Save Employee"}
               icon={FaSave}
               type="button"
               disabled={isSubmitting}
@@ -1180,9 +1691,10 @@ const EmployeeForm: React.FC = () => {
                   className={`
                     flex items-center gap-1.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide
                     border-b-2 transition-all duration-200 whitespace-nowrap
-                    ${isActive
-                      ? "border-primary text-primary bg-primary/5"
-                      : "border-transparent text-ink-muted hover:text-ink hover:bg-card-2"
+                    ${
+                      isActive
+                        ? "border-primary text-primary bg-primary/5"
+                        : "border-transparent text-ink-muted hover:text-ink hover:bg-card-2"
                     }
                   `}
                 >
@@ -1195,9 +1707,7 @@ const EmployeeForm: React.FC = () => {
         </div>
 
         {/* Tab content */}
-        <div className="px-5 py-5 min-h-[350px]">
-          {tabRenderers[activeTab]()}
-        </div>
+        <div className="px-5 py-5 min-h-[350px]">{tabRenderers[activeTab]()}</div>
 
         {/* Footer navigation */}
         <div className="border-t border-line px-5 py-3 flex items-center justify-between">
@@ -1206,9 +1716,10 @@ const EmployeeForm: React.FC = () => {
             disabled={activeTab === 0}
             onClick={() => setActiveTab((p) => Math.max(0, p - 1))}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-              ${activeTab === 0
-                ? "text-ink-subtle cursor-not-allowed"
-                : "text-ink-muted hover:bg-card-2 border border-line-soft"
+              ${
+                activeTab === 0
+                  ? "text-ink-subtle cursor-not-allowed"
+                  : "text-ink-muted hover:bg-card-2 border border-line-soft"
               }`}
           >
             <FaChevronLeft size={12} /> Previous
@@ -1219,7 +1730,7 @@ const EmployeeForm: React.FC = () => {
               {activeTab + 1} / {TABS.length}
             </span>
             <CustomButton
-              text={isSubmitting ? "Saving..." : (isEdit ? "Save Changes" : "Save Employee")}
+              text={isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Save Employee"}
               icon={FaSave}
               type="button"
               disabled={isSubmitting}
