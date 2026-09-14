@@ -4284,7 +4284,9 @@ model JobWorker {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  challans DeliveryChallan[]
+  challans     DeliveryChallan[]
+  /// Movements sent on from this worker to another (ITC-04 table 5B).
+  challansFrom DeliveryChallan[] @relation("ChallanFromJobWorker")
 
   company Company @relation("CompanyJobWorker", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -4303,6 +4305,9 @@ model DeliveryChallan {
   kind              ChallanKind
   status            ChallanStatus @default(OPEN)
   jobWorkerId       String?       @map("job_worker_id") @db.Uuid
+  /// Set when this movement is between two job workers (ITC-04 table 5B): the worker the goods
+  /// leave from; `jobWorkerId` is who they arrive at.
+  fromJobWorkerId   String?       @map("from_job_worker_id") @db.Uuid
   /// The challan this one returns goods against (a JOB_WORK_RETURN).
   parentChallanId   String?       @map("parent_challan_id") @db.Uuid
   businessPlaceId   BigInt?       @map("business_place_id")
@@ -4336,6 +4341,7 @@ model DeliveryChallan {
   cancelReason      String?       @map("cancel_reason") @db.VarChar(255)
 
   jobWorker     JobWorker?            @relation(fields: [jobWorkerId], references: [id])
+  fromJobWorker JobWorker?            @relation("ChallanFromJobWorker", fields: [fromJobWorkerId], references: [id])
   parentChallan DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
   returns       DeliveryChallan[]     @relation("ChallanReturns")
   businessPlace BusinessPlace?        @relation("ChallanBusinessPlace", fields: [businessPlaceId], references: [id])
@@ -4356,6 +4362,9 @@ model DeliveryChallanItem {
   id               String           @id @default(uuid()) @db.Uuid
   companyId        String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
   challanId        String           @map("challan_id") @db.Uuid
+  /// On a return-challan line: the parent challan's line it is returning against, so the receipt
+  /// posts to the parent in the same transaction the return is raised in.
+  parentItemId     String?          @map("parent_item_id") @db.Uuid
   itemType         ItemCategoryType @map("item_type")
   rawMaterialId    String?          @map("raw_material_id") @db.VarChar(20)
   productItemId    BigInt?          @map("product_item_id")
@@ -4367,13 +4376,19 @@ model DeliveryChallanItem {
   /// Used up in the process and never coming back as itself.
   quantityConsumed Decimal          @default(0) @map("quantity_consumed") @db.Decimal(14, 3)
   quantityScrap    Decimal          @default(0) @map("quantity_scrap") @db.Decimal(14, 3)
+  /// ITC-04 table 5C: supplied directly from the job worker's premises rather than returned.
+  quantityDirectSupply    Decimal   @default(0) @map("quantity_direct_supply") @db.Decimal(14, 3)
+  directSupplyInvoiceNo   String?   @map("direct_supply_invoice_no") @db.VarChar(30)
+  directSupplyInvoiceDate DateTime? @map("direct_supply_invoice_date") @db.Date
   rate             Decimal          @default(0) @db.Decimal(14, 2)
   taxableAmount    Decimal          @default(0) @map("taxable_amount") @db.Decimal(14, 2)
   gstRate          Decimal          @default(0) @map("gst_rate") @db.Decimal(5, 2)
   createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  challan     DeliveryChallan @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  challan     DeliveryChallan       @relation(fields: [challanId], references: [id], onDelete: Cascade)
+  parentItem  DeliveryChallanItem?  @relation("ChallanItemReturn", fields: [parentItemId], references: [id])
+  returnItems DeliveryChallanItem[] @relation("ChallanItemReturn")
   rawMaterial RawMaterial?    @relation(fields: [companyId, rawMaterialId], references: [companyId, rawMaterialId])
   product     Product?        @relation(fields: [productItemId], references: [id])
 
@@ -4381,6 +4396,7 @@ model DeliveryChallanItem {
 
   @@index([challanId])
   @@index([companyId, rawMaterialId])
+  @@index([parentItemId])
   @@map("delivery_challan_items")
 }
 

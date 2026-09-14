@@ -43,7 +43,7 @@ export const transportSchema = z.object({
   vehicleType: z.enum(["R", "O"]).default("R"),
 });
 export const generateSchema = transportSchema.extend({
-  docType: z.enum(["INV", "CHL"]),
+  docType: z.enum(["INV", "CHL", "JWC"]),
   docRef: z.string().min(1).max(40),
 });
 export const partBSchema = z.object({
@@ -87,7 +87,7 @@ export const consolidateSchema = z.object({
 });
 export const listSchema = z.object({
   status: z.enum(["PENDING", "ACTIVE", "CANCELLED", "EXPIRED", "FAILED"]).optional(),
-  docType: z.enum(["INV", "CHL"]).optional(),
+  docType: z.enum(["INV", "CHL", "JWC"]).optional(),
   expiringWithinHours: z.coerce.number().int().min(1).max(72).optional(),
 });
 

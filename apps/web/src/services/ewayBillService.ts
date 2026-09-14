@@ -2,7 +2,7 @@ import apiClient from "../api/apiClient";
 import { API_PATHS } from "@shiftline/shared";
 
 /** E-way bills and the transporter master (P1-12). */
-export type EwbDocType = "INV" | "CHL";
+export type EwbDocType = "INV" | "CHL" | "JWC";
 export type EwbStatus = "PENDING" | "ACTIVE" | "CANCELLED" | "EXPIRED" | "FAILED";
 export interface EwayBillRow {
   id: string;

@@ -9,6 +9,7 @@ import { jobWorkService } from "./job-work.service";
 import { challanPrintData } from "./job-work.print";
 import { generateDeliveryChallanHtml } from "../../templates/deliveryChallanTemplate";
 import { generatePdfFromHtml } from "../../utils/pdfGenerator";
+import { ewayBillService, transportSchema } from "../eway-bill/eway-bill.service";
 
 /** /api/job-work (P1-14): the job worker master, delivery challans and ITC-04. */
 const router = Router();
@@ -48,6 +49,7 @@ const challanBody = z.object({
   kind: z.enum(KINDS),
   challanDate: z.string().min(1),
   jobWorkerId: z.string().uuid().optional().nullable(),
+  fromJobWorkerId: z.string().uuid().optional().nullable(),
   parentChallanId: z.string().uuid().optional().nullable(),
   businessPlaceId: z.union([z.string(), z.number()]).optional().nullable(),
   toBusinessPlaceId: z.union([z.string(), z.number()]).optional().nullable(),
@@ -71,9 +73,15 @@ const challanBody = z.object({
         quantity: z.coerce.number().positive(),
         rate: z.coerce.number().min(0).optional().nullable(),
         gstRate: z.coerce.number().min(0).max(100).optional().nullable(),
+        parentItemId: z.string().uuid().optional().nullable(),
+        scrap: z.coerce.number().min(0).optional(),
       })
     )
     .min(1),
+});
+
+const cancelBody = z.object({
+  reason: z.string().trim().min(3, "Say why the challan is cancelled").max(255),
 });
 
 // ── The job worker master ─────────────────────────────────────────────────────
@@ -155,6 +163,9 @@ router.post(
               returned: z.coerce.number().min(0).optional(),
               consumed: z.coerce.number().min(0).optional(),
               scrap: z.coerce.number().min(0).optional(),
+              directSupply: z.coerce.number().min(0).optional(),
+              directSupplyInvoiceNo: z.string().trim().max(30).optional().nullable(),
+              directSupplyInvoiceDate: z.string().optional().nullable(),
             })
           )
           .min(1),
@@ -163,6 +174,35 @@ router.post(
     res.json(
       new ApiResponse("Goods received", await jobWorkService.receive(id, body, actorOf(req)))
     );
+  })
+);
+
+router.post(
+  "/challans/:id/cancel",
+  requirePermission("job-work.cancel"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const { reason } = cancelBody.parse(req.body);
+    res.json(
+      new ApiResponse("Challan cancelled", await jobWorkService.cancel(id, reason, actorOf(req)))
+    );
+  })
+);
+
+router.post(
+  "/challans/:id/eway-bill",
+  requirePermission("job-work.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = z.string().uuid().parse(req.params.id);
+    const body = transportSchema.parse(req.body);
+    res
+      .status(201)
+      .json(
+        new ApiResponse(
+          "E-way bill raised",
+          await ewayBillService.generate({ ...body, docType: "JWC", docRef: id }, actorOf(req))
+        )
+      );
   })
 );
 
@@ -204,12 +244,46 @@ router.get(
   })
 );
 
+const periodQuery = z.object({ period: z.string().regex(/^\d{4}-H[12]$/) });
+
 router.get(
   "/itc04",
   requirePermission("job-work.view"),
   asyncHandler(async (req: Request, res: Response) => {
-    const q = z.object({ period: z.string().regex(/^\d{4}-H[12]$/) }).parse(req.query);
+    const q = periodQuery.parse(req.query);
     res.json(new ApiResponse("ITC-04", await jobWorkService.itc04(q.period)));
+  })
+);
+
+/** Registers the half-year on the filing gate with the JSON's hash, ready for approval. */
+router.post(
+  "/itc04/register",
+  requirePermission("job-work.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = periodQuery.parse(req.body);
+    res.json(
+      new ApiResponse(
+        "ITC-04 registered",
+        await jobWorkService.registerItc04(q.period, actorOf(req))
+      )
+    );
+  })
+);
+
+/** Marks the half-year filed once it is approved on the gate and the hash still matches. */
+router.post(
+  "/itc04/mark-filed",
+  requirePermission("job-work.file"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = periodQuery
+      .extend({ submissionRef: z.string().trim().max(120).optional().nullable() })
+      .parse(req.body);
+    res.json(
+      new ApiResponse(
+        "ITC-04 marked filed",
+        await jobWorkService.markItc04Filed(body.period, body.submissionRef ?? null, actorOf(req))
+      )
+    );
   })
 );
 

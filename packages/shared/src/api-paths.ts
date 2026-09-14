@@ -303,6 +303,8 @@ export const API_PATHS = {
     challans: "/job-work/challans",
     register: "/job-work/register",
     itc04: "/job-work/itc04",
+    itc04Register: "/job-work/itc04/register",
+    itc04MarkFiled: "/job-work/itc04/mark-filed",
   },
   goodsDispatch: {
     base: "/goods-dispatches",
