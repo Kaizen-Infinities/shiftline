@@ -583,7 +583,12 @@ class SalesInvoiceService {
     // buyer threshold); the payable ledger itself is credited inside postSalesVoucher above,
     // since the invoice's own receivable already carries the amount — a second journal would
     // debit the customer twice.
-    if ((data as any).collectTcs && tcsSectionCode && tcsAmount > 0) {
+    // A below-threshold invoice (tcsAmount 0) still records a PENDING row — same as the GRN
+    // side's own TDS deduction (P2-05) — so the running year-to-date total this buyer's next
+    // invoice checks against actually has this one counted in it (P2-17: without this, a run of
+    // under-threshold invoices to the same buyer, or the same PAN across rows, never crosses the
+    // threshold at all, because nothing was ever kept on file to add up).
+    if ((data as any).collectTcs && tcsSectionCode) {
       try {
         await tdsService.deduct(
           {

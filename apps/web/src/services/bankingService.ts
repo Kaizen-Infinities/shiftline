@@ -73,6 +73,8 @@ export interface ChequeRow {
   bouncedOn: string | null;
   bounceCharges: string;
   bounceReason: string | null;
+  /** The invoice/GRN a payment cheque belongs to (P2-06/P2-17); null for a manually-added one. */
+  sourceDocId?: string | null;
 }
 
 const p = API_PATHS.banking;

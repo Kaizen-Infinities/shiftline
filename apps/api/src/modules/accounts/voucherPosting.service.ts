@@ -124,6 +124,13 @@ function getFinancialYearStart(): Date {
 /**
  * Generates a stable payment reference ID based on payment properties and array index if p.id is missing.
  * Including the index prevents hash collisions between multiple identical payments in the same parent document.
+ *
+ * `Voucher.refDocId` is `VarChar(36)` (P2-17): a uuid parent id plus a prefix and a 12-character
+ * hash used to run to around 53 characters, well past the column. The fallback is now a plain
+ * hash of everything that made the old id stable (parent, prefix, index and the payment's own
+ * fields) so a collision needs all of those to match too — 34 characters, comfortably under 36,
+ * whatever `parentId` looks like. `p.id` is unaffected: a payment with its own short id keeps
+ * using it exactly as before.
  */
 function deriveStablePaymentRefId(parentId: string, prefix: string, p: any, index: number): string {
   if (p.id) return String(p.id);
@@ -131,9 +138,9 @@ function deriveStablePaymentRefId(parentId: string, prefix: string, p: any, inde
   const dateStr = p.paymentDate ? new Date(p.paymentDate).toISOString() : "";
   const method = p.paymentMethod || "";
   const ref = p.referenceNumber || "";
-  const hashInput = `${parentId}:${index}:${rawAmt}:${dateStr}:${method}:${ref}`;
-  const hash = crypto.createHash("sha256").update(hashInput).digest("hex").slice(0, 12);
-  return `${parentId}_${prefix}_${hash}`;
+  const hashInput = `${parentId}:${prefix}:${index}:${rawAmt}:${dateStr}:${method}:${ref}`;
+  const hash = crypto.createHash("sha256").update(hashInput).digest("hex").slice(0, 32);
+  return `h_${hash}`;
 }
 
 /*
@@ -393,13 +400,16 @@ class VoucherPostingService {
     txClient?: Prisma.TransactionClient,
     /** refDocIds to post even if flagged as a still-pending PDC — a cheque that has just cleared
      * (P2-06) needs its payment forced through this once, from `banking.service.ts`. */
-    forcePost?: string[]
+    forcePost?: string[],
+    /** The date the cheque actually cleared (P2-17), for the refDocIds in `forcePost`: FX
+     * realises at this date/rate instead of the originally recorded payment date. */
+    clearingDate?: Date
   ): Promise<any[]> {
     if (!txClient) {
       // Configured with generous maxWait & timeout to handle GRN invoices with many payment lines
       return prisma.$transaction(
         async (tx) => {
-          return this.postPaymentVouchersForGRN(grnInvoiceId, tx, forcePost);
+          return this.postPaymentVouchersForGRN(grnInvoiceId, tx, forcePost, clearingDate);
         },
         { maxWait: 10000, timeout: 30000 }
       );
@@ -439,10 +449,15 @@ class VoucherPostingService {
       const pDate = p.paymentDate
         ? new Date(p.paymentDate)
         : grnInvoice.grnDate || grnInvoice.createdAt;
+      // A forced post is a PDC that has just cleared (P2-06); the money actually moved on the
+      // clearing date, not the date the payment was originally recorded, so FX realises there
+      // (P2-17) instead of silently using the stale recorded date.
+      const isForcedClear = !!forcePost?.includes(refDocId);
+      const fxOn = isForcedClear && clearingDate ? clearingDate : pDate;
 
       // A post-dated cheque issued to a supplier (P1-20/P2-06): the register row now, the
       // voucher only when the cheque actually clears.
-      if (isPostDatedCheque(p) && !forcePost?.includes(refDocId)) {
+      if (isPostDatedCheque(p) && !isForcedClear) {
         await this.ensureChequeForPayment(db, {
           kind: "ISSUED",
           refDocType: "GRN_PAYMENT",
@@ -520,7 +535,8 @@ class VoucherPostingService {
         });
       }
 
-      // FX realisation (P2-06): the payment settles the bill at the day's rate.
+      // FX realisation (P2-06): the payment settles the bill at the day's rate — at the actual
+      // clearing date for a PDC that has just cleared, not the date it was recorded (P2-17).
       await this.realiseFxForPayment(
         db,
         {
@@ -531,8 +547,12 @@ class VoucherPostingService {
           currencyCode: grnInvoice.currencyCode,
           bookedRate: Number(grnInvoice.exchangeRate ?? 1),
           amountInr: Number(amountDec),
-          on: pDate,
+          on: fxOn,
           settlementRate: p.settlementRate,
+          narration:
+            isForcedClear && clearingDate
+              ? `Exchange difference on ${grnInvoice.invoiceNo} — cheque cleared ${fxOn.toISOString().slice(0, 10)} (recorded ${pDate.toISOString().slice(0, 10)})`
+              : undefined,
         },
         {}
       );
@@ -834,14 +854,22 @@ class VoucherPostingService {
       amountInr: number;
       on: Date;
       settlementRate?: number | null;
+      /** Overrides `fxService.realise`'s default narration (P2-17) — used when the settlement
+       * date differs from the date the payment was originally recorded, so the voucher itself
+       * says which date the rate came from. */
+      narration?: string;
     },
     actor: { userId?: string }
   ) {
     if (!input.currencyCode || input.currencyCode === "INR" || input.bookedRate <= 0) return;
+    // Looked up through this call's own `db` (the caller's transaction client), not the
+    // top-level singleton (P2-17): from inside an already-open transaction the tenant-scoping
+    // extension does not re-apply the row-level-security session setting to a query issued on
+    // the plain client, so it would silently see no rows at all rather than this tenant's rate.
     const settledRate =
       input.settlementRate && input.settlementRate > 0
         ? input.settlementRate
-        : await currencyService.rateFor(input.currencyCode, input.on);
+        : await currencyService.rateFor(input.currencyCode, input.on, db);
     // The amount recorded is what actually changed hands, in rupees, at the settlement rate — so
     // dividing by the settlement rate (not the rate the document was booked at) is what recovers
     // the foreign amount actually realised.
@@ -858,6 +886,7 @@ class VoucherPostingService {
         bookedRate: input.bookedRate,
         settledRate,
         on: input.on,
+        narration: input.narration,
       },
       actor,
       db
@@ -869,13 +898,16 @@ class VoucherPostingService {
     txClient?: Prisma.TransactionClient,
     /** refDocIds to post even if flagged as a still-pending PDC — a cheque that has just cleared
      * (P2-06) needs its payment forced through this once, from `banking.service.ts`. */
-    forcePost?: string[]
+    forcePost?: string[],
+    /** The date the cheque actually cleared (P2-17), for the refDocIds in `forcePost`: FX
+     * realises at this date/rate instead of the originally recorded payment date. */
+    clearingDate?: Date
   ): Promise<any[]> {
     if (!txClient) {
       // Configured with generous maxWait & timeout to handle sales invoices with many receipt lines
       return prisma.$transaction(
         async (tx) => {
-          return this.postReceiptVouchersForSales(salesInvoiceId, tx, forcePost);
+          return this.postReceiptVouchersForSales(salesInvoiceId, tx, forcePost, clearingDate);
         },
         { maxWait: 10000, timeout: 30000 }
       );
@@ -915,10 +947,15 @@ class VoucherPostingService {
       const pDate = p.paymentDate
         ? new Date(p.paymentDate)
         : salesInvoice.invoiceDate || salesInvoice.createdAt;
+      // A forced post is a PDC that has just cleared (P2-06); the money actually moved on the
+      // clearing date, not the date the receipt was originally recorded, so FX realises there
+      // (P2-17) instead of silently using the stale recorded date.
+      const isForcedClear = !!forcePost?.includes(refDocId);
+      const fxOn = isForcedClear && clearingDate ? clearingDate : pDate;
 
       // A post-dated cheque (P1-20/P2-06) is a receivable that becomes money on its own date —
       // the register row is created now, the voucher only when the cheque actually clears.
-      if (isPostDatedCheque(p) && !forcePost?.includes(refDocId)) {
+      if (isPostDatedCheque(p) && !isForcedClear) {
         await this.ensureChequeForPayment(db, {
           kind: "RECEIVED",
           refDocType: "SALES_PAYMENT",
@@ -997,7 +1034,8 @@ class VoucherPostingService {
       }
 
       // FX realisation (P2-06): the receipt settles the invoice at the day's rate, which is
-      // almost never the rate it was raised at.
+      // almost never the rate it was raised at — at the actual clearing date for a PDC that has
+      // just cleared, not the date it was recorded (P2-17).
       await this.realiseFxForPayment(
         db,
         {
@@ -1008,8 +1046,12 @@ class VoucherPostingService {
           currencyCode: salesInvoice.currencyCode,
           bookedRate: Number(salesInvoice.exchangeRate ?? 1),
           amountInr: Number(amountDec),
-          on: pDate,
+          on: fxOn,
           settlementRate: p.settlementRate,
+          narration:
+            isForcedClear && clearingDate
+              ? `Exchange difference on ${salesInvoice.invoiceNo} — cheque cleared ${fxOn.toISOString().slice(0, 10)} (recorded ${pDate.toISOString().slice(0, 10)})`
+              : undefined,
         },
         {}
       );

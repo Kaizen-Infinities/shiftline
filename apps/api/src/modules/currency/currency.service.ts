@@ -1,4 +1,4 @@
-import type { RateSource } from "@prisma/client";
+import type { Prisma, RateSource } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { requireTenantId } from "../../lib/tenant-context";
@@ -13,6 +13,7 @@ import { ApiError } from "../../utils/ApiError";
  * silently restate last week's sales.
  */
 export const BASE_CURRENCY = "INR";
+type Db = Prisma.TransactionClient | typeof prisma;
 const n6 = (v: unknown) => Math.round((Number(v ?? 0) || 0) * 1e6) / 1e6;
 
 /** A handful of currencies an Indian exporter actually bills in, seeded on first use. */
@@ -113,10 +114,10 @@ class CurrencyService {
    * A currency with no rate at all is an error rather than a silent 1:1 — posting a dollar
    * invoice as if a dollar were a rupee is the kind of mistake that survives to the audit.
    */
-  async rateFor(currencyCode: string, on: Date): Promise<number> {
+  async rateFor(currencyCode: string, on: Date, db: Db = prisma): Promise<number> {
     const code = currencyCode.trim().toUpperCase();
     if (code === BASE_CURRENCY) return 1;
-    const row = await prisma.exchangeRate.findFirst({
+    const row = await db.exchangeRate.findFirst({
       where: { currencyCode: code, rateDate: { lte: on } },
       orderBy: { rateDate: "desc" },
     });

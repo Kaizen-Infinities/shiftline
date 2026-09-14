@@ -110,6 +110,9 @@ const SalesInvoiceForm: React.FC = () => {
 
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [salesProducts, setSalesProducts] = useState<any[]>([]);
+  // The raw product master (P2-17): carries `isScrap`, which the TCS default below checks
+  // before falling back to the item-name heuristic.
+  const [productsRaw, setProductsRaw] = useState<any[]>([]);
   const [expandedLineId, setExpandedLineId] = useState<string | null>(null);
   const [excludedComponents, setExcludedComponents] = useState<Record<string, Set<string>>>({});
   const [discountType, setDiscountType] = useState<string>("PERCENT");
@@ -164,16 +167,33 @@ const SalesInvoiceForm: React.FC = () => {
       .catch(() => {});
   }, []);
 
+  // Whether a line is a scrap item: the item master's own `isScrap` flag first (P2-17) — checked
+  // both on a directly-sold production product and on each component of a composite sales
+  // product — and the item name (`/scrap/i`) only as a fallback when no product carries the flag.
+  const lineIsScrap = useCallback(
+    (line: InvoiceLineItem) => {
+      const sp = salesProducts.find((s: any) => String(s.id) === line.itemId);
+      if (sp) {
+        return Array.isArray(sp.components)
+          ? sp.components.some((c: any) => c.componentProduct?.isScrap)
+          : false;
+      }
+      const product = productsRaw.find((p: any) => String(p.id) === line.itemId);
+      return !!product?.isScrap;
+    },
+    [salesProducts, productsRaw]
+  );
+
   // Default to the scrap section (206C(1)) once the invoice carries an item the item master
-  // marks as scrap — going by the product's own name/category, since there is no dedicated
-  // "is scrap" flag on the item master to key off instead.
+  // marks as scrap.
   useEffect(() => {
     if (tcsSectionTouched || tcsSectionCode || (isEditMode && existingTcsAmount !== null)) return;
-    const looksLikeScrap = lines.some((l) => /scrap/i.test(l.itemName || ""));
+    const looksLikeScrap =
+      lines.some((l) => lineIsScrap(l)) || lines.some((l) => /scrap/i.test(l.itemName || ""));
     if (looksLikeScrap && tcsSections.some((s) => s.code === "206C(1)")) {
       setTcsSectionCode("206C(1)");
     }
-  }, [lines, tcsSections, tcsSectionTouched, isEditMode, existingTcsAmount]);
+  }, [lines, tcsSections, tcsSectionTouched, isEditMode, existingTcsAmount, lineIsScrap]);
 
   useEffect(() => {
     dispatch(fetchCompany());
@@ -389,6 +409,7 @@ const SalesInvoiceForm: React.FC = () => {
             }))
           );
           setCustomersRaw(customersArray);
+          setProductsRaw(productList || []);
 
           setItems(
             (productList || [])

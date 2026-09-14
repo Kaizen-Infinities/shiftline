@@ -474,13 +474,19 @@ class BankingService {
     ) {
       return prisma.$transaction(async (tx) => {
         if (cheque.refDocType === "SALES_PAYMENT") {
-          await voucherPostingService.postReceiptVouchersForSales(cheque.sourceDocId!, tx, [
-            cheque.refDocId!,
-          ]);
+          await voucherPostingService.postReceiptVouchersForSales(
+            cheque.sourceDocId!,
+            tx,
+            [cheque.refDocId!],
+            on
+          );
         } else if (cheque.refDocType === "GRN_PAYMENT") {
-          await voucherPostingService.postPaymentVouchersForGRN(cheque.sourceDocId!, tx, [
-            cheque.refDocId!,
-          ]);
+          await voucherPostingService.postPaymentVouchersForGRN(
+            cheque.sourceDocId!,
+            tx,
+            [cheque.refDocId!],
+            on
+          );
         }
         return tx.cheque.update({
           where: { id },
@@ -717,17 +723,33 @@ class BankingService {
    * today or within the next two days. Same shape as the MSME day-30/day-43 warning — the link
    * carries the cheque and the day it fired for, so a person sees it once per cheque per day
    * rather than every day until it is presented.
+   *
+   * A cheque that has bounced and not been re-presented (P2-17) is not "due" in any useful sense
+   * — the paper already failed once, and nagging about its original date only tells the reader
+   * something they already know — so it is skipped rather than warned about. One that HAS been
+   * re-presented (`presentedCount > 0`) and is still working its way through the bank (`status
+   * DEPOSITED`, not yet `CLEARED`) gets its own message rather than the ordinary due-date one, so
+   * the reader knows this is the second attempt, not the first.
    */
   async warnDueCheques(today = new Date()) {
     const from = asDate(today);
     const to = new Date(from.getTime() + 2 * 86400000);
     const rows = await prisma.cheque.findMany({
-      where: { status: "IN_HAND", chequeDate: { gte: from, lte: to } },
+      where: {
+        status: { in: ["IN_HAND", "DEPOSITED", "BOUNCED"] },
+        chequeDate: { gte: from, lte: to },
+      },
       orderBy: { chequeDate: "asc" },
       take: 500,
     });
     let sent = 0;
     for (const c of rows) {
+      // BOUNCED and not yet re-presented: nothing useful to warn about (P2-17).
+      if (c.status === "BOUNCED") continue;
+      // A cheque deposited the ordinary way (never bounced) is already in the bank's hands and
+      // does not need a due-date nudge; only a re-presented one gets a message here.
+      if (c.status === "DEPOSITED" && c.presentedCount === 0) continue;
+
       const daysLeft = Math.round((asDate(c.chequeDate).getTime() - from.getTime()) / 86400000);
       const link = `/accounts/bank-reconciliation?cheque=${c.id}&d=${iso(from)}`;
       const already = await prisma.notification.findFirst({
@@ -737,10 +759,15 @@ class BankingService {
       if (already) continue;
       const who = c.kind === "ISSUED" ? "Issued to" : "Received from";
       const when = daysLeft <= 0 ? "today" : `in ${daysLeft} day(s)`;
+      const rePresented = c.presentedCount > 0;
       await notify({
         category: "banking-cheque",
-        title: `Cheque ${c.chequeNo}: ₹${n2(c.amount).toFixed(2)} due ${when}`,
-        body: `${who} ${c.partyName ?? "party"}, dated ${iso(asDate(c.chequeDate))}.`,
+        title: rePresented
+          ? `Cheque ${c.chequeNo} (re-presented): ₹${n2(c.amount).toFixed(2)} due ${when}`
+          : `Cheque ${c.chequeNo}: ₹${n2(c.amount).toFixed(2)} due ${when}`,
+        body: rePresented
+          ? `${who} ${c.partyName ?? "party"}, dated ${iso(asDate(c.chequeDate))} — re-presented after bouncing.`
+          : `${who} ${c.partyName ?? "party"}, dated ${iso(asDate(c.chequeDate))}.`,
         link,
         to: { permission: "banking.view" },
         level: daysLeft <= 0 ? "WARNING" : "INFO",
