@@ -1,4 +1,15 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+
+// The CI test job has no headless browser (Puppeteer's download is skipped there), so the PDF
+// helper is stubbed: what this spec proves is that the register asks for landscape and streams
+// what the helper returns, not that Chromium can print.
+const pdfCalls: Array<{ html: string; options?: { landscape?: boolean } }> = [];
+vi.mock("../../src/utils/pdfGenerator", () => ({
+  generatePdfFromHtml: async (html: string, options?: { landscape?: boolean }) => {
+    pdfCalls.push({ html, options });
+    return Buffer.from(`%PDF-1.4 stub ${"x".repeat(600)}`);
+  },
+}));
 
 import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
@@ -362,10 +373,12 @@ describe("payroll follow-ups", () => {
     expect(pdf.status).toBe(200);
     expect(pdf.headers["content-type"]).toContain("application/pdf");
     expect(pdf.headers["content-disposition"]).toContain("wages-");
-    // %PDF is the file signature at the start of any PDF byte stream — proof the landscape
-    // option actually rendered a document, not just returned a 200.
+    // The stub answers with a PDF signature; the helper call below is what proves the option.
     expect((pdf.body as Buffer).slice(0, 4).toString("ascii")).toBe("%PDF");
     expect((pdf.body as Buffer).length).toBeGreaterThan(500);
+    const call = pdfCalls[pdfCalls.length - 1];
+    expect(call?.options?.landscape).toBe(true);
+    expect(call?.html).toContain(tdsEmp.empCode);
   });
 
   it("refuses a foreign tenant and hides the overtime quarter register from it", async () => {
