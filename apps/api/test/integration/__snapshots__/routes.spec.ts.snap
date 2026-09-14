@@ -615,6 +615,8 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "POST /api/tally/runs/:id/confirm",
   "POST /api/tally/runs/:id/discard",
   "GET /api/tally/runs/:id/file",
+  "GET /api/tally/settings",
+  "PUT /api/tally/settings",
   "GET /api/tally/vouchers",
   "GET /api/tds/challans",
   "POST /api/tds/challans",

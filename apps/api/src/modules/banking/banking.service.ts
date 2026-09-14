@@ -1,9 +1,12 @@
 import { Prisma, VoucherType, type ChequeKind } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
+import { logger } from "../../lib/logger";
+import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { periodService } from "../accounts/period.service";
+import { notify } from "../notifications/notify";
 import {
   dedupeHash,
   normaliseRef,
@@ -567,6 +570,61 @@ class BankingService {
       total: n2(rows.reduce((s, c) => s + Number(c.amount), 0)),
       rows,
     };
+  }
+
+  /**
+   * The daily nudge (P2-01): every post-dated cheque, received or issued, still `IN_HAND` and due
+   * today or within the next two days. Same shape as the MSME day-30/day-43 warning — the link
+   * carries the cheque and the day it fired for, so a person sees it once per cheque per day
+   * rather than every day until it is presented.
+   */
+  async warnDueCheques(today = new Date()) {
+    const from = asDate(today);
+    const to = new Date(from.getTime() + 2 * 86400000);
+    const rows = await prisma.cheque.findMany({
+      where: { status: "IN_HAND", chequeDate: { gte: from, lte: to } },
+      orderBy: { chequeDate: "asc" },
+      take: 500,
+    });
+    let sent = 0;
+    for (const c of rows) {
+      const daysLeft = Math.round((asDate(c.chequeDate).getTime() - from.getTime()) / 86400000);
+      const link = `/accounts/bank-reconciliation?cheque=${c.id}&d=${iso(from)}`;
+      const already = await prisma.notification.findFirst({
+        where: { category: "banking-cheque", link },
+        select: { id: true },
+      });
+      if (already) continue;
+      const who = c.kind === "ISSUED" ? "Issued to" : "Received from";
+      const when = daysLeft <= 0 ? "today" : `in ${daysLeft} day(s)`;
+      await notify({
+        category: "banking-cheque",
+        title: `Cheque ${c.chequeNo}: ₹${n2(c.amount).toFixed(2)} due ${when}`,
+        body: `${who} ${c.partyName ?? "party"}, dated ${iso(asDate(c.chequeDate))}.`,
+        link,
+        to: { permission: "banking.view" },
+        level: daysLeft <= 0 ? "WARNING" : "INFO",
+      });
+      sent++;
+    }
+    return { checked: rows.length, sent };
+  }
+
+  /** The daily sweep across every tenant. */
+  async sweepDueCheques(today = new Date()) {
+    const companies = await withoutTenant(() =>
+      prisma.company.findMany({ where: { isActive: true }, select: { id: true } })
+    );
+    let sent = 0;
+    for (const c of companies) {
+      try {
+        const res = await runAsTenant(c.id, () => this.warnDueCheques(today));
+        sent += res.sent;
+      } catch (err) {
+        logger.error({ companyId: c.id, err }, "Cheque due-date sweep failed for a tenant");
+      }
+    }
+    return { companies: companies.length, sent };
   }
 }
 

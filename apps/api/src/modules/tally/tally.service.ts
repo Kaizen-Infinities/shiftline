@@ -3,8 +3,10 @@ import { createHash } from "node:crypto";
 import type { Prisma, TallyExportScope, TallyNameKind } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
-import { requireTenantId } from "../../lib/tenant-context";
+import { logger } from "../../lib/logger";
+import { requireTenantId, runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
+import { notify } from "../notifications/notify";
 import { buildMasters } from "./tally.masters";
 import { buildVouchers } from "./tally.vouchers";
 import type { TallyNameLookup, TallyOverride } from "./tally.names";
@@ -31,6 +33,35 @@ const midnight = (d: Date): Date =>
   new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
 class TallyService {
+  // ── Settings (P2-01) ────────────────────────────────────────────────────────
+  /** Created on first read, like `SmsConfig`: nothing needs a seed row until a tenant asks. */
+  private async ensureConfig() {
+    const existing = await prisma.tallyConfig.findUnique({
+      where: { companyId: requireTenantId() },
+    });
+    return existing ?? prisma.tallyConfig.create({ data: {} });
+  }
+
+  async settings(): Promise<{ autoExportEnabled: boolean }> {
+    const c = await this.ensureConfig();
+    return { autoExportEnabled: c.autoExportEnabled };
+  }
+
+  async updateSettings(
+    input: { autoExportEnabled: boolean },
+    actor: { userId?: string }
+  ): Promise<{ autoExportEnabled: boolean }> {
+    const existing = await this.ensureConfig();
+    await prisma.tallyConfig.update({
+      where: { id: existing.id },
+      data: {
+        autoExportEnabled: input.autoExportEnabled,
+        updatedBy: actor.userId?.slice(0, 36) ?? null,
+      },
+    });
+    return { autoExportEnabled: input.autoExportEnabled };
+  }
+
   /** The tenant's overrides, indexed once so the builders can ask per record. */
   private async lookup(): Promise<TallyNameLookup> {
     const rows = await prisma.tallyNameMap.findMany();
@@ -278,6 +309,71 @@ class TallyService {
       where: { id },
       data: { status: "DISCARDED", notes: reason.slice(0, 255) },
     });
+  }
+
+  // ── Scheduled export (P2-01) ────────────────────────────────────────────────
+  /**
+   * Whether the month that just closed already has a run recorded for it — draft or confirmed,
+   * either way somebody has already been handed a file for that window.
+   */
+  private async prepareIfOptedIn(from: Date, to: Date): Promise<boolean> {
+    const config = await this.ensureConfig();
+    if (!config.autoExportEnabled) return false;
+    const existing = await prisma.tallyExportRun.findFirst({
+      where: {
+        scope: "BOTH",
+        incremental: true,
+        fromDate: from,
+        toDate: to,
+        status: { not: "DISCARDED" },
+      },
+    });
+    if (existing) return false;
+    const { run } = await this.createRun(
+      {
+        scope: "BOTH",
+        from,
+        to,
+        incremental: true,
+        notes: "Prepared automatically for the month.",
+      },
+      {}
+    );
+    await notify({
+      category: "tally-export",
+      title: `Tally export ready for ${from.toISOString().slice(0, 7)}`,
+      body: "The month's masters and vouchers are ready to download and hand to your accountant.",
+      link: `/accounts/tally?run=${run.id}`,
+      to: { permission: "tally.view" },
+      level: "INFO",
+    });
+    return true;
+  }
+
+  /**
+   * Monthly, on the 1st: prepares the month that just closed for every tenant that opted in
+   * (`TallyConfig.autoExportEnabled`). Never confirms a run — the accountant still says the file
+   * reached Tally — and a tenant that is not opted in, or already has a run for the window, is
+   * skipped rather than failed.
+   */
+  async sweepAllTenants(today = new Date()) {
+    const from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
+    const to = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    const companies = await withoutTenant(() =>
+      prisma.company.findMany({ where: { isActive: true }, select: { id: true } })
+    );
+    let prepared = 0;
+    let skipped = 0;
+    for (const c of companies) {
+      try {
+        const did = await runAsTenant(c.id, () => this.prepareIfOptedIn(from, to));
+        if (did) prepared++;
+        else skipped++;
+      } catch (err) {
+        logger.error({ companyId: c.id, err }, "Tally export sweep failed for a tenant");
+      }
+    }
+    return { companies: companies.length, prepared, skipped, from, to };
   }
 }
 

@@ -296,6 +296,7 @@ export const API_PATHS = {
     preview: "/tally/preview",
     mappings: "/tally/mappings",
     runs: "/tally/runs",
+    settings: "/tally/settings",
   },
   jobWork: {
     base: "/job-work",

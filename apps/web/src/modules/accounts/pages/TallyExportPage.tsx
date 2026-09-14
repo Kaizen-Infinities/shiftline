@@ -69,8 +69,26 @@ const TallyExportPage: React.FC = () => {
   const [preview, setPreview] = useState<TallyPreview | null>(null);
   const [runs, setRuns] = useState<TallyRunRow[]>([]);
   const [mappings, setMappings] = useState<TallyMappingRow[]>([]);
+  const [autoExport, setAutoExport] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void tallyService
+      .settings()
+      .then((s) => setAutoExport(s.autoExportEnabled))
+      .catch((err) => toast.error(message(err)));
+  }, []);
+
+  const toggleAutoExport = async (next: boolean) => {
+    setAutoExport(next);
+    try {
+      await tallyService.updateSettings({ autoExportEnabled: next });
+    } catch (err) {
+      setAutoExport(!next);
+      toast.error(message(err));
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -143,6 +161,23 @@ const TallyExportPage: React.FC = () => {
 
       {tab === "export" && (
         <>
+          <Card title="Automatic monthly export">
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={autoExport}
+                disabled={!can("tally.manage")}
+                onChange={(e) => void toggleAutoExport(e.target.checked)}
+              />
+              Prepare last month&apos;s file automatically on the 1st and notify whoever handles
+              Tally
+            </label>
+            <p className="mt-1 text-xs text-ink-muted">
+              Off by default. This only prepares a handover — the accountant still has to mark it
+              imported.
+            </p>
+          </Card>
+
           <Card title="What to hand over">
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-sm text-ink-muted">
