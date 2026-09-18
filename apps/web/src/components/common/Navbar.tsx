@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FaBars, FaUser, FaSignOutAlt, FaCheckCircle } from 'react-icons/fa';
-import ThemeToggle from './ThemeToggle';
-import LiveBadge from '../ui/LiveBadge/LiveBadge';
-import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { logoutUser } from '../../features/auth/authSlice';
-import CommonConfirmModal from '../ui/CommonConfirmModal/CommonConfirmModal';
+import React, { useState, useEffect, useRef } from "react";
+import { FaBars, FaUser, FaSignOutAlt, FaCheckCircle } from "react-icons/fa";
+import ThemeToggle from "./ThemeToggle";
+import LiveBadge from "../ui/LiveBadge/LiveBadge";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../../features/auth/authSlice";
+import CommonConfirmModal from "../ui/CommonConfirmModal/CommonConfirmModal";
 
 export interface UserProfile {
   fullName: string;
@@ -20,15 +20,12 @@ export interface UserProfile {
 
 export interface NavbarProps {
   onMenuClick?: () => void;
+  menuButtonRef?: React.Ref<HTMLButtonElement>;
   user?: UserProfile | null;
   onProfileClick?: () => void;
 }
 
-const TopNavbar: React.FC<NavbarProps> = ({
-  onMenuClick,
-  user,
-  onProfileClick,
-}) => {
+const TopNavbar: React.FC<NavbarProps> = ({ onMenuClick, menuButtonRef, user, onProfileClick }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -90,8 +87,10 @@ const TopNavbar: React.FC<NavbarProps> = ({
       <div className="flex items-center gap-4">
         {/* Mobile Menu */}
         <button
+          ref={menuButtonRef}
           type="button"
-          className="p-2 text-ink-subtle hover:text-primary transition-colors lg:hidden rounded-md hover:bg-card-2"
+          aria-label="Open navigation"
+          className="min-h-10 min-w-10 p-2 text-ink-subtle hover:text-accent transition-colors lg:hidden rounded-lg hover:bg-card-2 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/25"
           onClick={onMenuClick}
         >
           <FaBars size={20} />
@@ -105,14 +104,12 @@ const TopNavbar: React.FC<NavbarProps> = ({
 
         {/* Profile */}
         <div className="relative" ref={dropdownRef}>
-          <div
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={showDropdown}
             className="flex items-center gap-3 p-1.5 pr-4 rounded-full cursor-pointer transition-all hover:bg-card-2"
-            role="button"
-            tabIndex={0}
             onClick={() => setShowDropdown(!showDropdown)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setShowDropdown(!showDropdown);
-            }}
           >
             <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
               {avatarImage ? (
@@ -125,11 +122,9 @@ const TopNavbar: React.FC<NavbarProps> = ({
               <span className="text-sm font-semibold text-ink leading-tight">
                 {user ? user.fullName : "Guest"}
               </span>
-              <span className="text-xs text-ink-muted leading-tight">
-                {formatRole(user)}
-              </span>
+              <span className="text-xs text-ink-muted leading-tight">{formatRole(user)}</span>
             </div>
-          </div>
+          </button>
 
           {/* Dropdown Menu */}
           {showDropdown && (
@@ -171,7 +166,7 @@ const TopNavbar: React.FC<NavbarProps> = ({
         {/* MD Approval Shortcut */}
         <button
           type="button"
-          onClick={() => navigate('/pending-quotations')}
+          onClick={() => navigate("/pending-quotations")}
           title="MD Approvals"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/20 text-teal-300 hover:bg-teal-500 hover:text-white transition-all font-semibold text-xs border border-teal-500/30 cursor-pointer shadow-xs"
         >

@@ -83,8 +83,16 @@ const LoginPage = () => {
         const user = resultAction.payload;
         toast.success(`Welcome back, ${user?.fullName || "User"}`);
 
-        const locationState = location.state as { from?: any } | null;
-        const fromPath = "/dashboard";
+        const locationState = location.state as {
+          from?: { pathname?: string; search?: string; hash?: string };
+        } | null;
+        const requestedPath = locationState?.from;
+        const fromPath =
+          requestedPath?.pathname?.startsWith("/") &&
+          !requestedPath.pathname.startsWith("//") &&
+          requestedPath.pathname !== "/login"
+            ? `${requestedPath.pathname}${requestedPath.search ?? ""}${requestedPath.hash ?? ""}`
+            : "/dashboard";
 
         navigate(fromPath, { replace: true });
       } else {
@@ -195,7 +203,11 @@ const LoginPage = () => {
 
           {/* General Server Error Message */}
           {serverError && (
-            <div className="mb-5 px-4 py-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 font-medium">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mb-5 px-4 py-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 font-medium"
+            >
               {serverError}
             </div>
           )}
@@ -206,7 +218,7 @@ const LoginPage = () => {
             <TextInput
               label="Email Address"
               name="email"
-              type="text"
+              type="email"
               value={email}
               placeholder="you@company.com"
               required
@@ -247,8 +259,9 @@ const LoginPage = () => {
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
                   disabled={loading}
-                  tabIndex={-1}
-                  className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/25 transition-colors"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}

@@ -9,7 +9,11 @@ import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/Common
 import { FaChevronDown, FaChevronRight, FaSignOutAlt } from "react-icons/fa";
 import { FiPower, FiMenu, FiChevronsLeft, FiChevronsRight, FiLogOut } from "react-icons/fi";
 import { sidebarItems } from "./sidebar.data";
-const Sidebar = () => {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+const Sidebar = ({ onNavigate }: SidebarProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
@@ -167,6 +171,10 @@ const Sidebar = () => {
 
   return (
     <aside
+      aria-label="Mobile navigation"
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest("a[href]")) onNavigate?.();
+      }}
       className={`h-screen bg-nav text-nav-fg relative overflow-visible flex flex-col transition-[width] duration-300 ease-in-out z-50 border-r border-black/10  w-[250px]`}
     >
       <div className="flex-1 px-5 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/20 [&::-webkit-scrollbar-thumb]:rounded-full">
