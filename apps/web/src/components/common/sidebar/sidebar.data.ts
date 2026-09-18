@@ -1,7 +1,20 @@
 import type { SidebarItem } from "./sidebar.types";
-import { FiPieChart, FiSettings, FiBarChart2, FiClock, FiRepeat, FiServer } from "react-icons/fi";
+import {
+  FiPieChart,
+  FiSettings,
+  FiBarChart2,
+  FiClock,
+  FiRepeat,
+  FiServer,
+  FiShoppingCart,
+  FiTruck,
+  FiBox,
+  FiTool,
+  FiDollarSign,
+  FiUsers,
+} from "react-icons/fi";
 
-export const sidebarItems: SidebarItem[] = [
+const legacySidebarItems: SidebarItem[] = [
   // ── 1. Dashboard (Direct Top-Level Link) ──────────────────────────────────
   {
     title: "Dashboard",
@@ -892,4 +905,89 @@ export const sidebarItems: SidebarItem[] = [
     ],
     activePaths: ["/platform"],
   },
+];
+
+const dashboard = legacySidebarItems.find((item) => item.title === "Dashboard")!;
+const administration = legacySidebarItems.find((item) => item.title === "Administration")!;
+const transactions = legacySidebarItems.find((item) => item.title === "Transactions")!;
+const display = legacySidebarItems.find((item) => item.title === "Display")!;
+const payroll = legacySidebarItems.find((item) => item.title === "Payroll")!;
+const platform = legacySidebarItems.find((item) => item.title === "Platform")!;
+
+const adminGroup = (title: string) => administration.children?.find((item) => item.title === title);
+const transactionGroup = (title: string) =>
+  transactions.children?.find((item) => item.title === title);
+
+/**
+ * Navigation is intentionally organised by day-to-day job instead of by the
+ * technical distinction between "masters", "transactions" and "display".
+ * Keeping the original item objects here preserves every route and permission
+ * while presenting smaller, predictable menus.
+ */
+export const sidebarItems: SidebarItem[] = [
+  dashboard,
+  {
+    title: "Sales",
+    icon: FiShoppingCart,
+    children: [
+      transactionGroup("Quotations"),
+      transactionGroup("Sales Order"),
+      transactionGroup("Sales"),
+      transactionGroup("Sales Return (Cr. Note)"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  {
+    title: "Purchases",
+    icon: FiTruck,
+    children: [
+      transactionGroup("Purchase Order"),
+      transactionGroup("Purchase"),
+      transactionGroup("Purchase Return (Dr. Note)"),
+      transactionGroup("Expenses"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  {
+    title: "Inventory",
+    icon: FiBox,
+    children: [adminGroup("Inventory Masters"), transactionGroup("Inventory")].filter(
+      Boolean
+    ) as NonNullable<SidebarItem["children"]>,
+  },
+  {
+    title: "Production",
+    icon: FiTool,
+    children: [transactionGroup("Production")].filter(Boolean) as NonNullable<
+      SidebarItem["children"]
+    >,
+  },
+  {
+    title: "Accounting",
+    icon: FiDollarSign,
+    children: [
+      transactionGroup("Payment"),
+      transactionGroup("Receipt"),
+      transactionGroup("Journal"),
+      transactionGroup("Contra"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  {
+    title: "People & Payroll",
+    icon: FiUsers,
+    children: [payroll],
+  },
+  {
+    ...display,
+    title: "Reports",
+    icon: FiBarChart2,
+  },
+  {
+    title: "Setup",
+    icon: FiSettings,
+    children: [
+      adminGroup("Masters"),
+      adminGroup("Configuration"),
+      adminGroup("Users & Roles"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  platform,
 ];

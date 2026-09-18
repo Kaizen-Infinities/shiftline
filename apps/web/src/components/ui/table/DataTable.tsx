@@ -52,6 +52,8 @@ interface DataTableProps<T> {
   maxHeightClassName?: string;
   /** Reduce cell/header padding for dense tables */
   density?: "default" | "compact";
+  /** Accessible name announced for the table region. */
+  ariaLabel?: string;
 }
 
 const alignClass: Record<NonNullable<DataTableColumn<any>["align"]>, string> = {
@@ -72,7 +74,7 @@ const alignClass: Record<NonNullable<DataTableColumn<any>["align"]>, string> = {
 // internally (keeping the sticky header in view) rather than pushing the
 // footer off-screen. The offset covers the horizontal nav, page padding, card
 // header and footer that surround the table in BaseLayout.
-const TABLE_MIN_HEIGHT_CLASS = "min-h-[calc(100vh-16rem)]";
+const TABLE_MIN_HEIGHT_CLASS = "min-h-36";
 const TABLE_MAX_HEIGHT_CLASS = "";
 
 function DataTable<T>({
@@ -90,16 +92,15 @@ function DataTable<T>({
   minHeightClassName = TABLE_MIN_HEIGHT_CLASS,
   maxHeightClassName = TABLE_MAX_HEIGHT_CLASS,
   density = "compact",
+  ariaLabel = "Data table",
 }: DataTableProps<T>) {
-  const cellPaddingClass = density === "compact"
-    ? "px-2 py-1 sm:px-3 sm:py-1.5"
-    : "px-3 py-1.5 sm:px-4 sm:py-2";
+  const cellPaddingClass =
+    density === "compact" ? "px-2 py-1 sm:px-3 sm:py-1.5" : "px-3 py-1.5 sm:px-4 sm:py-2";
 
   // Header keeps slightly more vertical room than the (now denser) body rows
   // so it still reads as a distinct band above the data.
-  const headerPaddingClass = density === "compact"
-    ? "px-2 py-1.5 sm:px-3 sm:py-2"
-    : "px-3 py-2 sm:px-4 sm:py-2.5";
+  const headerPaddingClass =
+    density === "compact" ? "px-2 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5";
 
   // Every row is held to the same minimum height so different tables line up
   // with each other regardless of what their cells contain. Without this a row
@@ -143,18 +144,23 @@ function DataTable<T>({
     <div className={`w-full border border-line-soft rounded-xl overflow-hidden ${className}`}>
       {/*
         Flex column holding the scroll area and — when paginating — the pager
-        beneath it. The minimum height applies in every state, so a table
-        holding one row is the same size as one holding a full page and the
-        card never collapses. The scroll area is `flex-1 min-h-0` so it absorbs
-        whatever height is going, which pins the pager to the bottom edge and
-        gives the sticky header a container to stick to once rows overflow.
+        beneath it. A modest minimum height is reserved for loading and empty
+        states only; populated tables hug their rows instead of leaving a blank
+        strip beneath short result sets.
       */}
-      <div className={`flex flex-col ${minHeightClassName} ${maxHeightClassName}`}>
+      <div
+        className={`flex flex-col ${showingPlaceholder ? minHeightClassName : ""} ${maxHeightClassName}`}
+      >
         <div
           className="w-full flex-1 min-h-0 overflow-auto overscroll-contain flex flex-col"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <div role="table" className="w-full text-sm" style={outerGridStyle}>
+          <div
+            role="table"
+            aria-label={ariaLabel}
+            className="w-full text-sm"
+            style={outerGridStyle}
+          >
             {/* Header row — cells are individually sticky (rather than the row)
                 because a `subgrid` row is not a reliable sticky containing box
                 across browsers. Each carries its own background so the header
@@ -184,6 +190,13 @@ function DataTable<T>({
                       style={{ ...rowStyle, ...extraStyle }}
                       className={`${rowMinHeightClass} border-b border-line-soft/50 hover:bg-card-2/70 transition-all duration-200 ${onRowClick ? "cursor-pointer" : ""} ${extraClassName}`}
                       onClick={() => onRowClick && onRowClick(row, index)}
+                      onKeyDown={(event) => {
+                        if (onRowClick && (event.key === "Enter" || event.key === " ")) {
+                          event.preventDefault();
+                          onRowClick(row, index);
+                        }
+                      }}
+                      tabIndex={onRowClick ? 0 : undefined}
                     >
                       {columns.map((col, ci) => (
                         <div
@@ -191,11 +204,16 @@ function DataTable<T>({
                           role="cell"
                           className={`flex items-center ${cellPaddingClass} text-ink text-[13px] font-medium min-w-0 ${alignClass[col.align ?? "left"]}`}
                         >
-                          {col.render
-                            ? col.render(row, index)
-                            : col.accessor
-                              ? <span className="block truncate" title={String(row[col.accessor] ?? "")}>{String(row[col.accessor] ?? "")}</span>
-                              : null}
+                          {col.render ? (
+                            col.render(row, index)
+                          ) : col.accessor ? (
+                            <span
+                              className="block truncate"
+                              title={String(row[col.accessor] ?? "")}
+                            >
+                              {String(row[col.accessor] ?? "")}
+                            </span>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -221,11 +239,7 @@ function DataTable<T>({
           */}
           {showingPlaceholder && (
             <div className="flex-1 flex items-center justify-center min-w-full px-6 py-8 text-center text-base sm:text-lg text-ink-subtle">
-              {loading ? (
-                <CommonLoader text="Loading data..." fullScreen={false} />
-              ) : (
-                emptyMessage
-              )}
+              {loading ? <CommonLoader text="Loading data..." fullScreen={false} /> : emptyMessage}
             </div>
           )}
         </div>
@@ -237,9 +251,10 @@ function DataTable<T>({
           <div className="shrink-0 flex items-center justify-center gap-3 sm:gap-4 py-3 sm:py-4 border-t border-line-soft bg-head/50">
             <button
               type="button"
+              aria-label="Previous page"
               disabled={pagination.currentPage === 1}
               onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
-              className="flex items-center justify-center h-8 w-8 rounded-lg border border-line-soft
+              className="flex items-center justify-center h-10 w-10 rounded-lg border border-line-soft
                             text-ink-subtle hover:text-accent hover:border-accent/30 hover:bg-accent/10
                             disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent
                             transition-all duration-200"
@@ -247,13 +262,15 @@ function DataTable<T>({
               <FaChevronLeft size={11} />
             </button>
             <div className="text-xs sm:text-sm text-ink-muted font-semibold">
-              Page <span className="text-ink">{pagination.currentPage}</span> of <span className="text-ink">{pagination.totalPages}</span>
+              Page <span className="text-ink">{pagination.currentPage}</span> of{" "}
+              <span className="text-ink">{pagination.totalPages}</span>
             </div>
             <button
               type="button"
+              aria-label="Next page"
               disabled={pagination.currentPage === pagination.totalPages}
               onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
-              className="flex items-center justify-center h-8 w-8 rounded-lg border border-line-soft
+              className="flex items-center justify-center h-10 w-10 rounded-lg border border-line-soft
                             text-ink-subtle hover:text-accent hover:border-accent/30 hover:bg-accent/10
                             disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent
                             transition-all duration-200"

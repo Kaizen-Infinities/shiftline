@@ -263,17 +263,23 @@ const HorizontalNav = () => {
   /** Open menu programmatically (e.g. from global shortcut Ctrl+A / Ctrl+T / Ctrl+D / Ctrl+Y / Alt+T) */
   const openMenuByTitle = useCallback(
     (title: string) => {
+      const renamedMenus: Record<string, string> = {
+        administration: "Setup",
+        transactions: "Sales",
+        display: "Reports",
+        payroll: "People & Payroll",
+      };
+      const requestedTitle = renamedMenus[title.toLowerCase()] ?? title;
       const navIdx = filteredSidebarItems.findIndex(
-        (m) => m.title.toLowerCase() === title.toLowerCase()
+        (m) => m.title.toLowerCase() === requestedTitle.toLowerCase()
       );
       if (navIdx === -1) return;
       const menu = filteredSidebarItems[navIdx];
       if (menu.children && menu.children.length > 0) {
         let el = navItemRefs.current[navIdx];
         if (!el && navContainerRef.current) {
-          const items = navContainerRef.current.querySelectorAll<HTMLElement>(
-            'li > div[role="button"], li > a'
-          );
+          const items =
+            navContainerRef.current.querySelectorAll<HTMLElement>("li > button, li > a");
           el = items[navIdx] || null;
         }
         if (el) {
@@ -687,13 +693,13 @@ const HorizontalNav = () => {
               switch (title.toLowerCase()) {
                 case "dashboard":
                   return "D";
-                case "administration":
+                case "setup":
                   return "Alt+A";
-                case "transactions":
+                case "sales":
                   return "Alt+T";
-                case "display":
+                case "reports":
                   return "Alt+D";
-                case "payroll":
+                case "people & payroll":
                   return "Alt+P";
                 default:
                   return "";
@@ -704,12 +710,13 @@ const HorizontalNav = () => {
             return (
               <li key={menu.title} className="relative">
                 {hasChildren ? (
-                  <div
+                  <button
+                    type="button"
                     ref={(el) => {
                       navItemRefs.current[navIdx] = el;
                     }}
-                    role="button"
-                    tabIndex={0}
+                    aria-expanded={isOpen}
+                    aria-haspopup="menu"
                     title={shortcut ? `${menu.title} (${shortcut})` : menu.title}
                     onClick={(e) => handleMenuClick(e, menu.title, navIdx)}
                     onKeyDown={(e) => handleNavKeyDown(e, navIdx, menu)}
@@ -721,7 +728,7 @@ const HorizontalNav = () => {
                     <FaChevronDown
                       className={`text-[9px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""} text-white`}
                     />
-                  </div>
+                  </button>
                 ) : (
                   <NavLink
                     ref={(el) => {
@@ -870,7 +877,13 @@ const HorizontalNav = () => {
           className="fixed z-50 pt-2 animate-in fade-in slide-in-from-top-2 outline-none"
           style={{ top: `${menuRect.bottom}px`, left: `${menuRect.left}px` }}
         >
-          <div className="w-72 bg-card rounded-2xl shadow-2xl border border-line-soft p-2 max-h-[80vh] overflow-y-auto custom-scrollbar outline-none">
+          <div
+            className={`bg-card rounded-2xl shadow-2xl border border-line-soft p-2 max-h-[80vh] overflow-y-auto custom-scrollbar outline-none grid gap-1 ${
+              activeMenuData.children.length > 2
+                ? "w-[min(42rem,calc(100vw-2rem))] grid-cols-2"
+                : "w-80 grid-cols-1"
+            }`}
+          >
             {activeMenuData.children.map((child) => renderTreeItem(child, 0))}
           </div>
         </div>
