@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Workspace-aware build for @shiftline/api. Targets: dev (bind-mounted sources), runtime.
 
-FROM node:22-bookworm-slim AS base
+FROM node:25-bookworm-slim AS base
 ENV PUPPETEER_SKIP_DOWNLOAD=1 \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     NPM_CONFIG_UPDATE_NOTIFIER=false
