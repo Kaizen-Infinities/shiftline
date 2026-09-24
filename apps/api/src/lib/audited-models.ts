@@ -100,6 +100,10 @@ export const AUDITED_MODELS = [
   // export order time-and-action calendar (TN-03)
   "OrderTna",
   "OrderTnaMilestone",
+  // customer delivery schedules (TN-02)
+  "CustomerSchedule",
+  "CustomerScheduleLine",
+  "CustomerScheduleDispatch",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

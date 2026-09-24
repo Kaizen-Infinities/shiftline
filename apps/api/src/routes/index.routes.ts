@@ -65,6 +65,7 @@ import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
 import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
 import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
+import deliveryScheduleRoutes from "../modules/delivery-schedules/delivery-schedules.routes";
 import smsRoutes from "../modules/sms/sms.routes";
 import paymentsRoutes, {
   paymentWebhookRouter,
@@ -154,6 +155,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/sales-invoices", router: salesInvoiceRoutes },
   { path: "/oee", router: oeeRoutes },
   { path: "/goods-dispatches", router: goodsDispatchRoutes },
+  { path: "/delivery-schedules", router: deliveryScheduleRoutes },
   { path: "/inventory", router: inventoryRoutes },
   { path: "/machine-operation-assignments", router: machineOperationAssignmentRoutes },
   { path: "/product-shift-records", router: productShiftRecordRoutes },

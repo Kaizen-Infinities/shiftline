@@ -67,6 +67,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "currencies",
       "job-work",
       "goods-dispatch",
+      "delivery-schedules",
       "sales-reports",
       "gst_tax",
     ],

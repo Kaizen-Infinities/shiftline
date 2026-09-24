@@ -337,6 +337,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Goods Dispatch",
   },
+  {
+    module: "delivery-schedules",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Customer delivery schedules and adherence",
+  },
   { module: "shift-execution", actions: ["view", "edit"], description: "Shift Execution Board" },
   { module: "oee-dashboard", actions: ["view", "export"], description: "OEE Dashboard" },
   {

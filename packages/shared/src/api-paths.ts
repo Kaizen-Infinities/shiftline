@@ -361,6 +361,13 @@ export const API_PATHS = {
     templates: "/order-tna/templates",
     alerts: "/order-tna/alerts",
   },
+  deliverySchedules: {
+    base: "/delivery-schedules",
+    due: "/delivery-schedules/due",
+    adherence: "/delivery-schedules/adherence",
+    lines: "/delivery-schedules/lines", // ← base; service appends /:lineId[/dispatches]
+    dispatches: "/delivery-schedules/dispatches", // ← base; service appends /:dispatchId
+  },
   leave: {
     base: "/leave",
     requests: "/leave/requests",

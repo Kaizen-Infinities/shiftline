@@ -110,6 +110,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "stores",
         "stock-adjustments",
         "goods-dispatch",
+        // Customer delivery schedules (TN-02): the dispatch planner works from them.
+        "delivery-schedules",
         "eod-stock",
         "inventory",
         "dash-inventory",
