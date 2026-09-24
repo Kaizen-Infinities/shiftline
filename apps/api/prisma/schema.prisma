@@ -517,6 +517,7 @@ model Customer {
   advanceReceipts       AdvanceReceipt[]
   cheques               Cheque[]
   tdsDeductions         TdsDeduction[]        @relation("CustomerTdsDeduction")
+  orderTnas             OrderTna[]            @relation("CustomerOrderTna")
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -737,6 +738,8 @@ model Company {
   leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
   finalSettlements      FinalSettlement[]        @relation("CompanyFinalSettlement")
   leaveRequests         LeaveRequest[]           @relation("CompanyLeaveRequest")
+  orderTnas             OrderTna[]               @relation("CompanyOrderTna")
+  orderTnaMilestones    OrderTnaMilestone[]      @relation("CompanyOrderTnaMilestone")
   paymentGateway        PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
   paymentLinks          PaymentLink[]            @relation("CompanyPaymentLink")
   paymentCaptures       PaymentCapture[]         @relation("CompanyPaymentCapture")
@@ -6210,4 +6213,74 @@ model LeaveRequest {
   @@index([companyId, employeeId, status])
   @@index([companyId, fromDate, toDate])
   @@map("leave_requests")
+}
+
+// ── Export order time-and-action calendar (TN-03) ─────────────────────────────
+
+enum OrderTnaStatus {
+  ACTIVE
+  SHIPPED
+  CANCELLED
+}
+
+enum TnaMilestoneStatus {
+  PENDING
+  DONE
+  SKIPPED
+}
+
+/// One buyer order's T&A plan, counted back from the ex-factory date (TN-03).
+model OrderTna {
+  id            String         @id @default(uuid()) @db.Uuid
+  companyId     String         @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// User-entered, or "<buyerPoNo>-<styleRef>" when left blank.
+  tnaNo         String         @map("tna_no") @db.VarChar(30)
+  customerId    String         @map("customer_id") @db.Uuid
+  /// Optional link to a SalesOrder (Int id), checked tenant-scoped by the service.
+  salesOrderId  Int?           @map("sales_order_id")
+  buyerPoNo     String         @map("buyer_po_no") @db.VarChar(40)
+  styleRef      String         @map("style_ref") @db.VarChar(60)
+  description   String?        @db.VarChar(200)
+  orderQty      Decimal        @map("order_qty") @db.Decimal(14, 3)
+  uom           String?        @db.VarChar(10)
+  orderDate     DateTime       @map("order_date") @db.Date
+  exFactoryDate DateTime       @map("ex_factory_date") @db.Date
+  /// GARMENT_KNIT | HOME_TEXTILE | LEATHER_FOOTWEAR | GENERIC (order-tna.calc.ts).
+  template      String         @db.VarChar(30)
+  merchandiser  String?        @db.VarChar(80)
+  status        OrderTnaStatus @default(ACTIVE)
+  createdBy     String?        @map("created_by") @db.VarChar(36)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company    Company             @relation("CompanyOrderTna", fields: [companyId], references: [id], onDelete: Restrict)
+  customer   Customer            @relation("CustomerOrderTna", fields: [customerId], references: [id], onDelete: Restrict)
+  milestones OrderTnaMilestone[]
+
+  @@unique([companyId, tnaNo])
+  @@index([companyId, status, exFactoryDate])
+  @@map("order_tnas")
+}
+
+/// A milestone on an OrderTna; planned dates of PENDING rows move with the ex-factory date.
+model OrderTnaMilestone {
+  id          String             @id @default(uuid()) @db.Uuid
+  companyId   String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  tnaId       String             @map("tna_id") @db.Uuid
+  seq         Int
+  name        String             @db.VarChar(80)
+  plannedDate DateTime           @map("planned_date") @db.Date
+  actualDate  DateTime?          @map("actual_date") @db.Date
+  status      TnaMilestoneStatus @default(PENDING)
+  owner       String?            @db.VarChar(80)
+  remarks     String?            @db.VarChar(300)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company  @relation("CompanyOrderTnaMilestone", fields: [companyId], references: [id], onDelete: Restrict)
+  tna     OrderTna @relation(fields: [tnaId], references: [id], onDelete: Cascade)
+
+  @@unique([tnaId, seq])
+  @@index([companyId, status, plannedDate])
+  @@map("order_tna_milestones")
 }

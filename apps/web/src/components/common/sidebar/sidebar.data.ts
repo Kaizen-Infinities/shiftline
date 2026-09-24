@@ -603,6 +603,11 @@ const legacySidebarItems: SidebarItem[] = [
             permission: "production-wastages.view",
           },
           {
+            title: "Order T&A",
+            path: "/production/order-tna",
+            permission: "order-tna.view",
+          },
+          {
             title: "Weekly Schedules",
             path: "/weekly-machine-schedules",
             permission: "weekly_programs.view",

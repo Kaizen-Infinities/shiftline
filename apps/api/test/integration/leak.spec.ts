@@ -174,6 +174,9 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "MachineSignalMap",
   "MachineSignal",
   "MachineCycle",
+  // export order T&A (TN-03); order-tna.spec proves a foreign company sees none
+  "OrderTna",
+  "OrderTnaMilestone",
 ]);
 
 describe("cross-tenant leak suite", () => {
