@@ -737,6 +737,9 @@ model Company {
   leaveBalances         LeaveBalance[]           @relation("CompanyLeaveBalance")
   finalSettlements      FinalSettlement[]        @relation("CompanyFinalSettlement")
   leaveRequests         LeaveRequest[]           @relation("CompanyLeaveRequest")
+  exportIncentiveClaims ExportIncentiveClaim[]   @relation("CompanyExportIncentiveClaim")
+  exportAuthorisations  ExportAuthorisation[]    @relation("CompanyExportAuthorisation")
+  exportObligations     ExportObligationEntry[]  @relation("CompanyExportObligationEntry")
   paymentGateway        PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
   paymentLinks          PaymentLink[]            @relation("CompanyPaymentLink")
   paymentCaptures       PaymentCapture[]         @relation("CompanyPaymentCapture")
@@ -2375,6 +2378,7 @@ model SalesInvoice {
   store                Store?                @relation(fields: [companyId, storeId], references: [companyId, storeId])
   salesReturns         SalesReturn[]
   advanceAdjustments   AdvanceAdjustment[]
+  exportIncentiveClaims ExportIncentiveClaim[]
   businessPlace        BusinessPlace?        @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
   /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
   cancelledAt          DateTime?             @map("cancelled_at") @db.Timestamptz(6)
@@ -6210,4 +6214,126 @@ model LeaveRequest {
   @@index([companyId, employeeId, status])
   @@index([companyId, fromDate, toDate])
   @@map("leave_requests")
+}
+
+// ── Export incentives and authorisations (TN-01) ─────────────────────────────
+
+enum ExportIncentiveScheme {
+  RODTEP
+  ROSCTL
+  DRAWBACK
+}
+
+enum ExportIncentiveStatus {
+  DECLARED
+  SCROLLED
+  SCRIP_GENERATED
+  UTILISED
+  TRANSFERRED
+  CREDITED
+  REJECTED
+}
+
+/// A duty incentive earned on one shipping bill (RoDTEP, RoSCTL or drawback), from declaration to
+/// credit. The status only moves forward; `scripExpiresOn` is the scrip date plus 12 months.
+model ExportIncentiveClaim {
+  id               String                @id @default(uuid()) @db.Uuid
+  companyId        String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  scheme           ExportIncentiveScheme
+  shippingBillNo   String                @map("shipping_bill_no") @db.VarChar(20)
+  shippingBillDate DateTime              @map("shipping_bill_date") @db.Date
+  portCode         String?               @map("port_code") @db.VarChar(10)
+  salesInvoiceId   String?               @map("sales_invoice_id") @db.Uuid
+  fobValueInr      Decimal               @map("fob_value_inr") @db.Decimal(16, 2)
+  ratePercent      Decimal?              @map("rate_percent") @db.Decimal(6, 3)
+  /// fob * rate / 100 when a rate is given, otherwise as entered.
+  expectedAmount   Decimal               @map("expected_amount") @db.Decimal(14, 2)
+  scrolledAmount   Decimal?              @map("scrolled_amount") @db.Decimal(14, 2)
+  scrolledOn       DateTime?             @map("scrolled_on") @db.Date
+  scripNo          String?               @map("scrip_no") @db.VarChar(30)
+  scripDate        DateTime?             @map("scrip_date") @db.Date
+  scripExpiresOn   DateTime?             @map("scrip_expires_on") @db.Date
+  utilisedAmount   Decimal               @default(0) @map("utilised_amount") @db.Decimal(14, 2)
+  /// Buyer IEC or name when a scrip was sold.
+  transferredTo    String?               @map("transferred_to") @db.VarChar(120)
+  /// Sale proceeds of a scrip, or the drawback credit.
+  realisedInr      Decimal?              @map("realised_inr") @db.Decimal(14, 2)
+  creditedOn       DateTime?             @map("credited_on") @db.Date
+  status           ExportIncentiveStatus @default(DECLARED)
+  notes            String?               @db.VarChar(500)
+  createdBy        String?               @map("created_by") @db.VarChar(36)
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company      Company       @relation("CompanyExportIncentiveClaim", fields: [companyId], references: [id], onDelete: Restrict)
+  salesInvoice SalesInvoice? @relation(fields: [salesInvoiceId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, scheme, shippingBillNo])
+  @@index([companyId, status])
+  @@map("export_incentive_claims")
+}
+
+enum ExportAuthorisationType {
+  EPCG
+  ADVANCE_AUTHORISATION
+}
+
+enum ExportAuthorisationStatus {
+  ACTIVE
+  EO_FULFILLED
+  REDEEMED
+  EXPIRED
+  CANCELLED
+}
+
+/// An EPCG or Advance Authorisation licence and its export obligation. Never deleted; a
+/// withdrawn licence is CANCELLED.
+model ExportAuthorisation {
+  id                     String                    @id @default(uuid()) @db.Uuid
+  companyId              String                    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  authType               ExportAuthorisationType   @map("auth_type")
+  authNo                 String                    @map("auth_no") @db.VarChar(30)
+  issueDate              DateTime                  @map("issue_date") @db.Date
+  rlaOffice              String?                   @map("rla_office") @db.VarChar(60)
+  dutySaved              Decimal                   @map("duty_saved") @db.Decimal(16, 2)
+  eoMultiple             Decimal                   @default(6) @map("eo_multiple") @db.Decimal(5, 2)
+  /// EPCG: dutySaved * eoMultiple unless overridden; AA: as entered.
+  exportObligationAmount Decimal                   @map("eo_amount") @db.Decimal(16, 2)
+  eoPeriodMonths         Int                       @map("eo_period_months")
+  eoDueDate              DateTime                  @map("eo_due_date") @db.Date
+  /// EPCG only: issue date + 48 months, by which 50% of the obligation is due.
+  block1DueDate          DateTime?                 @map("block1_due_date") @db.Date
+  status                 ExportAuthorisationStatus @default(ACTIVE)
+  eodcNo                 String?                   @map("eodc_no") @db.VarChar(30)
+  eodcDate               DateTime?                 @map("eodc_date") @db.Date
+  notes                  String?                   @db.VarChar(500)
+  createdAt              DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company                 @relation("CompanyExportAuthorisation", fields: [companyId], references: [id], onDelete: Restrict)
+  entries ExportObligationEntry[]
+
+  @@unique([companyId, authNo])
+  @@map("export_authorisations")
+}
+
+/// One shipping bill counted towards an authorisation's export obligation.
+model ExportObligationEntry {
+  id               String    @id @default(uuid()) @db.Uuid
+  companyId        String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  authorisationId  String    @map("authorisation_id") @db.Uuid
+  shippingBillNo   String    @map("shipping_bill_no") @db.VarChar(20)
+  shippingBillDate DateTime  @map("shipping_bill_date") @db.Date
+  salesInvoiceId   String?   @map("sales_invoice_id") @db.Uuid
+  fobValueInr      Decimal   @map("fob_value_inr") @db.Decimal(16, 2)
+  /// BRC / e-BRC date; the obligation counts realised value.
+  realisedOn       DateTime? @map("realised_on") @db.Date
+  brcNo            String?   @map("brc_no") @db.VarChar(40)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company       Company             @relation("CompanyExportObligationEntry", fields: [companyId], references: [id], onDelete: Restrict)
+  authorisation ExportAuthorisation @relation(fields: [authorisationId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, authorisationId, shippingBillNo])
+  @@map("export_obligation_entries")
 }

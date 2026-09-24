@@ -1,5 +1,13 @@
 import type { SidebarItem } from "./sidebar.types";
-import { FiPieChart, FiSettings, FiBarChart2, FiClock, FiRepeat, FiServer } from "react-icons/fi";
+import {
+  FiPieChart,
+  FiSettings,
+  FiBarChart2,
+  FiClock,
+  FiRepeat,
+  FiServer,
+  FiGlobe,
+} from "react-icons/fi";
 
 export const sidebarItems: SidebarItem[] = [
   // ── 1. Dashboard (Direct Top-Level Link) ──────────────────────────────────
@@ -883,6 +891,23 @@ export const sidebarItems: SidebarItem[] = [
       "registers.view",
       "fines.view",
     ],
+  },
+
+  // ── Exports (TN-01) ────────────────────────────────────────────────────────
+  {
+    title: "Exports",
+    icon: FiGlobe,
+    path: "/exports/incentives",
+    permission: "export-incentives.view",
+    children: [
+      {
+        title: "Export Incentives",
+        path: "/exports/incentives",
+        permission: "export-incentives.view",
+      },
+    ],
+    activePaths: ["/exports"],
+    permissionAny: ["export-incentives.view"],
   },
 
   // ── Platform console (super admins only, P1-02) ───────────────────────────

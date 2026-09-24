@@ -97,6 +97,10 @@ export const AUDITED_MODELS = [
   "MachineGateway",
   "MachineSignalMap",
   "MachineCycle",
+  // exports (TN-01): incentive claims are receivables and authorisations a legal obligation
+  "ExportIncentiveClaim",
+  "ExportAuthorisation",
+  "ExportObligationEntry",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

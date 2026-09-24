@@ -94,6 +94,9 @@ export const ROLE_DEFS = (): RoleDef[] => [
       // Fines and deductions (P2-13): the accountant is the payroll operator here too — raises,
       // records the show-cause and approves, the same as the rest of payroll it already runs.
       ...keysFor(["fines"]),
+      // Export incentives (TN-01): the accountant chases drawback, RoDTEP scrips and EPCG
+      // obligations the same way it chases every other receivable.
+      ...keysFor(["export-incentives"]),
       // Employee search (P2-15): a light picker for the leave and fines screens this role runs.
       ...keysFor(["employees"], ["search"]),
     ],

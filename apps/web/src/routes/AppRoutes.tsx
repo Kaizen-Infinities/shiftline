@@ -244,6 +244,7 @@ const LabourEntitlementsPage = lazy(
 );
 const LeaveHrPage = lazy(() => import("../modules/leave/pages/LeaveHrPage"));
 const MyLeavePage = lazy(() => import("../modules/leave/pages/MyLeavePage"));
+const ExportIncentivesPage = lazy(() => import("../modules/exports/pages/ExportIncentivesPage"));
 const RegistersPage = lazy(() => import("../modules/payroll/pages/RegistersPage"));
 const FinesPage = lazy(() => import("../modules/payroll/pages/FinesPage"));
 const PaymentLinksPage = lazy(() => import("../modules/payments/pages/PaymentLinksPage"));
@@ -625,6 +626,9 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="payroll.view" />}>
                 <Route path="/payroll/statutory" element={<StatutoryPayrollPage />} />
                 <Route path="/payroll/entitlements" element={<LabourEntitlementsPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="export-incentives.view" />}>
+                <Route path="/exports/incentives" element={<ExportIncentivesPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="leave.view" />}>
                 <Route path="/hr/leave" element={<LeaveHrPage />} />
