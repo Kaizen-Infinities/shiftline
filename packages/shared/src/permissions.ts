@@ -481,6 +481,13 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "manage", "approve"],
     description: "Fines and Deductions",
   },
+
+  // ── Shop floor (Phase 2) ────────────────────────────────────────────────────
+  {
+    module: "machine-telemetry",
+    actions: ["view", "configure", "ingest"],
+    description: "Machine telemetry: gateways, signal maps, cycles",
+  },
 ];
 
 /**

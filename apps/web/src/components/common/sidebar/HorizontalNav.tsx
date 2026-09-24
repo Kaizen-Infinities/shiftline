@@ -595,7 +595,7 @@ const HorizontalNav = () => {
                 setExpandedKeys((prev) => ({ ...prev, [item.title]: false }));
               }
             }}
-            className={`w-full cursor-pointer px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-all duration-150 outline-none focus:bg-card-2 focus:ring-1 focus:ring-teal-400 group/parent ${
+            className={`w-full cursor-pointer px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-all duration-150 outline-none focus:bg-card-2 focus:ring-1 focus:ring-accent group/parent ${
               isExpanded
                 ? "bg-card-2 text-accent font-bold"
                 : "text-ink-muted hover:bg-card-2 hover:text-ink font-semibold"
@@ -606,13 +606,13 @@ const HorizontalNav = () => {
             </div>
             <div className="flex items-center gap-1.5">
               {item.badge && (
-                <span className="text-[9.5px] font-mono font-bold text-slate-400 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700/60 shrink-0">
+                <span className="text-[9.5px] font-mono font-bold text-ink-subtle bg-card-2 px-1.5 py-0.5 rounded border border-line shrink-0">
                   {item.badge}
                 </span>
               )}
               {/* Subtle small chevron indicator on right */}
               <FaChevronRight
-                className={`text-[8px] text-slate-500 transition-transform duration-150 ${
+                className={`text-[8px] text-ink-subtle transition-transform duration-150 ${
                   isExpanded ? "rotate-90 text-accent" : ""
                 }`}
               />
@@ -621,7 +621,7 @@ const HorizontalNav = () => {
 
           {/* Inline Expanded Children inside the card */}
           {isExpanded && (
-            <div className="ml-3 pl-2.5 my-0.5 border-l border-dashed border-slate-600/70 space-y-0.5 animate-in fade-in duration-150">
+            <div className="ml-3 pl-2.5 my-0.5 border-l border-dashed border-line space-y-0.5 animate-in fade-in duration-150">
               {item.children?.map((child: any) => renderTreeItem(child, depth + 1))}
             </div>
           )}
@@ -639,7 +639,7 @@ const HorizontalNav = () => {
               closeAll();
             }}
             className={({ isActive }) =>
-              `px-2.5 py-1 rounded-lg flex items-center justify-between no-underline transition-all duration-150 outline-none focus:bg-card-2 focus:ring-1 focus:ring-teal-400 group/link ${
+              `px-2.5 py-1 rounded-lg flex items-center justify-between no-underline transition-all duration-150 outline-none focus:bg-card-2 focus:ring-1 focus:ring-accent group/link ${
                 isActive ||
                 (item.activePaths &&
                   item.activePaths.some((p: string) => location.pathname.startsWith(p)))
@@ -650,11 +650,11 @@ const HorizontalNav = () => {
           >
             <div className="flex items-center gap-1.5 min-w-0">
               {/* Tiny small arrow indicator only for grandchild / leaf items */}
-              <span className="text-[9px] text-emerald-400 font-bold shrink-0">▸</span>
+              <span className="text-[9px] text-accent font-bold shrink-0">▸</span>
               <span className="text-[12.5px] truncate">{item.title}</span>
             </div>
             {item.badge && (
-              <span className="text-[9.5px] font-mono font-bold text-slate-400 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700/60 shrink-0">
+              <span className="text-[9.5px] font-mono font-bold text-ink-subtle bg-card-2 px-1.5 py-0.5 rounded border border-line shrink-0">
                 {item.badge}
               </span>
             )}
@@ -665,7 +665,10 @@ const HorizontalNav = () => {
   };
 
   return (
-    <div className="w-full bg-slate-900/95 backdrop-blur-md text-white shadow-sm border-b border-slate-800/80 relative z-40 hidden lg:flex items-center justify-between px-3.5 py-1.5">
+    <nav
+      aria-label="Primary"
+      className="w-full bg-nav text-nav-fg border-b border-line relative z-40 hidden lg:flex items-center justify-between px-3.5 py-1.5"
+    >
       {/* ── MIDDLE: Navigation Items ── */}
       <div className="flex-1 overflow-x-auto no-scrollbar" ref={navContainerRef}>
         <ul className="flex items-center gap-1.5 min-w-max list-none m-0 p-0 flex-nowrap">
@@ -675,12 +678,12 @@ const HorizontalNav = () => {
             const hasChildren = !!menu.children && menu.children.length > 0;
             const isOpen = activeMenuId === menu.title;
 
-            const navItemClass = `cursor-pointer px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
+            const navItemClass = `cursor-pointer px-3 py-1.5 rounded-t-sm flex items-center gap-1.5 border-b-2 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-nav ${
               menuActive
-                ? "bg-teal-600 text-white font-bold shadow-xs"
+                ? "border-accent text-accent font-bold"
                 : isOpen
-                  ? "bg-white/15 text-white font-bold"
-                  : "bg-transparent text-white hover:text-white hover:bg-white/10 font-bold"
+                  ? "border-transparent bg-card-2 text-ink font-bold"
+                  : "border-transparent bg-transparent text-nav-fg hover:bg-card-2 font-bold"
             }`;
 
             const getShortcutLabel = (title: string) => {
@@ -753,7 +756,7 @@ const HorizontalNav = () => {
         <NotificationBell />
 
         {/* Theme Toggle Button */}
-        <ThemeToggle className="!w-8 !h-8 !rounded-full bg-slate-800/80 border border-slate-700/60 hover:bg-slate-700 shadow-xs" />
+        <ThemeToggle className="!w-8 !h-8 !rounded-sm border border-line hover:bg-card-2" />
 
         {/* User Profile Card */}
         {user &&
@@ -766,10 +769,10 @@ const HorizontalNav = () => {
                   type="button"
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   title="Account Menu"
-                  className={`flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full border transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-sm border transition-colors duration-150 cursor-pointer ${
                     showProfileMenu
-                      ? "bg-slate-800 border-teal-500/60 shadow-md shadow-teal-500/15"
-                      : "bg-slate-800/80 hover:bg-slate-800 border-slate-700/60 hover:border-slate-600 shadow-xs"
+                      ? "bg-card-2 border-accent"
+                      : "bg-transparent hover:bg-card-2 border-line"
                   }`}
                 >
                   {/* Round Avatar */}
@@ -781,10 +784,10 @@ const HorizontalNav = () => {
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
-                        className="w-7 h-7 rounded-full object-cover border border-slate-700 shadow-xs"
+                        className="w-7 h-7 rounded-full object-cover border border-line"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center text-xs font-black shadow-xs uppercase">
+                      <div className="w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs font-black uppercase">
                         {getInitials(name)}
                       </div>
                     )}
@@ -792,37 +795,37 @@ const HorizontalNav = () => {
 
                   {/* Two Stacked Lines */}
                   <div className="flex flex-col text-left leading-tight pr-0.5">
-                    <span className="font-bold text-xs text-white tracking-tight whitespace-nowrap">
+                    <span className="font-bold text-xs text-nav-fg tracking-tight whitespace-nowrap">
                       {name}
                     </span>
-                    <span className="text-[10px] font-medium text-slate-400 capitalize whitespace-nowrap">
+                    <span className="text-[10px] font-medium text-ink-subtle capitalize whitespace-nowrap">
                       {role}
                     </span>
                   </div>
 
                   <FaChevronDown
-                    className={`text-[9px] transition-transform duration-200 ${showProfileMenu ? "rotate-180 text-teal-400" : "text-slate-400"}`}
+                    className={`text-[9px] transition-transform duration-200 ${showProfileMenu ? "rotate-180 text-accent" : "text-ink-subtle"}`}
                   />
                 </button>
 
                 {/* Interactive Profile Dropdown Menu */}
                 {showProfileMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-line-soft rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="p-2.5 rounded-xl bg-card-2 border border-line-soft mb-1.5 flex items-center gap-2.5">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-card border border-line rounded-sm shadow-md p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="p-2.5 rounded-sm bg-card-2 border border-line-soft mb-1.5 flex items-center gap-2.5">
                       {avatarImage ? (
                         <img
                           src={avatarImage}
                           alt={name}
-                          className="w-8 h-8 rounded-full object-cover border border-line-soft shadow-xs shrink-0"
+                          className="w-8 h-8 rounded-full object-cover border border-line-soft shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-500 text-white flex items-center justify-center font-black text-xs shadow-xs shrink-0 uppercase">
+                        <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center font-black text-xs shrink-0 uppercase">
                           {getInitials(name)}
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="font-bold text-xs text-ink truncate">{name}</div>
-                        <div className="text-[10px] font-semibold text-teal-500 uppercase tracking-wider">
+                        <div className="text-[10px] font-semibold text-accent uppercase tracking-wider">
                           {role}
                         </div>
                       </div>
@@ -835,9 +838,9 @@ const HorizontalNav = () => {
                           setShowProfileMenu(false);
                           navigate("/profile");
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-ink-muted hover:text-ink hover:bg-card-2 transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-sm text-xs font-bold text-ink-muted hover:text-ink hover:bg-card-2 transition-colors cursor-pointer text-left"
                       >
-                        <FiUser className="text-sm text-teal-500" />
+                        <FiUser className="text-sm text-accent" />
                         <span>My Profile</span>
                       </button>
 
@@ -849,7 +852,7 @@ const HorizontalNav = () => {
                           setShowProfileMenu(false);
                           handleLogout();
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-sm text-xs font-bold text-[color:var(--color-danger)] hover:bg-card-2 transition-colors cursor-pointer text-left"
                       >
                         <FiLogOut className="text-sm" />
                         <span>Log Out</span>
@@ -870,7 +873,7 @@ const HorizontalNav = () => {
           className="fixed z-50 pt-2 animate-in fade-in slide-in-from-top-2 outline-none"
           style={{ top: `${menuRect.bottom}px`, left: `${menuRect.left}px` }}
         >
-          <div className="w-72 bg-card rounded-2xl shadow-2xl border border-line-soft p-2 max-h-[80vh] overflow-y-auto custom-scrollbar outline-none">
+          <div className="w-72 bg-card rounded-sm shadow-md border border-line p-2 max-h-[80vh] overflow-y-auto custom-scrollbar outline-none">
             {activeMenuData.children.map((child) => renderTreeItem(child, 0))}
           </div>
         </div>
@@ -886,7 +889,7 @@ const HorizontalNav = () => {
         confirmText="Logout"
         confirmVariant="danger"
       />
-    </div>
+    </nav>
   );
 };
 

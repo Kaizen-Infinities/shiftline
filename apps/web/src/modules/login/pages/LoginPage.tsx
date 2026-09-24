@@ -102,77 +102,42 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-page">
       {/* ── LEFT BRANDING PANEL ── */}
-      <div
-        className="hidden lg:flex lg:w-1/2 xl:w-[55%] min-h-screen flex-col justify-center relative overflow-hidden"
-        style={{
-          background: "linear-gradient(135deg, #1a3a8f 0%, #1e4db7 45%, #1565c0 100%)",
-        }}
-      >
-        {/* Before effect: top-left circle */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] min-h-screen flex-col justify-center relative bg-card-2 border-r border-line overflow-hidden">
+        {/* A ledger-rule field: quiet horizontal hairlines, evenly spaced, no gradient or glow */}
         <div
-          className="absolute pointer-events-none"
+          className="absolute inset-0 pointer-events-none opacity-60"
           style={{
-            top: "-180px",
-            left: "-180px",
-            width: "480px",
-            height: "480px",
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.06)",
-            border: "60px solid rgba(255,255,255,0.05)",
-          }}
-        />
-
-        {/* After effect: bottom-right circle */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            bottom: "-160px",
-            right: "-120px",
-            width: "400px",
-            height: "400px",
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.05)",
-            border: "50px solid rgba(255,255,255,0.04)",
-          }}
-        />
-
-        {/* Diagonal stripes */}
-        <div
-          className="absolute pointer-events-none inset-0"
-          style={{
-            background:
-              "repeating-linear-gradient(120deg, transparent, transparent 120px, rgba(255,255,255,0.018) 120px, rgba(255,255,255,0.018) 240px)",
+            backgroundImage:
+              "repeating-linear-gradient(0deg, var(--color-line) 0, var(--color-line) 1px, transparent 1px, transparent 64px)",
           }}
         />
 
         {/* Content */}
         <div className="relative z-10 flex flex-col h-full px-12 xl:px-16">
-          {/* Logo bar */}
-
           <div className="flex-1 flex flex-col justify-center">
-            <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.1] mb-5 tracking-tight">
+            <h1 className="text-4xl xl:text-5xl font-bold text-ink leading-[1.1] mb-5 tracking-tight">
               Welcome to
               <br />
               Shiftline
             </h1>
 
-            <p className="text-blue-100 text-base leading-relaxed max-w-[540px] opacity-80">
-              Empowering your manufacturing journey. Gain complete control over your production,
-              inventory, and supply chain from a single, intelligent platform.
+            <p className="text-ink-muted text-base leading-relaxed max-w-[540px]">
+              Production, inventory, sales, purchasing, accounts and statutory compliance, on one
+              ledger.
             </p>
           </div>
 
           {/* Copyright */}
-          <p className="text-blue-200 text-xs opacity-50 pb-10">
+          <p className="text-ink-subtle text-xs pb-10">
             © {new Date().getFullYear()} {company?.companyName || "Shiftline"}. All rights reserved.
           </p>
         </div>
       </div>
 
       {/* ── RIGHT LOGIN PANEL ── */}
-      <div className="flex-1 flex flex-col justify-center items-center min-h-screen bg-white px-6 sm:px-10 lg:px-12 xl:px-16">
+      <div className="flex-1 flex flex-col justify-center items-center min-h-screen bg-page px-6 sm:px-10 lg:px-12 xl:px-16">
         {/* Mobile logo */}
         <div className="lg:hidden mb-8 flex flex-col items-center">
           <img
@@ -182,20 +147,21 @@ const LoginPage = () => {
           />
         </div>
 
-        <div className="w-full max-w-[400px]">
+        <div className="w-full max-w-[400px] bg-card border border-line rounded-sm p-8">
           {/* Heading */}
           <div className="mb-8">
-            <h2 className="text-[2rem] font-black leading-tight mb-2 bg-gradient-to-r from-blue-700 to-cyan-500 bg-clip-text text-transparent">
-              Welcome Back!
-            </h2>
-            <p className="text-slate-400 text-sm leading-relaxed">
+            <h2 className="text-2xl font-bold leading-tight mb-2 text-ink">Sign in</h2>
+            <p className="text-ink-muted text-sm leading-relaxed">
               Sign in to your account to continue managing operations.
             </p>
           </div>
 
           {/* General Server Error Message */}
           {serverError && (
-            <div className="mb-5 px-4 py-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 font-medium">
+            <div
+              role="alert"
+              className="mb-5 px-4 py-3 bg-card-2 text-[color:var(--color-danger)] text-sm rounded-sm border border-[color:var(--color-danger)]/40 font-medium"
+            >
               {serverError}
             </div>
           )}
@@ -214,8 +180,8 @@ const LoginPage = () => {
               disabled={loading}
               autoComplete="username"
               error={validationErrors.email}
-              inputClassName="login-input !bg-white !text-slate-900 !border-slate-300 focus:!border-blue-600 focus:!ring-blue-600/20 placeholder:!text-slate-400 font-semibold"
-              labelClassName="!text-slate-700 font-extrabold"
+              inputClassName="login-input !bg-card !text-ink !border-line focus:!border-accent focus:!ring-accent/20 placeholder:!text-ink-subtle font-semibold"
+              labelClassName="!text-ink-muted font-bold"
               onChange={(e) => {
                 setEmail(e.target.value);
                 setValidationErrors((prev) => ({ ...prev, email: "" }));
@@ -235,8 +201,8 @@ const LoginPage = () => {
               disabled={loading}
               autoComplete="current-password"
               error={validationErrors.password}
-              inputClassName="login-input !bg-white !text-slate-900 !border-slate-300 focus:!border-blue-600 focus:!ring-blue-600/20 placeholder:!text-slate-400 font-semibold"
-              labelClassName="!text-slate-700 font-extrabold"
+              inputClassName="login-input !bg-card !text-ink !border-line focus:!border-accent focus:!ring-accent/20 placeholder:!text-ink-subtle font-semibold"
+              labelClassName="!text-ink-muted font-bold"
               onChange={(e) => {
                 setPassword(e.target.value);
                 setValidationErrors((prev) => ({ ...prev, password: "" }));
@@ -248,7 +214,7 @@ const LoginPage = () => {
                   onClick={() => setShowPassword((prev) => !prev)}
                   disabled={loading}
                   tabIndex={-1}
-                  className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  className="text-ink-subtle hover:text-ink focus:outline-none transition-colors"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
@@ -278,7 +244,6 @@ const LoginPage = () => {
                 variant="primary"
                 width="100%"
                 disabled={loading}
-                className="!bg-gradient-to-r !from-blue-700 !to-blue-500 hover:!from-blue-800 hover:!to-blue-600 !shadow-md !shadow-blue-500/20"
               />
             </div>
           </form>

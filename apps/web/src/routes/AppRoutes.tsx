@@ -253,6 +253,7 @@ const ComplianceCalendarPage = lazy(
 );
 const TransportersPage = lazy(() => import("../modules/settings/pages/TransportersPage"));
 const EInvoiceSettingsPage = lazy(() => import("../modules/settings/pages/EInvoiceSettingsPage"));
+const MachineGatewaysPage = lazy(() => import("../modules/settings/pages/MachineGatewaysPage"));
 const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
 
 // ===========================================================================
@@ -643,6 +644,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="transporters.view" />}>
                 <Route path="/settings/transporters" element={<TransportersPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="machine-telemetry.view" />}>
+                <Route path="/settings/machine-gateways" element={<MachineGatewaysPage />} />
               </Route>
 
               {/* ---------- Sales ---------- */}

@@ -468,7 +468,7 @@ export class GoodsDispatchService {
 
       // Create a StockAdjustment for the Dispatch
       const firstPoId = dispatch.items.find((i) => i.productionOrderId)?.productionOrderId || null;
-      const adjustmentNumber = await StockAdjustmentService.getNextAdjustmentNumber();
+      const adjustmentNumber = await StockAdjustmentService.getNextAdjustmentNumber(tx);
       const stockAdjustment = await tx.stockAdjustment.create({
         data: {
           adjustmentNumber,

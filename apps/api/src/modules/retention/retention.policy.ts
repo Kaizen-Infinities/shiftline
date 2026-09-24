@@ -91,6 +91,14 @@ export const RETENTION_CLASSES: Record<RetentionDataClass, RetentionClassSpec> =
     purgeable: true,
     description: "In-app notifications shown in the notification centre",
   },
+  MACHINE_TELEMETRY: {
+    minDays: 7,
+    defaultDays: 30,
+    defaultAction: "PURGE",
+    purgeable: true,
+    description:
+      "Raw machine signal samples (MachineSignal) -- operational data, not books; MachineCycle roll-ups are unaffected",
+  },
 };
 
 export const RETENTION_DATA_CLASSES = Object.keys(RETENTION_CLASSES) as RetentionDataClass[];

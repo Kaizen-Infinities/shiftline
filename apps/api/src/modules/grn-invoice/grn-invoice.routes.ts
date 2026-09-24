@@ -10,32 +10,32 @@ import {
 import { uploadInvoiceImage } from "../../middleware/upload.middleware";
 
 import { requireFeature } from "../../middleware/feature.middleware";
+import { requirePermission } from "../../middleware/permission.middleware";
 const router = Router();
 
 router.post(
   "/",
   authMiddleware,
   requireFeature("purchase"),
+  requirePermission("invoice.create"),
   uploadInvoiceImage.single("invoiceImage"),
   validateMiddleware(createGrnInvoiceRequestSchema),
   grnInvoiceController.create
 );
 
-router.put(
-  "/:id",
+router.get(
+  "/",
   authMiddleware,
   requireFeature("purchase"),
-  uploadInvoiceImage.single("invoiceImage"),
-  validateMiddleware(updateGrnInvoiceRequestSchema),
-  grnInvoiceController.update
+  requirePermission("invoice.view"),
+  grnInvoiceController.findAll
 );
-
-router.get("/", authMiddleware, requireFeature("purchase"), grnInvoiceController.findAll);
 
 router.get(
   "/next-code",
   authMiddleware,
   requireFeature("purchase"),
+  requirePermission("invoice.view"),
   grnInvoiceController.getNextCode
 );
 
@@ -43,6 +43,7 @@ router.get(
   "/:id",
   authMiddleware,
   requireFeature("purchase"),
+  requirePermission("invoice.view"),
   validateMiddleware(grnInvoiceIdRequestSchema),
   grnInvoiceController.findOne
 );
@@ -51,6 +52,8 @@ router.put(
   "/:id",
   authMiddleware,
   requireFeature("purchase"),
+  requirePermission("invoice.edit"),
+  uploadInvoiceImage.single("invoiceImage"),
   validateMiddleware(updateGrnInvoiceRequestSchema),
   grnInvoiceController.update
 );
@@ -59,6 +62,7 @@ router.delete(
   "/:id",
   authMiddleware,
   requireFeature("purchase"),
+  requirePermission("invoice.delete"),
   validateMiddleware(grnInvoiceIdRequestSchema),
   grnInvoiceController.delete
 );
@@ -67,6 +71,7 @@ router.post(
   "/:id/cancel",
   authMiddleware,
   requireFeature("purchase"),
+  requirePermission("invoice.delete"),
   validateMiddleware(grnInvoiceIdRequestSchema),
   grnInvoiceController.delete
 );

@@ -33,10 +33,7 @@ export const Col = ({ className, ...props }: PrimitiveProps) => (
 
 const CardRoot = ({ className, ...props }: PrimitiveProps) => (
   <section
-    className={join(
-      "overflow-hidden rounded-xl border border-line bg-card text-ink shadow-sm",
-      className
-    )}
+    className={join("overflow-hidden rounded-sm border border-line bg-card text-ink", className)}
     {...stripLayoutProps(props)}
   />
 );
@@ -117,7 +114,7 @@ const ModalRoot = ({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={join(
-          "my-auto max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-xl border border-line bg-card text-ink shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-accent",
+          "my-auto max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-sm border border-line bg-card text-ink shadow-md outline-none focus-visible:ring-2 focus-visible:ring-accent",
           className
         )}
         {...stripLayoutProps(props)}

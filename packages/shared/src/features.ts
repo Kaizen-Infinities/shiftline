@@ -186,6 +186,12 @@ export const FEATURES: readonly FeatureDef[] = [
     description: "Integration tokens for third-party systems",
     modules: [],
   },
+  {
+    key: "shop-floor",
+    name: "Shop floor",
+    description: "Machine telemetry, andon, energy, maintenance and piece-rate pay (Phase 2)",
+    modules: ["machine-telemetry"],
+  },
 ];
 
 export const FEATURE_KEYS: readonly string[] = FEATURES.map((f) => f.key);
@@ -239,6 +245,7 @@ export const PLAN_TIERS: readonly PlanTierDef[] = [
       "accounts",
       "field-app",
       "gst-compliance",
+      "shop-floor",
     ],
     seatLimit: 25,
     apiLimit: 3000,

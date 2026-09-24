@@ -24,6 +24,10 @@ import { billingSweepHandler } from "./billing.job";
 import { chequeDueHandler } from "./banking.job";
 import { tallyExportSweepHandler } from "./tally.job";
 import { smsSendHandler } from "./sms.job";
+import {
+  machineTelemetryFanoutHandler,
+  machineTelemetryPollHandler,
+} from "./machine-telemetry-poll.job";
 
 const IST = "Asia/Kolkata";
 
@@ -83,6 +87,8 @@ export const registerWorkers = async (opts: WorkerOptions = {}): Promise<void> =
   await boss.work(QUEUES.LEAVE_ACCRUAL, work, each(leaveAccrualHandler));
   await boss.work(QUEUES.TAX_DECLARATION_REMINDER, work, each(taxDeclarationReminderHandler));
   await boss.work(QUEUES.GSTR2B_NUDGE, work, each(gstr2bNudgeHandler));
+  await boss.work(QUEUES.MACHINE_TELEMETRY_FANOUT, work, each(machineTelemetryFanoutHandler));
+  await boss.work(QUEUES.MACHINE_TELEMETRY_POLL, work, each(machineTelemetryPollHandler));
 };
 
 /**
@@ -122,4 +128,6 @@ export const registerSchedules = async (): Promise<void> => {
   // 09:00 IST daily, after the 2B/IMS/compliance nudges: today's reconciliation state is settled
   // by then, and it lands after the other GST warnings rather than competing with them.
   await boss.schedule(QUEUES.GSTR2B_NUDGE, "0 9 * * *", {}, { tz: IST });
+  // Every minute: the per-gateway poll interval is checked inside the handler (P2-01).
+  await boss.schedule(QUEUES.MACHINE_TELEMETRY_FANOUT, "* * * * *", {}, { tz: IST });
 };

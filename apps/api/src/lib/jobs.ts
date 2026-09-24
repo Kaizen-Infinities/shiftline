@@ -60,6 +60,10 @@ export const QUEUES = {
   TAX_DECLARATION_REMINDER: "payroll.tax-declaration.reminder",
   /** Daily: flag a GSTR-2B MISSING_IN_2B/MISMATCH record nobody has followed up (P2-18). */
   GSTR2B_NUDGE: "gst.gstr2b.nudge",
+  /** Every minute: enqueue a poll job for every active MachineGateway due this cycle (P2-01). */
+  MACHINE_TELEMETRY_FANOUT: "shop-floor.machine-telemetry.fanout",
+  /** One gateway poll per job; connects, reads, writes the batch, rolls up cycles. */
+  MACHINE_TELEMETRY_POLL: "shop-floor.machine-telemetry.poll",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -69,6 +73,9 @@ const TENANT_QUEUES: ReadonlySet<string> = new Set([
   QUEUES.EOD_SNAPSHOT,
   QUEUES.RETENTION_SWEEP,
   QUEUES.ACCOUNT_EXPORT,
+  // Per-gateway, not per-tenant, but the same "one queued, one active" stately policy applies:
+  // its singletonKey is `${companyId}:${gatewayId}`, not companyId alone.
+  QUEUES.MACHINE_TELEMETRY_POLL,
 ]);
 
 let boss: PgBoss | undefined;

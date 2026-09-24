@@ -167,7 +167,8 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`h-screen bg-nav text-nav-fg relative overflow-visible flex flex-col transition-[width] duration-300 ease-in-out z-50 border-r border-black/10  w-[250px]`}
+      aria-label="Primary"
+      className={`h-screen bg-nav text-nav-fg relative overflow-visible flex flex-col transition-[width] duration-300 ease-in-out z-50 border-r border-line w-[250px]`}
     >
       <div className="flex-1 px-5 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/20 [&::-webkit-scrollbar-thumb]:rounded-full">
         {filteredSidebarItems.map((menu) => {
@@ -293,10 +294,10 @@ const Sidebar = () => {
       </div>
       <div className="p-4 mt-auto shrink-0">
         <div
-          className={`flex items-center p-3 rounded-2xl bg-card hover:bg-card-2 transition-colors border border-line-soft justify-between`}
+          className={`flex items-center p-3 rounded-sm bg-card hover:bg-card-2 transition-colors border border-line justify-between`}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-card-2 shadow-sm flex items-center justify-center text-primary font-bold text-lg border border-line">
+            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-card-2 flex items-center justify-center text-primary font-bold text-lg border border-line">
               {avatarImage ? (
                 <img src={avatarImage} alt="Profile" className="w-full h-full object-cover" />
               ) : (

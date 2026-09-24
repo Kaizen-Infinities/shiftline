@@ -362,6 +362,17 @@ export const API_PATHS = {
     calendar: "/leave/calendar",
     me: "/leave/me",
   },
+  machineGateway: {
+    base: "/machine-gateways",
+    testConnection: "/machine-gateways", // ← base; service appends /:id/test-connection
+    signalMap: "/machine-gateways", // ← base; service appends /:id/signal-map
+  },
+  machineTelemetry: {
+    base: "/machine-telemetry",
+    signals: "/machine-telemetry/signals",
+    cycles: "/machine-telemetry/cycles",
+    health: "/machine-telemetry/health",
+  },
 };
 
 export type ApiPaths = typeof API_PATHS;

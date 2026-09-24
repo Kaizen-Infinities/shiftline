@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import type { Db } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
 import Decimal from "decimal.js";
@@ -6,11 +7,16 @@ import { byCode } from "../../lib/prisma";
 import { valuationService } from "../costing/valuation.service";
 
 export class StockAdjustmentService {
-  static async getNextAdjustmentNumber(): Promise<string> {
+  /**
+   * Inside a Prisma interactive transaction, callers must pass `tx` here — the outer `prisma`
+   * client does not carry that transaction's tenant session settings (CLAUDE.md), so it would
+   * see no existing rows and always propose sequence one.
+   */
+  static async getNextAdjustmentNumber(db: Db = prisma): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `ADJ-${year}-`;
 
-    const last = await prisma.stockAdjustment.findFirst({
+    const last = await db.stockAdjustment.findFirst({
       where: { adjustmentNumber: { startsWith: prefix } },
       orderBy: { adjustmentNumber: "desc" },
       select: { adjustmentNumber: true },

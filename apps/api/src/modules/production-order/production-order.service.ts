@@ -900,13 +900,15 @@ class ProductionOrderService {
         }
       }
     } else {
-      // Legacy path: global idempotency check (no dailyPlanId provided)
+      // Legacy path: global idempotency check (no dailyPlanId provided). The issue this guards
+      // against always stores sourceDocId as the production order id itself (see the create()
+      // call below: `sourceDocId: dailyPlanId ?? productionOrderId`), never null.
       const existingIssue = await prisma.stockAdjustment.findFirst({
         where: {
           productionOrderId,
           adjustmentType: "RAW_MATERIAL_ISSUE",
           status: { not: "REJECTED" },
-          sourceDocId: null,
+          sourceDocId: productionOrderId,
         },
       });
       if (existingIssue) {

@@ -619,6 +619,10 @@ model Company {
   machineOeeSnapshots         MachineOeeSnapshot[]         @relation("CompanyMachineOeeSnapshot")
   machineOperationAssignments MachineOperationAssignment[] @relation("CompanyMachineOperationAssignment")
   machines                    Machine[]                    @relation("CompanyMachine")
+  machineGateways             MachineGateway[]             @relation("CompanyMachineGateway")
+  machineSignalMaps           MachineSignalMap[]           @relation("CompanyMachineSignalMap")
+  machineSignals              MachineSignal[]              @relation("CompanyMachineSignal")
+  machineCycles               MachineCycle[]               @relation("CompanyMachineCycle")
   payrollConfig               PayrollConfig?               @relation("CompanyPayrollConfig")
   payrollResults              PayrollResult[]              @relation("CompanyPayrollResult")
   payrollRuns                 PayrollRun[]                 @relation("CompanyPayrollRun")
@@ -1198,12 +1202,116 @@ model Machine {
   productionWastages    ProductionWastage[]
   weeklyMachinePrograms WeeklyMachineProgram[]
   shiftRecords          ProductShiftRecord[]
+  gateways              MachineGateway[]
 
   company Company @relation("CompanyMachine", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, machineId])
   @@index([companyId])
   @@map("machines")
+}
+
+/// P2-01: a connection to one machine's controller/PLC/gateway box. Audited (master).
+/// Credentials are a single JSON blob, encrypted with encryptText before it ever reaches this
+/// column; config services return hasCredentials: boolean, never the value (P2-00).
+model MachineGateway {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId            String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  code                 String             @db.VarChar(20)
+  machineId            String             @map("machine_id") @db.VarChar(20)
+  adapterKind          GatewayAdapterKind @map("adapter_kind")
+  connectionSettings   Json               @default("{}") @map("connection_settings")
+  credentialsEncrypted String?            @map("credentials_encrypted")
+  pollIntervalSeconds  Int                @default(30) @map("poll_interval_seconds")
+  isActive             Boolean            @default(true) @map("is_active")
+  lastSeenAt           DateTime?          @map("last_seen_at") @db.Timestamptz(6)
+  lastError            String?            @map("last_error") @db.VarChar(500)
+  lastErrorAt          DateTime?          @map("last_error_at") @db.Timestamptz(6)
+  consecutiveFailures  Int                @default(0) @map("consecutive_failures")
+  createdBy            String?            @map("created_by") @db.VarChar(36)
+  updatedBy            String?            @map("updated_by") @db.VarChar(36)
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  machine    Machine            @relation(fields: [companyId, machineId], references: [companyId, machineId], onDelete: Restrict)
+  company    Company            @relation("CompanyMachineGateway", fields: [companyId], references: [id], onDelete: Restrict)
+  signalMaps MachineSignalMap[]
+  signals    MachineSignal[]
+  cycles     MachineCycle[]
+
+  @@unique([companyId, code])
+  @@index([companyId, machineId])
+  @@map("machine_gateways")
+}
+
+/// P2-01: the per-gateway mapping from a vendor tag/address to a canonical signal, so the
+/// ingestion service never learns a vendor's vocabulary. Audited (master).
+model MachineSignalMap {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  gatewayId       String            @map("gateway_id") @db.Uuid
+  vendorTag       String            @map("vendor_tag") @db.VarChar(100)
+  canonicalSignal MachineSignalName @map("canonical_signal")
+  unit            String?           @db.VarChar(20)
+  dataType        SignalDataType    @default(NUMERIC) @map("data_type")
+  isActive        Boolean           @default(true) @map("is_active")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  gateway MachineGateway @relation(fields: [gatewayId], references: [id], onDelete: Cascade)
+  company Company        @relation("CompanyMachineSignalMap", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, gatewayId, vendorTag])
+  @@map("machine_signal_maps")
+}
+
+/// P2-01: raw telemetry samples, written in batches (P2-00's write path). Deliberately NOT in
+/// AUDITED_MODELS — a trigger per sample would be pathological — and carries the
+/// MACHINE_TELEMETRY retention class instead (RETENTION_CLASSES in retention.policy.ts).
+model MachineSignal {
+  id           BigInt            @id @default(autoincrement())
+  companyId    String            @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  machineId    String            @map("machine_id") @db.VarChar(20)
+  gatewayId    String            @map("gateway_id") @db.Uuid
+  signal       MachineSignalName
+  timestamp    DateTime          @db.Timestamptz(6)
+  numericValue Decimal?          @map("numeric_value") @db.Decimal(14, 4)
+  textValue    String?           @map("text_value") @db.VarChar(200)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  gateway MachineGateway @relation(fields: [gatewayId], references: [id], onDelete: Cascade)
+  company Company        @relation("CompanyMachineSignal", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, machineId, signal, timestamp])
+  @@index([companyId, machineId, timestamp])
+  @@map("machine_signals")
+}
+
+/// P2-01: one row per completed cycle, rolled up from MachineSignal by the ingestion job. This
+/// is the table P2-04 and the OEE service read; nothing outside this module reads MachineSignal.
+/// Audited (a shop-floor fact, not a raw sample).
+model MachineCycle {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId          String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  machineId          String   @map("machine_id") @db.VarChar(20)
+  gatewayId          String   @map("gateway_id") @db.Uuid
+  productionOrderId  String?  @map("production_order_id") @db.VarChar(20)
+  startedAt          DateTime @map("started_at") @db.Timestamptz(6)
+  endedAt            DateTime @map("ended_at") @db.Timestamptz(6)
+  actualCycleSeconds Decimal  @map("actual_cycle_seconds") @db.Decimal(10, 2)
+  partsProduced      Int      @default(1) @map("parts_produced")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  gateway         MachineGateway   @relation(fields: [gatewayId], references: [id], onDelete: Cascade)
+  productionOrder ProductionOrder? @relation(fields: [companyId, productionOrderId], references: [companyId, productionOrderId])
+  company         Company          @relation("CompanyMachineCycle", fields: [companyId], references: [id], onDelete: Restrict)
+
+  /// A replayed poll (pg-boss redelivery, or a resumed adapter re-reading its last-known cursor)
+  /// must not double the cycle it already rolled up, same idempotency guarantee as MachineSignal.
+  @@unique([companyId, gatewayId, endedAt])
+  @@index([companyId, machineId, startedAt])
+  @@map("machine_cycles")
 }
 
 model Store {
@@ -1439,6 +1547,7 @@ model ProductionOrder {
   stockAdjustments          StockAdjustment[]
   weeklyMachinePrograms     WeeklyMachineProgram[]
   shiftRecords              ProductShiftRecord[]
+  machineCycles             MachineCycle[]
 
   company Company @relation("CompanyProductionOrder", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -2494,6 +2603,36 @@ enum TechnologyType {
   GRANULATION
   MIXING
   RECYCLING
+}
+
+/// P2-01: how a MachineGateway reaches its device. SIMULATOR is deterministic and what every
+/// acceptance test runs against; the other three are written but unpinned — never having met
+/// real hardware (P2-00's adapter posture, same as the e-invoice GSP adapters).
+enum GatewayAdapterKind {
+  SIMULATOR
+  OPCUA_EUROMAP77
+  EUROMAP63_FILE
+  MODBUS_MQTT
+}
+
+/// P2-01: canonical signal vocabulary every adapter maps into, so nothing downstream reads a
+/// vendor tag. Unit and datatype per signal are documented in machine-telemetry.types.ts.
+enum MachineSignalName {
+  STATE
+  CYCLE_COMPLETE
+  SHOT_COUNT
+  PART_COUNT
+  CYCLE_TIME
+  BARREL_TEMP
+  MOULD_TEMP
+  INJECTION_PRESSURE
+  ALARM
+}
+
+/// P2-01: the value a MachineSignal or MachineSignalMap row carries.
+enum SignalDataType {
+  NUMERIC
+  TEXT
 }
 
 enum UserStatus {
@@ -3708,6 +3847,7 @@ enum RetentionDataClass {
   SYNC_TOMBSTONES
   AGENT_POSITIONS
   NOTIFICATIONS
+  MACHINE_TELEMETRY
 }
 
 enum RetentionAction {
