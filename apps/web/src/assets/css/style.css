@@ -23,9 +23,18 @@
   --color-line-soft: var(--color-line-soft);
   --color-head: var(--color-head);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  /* ── Concept v2: action gradient and chips ─────────────────── */
+  --color-cta: var(--color-cta);
+  --color-cta-2: var(--color-cta-2);
+  --color-cta-ink: var(--color-cta-ink);
+  --color-cta-edge: var(--color-cta-edge);
+  --color-chip: var(--color-chip);
+  --color-chip-fg: var(--color-chip-fg);
+  --color-brand: var(--color-brand);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
 }
 
 /* Compatibility utilities use the active semantic theme colour. */
@@ -51,32 +60,34 @@
   root
 ================================ */
 :root {
-  /* Brand — one reserved registry-ink accent; --color-primary is an alias of
-     it, not a second brand color (The One Ink Rule: one accent, one job). */
-  --color-primary: #a6321f;
-  --color-primary-light: #c94a35;
+  /* Brand — concept v2: a clear product blue for identity and links; the
+     green-to-lime action gradient (--color-cta*) is reserved for the one
+     primary action on a screen ("Run Payroll", "Pay Taxes"). */
+  --color-primary: #4a74f0;
+  --color-primary-light: #6d8ff5;
+  --color-brand: #5b82f6;
 
-  --color-secondary: #d9cfb4;
-  --color-secondary-light: #3a3325;
+  --color-secondary: #dbe5ec;
+  --color-secondary-light: #26394f;
 
-  --color-neutral: #837c64;
-  --color-neutral-light: #3a3325;
+  --color-neutral: #7a8fa0;
+  --color-neutral-light: #26394f;
 
-  /* Text (dark fallback) */
-  --color-text-primary: #f2ebda;
-  --color-text-secondary: #c2b89e;
-  --color-text-muted: #8f866d;
+  /* Text (light default) */
+  --color-text-primary: #1c3548;
+  --color-text-secondary: #4a6275;
+  --color-text-muted: #7a8fa0;
 
-  /* Background (dark fallback) */
-  --color-bg: #17140f;
-  --color-surface: #211c15;
-  --color-border: #3a3325;
+  /* Background (light default) */
+  --color-bg: #eef3f6;
+  --color-surface: #ffffff;
+  --color-border: #dbe5ec;
 
-  /* Status — muted stamp inks, not bright modern SaaS hues */
-  --color-success: #3f7d4a;
-  --color-warning: #a6791f;
-  --color-danger: #b3402c;
-  --color-info: #3a5a8f;
+  /* Status — clear, friendly, readable on white and on navy */
+  --color-success: #2f9e5b;
+  --color-warning: #c98a14;
+  --color-danger: #d6453d;
+  --color-info: #3b7fd6;
   --color-black: #000000;
   --color-white: #ffffff;
 
@@ -85,85 +96,97 @@
   --font-head: "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
 
-  /* Radius — small, print-derived; a sheet has corners, not a bubble */
-  --radius-sm: 3px;
-  --radius-md: 5px;
-  --radius-lg: 8px;
+  /* Radius — soft tiles and pills (concept v2) */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
 
-  /* Shadow — reserved for genuinely elevated, transient surfaces (modals,
-     dropdowns), never for a resting card or nav; persistent chrome divides
-     with a hairline instead. */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.16);
-  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.22);
+  /* Shadow — soft, cool, low: resting tiles float a little off the page */
+  --shadow-sm: 0 1px 2px rgba(28, 53, 72, 0.05), 0 2px 8px rgba(28, 53, 72, 0.05);
+  --shadow-md: 0 10px 30px rgba(28, 53, 72, 0.1);
+  --shadow-cta: 0 5px 0 var(--color-cta-edge), 0 12px 24px rgba(79, 184, 96, 0.28);
 
   /* Transition */
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
 
-  color-scheme: dark;
-}
-
-/* ===============================
-   Dark theme tokens — graphite-charcoal ledger at night
-================================ */
-:root[data-theme="dark"] {
-  --color-page: #17140f;
-  --color-card: #211c15;
-  --color-card-2: #2b251c;
-  --color-ink: #f2ebda;
-  --color-ink-muted: #c2b89e;
-  --color-ink-subtle: #8f866d;
-  --color-line: #3a3325;
-  --color-line-soft: #2e2919;
-  --color-head: #2b251c;
-  --color-nav: #211c15;
-  --color-nav-fg: #f2ebda;
-  --color-nav-hover: #2b251c;
-  --color-nav-active: transparent;
-  --color-nav-active-fg: #e2604b;
-  --color-accent: #e2604b;
-  color-scheme: dark;
-}
-
-/* ===============================
-   Light theme tokens — warm ledger-paper
-================================ */
-:root[data-theme="light"] {
-  --color-page: #f7f3e8;
-  --color-card: #fffffb;
-  --color-card-2: #efe8d6;
-  --color-ink: #211c13;
-  --color-ink-muted: #55503f;
-  --color-ink-subtle: #837c64;
-  --color-line: #d9cfb4;
-  --color-line-soft: #e9e2cc;
-  --color-head: #efe8d6;
-  --color-surface: #fffffb;
-  --color-border: #d9cfb4;
-  --color-text-primary: #211c13;
-  --color-text-secondary: #55503f;
-  --color-text-muted: #837c64;
-  --color-nav: #fffffb;
-  --color-nav-fg: #211c13;
-  --color-nav-hover: #efe8d6;
-  --color-nav-active: transparent;
-  --color-nav-active-fg: #a6321f;
-  --color-accent: #a6321f;
   color-scheme: light;
 }
 
-/* Persistent chrome (nav, resting cards, tables) stays flat — a bordered
-   sheet, not a floating tile. Only transient overlays (modals, dropdown
-   portals) keep a real shadow; see TailwindPrimitives.tsx. */
-:root[data-theme="light"] .shadow-md,
-:root[data-theme="light"] .shadow-lg,
-:root[data-theme="light"] .shadow-xl,
-:root[data-theme="light"] .shadow-sm {
-  box-shadow: none !important;
+/* ===============================
+   Dark theme tokens — deep navy
+================================ */
+:root[data-theme="dark"] {
+  --color-page: #0f1b26;
+  --color-card: #16263a;
+  --color-card-2: #1c2f45;
+  --color-ink: #e6eef5;
+  --color-ink-muted: #a8bccd;
+  --color-ink-subtle: #7890a5;
+  --color-line: #26394f;
+  --color-line-soft: #1f3145;
+  --color-head: #1c2f45;
+  --color-surface: #16263a;
+  --color-border: #26394f;
+  --color-text-primary: #e6eef5;
+  --color-text-secondary: #a8bccd;
+  --color-text-muted: #7890a5;
+  --color-nav: #16263a;
+  --color-nav-fg: #e6eef5;
+  --color-nav-hover: #1c2f45;
+  --color-nav-active: #1f3d5c;
+  --color-nav-active-fg: #cfe3f5;
+  --color-accent: #7c9cff;
+  --color-primary: #7c9cff;
+  --color-brand: #6d8ff5;
+  --color-cta: #5fcf6e;
+  --color-cta-2: #b6e85f;
+  --color-cta-ink: #0e2a18;
+  --color-cta-edge: #3f9a4f;
+  --color-chip: #1f3d5c;
+  --color-chip-fg: #cfe3f5;
+  --color-success: #4cc27a;
+  --color-warning: #e0a53a;
+  --color-danger: #f0675e;
+  --color-info: #6aa6f0;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
 }
 
-:root[data-theme="light"] .bg-card {
-  box-shadow: none;
+/* ===============================
+   Light theme tokens — concept v2: airy blue-white, the default
+================================ */
+:root,
+:root[data-theme="light"] {
+  --color-page: #eef3f6;
+  --color-card: #ffffff;
+  --color-card-2: #f4f8fb;
+  --color-ink: #1c3548;
+  --color-ink-muted: #4a6275;
+  --color-ink-subtle: #7a8fa0;
+  --color-line: #dbe5ec;
+  --color-line-soft: #e8eff4;
+  --color-head: #f4f8fb;
+  --color-surface: #ffffff;
+  --color-border: #dbe5ec;
+  --color-text-primary: #1c3548;
+  --color-text-secondary: #4a6275;
+  --color-text-muted: #7a8fa0;
+  --color-nav: #ffffff;
+  --color-nav-fg: #1c3548;
+  --color-nav-hover: #f0f6fa;
+  --color-nav-active: #d7eaf6;
+  --color-nav-active-fg: #1c3548;
+  --color-accent: #4a74f0;
+  --color-cta: #74de7c;
+  --color-cta-2: #c6f06a;
+  --color-cta-ink: #123524;
+  --color-cta-edge: #4fb860;
+  --color-chip: #d7eaf6;
+  --color-chip-fg: #1c3548;
+  color-scheme: light;
 }
 
 /* ===============================
@@ -181,17 +204,17 @@
    the convention here) rather than adding a fifth generated hue.
 ================================ */
 :root[data-theme="dark"] {
-  --chart-series-1: #2a9ab0; /* teal ink */
-  --chart-series-2: #c97e38; /* sienna ink */
-  --chart-series-3: #8f60b0; /* plum ink */
-  --chart-series-4: #5fa05f; /* forest ink */
+  --chart-series-1: #7c9cff; /* product blue */
+  --chart-series-2: #e0a53a; /* amber */
+  --chart-series-3: #4cc27a; /* green */
+  --chart-series-4: #b48cf2; /* violet */
 }
 
 :root[data-theme="light"] {
-  --chart-series-1: #0d6e99; /* teal ink */
-  --chart-series-2: #a8621f; /* sienna ink */
-  --chart-series-3: #6b3a8a; /* plum ink */
-  --chart-series-4: #3f7a3f; /* forest ink */
+  --chart-series-1: #3d66e0; /* product blue */
+  --chart-series-2: #b8740f; /* amber */
+  --chart-series-3: #2f8f52; /* green */
+  --chart-series-4: #7a4fc4; /* violet */
 }
 
 /* ===============================
@@ -795,4 +818,312 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: #0f172a !important;
   caret-color: #0f172a !important;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* =====================================================================
+   Concept v2 design language — shared building blocks (docs/specs/UI-v2.md)
+   Every screen composes from these; do not re-invent them per page.
+===================================================================== */
+@layer components {
+  /* A resting white tile: cards, nav rows, list rows, panels. */
+  .sl-tile {
+    background: var(--color-card);
+    border: 1px solid var(--color-line-soft);
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .sl-tile-hover {
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .sl-tile-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* The one primary action on a screen: green→lime pill with a raised edge. */
+  .sl-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: 999px;
+    border: 0;
+    background: linear-gradient(100deg, var(--color-cta) 0%, var(--color-cta-2) 100%);
+    color: var(--color-cta-ink);
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    box-shadow: var(--shadow-cta);
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease,
+      filter 0.12s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sl-cta:hover {
+    filter: brightness(1.03) saturate(1.05);
+  }
+  .sl-cta:active {
+    transform: translateY(3px);
+    box-shadow:
+      0 2px 0 var(--color-cta-edge),
+      0 6px 12px rgba(79, 184, 96, 0.22);
+  }
+  .sl-cta:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .sl-cta-lg {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
+
+  /* Secondary pill: white, hairline, soft shadow. */
+  .sl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    background: var(--color-card);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line);
+    box-shadow: var(--shadow-sm);
+    font-weight: 600;
+    transition: background 0.12s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sl-btn:hover {
+    background: var(--color-nav-hover);
+  }
+  .sl-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* Brand-blue solid pill: links out, "view", non-primary confirmations. */
+  .sl-btn-blue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: #fff;
+    border: 0;
+    font-weight: 600;
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--color-primary) 70%, #000 30%);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sl-btn-blue:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--color-primary) 70%, #000 30%);
+  }
+
+  /* Danger pill for destructive confirmations. */
+  .sl-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    background: var(--color-danger);
+    color: #fff;
+    border: 0;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Pale-blue chip: sub-areas, filters, statuses, tags ("TDS", "PF", "Admin"). */
+  .sl-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    background: var(--color-chip);
+    color: var(--color-chip-fg);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    white-space: nowrap;
+  }
+  .sl-chip-muted {
+    background: var(--color-card-2);
+    color: var(--color-ink-muted);
+  }
+  .sl-chip-success {
+    background: color-mix(in srgb, var(--color-success) 16%, transparent);
+    color: var(--color-success);
+  }
+  .sl-chip-warning {
+    background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+    color: var(--color-warning);
+  }
+  .sl-chip-danger {
+    background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+    color: var(--color-danger);
+  }
+  button.sl-chip,
+  a.sl-chip {
+    cursor: pointer;
+  }
+  button.sl-chip:hover,
+  a.sl-chip:hover {
+    filter: brightness(0.97);
+  }
+  .sl-chip[aria-pressed="true"],
+  .sl-chip.is-active {
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  /* Navigation row: a white pill tile with icon + label; active = pale blue. */
+  .sl-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    border-radius: 14px;
+    background: var(--color-card);
+    color: var(--color-nav-fg);
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-line-soft);
+    transition:
+      background 0.12s ease,
+      transform 0.12s ease;
+  }
+  .sl-nav-item:hover {
+    background: var(--color-nav-hover);
+  }
+  .sl-nav-item[aria-current="page"],
+  .sl-nav-item.is-active {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+    border-color: transparent;
+    box-shadow: none;
+    font-weight: 600;
+  }
+
+  /* Small section label above a group ("Admin", "Money"). */
+  .sl-section-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-subtle);
+    letter-spacing: 0.02em;
+    padding: 0 0.25rem;
+  }
+
+  /* Brand tile: the blue rounded square that carries the mark. */
+  .sl-brand-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 12px;
+    background: var(--color-brand);
+    color: #fff;
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--color-brand) 65%, #000 35%);
+  }
+
+  /* "Welcome Riya": light greeting, bold name. */
+  .sl-welcome {
+    font-size: clamp(1.75rem, 2.4vw, 2.5rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--color-ink-muted);
+  }
+  .sl-welcome strong {
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  /* Page heading and supporting text. */
+  .sl-h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+  }
+  .sl-h2 {
+    font-size: 1.125rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .sl-muted {
+    color: var(--color-ink-subtle);
+  }
+
+  /* Inputs: rounded, calm, blue focus ring. */
+  .sl-input {
+    width: 100%;
+    border-radius: 12px;
+    background: var(--color-card);
+    border: 1px solid var(--color-line);
+    color: var(--color-ink);
+    padding: 0.6rem 0.9rem;
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+  .sl-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+
+  /* Placeholder bar used in skeleton loaders (the concept's grey slabs). */
+  .sl-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-line-soft) 0%,
+      var(--color-card-2) 50%,
+      var(--color-line-soft) 100%
+    );
+    background-size: 200% 100%;
+    animation: sl-shimmer 1.4s ease-in-out infinite;
+    border-radius: 12px;
+  }
+}
+
+@keyframes sl-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-skeleton {
+    animation: none;
+  }
+  .sl-cta,
+  .sl-tile-hover,
+  .sl-nav-item {
+    transition: none;
+  }
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 55%, transparent);
+  outline-offset: 2px;
 }

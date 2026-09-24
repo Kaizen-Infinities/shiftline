@@ -10,13 +10,12 @@
       // Restore saved theme before React loads to avoid flash.
       (function () {
         try {
-          var t = localStorage.getItem('shiftline-theme');
-          var theme = t === 'light' ? 'light' : 'dark';
+          var t = localStorage.getItem('shiftline-theme-v2');
+          var theme = t === 'dark' ? 'dark' : 'light';
           document.documentElement.setAttribute('data-theme', theme);
           if (theme === 'dark') document.documentElement.classList.add('dark');
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'dark');
-          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'light');
         }
       })();
     </script>

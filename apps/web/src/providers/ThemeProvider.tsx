@@ -1,11 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 
 export type ThemeMode = "dark" | "light";
 
@@ -17,7 +10,7 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "shiftline-theme";
+const STORAGE_KEY = "shiftline-theme-v2";
 
 function applyTheme(mode: ThemeMode) {
   const root = document.documentElement;
@@ -29,15 +22,13 @@ function applyTheme(mode: ThemeMode) {
   }
 }
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setModeState] = useState<ThemeMode>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-      return stored === "light" ? "light" : "dark";
+      return stored === "dark" ? "dark" : "light";
     } catch {
-      return "dark";
+      return "light";
     }
   });
 
@@ -56,14 +47,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     setModeState((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
 
-  const value = useMemo(
-    () => ({ mode, setMode, toggle }),
-    [mode, setMode, toggle]
-  );
+  const value = useMemo(() => ({ mode, setMode, toggle }), [mode, setMode, toggle]);
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = (): ThemeContextValue => {
