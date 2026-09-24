@@ -19,7 +19,7 @@ jobs:
     name: Typecheck, lint, format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -50,7 +50,7 @@ jobs:
       DATABASE_URL: postgresql://shiftline:shiftline@localhost:5432/shiftline
       SHADOW_DATABASE_URL: postgresql://shiftline:shiftline@localhost:5432/shiftline_shadow
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -107,7 +107,7 @@ jobs:
       # A non-superuser role: superusers bypass row-level security, which would make the RLS suite meaningless.
       TEST_DATABASE_URL: postgresql://shiftline_migrator:shiftline_migrator@localhost:5432/shiftline_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: static
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -168,7 +168,7 @@ jobs:
       # The smoke suite renders every screen from one IP; the production ceiling would refuse the tail.
       GLOBAL_RATE_LIMIT_MAX: "20000"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -205,7 +205,7 @@ jobs:
     needs: [test-api, test-web]
     if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
       - name: Build api image
         uses: docker/build-push-action@v6
