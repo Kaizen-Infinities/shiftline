@@ -91,6 +91,10 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "LeaveBalance",
   "FinalSettlement",
   "LeaveRequest",
+  // TN-02: delivery schedules start empty; delivery-schedules.spec.ts has the cross-tenant test.
+  "CustomerSchedule",
+  "CustomerScheduleLine",
+  "CustomerScheduleDispatch",
   "EsiContributionPeriod",
   "OvertimeQuarterPeriod",
   "PaymentGatewayConfig",

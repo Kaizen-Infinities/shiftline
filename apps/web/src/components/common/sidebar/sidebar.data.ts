@@ -600,6 +600,11 @@ export const sidebarItems: SidebarItem[] = [
             permission: "goods-dispatch.view",
           },
           {
+            title: "Delivery Schedules",
+            path: "/sales/delivery-schedules",
+            permission: "delivery-schedules.view",
+          },
+          {
             title: "Shift Execution Board",
             path: "/shift-execution",
             permission: "shift-execution.view",
@@ -646,6 +651,7 @@ export const sidebarItems: SidebarItem[] = [
       "/hourly-work-reports",
       "/production-wastages",
       "/production/goods-dispatch",
+      "/sales/delivery-schedules",
       "/shift-execution",
       "/inventory/stock-adjustments",
       "/inventory/eod-stock",
@@ -666,6 +672,7 @@ export const sidebarItems: SidebarItem[] = [
       "hourly_productions.view",
       "production-wastages.view",
       "goods-dispatch.view",
+      "delivery-schedules.view",
       "shift-execution.view",
       "stock-adjustments.view",
       "eod-stock.view",

@@ -97,6 +97,10 @@ export const AUDITED_MODELS = [
   "MachineGateway",
   "MachineSignalMap",
   "MachineCycle",
+  // customer delivery schedules (TN-02)
+  "CustomerSchedule",
+  "CustomerScheduleLine",
+  "CustomerScheduleDispatch",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];
