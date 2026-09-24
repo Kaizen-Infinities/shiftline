@@ -32,7 +32,7 @@ export const ErrorBox: React.FC<{ message: string | null }> = ({ message }) =>
   message ? (
     <div
       role="alert"
-      className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-500"
+      className="mt-4 rounded-sm border border-[color:var(--color-danger)]/40 bg-card-2 px-3 py-2 text-sm text-[color:var(--color-danger)] font-medium"
     >
       {message}
     </div>
@@ -44,7 +44,7 @@ export const PrimaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElemen
 }) => (
   <button
     {...props}
-    className={`rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-500 disabled:opacity-60 ${className ?? ""}`}
+    className={`min-h-10 rounded-sm bg-accent px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 transition-[filter] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${className ?? ""}`}
   />
 );
 
@@ -55,12 +55,12 @@ export const SecondaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElem
   <button
     {...props}
     type={props.type ?? "button"}
-    className={`rounded-xl border border-line-soft bg-card-2 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-card disabled:opacity-60 ${className ?? ""}`}
+    className={`min-h-10 rounded-sm border border-line bg-card-2 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-card disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${className ?? ""}`}
   />
 );
 
 export const Actions: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-5">
+  <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
     {children}
   </div>
 );

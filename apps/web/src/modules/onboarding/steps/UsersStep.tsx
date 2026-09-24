@@ -67,7 +67,7 @@ const UsersStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
       />
 
       {(state.users.length > 0 || state.invitations.length > 0) && (
-        <div className="mb-5 rounded-xl border border-line-soft bg-card-2/60 p-4 text-sm">
+        <div className="mb-5 rounded-md border border-line-soft bg-card-2/60 p-4 text-sm">
           <div className="text-xs font-bold uppercase tracking-wider text-ink-muted">
             Already on board
           </div>
@@ -93,7 +93,7 @@ const UsersStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
       )}
 
       {results ? (
-        <div className="rounded-xl border border-line-soft bg-card-2/60 p-4 text-sm">
+        <div className="rounded-md border border-line-soft bg-card-2/60 p-4 text-sm">
           <div className="text-xs font-bold uppercase tracking-wider text-ink-muted">
             Invitations
           </div>
@@ -102,14 +102,16 @@ const UsersStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
               <li key={r.email} className="text-ink">
                 <span className="font-semibold">{r.email}</span>{" "}
                 {r.status === "invited" && (
-                  <span className="text-emerald-500">
+                  <span className="text-[color:var(--color-success)]">
                     {r.emailed ? "invited by email" : "invited (email not configured)"}
                   </span>
                 )}
                 {r.status === "exists" && (
-                  <span className="text-amber-500">already has an account</span>
+                  <span className="text-[color:var(--color-warning)]">already has an account</span>
                 )}
-                {r.status === "error" && <span className="text-red-500">{r.message}</span>}
+                {r.status === "error" && (
+                  <span className="text-[color:var(--color-danger)]">{r.message}</span>
+                )}
                 {r.acceptUrl && (
                   <div className="mt-1 break-all font-mono text-[11px] text-ink-muted">
                     {r.acceptUrl}

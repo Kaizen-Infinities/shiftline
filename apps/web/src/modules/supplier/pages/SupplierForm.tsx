@@ -587,7 +587,7 @@ const SupplierForm: React.FC = () => {
                 .supplier-form-compact button[role="combobox"] { height: 32px !important; min-height: 32px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
                 .supplier-form-compact .group { margin-bottom: 0 !important; }
             `}</style>
-      <div className="bg-card rounded-xl border border-line-soft shadow-xs overflow-visible">
+      <div className="bg-card rounded-sm border border-line-soft overflow-visible">
         {/* Header */}
         <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
           <h2 className="text-base font-bold text-ink">
@@ -699,7 +699,7 @@ const SupplierForm: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
                 <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Billing Address <span className="text-rose-500">*</span>
+                  Billing Address <span className="text-[color:var(--color-danger)]">*</span>
                 </h3>
               </div>
               <AddressForm
@@ -757,7 +757,8 @@ const SupplierForm: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-line-soft">
                 <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Delivery / Plant Addresses <span className="text-rose-500">*</span>
+                  Delivery / Plant Addresses{" "}
+                  <span className="text-[color:var(--color-danger)]">*</span>
                 </h3>
                 <CustomButton
                   text="Add Address"
@@ -864,7 +865,7 @@ const SupplierForm: React.FC = () => {
                       error={errors.openingBalance}
                       onChange={handleChange}
                     />
-                    <p className="mt-0.5 text-[10px] text-amber-600">
+                    <p className="mt-0.5 text-[10px] text-[color:var(--color-warning)]">
                       Set once. Cannot be edited later.
                     </p>
                   </div>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { Container, Row, Col, Card } from "../../../components/ui/TailwindPrimitives";
 import { FaSave, FaEraser, FaArrowLeft } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -308,139 +307,114 @@ const WeeklyMachineScheduleEdit: React.FC = () => {
   const remainingToPlan = currentPo ? Math.max(0, Number(currentPo.targetQty) - otherAllocated) : 0;
 
   return (
-    <div className="inner-container">
-      <Container fluid>
-        <div className="page-header mb-4">
-          <Row className="align-items-center g-3">
-            <Col lg={6}>
-              <h2 className="page-title">Edit Weekly Assignment</h2>
-            </Col>
-            <Col lg={6} className="text-end">
-              <BackButton text="Back to List" to="/weekly-machine-schedules" />
-            </Col>
-          </Row>
+    <div className="w-full bg-card rounded-sm border border-line" style={{ maxWidth: 1200 }}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 border-b border-line">
+        <div>
+          <h2 className="text-xl font-bold text-ink">Edit Weekly Assignment</h2>
+          <p className="text-xs text-ink-subtle mt-0.5">
+            Update the planned quantity and machine for this week
+          </p>
         </div>
+        <BackButton text="Back to List" to="/weekly-machine-schedules" />
+      </div>
 
-        {loadingPo || !currentPo ? (
-          <div className="text-center py-5">
-            <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-8 w-8"></div>
-            <p className="mt-3 text-muted">Loading assignment details...</p>
+      {loadingPo || !currentPo ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full border-b-2 border-accent h-8 w-8 mx-auto"></div>
+          <p className="mt-3 text-ink-subtle text-sm font-medium">Loading assignment details...</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <div className="p-6 border-b border-line bg-card-2/40">
+            <h5 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-4">
+              Assignment Context
+            </h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <TextInput
+                label="Production Order ID"
+                name="productionOrderId"
+                value={targetPoId}
+                disabled
+              />
+              <TextInput
+                label="Product Name"
+                name="productName"
+                value={currentPo.productItem?.productName || "Unknown Product"}
+                disabled
+              />
+              <TextInput
+                label="Week Start Date"
+                name="weekStartDate"
+                value={weekStartDate}
+                disabled
+              />
+              <TextInput label="Week End Date" name="weekEndDate" value={weekEndDate} disabled />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <TextInput
+                label="Order Target Qty"
+                name="targetQty"
+                value={`${currentPo.targetQty} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
+                disabled
+              />
+              <TextInput
+                label="Other Weeks Allocated"
+                name="otherAllocated"
+                value={`${otherAllocated} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
+                disabled
+              />
+              <TextInput
+                label="Remaining To Plan"
+                name="remainingToPlan"
+                value={`${remainingToPlan} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
+                disabled
+              />
+            </div>
           </div>
-        ) : (
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-bottom py-3">
-              <h5 className="mb-0 fw-bold" style={{ color: "var(--color-primary)" }}>
-                Assignment Context
-              </h5>
-            </Card.Header>
-            <Card.Body className="p-4">
-              <form onSubmit={handleSubmit}>
-                <Row className="g-4 mb-4">
-                  <Col md={6}>
-                    <TextInput
-                      label="Production Order ID"
-                      name="productionOrderId"
-                      value={targetPoId}
-                      disabled
-                    />
-                  </Col>
-                  <Col md={6}>
-                    <TextInput
-                      label="Product Name"
-                      name="productName"
-                      value={currentPo.productItem?.productName || "Unknown Product"}
-                      disabled
-                    />
-                  </Col>
-                  <Col md={6}>
-                    <TextInput
-                      label="Week Start Date"
-                      name="weekStartDate"
-                      value={weekStartDate}
-                      disabled
-                    />
-                  </Col>
-                  <Col md={6}>
-                    <TextInput
-                      label="Week End Date"
-                      name="weekEndDate"
-                      value={weekEndDate}
-                      disabled
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <TextInput
-                      label="Order Target Qty"
-                      name="targetQty"
-                      value={`${currentPo.targetQty} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
-                      disabled
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <TextInput
-                      label="Other Weeks Allocated"
-                      name="otherAllocated"
-                      value={`${otherAllocated} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
-                      disabled
-                    />
-                  </Col>
-                  <Col md={4}>
-                    <TextInput
-                      label="Remaining To Plan"
-                      name="remainingToPlan"
-                      value={`${remainingToPlan} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
-                      disabled
-                    />
-                  </Col>
-                </Row>
 
-                <Row className="g-4 border-top pt-4">
-                  <Col md={6}>
-                    <TextInput
-                      label="Planned Qty This Week"
-                      name="plannedQty"
-                      type="number"
-                      required
-                      value={plannedQty}
-                      onChange={(e) => setPlannedQty(e.target.value)}
-                      min={1}
-                      max={remainingToPlan}
-                    />
-                  </Col>
-                  <Col md={6}>
-                    <TextInput
-                      label="Assigned Machine"
-                      name="assignedMachine"
-                      value={
-                        machines.find((m: any) => m.machineId === selectedMachineId)?.machineName ||
-                        selectedMachineId
-                      }
-                      disabled
-                    />
-                  </Col>
-                </Row>
+          <div className="p-6 border-b border-line">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <TextInput
+                label="Planned Qty This Week"
+                name="plannedQty"
+                type="number"
+                required
+                value={plannedQty}
+                onChange={(e) => setPlannedQty(e.target.value)}
+                min={1}
+                max={remainingToPlan}
+              />
+              <TextInput
+                label="Assigned Machine"
+                name="assignedMachine"
+                value={
+                  machines.find((m: any) => m.machineId === selectedMachineId)?.machineName ||
+                  selectedMachineId
+                }
+                disabled
+              />
+            </div>
+          </div>
 
-                <div className="form-actions d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
-                  <CustomButton
-                    text="Cancel"
-                    icon={FaEraser}
-                    onClick={() => navigate("/weekly-machine-schedules")}
-                    disabled={isSubmitting}
-                  />
-                  {can("weekly_programs.edit") && (
-                    <CustomButton
-                      text={isSubmitting ? "Saving..." : "Update Assignment"}
-                      icon={FaSave}
-                      type="submit"
-                      disabled={isSubmitting}
-                    />
-                  )}
-                </div>
-              </form>
-            </Card.Body>
-          </Card>
-        )}
-      </Container>
+          <div className="flex justify-end items-center gap-3 p-5 bg-card-2/40">
+            <CustomButton
+              text="Cancel"
+              variant="secondary"
+              icon={FaEraser}
+              onClick={() => navigate("/weekly-machine-schedules")}
+              disabled={isSubmitting}
+            />
+            {can("weekly_programs.edit") && (
+              <CustomButton
+                text={isSubmitting ? "Saving..." : "Update Assignment"}
+                icon={FaSave}
+                type="submit"
+                disabled={isSubmitting}
+              />
+            )}
+          </div>
+        </form>
+      )}
     </div>
   );
 };

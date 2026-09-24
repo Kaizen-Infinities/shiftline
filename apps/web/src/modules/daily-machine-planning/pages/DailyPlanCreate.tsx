@@ -4,8 +4,15 @@ import { z } from "zod";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
-  FaSave, FaArrowLeft, FaInfoCircle, FaExclamationTriangle,
-  FaIndustry, FaCalendarAlt, FaClock, FaBoxes, FaCheckCircle
+  FaSave,
+  FaArrowLeft,
+  FaInfoCircle,
+  FaExclamationTriangle,
+  FaIndustry,
+  FaCalendarAlt,
+  FaClock,
+  FaBoxes,
+  FaCheckCircle,
 } from "react-icons/fa";
 
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
@@ -80,7 +87,9 @@ const DailyPlanCreate: React.FC = () => {
   const [totalShiftHours, setTotalShiftHours] = useState<number>(0);
 
   // ── Fetch active assignment ──────────────────────────────────────────────
-  const loadedPlanRef = useRef<{ machineId?: string; shiftId?: string; prodDate?: string } | null>(null);
+  const loadedPlanRef = useRef<{ machineId?: string; shiftId?: string; prodDate?: string } | null>(
+    null
+  );
   const [availableOperators, setAvailableOperators] = useState<any[]>([]);
   const [selectedOperators, setSelectedOperators] = useState<string[]>([]);
   const operatorName = useMemo(() => {
@@ -125,19 +134,23 @@ const DailyPlanCreate: React.FC = () => {
       setPlansForDateAndMachine([]);
       return;
     }
-    dailyPlanService.getAll({ productionDate, machineId }).then((res) => {
-      let data = [];
-      if (Array.isArray(res)) data = res;
-      else if (res && Array.isArray(res.data)) data = res.data;
-      else if (res && res.data && Array.isArray(res.data.dailyPlans)) data = res.data.dailyPlans;
-      else if (res && Array.isArray(res.dailyPlans)) data = res.dailyPlans;
-      else if (res && Array.isArray(res.content)) data = res.content;
-      setPlansForDateAndMachine(data);
-    }).catch(() => { });
+    dailyPlanService
+      .getAll({ productionDate, machineId })
+      .then((res) => {
+        let data = [];
+        if (Array.isArray(res)) data = res;
+        else if (res && Array.isArray(res.data)) data = res.data;
+        else if (res && res.data && Array.isArray(res.data.dailyPlans)) data = res.data.dailyPlans;
+        else if (res && Array.isArray(res.dailyPlans)) data = res.dailyPlans;
+        else if (res && Array.isArray(res.content)) data = res.content;
+        setPlansForDateAndMachine(data);
+      })
+      .catch(() => {});
 
     // Fetch OEE summary for selected machine
     setLoadingOee(true);
-    oeeService.getMachineOeeSummary(machineId, productionDate)
+    oeeService
+      .getMachineOeeSummary(machineId, productionDate)
       .then((data: any) => setMachineOeeSummary(data))
       .catch(() => setMachineOeeSummary(null))
       .finally(() => setLoadingOee(false));
@@ -150,7 +163,8 @@ const DailyPlanCreate: React.FC = () => {
       return;
     }
     const productId = Number(selectedWeeklyProg.productionOrder.productItem.id);
-    productCapacityHistoryService.fetchByProductAndMachine(productId, machineId)
+    productCapacityHistoryService
+      .fetchByProductAndMachine(productId, machineId)
       .then((rec: any) => {
         if (rec && rec.newCapacity != null) {
           setMachineProductCapacity(Number(rec.newCapacity));
@@ -172,21 +186,25 @@ const DailyPlanCreate: React.FC = () => {
     setLoadingAssignment(true);
     setAssignmentError(null);
 
-    machineOperationAssignmentService.resolveAssignment({
-      machineId,
-      shiftId,
-      date: productionDate,
-    })
+    machineOperationAssignmentService
+      .resolveAssignment({
+        machineId,
+        shiftId,
+        date: productionDate,
+      })
       .then((res: any) => {
         const assignment = res.data;
         if (!assignment || !assignment.operators || assignment.operators.length === 0) {
           setAvailableOperators([]);
           setSelectedOperators([]);
-          setAssignmentError("No operator is assigned to the selected machine for this shift in Weekly Machine Assignment.");
+          setAssignmentError(
+            "No operator is assigned to the selected machine for this shift in Weekly Machine Assignment."
+          );
           return;
         }
 
-        const isInitialEditLoad = isEdit &&
+        const isInitialEditLoad =
+          isEdit &&
           loadedPlanRef.current &&
           loadedPlanRef.current.machineId === machineId &&
           loadedPlanRef.current.shiftId === shiftId &&
@@ -194,7 +212,11 @@ const DailyPlanCreate: React.FC = () => {
 
         setAvailableOperators(assignment.operators);
         if (!isInitialEditLoad) {
-          setSelectedOperators(assignment.operators.map((op: any) => (op.id || op.employeeId)?.toString()).filter(Boolean));
+          setSelectedOperators(
+            assignment.operators
+              .map((op: any) => (op.id || op.employeeId)?.toString())
+              .filter(Boolean)
+          );
         }
         setAssignmentError(null);
       })
@@ -202,7 +224,9 @@ const DailyPlanCreate: React.FC = () => {
         console.error("Failed to resolve machine assignment:", err);
         setAvailableOperators([]);
         setSelectedOperators([]);
-        setAssignmentError("Error resolving machine shift assignment. Please check Weekly Machine Assignment.");
+        setAssignmentError(
+          "Error resolving machine shift assignment. Please check Weekly Machine Assignment."
+        );
       })
       .finally(() => {
         setLoadingAssignment(false);
@@ -213,24 +237,31 @@ const DailyPlanCreate: React.FC = () => {
     const hoursMap: Record<string, number> = {};
     if (!productionDate || !machineId || !shifts || shifts.length === 0) return hoursMap;
 
-    const TERMINAL_STATUSES = ["COMPLETED", "STOPPED", "SHORT_CLOSED", "POST_PRODUCTION", "PARTIAL_COMPLETED", "COMPLETED_WITH_SHORTFALL"];
+    const TERMINAL_STATUSES = [
+      "COMPLETED",
+      "STOPPED",
+      "SHORT_CLOSED",
+      "POST_PRODUCTION",
+      "PARTIAL_COMPLETED",
+      "COMPLETED_WITH_SHORTFALL",
+    ];
 
     shifts.forEach((s: any) => {
       const shiftHrs = computeShiftHours(s.startTime, s.endTime);
       const safePlans = Array.isArray(plansForDateAndMachine) ? plansForDateAndMachine : [];
       const existingPlans = safePlans.filter(
-        (p: any) => p.shiftId === s.shiftCode && p.status !== "CANCELLED" && p.dailyPlanId !== editId
+        (p: any) =>
+          p.shiftId === s.shiftCode && p.status !== "CANCELLED" && p.dailyPlanId !== editId
       );
 
-      const plannedHrsSum = existingPlans
-        .reduce((sum: number, p: any) => {
-          const loggedHours = Array.isArray(p.hourlyProductions) ? p.hourlyProductions.length : 0;
-          if (TERMINAL_STATUSES.includes(p.status)) {
-            return sum + loggedHours;
-          } else {
-            return sum + Math.max(Number(p.plannedHours || 0), loggedHours);
-          }
-        }, 0);
+      const plannedHrsSum = existingPlans.reduce((sum: number, p: any) => {
+        const loggedHours = Array.isArray(p.hourlyProductions) ? p.hourlyProductions.length : 0;
+        if (TERMINAL_STATUSES.includes(p.status)) {
+          return sum + loggedHours;
+        } else {
+          return sum + Math.max(Number(p.plannedHours || 0), loggedHours);
+        }
+      }, 0);
 
       hoursMap[s.shiftCode] = Math.max(0, shiftHrs - plannedHrsSum);
     });
@@ -249,26 +280,33 @@ const DailyPlanCreate: React.FC = () => {
   // Re-fetch daily plans for the current date+machine (affects remaining shift hours)
   const refreshDailyPlans = useCallback(() => {
     if (!productionDate || !machineId) return;
-    dailyPlanService.getAll({ productionDate, machineId }).then((res) => {
-      let data: any[] = [];
-      if (Array.isArray(res)) data = res;
-      else if (res && Array.isArray((res as any).data)) data = (res as any).data;
-      else if (res && (res as any).data && Array.isArray((res as any).data.dailyPlans)) data = (res as any).data.dailyPlans;
-      else if (res && Array.isArray((res as any).dailyPlans)) data = (res as any).dailyPlans;
-      else if (res && Array.isArray((res as any).content)) data = (res as any).content;
-      setPlansForDateAndMachine(data);
-    }).catch(() => {});
+    dailyPlanService
+      .getAll({ productionDate, machineId })
+      .then((res) => {
+        let data: any[] = [];
+        if (Array.isArray(res)) data = res;
+        else if (res && Array.isArray((res as any).data)) data = (res as any).data;
+        else if (res && (res as any).data && Array.isArray((res as any).data.dailyPlans))
+          data = (res as any).data.dailyPlans;
+        else if (res && Array.isArray((res as any).dailyPlans)) data = (res as any).dailyPlans;
+        else if (res && Array.isArray((res as any).content)) data = (res as any).content;
+        setPlansForDateAndMachine(data);
+      })
+      .catch(() => {});
   }, [productionDate, machineId]);
 
   // Re-resolve machine assignment (operators) when assignments change
   const refreshAssignment = useCallback(() => {
     if (!machineId || !shiftId || !productionDate) return;
-    machineOperationAssignmentService.resolveAssignment({ machineId, shiftId, date: productionDate })
+    machineOperationAssignmentService
+      .resolveAssignment({ machineId, shiftId, date: productionDate })
       .then((res: any) => {
         const assignment = res.data;
         if (!assignment || !assignment.operators || assignment.operators.length === 0) {
           setAvailableOperators([]);
-          setAssignmentError("No operator is assigned to the selected machine for this shift in Weekly Machine Assignment.");
+          setAssignmentError(
+            "No operator is assigned to the selected machine for this shift in Weekly Machine Assignment."
+          );
           return;
         }
         setAvailableOperators(assignment.operators);
@@ -288,94 +326,121 @@ const DailyPlanCreate: React.FC = () => {
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(d.setDate(diff));
       const year = monday.getFullYear();
-      const month = String(monday.getMonth() + 1).padStart(2, '0');
-      const dateStr = String(monday.getDate()).padStart(2, '0');
+      const month = String(monday.getMonth() + 1).padStart(2, "0");
+      const dateStr = String(monday.getDate()).padStart(2, "0");
       const selectedWeekPrefix = `${year}-${month}-${dateStr}`;
 
       const res = await weeklyProgramService.getAll({});
-      const list: any[] = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+      const list: any[] = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
       const stateWpId = (location.state as any)?.weeklyProgramId;
 
-      setWeeklyPrograms(list.filter((p: any) => {
-        if (p.status === "CANCELLED") return p.weeklyProgramId === stateWpId;
+      setWeeklyPrograms(
+        list
+          .filter((p: any) => {
+            if (p.status === "CANCELLED") return p.weeklyProgramId === stateWpId;
 
-        const po = p.productionOrder;
+            const po = p.productionOrder;
 
-        // PO was permanently stopped (COMPLETED_WITH_SHORTFALL/CLOSED from force-stop) → hide from dropdown
-        if (po && (po.status === "COMPLETED_WITH_SHORTFALL" || po.status === "CLOSED") && p.weeklyProgramId !== stateWpId) return false;
-        if (po) {
-          const targetQty = Number(po.targetQty || 0);
-          const producedQty = Math.max(0, Number(po.producedQty || 0) - Number(po.rejectedQty || 0) - Number(po.scrapQty || 0));
+            // PO was permanently stopped (COMPLETED_WITH_SHORTFALL/CLOSED from force-stop) → hide from dropdown
+            if (
+              po &&
+              (po.status === "COMPLETED_WITH_SHORTFALL" || po.status === "CLOSED") &&
+              p.weeklyProgramId !== stateWpId
+            )
+              return false;
+            if (po) {
+              const targetQty = Number(po.targetQty || 0);
+              const producedQty = Math.max(
+                0,
+                Number(po.producedQty || 0) - Number(po.rejectedQty || 0) - Number(po.scrapQty || 0)
+              );
 
-          const plans = po.dailyProductionPlans || [];
+              const plans = po.dailyProductionPlans || [];
 
-          // poRemaining = simply how many pcs still need to be produced for the PO
-          // po.producedQty already reflects all completed production, so we just subtract that
-          const poRemaining = targetQty > 0 ? Math.max(0, targetQty - producedQty) : 0;
+              // poRemaining = simply how many pcs still need to be produced for the PO
+              // po.producedQty already reflects all completed production, so we just subtract that
+              const poRemaining = targetQty > 0 ? Math.max(0, targetQty - producedQty) : 0;
 
-          // Only count ACTIVE plans (not yet finished) — finished plan quantities
-          // are already reflected in poProducedQty, so counting them again would double-subtract.
-          const alreadyPlanned = plans
-            .filter((dp: any) => ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(dp.status))
-            .reduce((sum: number, dp: any) => {
-              const produced = Array.isArray(dp.hourlyProductions)
-                ? dp.hourlyProductions.reduce((s: number, h: any) => s + Number(h.qtyProduced || 0), 0)
+              // Only count ACTIVE plans (not yet finished) — finished plan quantities
+              // are already reflected in poProducedQty, so counting them again would double-subtract.
+              const alreadyPlanned = plans
+                .filter((dp: any) => ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(dp.status))
+                .reduce((sum: number, dp: any) => {
+                  const produced = Array.isArray(dp.hourlyProductions)
+                    ? dp.hourlyProductions.reduce(
+                        (s: number, h: any) => s + Number(h.qtyProduced || 0),
+                        0
+                      )
+                    : 0;
+                  return sum + Math.max(Number(dp.plannedQty || 0), produced);
+                }, 0);
+
+              const wpPlanned = Number(p.plannedQty || 0);
+              const baseCapacity =
+                wpPlanned > 0 && targetQty > 0
+                  ? Math.min(wpPlanned, poRemaining)
+                  : poRemaining || wpPlanned;
+              const remaining = Math.max(0, baseCapacity - alreadyPlanned);
+
+              if (remaining <= 0 && p.weeklyProgramId !== stateWpId) {
+                return false;
+              }
+
+              const isTargetMet = targetQty > 0 && producedQty >= targetQty;
+              const poTerminal = po.status === "CANCELLED" || isTargetMet;
+
+              if (isTargetMet && p.weeklyProgramId !== stateWpId) {
+                return false;
+              }
+
+              if (p.status === "COMPLETED") {
+                if (p.weeklyProgramId === stateWpId) return true;
+                const hasActiveWp = list.some(
+                  (other: any) =>
+                    other.productionOrderId === p.productionOrderId &&
+                    other.weeklyProgramId !== p.weeklyProgramId &&
+                    ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(other.status)
+                );
+                if (!poTerminal && producedQty < targetQty && !hasActiveWp) return true;
+                return false;
+              }
+
+              if (poTerminal && p.weeklyProgramId !== stateWpId) {
+                return false;
+              }
+            } else if (p.status === "COMPLETED") {
+              return p.weeklyProgramId === stateWpId;
+            }
+
+            const isSelectedWeek =
+              p.weekStartDate && p.weekStartDate.startsWith(selectedWeekPrefix);
+            const isPending = ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(p.status);
+            return isSelectedWeek || isPending || p.weeklyProgramId === stateWpId;
+          })
+          .map((p: any) => {
+            const isSelectedWeek =
+              p.weekStartDate && p.weekStartDate.startsWith(selectedWeekPrefix);
+            const isPending = ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(p.status);
+            // Tag completed WPs with remaining PO qty so the label can show it
+            if (p.status === "COMPLETED" && p.weeklyProgramId !== stateWpId) {
+              const po = p.productionOrder;
+              const netProduced = po
+                ? Math.max(
+                    0,
+                    Number(po.producedQty || 0) -
+                      Number(po.rejectedQty || 0) -
+                      Number(po.scrapQty || 0)
+                  )
                 : 0;
-              return sum + Math.max(Number(dp.plannedQty || 0), produced);
-            }, 0);
-
-          const wpPlanned = Number(p.plannedQty || 0);
-          const baseCapacity = (wpPlanned > 0 && targetQty > 0) ? Math.min(wpPlanned, poRemaining) : (poRemaining || wpPlanned);
-          const remaining = Math.max(0, baseCapacity - alreadyPlanned);
-
-          if (remaining <= 0 && p.weeklyProgramId !== stateWpId) {
-            return false;
-          }
-
-          const isTargetMet = targetQty > 0 && producedQty >= targetQty;
-          const poTerminal = po.status === "CANCELLED" || isTargetMet;
-
-          if (isTargetMet && p.weeklyProgramId !== stateWpId) {
-            return false;
-          }
-
-          if (p.status === "COMPLETED") {
-            if (p.weeklyProgramId === stateWpId) return true;
-            const hasActiveWp = list.some(
-              (other: any) =>
-                other.productionOrderId === p.productionOrderId &&
-                other.weeklyProgramId !== p.weeklyProgramId &&
-                ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(other.status)
-            );
-            if (!poTerminal && producedQty < targetQty && !hasActiveWp) return true;
-            return false;
-          }
-
-          if (poTerminal && p.weeklyProgramId !== stateWpId) {
-            return false;
-          }
-        } else if (p.status === "COMPLETED") {
-          return p.weeklyProgramId === stateWpId;
-        }
-
-        const isSelectedWeek = p.weekStartDate && p.weekStartDate.startsWith(selectedWeekPrefix);
-        const isPending = ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(p.status);
-        return isSelectedWeek || isPending || p.weeklyProgramId === stateWpId;
-      }).map((p: any) => {
-        const isSelectedWeek = p.weekStartDate && p.weekStartDate.startsWith(selectedWeekPrefix);
-        const isPending = ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(p.status);
-        // Tag completed WPs with remaining PO qty so the label can show it
-        if (p.status === "COMPLETED" && p.weeklyProgramId !== stateWpId) {
-          const po = p.productionOrder;
-          const netProduced = po ? Math.max(0, Number(po.producedQty || 0) - Number(po.rejectedQty || 0) - Number(po.scrapQty || 0)) : 0;
-          const poRemaining = po ? Math.max(0, Number(po.targetQty || 0) - netProduced) : 0;
-          return { ...p, _isBacklog: true, _poRemaining: poRemaining };
-        }
-        if (!isSelectedWeek && isPending) {
-          return { ...p, _isBacklog: true };
-        }
-        return p;
-      }));
+              const poRemaining = po ? Math.max(0, Number(po.targetQty || 0) - netProduced) : 0;
+              return { ...p, _isBacklog: true, _poRemaining: poRemaining };
+            }
+            if (!isSelectedWeek && isPending) {
+              return { ...p, _isBacklog: true };
+            }
+            return p;
+          })
+      );
     } catch {
       toast.error("Failed to load weekly programs");
     } finally {
@@ -383,7 +448,9 @@ const DailyPlanCreate: React.FC = () => {
     }
   }, [location.state, productionDate]);
 
-  useEffect(() => { loadWeeklyPrograms(); }, [loadWeeklyPrograms]);
+  useEffect(() => {
+    loadWeeklyPrograms();
+  }, [loadWeeklyPrograms]);
 
   // ── Socket sync: keep dropdowns and remaining quantities live ─────────────
   useSocketSync("machine", undefined, () => dispatch(fetchMachines()));
@@ -395,29 +462,39 @@ const DailyPlanCreate: React.FC = () => {
   // If editing, load existing plan
   useEffect(() => {
     if (!isEdit || !editId) return;
-    dailyPlanService.getById(editId).then((res) => {
-      const plan = res.data;
-      if (!plan) return;
-      setWeeklyProgramId(plan.weeklyProgramId || "");
-      setProductionDate(plan.productionDate?.split("T")[0] || formatLocalDateString(new Date()));
-      setMachineId(plan.machineId || "");
-      setShiftId(plan.shiftId || "");
-      setPlannedQty(String(plan.plannedQty || ""));
-      setPlannedHours(String(plan.plannedHours || "8"));
-      setPriority(plan.priority || "MEDIUM");
-      setStatus(plan.status || "DRAFT");
-      setRemarks(plan.remarks || "");
-      loadedPlanRef.current = {
-        machineId: plan.machineId,
-        shiftId: plan.shiftId,
-        prodDate: plan.productionDate?.split("T")[0]
-      };
-      if (plan.selectedOperatorIds && plan.selectedOperatorIds.trim() !== "") {
-        setSelectedOperators(plan.selectedOperatorIds.split(",").map((id: string) => id.trim()).filter(Boolean));
-      } else if (plan.operators && Array.isArray(plan.operators)) {
-        setSelectedOperators(plan.operators.map((op: any) => (op.id || op.employeeId)?.toString()).filter(Boolean));
-      }
-    }).catch(() => toast.error("Failed to load plan for editing"));
+    dailyPlanService
+      .getById(editId)
+      .then((res) => {
+        const plan = res.data;
+        if (!plan) return;
+        setWeeklyProgramId(plan.weeklyProgramId || "");
+        setProductionDate(plan.productionDate?.split("T")[0] || formatLocalDateString(new Date()));
+        setMachineId(plan.machineId || "");
+        setShiftId(plan.shiftId || "");
+        setPlannedQty(String(plan.plannedQty || ""));
+        setPlannedHours(String(plan.plannedHours || "8"));
+        setPriority(plan.priority || "MEDIUM");
+        setStatus(plan.status || "DRAFT");
+        setRemarks(plan.remarks || "");
+        loadedPlanRef.current = {
+          machineId: plan.machineId,
+          shiftId: plan.shiftId,
+          prodDate: plan.productionDate?.split("T")[0],
+        };
+        if (plan.selectedOperatorIds && plan.selectedOperatorIds.trim() !== "") {
+          setSelectedOperators(
+            plan.selectedOperatorIds
+              .split(",")
+              .map((id: string) => id.trim())
+              .filter(Boolean)
+          );
+        } else if (plan.operators && Array.isArray(plan.operators)) {
+          setSelectedOperators(
+            plan.operators.map((op: any) => (op.id || op.employeeId)?.toString()).filter(Boolean)
+          );
+        }
+      })
+      .catch(() => toast.error("Failed to load plan for editing"));
   }, [isEdit, editId]);
 
   // ── Auto-fill: Weekly Program selected or Machine changes ────────────────
@@ -443,20 +520,28 @@ const DailyPlanCreate: React.FC = () => {
     const wpPlanned = Number(wp.plannedQty || 0);
 
     // Use machine-specific capacity when machine is selected, else product-level
-    const effectiveCapacity = machineId && machineProductCapacity != null
-      ? machineProductCapacity
-      : Number(wp.productionOrder?.productItem?.capacityLitres || 0);
+    const effectiveCapacity =
+      machineId && machineProductCapacity != null
+        ? machineProductCapacity
+        : Number(wp.productionOrder?.productItem?.capacityLitres || 0);
 
     const getCapacity = async (): Promise<number> => {
       if (effectiveCapacity > 0) return effectiveCapacity;
       try {
         const po = await productionOrderService.getById(wp.productionOrderId);
         return Number((po as any)?.productItem?.capacityLitres || 0);
-      } catch { return 0; }
+      } catch {
+        return 0;
+      }
     };
 
     const poTarget = Number(wp.productionOrder?.targetQty || 0);
-    const poProduced = Math.max(0, Number(wp.productionOrder?.producedQty || 0) - Number(wp.productionOrder?.rejectedQty || 0) - Number(wp.productionOrder?.scrapQty || 0));
+    const poProduced = Math.max(
+      0,
+      Number(wp.productionOrder?.producedQty || 0) -
+        Number(wp.productionOrder?.rejectedQty || 0) -
+        Number(wp.productionOrder?.scrapQty || 0)
+    );
     const poRemaining = Math.max(0, poTarget - poProduced);
 
     if (!isCarryForward) {
@@ -481,45 +566,59 @@ const DailyPlanCreate: React.FC = () => {
 
     // Carry forward — compute remaining
     setLoadingRemaining(true);
-    dailyPlanService.getAll({ weeklyProgramId }).then((res) => {
-      let existingPlans: any[] = [];
-      if (Array.isArray(res)) existingPlans = res;
-      else if (res && Array.isArray(res.data)) existingPlans = res.data;
-      else if (res && res.data && Array.isArray(res.data.dailyPlans)) existingPlans = res.data.dailyPlans;
-      else if (res && Array.isArray(res.dailyPlans)) existingPlans = res.dailyPlans;
-      else if (res && Array.isArray(res.content)) existingPlans = res.content;
+    dailyPlanService
+      .getAll({ weeklyProgramId })
+      .then((res) => {
+        let existingPlans: any[] = [];
+        if (Array.isArray(res)) existingPlans = res;
+        else if (res && Array.isArray(res.data)) existingPlans = res.data;
+        else if (res && res.data && Array.isArray(res.data.dailyPlans))
+          existingPlans = res.data.dailyPlans;
+        else if (res && Array.isArray(res.dailyPlans)) existingPlans = res.dailyPlans;
+        else if (res && Array.isArray(res.content)) existingPlans = res.content;
 
-      const safePlans = Array.isArray(existingPlans) ? existingPlans : [];
-      const alreadyPlanned = safePlans
-        .filter((p: any) =>
-          ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(p.status) &&
-          p.dailyPlanId !== editId &&
-          p.dailyPlanId !== carryForwardFromPlanId
-        )
-        .reduce((sum: number, p: any) => {
-          const produced = Array.isArray(p.hourlyProductions)
-            ? p.hourlyProductions.reduce((s: number, h: any) => s + Number(h.qtyProduced || 0), 0)
-            : 0;
-          return sum + Math.max(Number(p.plannedQty || 0), produced);
-        }, 0);
-      const remaining = Math.max(0, poTarget - poProduced);
-      setRemainingQty(remaining);
-      if (!isEdit) {
-        if (location.state && (location.state as any).plannedQty) {
-          setNoCapacityWarning(false);
-          const stateQty = Number((location.state as any).plannedQty);
-          setPlannedQty(String(Math.round(stateQty * 1000) / 1000));
-        } else if (effectiveCapacity > 0) {
-          setNoCapacityWarning(false);
-          setPlannedQty(String(effectiveCapacity));
-        } else {
-          setNoCapacityWarning(true);
-          setPlannedQty("");
+        const safePlans = Array.isArray(existingPlans) ? existingPlans : [];
+        const alreadyPlanned = safePlans
+          .filter(
+            (p: any) =>
+              ["PLANNED", "APPROVED", "IN_PROGRESS"].includes(p.status) &&
+              p.dailyPlanId !== editId &&
+              p.dailyPlanId !== carryForwardFromPlanId
+          )
+          .reduce((sum: number, p: any) => {
+            const produced = Array.isArray(p.hourlyProductions)
+              ? p.hourlyProductions.reduce((s: number, h: any) => s + Number(h.qtyProduced || 0), 0)
+              : 0;
+            return sum + Math.max(Number(p.plannedQty || 0), produced);
+          }, 0);
+        const remaining = Math.max(0, poTarget - poProduced);
+        setRemainingQty(remaining);
+        if (!isEdit) {
+          if (location.state && (location.state as any).plannedQty) {
+            setNoCapacityWarning(false);
+            const stateQty = Number((location.state as any).plannedQty);
+            setPlannedQty(String(Math.round(stateQty * 1000) / 1000));
+          } else if (effectiveCapacity > 0) {
+            setNoCapacityWarning(false);
+            setPlannedQty(String(effectiveCapacity));
+          } else {
+            setNoCapacityWarning(true);
+            setPlannedQty("");
+          }
         }
-      }
-    }).catch(() => setRemainingQty(null))
+      })
+      .catch(() => setRemainingQty(null))
       .finally(() => setLoadingRemaining(false));
-  }, [weeklyProgramId, weeklyPrograms, editId, isEdit, location.state, carryForwardFromPlanId, machineId, machineProductCapacity]);
+  }, [
+    weeklyProgramId,
+    weeklyPrograms,
+    editId,
+    isEdit,
+    location.state,
+    carryForwardFromPlanId,
+    machineId,
+    machineProductCapacity,
+  ]);
 
   // Handle location.state pre-fill
   useEffect(() => {
@@ -537,14 +636,18 @@ const DailyPlanCreate: React.FC = () => {
 
   // ── Auto-fill: Shift selected → compute hours ────────────────────────────
   useEffect(() => {
-    if (!shiftId) { setPlannedHours("0"); return; }
+    if (!shiftId) {
+      setPlannedHours("0");
+      return;
+    }
     const selectedShift = shifts.find((s: any) => s.shiftCode === shiftId);
     if (selectedShift?.startTime && selectedShift?.endTime) {
       const shiftHrs = computeShiftHours(selectedShift.startTime, selectedShift.endTime);
       setTotalShiftHours(shiftHrs);
       if (productionDate && machineId) {
         setLoadingRemaining(true);
-        dailyPlanService.getAll({ productionDate, machineId, shiftId })
+        dailyPlanService
+          .getAll({ productionDate, machineId, shiftId })
           .then((res: any) => {
             let existingPlans: any[] = [];
             if (Array.isArray(res)) existingPlans = res;
@@ -555,8 +658,14 @@ const DailyPlanCreate: React.FC = () => {
             const plannedHrsSum = existingPlans
               .filter((p: any) => p.status !== "CANCELLED" && p.dailyPlanId !== editId)
               .reduce((sum: number, p: any) => {
-                const loggedHours = Array.isArray(p.hourlyProductions) ? p.hourlyProductions.length : 0;
-                if (p.status === "COMPLETED" || p.status === "STOPPED" || p.status === "SHORT_CLOSED") {
+                const loggedHours = Array.isArray(p.hourlyProductions)
+                  ? p.hourlyProductions.length
+                  : 0;
+                if (
+                  p.status === "COMPLETED" ||
+                  p.status === "STOPPED" ||
+                  p.status === "SHORT_CLOSED"
+                ) {
                   return sum + loggedHours;
                 } else {
                   return sum + Math.max(Number(p.plannedHours || 0), loggedHours);
@@ -584,28 +693,33 @@ const DailyPlanCreate: React.FC = () => {
   }, [shiftId, shifts, productionDate, machineId, editId]);
 
   // ── Derived values ───────────────────────────────────────────────────────
-  const allowedMachines = useMemo(() =>
-    (machines || []).filter((m: any) => m.machineId !== "MAC-001")
-    , [machines]);
+  const allowedMachines = useMemo(
+    () => (machines || []).filter((m: any) => m.machineId !== "MAC-001"),
+    [machines]
+  );
 
-  const selectedShiftInfo = useMemo(() =>
-    shifts.find((s: any) => s.shiftCode === shiftId)
-    , [shiftId, shifts]);
+  const selectedShiftInfo = useMemo(
+    () => shifts.find((s: any) => s.shiftCode === shiftId),
+    [shiftId, shifts]
+  );
 
   const overCapacity = remainingQty !== null && Number(plannedQty) > remainingQty;
 
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async (targetStatus: string) => {
-
     const schema = z.object({
       weeklyProgramId: z.string().min(1, "Weekly Program is required"),
       productionDate: z.string().min(1, "Production Date is required"),
       machineId: z.string().min(1, "Machine is required"),
       shiftId: z.string().min(1, "Shift is required"),
       plannedQty: z.coerce.number().positive("Planned Quantity must be greater than 0"),
-      plannedHours: z.coerce.number()
+      plannedHours: z.coerce
+        .number()
         .positive("Planned Hours must be greater than 0")
-        .max(availableShiftHours, `Planned Hours cannot exceed available shift hours (${availableShiftHours}h)`)
+        .max(
+          availableShiftHours,
+          `Planned Hours cannot exceed available shift hours (${availableShiftHours}h)`
+        )
         .optional(),
       selectedOperators: z.array(z.string()).min(1, "Please select at least one operator"),
     });
@@ -617,12 +731,12 @@ const DailyPlanCreate: React.FC = () => {
       shiftId,
       plannedQty,
       plannedHours,
-      selectedOperators
+      selectedOperators,
     });
 
     if (!result.success) {
       const errors: Record<string, string> = {};
-      result.error.issues.forEach(issue => {
+      result.error.issues.forEach((issue) => {
         const path = issue.path[0] as string;
         if (!errors[path]) errors[path] = issue.message;
       });
@@ -671,7 +785,8 @@ const DailyPlanCreate: React.FC = () => {
       } else {
         const created = await dispatch(createDailyPlan(payload)).unwrap();
         const planId = created?.data?.dailyPlanId || created?.dailyPlanId || "New Plan";
-        const machineName = (machines || []).find((m: any) => m.machineId === machineId)?.machineName || machineId;
+        const machineName =
+          (machines || []).find((m: any) => m.machineId === machineId)?.machineName || machineId;
         const shiftName = shifts.find((s: any) => s.shiftCode === shiftId)?.shiftName || shiftId;
         toast.success(
           ` Plan ${planId} created!\n ${productionDate}   ${machineName}   ${shiftName} ${plannedQty} pcs`,
@@ -705,378 +820,473 @@ const DailyPlanCreate: React.FC = () => {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="w-full max-w-[1024px] xl:mr-auto">
-    <form onSubmit={(e) => e.preventDefault()} className="bg-card rounded-2xl border border-line shadow-sm overflow-hidden">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-        <div>
-          <h2 className="text-xl font-bold text-ink">
-            {isEdit ? "Edit Daily Production Plan" : "New Daily Production Plan"}
-          </h2>
-        </div>
-        <BackButton
-          text="Back to Daily Planning"
-        />
-      </div>
-
-      {submitError && (
-        <div className="mx-6 mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3">
-          <FaExclamationTriangle className="text-red-400" size={20} />
+      <form
+        onSubmit={(e) => e.preventDefault()}
+        className="bg-card rounded-sm border border-line overflow-hidden"
+      >
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 px-5 py-4 border-b border-line">
           <div>
-            <p className="font-bold text-red-400 text-sm">Failed to Save Plan</p>
-            <p className="text-red-300 text-xs">{submitError}</p>
+            <h2 className="text-xl font-bold text-ink">
+              {isEdit ? "Edit Daily Production Plan" : "New Daily Production Plan"}
+            </h2>
           </div>
+          <BackButton text="Back to Daily Planning" />
         </div>
-      )}
 
-      {assignmentError && (
-        <div className="mx-6 mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3">
-          <FaExclamationTriangle className="text-red-400" size={20} />
-          <div>
-            <p className="font-bold text-red-400 text-sm">Assignment Validation Failed</p>
-            <p className="text-red-300 text-xs">{assignmentError}</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Carry Forward Banner ──────────────────────────── */}
-      {carryForwardFromPlanId && (
-        <div className="mx-6 mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
-          <FaArrowLeft className="text-amber-400 rotate-180" size={18} />
-          <div>
-            <p className="font-bold text-amber-400 text-sm">Carry Forward from {carryForwardFromPlanId}</p>
-            {carryForwardFromInfo && (
-              <p className="text-amber-300 text-xs">
-                {carryForwardFromInfo.shiftName || carryForwardFromInfo.shiftId} — {carryForwardFromInfo.productionDate ? new Date(carryForwardFromInfo.productionDate).toLocaleDateString() : ""}
+        {submitError && (
+          <div className="mx-6 mt-4 p-4 rounded-md bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/20 flex items-center gap-3">
+            <FaExclamationTriangle className="text-[color:var(--color-danger)]" size={20} />
+            <div>
+              <p className="font-bold text-[color:var(--color-danger)] text-sm">
+                Failed to Save Plan
               </p>
-            )}
-            <p className="text-amber-300 text-xs mt-0.5">The remaining quantity from plan <strong>{carryForwardFromPlanId}</strong> has been pre-filled below.</p>
+              <p className="text-[color:var(--color-danger)] text-xs opacity-80">{submitError}</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
+        {assignmentError && (
+          <div className="mx-6 mt-4 p-4 rounded-md bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/20 flex items-center gap-3">
+            <FaExclamationTriangle className="text-[color:var(--color-danger)]" size={20} />
+            <div>
+              <p className="font-bold text-[color:var(--color-danger)] text-sm">
+                Assignment Validation Failed
+              </p>
+              <p className="text-[color:var(--color-danger)] text-xs opacity-80">
+                {assignmentError}
+              </p>
+            </div>
+          </div>
+        )}
 
-      {/* ─── Form Body ─── */}
-      <div className="p-5 lg:p-6 space-y-5">
+        {/* ── Carry Forward Banner ──────────────────────────── */}
+        {carryForwardFromPlanId && (
+          <div className="mx-6 mt-4 p-4 rounded-md bg-[color:var(--color-warning)]/10 border border-[color:var(--color-warning)]/20 flex items-center gap-3">
+            <FaArrowLeft className="text-[color:var(--color-warning)] rotate-180" size={18} />
+            <div>
+              <p className="font-bold text-[color:var(--color-warning)] text-sm">
+                Carry Forward from {carryForwardFromPlanId}
+              </p>
+              {carryForwardFromInfo && (
+                <p className="text-[color:var(--color-warning)] text-xs opacity-80">
+                  {carryForwardFromInfo.shiftName || carryForwardFromInfo.shiftId} —{" "}
+                  {carryForwardFromInfo.productionDate
+                    ? new Date(carryForwardFromInfo.productionDate).toLocaleDateString()
+                    : ""}
+                </p>
+              )}
+              <p className="text-[color:var(--color-warning)] text-xs opacity-80 mt-0.5">
+                The remaining quantity from plan <strong>{carryForwardFromPlanId}</strong> has been
+                pre-filled below.
+              </p>
+            </div>
+          </div>
+        )}
 
-        {/* Section 1: Weekly Program */}
-        <div>
-          <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">Weekly Program</h6>
-          <SelectInput
-            label="Weekly Program"
-            required
-            disabled={isEdit || !!(location.state as any)?.weeklyProgramId}
-            value={weeklyProgramId}
-            onChange={(e: any) => setWeeklyProgramId(e.target.value)}
-            error={formErrors.weeklyProgramId}
-            defaultOptionLabel="— Select Weekly Program —"
-            horizontal
-            options={weeklyPrograms.map((wp: any) => {
-              const po = wp.productionOrder;
-              const poTargetQty = Number(wp.poTargetQty ?? po?.targetQty ?? 0);
-              const poProducedRaw = Number(wp.poProducedQty ?? po?.producedQty ?? 0);
-              const poRejectedQty = Number(po?.rejectedQty ?? 0);
-              const poScrapQty = Number(po?.scrapQty ?? 0);
-              const poNetProduced = Math.max(0, poProducedRaw - poRejectedQty - poScrapQty);
-              const poRemaining = Math.max(0, poTargetQty - poNetProduced);
-              const displayQty = poRemaining;
-              const productName = po?.productItem?.productName || "";
-              let tagNode: React.ReactNode = null;
-              if (wp._poRemaining !== undefined) {
-                tagNode = <span className="text-amber-400 font-semibold">REMAINING: {wp._poRemaining} pcs</span>;
-              } else if (wp._isBacklog) {
-                tagNode = <span className="text-orange-400 font-semibold">PENDING FROM PREVIOUS WEEK</span>;
-              }
-              return {
-                value: wp.weeklyProgramId,
-                selectedLabel: `${productName} — ${displayQty} pcs`,
-                label: <span>{productName} — {displayQty} pcs{tagNode ? <span className="ml-2">{tagNode}</span> : null}</span>
-              };
-            })}
-          />
+        {/* ─── Form Body ─── */}
+        <div className="p-5 lg:p-6 space-y-5">
+          {/* Section 1: Weekly Program */}
+          <div>
+            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">
+              Weekly Program
+            </h6>
+            <SelectInput
+              label="Weekly Program"
+              required
+              disabled={isEdit || !!(location.state as any)?.weeklyProgramId}
+              value={weeklyProgramId}
+              onChange={(e: any) => setWeeklyProgramId(e.target.value)}
+              error={formErrors.weeklyProgramId}
+              defaultOptionLabel="— Select Weekly Program —"
+              horizontal
+              options={weeklyPrograms.map((wp: any) => {
+                const po = wp.productionOrder;
+                const poTargetQty = Number(wp.poTargetQty ?? po?.targetQty ?? 0);
+                const poProducedRaw = Number(wp.poProducedQty ?? po?.producedQty ?? 0);
+                const poRejectedQty = Number(po?.rejectedQty ?? 0);
+                const poScrapQty = Number(po?.scrapQty ?? 0);
+                const poNetProduced = Math.max(0, poProducedRaw - poRejectedQty - poScrapQty);
+                const poRemaining = Math.max(0, poTargetQty - poNetProduced);
+                const displayQty = poRemaining;
+                const productName = po?.productItem?.productName || "";
+                let tagNode: React.ReactNode = null;
+                if (wp._poRemaining !== undefined) {
+                  tagNode = (
+                    <span className="text-[color:var(--color-warning)] font-semibold">
+                      REMAINING: {wp._poRemaining} pcs
+                    </span>
+                  );
+                } else if (wp._isBacklog) {
+                  tagNode = (
+                    <span className="text-[color:var(--color-warning)] font-semibold">
+                      PENDING FROM PREVIOUS WEEK
+                    </span>
+                  );
+                }
+                return {
+                  value: wp.weeklyProgramId,
+                  selectedLabel: `${productName} — ${displayQty} pcs`,
+                  label: (
+                    <span>
+                      {productName} — {displayQty} pcs
+                      {tagNode ? <span className="ml-2">{tagNode}</span> : null}
+                    </span>
+                  ),
+                };
+              })}
+            />
 
-          {/* Auto-filled info banner */}
-          {selectedWeeklyProg && (
-            <div className="rounded-xl p-3 mt-3 bg-emerald-500/10 border border-emerald-500/20 text-ink">
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-                <div>
-                  <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">Production Order</div>
-                  <div className="font-bold text-ink text-sm">{selectedWeeklyProg.productionOrderId}</div>
-                </div>
-                <div>
-                  <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">Product</div>
-                  <div className="text-sm font-bold text-ink">{selectedWeeklyProg.productionOrder?.productItem?.productName || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">PO Target Qty</div>
-                  <div className="font-bold text-ink text-sm">{selectedWeeklyProg.productionOrder?.targetQty || "—"} pcs</div>
-                </div>
-                <div>
-                  <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">Remaining</div>
-                  {(() => {
-                    const tgt = Number(selectedWeeklyProg.productionOrder?.targetQty || 0);
-                    const produced = Math.max(0, Number(selectedWeeklyProg.productionOrder?.producedQty || 0) - Number(selectedWeeklyProg.productionOrder?.rejectedQty || 0) - Number(selectedWeeklyProg.productionOrder?.scrapQty || 0));
-                    const rem = Math.max(0, tgt - produced);
-                    return <div className={`font-bold text-sm ${rem <= 0 ? "text-red-400" : "text-emerald-400"}`}>{rem} pcs</div>;
-                  })()}
-                </div>
-                <div>
-                  <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">Produced</div>
-                  <div className="font-bold text-ink text-sm">{Math.max(0, Number(selectedWeeklyProg.productionOrder?.producedQty || 0) - Number(selectedWeeklyProg.productionOrder?.rejectedQty || 0) - Number(selectedWeeklyProg.productionOrder?.scrapQty || 0))} pcs</div>
-                </div>
-                {machineId && machineProductCapacity != null && (
+            {/* Auto-filled info banner */}
+            {selectedWeeklyProg && (
+              <div className="rounded-md p-3 mt-3 bg-[color:var(--color-success)]/10 border border-[color:var(--color-success)]/20 text-ink">
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
                   <div>
-                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">Capacity/Shift</div>
-                    <div className="font-bold text-ink text-sm">{machineProductCapacity.toLocaleString()}</div>
+                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
+                      Production Order
+                    </div>
+                    <div className="font-bold text-ink text-sm">
+                      {selectedWeeklyProg.productionOrderId}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
+                      Product
+                    </div>
+                    <div className="text-sm font-bold text-ink">
+                      {selectedWeeklyProg.productionOrder?.productItem?.productName || "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
+                      PO Target Qty
+                    </div>
+                    <div className="font-bold text-ink text-sm">
+                      {selectedWeeklyProg.productionOrder?.targetQty || "—"} pcs
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
+                      Remaining
+                    </div>
+                    {(() => {
+                      const tgt = Number(selectedWeeklyProg.productionOrder?.targetQty || 0);
+                      const produced = Math.max(
+                        0,
+                        Number(selectedWeeklyProg.productionOrder?.producedQty || 0) -
+                          Number(selectedWeeklyProg.productionOrder?.rejectedQty || 0) -
+                          Number(selectedWeeklyProg.productionOrder?.scrapQty || 0)
+                      );
+                      const rem = Math.max(0, tgt - produced);
+                      return (
+                        <div
+                          className={`font-bold text-sm ${rem <= 0 ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
+                        >
+                          {rem} pcs
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
+                      Produced
+                    </div>
+                    <div className="font-bold text-ink text-sm">
+                      {Math.max(
+                        0,
+                        Number(selectedWeeklyProg.productionOrder?.producedQty || 0) -
+                          Number(selectedWeeklyProg.productionOrder?.rejectedQty || 0) -
+                          Number(selectedWeeklyProg.productionOrder?.scrapQty || 0)
+                      )}{" "}
+                      pcs
+                    </div>
+                  </div>
+                  {machineId && machineProductCapacity != null && (
+                    <div>
+                      <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
+                        Capacity/Shift
+                      </div>
+                      <div className="font-bold text-ink text-sm">
+                        {machineProductCapacity.toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-line-soft" />
+
+          {/* Section 2: Schedule Details */}
+          <div>
+            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">
+              Schedule Details
+            </h6>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 xl:gap-x-10 gap-y-3 md:gap-y-4">
+              <DatePickerCalendar
+                label="Production Date"
+                name="productionDate"
+                required
+                horizontal
+                value={productionDate}
+                error={formErrors.productionDate}
+                onChange={(e: any) => setProductionDate(e.target.value)}
+              />
+
+              <SelectInput
+                label="Machine"
+                required
+                horizontal
+                value={machineId}
+                onChange={(e: any) => setMachineId(e.target.value)}
+                error={formErrors.machineId}
+                defaultOptionLabel="— Select Machine —"
+                options={allowedMachines.map((m: any) => ({
+                  value: m.machineId,
+                  label: `${m.machineName} (${m.machineId})`,
+                }))}
+              />
+
+              <div>
+                <SelectInput
+                  label="Shift"
+                  required
+                  horizontal
+                  value={shiftId}
+                  onChange={(e: any) => setShiftId(e.target.value)}
+                  error={formErrors.shiftId}
+                  defaultOptionLabel="— Select Shift —"
+                  options={shifts.map((s: any) => {
+                    const totalHrs = computeShiftHours(s.startTime, s.endTime);
+                    const remainingHrs = remainingShiftsHours[s.shiftCode] ?? totalHrs;
+                    return {
+                      value: s.shiftCode,
+                      label:
+                        remainingHrs > 0
+                          ? `${s.shiftName} (${s.startTime} – ${s.endTime}) — ${remainingHrs}h available`
+                          : `${s.shiftName} (${s.startTime} – ${s.endTime}) — Full`,
+                      disabled: remainingHrs === 0,
+                    };
+                  })}
+                />
+                {shiftId &&
+                  (() => {
+                    const sel = shifts.find((s: any) => s.shiftCode === shiftId);
+                    if (!sel) return null;
+                    const hrs = computeShiftHours(sel.startTime, sel.endTime);
+                    return (
+                      <div className="mt-1.5 ml-[148px] flex items-center gap-2 text-ink-subtle text-xs">
+                        <FaClock size={11} />
+                        {sel.startTime} → {sel.endTime} |{" "}
+                        <strong className="text-ink">{hrs} hrs</strong>
+                      </div>
+                    );
+                  })()}
+              </div>
+
+              <div>
+                {loadingAssignment ? (
+                  <div className="flex items-center gap-3">
+                    <span className="shrink-0 w-[140px] text-[12px] font-extrabold uppercase tracking-[0.5px] text-ink">
+                      Operators <span className="text-[color:var(--color-danger)]">*</span>
+                    </span>
+                    <div className="flex-1 p-2.5 bg-card-2 border border-line-soft rounded-lg">
+                      <div className="animate-pulse flex gap-2 items-center">
+                        <div className="w-4 h-4 bg-card rounded-full"></div>
+                        <div className="h-2 bg-card rounded w-24"></div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <MultiSelect
+                    label="Operators"
+                    name="operators"
+                    required={true}
+                    options={availableOperators.map((op: any) => ({
+                      value: (op.id || op.employeeId)?.toString(),
+                      label:
+                        op.fullName +
+                        (op.empCode ? ` (${op.empCode})` : "") +
+                        (op.role?.name ? ` • ${op.role.name}` : ""),
+                    }))}
+                    value={selectedOperators}
+                    onChange={(_name, vals) => {
+                      setSelectedOperators(vals);
+                      setAssignmentError(null);
+                    }}
+                    placeholder={
+                      availableOperators.length === 0
+                        ? "No operators assigned to this machine..."
+                        : "-- Select Assigned Operators --"
+                    }
+                    error={
+                      formErrors.selectedOperators ||
+                      (selectedOperators.length === 0 && assignmentError
+                        ? assignmentError
+                        : undefined)
+                    }
+                  />
+                )}
+                {availableOperators.length === 0 && !loadingAssignment && (
+                  <div className="mt-1.5 px-2.5 py-1.5 bg-[color:var(--color-warning)]/10 border border-[color:var(--color-warning)]/30 rounded-md text-[color:var(--color-warning)] text-[11px] font-medium flex items-center gap-1.5">
+                    <FaExclamationTriangle className="shrink-0" size={11} />
+                    <span>No operator assigned to this machine in Weekly Assignment.</span>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
 
-        <div className="border-t border-line-soft" />
-
-        {/* Section 2: Schedule Details */}
-        <div>
-          <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">Schedule Details</h6>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 xl:gap-x-10 gap-y-3 md:gap-y-4">
-
-            <DatePickerCalendar
-              label="Production Date"
-              name="productionDate"
-              required
-              horizontal
-              value={productionDate}
-              error={formErrors.productionDate}
-              onChange={(e: any) => setProductionDate(e.target.value)}
-            />
-
-            <SelectInput
-              label="Machine"
-              required
-              horizontal
-              value={machineId}
-              onChange={(e: any) => setMachineId(e.target.value)}
-              error={formErrors.machineId}
-              defaultOptionLabel="— Select Machine —"
-              options={allowedMachines.map((m: any) => ({
-                value: m.machineId,
-                label: `${m.machineName} (${m.machineId})`
-              }))}
-            />
-
-            <div>
-              <SelectInput
-                label="Shift"
-                required
-                horizontal
-                value={shiftId}
-                onChange={(e: any) => setShiftId(e.target.value)}
-                error={formErrors.shiftId}
-                defaultOptionLabel="— Select Shift —"
-                options={shifts.map((s: any) => {
-                  const totalHrs = computeShiftHours(s.startTime, s.endTime);
-                  const remainingHrs = remainingShiftsHours[s.shiftCode] ?? totalHrs;
-                  return {
-                    value: s.shiftCode,
-                    label: remainingHrs > 0
-                      ? `${s.shiftName} (${s.startTime} – ${s.endTime}) — ${remainingHrs}h available`
-                      : `${s.shiftName} (${s.startTime} – ${s.endTime}) — Full`,
-                    disabled: remainingHrs === 0,
-                  };
-                })}
-              />
-              {shiftId && (() => {
-                const sel = shifts.find((s: any) => s.shiftCode === shiftId);
-                if (!sel) return null;
-                const hrs = computeShiftHours(sel.startTime, sel.endTime);
-                return (
-                  <div className="mt-1.5 ml-[148px] flex items-center gap-2 text-ink-subtle text-xs">
-                    <FaClock size={11} />
-                    {sel.startTime} → {sel.endTime} | <strong className="text-ink">{hrs} hrs</strong>
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div>
-              {loadingAssignment ? (
-                <div className="flex items-center gap-3">
-                  <span className="shrink-0 w-[140px] text-[12px] font-extrabold uppercase tracking-[0.5px] text-ink">Operators <span className="text-red-500">*</span></span>
-                  <div className="flex-1 p-2.5 bg-card-2 border border-line-soft rounded-lg">
-                    <div className="animate-pulse flex gap-2 items-center">
-                      <div className="w-4 h-4 bg-card rounded-full"></div>
-                      <div className="h-2 bg-card rounded w-24"></div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <MultiSelect
-                  label="Operators"
-                  name="operators"
-                  required={true}
-                  options={availableOperators.map((op: any) => ({
-                    value: (op.id || op.employeeId)?.toString(),
-                    label: op.fullName + (op.empCode ? ` (${op.empCode})` : "") + (op.role?.name ? ` • ${op.role.name}` : ""),
-                  }))}
-                  value={selectedOperators}
-                  onChange={(_name, vals) => {
-                    setSelectedOperators(vals);
-                    setAssignmentError(null);
-                  }}
-                  placeholder={availableOperators.length === 0 ? "No operators assigned to this machine..." : "-- Select Assigned Operators --"}
-                  error={formErrors.selectedOperators || (selectedOperators.length === 0 && assignmentError ? assignmentError : undefined)}
+              {isEdit && status !== "DRAFT" && (
+                <SelectInput
+                  label="Status"
+                  horizontal
+                  value={status}
+                  onChange={(e: any) => setStatus(e.target.value)}
+                  options={[
+                    { value: "DRAFT", label: "Draft" },
+                    { value: "PLANNED", label: "Planned" },
+                    { value: "IN_PROGRESS", label: "In Progress" },
+                    { value: "COMPLETED", label: "Completed" },
+                    { value: "CANCELLED", label: "Cancelled" },
+                  ]}
                 />
               )}
-              {availableOperators.length === 0 && !loadingAssignment && (
-                <div className="mt-1.5 px-2.5 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-lg text-amber-300 text-[11px] font-medium flex items-center gap-1.5">
-                  <FaExclamationTriangle className="text-amber-400 shrink-0" size={11} />
-                  <span>No operator assigned to this machine in Weekly Assignment.</span>
-                </div>
-              )}
             </div>
+          </div>
 
-            {isEdit && status !== "DRAFT" && (
+          <div className="border-t border-line-soft" />
+
+          {/* Section 3: Quantity & Time */}
+          <div>
+            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">
+              Quantity & Time
+            </h6>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 xl:gap-x-10 gap-y-3 md:gap-y-4">
+              <div>
+                <TextInput
+                  label="Planned Qty (pcs)"
+                  name="plannedQty"
+                  type="number"
+                  required
+                  horizontal
+                  value={plannedQty}
+                  error={formErrors.plannedQty}
+                  placeholder={remainingQty !== null ? `Max: ${remainingQty}` : "e.g. 500"}
+                  onChange={(e) => setPlannedQty(e.target.value)}
+                />
+                {machineId && machineProductCapacity != null && (
+                  <div className="text-[11px] text-primary font-semibold mt-1 ml-[148px]">
+                    Capacity: {machineProductCapacity.toLocaleString()} / Shift
+                    {Number(plannedQty) < machineProductCapacity &&
+                      ` · ${machineProductCapacity - Number(plannedQty)} pcs remaining`}
+                  </div>
+                )}
+                {noCapacityWarning && machineId && weeklyProgramId && (
+                  <div className="mt-1.5 ml-[148px] flex items-center gap-1.5 text-[color:var(--color-warning)] text-[11px] font-medium">
+                    <FaExclamationTriangle size={11} />
+                    <span>
+                      Machine capacity not set for this product. Please enter planned quantity
+                      manually.
+                    </span>
+                  </div>
+                )}
+                {overCapacity && (
+                  <div className="text-[color:var(--color-warning)] text-xs flex items-center mt-1 ml-[148px]">
+                    <FaExclamationTriangle className="mr-1" />
+                    Exceeds remaining ({remainingQty} pcs) — Overproduction allowed
+                  </div>
+                )}
+                {remainingQty !== null && !overCapacity && Number(plannedQty) > 0 && (
+                  <div className="text-ink-subtle text-xs mt-1 ml-[148px]">
+                    Remaining after this plan: {remainingQty - Number(plannedQty)} pcs
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <TextInput
+                  label="Planned Hours"
+                  name="plannedHours"
+                  type="number"
+                  horizontal
+                  value={plannedHours}
+                  error={formErrors.plannedHours}
+                  placeholder="Auto-filled from shift"
+                  onChange={(e) => setPlannedHours(e.target.value)}
+                />
+                <div className="flex items-center gap-1.5 mt-1.5 ml-[148px] text-xs text-ink-muted font-medium">
+                  <FaInfoCircle className="text-primary text-xs" />
+                  Max: {availableShiftHours}/{totalShiftHours}h available
+                </div>
+              </div>
+
               <SelectInput
-                label="Status"
+                label={
+                  selectedWeeklyProg?.productionOrder?.priority ? "Priority (auto)" : "Priority"
+                }
                 horizontal
-                value={status}
-                onChange={(e: any) => setStatus(e.target.value)}
+                value={priority}
+                onChange={(e: any) => setPriority(e.target.value)}
                 options={[
-                  { value: "DRAFT", label: "Draft" },
-                  { value: "PLANNED", label: "Planned" },
-                  { value: "IN_PROGRESS", label: "In Progress" },
-                  { value: "COMPLETED", label: "Completed" },
-                  { value: "CANCELLED", label: "Cancelled" }
+                  { value: "LOW", label: "LOW" },
+                  { value: "MEDIUM", label: "MEDIUM" },
+                  { value: "HIGH", label: "HIGH" },
+                  { value: "URGENT", label: "URGENT" },
                 ]}
               />
-            )}
-          </div>
-        </div>
 
-        <div className="border-t border-line-soft" />
-
-        {/* Section 3: Quantity & Time */}
-        <div>
-          <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">Quantity & Time</h6>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 xl:gap-x-10 gap-y-3 md:gap-y-4">
-
-            <div>
-              <TextInput
-                label="Planned Qty (pcs)"
-                name="plannedQty"
-                type="number"
-                required
-                horizontal
-                value={plannedQty}
-                error={formErrors.plannedQty}
-                placeholder={remainingQty !== null ? `Max: ${remainingQty}` : "e.g. 500"}
-                onChange={(e) => setPlannedQty(e.target.value)}
-              />
-              {machineId && machineProductCapacity != null && (
-                <div className="text-[11px] text-primary font-semibold mt-1 ml-[148px]">
-                  Capacity: {machineProductCapacity.toLocaleString()} / Shift
-                  {Number(plannedQty) < machineProductCapacity && ` · ${machineProductCapacity - Number(plannedQty)} pcs remaining`}
-                </div>
-              )}
-              {noCapacityWarning && machineId && weeklyProgramId && (
-                <div className="mt-1.5 ml-[148px] flex items-center gap-1.5 text-amber-400 text-[11px] font-medium">
-                  <FaExclamationTriangle size={11} />
-                  <span>Machine capacity not set for this product. Please enter planned quantity manually.</span>
-                </div>
-              )}
-              {overCapacity && (
-                <div className="text-amber-400 text-xs flex items-center mt-1 ml-[148px]">
-                  <FaExclamationTriangle className="mr-1" />
-                  Exceeds remaining ({remainingQty} pcs) — Overproduction allowed
-                </div>
-              )}
-              {remainingQty !== null && !overCapacity && Number(plannedQty) > 0 && (
-                <div className="text-ink-subtle text-xs mt-1 ml-[148px]">
-                  Remaining after this plan: {remainingQty - Number(plannedQty)} pcs
-                </div>
-              )}
-            </div>
-
-            <div>
-              <TextInput
-                label="Planned Hours"
-                name="plannedHours"
-                type="number"
-                horizontal
-                value={plannedHours}
-                error={formErrors.plannedHours}
-                placeholder="Auto-filled from shift"
-                onChange={(e) => setPlannedHours(e.target.value)}
-              />
-              <div className="flex items-center gap-1.5 mt-1.5 ml-[148px] text-xs text-ink-muted font-medium">
-                <FaInfoCircle className="text-primary text-xs" />
-                Max: {availableShiftHours}/{totalShiftHours}h available
+              <div className="md:col-span-2">
+                <TextArea
+                  label="Narration"
+                  name="remarks"
+                  rows={2}
+                  value={remarks}
+                  onChange={(e: any) => setRemarks(e.target.value)}
+                  placeholder="Optional notes for this daily production plan..."
+                />
               </div>
             </div>
-
-            <SelectInput
-              label={selectedWeeklyProg?.productionOrder?.priority
-                ? "Priority (auto)"
-                : "Priority"}
-              horizontal
-              value={priority}
-              onChange={(e: any) => setPriority(e.target.value)}
-              options={[
-                { value: "LOW", label: "LOW" },
-                { value: "MEDIUM", label: "MEDIUM" },
-                { value: "HIGH", label: "HIGH" },
-                { value: "URGENT", label: "URGENT" }
-              ]}
-            />
-
-            <div className="md:col-span-2">
-              <TextArea
-                label="Narration"
-                name="remarks"
-                rows={2}
-                value={remarks}
-                onChange={(e: any) => setRemarks(e.target.value)}
-                placeholder="Optional notes for this daily production plan..."
-              />
-            </div>
           </div>
         </div>
-      </div>
 
-      {/* ─── Action Buttons ─── */}
-      <div className="flex justify-end items-center gap-3 px-5 py-4 border-t border-line bg-card-2">
-        <CustomButton
-          text="Cancel"
-          variant="secondary"
-          onClick={() => navigate("/daily-machine-planning")}
-          disabled={isSubmitting}
-        />
-        {(isEdit ? can("daily-machine-planning.edit") : can("daily-machine-planning.create")) && (
-          <>
-            {/* Show Save as Draft + Create Plan when creating, or when editing a DRAFT plan */}
-            {(!isEdit || (isEdit && status === "DRAFT")) && (
+        {/* ─── Action Buttons ─── */}
+        <div className="flex justify-end items-center gap-3 px-5 py-4 border-t border-line bg-card-2">
+          <CustomButton
+            text="Cancel"
+            variant="secondary"
+            onClick={() => navigate("/daily-machine-planning")}
+            disabled={isSubmitting}
+          />
+          {(isEdit ? can("daily-machine-planning.edit") : can("daily-machine-planning.create")) && (
+            <>
+              {/* Show Save as Draft + Create Plan when creating, or when editing a DRAFT plan */}
+              {(!isEdit || (isEdit && status === "DRAFT")) && (
+                <CustomButton
+                  text={isSubmitting ? "Saving..." : "Save as Draft"}
+                  icon={isSubmitting ? undefined : FaSave}
+                  variant="secondary"
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleSubmit("DRAFT")}
+                />
+              )}
               <CustomButton
-                text={isSubmitting ? "Saving..." : "Save as Draft"}
+                text={
+                  isSubmitting
+                    ? "Saving..."
+                    : isEdit && status !== "DRAFT"
+                      ? "Update Plan"
+                      : "Create Plan"
+                }
                 icon={isSubmitting ? undefined : FaSave}
-                variant="secondary"
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => handleSubmit("DRAFT")}
+                onClick={() => handleSubmit(isEdit && status !== "DRAFT" ? status : "PLANNED")}
               />
-            )}
-            <CustomButton
-              text={isSubmitting ? "Saving..." : (isEdit && status !== "DRAFT" ? "Update Plan" : "Create Plan")}
-              icon={isSubmitting ? undefined : FaSave}
-              type="button"
-              disabled={isSubmitting}
-              onClick={() => handleSubmit(isEdit && status !== "DRAFT" ? status : "PLANNED")}
-            />
-          </>
-        )}
-      </div>
-
-    </form>
+            </>
+          )}
+        </div>
+      </form>
     </div>
   );
 };

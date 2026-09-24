@@ -1,6 +1,9 @@
 import React from "react";
 
-interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "size"> {
+interface TextInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "onChange" | "size"
+> {
   label?: string;
   name: string;
   type?: string;
@@ -50,7 +53,10 @@ const TextInput: React.FC<TextInputProps> = ({
   const shouldPreventNegative = preventNegative || isNumberType;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (shouldPreventNegative && (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+")) {
+    if (
+      shouldPreventNegative &&
+      (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+")
+    ) {
       e.preventDefault();
     }
     onKeyDown?.(e as React.KeyboardEvent<HTMLInputElement>);
@@ -71,7 +77,9 @@ const TextInput: React.FC<TextInputProps> = ({
   };
 
   return (
-    <div className={`${bottom ? "mb-[18px]" : ""} group ${horizontal ? "flex items-start gap-3" : ""}`}>
+    <div
+      className={`${bottom ? "mb-[18px]" : ""} group ${horizontal ? "flex items-start gap-3" : ""}`}
+    >
       {label && (
         <label
           htmlFor={name}
@@ -80,7 +88,7 @@ const TextInput: React.FC<TextInputProps> = ({
             text-[12px] font-extrabold uppercase
             tracking-[0.5px]
             transition-colors duration-250
-            ${error ? "text-red-400" : "text-ink"}
+            ${error ? "text-[color:var(--color-danger)]" : "text-ink"}
             group-focus-within:text-primary
             ${horizontal ? "shrink-0 w-[140px] mb-0 pt-[10px]" : "mb-2"}
             ${labelClassName}
@@ -91,7 +99,7 @@ const TextInput: React.FC<TextInputProps> = ({
               className={`
                 flex items-center text-sm
                 transition-colors duration-250
-                ${error ? "text-red-400" : "text-primary"}
+                ${error ? "text-[color:var(--color-danger)]" : "text-accent"}
                 group-focus-within:text-primary
               `}
             >
@@ -99,9 +107,7 @@ const TextInput: React.FC<TextInputProps> = ({
             </span>
           )}
           <span>{label}</span>
-          {required && (
-            <span className="text-red-500 ml-0.5">*</span>
-          )}
+          {required && <span className="text-[color:var(--color-danger)] ml-0.5">*</span>}
         </label>
       )}
 
@@ -124,9 +130,10 @@ const TextInput: React.FC<TextInputProps> = ({
                 transition-all duration-250
                 placeholder:text-ink-subtle/80 placeholder:font-normal
                 text-ink
-                ${error
-                  ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-                  : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
+                ${
+                  error
+                    ? "border-[color:var(--color-danger)] bg-card-2 focus:border-[color:var(--color-danger)] focus:ring-4 focus:ring-[color:var(--color-danger)]/15"
+                    : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
                 }
                 ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-bold opacity-85" : ""}
                 resize-y
@@ -159,9 +166,10 @@ const TextInput: React.FC<TextInputProps> = ({
                 [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]
                 [&:-webkit-autofill:hover]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)]
                 [&:-webkit-autofill:focus]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)]
-                ${error
-                  ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-                  : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
+                ${
+                  error
+                    ? "border-[color:var(--color-danger)] bg-card-2 focus:border-[color:var(--color-danger)] focus:ring-4 focus:ring-[color:var(--color-danger)]/15"
+                    : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
                 }
                 ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-bold opacity-85" : ""}
                 ${trailingIcon ? "pr-10" : ""}
@@ -179,9 +187,7 @@ const TextInput: React.FC<TextInputProps> = ({
         </div>
 
         {error && (
-          <div className="text-[#dc3545] text-sm font-medium mt-1">
-            {error}
-          </div>
+          <div className="text-[color:var(--color-danger)] text-sm font-medium mt-1">{error}</div>
         )}
       </div>
     </div>

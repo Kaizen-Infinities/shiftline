@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { FaSave } from "react-icons/fa";
 import { toast } from "react-toastify";
@@ -9,368 +8,405 @@ import CommonLoader from "../../components/ui/Loader/CommonLoader";
 import { usePermission } from "../../hooks/usePermission";
 import { useDetailCache, invalidateDetailCache } from "../../hooks/useDetailCache";
 
-import { invoiceSettingsService, type InvoiceSettingDto } from "../../services/invoiceSettingsService";
+import {
+  invoiceSettingsService,
+  type InvoiceSettingDto,
+} from "../../services/invoiceSettingsService";
 
 // Month (0-indexed) your financial year starts in.
 // 3 = April (India/UK), 0 = January (US), 6 = July (Australia). Adjust as needed.
 const FY_START_MONTH = 3;
 
 const SalesInvoiceCreate: React.FC = () => {
-    const [saving, setSaving] = useState(false);
-    const [formData, setFormData] = useState<InvoiceSettingDto>({
-        invoicePrefix: "INV",
-        sequenceLength: 4,
-        currentSequenceNumber: 1,
-        financialYearStart: "",
-        financialYearEnd: "",
-        autoFinancialYear: true,
-        formatTemplate: "{PREFIX}-{FY}-{SEQ}",
-    });
-    const [errors, setErrors] = useState<Record<string, string>>({});
-    const { can } = usePermission();
-    const canEditInvoice = can("invoice-settings.edit");
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState<InvoiceSettingDto>({
+    invoicePrefix: "INV",
+    sequenceLength: 4,
+    currentSequenceNumber: 1,
+    financialYearStart: "",
+    financialYearEnd: "",
+    autoFinancialYear: true,
+    formatTemplate: "{PREFIX}-{FY}-{SEQ}",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { can } = usePermission();
+  const canEditInvoice = can("invoice-settings.edit");
 
-    // ---- Financial Year helpers ----
+  // ---- Financial Year helpers ----
 
-    const getAutoFinancialYearStart = (): string => {
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const fyStart =
-            today.getMonth() >= FY_START_MONTH
-                ? new Date(currentYear, FY_START_MONTH, 1)
-                : new Date(currentYear - 1, FY_START_MONTH, 1);
-        return fyStart.toISOString().split("T")[0];
-    };
+  const getAutoFinancialYearStart = (): string => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const fyStart =
+      today.getMonth() >= FY_START_MONTH
+        ? new Date(currentYear, FY_START_MONTH, 1)
+        : new Date(currentYear - 1, FY_START_MONTH, 1);
+    return fyStart.toISOString().split("T")[0];
+  };
 
-    const calculateEndDate = (startStr: string): string => {
-        const start = new Date(startStr);
-        if (isNaN(start.getTime())) return "";
-        const end = new Date(start);
-        end.setFullYear(start.getFullYear() + 1);
-        end.setDate(start.getDate() - 1);
-        return end.toISOString().split("T")[0];
-    };
+  const calculateEndDate = (startStr: string): string => {
+    const start = new Date(startStr);
+    if (isNaN(start.getTime())) return "";
+    const end = new Date(start);
+    end.setFullYear(start.getFullYear() + 1);
+    end.setDate(start.getDate() - 1);
+    return end.toISOString().split("T")[0];
+  };
 
-    // ---- Load existing settings (cached) ----
-    const fetcher = useCallback(async (_signal: AbortSignal) => {
-        return await invoiceSettingsService.getConfig();
-    }, []);
+  // ---- Load existing settings (cached) ----
+  const fetcher = useCallback(async (_signal: AbortSignal) => {
+    return await invoiceSettingsService.getConfig();
+  }, []);
 
-    const { data: fetchedConfig, loading } = useDetailCache<any>({
-        cacheKey: "invoiceSettings:config",
-        socketModule: "invoiceSettings",
-        fetcher,
-    });
+  const { data: fetchedConfig, loading } = useDetailCache<any>({
+    cacheKey: "invoiceSettings:config",
+    socketModule: "invoiceSettings",
+    fetcher,
+  });
 
-    const populated = useRef(false);
-    useEffect(() => {
-        if (loading || populated.current) return;
-        populated.current = true;
+  const populated = useRef(false);
+  useEffect(() => {
+    if (loading || populated.current) return;
+    populated.current = true;
 
-        if (fetchedConfig) {
-            const isAuto = fetchedConfig.autoFinancialYear !== undefined ? fetchedConfig.autoFinancialYear : true;
-            const start = isAuto
-                ? getAutoFinancialYearStart()
-                : fetchedConfig.financialYearStart
-                    ? new Date(fetchedConfig.financialYearStart).toISOString().split("T")[0]
-                    : "";
-            const end = start ? calculateEndDate(start) : "";
+    if (fetchedConfig) {
+      const isAuto =
+        fetchedConfig.autoFinancialYear !== undefined ? fetchedConfig.autoFinancialYear : true;
+      const start = isAuto
+        ? getAutoFinancialYearStart()
+        : fetchedConfig.financialYearStart
+          ? new Date(fetchedConfig.financialYearStart).toISOString().split("T")[0]
+          : "";
+      const end = start ? calculateEndDate(start) : "";
 
-            setFormData({
-                id: fetchedConfig.id,
-                companyId: fetchedConfig.companyId,
-                invoicePrefix: fetchedConfig.invoicePrefix || "INV",
-                sequenceLength: fetchedConfig.sequenceLength || 4,
-                currentSequenceNumber: fetchedConfig.currentSequenceNumber || 1,
-                financialYearStart: start,
-                financialYearEnd: end,
-                autoFinancialYear: isAuto,
-                formatTemplate: fetchedConfig.formatTemplate || "{PREFIX}-{FY}-{SEQ}",
-            });
-        } else {
-            const defaultStartStr = getAutoFinancialYearStart();
-            const defaultEndStr = calculateEndDate(defaultStartStr);
-            setFormData((prev) => ({
-                ...prev,
-                financialYearStart: defaultStartStr,
-                financialYearEnd: defaultEndStr,
-            }));
-        }
-    }, [fetchedConfig, loading]);
+      setFormData({
+        id: fetchedConfig.id,
+        companyId: fetchedConfig.companyId,
+        invoicePrefix: fetchedConfig.invoicePrefix || "INV",
+        sequenceLength: fetchedConfig.sequenceLength || 4,
+        currentSequenceNumber: fetchedConfig.currentSequenceNumber || 1,
+        financialYearStart: start,
+        financialYearEnd: end,
+        autoFinancialYear: isAuto,
+        formatTemplate: fetchedConfig.formatTemplate || "{PREFIX}-{FY}-{SEQ}",
+      });
+    } else {
+      const defaultStartStr = getAutoFinancialYearStart();
+      const defaultEndStr = calculateEndDate(defaultStartStr);
+      setFormData((prev) => ({
+        ...prev,
+        financialYearStart: defaultStartStr,
+        financialYearEnd: defaultEndStr,
+      }));
+    }
+  }, [fetchedConfig, loading]);
 
-    useEffect(() => {
-        if (formData.financialYearStart) {
-            const endStr = calculateEndDate(formData.financialYearStart);
-            if (endStr) {
-                setFormData((prev) => ({ ...prev, financialYearEnd: endStr }));
-            }
-        }
-    }, [formData.financialYearStart]);
+  useEffect(() => {
+    if (formData.financialYearStart) {
+      const endStr = calculateEndDate(formData.financialYearStart);
+      if (endStr) {
+        setFormData((prev) => ({ ...prev, financialYearEnd: endStr }));
+      }
+    }
+  }, [formData.financialYearStart]);
 
-    // ---- Handlers ----
+  // ---- Handlers ----
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value, type, checked } = e.target;
-        const val = type === "checkbox" ? checked : value;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    const val = type === "checkbox" ? checked : value;
 
-        if (name === "invoicePrefix") {
-            const cleaned = String(val).toUpperCase().slice(0, 3);
-            setFormData((prev) => ({ ...prev, invoicePrefix: cleaned }));
-            if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
-            return;
-        }
-
-        if (name === "autoFinancialYear") {
-            setFormData((prev) => ({
-                ...prev,
-                autoFinancialYear: checked,
-                financialYearStart: checked ? getAutoFinancialYearStart() : prev.financialYearStart,
-            }));
-        } else {
-            setFormData((prev) => ({ ...prev, [name]: val }));
-        }
-
-        if (errors[name]) {
-            setErrors((prev) => ({ ...prev, [name]: "" }));
-        }
-    };
-
-    const validate = (): boolean => {
-        const errs: Record<string, string> = {};
-        const prefix = formData.invoicePrefix?.trim() || "";
-
-        if (!prefix) {
-            errs.invoicePrefix = "Invoice Prefix is required";
-        } else if (prefix.length < 2 || prefix.length > 3) {
-            errs.invoicePrefix = "Invoice Prefix must be 2 or 3 characters";
-        } else if (!/^[A-Za-z]+$/.test(prefix)) {
-            errs.invoicePrefix = "Invoice Prefix must contain only letters";
-        }
-
-        if (!formData.sequenceLength || formData.sequenceLength <= 0)
-            errs.sequenceLength = "Sequence Length must be greater than 0";
-        if (!formData.financialYearStart) errs.financialYearStart = "Financial Year Start date is required";
-        if (!formData.formatTemplate?.trim()) errs.formatTemplate = "Format Template is required";
-        setErrors(errs);
-        return Object.keys(errs).length === 0;
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!canEditInvoice) {
-            toast.error("You do not have permission to edit invoice settings.");
-            return;
-        }
-        if (!validate()) return;
-
-        setSaving(true);
-        try {
-            await invoiceSettingsService.saveConfig(formData);
-            toast.success("Invoice settings saved successfully!");
-            invalidateDetailCache("invoiceSettings:config");
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || "Failed to save invoice settings");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // ---- Live preview ----
-    const livePreview = useMemo(() => {
-        const fyVal = (() => {
-            if (!formData.financialYearStart) return "YYYY-YY";
-            const start = new Date(formData.financialYearStart);
-            if (isNaN(start.getTime())) return "YYYY-YY";
-            const end = new Date(start);
-            end.setFullYear(start.getFullYear() + 1);
-            end.setDate(start.getDate() - 1);
-            const startYear = start.getFullYear();
-            const endYearTwoDigits = String(end.getFullYear()).slice(-2);
-            return `${startYear}-${endYearTwoDigits}`;
-        })();
-
-        const paddedSeq = String(formData.currentSequenceNumber).padStart(
-            Number(formData.sequenceLength) || 4,
-            "0"
-        );
-
-        let preview = formData.formatTemplate || "{PREFIX}-{FY}-{SEQ}";
-        preview = preview.replace(/{PREFIX}/g, formData.invoicePrefix || "");
-        preview = preview.replace(/{FY}/g, fyVal);
-        preview = preview.replace(/{SEQ}/g, paddedSeq);
-        return preview;
-    }, [formData]);
-
-    if (loading) {
-        return <CommonLoader text="Loading settings..." fullScreen={false} />;
+    if (name === "invoicePrefix") {
+      const cleaned = String(val).toUpperCase().slice(0, 3);
+      setFormData((prev) => ({ ...prev, invoicePrefix: cleaned }));
+      if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+      return;
     }
 
-    return (
-        <div className="max-w-[1024px] xl:mr-auto">
-            <form onSubmit={handleSubmit} noValidate>
-                <div className="bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+    if (name === "autoFinancialYear") {
+      setFormData((prev) => ({
+        ...prev,
+        autoFinancialYear: checked,
+        financialYearStart: checked ? getAutoFinancialYearStart() : prev.financialYearStart,
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: val }));
+    }
 
-                    {/* Page Header */}
-                    <div className="px-4 py-3 border-b border-line">
-                        <h2 className="text-base font-bold text-ink">Invoice Configuration</h2>
-                    </div>
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
 
-                    <div className="p-4 lg:p-5 space-y-5">
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    const prefix = formData.invoicePrefix?.trim() || "";
 
-                        {/* Section 1: Invoice Numbering */}
-                        <div className="space-y-3">
-                            <div>
-                                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">Invoice Numbering</h6>
-                                <p className="text-[10px] text-ink-subtle mt-0.5">Configure how invoice numbers are generated</p>
-                            </div>
+    if (!prefix) {
+      errs.invoicePrefix = "Invoice Prefix is required";
+    } else if (prefix.length < 2 || prefix.length > 3) {
+      errs.invoicePrefix = "Invoice Prefix must be 2 or 3 characters";
+    } else if (!/^[A-Za-z]+$/.test(prefix)) {
+      errs.invoicePrefix = "Invoice Prefix must contain only letters";
+    }
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-                                <div>
-                                    <TextInput
-                                        label="Invoice Prefix"
-                                        name="invoicePrefix"
-                                        value={formData.invoicePrefix}
-                                        onChange={handleChange as any}
-                                        required
-                                        horizontal
-                                        error={errors.invoicePrefix}
-                                        maxLength={3}
-                                    />
-                                    <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">2-3 letter prefix (e.g., IN, INV)</p>
-                                </div>
-                                <div>
-                                    <TextInput
-                                        label="Sequence Length"
-                                        name="sequenceLength"
-                                        type="number"
-                                        min={1}
-                                        value={String(formData.sequenceLength)}
-                                        onChange={handleChange as any}
-                                        required
-                                        horizontal
-                                        error={errors.sequenceLength}
-                                    />
-                                    <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">Number of digits (e.g., 4 = 0001)</p>
-                                </div>
-                                <div>
-                                    <TextInput
-                                        label="Current Sequence"
-                                        name="currentSequenceNumber"
-                                        type="number"
-                                        value={String(formData.currentSequenceNumber)}
-                                        onChange={handleChange as any}
-                                        disabled
-                                        horizontal
-                                    />
-                                    <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">Auto-incremented with each invoice</p>
-                                </div>
-                            </div>
-                        </div>
+    if (!formData.sequenceLength || formData.sequenceLength <= 0)
+      errs.sequenceLength = "Sequence Length must be greater than 0";
+    if (!formData.financialYearStart)
+      errs.financialYearStart = "Financial Year Start date is required";
+    if (!formData.formatTemplate?.trim()) errs.formatTemplate = "Format Template is required";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
-                        {/* Divider */}
-                        <div className="border-t border-line" />
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canEditInvoice) {
+      toast.error("You do not have permission to edit invoice settings.");
+      return;
+    }
+    if (!validate()) return;
 
-                        {/* Section 2: Financial Year */}
-                        <div className="space-y-3">
-                            <div>
-                                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">Financial Year</h6>
-                                <p className="text-[10px] text-ink-subtle mt-0.5">Configure financial year for invoice numbering</p>
-                            </div>
+    setSaving(true);
+    try {
+      await invoiceSettingsService.saveConfig(formData);
+      toast.success("Invoice settings saved successfully!");
+      invalidateDetailCache("invoiceSettings:config");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to save invoice settings");
+    } finally {
+      setSaving(false);
+    }
+  };
 
-                            {/* Auto Toggle */}
-                            <div className="flex items-center justify-between bg-card-2 p-3 rounded-lg border border-line-soft">
-                                <div>
-                                    <div className="font-semibold text-xs text-ink">Auto Financial Year</div>
-                                    <div className="text-[10px] text-ink-subtle">
-                                        {formData.autoFinancialYear
-                                            ? "System automatically determines the financial year based on today's date"
-                                            : "Manually set your financial year start date"}
-                                    </div>
-                                </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="autoFinancialYear" className="sr-only peer" checked={formData.autoFinancialYear} onChange={handleChange as any} />
-                                    <div className="w-11 h-6 bg-ink-subtle/40 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-line-soft after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                                </label>
-                            </div>
+  // ---- Live preview ----
+  const livePreview = useMemo(() => {
+    const fyVal = (() => {
+      if (!formData.financialYearStart) return "YYYY-YY";
+      const start = new Date(formData.financialYearStart);
+      if (isNaN(start.getTime())) return "YYYY-YY";
+      const end = new Date(start);
+      end.setFullYear(start.getFullYear() + 1);
+      end.setDate(start.getDate() - 1);
+      const startYear = start.getFullYear();
+      const endYearTwoDigits = String(end.getFullYear()).slice(-2);
+      return `${startYear}-${endYearTwoDigits}`;
+    })();
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-                                <div>
-                                    <TextInput
-                                        label="FY Start"
-                                        name="financialYearStart"
-                                        type="date"
-                                        value={formData.financialYearStart}
-                                        onChange={handleChange as any}
-                                        required
-                                        horizontal
-                                        error={errors.financialYearStart}
-                                        disabled={formData.autoFinancialYear}
-                                    />
-                                    <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                                        {formData.autoFinancialYear
-                                            ? "Auto-calculated — disabled while Auto Financial Year is on"
-                                            : "Start date of your financial year"}
-                                    </p>
-                                </div>
-                                <div>
-                                    <TextInput
-                                        label="FY End"
-                                        name="financialYearEnd"
-                                        type="date"
-                                        value={formData.financialYearEnd}
-                                        onChange={handleChange as any}
-                                        disabled
-                                        horizontal
-                                    />
-                                    <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">Auto-calculated as one day before start date (next year)</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Divider */}
-                        <div className="border-t border-line" />
-
-                        {/* Section 3: Invoice Format */}
-                        <div className="space-y-3">
-                            <div>
-                                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">Invoice Format</h6>
-                                <p className="text-[10px] text-ink-subtle mt-0.5">Auto-generated invoice number format based on your settings</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5 items-start">
-                                <div>
-                                    <TextInput
-                                        label="Format Template"
-                                        name="formatTemplate"
-                                        value={formData.formatTemplate}
-                                        onChange={handleChange as any}
-                                        required
-                                        horizontal
-                                        error={errors.formatTemplate}
-                                    />
-                                    <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                                        Variables: {"{PREFIX}"} - Prefix, {"{FY}"} - Financial Year, {"{SEQ}"} - Sequence
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <label className="shrink-0 w-[140px] text-[10px] font-extrabold uppercase tracking-[0.5px] text-ink">Preview</label>
-                                    <div className="flex-1 h-9 px-3 rounded-md border border-primary/30 bg-primary/5 flex items-center justify-center text-sm font-mono font-bold tracking-widest text-ink">
-                                        {livePreview}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {canEditInvoice && (
-                        <div className="px-4 py-3 border-t border-line flex justify-end">
-                            <CustomButton text={saving ? "Saving..." : "Save Settings"} icon={FaSave} type="submit" disabled={saving} />
-                        </div>
-                    )}
-                </div>
-            </form>
-        </div>
+    const paddedSeq = String(formData.currentSequenceNumber).padStart(
+      Number(formData.sequenceLength) || 4,
+      "0"
     );
+
+    let preview = formData.formatTemplate || "{PREFIX}-{FY}-{SEQ}";
+    preview = preview.replace(/{PREFIX}/g, formData.invoicePrefix || "");
+    preview = preview.replace(/{FY}/g, fyVal);
+    preview = preview.replace(/{SEQ}/g, paddedSeq);
+    return preview;
+  }, [formData]);
+
+  if (loading) {
+    return <CommonLoader text="Loading settings..." fullScreen={false} />;
+  }
+
+  return (
+    <div className="max-w-[1024px] xl:mr-auto">
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="bg-card rounded-sm border border-line overflow-hidden">
+          {/* Page Header */}
+          <div className="px-4 py-3 border-b border-line">
+            <h2 className="text-base font-bold text-ink">Invoice Configuration</h2>
+          </div>
+
+          <div className="p-4 lg:p-5 space-y-5">
+            {/* Section 1: Invoice Numbering */}
+            <div className="space-y-3">
+              <div>
+                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">
+                  Invoice Numbering
+                </h6>
+                <p className="text-[10px] text-ink-subtle mt-0.5">
+                  Configure how invoice numbers are generated
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
+                <div>
+                  <TextInput
+                    label="Invoice Prefix"
+                    name="invoicePrefix"
+                    value={formData.invoicePrefix}
+                    onChange={handleChange as any}
+                    required
+                    horizontal
+                    error={errors.invoicePrefix}
+                    maxLength={3}
+                  />
+                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
+                    2-3 letter prefix (e.g., IN, INV)
+                  </p>
+                </div>
+                <div>
+                  <TextInput
+                    label="Sequence Length"
+                    name="sequenceLength"
+                    type="number"
+                    min={1}
+                    value={String(formData.sequenceLength)}
+                    onChange={handleChange as any}
+                    required
+                    horizontal
+                    error={errors.sequenceLength}
+                  />
+                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
+                    Number of digits (e.g., 4 = 0001)
+                  </p>
+                </div>
+                <div>
+                  <TextInput
+                    label="Current Sequence"
+                    name="currentSequenceNumber"
+                    type="number"
+                    value={String(formData.currentSequenceNumber)}
+                    onChange={handleChange as any}
+                    disabled
+                    horizontal
+                  />
+                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
+                    Auto-incremented with each invoice
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-line" />
+
+            {/* Section 2: Financial Year */}
+            <div className="space-y-3">
+              <div>
+                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">
+                  Financial Year
+                </h6>
+                <p className="text-[10px] text-ink-subtle mt-0.5">
+                  Configure financial year for invoice numbering
+                </p>
+              </div>
+
+              {/* Auto Toggle */}
+              <div className="flex items-center justify-between bg-card-2 p-3 rounded-lg border border-line-soft">
+                <div>
+                  <div className="font-semibold text-xs text-ink">Auto Financial Year</div>
+                  <div className="text-[10px] text-ink-subtle">
+                    {formData.autoFinancialYear
+                      ? "System automatically determines the financial year based on today's date"
+                      : "Manually set your financial year start date"}
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="autoFinancialYear"
+                    className="sr-only peer"
+                    checked={formData.autoFinancialYear}
+                    onChange={handleChange as any}
+                  />
+                  <div className="w-11 h-6 bg-ink-subtle/40 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-line-soft after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
+                <div>
+                  <TextInput
+                    label="FY Start"
+                    name="financialYearStart"
+                    type="date"
+                    value={formData.financialYearStart}
+                    onChange={handleChange as any}
+                    required
+                    horizontal
+                    error={errors.financialYearStart}
+                    disabled={formData.autoFinancialYear}
+                  />
+                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
+                    {formData.autoFinancialYear
+                      ? "Auto-calculated — disabled while Auto Financial Year is on"
+                      : "Start date of your financial year"}
+                  </p>
+                </div>
+                <div>
+                  <TextInput
+                    label="FY End"
+                    name="financialYearEnd"
+                    type="date"
+                    value={formData.financialYearEnd}
+                    onChange={handleChange as any}
+                    disabled
+                    horizontal
+                  />
+                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
+                    Auto-calculated as one day before start date (next year)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-line" />
+
+            {/* Section 3: Invoice Format */}
+            <div className="space-y-3">
+              <div>
+                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">
+                  Invoice Format
+                </h6>
+                <p className="text-[10px] text-ink-subtle mt-0.5">
+                  Auto-generated invoice number format based on your settings
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5 items-start">
+                <div>
+                  <TextInput
+                    label="Format Template"
+                    name="formatTemplate"
+                    value={formData.formatTemplate}
+                    onChange={handleChange as any}
+                    required
+                    horizontal
+                    error={errors.formatTemplate}
+                  />
+                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
+                    Variables: {"{PREFIX}"} - Prefix, {"{FY}"} - Financial Year, {"{SEQ}"} -
+                    Sequence
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="shrink-0 w-[140px] text-[10px] font-extrabold uppercase tracking-[0.5px] text-ink">
+                    Preview
+                  </label>
+                  <div className="flex-1 h-9 px-3 rounded-md border border-accent/30 bg-accent/5 flex items-center justify-center text-sm font-mono font-bold tracking-widest text-ink">
+                    {livePreview}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {canEditInvoice && (
+            <div className="px-4 py-3 border-t border-line flex justify-end">
+              <CustomButton
+                text={saving ? "Saving..." : "Save Settings"}
+                icon={FaSave}
+                type="submit"
+                disabled={saving}
+              />
+            </div>
+          )}
+        </div>
+      </form>
+    </div>
+  );
 };
 
 export default SalesInvoiceCreate;

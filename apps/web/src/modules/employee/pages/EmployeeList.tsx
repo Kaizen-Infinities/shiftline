@@ -63,32 +63,48 @@ const Employeelist: React.FC = () => {
 
   const fetchEmployeesForExport = useCallback(async () => {
     const res = await employeeService.fetchAll({ limit: 100000 });
-    return Array.isArray(res) ? res : (res?.employees || res?.data || []);
+    return Array.isArray(res) ? res : res?.employees || res?.data || [];
   }, []);
 
   // Load roles and departments for filter dropdowns
   useEffect(() => {
-    roleService.fetchAll({ limit: 200 }).then(res => {
-      const list = Array.isArray(res.data) ? res.data : [];
-      setRoles(list
-        .filter((r: any) => !r.code?.toLowerCase().includes("super_admin") && !r.code?.toLowerCase().includes("superadmin"))
-        .map((r: any) => ({ value: String(r.id), label: r.name })));
-    }).catch(() => { });
+    roleService
+      .fetchAll({ limit: 200 })
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        setRoles(
+          list
+            .filter(
+              (r: any) =>
+                !r.code?.toLowerCase().includes("super_admin") &&
+                !r.code?.toLowerCase().includes("superadmin")
+            )
+            .map((r: any) => ({ value: String(r.id), label: r.name }))
+        );
+      })
+      .catch(() => {});
 
-    departmentService.fetchAll({ limit: 200 }).then(res => {
-      const list = Array.isArray(res.data) ? res.data : [];
-      setDepartments(list.map((d: any) => ({ value: String(d.id), label: d.name })));
-    }).catch(() => { });
+    departmentService
+      .fetchAll({ limit: 200 })
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        setDepartments(list.map((d: any) => ({ value: String(d.id), label: d.name })));
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch employees (cached)
   const fetcher = useCallback(async (_signal: AbortSignal) => {
     const res = await employeeService.fetchAll({ limit: 10000 });
-    const list = Array.isArray(res) ? res : (res.employees || res.data || []);
+    const list = Array.isArray(res) ? res : res.employees || res.data || [];
     return { data: list, total: res.total || list.length };
   }, []);
 
-  const { data: employees, loading, refresh } = useListCache<any>({
+  const {
+    data: employees,
+    loading,
+    refresh,
+  } = useListCache<any>({
     cacheKey: "employees:list",
     socketModule: "employee",
     fetcher,
@@ -96,11 +112,13 @@ const Employeelist: React.FC = () => {
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp: any) => {
-      const matchesSearch = !searchTerm ||
+      const matchesSearch =
+        !searchTerm ||
         emp.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.empCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.mobile?.includes(searchTerm);
-      const matchesRole = !appliedRoleId || String(emp.roleId || emp.role?.id || emp.user?.roleId) === appliedRoleId;
+      const matchesRole =
+        !appliedRoleId || String(emp.roleId || emp.role?.id || emp.user?.roleId) === appliedRoleId;
       const matchesDept = !appliedDeptId || String(emp.departmentId) === appliedDeptId;
       const matchesStatus = !appliedStatus || emp.status === appliedStatus;
       return matchesSearch && matchesRole && matchesDept && matchesStatus;
@@ -116,7 +134,8 @@ const Employeelist: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const activeFilterCount = (appliedRoleId ? 1 : 0) + (appliedDeptId ? 1 : 0) + (appliedStatus ? 1 : 0);
+  const activeFilterCount =
+    (appliedRoleId ? 1 : 0) + (appliedDeptId ? 1 : 0) + (appliedStatus ? 1 : 0);
   const hasActiveFilters = activeFilterCount > 0;
 
   const handleApplyFilters = useCallback(() => {
@@ -127,18 +146,28 @@ const Employeelist: React.FC = () => {
   }, [draftRoleId, draftDeptId, draftStatus]);
 
   const handleClearFilters = useCallback(() => {
-    setDraftRoleId(""); setDraftDeptId(""); setDraftStatus("");
-    setAppliedRoleId(""); setAppliedDeptId(""); setAppliedStatus("");
+    setDraftRoleId("");
+    setDraftDeptId("");
+    setDraftStatus("");
+    setAppliedRoleId("");
+    setAppliedDeptId("");
+    setAppliedStatus("");
     setCurrentPage(1);
   }, []);
 
-  const handleView = useCallback((employee: any) => {
-    navigate(`/employees/view/${employee.id}`);
-  }, [navigate]);
+  const handleView = useCallback(
+    (employee: any) => {
+      navigate(`/employees/view/${employee.id}`);
+    },
+    [navigate]
+  );
 
-  const handleEdit = useCallback((employee: any) => {
-    navigate(`/employees/edit/${employee.id}`, { state: employee });
-  }, [navigate]);
+  const handleEdit = useCallback(
+    (employee: any) => {
+      navigate(`/employees/edit/${employee.id}`, { state: employee });
+    },
+    [navigate]
+  );
 
   const triggerDelete = useCallback((id: string) => {
     setEmployeeToDelete(id);
@@ -153,7 +182,9 @@ const Employeelist: React.FC = () => {
         toast.success("Employee deleted successfully!");
         refresh();
       } catch (err: any) {
-        toast.error(err?.response?.data?.message || err.message || err || "Failed to delete employee");
+        toast.error(
+          err?.response?.data?.message || err.message || err || "Failed to delete employee"
+        );
       } finally {
         setShowDeleteModal(false);
         setEmployeeToDelete(null);
@@ -173,7 +204,11 @@ const Employeelist: React.FC = () => {
       {
         header: "Login Account",
         accessor: (emp: any) =>
-          emp.user ? (emp.user.status === "active" ? "Enabled" : emp.user.status?.toUpperCase() || "Disabled") : "No Login",
+          emp.user
+            ? emp.user.status === "active"
+              ? "Enabled"
+              : emp.user.status?.toUpperCase() || "Disabled"
+            : "No Login",
       },
       { header: "Status", accessor: (emp: any) => (emp.status ? emp.status.toUpperCase() : "—") },
     ];
@@ -183,21 +218,25 @@ const Employeelist: React.FC = () => {
     };
   }, []);
 
-
-
   const columns: DataTableColumn<any>[] = [
     {
       header: "#",
       width: "50px",
       align: "center",
       render: (_, index) => (
-        <span className="text-ink-subtle font-mono text-xs">{String(startIndex + index + 1).padStart(2, '0')}</span>
+        <span className="text-ink-subtle font-mono text-xs">
+          {String(startIndex + index + 1).padStart(2, "0")}
+        </span>
       ),
     },
     { header: "Employee Code", accessor: "empCode", width: "120px" },
     { header: "Employee Name", accessor: "fullName" },
     { header: "Mobile", width: "130px", render: (emp) => emp.mobile || "—" },
-    { header: "Role", width: "130px", render: (emp) => emp.role?.name || emp.user?.role?.name || "—" },
+    {
+      header: "Role",
+      width: "130px",
+      render: (emp) => emp.role?.name || emp.user?.role?.name || "—",
+    },
     {
       header: "Login Account",
       width: "150px",
@@ -206,7 +245,7 @@ const Employeelist: React.FC = () => {
         if (!emp.user) {
           return (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-card-2 text-ink-subtle border border-line/80">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-ink-subtle"></span>
               No Login
             </span>
           );
@@ -215,12 +254,15 @@ const Employeelist: React.FC = () => {
         return (
           <div className="flex flex-col items-center gap-0.5">
             <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${isActive
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                }`}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                isActive
+                  ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border-[color:var(--color-success)]/40"
+                  : "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border-[color:var(--color-warning)]/40"
+              }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}></span>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-[color:var(--color-success)] animate-pulse" : "bg-[color:var(--color-warning)]"}`}
+              ></span>
               {isActive ? "Enabled" : emp.user.status?.toUpperCase() || "Disabled"}
             </span>
             {emp.user.username && (
@@ -236,9 +278,14 @@ const Employeelist: React.FC = () => {
       align: "center",
       render: (emp) => {
         const statusMap: Record<string, string> = {
-          active: "ACTIVE", inactive: "INACTIVE", resigned: "RESIGNED", terminated: "TERMINATED",
+          active: "ACTIVE",
+          inactive: "INACTIVE",
+          resigned: "RESIGNED",
+          terminated: "TERMINATED",
         };
-        return <StatusBadge status={statusMap[emp.status] ?? emp.status?.toUpperCase() ?? "INACTIVE"} />;
+        return (
+          <StatusBadge status={statusMap[emp.status] ?? emp.status?.toUpperCase() ?? "INACTIVE"} />
+        );
       },
     },
     {
@@ -252,12 +299,12 @@ const Employeelist: React.FC = () => {
           {canDelete && <DeleteButton onClick={() => triggerDelete(emp.id)} />}
         </div>
       ),
-    }
+    },
   ];
 
   return (
     <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-visible">
+      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-visible">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
           <div>
@@ -266,11 +313,14 @@ const Employeelist: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             {/* Search */}
             <div className="relative w-full md:w-56">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" size={15} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
+                size={15}
+              />
               <input
                 type="text"
                 data-search-input
-                className="w-full pl-9 pr-4 py-2 bg-card-2 border border-line-soft rounded-xl text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-card-2 border border-line-soft rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
                 placeholder="Search employees..."
                 value={searchTerm}
                 onChange={handleSearch}
@@ -286,7 +336,9 @@ const Employeelist: React.FC = () => {
             >
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">Role</label>
+                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
+                    Role
+                  </label>
                   <SelectInput
                     name="draftRoleId"
                     value={draftRoleId}
@@ -297,7 +349,9 @@ const Employeelist: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">Department</label>
+                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
+                    Department
+                  </label>
                   <SelectInput
                     name="draftDeptId"
                     value={draftDeptId}
@@ -308,7 +362,9 @@ const Employeelist: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">Status</label>
+                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
+                    Status
+                  </label>
                   <SelectInput
                     name="draftStatus"
                     value={draftStatus}
@@ -341,16 +397,14 @@ const Employeelist: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="p-0 overflow-hidden rounded-b-2xl">
+        <div className="p-0 overflow-hidden rounded-b-sm">
           <DataTable
             data={paginatedEmployees}
             rowKey={(emp) => emp.id}
             loading={loading}
             emptyMessage="No employees found."
             pagination={
-              totalPages > 1
-                ? { currentPage, totalPages, onPageChange: setCurrentPage }
-                : undefined
+              totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
             }
             columns={columns}
           />

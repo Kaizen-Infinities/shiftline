@@ -153,7 +153,7 @@ const CurrenciesPage: React.FC = () => {
                   <td className={`${td} text-right`}>
                     {can("currencies.edit") && c.code !== "INR" && (
                       <button
-                        className="text-sm font-semibold text-blue-700 hover:underline"
+                        className="text-sm font-semibold text-accent hover:underline"
                         onClick={() => void toggle(c)}
                         disabled={busy}
                       >

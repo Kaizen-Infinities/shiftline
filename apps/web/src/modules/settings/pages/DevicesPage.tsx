@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
+import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import { deviceService } from "../../../services/deviceService";
 import type { DeviceRow } from "../../../services/platformService";
 
@@ -10,7 +11,7 @@ import type { DeviceRow } from "../../../services/platformService";
  */
 const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
 const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
+const danger = `${btn} border border-[color:var(--color-danger)]/40 text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10`;
 const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
 const td = "px-3 py-1.5 text-sm text-ink";
 const when = (iso: string | null) =>
@@ -24,6 +25,9 @@ const DevicesPage: React.FC = () => {
   const [showRevoked, setShowRevoked] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [deviceToRevoke, setDeviceToRevoke] = useState<DeviceRow | null>(null);
+
   const load = useCallback(async () => {
     try {
       setRows(await deviceService.list(true));
@@ -36,13 +40,6 @@ const DevicesPage: React.FC = () => {
   }, [load]);
 
   const act = async (d: DeviceRow, what: "revoke" | "restore") => {
-    if (
-      what === "revoke" &&
-      !window.confirm(
-        `Revoke ${d.model ?? d.deviceId} used by ${d.agentName}? The app signs out and wipes its data.`
-      )
-    )
-      return;
     setBusy(d.id);
     try {
       await (what === "revoke" ? deviceService.revoke(d.id) : deviceService.restore(d.id));
@@ -52,6 +49,19 @@ const DevicesPage: React.FC = () => {
       toast.error(message(err));
     } finally {
       setBusy(null);
+    }
+  };
+
+  const triggerRevoke = (d: DeviceRow) => {
+    setDeviceToRevoke(d);
+    setShowRevokeModal(true);
+  };
+
+  const handleRevokeConfirm = async () => {
+    if (deviceToRevoke) {
+      await act(deviceToRevoke, "revoke");
+      setShowRevokeModal(false);
+      setDeviceToRevoke(null);
     }
   };
 
@@ -75,7 +85,7 @@ const DevicesPage: React.FC = () => {
           Show revoked
         </label>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
+      <div className="overflow-x-auto rounded-lg border border-line-soft bg-card">
         <table className="min-w-full divide-y divide-line-soft">
           <thead>
             <tr>
@@ -107,11 +117,11 @@ const DevicesPage: React.FC = () => {
                 <td className={td}>{when(d.lastSyncAt)}</td>
                 <td className={td}>
                   {d.revokedAt ? (
-                    <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[11px] font-semibold text-rose-800">
+                    <span className="rounded-sm border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--color-danger)]">
                       REVOKED
                     </span>
                   ) : (
-                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+                    <span className="rounded-sm border border-[color:var(--color-success)]/40 bg-[color:var(--color-success)]/10 px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--color-success)]">
                       ACTIVE
                     </span>
                   )}
@@ -131,7 +141,7 @@ const DevicesPage: React.FC = () => {
                       type="button"
                       className={danger}
                       disabled={busy === d.id}
-                      onClick={() => act(d, "revoke")}
+                      onClick={() => triggerRevoke(d)}
                     >
                       Revoke and wipe
                     </button>
@@ -149,6 +159,21 @@ const DevicesPage: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      <CommonConfirmModal
+        show={showRevokeModal}
+        onHide={() => setShowRevokeModal(false)}
+        onConfirm={handleRevokeConfirm}
+        title="Revoke Device"
+        message={
+          deviceToRevoke
+            ? `Revoke ${deviceToRevoke.model ?? deviceToRevoke.deviceId} used by ${deviceToRevoke.agentName}? The app signs out and wipes its data.`
+            : ""
+        }
+        confirmText={busy === deviceToRevoke?.id ? "Revoking..." : "Revoke"}
+        confirmVariant="danger"
+        isDangerous={true}
+      />
     </div>
   );
 };

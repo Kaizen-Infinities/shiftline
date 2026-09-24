@@ -78,7 +78,7 @@ const OnboardingWizard: React.FC = () => {
   if (error && !state) {
     return (
       <div className="min-h-screen bg-page px-4 py-16 text-ink">
-        <div className="mx-auto max-w-md rounded-2xl border border-line-soft bg-card p-8">
+        <div className="mx-auto max-w-md rounded-sm border border-line bg-card p-8">
           <h1 className="text-xl font-bold">Could not load onboarding</h1>
           <ErrorBox message={error} />
           <div className="mt-6 flex gap-2">
@@ -97,7 +97,7 @@ const OnboardingWizard: React.FC = () => {
     const owners = state.users.filter((u) => u.roleCode === "OWNER");
     return (
       <div className="min-h-screen bg-page px-4 py-16 text-ink">
-        <div className="mx-auto max-w-md rounded-2xl border border-line-soft bg-card p-8">
+        <div className="mx-auto max-w-md rounded-sm border border-line bg-card p-8">
           <h1 className="text-xl font-bold">{state.company.companyName} is being set up</h1>
           <p className="mt-2 text-sm text-ink-muted">
             {owners.length ? owners.map((o) => o.fullName).join(", ") : "Your administrator"} is
@@ -106,7 +106,7 @@ const OnboardingWizard: React.FC = () => {
           </p>
           <ul className="mt-4 space-y-1 text-sm">
             {state.steps.map((s) => (
-              <li key={s.key} className={s.done ? "text-emerald-500" : "text-ink-muted"}>
+              <li key={s.key} className={s.done ? "text-accent" : "text-ink-muted"}>
                 {s.done ? "✓" : "○"} {s.label}
               </li>
             ))}
@@ -122,7 +122,7 @@ const OnboardingWizard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-page text-ink">
-      <header className="border-b border-line-soft bg-card">
+      <header className="border-b border-line bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-ink-muted">
@@ -149,21 +149,21 @@ const OnboardingWizard: React.FC = () => {
                     type="button"
                     disabled={!reachable}
                     onClick={() => goto(s.key)}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm ${
+                    className={`flex w-full items-center gap-3 rounded-sm border px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                       isActive
-                        ? "bg-blue-600 text-white"
+                        ? "border-accent bg-accent/10 text-ink font-semibold"
                         : reachable
-                          ? "text-ink hover:bg-card"
-                          : "text-ink-muted/60"
+                          ? "border-transparent text-ink hover:bg-card-2"
+                          : "border-transparent text-ink-muted/60"
                     }`}
                   >
                     <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border text-xs font-bold ${
                         s.done && !isActive
-                          ? "bg-emerald-500/20 text-emerald-500"
+                          ? "border-accent/50 text-accent"
                           : isActive
-                            ? "bg-white/20 text-white"
-                            : "bg-card-2 text-ink-muted"
+                            ? "border-accent bg-accent text-white"
+                            : "border-line text-ink-muted"
                       }`}
                     >
                       {s.done && !isActive ? "✓" : idx + 1}
@@ -176,10 +176,7 @@ const OnboardingWizard: React.FC = () => {
           </ol>
         </aside>
 
-        <main
-          className="rounded-2xl border border-line-soft bg-card p-6 shadow-xl"
-          data-step={active}
-        >
+        <main className="rounded-sm border border-line bg-card p-6" data-step={active}>
           {active === "company" && <CompanyStep state={state} onSaved={onSaved} />}
           {active === "gst" && <GstStep state={state} onSaved={onSaved} onBack={back} />}
           {active === "financial-year" && (

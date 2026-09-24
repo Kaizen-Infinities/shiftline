@@ -644,7 +644,7 @@ const ProductForm: React.FC = () => {
                 .product-form-compact button[role="combobox"] { height: 34px !important; min-height: 34px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
                 .product-form-compact .group { margin-bottom: 0 !important; }
             `}</style>
-      <div className="bg-card rounded-xl shadow-xs border border-line-soft overflow-visible">
+      <div className="bg-card rounded-sm border border-line-soft overflow-visible">
         {/* ── Page Header ── */}
         <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
           <h2 className="text-base font-bold text-ink">

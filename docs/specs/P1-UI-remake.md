@@ -17,15 +17,15 @@ Shiftline's web client grew screen by screen from the origin application and con
 
 The inventory is grouped by user task rather than source folder. A checked group has completed its domain slice in the current (slice 2+) visual direction; pages are migrated as complete domain slices and retain their current URL and actions. These checkboxes previously all read done — that was inaccurate (see `docs/handoff/2026-09-13-commission-phase-2-transition.md`): only the Foundation slice (tokens, primitives, Bootstrap removal) had actually landed. Corrected here as slice 2 begins.
 
-- [ ] **Foundation and public** (in progress, slice 2): login (done, new direction), invitation acceptance, reset password, onboarding, unauthorised and not-found (not yet); responsive application shell, tenant branding, theme switch, notification centre, impersonation banner (done, new direction); shortcut panel (done — also fixed to stop rendering on mobile, and to stop ignoring the active theme) and calculator (not yet).
-- [ ] **Home and operations:** executive, production and OEE dashboards; status; weekly scheduling; daily planning and reporting; shift execution; hourly production/work reports; production orders and material issue.
-- [ ] **Inventory:** categories, UOMs, store types, storage and wastage stores, raw materials and stocks, finished goods, products, BOMs, capacity and pricing history, stock adjustment, EOD stock and inventory reports.
-- [ ] **Sales:** customers and grades/types, quotations, sales orders, dispatch and approvals, invoices, receivables, returns and sales reports.
-- [ ] **Purchasing:** suppliers and pricing, purchase orders, upcoming orders, GRN/invoice flows, payables and purchase reports.
-- [ ] **People:** employees, departments, shifts, roles, permission mapping, users, attendance, payroll dashboard/settings/runs, salary advances, payslips and weekly/monthly reports.
-- [ ] **Finance:** bank accounts, chart of accounts, vouchers, expenses, petty cash, ageing, statements, books, audit trail, year-end and finance reports.
-- [ ] **Compliance:** GST/HSN masters, filing approvals, e-invoice register/panels, e-way bills/panels and transporters.
-- [ ] **Tenant settings:** company profile/settings, invoice and email settings, WhatsApp, imports, export, devices, profile and machine gateways (Phase 2, new direction from creation).
+- [x] **Foundation and public** (slice 2, done): login, invitation acceptance, reset password, onboarding wizard (all six steps), unauthorised and not-found — all in the new direction; responsive application shell, tenant branding, theme switch, notification centre, impersonation banner (done, new direction); shortcut panel (also fixed to stop rendering on mobile, and to stop ignoring the active theme) and the floating calculator (also fixed to stop ignoring the active theme) — done.
+- [x] **Home and operations** (slice 4, done): executive, production and OEE dashboards; status; weekly scheduling; daily planning and reporting; shift execution; hourly production/work reports; production orders and material issue — all in the new direction.
+- [x] **Inventory** (slice 3 masters + slice 4 operations, done): categories, UOMs, store types, storage and wastage stores, raw materials, finished goods and products are done in the new direction; BOMs live inside the product form and moved with it. Capacity and pricing history, stock adjustment, EOD stock and inventory reports are done in slice 4.
+- [ ] **Sales** (masters done, slice 3): customers and grades/types are done. Quotations, sales orders, dispatch and approvals, invoices, receivables, returns and sales reports are document/ledger screens — still slice 5.
+- [ ] **Purchasing** (masters done, slice 3): suppliers and pricing (including the material-pricing list) are done. Purchase orders, upcoming orders, GRN/invoice flows, payables and purchase reports are still slice 5.
+- [ ] **People** (masters done, slice 3): employees, departments, shifts, roles, permission mapping and users are done. Attendance, payroll dashboard/settings/runs, salary advances, payslips and weekly/monthly reports are still slice 6.
+- [ ] **Finance** (masters done, slice 3): bank accounts and chart of accounts are done. Vouchers, expenses, petty cash, ageing, statements, books, audit trail, year-end and finance reports are still slice 5.
+- [ ] **Compliance** (masters done, slice 3): GST/HSN masters are done. Filing approvals, e-invoice register/panels, e-way bills/panels and transporters are still slice 5/6.
+- [x] **Tenant settings** (slice 3, done): company profile/settings, invoice and email settings, WhatsApp, imports, export, devices, profile and machine gateways (Phase 2) — all in the new direction.
 - [ ] **Platform:** overview, tenants/detail and plans, all behind the super-admin boundary.
 
 Route declarations in `AppRoutes.tsx` are the canonical detailed inventory. A route is not removed or renamed as part of visual migration. Existing smoke entries remain the release inventory; marker text changes only when the corresponding page heading changes.
@@ -34,8 +34,8 @@ Route declarations in `AppRoutes.tsx` are the canonical detailed inventory. A ro
 
 1. **Foundation (this slice):** document the direction; remove framework packages and origin assets; add accessible Tailwind layout/form/card/table/dialog primitives; migrate every remaining framework import and tenant-logo fallback. This makes the whole application one CSS system while preserving component props and handlers.
 2. **Shell and public experience:** consolidate navigation information architecture, skip link and landmarks, mobile drawer behaviour, login/onboarding and empty/error/loading states.
-3. **Masters and settings:** standard list toolbar, responsive filters, forms, destructive confirmations and detail summaries.
-4. **Operations and inventory:** dense boards, schedules, production interactions and horizontally scrollable tabular data.
+3. **Masters and settings (done):** standard list toolbar, responsive filters, forms, destructive confirmations and detail summaries.
+4. **Operations and inventory (done):** dense boards, schedules, production interactions and horizontally scrollable tabular data.
 5. **Commercial and finance:** document editors, totals, approvals, print actions and Indian numeric presentation.
 6. **People, compliance and platform:** payroll, registers, provider panels, tenant administration and audit-oriented detail views.
 7. **Hardening:** keyboard-only and screen-reader audit, light/dark contrast audit, 400/768/1280 px visual regression and the complete authenticated smoke matrix.

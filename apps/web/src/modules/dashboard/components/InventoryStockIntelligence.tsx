@@ -48,7 +48,16 @@ interface InventoryStockIntelligenceProps {
 
 type InventoryTab = "raw" | "finished" | "wastage";
 
-const PALETTE = ["#0ea5e9", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#f43f5e", "#14b8a6", "#6366f1"];
+const PALETTE = [
+  "#0ea5e9",
+  "#10b981",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+  "#f43f5e",
+  "#14b8a6",
+  "#6366f1",
+];
 const ITEMS_PER_PAGE = 7; // Optimal item count for clean, readable charts
 
 // Helper to extract only the single primary UOM and normalize EA -> PCS
@@ -91,13 +100,31 @@ const extractRawCategory = (rm: any, name: string): string => {
   if (rm.rawMaterialCategory?.name) return rm.rawMaterialCategory.name;
 
   const nm = (name || "").toLowerCase();
-  if (nm.includes("granule") || nm.includes("virgin") || nm.includes("pp") || nm.includes("hd") || nm.includes("lld") || nm.includes("npp")) {
+  if (
+    nm.includes("granule") ||
+    nm.includes("virgin") ||
+    nm.includes("pp") ||
+    nm.includes("hd") ||
+    nm.includes("lld") ||
+    nm.includes("npp")
+  ) {
     return "Polymer";
   }
-  if (nm.includes("masterbatch") || nm.includes("color") || nm.includes("red") || nm.includes("oxide") || nm.includes("titanium")) {
+  if (
+    nm.includes("masterbatch") ||
+    nm.includes("color") ||
+    nm.includes("red") ||
+    nm.includes("oxide") ||
+    nm.includes("titanium")
+  ) {
     return "Masterbatch";
   }
-  if (nm.includes("thread") || nm.includes("yarn") || nm.includes("handle") || nm.includes("wire")) {
+  if (
+    nm.includes("thread") ||
+    nm.includes("yarn") ||
+    nm.includes("handle") ||
+    nm.includes("wire")
+  ) {
     return "Accessory";
   }
   return "Raw Material";
@@ -190,9 +217,15 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
     try {
       setIsLoading(true);
       const [rmRes, rmStockRes, fgStockRes, prodRes] = await Promise.allSettled([
-        rawMaterialService.fetchAll ? rawMaterialService.fetchAll({ limit: 100 }) : Promise.resolve([]),
-        rawMaterialStockService.fetchAll ? rawMaterialStockService.fetchAll({ limit: 100 }) : Promise.resolve([]),
-        finishedGoodsStockService.fetchAll ? finishedGoodsStockService.fetchAll({ limit: 100 }) : Promise.resolve([]),
+        rawMaterialService.fetchAll
+          ? rawMaterialService.fetchAll({ limit: 100 })
+          : Promise.resolve([]),
+        rawMaterialStockService.fetchAll
+          ? rawMaterialStockService.fetchAll({ limit: 100 })
+          : Promise.resolve([]),
+        finishedGoodsStockService.fetchAll
+          ? finishedGoodsStockService.fetchAll({ limit: 100 })
+          : Promise.resolve([]),
         productService.fetchAll ? productService.fetchAll() : Promise.resolve([]),
       ]);
 
@@ -260,22 +293,31 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
     const wastageList: any[] = [];
 
     list.forEach((rm: any, idx: number) => {
-      const name = rm.materialName || rm.name || rm.itemName || `Item #${rm.rawMaterialId || rm.id || idx + 1}`;
+      const name =
+        rm.materialName ||
+        rm.name ||
+        rm.itemName ||
+        `Item #${rm.rawMaterialId || rm.id || idx + 1}`;
       const rmId = String(rm.rawMaterialId || rm.id || "");
       const isWastage = isWastageItem(rm, name);
 
       // Sum all store stock entries for this item
       const matchingStocks = liveRawStocks.filter(
-        (s: any) => String(s.rawMaterialId) === rmId || String(s.rawMaterial?.rawMaterialId) === rmId || String(s.rawMaterial?.id) === rmId
+        (s: any) =>
+          String(s.rawMaterialId) === rmId ||
+          String(s.rawMaterial?.rawMaterialId) === rmId ||
+          String(s.rawMaterial?.id) === rmId
       );
 
       let totalStockQty = matchingStocks.reduce(
-        (sum: number, s: any) => sum + (Number(s.onHandQty ?? s.currentStock ?? s.quantity ?? 0) || 0),
+        (sum: number, s: any) =>
+          sum + (Number(s.onHandQty ?? s.currentStock ?? s.quantity ?? 0) || 0),
         0
       );
 
       if (totalStockQty === 0) {
-        totalStockQty = Number(rm.onHandQty ?? rm.currentStock ?? rm.totalQuantity ?? rm.quantity ?? 0) || 0;
+        totalStockQty =
+          Number(rm.onHandQty ?? rm.currentStock ?? rm.totalQuantity ?? rm.quantity ?? 0) || 0;
       }
 
       if (totalStockQty === 0) {
@@ -283,13 +325,19 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
         totalStockQty = seedBaselines[idx % seedBaselines.length];
       }
 
-      const minLevel = Number(rm.minimumStock || rm.reorderLevel || rm.minStock || (isWastage ? 100 : 600));
-      const unitPrice = Number(rm.rate || rm.price || rm.unitPrice || rm.standardCost || (isWastage ? 25 : 85));
+      const minLevel = Number(
+        rm.minimumStock || rm.reorderLevel || rm.minStock || (isWastage ? 100 : 600)
+      );
+      const unitPrice = Number(
+        rm.rate || rm.price || rm.unitPrice || rm.standardCost || (isWastage ? 25 : 85)
+      );
       const uom = getPrimaryUom(rm.baseUom || rm.uom || "KG", "KG");
       const isLow = totalStockQty <= minLevel;
       const isCritical = totalStockQty <= minLevel * 0.4;
       const value = totalStockQty * unitPrice;
-      const category = isWastage ? (rm.category?.name || "Plastic Scrap") : extractRawCategory(rm, name);
+      const category = isWastage
+        ? rm.category?.name || "Plastic Scrap"
+        : extractRawCategory(rm, name);
 
       const processed = {
         id: rmId || idx,
@@ -328,11 +376,15 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
 
       // Sum all store stock entries for this product
       const matchingFg = liveFgStocks.filter(
-        (fg: any) => String(fg.productItemId) === pId || String(fg.productId) === pId || String(fg.product?.id) === pId
+        (fg: any) =>
+          String(fg.productItemId) === pId ||
+          String(fg.productId) === pId ||
+          String(fg.product?.id) === pId
       );
 
       let totalFgQty = matchingFg.reduce(
-        (sum: number, fg: any) => sum + (Number(fg.onHandQty ?? fg.currentStock ?? fg.quantity ?? 0) || 0),
+        (sum: number, fg: any) =>
+          sum + (Number(fg.onHandQty ?? fg.currentStock ?? fg.quantity ?? 0) || 0),
         0
       );
 
@@ -401,10 +453,20 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
   }, [rawStockItems, finishedStockItems, wastageStockItems]);
 
   // 4. Aggregated Total Stock Counts
-  const totalRawQty = useMemo(() => rawStockItems.reduce((sum, item) => sum + item.qty, 0), [rawStockItems]);
-  const totalFgQty = useMemo(() => finishedStockItems.reduce((sum, item) => sum + item.qty, 0), [finishedStockItems]);
-  const totalWastageQty = useMemo(() => wastageStockItems.reduce((sum, item) => sum + item.qty, 0), [wastageStockItems]);
-  const totalTrackedSKUs = rawStockItems.length + finishedStockItems.length + wastageStockItems.length;
+  const totalRawQty = useMemo(
+    () => rawStockItems.reduce((sum, item) => sum + item.qty, 0),
+    [rawStockItems]
+  );
+  const totalFgQty = useMemo(
+    () => finishedStockItems.reduce((sum, item) => sum + item.qty, 0),
+    [finishedStockItems]
+  );
+  const totalWastageQty = useMemo(
+    () => wastageStockItems.reduce((sum, item) => sum + item.qty, 0),
+    [wastageStockItems]
+  );
+  const totalTrackedSKUs =
+    rawStockItems.length + finishedStockItems.length + wastageStockItems.length;
 
   // 5. Active Tab Full Item List
   const currentTabItems = useMemo(() => {
@@ -462,8 +524,16 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
   }, [currentTabItems, currentPage]);
 
   const currentTabUom = activeTab === "raw" ? "KG" : activeTab === "finished" ? "PCS" : "KG";
-  const currentBatchTotal = useMemo(() => chartData.reduce((sum, item) => sum + item.quantity, 0), [chartData]);
-  const currentTabTitle = activeTab === "raw" ? "Raw Materials" : activeTab === "finished" ? "Finished Goods" : "Wastage Store";
+  const currentBatchTotal = useMemo(
+    () => chartData.reduce((sum, item) => sum + item.quantity, 0),
+    [chartData]
+  );
+  const currentTabTitle =
+    activeTab === "raw"
+      ? "Raw Materials"
+      : activeTab === "finished"
+        ? "Finished Goods"
+        : "Wastage Store";
 
   const distributionPieData = useMemo(() => {
     return [
@@ -474,17 +544,17 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
   }, [totalRawQty, totalFgQty, totalWastageQty]);
 
   return (
-    <div className="bg-white dark:bg-card border border-slate-200 dark:border-line-soft rounded-2xl shadow-sm hover:shadow-md overflow-hidden flex flex-col mb-4 sm:mb-6 transition-all">
+    <div className="bg-card border border-line-soft rounded-md overflow-hidden flex flex-col mb-4 sm:mb-6 transition-all">
       {/* ── CARD HEADER ── */}
-      <div className="shrink-0 px-4 py-3.5 border-b border-slate-200/80 dark:border-line-soft flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 dark:bg-card-2/40">
+      <div className="shrink-0 px-4 py-3.5 border-b border-line-soft flex flex-wrap items-center justify-between gap-3 bg-card-2/40">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 shadow-2xs">
+          <div className="w-8 h-8 rounded-sm bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 shrink-0">
             <FaWarehouse className="text-sm" />
           </div>
           <div>
-            <div className="text-[13px] font-extrabold uppercase tracking-wider text-slate-900 dark:text-ink flex items-center gap-2">
+            <div className="text-[13px] font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
               <span>Inventory & Stock Intelligence</span>
-              <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-400 border border-teal-500/30 uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-700 border border-teal-500/30 uppercase tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
                 Live Feed
               </span>
@@ -496,12 +566,14 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
         {/* Action Controls: 3 Tabs & Multi-Chart Switcher */}
         <div className="flex items-center gap-2">
           {/* Filter Tabs (Persisted to LocalStorage) */}
-          <div className="flex items-center bg-slate-100/90 dark:bg-card p-1 rounded-xl border border-slate-200 dark:border-line-soft text-[11px] font-bold shadow-2xs">
+          <div className="flex items-center bg-card-2 p-1 rounded-sm border border-line-soft text-[11px] font-bold">
             <button
               type="button"
               onClick={() => handleTabChange("raw")}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                activeTab === "raw" ? "bg-teal-600 text-white shadow-xs font-bold" : "text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/70 dark:hover:bg-card-2"
+              className={`px-3 py-1 rounded-sm transition-all cursor-pointer ${
+                activeTab === "raw"
+                  ? "bg-teal-600 text-white font-bold"
+                  : "text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               Raw Material
@@ -509,8 +581,10 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
             <button
               type="button"
               onClick={() => handleTabChange("finished")}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                activeTab === "finished" ? "bg-teal-600 text-white shadow-xs font-bold" : "text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/70 dark:hover:bg-card-2"
+              className={`px-3 py-1 rounded-sm transition-all cursor-pointer ${
+                activeTab === "finished"
+                  ? "bg-teal-600 text-white font-bold"
+                  : "text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               Finished Goods
@@ -518,8 +592,10 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
             <button
               type="button"
               onClick={() => handleTabChange("wastage")}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                activeTab === "wastage" ? "bg-amber-600 text-white shadow-xs font-bold" : "text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/70 dark:hover:bg-card-2"
+              className={`px-3 py-1 rounded-sm transition-all cursor-pointer ${
+                activeTab === "wastage"
+                  ? "bg-amber-600 text-white font-bold"
+                  : "text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               Wastage Store
@@ -527,13 +603,15 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
           </div>
 
           {/* 4 Graph Type Switch Buttons (Persisted to LocalStorage) */}
-          <div className="flex items-center bg-slate-100/90 dark:bg-card p-1 rounded-xl border border-slate-200 dark:border-line-soft gap-1 shadow-2xs">
+          <div className="flex items-center bg-card-2 p-1 rounded-sm border border-line-soft gap-1">
             <button
               type="button"
               onClick={() => handleChartTypeChange("bar")}
               title="Column Chart"
-              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                chartType === "bar" ? "bg-teal-600 text-white shadow-xs font-bold" : "text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/70 dark:hover:bg-card-2"
+              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
+                chartType === "bar"
+                  ? "bg-teal-600 text-white font-bold"
+                  : "text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               <FaChartBar className="text-xs" />
@@ -542,8 +620,10 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
               type="button"
               onClick={() => handleChartTypeChange("pie")}
               title="Donut Distribution"
-              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                chartType === "pie" ? "bg-teal-600 text-white shadow-xs font-bold" : "text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/70 dark:hover:bg-card-2"
+              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
+                chartType === "pie"
+                  ? "bg-teal-600 text-white font-bold"
+                  : "text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               <FaChartPie className="text-xs" />
@@ -552,8 +632,10 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
               type="button"
               onClick={() => handleChartTypeChange("area")}
               title="Area Trend"
-              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                chartType === "area" ? "bg-teal-600 text-white shadow-xs font-bold" : "text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/70 dark:hover:bg-card-2"
+              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
+                chartType === "area"
+                  ? "bg-teal-600 text-white font-bold"
+                  : "text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               <FaChartLine className="text-xs" />
@@ -562,8 +644,10 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
               type="button"
               onClick={() => handleChartTypeChange("list")}
               title="Matrix Table View"
-              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                chartType === "list" ? "bg-teal-600 text-white shadow-xs font-bold" : "text-slate-600 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink hover:bg-white/70 dark:hover:bg-card-2"
+              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
+                chartType === "list"
+                  ? "bg-teal-600 text-white font-bold"
+                  : "text-ink-muted hover:text-ink hover:bg-card-2"
               }`}
             >
               <FaListUl className="text-xs" />
@@ -573,24 +657,25 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
       </div>
 
       {/* ── TOP 4 ACTIONABLE INVENTORY SNAPSHOT METRIC CARDS (CLICKABLE) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3.5 border-b border-slate-200/80 dark:border-line-soft bg-slate-50/50 dark:bg-card-2/20">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3.5 border-b border-line-soft bg-card-2/40">
         {/* 1. Tracked Inventory SKUs */}
         <div
           onClick={() => navigate("/stock")}
-          className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-card border border-slate-200/90 dark:border-line-soft shadow-2xs hover:border-emerald-500 hover:shadow-md hover:bg-slate-50 dark:hover:bg-card-2/50 transition-all cursor-pointer group"
+          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-emerald-500 hover:bg-card-2 transition-all cursor-pointer group"
           title="Click to view Stock Ledger"
         >
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-sm bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 shrink-0">
             <FaCheckDouble className="text-base" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-slate-500 dark:text-ink-muted group-hover:text-slate-900 dark:group-hover:text-ink tracking-wider transition-colors">
+            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
               Total SKUs
             </div>
-            <div className="text-lg font-mono font-black text-slate-900 dark:text-ink mt-0.5">
-              {totalTrackedSKUs} <span className="text-[10px] text-slate-500 dark:text-ink-muted font-bold uppercase">Items</span>
+            <div className="text-lg font-mono font-bold text-ink mt-0.5">
+              {totalTrackedSKUs}{" "}
+              <span className="text-[10px] text-ink-muted font-bold uppercase">Items</span>
             </div>
-            <div className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+            <div className="text-[9.5px] text-emerald-600 font-semibold mt-0.5">
               ● Stock Ledger →
             </div>
           </div>
@@ -599,66 +684,75 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
         {/* 2. Raw Materials Stock (Physical Qty) -> Navigates to /stock */}
         <div
           onClick={() => navigate("/stock")}
-          className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-card border border-slate-200/90 dark:border-line-soft shadow-2xs hover:border-sky-500 hover:shadow-md hover:bg-slate-50 dark:hover:bg-card-2/50 transition-all cursor-pointer group"
+          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-sky-500 hover:bg-card-2 transition-all cursor-pointer group"
           title="Click to open Raw Material Stock Inventory"
         >
-          <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-sm bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 shrink-0">
             <FaLayerGroup className="text-base" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-slate-500 dark:text-ink-muted group-hover:text-slate-900 dark:group-hover:text-ink tracking-wider transition-colors">
+            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
               Raw Materials
             </div>
-            <div className="text-lg font-mono font-black text-sky-600 dark:text-sky-400 mt-0.5">
-              {totalRawQty.toLocaleString()} <span className="text-[10px] text-slate-500 dark:text-ink-muted font-bold">KG</span>
+            <div className="text-lg font-mono font-bold text-sky-600 mt-0.5">
+              {totalRawQty.toLocaleString()}{" "}
+              <span className="text-[10px] text-ink-muted font-bold">KG</span>
             </div>
-            <div className="text-[9.5px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">{rawStockItems.length} materials →</div>
+            <div className="text-[9.5px] text-sky-600 font-semibold mt-0.5">
+              {rawStockItems.length} materials →
+            </div>
           </div>
         </div>
 
         {/* 3. Finished Goods Stock (Physical Qty) -> Navigates to /finished-stock */}
         <div
           onClick={() => navigate("/finished-stock")}
-          className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-card border border-slate-200/90 dark:border-line-soft shadow-2xs hover:border-teal-500 hover:shadow-md hover:bg-slate-50 dark:hover:bg-card-2/50 transition-all cursor-pointer group"
+          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-teal-500 hover:bg-card-2 transition-all cursor-pointer group"
           title="Click to open Finished Goods Stock Inventory"
         >
-          <div className="w-10 h-10 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-sm bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 shrink-0">
             <FaShoppingBag className="text-base" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-slate-500 dark:text-ink-muted group-hover:text-slate-900 dark:group-hover:text-ink tracking-wider transition-colors">
+            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
               Finished Goods
             </div>
-            <div className="text-lg font-mono font-black text-teal-600 dark:text-teal-400 mt-0.5">
-              {totalFgQty.toLocaleString()} <span className="text-[10px] text-slate-500 dark:text-ink-muted font-bold">PCS</span>
+            <div className="text-lg font-mono font-bold text-teal-600 mt-0.5">
+              {totalFgQty.toLocaleString()}{" "}
+              <span className="text-[10px] text-ink-muted font-bold">PCS</span>
             </div>
-            <div className="text-[9.5px] text-teal-600 dark:text-teal-400 font-semibold mt-0.5">{finishedStockItems.length} products →</div>
+            <div className="text-[9.5px] text-teal-600 font-semibold mt-0.5">
+              {finishedStockItems.length} products →
+            </div>
           </div>
         </div>
 
         {/* 4. Wastage Scrap Store -> Navigates to /wastage-stock */}
         <div
           onClick={() => navigate("/wastage-stock")}
-          className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-card border border-slate-200/90 dark:border-line-soft shadow-2xs hover:border-amber-500 hover:shadow-md hover:bg-slate-50 dark:hover:bg-card-2/50 transition-all cursor-pointer group"
+          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-amber-500 hover:bg-card-2 transition-all cursor-pointer group"
           title="Click to open Wastage & Scrap Stock Inventory"
         >
-          <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-sm bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 shrink-0">
             <FaRecycle className="text-base" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-slate-500 dark:text-ink-muted group-hover:text-slate-900 dark:group-hover:text-ink tracking-wider transition-colors">
+            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
               Wastage Store
             </div>
-            <div className="text-lg font-mono font-black text-amber-600 dark:text-amber-400 mt-0.5">
-              {totalWastageQty.toLocaleString()} <span className="text-[10px] text-slate-500 dark:text-ink-muted font-bold">KG</span>
+            <div className="text-lg font-mono font-bold text-amber-600 mt-0.5">
+              {totalWastageQty.toLocaleString()}{" "}
+              <span className="text-[10px] text-ink-muted font-bold">KG</span>
             </div>
-            <div className="text-[9.5px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">{wastageStockItems.length} scrap items →</div>
+            <div className="text-[9.5px] text-amber-600 font-semibold mt-0.5">
+              {wastageStockItems.length} scrap items →
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── MAIN CONTENT SPLIT: LEFT 2/3 (CHARTS + AUTO-ROTATING BATCHING) & RIGHT 1/3 (REORDER ALERTS) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/80 dark:divide-line-soft">
+      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-line-soft">
         {/* LEFT 2/3: Dynamic Visual Charts with Auto-Batching Pagination */}
         <div
           className="lg:col-span-2 p-4 flex flex-col justify-between"
@@ -670,20 +764,22 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
           {totalPages > 1 && (
             <div className="flex items-center justify-between mb-2 px-1 text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-slate-800 dark:text-ink">
+                <span className="text-[11px] font-bold text-ink">
                   Batch {currentPage + 1} of {totalPages}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-ink-muted font-mono">
-                  ({currentPage * ITEMS_PER_PAGE + 1}–{Math.min((currentPage + 1) * ITEMS_PER_PAGE, currentTabItems.length)} of {currentTabItems.length} items)
+                <span className="text-[10px] text-ink-muted font-mono">
+                  ({currentPage * ITEMS_PER_PAGE + 1}–
+                  {Math.min((currentPage + 1) * ITEMS_PER_PAGE, currentTabItems.length)} of{" "}
+                  {currentTabItems.length} items)
                 </span>
               </div>
 
               {/* Controls: Prev, Next, Play/Pause */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-card-2/60 border border-slate-200 dark:border-line-soft px-1.5 py-0.5 rounded-lg shadow-2xs">
+              <div className="flex items-center gap-1 bg-card-2 border border-line-soft px-1.5 py-0.5 rounded-sm">
                 <button
                   type="button"
                   onClick={handlePrevPage}
-                  className="p-1 text-slate-500 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink rounded cursor-pointer transition-colors"
+                  className="p-1 text-ink-muted hover:text-ink rounded cursor-pointer transition-colors"
                   title="Previous batch"
                 >
                   <FaChevronLeft className="text-[9px]" />
@@ -698,8 +794,8 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                       onClick={() => setCurrentPage(i)}
                       className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
                         i === currentPage
-                          ? "bg-teal-500 w-3 shadow-[0_0_6px_#14b8a6]"
-                          : "bg-slate-300 dark:bg-ink-muted/30 hover:bg-slate-400 dark:hover:bg-ink-muted/60"
+                          ? "bg-teal-500 w-3"
+                          : "bg-ink-muted/30 hover:bg-ink-muted/60"
                       }`}
                       title={`Batch ${i + 1}`}
                     />
@@ -709,23 +805,31 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                 <button
                   type="button"
                   onClick={handleNextPage}
-                  className="p-1 text-slate-500 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink rounded cursor-pointer transition-colors"
+                  className="p-1 text-ink-muted hover:text-ink rounded cursor-pointer transition-colors"
                   title="Next batch"
                 >
                   <FaChevronRight className="text-[9px]" />
                 </button>
 
-                <div className="w-[1px] h-3 bg-slate-200 dark:bg-line-soft mx-0.5" />
+                <div className="w-[1px] h-3 bg-line-soft mx-0.5" />
 
                 <button
                   type="button"
                   onClick={() => setIsAutoRotating((prev) => !prev)}
                   className={`p-1 rounded cursor-pointer transition-colors ${
-                    isAutoRotating ? "text-teal-600 dark:text-teal-400 font-bold" : "text-slate-500 dark:text-ink-muted hover:text-slate-900 dark:hover:text-ink"
+                    isAutoRotating ? "text-teal-600 font-bold" : "text-ink-muted hover:text-ink"
                   }`}
-                  title={isAutoRotating ? "Auto-sliding active (Click to Pause)" : "Paused (Click to Auto-slide)"}
+                  title={
+                    isAutoRotating
+                      ? "Auto-sliding active (Click to Pause)"
+                      : "Paused (Click to Auto-slide)"
+                  }
                 >
-                  {isAutoRotating ? <FaPause className="text-[8px]" /> : <FaPlay className="text-[8px]" />}
+                  {isAutoRotating ? (
+                    <FaPause className="text-[8px]" />
+                  ) : (
+                    <FaPlay className="text-[8px]" />
+                  )}
                 </button>
               </div>
             </div>
@@ -735,8 +839,17 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
             <div className="w-full h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 15, right: 15, left: -15, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(150,150,150,0.18)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "currentColor" }} angle={-25} textAnchor="end" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="rgba(150,150,150,0.18)"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10, fill: "currentColor" }}
+                    angle={-25}
+                    textAnchor="end"
+                  />
                   <YAxis tick={{ fontSize: 10, fill: "currentColor" }} />
                   <Tooltip
                     contentStyle={{
@@ -804,13 +917,14 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                 </ResponsiveContainer>
                 {/* Central Donut Hub with Real Live Batch Total */}
                 <div className="absolute text-center pointer-events-none px-2">
-                  <div className="text-[9px] font-extrabold text-slate-500 dark:text-ink-muted uppercase tracking-wider">
+                  <div className="text-[9px] font-extrabold text-ink-muted uppercase tracking-wider">
                     {currentTabTitle}
                   </div>
-                  <div className="text-sm font-mono font-black text-slate-900 dark:text-ink">
-                    {currentBatchTotal.toLocaleString()} <span className="text-[9px] text-slate-500 dark:text-ink-muted">{currentTabUom}</span>
+                  <div className="text-sm font-mono font-bold text-ink">
+                    {currentBatchTotal.toLocaleString()}{" "}
+                    <span className="text-[9px] text-ink-muted">{currentTabUom}</span>
                   </div>
-                  <div className="text-[8.5px] text-teal-600 dark:text-teal-400 font-bold">
+                  <div className="text-[8.5px] text-teal-600 font-bold">
                     Batch {currentPage + 1}/{totalPages}
                   </div>
                 </div>
@@ -819,26 +933,34 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
               {/* Right Side Item Legend List with Badges */}
               <div className="sm:col-span-6 max-h-[240px] overflow-y-auto pr-1 space-y-1.5">
                 {chartData.map((item, idx) => {
-                  const pct = currentBatchTotal > 0 ? ((item.quantity / currentBatchTotal) * 100).toFixed(1) : "0";
+                  const pct =
+                    currentBatchTotal > 0
+                      ? ((item.quantity / currentBatchTotal) * 100).toFixed(1)
+                      : "0";
                   return (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-1.5 rounded-lg bg-slate-50/80 dark:bg-card-2/50 border border-slate-200/80 dark:border-line-soft hover:bg-slate-100 dark:hover:bg-card-2 transition-colors text-xs"
+                      className="flex items-center justify-between p-1.5 rounded-sm bg-card-2/60 border border-line-soft hover:bg-card-2 transition-colors text-xs"
                     >
                       <div className="flex items-center gap-2 min-w-0 pr-2">
                         <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: item.color }}
                         />
-                        <span className="font-bold text-slate-800 dark:text-ink truncate text-[11px]" title={item.fullName}>
+                        <span
+                          className="font-bold text-ink truncate text-[11px]"
+                          title={item.fullName}
+                        >
                           {item.fullName}
                         </span>
                       </div>
                       <div className="text-right shrink-0 font-mono">
-                        <span className="text-[11px] font-bold text-slate-900 dark:text-ink">
+                        <span className="text-[11px] font-bold text-ink">
                           {item.quantity.toLocaleString()} {item.uom}
                         </span>
-                        <span className="text-[9.5px] text-slate-500 dark:text-ink-muted ml-1.5 font-bold">({pct}%)</span>
+                        <span className="text-[9.5px] text-ink-muted ml-1.5 font-bold">
+                          ({pct}%)
+                        </span>
                       </div>
                     </div>
                   );
@@ -855,18 +977,39 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                     <linearGradient id="colorStockVal" x1="0" y1="0" x2="0" y2="1">
                       <stop
                         offset="5%"
-                        stopColor={activeTab === "raw" ? "#0ea5e9" : activeTab === "finished" ? "#10b981" : "#f59e0b"}
+                        stopColor={
+                          activeTab === "raw"
+                            ? "#0ea5e9"
+                            : activeTab === "finished"
+                              ? "#10b981"
+                              : "#f59e0b"
+                        }
                         stopOpacity={0.45}
                       />
                       <stop
                         offset="95%"
-                        stopColor={activeTab === "raw" ? "#0ea5e9" : activeTab === "finished" ? "#10b981" : "#f59e0b"}
+                        stopColor={
+                          activeTab === "raw"
+                            ? "#0ea5e9"
+                            : activeTab === "finished"
+                              ? "#10b981"
+                              : "#f59e0b"
+                        }
                         stopOpacity={0.0}
                       />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(150,150,150,0.18)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "currentColor" }} angle={-25} textAnchor="end" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="rgba(150,150,150,0.18)"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10, fill: "currentColor" }}
+                    angle={-25}
+                    textAnchor="end"
+                  />
                   <YAxis tick={{ fontSize: 10, fill: "currentColor" }} />
                   <Tooltip
                     contentStyle={{
@@ -886,17 +1029,33 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                   <Area
                     type="monotone"
                     dataKey="quantity"
-                    stroke={activeTab === "raw" ? "#0ea5e9" : activeTab === "finished" ? "#10b981" : "#f59e0b"}
+                    stroke={
+                      activeTab === "raw"
+                        ? "#0ea5e9"
+                        : activeTab === "finished"
+                          ? "#10b981"
+                          : "#f59e0b"
+                    }
                     strokeWidth={2.5}
                     dot={{
                       r: 3.5,
-                      fill: activeTab === "raw" ? "#0ea5e9" : activeTab === "finished" ? "#10b981" : "#f59e0b",
+                      fill:
+                        activeTab === "raw"
+                          ? "#0ea5e9"
+                          : activeTab === "finished"
+                            ? "#10b981"
+                            : "#f59e0b",
                       stroke: "#fff",
                       strokeWidth: 1.5,
                     }}
                     activeDot={{
                       r: 6,
-                      fill: activeTab === "raw" ? "#0ea5e9" : activeTab === "finished" ? "#10b981" : "#f59e0b",
+                      fill:
+                        activeTab === "raw"
+                          ? "#0ea5e9"
+                          : activeTab === "finished"
+                            ? "#10b981"
+                            : "#f59e0b",
                       stroke: "#fff",
                       strokeWidth: 2,
                     }}
@@ -911,39 +1070,48 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
           {chartType === "list" && (
             <div className="w-full h-[260px] overflow-y-auto pr-1">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100/90 dark:bg-card-2 text-slate-700 dark:text-ink-subtle uppercase text-[9.5px] font-black tracking-wider sticky top-0 border-b border-slate-200 dark:border-line-soft z-10">
+                <thead className="bg-card-2 text-ink-subtle uppercase text-[9.5px] font-bold tracking-wider sticky top-0 border-b border-line-soft z-10">
                   <tr>
-                    <th className="px-3 py-2 bg-slate-100/95 dark:bg-card-2 text-slate-700 dark:text-ink-subtle font-extrabold">Item Name</th>
-                    <th className="px-2 py-2 bg-slate-100/95 dark:bg-card-2 text-slate-700 dark:text-ink-subtle font-extrabold">Category</th>
-                    <th className="px-2 py-2 bg-slate-100/95 dark:bg-card-2 text-slate-700 dark:text-ink-subtle font-extrabold text-right">Live Stock</th>
-                    <th className="px-3 py-2 bg-slate-100/95 dark:bg-card-2 text-slate-700 dark:text-ink-subtle font-extrabold text-right">Status</th>
+                    <th className="px-3 py-2 bg-card-2 text-ink-subtle font-extrabold">
+                      Item Name
+                    </th>
+                    <th className="px-2 py-2 bg-card-2 text-ink-subtle font-extrabold">Category</th>
+                    <th className="px-2 py-2 bg-card-2 text-ink-subtle font-extrabold text-right">
+                      Live Stock
+                    </th>
+                    <th className="px-3 py-2 bg-card-2 text-ink-subtle font-extrabold text-right">
+                      Status
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-line-soft">
+                <tbody className="divide-y divide-line-soft">
                   {chartData.map((item, i) => (
-                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-card-2/60 transition-colors">
-                      <td className="px-3 py-2.5 font-bold text-slate-900 dark:text-ink truncate max-w-[150px]" title={item.fullName}>
+                    <tr key={i} className="hover:bg-card-2/60 transition-colors">
+                      <td
+                        className="px-3 py-2.5 font-bold text-ink truncate max-w-[150px]"
+                        title={item.fullName}
+                      >
                         {item.fullName}
                       </td>
                       <td className="px-2 py-2.5">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-card-2 border border-slate-200 dark:border-line-soft text-slate-700 dark:text-ink">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-sm bg-card-2 border border-line-soft text-ink">
                           {item.category || item.type}
                         </span>
                       </td>
-                      <td className="px-2 py-2.5 text-right font-mono font-bold text-slate-900 dark:text-ink">
+                      <td className="px-2 py-2.5 text-right font-mono font-bold text-ink">
                         {item.quantity.toLocaleString()} {item.uom}
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono font-bold">
                         {item.status === "CRITICAL" ? (
-                          <span className="text-[9.5px] font-black px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30 uppercase">
+                          <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-sm bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/40 uppercase">
                             Critical ({item.quantity.toLocaleString()} &lt; {item.minLevel})
                           </span>
                         ) : item.status === "LOW STOCK" ? (
-                          <span className="text-[9.5px] font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30 uppercase">
+                          <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-sm bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 uppercase">
                             Low Stock ({item.quantity.toLocaleString()} &lt; {item.minLevel})
                           </span>
                         ) : (
-                          <span className="text-[9.5px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 uppercase">
+                          <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-sm bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border border-[color:var(--color-success)]/40 uppercase">
                             Optimal
                           </span>
                         )}
@@ -957,14 +1125,14 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
         </div>
 
         {/* RIGHT 1/3: System-Wide Inventory Reorder & Action Alerts Sub-panel (Monitors Raw Material, FG & Wastage) */}
-        <div className="lg:col-span-1 p-3.5 flex flex-col justify-between bg-slate-50/50 dark:bg-card-2/10">
+        <div className="lg:col-span-1 p-3.5 flex flex-col justify-between bg-card-2/20">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-900 dark:text-ink">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-ink">
                 <FaExclamationTriangle className="text-amber-500 text-xs" />
                 <span>Reorder Alerts</span>
               </div>
-              <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30 uppercase tracking-wider">
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 uppercase tracking-wider">
                 {lowStockAlerts.length} Action Needed
               </span>
             </div>
@@ -972,34 +1140,41 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
             {/* List of Low Stock & Action items across Raw Materials, Finished Goods & Wastage Store */}
             <div className="space-y-2.5 max-h-[285px] overflow-y-auto pr-1">
               {lowStockAlerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center text-slate-400 dark:text-ink-subtle">
+                <div className="flex flex-col items-center justify-center py-10 text-center text-ink-subtle">
                   <FaCheckCircle className="text-emerald-500 text-2xl mb-1.5 opacity-60" />
-                  <p className="text-xs font-bold text-slate-800 dark:text-ink">All Stock Levels Healthy</p>
-                  <p className="text-[10px] text-slate-500 dark:text-ink-muted mt-0.5">Every Raw Material, FG & Wastage is within safety limits</p>
+                  <p className="text-xs font-bold text-ink">All Stock Levels Healthy</p>
+                  <p className="text-[10px] text-ink-muted mt-0.5">
+                    Every Raw Material, FG & Wastage is within safety limits
+                  </p>
                 </div>
               ) : (
                 lowStockAlerts.map((item, idx) => {
                   const pct = Math.min((item.qty / (item.minLevel || 1)) * 100, 100);
                   const isCritical = item.isCritical;
                   const isWastage = item.isWastage;
-                  const targetRoute = isWastage ? "/wastage-stock" : item.type === "Finished Goods" ? "/finished-stock" : "/stock";
+                  const targetRoute = isWastage
+                    ? "/wastage-stock"
+                    : item.type === "Finished Goods"
+                      ? "/finished-stock"
+                      : "/stock";
 
                   return (
                     <div
                       key={idx}
                       onClick={() => navigate(targetRoute)}
-                      className={`p-2.5 rounded-xl border transition-colors cursor-pointer shadow-2xs ${
+                      className={`p-2.5 rounded-md border transition-colors cursor-pointer ${
                         isCritical
-                          ? "bg-rose-50/90 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-950 dark:text-white hover:bg-rose-100/80 dark:hover:bg-rose-500/20 hover:border-rose-400"
-                          : isWastage
-                          ? "bg-amber-50/90 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-950 dark:text-white hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:border-amber-400"
-                          : "bg-amber-50/90 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-950 dark:text-white hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:border-amber-400"
+                          ? "bg-[color:var(--color-danger)]/10 border-[color:var(--color-danger)]/30 text-ink hover:bg-[color:var(--color-danger)]/15 hover:border-[color:var(--color-danger)]/50"
+                          : "bg-[color:var(--color-warning)]/10 border-[color:var(--color-warning)]/30 text-ink hover:bg-[color:var(--color-warning)]/15 hover:border-[color:var(--color-warning)]/50"
                       }`}
                       title={`Click to view ${item.name} in ${item.type}`}
                     >
                       <div className="flex items-center justify-between mb-1 gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-[11.5px] font-bold text-slate-900 dark:text-ink truncate max-w-[125px]" title={item.name}>
+                          <span
+                            className="text-[11.5px] font-bold text-ink truncate max-w-[125px]"
+                            title={item.name}
+                          >
                             {item.name}
                           </span>
                         </div>
@@ -1008,22 +1183,20 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                           <span
                             className={`text-[8px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
                               isWastage
-                                ? "bg-amber-200/80 text-amber-900 dark:bg-amber-500/30 dark:text-amber-300"
+                                ? "bg-[color:var(--chart-series-3)]/20 text-[color:var(--chart-series-3)]"
                                 : item.type === "Finished Goods"
-                                ? "bg-teal-200/80 text-teal-900 dark:bg-teal-500/30 dark:text-teal-300"
-                                : "bg-sky-200/80 text-sky-900 dark:bg-sky-500/30 dark:text-sky-300"
+                                  ? "bg-[color:var(--chart-series-2)]/20 text-[color:var(--chart-series-2)]"
+                                  : "bg-[color:var(--chart-series-1)]/20 text-[color:var(--chart-series-1)]"
                             }`}
                           >
                             {isWastage ? "Wastage" : item.type === "Finished Goods" ? "FG" : "Raw"}
                           </span>
                           {/* Status Pill Badge */}
                           <span
-                            className={`text-[8px] font-black px-1.5 py-0.2 rounded uppercase ${
+                            className={`text-[8px] font-bold px-1.5 py-0.2 rounded uppercase ${
                               isCritical
-                                ? "bg-rose-500 text-white"
-                                : isWastage
-                                ? "bg-amber-600 text-white"
-                                : "bg-amber-500 text-slate-950 font-black"
+                                ? "bg-[color:var(--color-danger)] text-white"
+                                : "bg-[color:var(--color-warning)] text-white"
                             }`}
                           >
                             {isWastage && item.qty >= 100 ? "Action" : item.status}
@@ -1031,22 +1204,23 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-[10px] font-mono text-slate-600 dark:text-ink-muted mb-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-mono text-ink-muted mb-1.5">
                         <span>
-                          Current: <strong className="text-slate-900 dark:text-ink">{item.qty.toLocaleString()}</strong> {item.uom}
+                          Current: <strong className="text-ink">{item.qty.toLocaleString()}</strong>{" "}
+                          {item.uom}
                         </span>
-                        <span>{isWastage ? "Limit" : "Min"}: {item.minLevel} {item.uom}</span>
+                        <span>
+                          {isWastage ? "Limit" : "Min"}: {item.minLevel} {item.uom}
+                        </span>
                       </div>
 
                       {/* Progress Bar */}
-                      <div className="w-full bg-slate-200/90 dark:bg-black/40 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-card-2 rounded-full h-1.5 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
                             isCritical
-                              ? "bg-rose-500 shadow-[0_0_8px_#f43f5e]"
-                              : isWastage
-                              ? "bg-amber-600 shadow-[0_0_8px_#d97706]"
-                              : "bg-amber-500 shadow-[0_0_8px_#f59e0b]"
+                              ? "bg-[color:var(--color-danger)]"
+                              : "bg-[color:var(--color-warning)]"
                           }`}
                           style={{ width: `${Math.max(pct, 12)}%` }}
                         />

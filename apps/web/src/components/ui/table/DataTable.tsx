@@ -91,15 +91,13 @@ function DataTable<T>({
   maxHeightClassName = TABLE_MAX_HEIGHT_CLASS,
   density = "compact",
 }: DataTableProps<T>) {
-  const cellPaddingClass = density === "compact"
-    ? "px-2 py-1 sm:px-3 sm:py-1.5"
-    : "px-3 py-1.5 sm:px-4 sm:py-2";
+  const cellPaddingClass =
+    density === "compact" ? "px-2 py-1 sm:px-3 sm:py-1.5" : "px-3 py-1.5 sm:px-4 sm:py-2";
 
   // Header keeps slightly more vertical room than the (now denser) body rows
   // so it still reads as a distinct band above the data.
-  const headerPaddingClass = density === "compact"
-    ? "px-2 py-1.5 sm:px-3 sm:py-2"
-    : "px-3 py-2 sm:px-4 sm:py-2.5";
+  const headerPaddingClass =
+    density === "compact" ? "px-2 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5";
 
   // Every row is held to the same minimum height so different tables line up
   // with each other regardless of what their cells contain. Without this a row
@@ -111,7 +109,9 @@ function DataTable<T>({
   // 1. `max-content` ensures the column is always wide enough for its content without squishing/wrapping text.
   // 2. `1fr` ensures any leftover table space is distributed equally, so the table stretches to fill 100% width.
   // 3. If the total max-content exceeds the screen, it naturally forces the responsive horizontal scrollbar!
-  const gridTemplateColumns = columns.map((col) => col.width ?? "minmax(0, 1fr)").join(" ");
+  const gridTemplateColumns = columns
+    .map((col) => col.width ?? "minmax(max-content, 1fr)")
+    .join(" ");
 
   // True while the table is showing the loader or the empty message instead of
   // real rows. In that case the grid holds only the header and the message is
@@ -140,7 +140,7 @@ function DataTable<T>({
   const fullSpanStyle: React.CSSProperties = { gridColumn: "1 / -1" };
 
   return (
-    <div className={`w-full border border-line-soft rounded-xl overflow-hidden ${className}`}>
+    <div className={`w-full border border-line-soft rounded-md overflow-hidden ${className}`}>
       {/*
         Flex column holding the scroll area and — when paginating — the pager
         beneath it. The minimum height applies in every state, so a table
@@ -191,11 +191,16 @@ function DataTable<T>({
                           role="cell"
                           className={`flex items-center ${cellPaddingClass} text-ink text-[13px] font-medium min-w-0 ${alignClass[col.align ?? "left"]}`}
                         >
-                          {col.render
-                            ? col.render(row, index)
-                            : col.accessor
-                              ? <span className="block truncate" title={String(row[col.accessor] ?? "")}>{String(row[col.accessor] ?? "")}</span>
-                              : null}
+                          {col.render ? (
+                            col.render(row, index)
+                          ) : col.accessor ? (
+                            <span
+                              className="block truncate"
+                              title={String(row[col.accessor] ?? "")}
+                            >
+                              {String(row[col.accessor] ?? "")}
+                            </span>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -221,11 +226,7 @@ function DataTable<T>({
           */}
           {showingPlaceholder && (
             <div className="flex-1 flex items-center justify-center min-w-full px-6 py-8 text-center text-base sm:text-lg text-ink-subtle">
-              {loading ? (
-                <CommonLoader text="Loading data..." fullScreen={false} />
-              ) : (
-                emptyMessage
-              )}
+              {loading ? <CommonLoader text="Loading data..." fullScreen={false} /> : emptyMessage}
             </div>
           )}
         </div>
@@ -239,24 +240,25 @@ function DataTable<T>({
               type="button"
               disabled={pagination.currentPage === 1}
               onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
-              className="flex items-center justify-center h-8 w-8 rounded-lg border border-line-soft
+              className="flex items-center justify-center h-8 w-8 rounded-sm border border-line-soft
                             text-ink-subtle hover:text-accent hover:border-accent/30 hover:bg-accent/10
                             disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent
-                            transition-all duration-200"
+                            transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <FaChevronLeft size={11} />
             </button>
             <div className="text-xs sm:text-sm text-ink-muted font-semibold">
-              Page <span className="text-ink">{pagination.currentPage}</span> of <span className="text-ink">{pagination.totalPages}</span>
+              Page <span className="text-ink">{pagination.currentPage}</span> of{" "}
+              <span className="text-ink">{pagination.totalPages}</span>
             </div>
             <button
               type="button"
               disabled={pagination.currentPage === pagination.totalPages}
               onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
-              className="flex items-center justify-center h-8 w-8 rounded-lg border border-line-soft
+              className="flex items-center justify-center h-8 w-8 rounded-sm border border-line-soft
                             text-ink-subtle hover:text-accent hover:border-accent/30 hover:bg-accent/10
                             disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent
-                            transition-all duration-200"
+                            transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <FaChevronRight size={11} />
             </button>

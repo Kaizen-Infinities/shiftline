@@ -12,16 +12,19 @@ import {
  * the background and downloadable for 24 hours. Secrets never leave; the manifest says what is in.
  */
 const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
+const primary = `${btn} bg-accent text-white hover:brightness-110`;
 const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
 const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
 const td = "px-3 py-1.5 text-sm text-ink";
 const STATUS: Record<AccountExportRow["status"], string> = {
-  QUEUED: "bg-sky-100 text-sky-800",
-  RUNNING: "bg-amber-100 text-amber-800",
-  READY: "bg-emerald-100 text-emerald-800",
-  FAILED: "bg-rose-100 text-rose-800",
-  EXPIRED: "bg-slate-100 text-slate-700",
+  QUEUED: "border border-line text-ink-muted bg-card-2",
+  RUNNING:
+    "border border-[color:var(--color-warning)]/40 text-[color:var(--color-warning)] bg-[color:var(--color-warning)]/10",
+  READY:
+    "border border-[color:var(--color-success)]/40 text-[color:var(--color-success)] bg-[color:var(--color-success)]/10",
+  FAILED:
+    "border border-[color:var(--color-danger)]/40 text-[color:var(--color-danger)] bg-[color:var(--color-danger)]/10",
+  EXPIRED: "border border-line text-ink-subtle bg-card-2",
 };
 const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -99,7 +102,7 @@ const AccountExportPage: React.FC = () => {
           </button>
         )}
       </div>
-      <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
+      <div className="overflow-x-auto rounded-lg border border-line-soft bg-card">
         <table className="min-w-full divide-y divide-line-soft">
           <thead>
             <tr>
@@ -123,11 +126,13 @@ const AccountExportPage: React.FC = () => {
                   <td className={td}>{when(r.requestedAt)}</td>
                   <td className={td}>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[r.status]}`}
+                      className={`rounded-sm px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[r.status]}`}
                     >
                       {r.status}
                     </span>
-                    {r.error && <div className="text-xs text-rose-700">{r.error}</div>}
+                    {r.error && (
+                      <div className="text-xs text-[color:var(--color-danger)]">{r.error}</div>
+                    )}
                   </td>
                   <td className={`${td} text-xs text-ink-muted`}>
                     {r.status === "READY" || r.status === "EXPIRED"

@@ -5,7 +5,6 @@ import {
   Col,
   Card,
   ProgressBar,
-  Badge,
   Table,
 } from "../../../components/ui/TailwindPrimitives";
 import {
@@ -271,7 +270,7 @@ const ProductionDashboard: React.FC = () => {
         {/* Header */}
         <div className="page-header mb-4">
           <Row>
-            <Col md={12}>
+            <Col>
               <div className="page-header-info">
                 <h2 className="page-title">Real-Time Production Dashboard</h2>
               </div>
@@ -280,24 +279,19 @@ const ProductionDashboard: React.FC = () => {
         </div>
 
         {/* Factory KPI summary cards */}
-        <Row className="g-4 mb-4">
-          <Col lg={3} md={6}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100 bg-white">
-              <div className="d-flex align-items-center justify-content-between">
+        <Row className="gap-4 mb-4">
+          <Col className="col-span-12 sm:col-span-6 lg:col-span-3">
+            <Card className="rounded-lg p-4 h-full">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h6 className="text-muted small text-uppercase fw-semibold mb-2">
+                  <h6 className="text-ink-muted text-xs uppercase font-semibold mb-2">
                     Today's Production
                   </h6>
-                  <h3 className="fw-bold mb-0 text-dark font-monospace">
-                    {stats.todayProduced} PCS
-                  </h3>
-                  <div className="extra-small text-muted mt-2">Target: {stats.todayTarget} PCS</div>
+                  <h3 className="font-bold mb-0 text-ink font-mono">{stats.todayProduced} PCS</h3>
+                  <div className="text-xs text-ink-muted mt-2">Target: {stats.todayTarget} PCS</div>
                 </div>
-                <div
-                  className="p-3 rounded-3 bg-teal-subtle text-teal"
-                  style={{ backgroundColor: "#e6f4ea", color: "#137333" }}
-                >
-                  <FaCalendarDay size={24} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-line text-ink-subtle shrink-0">
+                  <FaCalendarDay size={20} />
                 </div>
               </div>
               <div className="mt-3">
@@ -310,23 +304,18 @@ const ProductionDashboard: React.FC = () => {
             </Card>
           </Col>
 
-          <Col lg={3} md={6}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100 bg-white">
-              <div className="d-flex align-items-center justify-content-between">
+          <Col className="col-span-12 sm:col-span-6 lg:col-span-3">
+            <Card className="rounded-lg p-4 h-full">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h6 className="text-muted small text-uppercase fw-semibold mb-2">
+                  <h6 className="text-ink-muted text-xs uppercase font-semibold mb-2">
                     Weekly Production
                   </h6>
-                  <h3 className="fw-bold mb-0 text-dark font-monospace">
-                    {stats.weekProduced} PCS
-                  </h3>
-                  <div className="extra-small text-muted mt-2">Target: {stats.weekTarget} PCS</div>
+                  <h3 className="font-bold mb-0 text-ink font-mono">{stats.weekProduced} PCS</h3>
+                  <div className="text-xs text-ink-muted mt-2">Target: {stats.weekTarget} PCS</div>
                 </div>
-                <div
-                  className="p-3 rounded-3 bg-blue-subtle text-blue"
-                  style={{ backgroundColor: "#e8f0fe", color: "#1a73e8" }}
-                >
-                  <FaCalendarWeek size={24} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-line text-ink-subtle shrink-0">
+                  <FaCalendarWeek size={20} />
                 </div>
               </div>
               <div className="mt-3">
@@ -339,23 +328,18 @@ const ProductionDashboard: React.FC = () => {
             </Card>
           </Col>
 
-          <Col lg={3} md={6}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100 bg-white">
-              <div className="d-flex align-items-center justify-content-between">
+          <Col className="col-span-12 sm:col-span-6 lg:col-span-3">
+            <Card className="rounded-lg p-4 h-full">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h6 className="text-muted small text-uppercase fw-semibold mb-2">
+                  <h6 className="text-ink-muted text-xs uppercase font-semibold mb-2">
                     Monthly Production
                   </h6>
-                  <h3 className="fw-bold mb-0 text-dark font-monospace">
-                    {stats.monthProduced} PCS
-                  </h3>
-                  <div className="extra-small text-muted mt-2">Target: {stats.monthTarget} PCS</div>
+                  <h3 className="font-bold mb-0 text-ink font-mono">{stats.monthProduced} PCS</h3>
+                  <div className="text-xs text-ink-muted mt-2">Target: {stats.monthTarget} PCS</div>
                 </div>
-                <div
-                  className="p-3 rounded-3 bg-purple-subtle text-purple"
-                  style={{ backgroundColor: "#f3e8fd", color: "#9333ea" }}
-                >
-                  <FaCalendarAlt size={24} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-line text-ink-subtle shrink-0">
+                  <FaCalendarAlt size={20} />
                 </div>
               </div>
               <div className="mt-3">
@@ -368,30 +352,23 @@ const ProductionDashboard: React.FC = () => {
             </Card>
           </Col>
 
-          <Col lg={3} md={6}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100 bg-white">
-              <div className="d-flex align-items-center justify-content-between">
+          <Col className="col-span-12 sm:col-span-6 lg:col-span-3">
+            <Card className="rounded-lg p-4 h-full">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h6 className="text-muted small text-uppercase fw-semibold mb-2">
+                  <h6 className="text-ink-muted text-xs uppercase font-semibold mb-2">
                     Rejected & Scrap
                   </h6>
-                  <h3 className="fw-bold mb-0 text-danger font-monospace">
+                  <h3 className="font-bold mb-0 text-[color:var(--color-danger)] font-mono">
                     {stats.monthRejected}{" "}
-                    <span className="extra-small text-muted fw-normal" style={{ fontSize: "14px" }}>
-                      Rej
-                    </span>{" "}
-                    / {stats.monthScrap}{" "}
-                    <span className="extra-small text-muted fw-normal" style={{ fontSize: "14px" }}>
-                      Scp
-                    </span>
+                    <span className="text-xs text-ink-muted font-normal">Rej</span> /{" "}
+                    {stats.monthScrap}{" "}
+                    <span className="text-xs text-ink-muted font-normal">Scp</span>
                   </h3>
-                  <div className="extra-small text-muted mt-2">Month Total wastage logs</div>
+                  <div className="text-xs text-ink-muted mt-2">Month Total wastage logs</div>
                 </div>
-                <div
-                  className="p-3 rounded-3 bg-danger-subtle text-danger"
-                  style={{ backgroundColor: "#fce8e6", color: "#c5221f" }}
-                >
-                  <FaExclamationTriangle size={24} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-line text-ink-subtle shrink-0">
+                  <FaExclamationTriangle size={20} />
                 </div>
               </div>
               <div className="mt-3">
@@ -408,16 +385,16 @@ const ProductionDashboard: React.FC = () => {
         </Row>
 
         {/* Dashboard Panels */}
-        <Row className="g-4 mb-4">
+        <Row className="mb-4">
           {/* OEE Dials Panel */}
-          <Col lg={6} md={12}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100">
-              <h5 className="fw-bold mb-4 text-dark border-bottom pb-2">
+          <Col className="col-span-12 lg:col-span-6">
+            <Card className="rounded-lg p-4 h-full">
+              <h5 className="font-bold mb-4 text-ink border-b border-line pb-2">
                 Factory-wide OEE metrics
               </h5>
 
-              <Row className="align-items-center g-3">
-                <Col sm={6} className="text-center py-3 border-end">
+              <Row className="items-center gap-3">
+                <Col className="col-span-12 sm:col-span-6 text-center py-3 sm:border-r sm:border-line">
                   <div style={{ position: "relative", display: "inline-block" }}>
                     {/* Visual SVG Circular Progress */}
                     <svg width="160" height="160" viewBox="0 0 120 120">
@@ -425,7 +402,7 @@ const ProductionDashboard: React.FC = () => {
                         cx="60"
                         cy="60"
                         r="50"
-                        stroke="#f1f5f9"
+                        stroke="var(--color-line-soft)"
                         strokeWidth="8"
                         fill="transparent"
                       />
@@ -433,7 +410,13 @@ const ProductionDashboard: React.FC = () => {
                         cx="60"
                         cy="60"
                         r="50"
-                        stroke="var(--color-secondary)"
+                        stroke={
+                          Number(stats.oee) > 85
+                            ? "var(--color-success)"
+                            : Number(stats.oee) > 60
+                              ? "var(--color-warning)"
+                              : "var(--color-danger)"
+                        }
                         strokeWidth="10"
                         fill="transparent"
                         strokeDasharray={2 * Math.PI * 50}
@@ -451,24 +434,24 @@ const ProductionDashboard: React.FC = () => {
                         textAlign: "center",
                       }}
                     >
-                      <h2 className="fw-bold text-dark font-monospace mb-0">{stats.oee}%</h2>
+                      <h2 className="font-bold text-ink font-mono mb-0">{stats.oee}%</h2>
                       <span
-                        className="text-muted extra-small text-uppercase fw-bold"
+                        className="text-ink-muted uppercase font-bold"
                         style={{ fontSize: "9px" }}
                       >
                         OEE Index
                       </span>
                     </div>
                   </div>
-                  <h6 className="fw-bold text-secondary mt-3">Overall Equipment Effectiveness</h6>
+                  <h6 className="font-bold text-ink-muted mt-3">Overall Equipment Effectiveness</h6>
                 </Col>
 
-                <Col sm={6} className="px-4">
-                  <div className="d-flex flex-column gap-3">
+                <Col className="col-span-12 sm:col-span-6 px-4">
+                  <div className="flex flex-col gap-3">
                     <div>
-                      <div className="d-flex justify-content-between align-items-center mb-1 small fw-bold text-dark">
+                      <div className="flex justify-between items-center mb-1 text-sm font-bold text-ink">
                         <span>Availability (Downtime loss)</span>
-                        <span className="font-monospace">{stats.availability}%</span>
+                        <span className="font-mono">{stats.availability}%</span>
                       </div>
                       <ProgressBar
                         now={Number(stats.availability)}
@@ -478,9 +461,9 @@ const ProductionDashboard: React.FC = () => {
                     </div>
 
                     <div>
-                      <div className="d-flex justify-content-between align-items-center mb-1 small fw-bold text-dark">
+                      <div className="flex justify-between items-center mb-1 text-sm font-bold text-ink">
                         <span>Performance (Speed/Rate loss)</span>
-                        <span className="font-monospace">{stats.performance}%</span>
+                        <span className="font-mono">{stats.performance}%</span>
                       </div>
                       <ProgressBar
                         now={Number(stats.performance)}
@@ -490,9 +473,9 @@ const ProductionDashboard: React.FC = () => {
                     </div>
 
                     <div>
-                      <div className="d-flex justify-content-between align-items-center mb-1 small fw-bold text-dark">
+                      <div className="flex justify-between items-center mb-1 text-sm font-bold text-ink">
                         <span>Quality (Wastage/Reject loss)</span>
-                        <span className="font-monospace">{stats.quality}%</span>
+                        <span className="font-mono">{stats.quality}%</span>
                       </div>
                       <ProgressBar
                         now={Number(stats.quality)}
@@ -507,51 +490,49 @@ const ProductionDashboard: React.FC = () => {
           </Col>
 
           {/* Machine Grid Status Panel */}
-          <Col lg={6} md={12}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100">
-              <h5 className="fw-bold mb-4 text-dark border-bottom pb-2">
+          <Col className="col-span-12 lg:col-span-6">
+            <Card className="rounded-lg p-4 h-full">
+              <h5 className="font-bold mb-4 text-ink border-b border-line pb-2">
                 Active machinery live monitoring
               </h5>
 
               {loadingMachines ? (
                 <div className="text-center py-5">
-                  <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-8 w-8"></div>
+                  <div className="animate-spin rounded-full border-b-2 border-accent h-8 w-8"></div>
                 </div>
               ) : (
-                <Row className="g-3">
+                <Row className="gap-3">
                   {machineListWithOee.map((m) => (
-                    <Col md={6} key={m.machineId}>
-                      <Card className="border p-3 rounded-3 shadow-sm h-100 bg-white">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <h6 className="fw-bold text-dark mb-0">{m.machineName}</h6>
-                          <Badge
-                            bg={
+                    <Col className="col-span-12 sm:col-span-6" key={m.machineId}>
+                      <Card className="rounded-lg p-3 h-full">
+                        <div className="flex justify-between items-center mb-2">
+                          <h6 className="font-bold text-ink mb-0">{m.machineName}</h6>
+                          <span
+                            className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
                               m.status === "RUNNING"
-                                ? "success"
+                                ? "border-[color:var(--color-success)] text-[color:var(--color-success)]"
                                 : m.status === "STOPPED"
-                                  ? "danger"
+                                  ? "border-[color:var(--color-danger)] text-[color:var(--color-danger)]"
                                   : m.status === "IDLE"
-                                    ? "warning"
-                                    : "secondary"
-                            }
-                            style={{ fontSize: "9px" }}
+                                    ? "border-[color:var(--color-warning)] text-[color:var(--color-warning)]"
+                                    : "border-line text-ink-muted"
+                            }`}
                           >
                             {m.status}
-                          </Badge>
+                          </span>
                         </div>
-                        <div
-                          className="small text-muted font-monospace mb-2"
-                          style={{ fontSize: "11px" }}
-                        >
+                        <div className="text-xs text-ink-muted font-mono mb-2">
                           ID: {m.machineId}
                         </div>
-                        <div className="d-flex justify-content-between align-items-center extra-small mt-2 pt-2 border-top">
+                        <div className="flex justify-between items-center text-xs mt-2 pt-2 border-t border-line">
                           <span>
-                            OEE: <strong className="text-primary font-monospace">{m.oee}%</strong>
+                            OEE: <strong className="text-accent font-mono">{m.oee}%</strong>
                           </span>
                           <span>
                             Downtime:{" "}
-                            <strong className="text-danger font-monospace">{m.downtime}m</strong>
+                            <strong className="text-[color:var(--color-danger)] font-mono">
+                              {m.downtime}m
+                            </strong>
                           </span>
                         </div>
                       </Card>
@@ -564,73 +545,68 @@ const ProductionDashboard: React.FC = () => {
         </Row>
 
         {/* Machine OEE Table */}
-        <Row className="g-4 mb-4">
-          <Col lg={8} md={12}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100">
-              <h5 className="fw-bold mb-3 text-dark border-bottom pb-2">
+        <Row className="mb-4">
+          <Col className="col-span-12 lg:col-span-8">
+            <Card className="rounded-lg p-4 h-full">
+              <h5 className="font-bold mb-3 text-ink border-b border-line pb-2">
                 Machine-wise OEE breakdown details
               </h5>
-              <div className="table-responsive">
-                <Table hover className="align-middle text-center mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th className="text-start ps-3">Machine</th>
-                      <th>Availability</th>
-                      <th>Performance</th>
-                      <th>Quality</th>
-                      <th>OEE Score</th>
-                      <th style={{ width: "120px" }}>OEE Progress</th>
+              <Table hover className="text-center mb-0">
+                <thead>
+                  <tr>
+                    <th className="text-left ps-3">Machine</th>
+                    <th>Availability</th>
+                    <th>Performance</th>
+                    <th>Quality</th>
+                    <th>OEE Score</th>
+                    <th style={{ width: "120px" }}>OEE Progress</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {machineListWithOee.map((m) => (
+                    <tr key={m.machineId} className="master-data-row">
+                      <td className="text-left ps-3 font-bold text-ink">{m.machineName}</td>
+                      <td className="font-mono">{m.availability}%</td>
+                      <td className="font-mono">{m.performance}%</td>
+                      <td className="font-mono">{m.quality}%</td>
+                      <td className="font-mono font-bold text-accent">{m.oee}%</td>
+                      <td>
+                        <ProgressBar
+                          now={Number(m.oee)}
+                          variant={
+                            Number(m.oee) > 85
+                              ? "success"
+                              : Number(m.oee) > 60
+                                ? "warning"
+                                : "danger"
+                          }
+                          style={{ height: "6px" }}
+                        />
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {machineListWithOee.map((m) => (
-                      <tr key={m.machineId} className="master-data-row">
-                        <td className="text-start ps-3 fw-bold text-dark">{m.machineName}</td>
-                        <td className="font-monospace">{m.availability}%</td>
-                        <td className="font-monospace">{m.performance}%</td>
-                        <td className="font-monospace">{m.quality}%</td>
-                        <td className="font-monospace fw-bold text-primary">{m.oee}%</td>
-                        <td>
-                          <ProgressBar
-                            now={Number(m.oee)}
-                            variant={
-                              Number(m.oee) > 85
-                                ? "success"
-                                : Number(m.oee) > 60
-                                  ? "warning"
-                                  : "danger"
-                            }
-                            style={{ height: "6px" }}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
+                  ))}
+                </tbody>
+              </Table>
             </Card>
           </Col>
 
           {/* Shift Performance breakdown */}
-          <Col lg={4} md={12}>
-            <Card className="border-0 shadow-sm rounded-3 p-4 h-100">
-              <h5 className="fw-bold mb-4 text-dark border-bottom pb-2">
+          <Col className="col-span-12 lg:col-span-4">
+            <Card className="rounded-lg p-4 h-full">
+              <h5 className="font-bold mb-4 text-ink border-b border-line pb-2">
                 Shift Efficiency breakdown
               </h5>
 
-              <div className="d-flex flex-column gap-4">
+              <div className="flex flex-col gap-4">
                 {shiftsOee.map((sh, idx) => (
-                  <div key={idx} className="p-3 border rounded-3 bg-white shadow-sm">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <h6 className="fw-bold mb-0 text-dark">{sh.name}</h6>
-                      <Badge bg="success" style={{ fontSize: "11px" }}>
+                  <div key={idx} className="p-3 border border-line rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <h6 className="font-bold mb-0 text-ink">{sh.name}</h6>
+                      <span className="inline-flex items-center rounded-sm border border-[color:var(--color-success)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--color-success)]">
                         {sh.efficiency}% Eff
-                      </Badge>
+                      </span>
                     </div>
-                    <div
-                      className="d-flex justify-content-between text-muted extra-small font-monospace mb-2"
-                      style={{ fontSize: "11px" }}
-                    >
+                    <div className="flex justify-between text-ink-muted text-xs font-mono mb-2">
                       <span>Target: {sh.target} PCS</span>
                       <span>Produced: {sh.produced} PCS</span>
                     </div>

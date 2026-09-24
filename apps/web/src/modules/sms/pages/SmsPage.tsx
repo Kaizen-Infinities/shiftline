@@ -27,10 +27,12 @@ import {
  * id is a message that will silently go nowhere. The screen says so on the row.
  */
 const STATUS_STYLE: Record<SmsMessageRow["status"], string> = {
-  QUEUED: "bg-sky-100 text-sky-800",
-  SENT: "bg-emerald-100 text-emerald-800",
-  DELIVERED: "bg-emerald-100 text-emerald-800",
-  FAILED: "bg-rose-100 text-rose-700",
+  QUEUED: "border border-line text-ink-muted bg-card-2",
+  SENT: "border border-[color:var(--color-success)]/40 text-[color:var(--color-success)] bg-[color:var(--color-success)]/10",
+  DELIVERED:
+    "border border-[color:var(--color-success)]/40 text-[color:var(--color-success)] bg-[color:var(--color-success)]/10",
+  FAILED:
+    "border border-[color:var(--color-danger)]/40 text-[color:var(--color-danger)] bg-[color:var(--color-danger)]/10",
 };
 
 const SmsPage: React.FC = () => {
@@ -158,7 +160,7 @@ const SmsPage: React.FC = () => {
                           onChange={(e) => setDltEdits({ ...dltEdits, [t.code]: e.target.value })}
                         />
                         {!t.dltTemplateId && (
-                          <div className="mt-1 text-xs text-rose-700">
+                          <div className="mt-1 text-xs text-[color:var(--color-danger)]">
                             Without this the operator drops the message.
                           </div>
                         )}
@@ -211,10 +213,14 @@ const SmsPage: React.FC = () => {
                       <td className={`${td} max-w-md truncate`}>{m.body}</td>
                       <td className={`${td} text-right`}>{m.segments}</td>
                       <td className={td}>
-                        <span className={`rounded px-2 py-0.5 text-xs ${STATUS_STYLE[m.status]}`}>
+                        <span
+                          className={`rounded-sm px-2 py-0.5 text-xs ${STATUS_STYLE[m.status]}`}
+                        >
                           {m.status.toLowerCase()}
                         </span>
-                        {m.error && <div className="text-xs text-rose-700">{m.error}</div>}
+                        {m.error && (
+                          <div className="text-xs text-[color:var(--color-danger)]">{m.error}</div>
+                        )}
                       </td>
                       <td className={td}>{day(m.sentAt ?? m.queuedAt)}</td>
                     </tr>

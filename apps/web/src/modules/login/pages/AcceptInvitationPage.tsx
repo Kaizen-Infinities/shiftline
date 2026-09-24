@@ -95,7 +95,7 @@ const AcceptInvitationPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-page px-4">
-      <div className="w-full max-w-md bg-card border border-line-soft rounded-2xl shadow-xl p-8">
+      <div className="w-full max-w-md bg-card border border-line rounded-sm p-8">
         <h1 className="text-2xl font-bold text-ink">Join {preview?.companyName ?? "Shiftline"}</h1>
         {preview && (
           <p className="text-sm text-ink-muted mt-1">
@@ -105,13 +105,16 @@ const AcceptInvitationPage: React.FC = () => {
         )}
 
         {error && (
-          <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+          <div
+            role="alert"
+            className="mt-4 px-4 py-3 bg-card-2 text-[color:var(--color-danger)] text-sm rounded-sm border border-[color:var(--color-danger)]/40 font-medium"
+          >
             {error}
           </div>
         )}
 
         {preview && (
-          <form onSubmit={submit} className="mt-6 space-y-4">
+          <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
             <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
               Full name
               <input
@@ -120,7 +123,7 @@ const AcceptInvitationPage: React.FC = () => {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 minLength={2}
-                className="mt-1 w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink"
+                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
               />
             </label>
             <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
@@ -132,7 +135,7 @@ const AcceptInvitationPage: React.FC = () => {
                 required
                 minLength={3}
                 pattern="[a-z0-9._-]+"
-                className="mt-1 w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink"
+                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
               />
             </label>
             <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
@@ -144,7 +147,7 @@ const AcceptInvitationPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={10}
-                className="mt-1 w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink"
+                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
               />
             </label>
             <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
@@ -155,13 +158,13 @@ const AcceptInvitationPage: React.FC = () => {
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
-                className="mt-1 w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink"
+                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
               />
             </label>
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white font-bold py-2.5 text-sm"
+              className="w-full min-h-10 rounded-sm bg-accent hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 text-sm transition-[filter] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
             >
               {submitting ? "Creating your account…" : "Accept invitation"}
             </button>
@@ -170,7 +173,11 @@ const AcceptInvitationPage: React.FC = () => {
 
         <p className="mt-6 text-center text-xs text-ink-muted">
           Already have an account?{" "}
-          <button type="button" className="underline" onClick={() => navigate("/login")}>
+          <button
+            type="button"
+            className="underline underline-offset-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            onClick={() => navigate("/login")}
+          >
             Sign in
           </button>
         </p>

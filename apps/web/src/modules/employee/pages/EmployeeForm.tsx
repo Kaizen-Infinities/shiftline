@@ -308,7 +308,7 @@ const INITIAL_STATE: FormState = {
 const SectionHeader: React.FC<{ icon: React.ElementType; title: string; color?: string }> = ({
   icon: Icon,
   title,
-  color = "text-primary",
+  color = "text-accent",
 }) => (
   <div className="flex items-center gap-2 mb-5 pb-2 border-b border-line-soft">
     <Icon className={`${color} text-lg`} />
@@ -331,7 +331,7 @@ const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) =
         onChange={(e) => onChange(e.target.checked)}
       />
       <div
-        className={`block w-14 h-8 rounded-full transition-colors duration-300 ${value ? "bg-primary" : "bg-gray-300"}`}
+        className={`block w-14 h-8 rounded-full transition-colors duration-300 ${value ? "bg-accent" : "bg-line"}`}
       />
       <div
         className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ${value ? "transform translate-x-6" : ""}`}
@@ -1063,7 +1063,7 @@ const EmployeeForm: React.FC = () => {
         <SectionHeader icon={FaCamera} title="Profile Photo" />
         <div className="flex items-center gap-6">
           <div
-            className="w-28 h-28 rounded-full border-2 border-dashed border-line-soft flex items-center justify-center bg-card-2 overflow-hidden cursor-pointer hover:border-primary transition-colors shadow-xs"
+            className="w-28 h-28 rounded-full border-2 border-dashed border-line-soft flex items-center justify-center bg-card-2 overflow-hidden cursor-pointer hover:border-accent transition-colors"
             onClick={() => photoInputRef.current?.click()}
           >
             {form.photoPreview ? (
@@ -1086,7 +1086,7 @@ const EmployeeForm: React.FC = () => {
               />
             ) : (
               <div className="flex flex-col items-center gap-1 text-ink-subtle">
-                <FaCamera size={24} className="text-primary" />
+                <FaCamera size={24} className="text-accent" />
                 <span className="text-xs font-semibold">Upload Photo</span>
               </div>
             )}
@@ -1095,13 +1095,13 @@ const EmployeeForm: React.FC = () => {
             <button
               type="button"
               onClick={() => photoInputRef.current?.click()}
-              className="px-4 py-2 text-sm font-bold text-primary bg-primary/15 border border-primary/30 rounded-lg hover:bg-primary/25 transition-colors"
+              className="px-4 py-2 text-sm font-bold text-accent bg-accent/15 border border-accent/30 rounded-lg hover:bg-accent/25 transition-colors"
             >
               {form.existingPhotoUrl || form.photoPreview ? "Replace Photo" : "Choose Photo"}
             </button>
             <p className="text-xs text-ink-subtle mt-1.5 font-medium">JPG, PNG, GIF up to 5MB</p>
             {form.photoFile && (
-              <p className="text-xs text-emerald-600 mt-1">
+              <p className="text-xs text-[color:var(--color-success)] mt-1">
                 New photo selected: {form.photoFile.name}
               </p>
             )}
@@ -1325,7 +1325,7 @@ const EmployeeForm: React.FC = () => {
           onChange={(e) =>
             handleChange({ target: { name: "sameAsPermanent", value: e.target.checked } })
           }
-          className="w-4 h-4 accent-primary cursor-pointer"
+          className="w-4 h-4 accent-[var(--color-accent)] cursor-pointer"
         />
         <label
           htmlFor="sameAsPermanentForm"
@@ -1335,7 +1335,7 @@ const EmployeeForm: React.FC = () => {
         </label>
       </div>
 
-      <SectionHeader icon={FaMapMarkerAlt} title="Present Address" color="text-emerald-500" />
+      <SectionHeader icon={FaMapMarkerAlt} title="Present Address" color="text-ink-muted" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <TextInput
           horizontal
@@ -1520,7 +1520,7 @@ const EmployeeForm: React.FC = () => {
     <div>
       <div className="flex items-center justify-between mb-5 pb-2 border-b border-line-soft">
         <div className="flex items-center gap-2">
-          <FaKey className="text-primary text-lg" />
+          <FaKey className="text-accent text-lg" />
           <h3 className="text-base font-semibold text-ink">Login Account</h3>
         </div>
         <Toggle
@@ -1537,7 +1537,7 @@ const EmployeeForm: React.FC = () => {
       </div>
 
       {form.createLoginAccount && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4 p-5 bg-card-2 rounded-xl border border-line-soft">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4 p-5 bg-card-2 rounded-sm border border-line-soft">
           <div className="flex flex-col gap-1">
             <TextInput
               horizontal
@@ -1555,8 +1555,8 @@ const EmployeeForm: React.FC = () => {
                   usernameStatus === "checking"
                     ? "text-ink-muted"
                     : usernameStatus === "available"
-                      ? "text-emerald-600"
-                      : "text-red-500"
+                      ? "text-[color:var(--color-success)]"
+                      : "text-[color:var(--color-danger)]"
                 }`}
               >
                 {usernameStatus === "checking" && (
@@ -1613,7 +1613,7 @@ const EmployeeForm: React.FC = () => {
             <button
               type="button"
               onClick={() => setForm((p) => ({ ...p, password: generatePassword() }))}
-              className="flex items-center gap-2 text-xs font-semibold text-primary hover:underline self-start"
+              className="flex items-center gap-2 text-xs font-semibold text-accent hover:underline self-start"
             >
               <FaRandom size={11} /> Generate Random Password
             </button>
@@ -1652,9 +1652,9 @@ const EmployeeForm: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 bg-card rounded-xl border border-line-soft shadow-xs">
+      <div className="flex items-center justify-center h-64 bg-card rounded-sm border border-line-soft">
         <div className="flex flex-col items-center gap-3 text-ink-muted">
-          <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full animate-spin" />
           <span className="text-sm font-medium">Loading employee data…</span>
         </div>
       </div>
@@ -1663,7 +1663,7 @@ const EmployeeForm: React.FC = () => {
 
   return (
     <div className="max-w-[1400px] xl:mr-auto">
-      <div className="bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+      <div className="bg-card rounded-sm border border-line overflow-hidden">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
           <div>
@@ -1672,7 +1672,7 @@ const EmployeeForm: React.FC = () => {
             </h2>
             {isEdit && (form.empCode || form.fullName) && (
               <p className="text-xs text-ink-muted mt-0.5">
-                {form.empCode && <span className="font-semibold text-primary">{form.empCode}</span>}
+                {form.empCode && <span className="font-semibold text-accent">{form.empCode}</span>}
                 {form.fullName && <span> — {form.fullName}</span>}
               </p>
             )}
@@ -1705,7 +1705,7 @@ const EmployeeForm: React.FC = () => {
                     border-b-2 transition-all duration-200 whitespace-nowrap
                     ${
                       isActive
-                        ? "border-primary text-primary bg-primary/5"
+                        ? "border-accent text-accent bg-accent/5"
                         : "border-transparent text-ink-muted hover:text-ink hover:bg-card-2"
                     }
                   `}
@@ -1754,7 +1754,7 @@ const EmployeeForm: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab((p) => Math.min(TABS.length - 1, p + 1))}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent/90 transition-all"
             >
               Next <FaChevronRight size={12} />
             </button>

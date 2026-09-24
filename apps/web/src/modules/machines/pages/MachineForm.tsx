@@ -251,7 +251,7 @@ const MachineForm: React.FC = () => {
 
   return (
     <div className="max-w-[1024px] xl:mr-auto">
-      <div className="bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+      <div className="bg-card rounded-sm border border-line overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
           <h2 className="text-xl font-bold text-ink">
             {isEdit ? "Edit Machine" : "Create Machine"}

@@ -45,8 +45,8 @@ const FilterPopover: React.FC<FilterPopoverProps> = ({
       if (
         target &&
         (target.closest("[data-select-portal]") ||
-         target.closest(".react-select__menu") ||
-         target.closest("[class*='select-menu']"))
+          target.closest(".react-select__menu") ||
+          target.closest("[class*='select-menu']"))
       ) {
         return;
       }
@@ -94,50 +94,53 @@ const FilterPopover: React.FC<FilterPopoverProps> = ({
         variant="secondary"
         icon={FaFilter}
         onClick={handleToggle}
-        className={hasActiveFilters ? "!bg-green-600 hover:!bg-green-700 !text-white !border-green-600" : ""}
+        className={hasActiveFilters ? "!border-accent !text-accent" : ""}
       />
 
-      {show && createPortal(
-        <div
-          ref={popoverRef}
-          style={popoverStyle}
-          className="w-[300px] bg-card border border-line-soft rounded-2xl shadow-2xl p-4 text-ink"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <span className="font-bold text-primary text-sm">Filter</span>
-            <button
-              type="button"
-              onClick={() => {
-                setShow(false);
-                if (onClose) onClose();
-              }}
-              className="text-ink-subtle hover:text-ink-muted bg-transparent border-none cursor-pointer"
-            >
-              <FaTimes />
-            </button>
-          </div>
-
-          <div className="mb-4">{children}</div>
-
-          <div className="flex gap-2 pt-3 border-t border-line-soft">
-            <div className="flex-1">
-              <CustomButton
-                text="Clear"
-                onClick={handleClear}
-                className="w-full flex justify-center !bg-card-2 !text-ink-muted hover:!bg-line !border-transparent"
-              />
+      {show &&
+        createPortal(
+          <div
+            ref={popoverRef}
+            style={popoverStyle}
+            className="w-[300px] bg-card border border-line rounded-sm shadow-md p-4 text-ink"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-bold text-ink text-sm">Filter</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShow(false);
+                  if (onClose) onClose();
+                }}
+                className="text-ink-subtle hover:text-ink bg-transparent border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+              >
+                <FaTimes />
+              </button>
             </div>
-            <div className="flex-1">
-              <CustomButton
-                text="Apply"
-                onClick={handleApply}
-                className="w-full flex justify-center !bg-primary hover:!bg-primary/90 !text-white !border-primary"
-              />
+
+            <div className="mb-4">{children}</div>
+
+            <div className="flex gap-2 pt-3 border-t border-line">
+              <div className="flex-1">
+                <CustomButton
+                  text="Clear"
+                  variant="secondary"
+                  onClick={handleClear}
+                  className="w-full flex justify-center"
+                />
+              </div>
+              <div className="flex-1">
+                <CustomButton
+                  text="Apply"
+                  variant="primary"
+                  onClick={handleApply}
+                  className="w-full flex justify-center"
+                />
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

@@ -24,10 +24,7 @@ const categorySchema = z.object({
     .string()
     .min(1, "Category name is required")
     .max(100, "Name cannot exceed 100 characters"),
-  description: z
-    .string()
-    .max(255, "Description cannot exceed 255 characters")
-    .optional(),
+  description: z.string().max(255, "Description cannot exceed 255 characters").optional(),
 });
 
 type CategorySchema = z.infer<typeof categorySchema>;
@@ -123,8 +120,7 @@ const CategoryForm: React.FC = () => {
         if (nextCode) setFormData((prev) => ({ ...prev, code: nextCode }));
       })
 
-
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setIsFetchingCode(false));
   }, [formData.type, isEditMode]);
 
@@ -227,7 +223,7 @@ const CategoryForm: React.FC = () => {
 
   return (
     <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
           <h2 className="text-xl font-bold text-ink">
@@ -260,7 +256,7 @@ const CategoryForm: React.FC = () => {
               placeholder="Auto-generated"
               required
               horizontal
-              onChange={() => { }}
+              onChange={() => {}}
               disabled
             />
 
@@ -315,7 +311,15 @@ const CategoryForm: React.FC = () => {
             />
           )}
           <CustomButton
-            text={isSubmitting ? (isEditMode ? "Updating..." : "Saving...") : (isEditMode ? "Update Category" : "Save Category")}
+            text={
+              isSubmitting
+                ? isEditMode
+                  ? "Updating..."
+                  : "Saving..."
+                : isEditMode
+                  ? "Update Category"
+                  : "Save Category"
+            }
             icon={FaSave}
             type="submit"
             disabled={isSubmitting}
@@ -328,4 +332,3 @@ const CategoryForm: React.FC = () => {
 };
 
 export default CategoryForm;
-

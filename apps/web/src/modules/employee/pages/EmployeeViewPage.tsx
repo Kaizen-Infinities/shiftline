@@ -73,7 +73,7 @@ function FieldGrid({ children }: { children: React.ReactNode }) {
 function SectionHeader({ icon: Icon, title }: { icon: any; title: string }) {
   return (
     <div className="flex items-center gap-2 px-5 py-2 bg-card-2/50 border-y border-line-soft/50">
-      <Icon className="text-primary" size={11} />
+      <Icon className="text-accent" size={11} />
       <span className="text-[10px] font-extrabold text-ink-subtle uppercase tracking-[2px]">
         {title}
       </span>
@@ -118,24 +118,14 @@ const PRIMARY_SALARY_LABELS: Record<string, string> = {
 // ─── CalcCard ─────────────────────────────────────────────────────────────────
 const CARD_STYLES: Record<string, { bg: string; border: string; label: string; val: string }> = {
   slate: { bg: "bg-card-2", border: "border-line-soft", label: "text-ink-muted", val: "text-ink" },
-  blue: {
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-    label: "text-blue-400",
-    val: "text-blue-300",
-  },
+  blue: { bg: "bg-card-2", border: "border-line-soft", label: "text-ink-muted", val: "text-ink" },
   emerald: {
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-    label: "text-emerald-400",
-    val: "text-emerald-300",
+    bg: "bg-card-2",
+    border: "border-line-soft",
+    label: "text-ink-muted",
+    val: "text-ink",
   },
-  indigo: {
-    bg: "bg-indigo-500/10",
-    border: "border-indigo-500/20",
-    label: "text-indigo-400",
-    val: "text-indigo-300",
-  },
+  indigo: { bg: "bg-card-2", border: "border-line-soft", label: "text-ink-muted", val: "text-ink" },
 };
 
 function CalcCard({
@@ -151,7 +141,7 @@ function CalcCard({
 }) {
   const s = CARD_STYLES[color] ?? CARD_STYLES.slate;
   return (
-    <div className={`p-3 ${s.bg} border ${s.border} rounded-xl flex flex-col gap-1`}>
+    <div className={`p-3 ${s.bg} border ${s.border} rounded-sm flex flex-col gap-1`}>
       <span className={`text-[9px] font-bold uppercase tracking-wider ${s.label}`}>{label}</span>
       <span className={`text-base font-extrabold ${s.val}`}>{amount}</span>
       <span className={`text-[9px] font-medium ${s.label}`}>{note}</span>
@@ -163,11 +153,11 @@ function StatFlag({ label, value }: { label: string; value: boolean }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card-2 border border-line-soft">
       <span
-        className={`w-2 h-2 rounded-full shrink-0 ${value ? "bg-emerald-500" : "bg-ink-muted/30"}`}
+        className={`w-2 h-2 rounded-full shrink-0 ${value ? "bg-[color:var(--color-success)]" : "bg-ink-muted/30"}`}
       />
       <span className="text-[11px] font-semibold text-ink-subtle">{label}</span>
       <span
-        className={`ml-auto text-[11px] font-bold ${value ? "text-emerald-400" : "text-ink-muted"}`}
+        className={`ml-auto text-[11px] font-bold ${value ? "text-[color:var(--color-success)]" : "text-ink-muted"}`}
       >
         {value ? "Yes" : "No"}
       </span>
@@ -376,7 +366,7 @@ export default function EmployeeViewPage() {
   if (loading)
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
       </div>
     );
 
@@ -400,14 +390,14 @@ export default function EmployeeViewPage() {
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate("/employees")}
-          className="flex items-center gap-1.5 text-xs text-ink-subtle hover:text-primary transition-colors font-medium"
+          className="flex items-center gap-1.5 text-xs text-ink-subtle hover:text-accent transition-colors font-medium"
         >
           <FaArrowLeft size={11} /> Back to Employees
         </button>
       </div>
 
       {/* ── Single Card ───────────────────────────────────────────────────── */}
-      <div className="bg-card border border-line-soft rounded-2xl overflow-hidden">
+      <div className="bg-card border border-line-soft rounded-sm overflow-hidden">
         {/* Hero */}
         <div className="flex items-center gap-4 px-5 py-4 border-b border-line-soft">
           {employee.photoUrl && !imgError ? (
@@ -415,10 +405,10 @@ export default function EmployeeViewPage() {
               src={getPhotoUrl(employee.photoUrl)}
               alt={employee.fullName}
               onError={() => setImgError(true)}
-              className="w-12 h-12 rounded-xl object-cover border border-line-soft shrink-0"
+              className="w-12 h-12 rounded-sm object-cover border border-line-soft shrink-0"
             />
           ) : (
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-emerald-500 flex items-center justify-center text-white text-lg font-bold shrink-0 shadow">
+            <div className="w-12 h-12 rounded-sm bg-accent flex items-center justify-center text-white text-lg font-bold shrink-0">
               {initials}
             </div>
           )}
@@ -437,7 +427,7 @@ export default function EmployeeViewPage() {
                 </span>
               )}
               {employee.department?.name && (
-                <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-semibold border border-indigo-500/20">
+                <span className="px-2 py-0.5 rounded-full bg-card-2 text-ink-subtle text-[10px] font-semibold border border-line-soft">
                   {employee.department.name}
                 </span>
               )}
@@ -631,7 +621,7 @@ export default function EmployeeViewPage() {
             value={
               employee.user ? (
                 <span
-                  className={`text-[11px] font-semibold ${employee.user.mustChangePw ? "text-amber-400" : "text-emerald-400"}`}
+                  className={`text-[11px] font-semibold ${employee.user.mustChangePw ? "text-[color:var(--color-warning)]" : "text-[color:var(--color-success)]"}`}
                 >
                   {employee.user.mustChangePw ? "Yes" : "No"}
                 </span>
