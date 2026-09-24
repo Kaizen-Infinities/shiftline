@@ -63,7 +63,8 @@
   /* Brand — concept v2: a clear product blue for identity and links; the
      green-to-lime action gradient (--color-cta*) is reserved for the one
      primary action on a screen ("Run Payroll", "Pay Taxes"). */
-  --color-primary: #4a74f0;
+  --color-primary: #3b62d6;
+  --color-on-primary: #ffffff;
   --color-primary-light: #6d8ff5;
   --color-brand: #5b82f6;
 
@@ -76,7 +77,7 @@
   /* Text (light default) */
   --color-text-primary: #1c3548;
   --color-text-secondary: #4a6275;
-  --color-text-muted: #7a8fa0;
+  --color-text-muted: #5c7184;
 
   /* Background (light default) */
   --color-bg: #eef3f6;
@@ -84,10 +85,12 @@
   --color-border: #dbe5ec;
 
   /* Status — clear, friendly, readable on white and on navy */
-  --color-success: #2f9e5b;
-  --color-warning: #c98a14;
-  --color-danger: #d6453d;
-  --color-info: #3b7fd6;
+  --color-success: #1a6e3c;
+  --color-warning: #8a5a00;
+  --color-danger: #b8322a;
+  --color-danger-fill: #b8322a;
+  --color-info: #2f6bbf;
+  --color-input-border: #7f94a6;
   --color-black: #000000;
   --color-white: #ffffff;
 
@@ -123,7 +126,7 @@
   --color-card-2: #1c2f45;
   --color-ink: #e6eef5;
   --color-ink-muted: #a8bccd;
-  --color-ink-subtle: #7890a5;
+  --color-ink-subtle: #8aa1b5;
   --color-line: #26394f;
   --color-line-soft: #1f3145;
   --color-head: #1c2f45;
@@ -131,7 +134,7 @@
   --color-border: #26394f;
   --color-text-primary: #e6eef5;
   --color-text-secondary: #a8bccd;
-  --color-text-muted: #7890a5;
+  --color-text-muted: #8aa1b5;
   --color-nav: #16263a;
   --color-nav-fg: #e6eef5;
   --color-nav-hover: #1c2f45;
@@ -139,6 +142,7 @@
   --color-nav-active-fg: #cfe3f5;
   --color-accent: #7c9cff;
   --color-primary: #7c9cff;
+  --color-on-primary: #0f1b26;
   --color-brand: #6d8ff5;
   --color-cta: #5fcf6e;
   --color-cta-2: #b6e85f;
@@ -148,7 +152,9 @@
   --color-chip-fg: #cfe3f5;
   --color-success: #4cc27a;
   --color-warning: #e0a53a;
-  --color-danger: #f0675e;
+  --color-danger: #ff8078;
+  --color-danger-fill: #c43d35;
+  --color-input-border: #5a7591;
   --color-info: #6aa6f0;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
@@ -165,7 +171,7 @@
   --color-card-2: #f4f8fb;
   --color-ink: #1c3548;
   --color-ink-muted: #4a6275;
-  --color-ink-subtle: #7a8fa0;
+  --color-ink-subtle: #5c7184;
   --color-line: #dbe5ec;
   --color-line-soft: #e8eff4;
   --color-head: #f4f8fb;
@@ -173,13 +179,13 @@
   --color-border: #dbe5ec;
   --color-text-primary: #1c3548;
   --color-text-secondary: #4a6275;
-  --color-text-muted: #7a8fa0;
+  --color-text-muted: #5c7184;
   --color-nav: #ffffff;
   --color-nav-fg: #1c3548;
   --color-nav-hover: #f0f6fa;
   --color-nav-active: #d7eaf6;
   --color-nav-active-fg: #1c3548;
-  --color-accent: #4a74f0;
+  --color-accent: #3b62d6;
   --color-cta: #74de7c;
   --color-cta-2: #c6f06a;
   --color-cta-ink: #123524;
@@ -916,7 +922,7 @@ input:-webkit-autofill:active {
     padding: 0.6rem 1.25rem;
     border-radius: 999px;
     background: var(--color-primary);
-    color: #fff;
+    color: var(--color-on-primary);
     border: 0;
     font-weight: 600;
     box-shadow: 0 4px 0 color-mix(in srgb, var(--color-primary) 70%, #000 30%);
@@ -936,7 +942,7 @@ input:-webkit-autofill:active {
     gap: 0.5rem;
     padding: 0.6rem 1.25rem;
     border-radius: 999px;
-    background: var(--color-danger);
+    background: var(--color-danger-fill);
     color: #fff;
     border: 0;
     font-weight: 600;
@@ -984,7 +990,7 @@ input:-webkit-autofill:active {
   .sl-chip[aria-pressed="true"],
   .sl-chip.is-active {
     background: var(--color-primary);
-    color: #fff;
+    color: var(--color-on-primary);
   }
 
   /* Navigation row: a white pill tile with icon + label; active = pale blue. */
@@ -1071,7 +1077,7 @@ input:-webkit-autofill:active {
     width: 100%;
     border-radius: 12px;
     background: var(--color-card);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-input-border);
     color: var(--color-ink);
     padding: 0.6rem 0.9rem;
     transition:
