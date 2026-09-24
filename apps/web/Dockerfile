@@ -18,7 +18,11 @@ CMD ["npm", "run", "dev", "--workspace", "@shiftline/web", "--", "--host", "0.0.
 
 FROM dev AS build
 ARG VITE_API_URL=/api
-ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_API_BASE_URL=/api
+ARG VITE_IMAGE_URL=
+ENV VITE_API_URL=$VITE_API_URL \
+    VITE_API_BASE_URL=$VITE_API_BASE_URL \
+    VITE_IMAGE_URL=$VITE_IMAGE_URL
 RUN npm run build -w @shiftline/web
 
 FROM nginx:1.27-alpine AS runtime

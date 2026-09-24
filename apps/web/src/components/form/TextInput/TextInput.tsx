@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 interface TextInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -49,6 +49,9 @@ const TextInput: React.FC<TextInputProps> = ({
   rows = 3,
   ...rest
 }) => {
+  const generatedId = useId();
+  const inputId = rest.id ?? name;
+  const errorId = `${generatedId}-error`;
   const isNumberType = type === "number";
   const shouldPreventNegative = preventNegative || isNumberType;
 
@@ -78,11 +81,11 @@ const TextInput: React.FC<TextInputProps> = ({
 
   return (
     <div
-      className={`${bottom ? "mb-[18px]" : ""} group ${horizontal ? "flex items-start gap-3" : ""}`}
+      className={`${bottom ? "mb-[18px]" : ""} group ${horizontal ? "flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3" : ""}`}
     >
       {label && (
         <label
-          htmlFor={name}
+          htmlFor={inputId}
           className={`
             flex items-center gap-[6px]
             text-[12px] font-extrabold uppercase
@@ -90,7 +93,7 @@ const TextInput: React.FC<TextInputProps> = ({
             transition-colors duration-250
             ${error ? "text-[color:var(--color-danger)]" : "text-ink"}
             group-focus-within:text-primary
-            ${horizontal ? "shrink-0 w-[140px] mb-0 pt-[10px]" : "mb-2"}
+            ${horizontal ? "shrink-0 sm:w-[140px] mb-0 sm:pt-[10px]" : "mb-2"}
             ${labelClassName}
           `}
         >
@@ -115,7 +118,8 @@ const TextInput: React.FC<TextInputProps> = ({
         <div className="relative">
           {as === "textarea" ? (
             <textarea
-              id={name}
+              {...(rest as unknown as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+              id={inputId}
               name={name}
               value={value}
               placeholder={placeholder}
@@ -123,9 +127,11 @@ const TextInput: React.FC<TextInputProps> = ({
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={disabled}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : rest["aria-describedby"]}
               rows={rows}
               className={`
-                w-full min-h-[35px] px-4 py-[5px] text-sm font-semibold
+                w-full min-h-10 px-4 py-2 text-sm font-semibold
                 border rounded-[5px] outline-none
                 transition-all duration-250
                 placeholder:text-ink-subtle/80 placeholder:font-normal
@@ -139,11 +145,11 @@ const TextInput: React.FC<TextInputProps> = ({
                 resize-y
                 ${inputClassName}
               `}
-              {...(rest as unknown as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
             />
           ) : (
             <input
-              id={name}
+              {...rest}
+              id={inputId}
               type={type || "text"}
               name={name}
               value={value}
@@ -154,6 +160,8 @@ const TextInput: React.FC<TextInputProps> = ({
               min={isNumberType ? (rest.min ?? "0") : rest.min}
               step={step}
               disabled={disabled}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : rest["aria-describedby"]}
               autoComplete="off"
               className={`
                 w-full h-10 px-4
@@ -175,7 +183,6 @@ const TextInput: React.FC<TextInputProps> = ({
                 ${trailingIcon ? "pr-10" : ""}
                 ${inputClassName}
               `}
-              {...rest}
             />
           )}
 
@@ -187,7 +194,13 @@ const TextInput: React.FC<TextInputProps> = ({
         </div>
 
         {error && (
-          <div className="text-[color:var(--color-danger)] text-sm font-medium mt-1">{error}</div>
+          <div
+            id={errorId}
+            role="alert"
+            className="text-[color:var(--color-danger)] text-sm font-medium mt-1"
+          >
+            {error}
+          </div>
         )}
       </div>
     </div>

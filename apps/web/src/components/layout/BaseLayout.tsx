@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 
 import { useAppSelector } from "../../hooks/reduxHooks";
@@ -13,6 +13,8 @@ import { useGlobalShortcuts } from "../../hooks/useGlobalShortcuts";
 
 const BaseLayout = () => {
   const [showSidebar, setShowSidebar] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAppSelector((state) => state.auth);
@@ -24,7 +26,7 @@ const BaseLayout = () => {
       const saved = localStorage.getItem("shortcut_panel_open");
       if (saved !== null) return saved === "true";
     } catch (_) {}
-    return true; // Default open on desktop
+    return false; // Keep the workspace wide until the user asks for the shortcut reference.
   });
 
   const handleTogglePanel = useCallback(() => {
@@ -69,6 +71,46 @@ const BaseLayout = () => {
     }
   }, [company?.faviconUrl]);
 
+  useEffect(() => {
+    setShowSidebar(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!showSidebar) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const drawer = drawerRef.current;
+    const focusable = drawer?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    focusable?.[0]?.focus();
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowSidebar(false);
+        return;
+      }
+      if (event.key !== "Tab" || !focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      menuButtonRef.current?.focus();
+    };
+  }, [showSidebar]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       <a
@@ -80,7 +122,9 @@ const BaseLayout = () => {
 
       {/* Mobile Sidebar Overlay */}
       {showSidebar && (
-        <div
+        <button
+          type="button"
+          aria-label="Close navigation"
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setShowSidebar(false)}
         />
@@ -88,17 +132,23 @@ const BaseLayout = () => {
 
       {/* Mobile Sidebar Drawer */}
       <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Main navigation"
+        aria-hidden={!showSidebar}
         className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
-          showSidebar ? "translate-x-0" : "-translate-x-full"
+          showSidebar ? "visible translate-x-0" : "invisible -translate-x-full pointer-events-none"
         }`}
       >
-        <Sidebar />
+        <Sidebar onNavigate={() => setShowSidebar(false)} />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Navbar (Mobile only) */}
         <div className="lg:hidden">
           <Navbar
+            menuButtonRef={menuButtonRef}
             onMenuClick={() => setShowSidebar(true)}
             user={user}
             onProfileClick={() => navigate("/company/view")}

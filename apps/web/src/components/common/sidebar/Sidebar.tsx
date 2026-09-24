@@ -6,14 +6,17 @@ import { logoutUser, getCurrentUser } from "../../../features/auth/authSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import React, { useEffect } from "react";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
-import { FaChevronDown, FaChevronRight, FaSignOutAlt } from "react-icons/fa";
-import { FiPower, FiMenu, FiChevronsLeft, FiChevronsRight, FiLogOut } from "react-icons/fi";
+import { FaChevronDown, FaChevronRight } from "react-icons/fa";
+import { FiLogOut } from "react-icons/fi";
 import { sidebarItems } from "./sidebar.data";
-const Sidebar = () => {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+const Sidebar = ({ onNavigate }: SidebarProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
-  const [openMenu, setOpenMenu] = useState<string | null>("Dashboard");
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const location = useLocation();
@@ -59,7 +62,6 @@ const Sidebar = () => {
     setOpenSubMenu((prev) => (prev === menuTitle ? null : menuTitle));
   };
   const { user } = useAppSelector((state) => state.auth);
-  const { data: company } = useAppSelector((state) => state.company);
   const { can, isSuperAdmin } = usePermission();
 
   // 🔴 Live Real-Time Permission Sync:
@@ -140,6 +142,11 @@ const Sidebar = () => {
       })
       .filter((item): item is (typeof sidebarItems)[0] => item !== null);
   }, [can]);
+
+  useEffect(() => {
+    const activeMenu = filteredSidebarItems.find(isMenuActive);
+    setOpenMenu(activeMenu?.children ? activeMenu.title : null);
+  }, [filteredSidebarItems, isMenuActive]);
   const getInitials = (name?: string) => {
     if (!name) return "U";
     const parts = name.trim().split(" ").filter(Boolean);
@@ -167,10 +174,13 @@ const Sidebar = () => {
 
   return (
     <aside
-      aria-label="Primary"
-      className={`h-screen bg-nav text-nav-fg relative overflow-visible flex flex-col transition-[width] duration-300 ease-in-out z-50 border-r border-line w-[250px]`}
+      aria-label="Mobile navigation"
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest("a[href]")) onNavigate?.();
+      }}
+      className="h-screen w-[min(88vw,320px)] bg-nav text-nav-fg relative overflow-visible flex flex-col z-50 border-r border-line"
     >
-      <div className="flex-1 px-5 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+      <div className="flex-1 px-3 py-3 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/20 [&::-webkit-scrollbar-thumb]:rounded-full">
         {filteredSidebarItems.map((menu) => {
           // ── Flat top-level item (no children) → render as a direct link ──
           if (!menu.children && menu.path) {
@@ -179,11 +189,11 @@ const Sidebar = () => {
             const menuActive = isMenuActive(menu);
             const resolvedPath = resolveMenuPath(menu);
             return (
-              <div key={menu.title} className="relative mb-2.5">
+              <div key={menu.title} className="relative mb-1">
                 <NavLink
                   to={resolvedPath}
                   onClick={() => setOpenMenu(null)}
-                  className={`w-full border-none outline-none cursor-pointer p-[10px_15px] rounded-sm flex items-center justify-between transition-all duration-300 ${menuActive ? "!bg-nav-active !text-nav-active-fg font-bold" : "bg-transparent text-nav-fg"}`}
+                  className={`w-full min-h-10 border-none outline-none cursor-pointer px-3 py-2 rounded-lg flex items-center justify-between transition-colors ${menuActive ? "!bg-nav-active !text-nav-active-fg font-bold" : "bg-transparent text-nav-fg hover:bg-black/5"}`}
                 >
                   <div
                     className={`flex items-center text-[14px] font-bold leading-[1.334rem] transition-colors ${menuActive ? "!text-nav-active-fg" : "text-nav-fg"}`}
@@ -199,14 +209,9 @@ const Sidebar = () => {
           // ── Grouped item (has children) → existing dropdown/accordion behavior ──
           const isOpen = openMenu === menu.title;
           return (
-            <div
-              key={menu.title}
-              className="relative mb-2"
-              onMouseEnter={() => setHoveredMenu(menu.title)}
-              onMouseLeave={() => setHoveredMenu(null)}
-            >
+            <div key={menu.title} className="relative mb-2">
               <button
-                className={`w-full border-none outline-none cursor-pointer p-[14px_6px] rounded-xl flex items-center justify-between transition-all duration-300 bg-transparent text-nav-fg`}
+                className="w-full min-h-10 border-none outline-none cursor-pointer px-3 py-2 rounded-lg flex items-center justify-between transition-colors bg-transparent text-nav-fg hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-accent"
                 onClick={() => toggleMenu(menu.title)}
               >
                 <div
@@ -225,14 +230,14 @@ const Sidebar = () => {
                 )}
               </button>
               {isOpen && (
-                <div className="mt-2 ml-3 pl-2 border-l-2 border-black/10 flex flex-col gap-1">
+                <div className="mt-1 ml-2 pl-2 border-l border-black/10 flex flex-col gap-0.5">
                   {menu.children?.map((subMenu) => (
                     <React.Fragment key={subMenu.title}>
                       {subMenu.children ? (
                         <>
                           {/* Parent Child */}
                           <button
-                            className="w-full border-none outline-none cursor-pointer p-[10px_6px] rounded-lg flex items-center justify-between transition-all duration-300 bg-transparent text-nav-fg"
+                            className="w-full min-h-10 border-none outline-none cursor-pointer px-2.5 py-2 rounded-lg flex items-center justify-between transition-colors bg-transparent text-nav-fg hover:bg-black/5"
                             onClick={() => toggleSubMenu(subMenu.title)}
                           >
                             <div className="flex items-center text-[15px] font-bold leading-[1.334rem] text-nav-fg">
@@ -246,14 +251,14 @@ const Sidebar = () => {
                           </button>
                           {/* Child of Child */}
                           {openSubMenu === subMenu.title && (
-                            <div className="mt-1 flex flex-col gap-1 border-l-2 border-black/10 ml-3 pl-2">
+                            <div className="mt-0.5 flex flex-col gap-0.5 border-l border-black/10 ml-2 pl-2">
                               {subMenu.children.map((child) =>
                                 child.path ? (
                                   <NavLink
                                     key={child.path}
                                     to={child.path}
                                     className={({ isActive }) =>
-                                      `no-underline px-3 py-2.5 rounded-lg text-[15px] font-bold leading-[1.334rem] transition-all duration-300 flex items-center gap-3 pl-5 ${isActive && child.path === location.pathname + location.search ? "!bg-nav-active !text-nav-active-fg font-bold" : "text-nav-fg"}`
+                                      `no-underline min-h-10 px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${isActive && child.path === location.pathname + location.search ? "!bg-nav-active !text-nav-active-fg font-bold" : "text-nav-fg hover:bg-black/5"}`
                                     }
                                   >
                                     <span
@@ -273,7 +278,7 @@ const Sidebar = () => {
                             key={subMenu.path}
                             to={subMenu.path}
                             className={({ isActive }) =>
-                              `no-underline px-3 py-2.5 rounded-lg text-[15px] font-bold leading-[1.334rem] transition-all duration-300 flex items-center gap-3 ${isActive ? "!bg-nav-active !text-nav-active-fg font-bold" : "text-nav-fg"}`
+                              `no-underline min-h-10 px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${isActive ? "!bg-nav-active !text-nav-active-fg font-bold" : "text-nav-fg hover:bg-black/5"}`
                             }
                           >
                             <span
@@ -292,7 +297,7 @@ const Sidebar = () => {
           );
         })}
       </div>
-      <div className="p-4 mt-auto shrink-0">
+      <div className="p-3 mt-auto shrink-0">
         <div
           className={`flex items-center p-3 rounded-sm bg-card hover:bg-card-2 transition-colors border border-line justify-between`}
         >
