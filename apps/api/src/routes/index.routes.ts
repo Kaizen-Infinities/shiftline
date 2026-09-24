@@ -64,6 +64,7 @@ import bankingRoutes from "../modules/banking/banking.routes";
 import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
 import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
+import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
 import smsRoutes from "../modules/sms/sms.routes";
 import paymentsRoutes, {
   paymentWebhookRouter,
@@ -175,6 +176,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/payroll-statutory", router: statutoryPayrollRoutes },
   { path: "/labour", router: labourRoutes },
   { path: "/leave", router: leaveRoutes },
+  { path: "/order-tna", router: orderTnaRoutes },
   // The callback router must be mounted before /payments so a gateway's POST never meets
   // authMiddleware; it is authenticated by the signature on its body instead.
   { path: "/payments/webhook", router: paymentWebhookRouter },

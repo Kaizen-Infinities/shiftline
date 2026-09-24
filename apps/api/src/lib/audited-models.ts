@@ -97,6 +97,9 @@ export const AUDITED_MODELS = [
   "MachineGateway",
   "MachineSignalMap",
   "MachineCycle",
+  // export order time-and-action calendar (TN-03)
+  "OrderTna",
+  "OrderTnaMilestone",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

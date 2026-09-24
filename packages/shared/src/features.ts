@@ -123,6 +123,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "oee-dashboard",
       "production-reports",
       "dash-machines",
+      "order-tna",
     ],
   },
   {

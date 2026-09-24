@@ -146,6 +146,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "raw_materials",
         "insights",
         "machine-telemetry",
+        "order-tna",
       ]),
       // Leave (P2-09): self-service for whoever here has an employee record.
       ...keysFor(["leave"], ["view", "request"]),

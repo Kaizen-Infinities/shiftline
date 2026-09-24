@@ -327,6 +327,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "Production Wastage",
   },
   {
+    // TN-03: buyer-order milestone plan counted back from the ex-factory date.
+    module: "order-tna",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Export order time-and-action calendar",
+  },
+  {
     module: "goods-dispatch",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Goods Dispatch",
