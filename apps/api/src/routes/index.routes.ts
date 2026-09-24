@@ -66,6 +66,7 @@ import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
 import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
 import deliveryScheduleRoutes from "../modules/delivery-schedules/delivery-schedules.routes";
+import exportIncentivesRoutes from "../modules/export-incentives/export-incentives.routes";
 import smsRoutes from "../modules/sms/sms.routes";
 import paymentsRoutes, {
   paymentWebhookRouter,
@@ -179,6 +180,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/labour", router: labourRoutes },
   { path: "/leave", router: leaveRoutes },
   { path: "/order-tna", router: orderTnaRoutes },
+  { path: "/export-incentives", router: exportIncentivesRoutes },
   // The callback router must be mounted before /payments so a gateway's POST never meets
   // authMiddleware; it is authenticated by the signature on its body instead.
   { path: "/payments/webhook", router: paymentWebhookRouter },

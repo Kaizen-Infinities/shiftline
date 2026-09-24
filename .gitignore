@@ -19,6 +19,8 @@ coverage/
 uploads/
 backups/
 exports/
+# ...but not the web Exports module (TN-01), which is source
+!apps/web/src/modules/exports/
 archives/
 logs/
 *.log

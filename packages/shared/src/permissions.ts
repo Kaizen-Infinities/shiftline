@@ -499,6 +499,13 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "configure", "ingest"],
     description: "Machine telemetry: gateways, signal maps, cycles",
   },
+
+  // ── Exports (TN-01) ─────────────────────────────────────────────────────────
+  {
+    module: "export-incentives",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Export incentives and EPCG/AA authorisations",
+  },
 ];
 
 /**

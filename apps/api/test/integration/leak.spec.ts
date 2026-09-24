@@ -181,6 +181,10 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   // export order T&A (TN-03); order-tna.spec proves a foreign company sees none
   "OrderTna",
   "OrderTnaMilestone",
+  // exports (TN-01): its own suite proves a foreign tenant's rows read as absent
+  "ExportIncentiveClaim",
+  "ExportAuthorisation",
+  "ExportObligationEntry",
 ]);
 
 describe("cross-tenant leak suite", () => {

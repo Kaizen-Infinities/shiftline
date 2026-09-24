@@ -385,6 +385,13 @@ export const API_PATHS = {
     cycles: "/machine-telemetry/cycles",
     health: "/machine-telemetry/health",
   },
+  exportIncentives: {
+    base: "/export-incentives",
+    claims: "/export-incentives/claims",
+    claimsSummary: "/export-incentives/claims/summary",
+    claimFromInvoice: "/export-incentives/claims/from-invoice", // ← service appends /:salesInvoiceId
+    authorisations: "/export-incentives/authorisations",
+  },
 };
 
 export type ApiPaths = typeof API_PATHS;

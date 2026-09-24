@@ -194,6 +194,12 @@ export const FEATURES: readonly FeatureDef[] = [
     description: "Machine telemetry, andon, energy, maintenance and piece-rate pay (Phase 2)",
     modules: ["machine-telemetry"],
   },
+  {
+    key: "exports",
+    name: "Exports",
+    description: "Export incentives, EPCG / Advance Authorisation obligations",
+    modules: ["export-incentives"],
+  },
 ];
 
 export const FEATURE_KEYS: readonly string[] = FEATURES.map((f) => f.key);
@@ -248,6 +254,7 @@ export const PLAN_TIERS: readonly PlanTierDef[] = [
       "field-app",
       "gst-compliance",
       "shop-floor",
+      "exports",
     ],
     seatLimit: 25,
     apiLimit: 3000,

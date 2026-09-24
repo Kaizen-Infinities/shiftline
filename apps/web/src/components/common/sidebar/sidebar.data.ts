@@ -12,6 +12,7 @@ import {
   FiTool,
   FiDollarSign,
   FiUsers,
+  FiGlobe,
 } from "react-icons/fi";
 
 const legacySidebarItems: SidebarItem[] = [
@@ -910,6 +911,23 @@ const legacySidebarItems: SidebarItem[] = [
     ],
   },
 
+  // ── Exports (TN-01) ────────────────────────────────────────────────────────
+  {
+    title: "Exports",
+    icon: FiGlobe,
+    path: "/exports/incentives",
+    permission: "export-incentives.view",
+    children: [
+      {
+        title: "Export Incentives",
+        path: "/exports/incentives",
+        permission: "export-incentives.view",
+      },
+    ],
+    activePaths: ["/exports"],
+    permissionAny: ["export-incentives.view"],
+  },
+
   // ── Platform console (super admins only, P1-02) ───────────────────────────
   {
     title: "Platform",
@@ -931,6 +949,7 @@ const transactions = legacySidebarItems.find((item) => item.title === "Transacti
 const display = legacySidebarItems.find((item) => item.title === "Display")!;
 const payroll = legacySidebarItems.find((item) => item.title === "Payroll")!;
 const platform = legacySidebarItems.find((item) => item.title === "Platform")!;
+const exportsMenu = legacySidebarItems.find((item) => item.title === "Exports")!;
 
 const adminGroup = (title: string) => administration.children?.find((item) => item.title === title);
 const transactionGroup = (title: string) =>
@@ -964,6 +983,7 @@ export const sidebarItems: SidebarItem[] = [
       transactionGroup("Expenses"),
     ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
   },
+  exportsMenu,
   {
     title: "Inventory",
     icon: FiBox,
