@@ -28,7 +28,11 @@ class BillingService {
     return runAsTenant(companyId, async () => {
       const subscription = await prisma.subscription.findFirst({ include: { plan: true } });
       if (!subscription) throw new ApiError(404, "That tenant has no subscription");
-      const amount = input.amount ?? Number(subscription.plan.priceInrMonthly ?? 0);
+      // A hand-negotiated price (set only by a platform admin) overrides the plan's list price;
+      // an amount given explicitly to this call overrides both.
+      const amount =
+        input.amount ??
+        Number(subscription.negotiatedMonthlyPrice ?? subscription.plan.priceInrMonthly ?? 0);
       if (amount <= 0) {
         throw new ApiError(400, "That plan has no price; give the amount explicitly", "NO_PRICE");
       }
@@ -169,6 +173,41 @@ class BillingService {
         },
       });
     });
+  }
+
+  /**
+   * The monthly sweep across every tenant (P2-01): raises the invoice for the month that just
+   * started for every tenant with a subscription that is not cancelled. `raise()` is already
+   * idempotent on `SubscriptionInvoice`'s `@@unique([companyId, periodStart])`, so a second run
+   * in the same month changes nothing; a tenant with no subscription, or a free plan and no
+   * amount given, is skipped rather than failed.
+   */
+  async sweepAllTenants(today = new Date()) {
+    const periodStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+    const periodEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1));
+    const companies = await withoutTenant(() =>
+      prisma.company.findMany({ where: { isActive: true }, select: { id: true } })
+    );
+    let raised = 0;
+    let skipped = 0;
+    for (const c of companies) {
+      try {
+        const subscription = await runAsTenant(c.id, () => prisma.subscription.findFirst());
+        if (!subscription || subscription.status === "CANCELLED") {
+          skipped++;
+          continue;
+        }
+        await this.raise(c.id, { periodStart, periodEnd });
+        raised++;
+      } catch (err) {
+        if (err instanceof ApiError && err.code === "NO_PRICE") {
+          skipped++;
+          continue;
+        }
+        logger.error({ companyId: c.id, err }, "Subscription invoice sweep failed for a tenant");
+      }
+    }
+    return { companies: companies.length, raised, skipped, periodStart };
   }
 
   private async setStatus(

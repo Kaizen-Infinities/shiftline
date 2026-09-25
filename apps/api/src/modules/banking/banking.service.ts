@@ -1,9 +1,13 @@
 import { Prisma, VoucherType, type ChequeKind } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
+import { logger } from "../../lib/logger";
+import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { periodService } from "../accounts/period.service";
+import { notify } from "../notifications/notify";
+import { safeCreateVoucher, voucherPostingService } from "../accounts/voucherPosting.service";
 import {
   dedupeHash,
   normaliseRef,
@@ -448,7 +452,52 @@ class BankingService {
         "CHEQUE_CLOSED"
       );
     }
+    // A bounced cheque only comes back into the register through re-presentation (P2-06), which
+    // posts the receipt/payment again; moving it straight to DEPOSITED or CLEARED would leave the
+    // register saying "cleared" while the books still carry the bounce reversal.
+    if (cheque.status === "BOUNCED" && input.status !== "CANCELLED") {
+      throw new ApiError(
+        409,
+        "A bounced cheque has to be re-presented before it can clear",
+        "CHEQUE_BOUNCED"
+      );
+    }
     const on = asDate(input.on ?? new Date());
+
+    // A PDC's own receipt/payment never posted (P2-06); clearing it is the moment the money
+    // actually moves, so this is where it posts — inside the same update, never before.
+    if (
+      input.status === "CLEARED" &&
+      !cheque.voucherId &&
+      cheque.refDocType &&
+      cheque.sourceDocId
+    ) {
+      return prisma.$transaction(async (tx) => {
+        if (cheque.refDocType === "SALES_PAYMENT") {
+          await voucherPostingService.postReceiptVouchersForSales(
+            cheque.sourceDocId!,
+            tx,
+            [cheque.refDocId!],
+            on
+          );
+        } else if (cheque.refDocType === "GRN_PAYMENT") {
+          await voucherPostingService.postPaymentVouchersForGRN(
+            cheque.sourceDocId!,
+            tx,
+            [cheque.refDocId!],
+            on
+          );
+        }
+        return tx.cheque.update({
+          where: { id },
+          data: {
+            status: "CLEARED",
+            clearedOn: on,
+            bankAccountId: input.bankAccountId ?? cheque.bankAccountId,
+          },
+        });
+      });
+    }
 
     if (input.status !== "BOUNCED") {
       return prisma.cheque.update({
@@ -554,6 +603,106 @@ class BankingService {
     });
   }
 
+  /**
+   * Re-presentation (P2-06): a bounced cheque goes in again and, this time, clears. The receipt
+   * or payment posts a second time — a fresh voucher, never the original one reused — and the
+   * cheque moves to DEPOSITED so clearing works exactly as it would for a cheque that never
+   * bounced. `presentedCount` gives every attempt its own `refDocId`, so calling this on the same
+   * cheque twice in a row (it is no longer BOUNCED after the first call) cannot double-post.
+   */
+  async rePresent(id: string, actor: { userId?: string }) {
+    const cheque = await prisma.cheque.findUnique({ where: { id } });
+    if (!cheque) throw new ApiError(404, "That cheque does not exist");
+    if (cheque.status !== "BOUNCED") {
+      throw new ApiError(409, "Only a bounced cheque can be re-presented", "CHEQUE_NOT_BOUNCED");
+    }
+
+    return prisma.$transaction(async (tx) => {
+      await accountsService.ensureSystemLedgersExist(tx);
+      const on = new Date();
+      await periodService.assertPostingAllowed(on, undefined, tx);
+      const ledger = async (code: string) => {
+        const row = await tx.accountLedger.findFirst({ where: { code } });
+        if (!row) throw new ApiError(500, `Missing ledger ${code}`, "MISSING_LEDGER");
+        return row;
+      };
+      const bankLedgerId = cheque.bankAccountId
+        ? (await tx.bankAccount.findUnique({ where: { id: cheque.bankAccountId } }))?.ledgerId
+        : undefined;
+      const bank = bankLedgerId
+        ? await tx.accountLedger.findUniqueOrThrow({ where: { id: bankLedgerId } })
+        : await ledger("BANK-001");
+
+      // The same ledger the bounce reversal hit (the generic DEBT-001/CRED-001, not the specific
+      // customer/supplier ledger — see `updateCheque`'s own bounce branch above): re-presenting
+      // has to reverse exactly what bouncing posted, on the same account.
+      const party = await ledger(cheque.kind === "RECEIVED" ? "DEBT-001" : "CRED-001");
+
+      const amount = n2(cheque.amount);
+      const presentedCount = cheque.presentedCount + 1;
+      // Voucher.refDocId is 36 characters; a plain uuid already fills that, so the attempt
+      // number replaces the dashes rather than following them.
+      const refDocId = `${cheque.id.replace(/-/g, "")}${presentedCount}`.slice(0, 36);
+      const D = (n: number) => new Prisma.Decimal(n2(n));
+      const items: Prisma.JournalItemUncheckedCreateWithoutVoucherInput[] =
+        cheque.kind === "RECEIVED"
+          ? [
+              {
+                debitLedgerId: bank.id,
+                debitAmount: D(amount),
+                creditAmount: D(0),
+                narration: `Cheque ${cheque.chequeNo} re-presented`,
+              },
+              {
+                creditLedgerId: party.id,
+                debitAmount: D(0),
+                creditAmount: D(amount),
+                narration: `Cheque ${cheque.chequeNo} re-presented`,
+              },
+            ]
+          : [
+              {
+                debitLedgerId: party.id,
+                debitAmount: D(amount),
+                creditAmount: D(0),
+                narration: `Cheque ${cheque.chequeNo} re-presented`,
+              },
+              {
+                creditLedgerId: bank.id,
+                debitAmount: D(0),
+                creditAmount: D(amount),
+                narration: `Cheque ${cheque.chequeNo} re-presented`,
+              },
+            ];
+
+      const voucher = await safeCreateVoucher(
+        tx,
+        {
+          voucherNo: `CHQP-${cheque.chequeNo}-${presentedCount}`.slice(0, 30),
+          type: cheque.kind === "RECEIVED" ? VoucherType.RECEIPT : VoucherType.PAYMENT,
+          date: on,
+          narration: `Cheque ${cheque.chequeNo} re-presented after bouncing`,
+          refDocType: "CHEQUE_REPRESENT",
+          refDocId,
+          createdBy: actor.userId?.slice(0, 36) ?? null,
+          items: { create: items },
+        },
+        "CHEQUE_REPRESENT",
+        refDocId
+      );
+
+      return tx.cheque.update({
+        where: { id },
+        data: {
+          status: "DEPOSITED",
+          depositedOn: on,
+          presentedCount,
+          voucherId: voucher.id,
+        },
+      });
+    });
+  }
+
   /** Cheques whose date has arrived and which are still sitting in a drawer. */
   async dueToday(on = new Date()) {
     const rows = await prisma.cheque.findMany({
@@ -567,6 +716,82 @@ class BankingService {
       total: n2(rows.reduce((s, c) => s + Number(c.amount), 0)),
       rows,
     };
+  }
+
+  /**
+   * The daily nudge (P2-01): every post-dated cheque, received or issued, still `IN_HAND` and due
+   * today or within the next two days. Same shape as the MSME day-30/day-43 warning — the link
+   * carries the cheque and the day it fired for, so a person sees it once per cheque per day
+   * rather than every day until it is presented.
+   *
+   * A cheque that has bounced and not been re-presented (P2-17) is not "due" in any useful sense
+   * — the paper already failed once, and nagging about its original date only tells the reader
+   * something they already know — so it is skipped rather than warned about. One that HAS been
+   * re-presented (`presentedCount > 0`) and is still working its way through the bank (`status
+   * DEPOSITED`, not yet `CLEARED`) gets its own message rather than the ordinary due-date one, so
+   * the reader knows this is the second attempt, not the first.
+   */
+  async warnDueCheques(today = new Date()) {
+    const from = asDate(today);
+    const to = new Date(from.getTime() + 2 * 86400000);
+    const rows = await prisma.cheque.findMany({
+      where: {
+        status: { in: ["IN_HAND", "DEPOSITED", "BOUNCED"] },
+        chequeDate: { gte: from, lte: to },
+      },
+      orderBy: { chequeDate: "asc" },
+      take: 500,
+    });
+    let sent = 0;
+    for (const c of rows) {
+      // BOUNCED and not yet re-presented: nothing useful to warn about (P2-17).
+      if (c.status === "BOUNCED") continue;
+      // A cheque deposited the ordinary way (never bounced) is already in the bank's hands and
+      // does not need a due-date nudge; only a re-presented one gets a message here.
+      if (c.status === "DEPOSITED" && c.presentedCount === 0) continue;
+
+      const daysLeft = Math.round((asDate(c.chequeDate).getTime() - from.getTime()) / 86400000);
+      const link = `/accounts/bank-reconciliation?cheque=${c.id}&d=${iso(from)}`;
+      const already = await prisma.notification.findFirst({
+        where: { category: "banking-cheque", link },
+        select: { id: true },
+      });
+      if (already) continue;
+      const who = c.kind === "ISSUED" ? "Issued to" : "Received from";
+      const when = daysLeft <= 0 ? "today" : `in ${daysLeft} day(s)`;
+      const rePresented = c.presentedCount > 0;
+      await notify({
+        category: "banking-cheque",
+        title: rePresented
+          ? `Cheque ${c.chequeNo} (re-presented): ₹${n2(c.amount).toFixed(2)} due ${when}`
+          : `Cheque ${c.chequeNo}: ₹${n2(c.amount).toFixed(2)} due ${when}`,
+        body: rePresented
+          ? `${who} ${c.partyName ?? "party"}, dated ${iso(asDate(c.chequeDate))} — re-presented after bouncing.`
+          : `${who} ${c.partyName ?? "party"}, dated ${iso(asDate(c.chequeDate))}.`,
+        link,
+        to: { permission: "banking.view" },
+        level: daysLeft <= 0 ? "WARNING" : "INFO",
+      });
+      sent++;
+    }
+    return { checked: rows.length, sent };
+  }
+
+  /** The daily sweep across every tenant. */
+  async sweepDueCheques(today = new Date()) {
+    const companies = await withoutTenant(() =>
+      prisma.company.findMany({ where: { isActive: true }, select: { id: true } })
+    );
+    let sent = 0;
+    for (const c of companies) {
+      try {
+        const res = await runAsTenant(c.id, () => this.warnDueCheques(today));
+        sent += res.sent;
+      } catch (err) {
+        logger.error({ companyId: c.id, err }, "Cheque due-date sweep failed for a tenant");
+      }
+    }
+    return { companies: companies.length, sent };
   }
 }
 

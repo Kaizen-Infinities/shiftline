@@ -53,6 +53,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "currencies",
         "job-work",
         "purchase-orders",
+        "invoice",
         "sales-returns",
         "purchase-returns",
         "customers",
@@ -87,49 +88,76 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["costing"]),
       // Banking (P1-20): the reconciliation and the cheque register are the accountant’s.
       ...keysFor(["banking"]),
+      // Leave (P2-09): the accountant is the office's HR contact in a company this size and
+      // approves requests; every employee-mapped role below gets view/request for themselves.
+      ...keysFor(["leave"]),
+      // Fines and deductions (P2-13): the accountant is the payroll operator here too — raises,
+      // records the show-cause and approves, the same as the rest of payroll it already runs.
+      ...keysFor(["fines"]),
+      // Export incentives (TN-01): the accountant chases drawback, RoDTEP scrips and EPCG
+      // obligations the same way it chases every other receivable.
+      ...keysFor(["export-incentives"]),
+      // Employee search (P2-15): a light picker for the leave and fines screens this role runs.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
   {
     code: "STORES",
     name: "Stores",
     description: "Inventory and dispatch",
-    keys: keysFor([
-      "raw_materials",
-      "raw_material_categories",
-      "wastage-store",
-      "stores",
-      "stock-adjustments",
-      "goods-dispatch",
-      "eod-stock",
-      "inventory",
-      "dash-inventory",
-      "products",
-      "categories",
-      "uoms",
-      "eway-bill",
-      "transporters",
-      "job-work",
-    ]),
+    keys: [
+      ...keysFor([
+        "raw_materials",
+        "raw_material_categories",
+        "wastage-store",
+        "stores",
+        "stock-adjustments",
+        "goods-dispatch",
+        // Customer delivery schedules (TN-02): the dispatch planner works from them.
+        "delivery-schedules",
+        "eod-stock",
+        "inventory",
+        "dash-inventory",
+        "products",
+        "categories",
+        "uoms",
+        "eway-bill",
+        "transporters",
+        "job-work",
+      ]),
+      // Leave (P2-09): self-service for whoever here has an employee record.
+      ...keysFor(["leave"], ["view", "request"]),
+      // Employee search (P2-15): the picker on the leave screen this role holds view/request on.
+      ...keysFor(["employees"], ["search"]),
+    ],
   },
   {
     code: "PRODUCTION",
     name: "Production",
     description: "Planning and shop floor",
-    keys: keysFor([
-      "production-orders",
-      "weekly-programs",
-      "daily-plans",
-      "hourly-production",
-      "production-wastage",
-      "machines",
-      "machine-assignments",
-      "shifts",
-      "dash-machines",
-      "oee",
-      "products",
-      "raw_materials",
-      "insights",
-    ]),
+    keys: [
+      ...keysFor([
+        "production_orders",
+        "weekly_programs",
+        "daily-machine-planning",
+        "hourly_productions",
+        "production-wastages",
+        "machines",
+        "machine-assignments",
+        "shifts",
+        "dash-machines",
+        "oee-dashboard",
+        "products",
+        "raw_materials",
+        "insights",
+        "machine-telemetry",
+        "order-tna",
+      ]),
+      // Leave (P2-09): self-service for whoever here has an employee record.
+      ...keysFor(["leave"], ["view", "request"]),
+      // Employee search (P2-15): the picker on the leave screen this role holds view/request on.
+      ...keysFor(["employees"], ["search"]),
+    ],
   },
   {
     code: "SALES_EXEC",
@@ -139,6 +167,10 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["customers", "sales-orders", "quotations", "dash-overview"], ["view", "create"]),
       ...keysFor(["mobile-app"], ["view", "create"]),
       ...keysFor(["insights"]),
+      // Leave (P2-09): self-service for whoever here has an employee record.
+      ...keysFor(["leave"], ["view", "request"]),
+      // Employee search (P2-15): the picker on the leave screen this role holds view/request on.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
   {
@@ -178,12 +210,22 @@ export const ROLE_DEFS = (): RoleDef[] => [
           "company-settings",
           "payroll",
           "payroll-run",
+          "leave",
           "profile",
           "year-end",
         ],
         ["view"]
       ),
       ...keysFor(["audit-reports"], ["view", "export"]),
+      // The inspector's registers (P2-03): the auditor already reads payroll, and these are
+      // exactly the reports a labour inspector asks for. Export stays with the owner, like every
+      // other export outside audit-reports — the auditor role is read-only by design (see the
+      // audit-trail suite's "no non-view keys beyond audit-reports.export" check).
+      ...keysFor(["registers"], ["view"]),
+      // Fines and deductions (P2-13): read-only, same shape as the registers above.
+      ...keysFor(["fines"], ["view"]),
+      // Employee search (P2-15): the picker used wherever this role reads leave/fines/payroll.
+      ...keysFor(["employees"], ["search"]),
     ],
   },
 ];

@@ -5,6 +5,7 @@ import {
   UpdateProductionWastageInput,
 } from "./production-wastage.validation";
 import { byCode } from "../../lib/prisma";
+import { valuationService } from "../costing/valuation.service";
 
 class ProductionWastageService {
   private async enrichWithApprovedByUser(wastage: any) {
@@ -347,6 +348,26 @@ class ProductionWastageService {
         },
       });
 
+      // Values the material wasted as an outward movement at the running average — a wastage is
+      // an issue that never comes back, not a receipt at a made-up rate (P2-04).
+      if (existing.rawMaterialId) {
+        await valuationService.record(
+          {
+            itemType: "RAW_MATERIAL",
+            itemId: existing.rawMaterialId,
+            storeId: existing.storeId ?? null,
+            movedOn: existing.wastageDate,
+            kind: "SCRAP",
+            quantity: Number(existing.quantity),
+            refDocType: "PRODUCTION_WASTAGE",
+            refDocId: String(existing.id),
+            narration: `Wastage ${existing.wastageNo}`,
+          },
+          { userId },
+          tx
+        );
+      }
+
       // 2. Increase Stock for Target Wastage Product
       if (existing.targetWastageProductId) {
         const targetProduct = await tx.rawMaterial.findUnique({
@@ -365,9 +386,10 @@ class ProductionWastageService {
           });
 
           // 3. Record Stock Ledger Transaction
+          const wastageStoreId = existing.storeId || targetProduct.storeId || "STORE-001"; // Fallback if no store
           await tx.rawMaterialTransaction.create({
             data: {
-              storeId: existing.storeId || targetProduct.storeId || "STORE-001", // Fallback if no store
+              storeId: wastageStoreId,
               rawMaterialId: existing.targetWastageProductId,
               txnType: "WASTAGE_RECEIPT",
               qty: qty,
@@ -375,6 +397,57 @@ class ProductionWastageService {
               productionOrderId: existing.productionOrderId,
             },
           });
+
+          // No estimate on the log to receive it at? Fall back to what the recovered material is
+          // actually worth: its own running weighted average, or — for a material that has never
+          // been valued — its master rate. Either way the entry's narration says which one it
+          // used, so "why is this rate what it is" never needs a trip back to the wastage log.
+          let rate: number;
+          let rateSource: string;
+          if (existing.estimatedValue) {
+            rate = Number(existing.estimatedValue) / Number(existing.quantity);
+            rateSource = "the log's own estimate";
+          } else {
+            const hasValuation = await tx.stockValuationEntry.findFirst({
+              where: {
+                itemType: "RAW_MATERIAL",
+                itemId: existing.targetWastageProductId,
+                storeId: wastageStoreId,
+              },
+              select: { id: true },
+            });
+            if (hasValuation) {
+              const balance = await valuationService.balanceAt(
+                "RAW_MATERIAL",
+                existing.targetWastageProductId,
+                wastageStoreId,
+                undefined,
+                tx
+              );
+              rate = balance.avgRate;
+              rateSource = "its current weighted average";
+            } else {
+              rate = Number(targetProduct.rate ?? 0);
+              rateSource = "its master rate (never valued before)";
+            }
+          }
+
+          await valuationService.record(
+            {
+              itemType: "RAW_MATERIAL",
+              itemId: existing.targetWastageProductId,
+              storeId: wastageStoreId,
+              movedOn: existing.wastageDate,
+              kind: "RECEIPT",
+              quantity: Number(qty),
+              rate,
+              refDocType: "PRODUCTION_WASTAGE",
+              refDocId: String(existing.id),
+              narration: `Recovered from wastage ${existing.wastageNo}, received at ${rateSource}`,
+            },
+            { userId },
+            tx
+          );
         }
       }
 

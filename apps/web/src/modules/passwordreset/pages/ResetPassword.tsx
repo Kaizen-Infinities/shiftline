@@ -1,75 +1,84 @@
 import { useNavigate } from "react-router-dom";
-import { FaLock } from "react-icons/fa";
+import { KeyRound } from "lucide-react";
+import AuthLayout from "../../../components/layout/AuthLayout";
 
 const ResetPassword = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
-    return (
-        <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-slate-50 to-slate-100">
-            <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.06)] border border-slate-200">
-                <div className="p-8 sm:p-10 flex flex-col justify-center">
-                    
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <FaLock className="text-2xl text-primary" />
-                        </div>
-                        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2 tracking-tight">
-                            Reset Password
-                        </h2>
-                        <p className="text-slate-500 text-sm sm:text-base">
-                            Enter your new password below.
-                        </p>
-                    </div>
+  return (
+    <AuthLayout
+      headline={
+        <>
+          A fresh <strong>start</strong>
+        </>
+      }
+      subline="Pick a new password you have not used on Shiftline before."
+    >
+      <div className="sl-tile w-full max-w-[420px] !rounded-[24px] p-7 sm:p-9">
+        <span className="sl-icon-tile mb-5">
+          <KeyRound size={20} aria-hidden />
+        </span>
+        <h2 className="sl-h1">Reset password</h2>
+        <p className="sl-muted mt-1.5 text-sm">Enter your new password below.</p>
 
-                    {/* Form */}
-                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                New Password
-                            </label>
-                            <input
-                                type="password"
-                                placeholder="Enter new password"
-                                required
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary focus:bg-white transition-all duration-200 font-medium"
-                            />
-                        </div>
+        <form className="mt-7 space-y-5" onSubmit={(e) => e.preventDefault()} noValidate>
+          <div>
+            <label
+              htmlFor="reset-password"
+              className="mb-1.5 block text-sm font-semibold text-ink-muted"
+            >
+              New Password
+            </label>
+            <input
+              id="reset-password"
+              name="password"
+              type="password"
+              placeholder="Enter new password"
+              required
+              autoComplete="new-password"
+              className="sl-input h-12"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="reset-confirm"
+              className="mb-1.5 block text-sm font-semibold text-ink-muted"
+            >
+              Confirm Password
+            </label>
+            <input
+              id="reset-confirm"
+              name="confirmPassword"
+              type="password"
+              placeholder="Confirm new password"
+              required
+              autoComplete="new-password"
+              className="sl-input h-12"
+            />
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              className="sl-cta sl-cta-lg w-full"
+              onClick={() => navigate("/login")}
+            >
+              Reset &amp; sign in
+            </button>
+          </div>
+        </form>
 
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Confirm Password
-                            </label>
-                            <input
-                                type="password"
-                                placeholder="Confirm new password"
-                                required
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary focus:bg-white transition-all duration-200 font-medium"
-                            />
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => navigate("/login")}
-                            className="w-full mt-6 flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/30 hover:shadow-primary/40 hover:-translate-y-[1px] active:scale-[0.98] transition-all duration-200"
-                        >
-                            <span>RESET & SIGN IN</span>
-                        </button>
-                    </form>
-                    
-                    <div className="text-center mt-6">
-                        <button
-                            type="button"
-                            onClick={() => navigate("/login")}
-                            className="text-sm font-semibold text-slate-500 hover:text-primary transition-colors focus:outline-none"
-                        >
-                            Back to Login
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+            className="rounded-sm text-sm font-semibold text-accent hover:underline"
+          >
+            Back to sign in
+          </button>
         </div>
-    );
+      </div>
+    </AuthLayout>
+  );
 };
 
 export default ResetPassword;

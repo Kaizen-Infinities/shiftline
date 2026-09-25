@@ -9,6 +9,7 @@ export interface TdsSectionRow {
   actCode: string | null;
   name: string;
   isTcs: boolean;
+  ledgerCode: string | null;
   rateCompany: number;
   rateIndividual: number;
   rateNoPan: number;
@@ -77,11 +78,29 @@ export interface TdsReturnView {
   filing: { id: string; status: string } | null;
 }
 
+export interface TdsRateDecision {
+  rate: number;
+  reason: string;
+  base: number;
+  belowThreshold: boolean;
+}
+
 const p = API_PATHS.tds;
 
 export const tdsService = {
   sections: async (all = false): Promise<TdsSectionRow[]> =>
     (await apiClient.get(p.sections, { params: { all } })).data.data,
+  /** What would be deducted, without deducting it (P2-05) — the GRN form's live preview line. */
+  preview: async (body: {
+    sectionCode: string;
+    supplierId?: number | null;
+    deducteePan?: string | null;
+    deducteeType?:
+      "COMPANY" | "INDIVIDUAL_HUF" | "FIRM" | "AOP_BOI" | "LOCAL_AUTHORITY" | "NON_RESIDENT";
+    higherRate?: boolean;
+    amount: number;
+    on?: string;
+  }): Promise<TdsRateDecision> => (await apiClient.post(p.preview, body)).data.data,
   saveSection: async (body: Partial<TdsSectionRow> & { code: string; name: string }) =>
     (await apiClient.post(p.sections, body)).data.data,
   deductions: async (

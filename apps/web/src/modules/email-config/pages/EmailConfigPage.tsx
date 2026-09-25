@@ -176,8 +176,7 @@ const EmailConfigPage: React.FC = () => {
   return (
     <div className="max-w-[1024px] xl:mr-auto">
       <form onSubmit={handleSaveConfig} noValidate>
-        <div className="bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-
+        <div className="bg-card rounded-sm border border-line overflow-hidden">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
             <h2 className="text-xl font-bold text-ink">Email Configuration</h2>
@@ -278,7 +277,9 @@ const EmailConfigPage: React.FC = () => {
 
           {/* Section 2: Send Test Email */}
           <div className="border-t border-line p-5 lg:p-6 space-y-5">
-            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">Send Test Email</h6>
+            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">
+              Send Test Email
+            </h6>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
               <TextInput
@@ -323,7 +324,6 @@ const EmailConfigPage: React.FC = () => {
               />
             </div>
           </div>
-
         </div>
       </form>
     </div>

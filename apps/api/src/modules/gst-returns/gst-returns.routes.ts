@@ -13,6 +13,8 @@ import { gstr2bService } from "./gstr2b.service";
 import { imsService } from "./ims.service";
 import { gstr9Service } from "./gstr9.service";
 import { complianceService } from "./compliance.service";
+import { gstr2bSettingsSchema, gstr2bSettingsService } from "./gstr2b-settings.service";
+import { followUpBody, supplierFollowUpService } from "./supplier-followup.service";
 
 /** /api/gst-returns (P1-13): returns computed from the books, per GSTIN and period. */
 const router = Router();
@@ -198,6 +200,55 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const q = periodQuery.parse(req.body);
     res.json(new ApiResponse("GSTR-2B pulled", await gstr2bService.pull(q.period, q.gstin)));
+  })
+);
+
+/** Per-tenant matching tolerances (P2-10), read by `reconcile` in place of the constant. */
+router.get(
+  "/gstr2b/settings",
+  requirePermission("gst-returns.view"),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(new ApiResponse("GSTR-2B settings", await gstr2bSettingsService.get()));
+  })
+);
+router.put(
+  "/gstr2b/settings",
+  requirePermission("gst-returns.prepare"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = gstr2bSettingsSchema.parse(req.body);
+    res.json(
+      new ApiResponse(
+        "GSTR-2B settings saved",
+        await gstr2bSettingsService.update(body, actorOf(req))
+      )
+    );
+  })
+);
+
+/** Chasing a supplier over what the reconciliation named (P2-10). */
+router.post(
+  "/gstr2b/:period/follow-up/preview",
+  requirePermission("gst-returns.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const period = assertMonth(String(req.params.period));
+    const body = followUpBody.parse(req.body);
+    res.json(
+      new ApiResponse("Follow-up preview", await supplierFollowUpService.preview(period, body))
+    );
+  })
+);
+router.post(
+  "/gstr2b/:period/follow-up",
+  requirePermission("gst-returns.prepare"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const period = assertMonth(String(req.params.period));
+    const body = followUpBody.parse(req.body);
+    res.json(
+      new ApiResponse(
+        "Follow-up sent",
+        await supplierFollowUpService.send(period, body, actorOf(req))
+      )
+    );
   })
 );
 

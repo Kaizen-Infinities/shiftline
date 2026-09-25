@@ -2,6 +2,17 @@ import { requireTenantId } from "../../lib/tenant-context";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
+import {
+  esiSplit,
+  pfSplit,
+  professionalTax as calcProfessionalTax,
+  salaryTax as calcSalaryTax,
+  type PtSlab,
+} from "./statutory.calc";
+import { overtimeForWeek, DAILY_HOURS } from "./labour.calc";
+import { statutoryPayrollService } from "./statutory.service";
+
+const n2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
 /** Convert a period string (YYYY-MM or YYYY-Www) to a date range { start, end } in YYYY-MM-DD */
 function periodToDateRange(period: string): { start: string; end: string } {
@@ -225,7 +236,16 @@ export function getEffectivePayrollConfig(emp: any) {
   };
 }
 
-function computeResult(
+/** What computeResult needs from the statutory and Labour Code calculators, one per run. */
+interface StatutoryContext {
+  periodKey: string;
+  month: number;
+  companyStateCode: string | null;
+  rulesByState: Map<string, { ptEnabled: boolean; ptSlabs: PtSlab[] }>;
+  declarationByEmployee: Map<string, { regime: "OLD" | "NEW"; deductions: number }>;
+}
+
+async function computeResult(
   emp: EmployeePayrollData,
   att: AttendanceInput,
   settings: PayrollSettings,
@@ -234,7 +254,9 @@ function computeResult(
   otherDeductionAmount = 0,
   salaryAdvanceOverride = 0,
   runType: "MONTHLY" | "WEEKLY" = "MONTHLY",
-  monthCalendarDays = 0 // actual month's days (28-31) for MONTHLY_BY_CALENDAR formula
+  monthCalendarDays = 0, // actual month's days (28-31) for MONTHLY_BY_CALENDAR formula
+  statutoryCtx?: StatutoryContext,
+  periodStart?: string // "YYYY-MM-DD", the run's first attended date — for the OT quarterly cap (P2-16)
 ) {
   const pc = getEffectivePayrollConfig(emp);
   if (!pc) return null;
@@ -314,15 +336,47 @@ function computeResult(
   earnedSalary = Math.max(0, earnedSalary);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 4 — OT Pay  (otHours × ratePerHour)
+  // STEP 4 — OT Pay, via the Labour Code calculator (P2-02)
+  //
+  // The Codes pay overtime at double the ordinary rate, not at whatever per-hour figure payroll
+  // settings carry — so this delegates to labour.calc instead of multiplying otHours by a
+  // configured rate. The attendance-recorded OT hours are treated as the excess beyond a single
+  // nine-hour day, which is exactly what the daily trigger measures.
+  //
+  // The quarterly cap (P2-16): `overtimeForWeek` needs this quarter's hours already banked
+  // before this run to compute a real `hoursOverCap`, rather than one measured against a blank
+  // quarter — so the running total is read first and, once this run's hours are known, banked
+  // back for the next run (and the next quarter's overtime register) to build on.
   // ─────────────────────────────────────────────────────────────────────────────
   const otEnabled = settings.otEnabled !== false;
   let otPay = 0;
   let otH = 0;
+  let otHoursOverCap = 0;
   const effectiveOtHours = att.otHours;
-  if (otEnabled && effectiveOtHours > 0 && settings.otRatePerHour > 0) {
-    otH = effectiveOtHours;
-    otPay = otH * settings.otRatePerHour;
+  if (otEnabled && effectiveOtHours > 0) {
+    const workingHoursPerDay =
+      settings.defaultWorkingHoursPerDay > 0 ? settings.defaultWorkingHoursPerDay : 8;
+    const ordinaryHourlyRate = workingHoursPerDay > 0 ? dailyRate / workingHoursPerDay : 0;
+    if (ordinaryHourlyRate > 0) {
+      const quarterToDateHours = periodStart
+        ? await statutoryPayrollService.peekOvertimeQuarterHours(emp.id, periodStart)
+        : 0;
+      const ot = overtimeForWeek({
+        dailyHours: [DAILY_HOURS + effectiveOtHours],
+        hourlyRate: ordinaryHourlyRate,
+        quarterToDateHours,
+      });
+      otH = ot.overtimeHours;
+      otPay = ot.amount;
+      otHoursOverCap = ot.hoursOverCap;
+      if (periodStart && otH > 0) {
+        await statutoryPayrollService.recordOvertimeQuarterHours(
+          emp.id,
+          periodStart,
+          quarterToDateHours + otH
+        );
+      }
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -331,7 +385,12 @@ function computeResult(
   const grossSalary = earnedSalary + otPay;
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 6 — PF (Provident Fund)
+  // STEP 6 — PF (Provident Fund), via statutory.calc's pfSplit (P2-02)
+  //
+  // The EPFO's 12% is not one number: 8.33% to the pension scheme on wages capped at ₹15,000,
+  // the balance to the provident fund, 0.50% EDLI and 0.50% admin on top. Delegating removes the
+  // old flat-12%-both-sides arithmetic, which is exactly what P1-16 already computes correctly
+  // for the filings — this is the same split, now feeding net pay too.
   // ─────────────────────────────────────────────────────────────────────────────
   const isPfApp = pc.pfApplicable ?? (emp as any).pfApplicable ?? true;
   const hasPf = isPfApp && (settings.pfEnabled ?? true);
@@ -339,61 +398,75 @@ function computeResult(
     employeePf = 0,
     employerPf = 0;
   if (hasPf) {
-    const maxPfCap = Number(settings.maxPfWage) > 0 ? Number(settings.maxPfWage) : 15000;
     const baseWage =
       settings.pfWageFormula === "GROSS"
         ? grossSalary
         : basicSalary > 0
           ? basicSalary
           : Math.round(grossSalary * 0.5);
-    pfWage = Math.min(baseWage, maxPfCap);
-    const empPfRate =
-      Number(settings.employeePfPercent) > 0 ? Number(settings.employeePfPercent) : 12;
-    const emrPfRate =
-      Number(settings.employerPfPercent) > 0 ? Number(settings.employerPfPercent) : 12;
-    employeePf = Math.round((pfWage * empPfRate) / 100);
-    employerPf = Math.round((pfWage * emrPfRate) / 100);
+    const pf = pfSplit({ pfWage: baseWage });
+    pfWage = pf.pfWage;
+    employeePf = pf.epfEmployee;
+    // The employer's total cost of the month: pension, PF, EDLI and admin together — a cost, not
+    // a deduction, which is why it is reported rather than netted off anyone's pay.
+    employerPf = pf.employerTotal;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 7 — ESI
-  // ESI applies only when gross ≤ max ESI salary (₹21,000 by default).
+  // STEP 7 — ESI, via statutory.calc's esiSplit (P2-02)
+  //
+  // Eligibility for a MONTHLY run comes from the contribution half-year register
+  // (`resolveEsiEligibility`): fixed at the period's first month and left alone even if the
+  // employee's wage later crosses the limit. A run with no statutory context (or a WEEKLY run,
+  // which the register does not cover) falls back to the plain wage-limit test.
   // ─────────────────────────────────────────────────────────────────────────────
   const isEsiApp = pc.esiApplicable ?? (emp as any).esiApplicable ?? true;
-  const maxEsiCap = Number(settings.maxEsiSalary) > 0 ? Number(settings.maxEsiSalary) : 21000;
-  const hasEsi = isEsiApp && (settings.esiEnabled ?? true) && grossSalary <= maxEsiCap;
-  let employeeEsi = 0,
-    employerEsi = 0;
-  if (hasEsi) {
-    const empEsiRate =
-      Number(settings.employeeEsiPercent) > 0 ? Number(settings.employeeEsiPercent) : 0.75;
-    const emrEsiRate =
-      Number(settings.employerEsiPercent) > 0 ? Number(settings.employerEsiPercent) : 3.25;
-    employeeEsi = Math.round((grossSalary * empEsiRate) / 100);
-    employerEsi = Math.round((grossSalary * emrEsiRate) / 100);
+  const esiEnabled = isEsiApp && (settings.esiEnabled ?? true);
+  let hasEsi: boolean;
+  if (statutoryCtx && runType === "MONTHLY") {
+    hasEsi = await statutoryPayrollService.resolveEsiEligibility(
+      emp.id,
+      statutoryCtx.periodKey,
+      grossSalary,
+      esiEnabled
+    );
+  } else {
+    const maxEsiCap = Number(settings.maxEsiSalary) > 0 ? Number(settings.maxEsiSalary) : 21000;
+    hasEsi = esiEnabled && grossSalary <= maxEsiCap;
   }
+  const esi = esiSplit(grossSalary, hasEsi);
+  const employeeEsi = esi.esiEmployee;
+  const employerEsi = esi.esiEmployer;
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 8 — Professional Tax
-  // PT is a monthly statutory deduction. Skip for WEEKLY runs to avoid applying
-  // it every week — it will be collected once during the monthly payroll run.
-  // Company-wide setting is the primary gate: if professionalTaxEnabled = false,
-  // PT is NEVER deducted regardless of any per-employee flag.
-  // Slab is applied to monthlySalary (not earned/gross of this period).
+  // STEP 8 — Professional tax and salary TDS, via statutory.calc (P2-02)
+  //
+  // PT follows the employee's own work state, not the company's, and its slab — never a flat
+  // company-wide figure. Salary TDS is a twelfth of the year's projected liability on the
+  // employee's declared regime. Both are monthly-only: a WEEKLY run leaves them for the monthly
+  // run to collect once.
   // ─────────────────────────────────────────────────────────────────────────────
   let professionalTax = 0;
+  let salaryTds = 0;
   const isPtApp = (emp as any).professionalTax ?? (pc as any)?.professionalTax ?? false;
-  if ((settings.professionalTaxEnabled || isPtApp) && runType === "MONTHLY") {
-    const ptBasis = monthlySalary; // always use monthly salary as PT slab basis
-    if (Number(settings.professionalTaxAmount) > 0) {
-      professionalTax = Number(settings.professionalTaxAmount);
-    } else {
-      if (ptBasis > 75000) professionalTax = 1083;
-      else if (ptBasis > 60000) professionalTax = 850;
-      else if (ptBasis > 45000) professionalTax = 600;
-      else if (ptBasis > 30000) professionalTax = 350;
-      else if (ptBasis > 21000) professionalTax = 208;
-      else professionalTax = 0;
+  const isTdsApp = (emp as any).tdsApplicable ?? false;
+  if (statutoryCtx && runType === "MONTHLY") {
+    if (isPtApp) {
+      const stateCode = (emp as any).workStateCode ?? statutoryCtx.companyStateCode ?? null;
+      const rule = stateCode ? statutoryCtx.rulesByState.get(stateCode) : undefined;
+      if (rule && rule.ptEnabled) {
+        professionalTax = calcProfessionalTax(grossSalary, rule.ptSlabs, statutoryCtx.month);
+      }
+    }
+    if (isTdsApp) {
+      const declaration = statutoryCtx.declarationByEmployee.get(String(emp.id));
+      const tax = calcSalaryTax({
+        annualGross: n2(grossSalary * 12),
+        regime: declaration?.regime ?? "NEW",
+        deductions: declaration?.deductions ?? 0,
+        professionalTaxPaid: n2(professionalTax * 12),
+      });
+      salaryTds = n2(tax.monthlyDeduction);
     }
   }
 
@@ -441,6 +514,7 @@ function computeResult(
     employeePf +
     employeeEsi +
     professionalTax +
+    salaryTds +
     lateEntryDeduction +
     permissionDeduction +
     salaryAdvanceOverride +
@@ -490,6 +564,7 @@ function computeResult(
     grossSalary,
     otHours: otH || att.otHours,
     otPay,
+    otHoursOverCap,
     pfWage,
     employeePf,
     employerPf,
@@ -498,6 +573,7 @@ function computeResult(
     pfApplicable: hasPf,
     esiApplicable: hasEsi,
     professionalTax,
+    salaryTds,
     lateEntryDeduction,
     lateMinutes: att.lateMinutes,
     permissionDeduction,
@@ -927,6 +1003,28 @@ class PayrollService {
       permanentDeductionMap.set(row.employeeId, existing);
     }
 
+    // 3c. Fines and deductions (P2-13): approved, not-yet-recovered EmployeeFineDeduction rows
+    // for this exact wage period feed into "other deductions" the same way a permanent deduction
+    // does. Only rows still unstamped are picked up, so a period already recovered by an earlier
+    // run for it is never recovered twice; the ids are stamped with the resulting PayrollResult
+    // id inside the same transaction that creates the results, below.
+    const fineDeductionRows = await prisma.employeeFineDeduction.findMany({
+      where: {
+        employeeId: { in: employees.map((e) => e.id) },
+        status: "APPROVED",
+        wagePeriod: opts.period,
+        recoveredInPayrollResultId: null,
+      },
+      select: { id: true, employeeId: true, amount: true },
+    });
+    const fineDeductionMap = new Map<bigint, { total: number; ids: string[] }>();
+    for (const row of fineDeductionRows) {
+      const existing = fineDeductionMap.get(row.employeeId) ?? { total: 0, ids: [] };
+      existing.total = n2(existing.total + Number(row.amount));
+      existing.ids.push(row.id);
+      fineDeductionMap.set(row.employeeId, existing);
+    }
+
     // Load salary advances disbursed within THIS period only.
     // IMPORTANT: ISO period 2026-W31 = July 27–Aug 2 in ISO calendar, but the user's
     // "Week 1 Aug 1–7" is saved with period='2026-W31' because Aug 1 (Sat) falls in W31.
@@ -1001,31 +1099,96 @@ class PayrollService {
       }
     }
 
+    // 3b. Statutory context (P2-02): PT/TDS need the state rules and this year's declarations,
+    // ESI needs the contribution-period register — all worked out once per run, not per employee.
+    // Monthly only: PT, salary TDS and the ESI half-year register are monthly concepts, and a
+    // WEEKLY run leaves them for the monthly run that follows to collect once.
+    let statutoryCtx: StatutoryContext | undefined;
+    let missingTaxDeclarations: Array<{
+      employeeId: string;
+      employeeCode: string;
+      employeeName: string;
+    }> = [];
+    if (opts.type === "MONTHLY") {
+      const periodKey = /^\d{4}-\d{2}$/.test(opts.period) ? opts.period : periodStart.slice(0, 7);
+      const monthMatch = /^\d{4}-(\d{2})$/.exec(periodKey);
+      const month = monthMatch ? Number(monthMatch[1]) : new Date(periodStart).getMonth() + 1;
+      const yearNum = Number(periodKey.slice(0, 4));
+      const fyStartYear = month >= 4 ? yearNum : yearNum - 1;
+      const fyCode = `${fyStartYear}-${String((fyStartYear + 1) % 100).padStart(2, "0")}`;
+
+      const company = await prisma.company.findFirst({ where: { id: opts.companyId } });
+      const rules = await statutoryPayrollService.rules(true);
+      const rulesByState = new Map(
+        rules.map((r) => [
+          r.stateCode,
+          { ptEnabled: r.ptEnabled, ptSlabs: r.ptSlabs as unknown as PtSlab[] },
+        ])
+      );
+      const declarations = await prisma.employeeTaxDeclaration.findMany({
+        where: { fyCode, employeeId: { in: employees.map((e) => e.id) } },
+      });
+      const declarationByEmployee = new Map(
+        declarations.map((d) => [
+          String(d.employeeId),
+          {
+            regime: d.regime as "OLD" | "NEW",
+            deductions: Object.values((d.declarations as Record<string, number>) ?? {}).reduce(
+              (s, v) => s + (Number(v) || 0),
+              0
+            ),
+          },
+        ])
+      );
+      statutoryCtx = {
+        periodKey,
+        month,
+        companyStateCode: company?.stateCode ?? null,
+        rulesByState,
+        declarationByEmployee,
+      };
+
+      // Tax declaration reminder (P2-16): every employee in this run with nothing on file for
+      // the financial year, surfaced on the response so the run screen can nudge them — the same
+      // list the monthly reminder job notifies, kept in sync by reading the same table.
+      missingTaxDeclarations = (employees as EmployeePayrollData[])
+        .filter((e) => !declarationByEmployee.has(String(e.id)))
+        .map((e) => ({
+          employeeId: e.id.toString(),
+          employeeCode: e.empCode,
+          employeeName: e.fullName,
+        }));
+    }
+
     // 4. Emit start
     const runCode = `PR-${opts.period}-${Date.now().toString().slice(-5)}`;
     emitToTenant("payroll:computing", { runCode, period: opts.period, total: employees.length });
 
     // 5. Compute per employee with progress
-    const results: ReturnType<typeof computeResult>[] = [];
+    const results: Awaited<ReturnType<typeof computeResult>>[] = [];
     for (let i = 0; i < employees.length; i++) {
       const emp = employees[i] as EmployeePayrollData;
       const attInput = opts.attendance.find((a) => BigInt(a.employeeId) === emp.id);
       if (!attInput) continue;
 
       const permDed = permanentDeductionMap.get(emp.id) ?? { loan: 0, other: 0 };
+      const fineDed = fineDeductionMap.get(emp.id);
+      const otherWithFines = n2(permDed.other + (fineDed?.total ?? 0));
       const pendingAdvance = salaryAdvanceMap.get(emp.id) ?? 0;
       const advanceToUse =
         attInput.advance !== undefined ? Number(attInput.advance) : pendingAdvance;
-      const result = computeResult(
+      const result = await computeResult(
         emp,
         attInput,
         settings,
         opts.calendarDays,
         permDed.loan,
-        permDed.other,
+        otherWithFines,
         advanceToUse,
         opts.type,
-        monthCalendarDays
+        monthCalendarDays,
+        statutoryCtx,
+        periodStart
       );
       if (result) results.push(result);
 
@@ -1095,6 +1258,7 @@ class PayrollService {
           grossSalary: r!.grossSalary,
           otHours: r!.otHours,
           otPay: r!.otPay,
+          otHoursOverCap: r!.otHoursOverCap,
           pfWage: r!.pfWage,
           employeePf: r!.employeePf,
           employerPf: r!.employerPf,
@@ -1103,6 +1267,7 @@ class PayrollService {
           pfApplicable: r!.pfApplicable,
           esiApplicable: r!.esiApplicable,
           professionalTax: r!.professionalTax,
+          salaryTds: r!.salaryTds,
           lateEntryDeduction: r!.lateEntryDeduction,
           permissionDeduction: r!.permissionDeduction,
           salaryAdvance: r!.salaryAdvance,
@@ -1121,6 +1286,19 @@ class PayrollService {
         where: { id: newRun.id },
         include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
       });
+
+      // Stamp every fine/deduction this run's "other deductions" figure used with the resulting
+      // PayrollResult id, so a later run for the same period never picks the same row up again.
+      if (dbRun) {
+        for (const dbRes of dbRun.results) {
+          const fineDed = fineDeductionMap.get(dbRes.employeeId);
+          if (!fineDed || fineDed.ids.length === 0) continue;
+          await tx.employeeFineDeduction.updateMany({
+            where: { id: { in: fineDed.ids } },
+            data: { recoveredInPayrollResultId: dbRes.id, recoveredAt: new Date() },
+          });
+        }
+      }
 
       if (dbRun && dbRun.results) {
         dbRun.results = dbRun.results.map((dbRes) => {
@@ -1151,7 +1329,7 @@ class PayrollService {
       variances: results.filter((r) => r!.hasVariance).length,
     });
 
-    return run;
+    return run ? { ...run, missingTaxDeclarations } : run;
   }
 
   async approveRun(id: number, userId: string) {
@@ -1247,11 +1425,27 @@ class PayrollService {
   }
 
   async deleteRun(id: number) {
-    const run = await prisma.payrollRun.findUnique({ where: { id } });
+    const run = await prisma.payrollRun.findUnique({
+      where: { id },
+      include: { results: { select: { id: true } } },
+    });
     if (!run) throw new ApiError(404, "Payroll run not found");
     if (run.status !== "DRAFT")
       throw new ApiError(400, "Cannot delete an approved or locked payroll run");
-    await prisma.payrollRun.delete({ where: { id } });
+
+    const resultIds = run.results.map((r) => r.id);
+    await prisma.$transaction(async (tx) => {
+      // Release any fine/deduction this DRAFT run had claimed (P2-13), so a following run for
+      // the same period can pick it up again — otherwise it would be stranded, recovered by
+      // nothing, forever.
+      if (resultIds.length > 0) {
+        await tx.employeeFineDeduction.updateMany({
+          where: { recoveredInPayrollResultId: { in: resultIds } },
+          data: { recoveredInPayrollResultId: null, recoveredAt: null },
+        });
+      }
+      await tx.payrollRun.delete({ where: { id } });
+    });
     emitToTenant("payroll:deleted", { runId: id });
   }
 
@@ -1398,6 +1592,7 @@ class PayrollService {
         pfApplicable: result.pfApplicable,
         esiApplicable: result.esiApplicable,
         professionalTax: Number(result.professionalTax),
+        salaryTds: Number(result.salaryTds),
         lateEntryDeduction: Number(result.lateEntryDeduction),
         permissionDeduction: Number(result.permissionDeduction),
         salaryAdvance: Number(result.salaryAdvance),

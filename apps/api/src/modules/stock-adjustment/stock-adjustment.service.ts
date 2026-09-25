@@ -1,15 +1,22 @@
 import { prisma } from "../../config/prisma";
+import type { Db } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
 import Decimal from "decimal.js";
 import { byCode } from "../../lib/prisma";
+import { valuationService } from "../costing/valuation.service";
 
 export class StockAdjustmentService {
-  static async getNextAdjustmentNumber(): Promise<string> {
+  /**
+   * Inside a Prisma interactive transaction, callers must pass `tx` here — the outer `prisma`
+   * client does not carry that transaction's tenant session settings (CLAUDE.md), so it would
+   * see no existing rows and always propose sequence one.
+   */
+  static async getNextAdjustmentNumber(db: Db = prisma): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `ADJ-${year}-`;
 
-    const last = await prisma.stockAdjustment.findFirst({
+    const last = await db.stockAdjustment.findFirst({
       where: { adjustmentNumber: { startsWith: prefix } },
       orderBy: { adjustmentNumber: "desc" },
       select: { adjustmentNumber: true },
@@ -62,6 +69,7 @@ export class StockAdjustmentService {
             adjustedQty: item.adjustedQty,
             difference: item.difference,
             remarks: item.remarks,
+            unitCost: item.unitCost ?? null,
           })),
         },
       },
@@ -311,6 +319,7 @@ export class StockAdjustmentService {
             adjustedQty: item.adjustedQty,
             difference: item.difference,
             remarks: item.remarks,
+            unitCost: item.unitCost ?? null,
           })),
         });
       }
@@ -386,6 +395,30 @@ export class StockAdjustmentService {
                 remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
               },
             });
+
+            // A positive adjustment values in at what was entered (or the item's own rate when
+            // nothing was entered); a negative one always leaves at the running average — the
+            // same rule as any other issue (P2-04).
+            const adjQty = Math.abs(item.difference.toNumber());
+            await valuationService.record(
+              {
+                itemType: "RAW_MATERIAL",
+                itemId: item.rawMaterialId,
+                storeId: item.storeId,
+                movedOn: existing.adjustmentDate,
+                kind: item.difference.toNumber() > 0 ? "RECEIPT" : "ADJUSTMENT",
+                quantity: adjQty,
+                rate:
+                  item.difference.toNumber() > 0
+                    ? Number(item.unitCost ?? rm.rate ?? 0)
+                    : undefined,
+                refDocType: "STOCK_ADJUSTMENT",
+                refDocId: String(existing.id),
+                narration: `Adjustment ${existing.adjustmentNumber}`,
+              },
+              { userId },
+              tx
+            );
           } else if (item.itemType === "FINISHED_GOODS" && item.productItemId) {
             // Find or create FG stock
             const fgStock = await tx.finishedGoodsStock.findUnique({

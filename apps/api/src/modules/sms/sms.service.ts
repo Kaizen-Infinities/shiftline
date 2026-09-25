@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { prisma } from "../../config/prisma";
+import { isJobsStarted, QUEUES, sendTenantJob } from "../../lib/jobs";
 import { logger } from "../../lib/logger";
 import { getRequestId } from "../../lib/request-context";
 import { requireTenantId } from "../../lib/tenant-context";
@@ -304,6 +305,130 @@ class SmsService {
         data: { status: "FAILED", error: detail.slice(0, 255) },
       });
       logger.warn({ templateCode: template.code }, "sms refused by the gateway");
+      throw new ApiError(502, "The SMS gateway refused the message", "SMS_REFUSED");
+    }
+  }
+
+  /**
+   * Send against a stored template on the queue rather than inline (P2-01). Every refusal that
+   * `sendTemplate` makes before writing the row is made here too, so a caller sees the same
+   * errors; the difference is only what happens after the row exists — a job carries it to the
+   * provider instead of this call doing it, so a slow gateway never slows the caller.
+   *
+   * Not for the OTP path: the rendered body with the real code lives only in this call's local
+   * variable and is deliberately never written to the row (`sms.calc.ts`'s masking) — there is
+   * nothing for a later job to send. `otp.service.ts` keeps calling `sendTemplate` directly.
+   */
+  async sendTemplateQueued(input: {
+    to: string;
+    templateCode: string;
+    values?: Record<string, string | number>;
+    purpose?: string;
+  }) {
+    const mobile = normaliseMobile(input.to);
+    if (!mobile) throw new ApiError(400, "That is not an Indian mobile number", "BAD_MOBILE");
+
+    const { enabled } = await this.credentials();
+    if (!enabled) throw new ApiError(409, "SMS is off; turn it on in settings first", "SMS_OFF");
+
+    await this.ensureDefaultTemplates();
+    const template = await prisma.smsTemplate.findFirst({
+      where: { code: input.templateCode, isActive: true },
+    });
+    if (!template) throw new ApiError(404, "No such SMS template", "NO_TEMPLATE");
+
+    const config = await this.ensureConfig();
+    if ((await this.sentToday()) >= config.dailyCap) {
+      throw new ApiError(429, "The day's SMS cap has been reached", "DAILY_CAP");
+    }
+
+    let body: string;
+    try {
+      body = renderTemplate(template.body, input.values ?? {});
+    } catch (error) {
+      if (error instanceof TemplateError) throw new ApiError(400, error.message, error.code);
+      throw error;
+    }
+
+    const { segments } = segmentsFor(body);
+    const row = await prisma.smsMessage.create({
+      data: {
+        toMobile: mobile,
+        templateCode: template.code,
+        dltTemplateId: template.dltTemplateId,
+        body: body.slice(0, 1000),
+        segments,
+        status: "QUEUED",
+        purpose: input.purpose?.slice(0, 30) ?? null,
+        requestId: getRequestId()?.slice(0, 64) ?? null,
+      },
+    });
+
+    const companyId = requireTenantId();
+    if (isJobsStarted()) {
+      await sendTenantJob(
+        QUEUES.SMS_SEND,
+        { companyId, messageId: row.id },
+        {
+          singletonKey: `${companyId}:${row.id}`,
+          retryLimit: 5,
+          retryDelay: 30,
+          retryBackoff: true,
+        }
+      );
+      return { row, queued: true };
+    }
+    return { row: await this.deliverQueued(row.id), queued: false };
+  }
+
+  /**
+   * The job side of `sendTemplateQueued`: delivers one already-written message row through the
+   * provider. Idempotent on the row's own status — a message that has left `QUEUED` is returned
+   * as-is, so a redelivered job (or a second manual call with the same id) never sends twice; a
+   * `FAILED` message is not terminal, so a pg-boss retry tries the provider again.
+   */
+  async deliverQueued(messageId: string) {
+    const row = await prisma.smsMessage.findUnique({ where: { id: messageId } });
+    if (!row) throw new ApiError(404, "No such SMS message", "NO_MESSAGE");
+    if (row.status === "SENT" || row.status === "DELIVERED") return row;
+
+    const { provider, enabled, creds } = await this.credentials();
+    if (!enabled) {
+      return prisma.smsMessage.update({
+        where: { id: row.id },
+        data: { status: "FAILED", error: "SMS is off" },
+      });
+    }
+    const template = row.templateCode
+      ? await prisma.smsTemplate.findFirst({ where: { code: row.templateCode } })
+      : null;
+
+    try {
+      const result = await smsProviderFor(provider).send(
+        {
+          to: row.toMobile,
+          body: row.body,
+          dltTemplateId: row.dltTemplateId,
+          category: template?.category ?? "TRANSACTIONAL",
+        },
+        creds
+      );
+      logger.info({ templateCode: row.templateCode, messageId: row.id }, "queued sms sent");
+      return await prisma.smsMessage.update({
+        where: { id: row.id },
+        data: {
+          status: result.status === "SENT" ? "SENT" : "QUEUED",
+          providerMessageId: result.providerMessageId,
+          sentAt: new Date(),
+        },
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "The gateway refused the message";
+      await prisma.smsMessage.update({
+        where: { id: row.id },
+        data: { status: "FAILED", error: detail.slice(0, 255) },
+      });
+      logger.warn({ templateCode: row.templateCode, messageId: row.id }, "queued sms refused");
       throw new ApiError(502, "The SMS gateway refused the message", "SMS_REFUSED");
     }
   }

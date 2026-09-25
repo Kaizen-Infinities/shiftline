@@ -117,20 +117,20 @@ const FinancialYearStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         </Field>
       </div>
 
-      <div className="mt-6 rounded-xl border border-line-soft bg-card-2/60 p-4 text-sm">
+      <div className="mt-6 rounded-[18px] border border-line-soft bg-card-2 p-4 sm:p-5 text-sm">
         <div className="flex flex-wrap gap-6">
           <div>
-            <div className="text-xs uppercase tracking-wider text-ink-muted">Financial year</div>
+            <div className="text-xs text-ink-subtle">Financial year</div>
             <div className="font-bold text-ink">FY {fy.code}</div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wider text-ink-muted">Runs</div>
+            <div className="text-xs text-ink-subtle">Runs</div>
             <div className="text-ink">
               {fy.start} → {fy.end}
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wider text-ink-muted">Invoice numbers</div>
+            <div className="text-xs text-ink-subtle">Invoice numbers</div>
             <div className="font-mono text-ink">INV-{fy.code}-0001</div>
           </div>
         </div>

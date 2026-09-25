@@ -88,6 +88,12 @@ export const tallyService = {
   discardRun: async (id: string, reason: string): Promise<TallyRunRow> =>
     (await apiClient.post(`${p.runs}/${id}/discard`, { reason })).data.data,
 
+  settings: async (): Promise<{ autoExportEnabled: boolean }> =>
+    (await apiClient.get(p.settings)).data.data,
+  updateSettings: async (body: {
+    autoExportEnabled: boolean;
+  }): Promise<{ autoExportEnabled: boolean }> => (await apiClient.put(p.settings, body)).data.data,
+
   mappings: async (): Promise<TallyMappingRow[]> => (await apiClient.get(p.mappings)).data.data,
   saveMapping: async (body: {
     kind: TallyNameKind;

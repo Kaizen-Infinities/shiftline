@@ -63,6 +63,8 @@ const TdsPage: React.FC = () => {
   const [sections, setSections] = useState<TdsSectionRow[]>([]);
   const [ret, setRet] = useState<TdsReturnView | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [sectionDraft, setSectionDraft] = useState<Partial<TdsSectionRow>>({});
   const [paying, setPaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -435,38 +437,203 @@ const TdsPage: React.FC = () => {
                 <tr>
                   <th className={th}>Section</th>
                   <th className={th}>Name</th>
+                  <th className={th}>Ledger (P2-26)</th>
                   <th className={`${th} text-right`}>Company</th>
                   <th className={`${th} text-right`}>Individual / HUF</th>
                   <th className={`${th} text-right`}>No PAN</th>
                   <th className={`${th} text-right`}>Single</th>
                   <th className={`${th} text-right`}>Annual</th>
                   <th className={th}>Active</th>
+                  {can("tds.manage") && <th className={th} />}
                 </tr>
               </thead>
               <tbody>
-                {sections.map((s) => (
-                  <tr key={s.id} className="border-t border-line-soft">
-                    <td className={td}>
-                      {s.code}
-                      {s.isTcs && <span className="ml-1 text-xs text-ink-muted">TCS</span>}
-                      <div className="text-xs text-ink-muted">{s.actCode ?? "—"}</div>
-                    </td>
-                    <td className={td}>{s.name}</td>
-                    <td className={`${td} text-right`}>{Number(s.rateCompany)}%</td>
-                    <td className={`${td} text-right`}>{Number(s.rateIndividual)}%</td>
-                    <td className={`${td} text-right`}>{Number(s.rateNoPan)}%</td>
-                    <td className={`${td} text-right`}>
-                      {Number(s.thresholdSingle) > 0 ? money(s.thresholdSingle) : "—"}
-                    </td>
-                    <td className={`${td} text-right`}>
-                      {Number(s.thresholdAnnual) > 0 ? money(s.thresholdAnnual) : "—"}
-                    </td>
-                    <td className={td}>{s.isActive ? "Yes" : "No"}</td>
-                  </tr>
-                ))}
+                {sections.map((s) => {
+                  const editing = editingSectionId === s.id;
+                  const num = (v: unknown) =>
+                    v === "" || v === undefined ? 0 : Number(v as string);
+                  return (
+                    <tr key={s.id} className="border-t border-line-soft">
+                      <td className={td}>
+                        {s.code}
+                        {s.isTcs && <span className="ml-1 text-xs text-ink-muted">TCS</span>}
+                        <div className="text-xs text-ink-muted">{s.actCode ?? "—"}</div>
+                      </td>
+                      <td className={td}>{s.name}</td>
+                      {editing ? (
+                        <>
+                          <td className={td}>
+                            <input
+                              className={`${field} w-32`}
+                              type="text"
+                              value={sectionDraft.ledgerCode ?? s.ledgerCode ?? ""}
+                              placeholder="e.g. TDS-LIA-001"
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({ ...d, ledgerCode: e.target.value }))
+                              }
+                            />
+                            {!(sectionDraft.ledgerCode ?? s.ledgerCode) && (
+                              <div className="text-xs text-rose-600 mt-0.5">Required</div>
+                            )}
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <input
+                              className={`${field} w-20 text-right`}
+                              type="number"
+                              value={sectionDraft.rateCompany ?? s.rateCompany}
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({ ...d, rateCompany: num(e.target.value) }))
+                              }
+                            />
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <input
+                              className={`${field} w-20 text-right`}
+                              type="number"
+                              value={sectionDraft.rateIndividual ?? s.rateIndividual}
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({
+                                  ...d,
+                                  rateIndividual: num(e.target.value),
+                                }))
+                              }
+                            />
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <input
+                              className={`${field} w-20 text-right`}
+                              type="number"
+                              value={sectionDraft.rateNoPan ?? s.rateNoPan}
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({ ...d, rateNoPan: num(e.target.value) }))
+                              }
+                            />
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <input
+                              className={`${field} w-24 text-right`}
+                              type="number"
+                              value={sectionDraft.thresholdSingle ?? s.thresholdSingle}
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({
+                                  ...d,
+                                  thresholdSingle: num(e.target.value),
+                                }))
+                              }
+                            />
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <input
+                              className={`${field} w-24 text-right`}
+                              type="number"
+                              value={sectionDraft.thresholdAnnual ?? s.thresholdAnnual}
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({
+                                  ...d,
+                                  thresholdAnnual: num(e.target.value),
+                                }))
+                              }
+                            />
+                          </td>
+                          <td className={td}>
+                            <input
+                              type="checkbox"
+                              checked={sectionDraft.isActive ?? s.isActive}
+                              onChange={(e) =>
+                                setSectionDraft((d) => ({ ...d, isActive: e.target.checked }))
+                              }
+                            />
+                          </td>
+                          <td className={td}>
+                            <button
+                              type="button"
+                              className={`${primary} mr-2`}
+                              disabled={busy}
+                              onClick={async () => {
+                                setBusy(true);
+                                try {
+                                  await tdsService.saveSection({
+                                    id: s.id,
+                                    code: s.code,
+                                    actCode: s.actCode,
+                                    name: s.name,
+                                    isTcs: s.isTcs,
+                                    ledgerCode: sectionDraft.ledgerCode ?? s.ledgerCode,
+                                    rateCompany: sectionDraft.rateCompany ?? s.rateCompany,
+                                    rateIndividual: sectionDraft.rateIndividual ?? s.rateIndividual,
+                                    rateNoPan: sectionDraft.rateNoPan ?? s.rateNoPan,
+                                    thresholdSingle:
+                                      sectionDraft.thresholdSingle ?? s.thresholdSingle,
+                                    thresholdAnnual:
+                                      sectionDraft.thresholdAnnual ?? s.thresholdAnnual,
+                                    isActive: sectionDraft.isActive ?? s.isActive,
+                                  });
+                                  toast.success("Section saved");
+                                  setEditingSectionId(null);
+                                  setSectionDraft({});
+                                  await load();
+                                } catch (err) {
+                                  toast.error(message(err));
+                                } finally {
+                                  setBusy(false);
+                                }
+                              }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              className={secondary}
+                              onClick={() => {
+                                setEditingSectionId(null);
+                                setSectionDraft({});
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className={td}>
+                            {s.ledgerCode ? (
+                              s.ledgerCode
+                            ) : (
+                              <span className="text-rose-700 font-semibold">Missing</span>
+                            )}
+                          </td>
+                          <td className={`${td} text-right`}>{Number(s.rateCompany)}%</td>
+                          <td className={`${td} text-right`}>{Number(s.rateIndividual)}%</td>
+                          <td className={`${td} text-right`}>{Number(s.rateNoPan)}%</td>
+                          <td className={`${td} text-right`}>
+                            {Number(s.thresholdSingle) > 0 ? money(s.thresholdSingle) : "—"}
+                          </td>
+                          <td className={`${td} text-right`}>
+                            {Number(s.thresholdAnnual) > 0 ? money(s.thresholdAnnual) : "—"}
+                          </td>
+                          <td className={td}>{s.isActive ? "Yes" : "No"}</td>
+                          {can("tds.manage") && (
+                            <td className={td}>
+                              <button
+                                type="button"
+                                className={secondary}
+                                onClick={() => {
+                                  setEditingSectionId(s.id);
+                                  setSectionDraft({});
+                                }}
+                              >
+                                Edit
+                              </button>
+                            </td>
+                          )}
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
                 {sections.length === 0 && !loading && (
                   <tr>
-                    <td className={`${td} text-ink-muted`} colSpan={8}>
+                    <td className={`${td} text-ink-muted`} colSpan={9}>
                       No sections yet.
                     </td>
                   </tr>

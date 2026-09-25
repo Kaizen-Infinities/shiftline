@@ -60,6 +60,8 @@ export interface FxLine {
   documentId: string;
   documentNo: string;
   partyName: string;
+  /** The party's own ledger (P2-06): the restatement posts against this, not a net Sundry line. */
+  partyLedgerCode: string;
   currencyCode: string;
   foreignAmount: number;
   /** What the books carry it at: the rate on the day it was raised. */
@@ -117,7 +119,8 @@ class FxService {
       on: Date | string;
       narration?: string | null;
     },
-    actor: { userId?: string }
+    actor: { userId?: string },
+    txClient?: Db
   ) {
     const on = new Date(
       typeof input.on === "string" ? `${input.on.slice(0, 10)}T00:00:00Z` : input.on
@@ -127,7 +130,10 @@ class FxService {
       return { posted: false, difference: 0, voucherId: null as number | null };
     }
 
-    return prisma.$transaction(async (tx) => {
+    // Called from inside a receipt/payment's own transaction (P2-06) so the settlement voucher
+    // and the realised gain/loss either both land or neither does; standalone callers (the web
+    // FX screen) get their own transaction as before.
+    const run = async (tx: Prisma.TransactionClient | typeof prisma) => {
       await accountsService.ensureSystemLedgersExist(tx);
       await periodService.assertPostingAllowed(on, undefined, tx);
       const party = await ledgerByCode(tx, input.partyLedgerCode);
@@ -166,7 +172,9 @@ class FxService {
         },
       });
       return { posted: true, difference, voucherId: voucher.id };
-    });
+    };
+
+    return txClient ? run(txClient) : prisma.$transaction((tx) => run(tx));
   }
 
   /**
@@ -182,7 +190,10 @@ class FxService {
         status: { not: "CANCELLED" },
         currencyCode: { not: "INR" },
       },
-      include: { customer: { select: { firmName: true } }, paymentRecords: true },
+      include: {
+        customer: { select: { id: true, customerCode: true, firmName: true } },
+        paymentRecords: true,
+      },
       take: 1000,
     });
 
@@ -191,6 +202,7 @@ class FxService {
       const currencyCode = inv.currencyCode ?? "INR";
       const bookedRate = Number(inv.exchangeRate ?? 1);
       if (currencyCode === "INR" || bookedRate <= 0) continue;
+      if (!inv.customer) continue;
       const paidInr = n2(
         inv.paymentRecords
           .filter((p) => p.paymentDate <= asOn)
@@ -203,11 +215,13 @@ class FxService {
       const closingRate = await currencyService.rateFor(currencyCode, asOn).catch(() => 0);
       if (!closingRate) continue;
       const restatedInr = n2(foreignAmount * closingRate);
+      const partyLedger = await accountsService.ensureCustomerLedger(inv.customer);
       lines.push({
         documentType: "SALES_INVOICE",
         documentId: inv.id,
         documentNo: inv.invoiceNo,
-        partyName: inv.customer?.firmName ?? "",
+        partyName: inv.customer.firmName ?? "",
+        partyLedgerCode: partyLedger.code,
         currencyCode,
         foreignAmount,
         bookedRate,
@@ -215,6 +229,55 @@ class FxService {
         closingRate,
         restatedInr,
         difference: n2(restatedInr - outstandingInr),
+      });
+    }
+
+    // Payables (P2-06): a foreign-currency GRN invoice is worth restating exactly the same way,
+    // just on the other side of the books — a gain to us is what we now owe fewer rupees for.
+    const bills = await prisma.grnInvoice.findMany({
+      where: {
+        grnDate: { lte: asOn },
+        status: { not: "CANCELLED" },
+        currencyCode: { not: "INR" },
+      },
+      include: {
+        supplier: { select: { id: true, supplierCode: true, legalName: true } },
+        paymentRecords: true,
+      },
+      take: 1000,
+    });
+    for (const bill of bills) {
+      const currencyCode = bill.currencyCode ?? "INR";
+      const bookedRate = Number(bill.exchangeRate ?? 1);
+      if (currencyCode === "INR" || bookedRate <= 0) continue;
+      if (!bill.supplier) continue;
+      const paidInr = n2(
+        bill.paymentRecords
+          .filter((p) => p.paymentDate <= asOn)
+          .reduce((s, p) => s + Number(p.amount), 0)
+      );
+      const outstandingInr = n2(Number(bill.netAmount) - paidInr);
+      if (outstandingInr <= 0.009) continue;
+      const foreignAmount = n2(outstandingInr / bookedRate);
+      const closingRate = await currencyService.rateFor(currencyCode, asOn).catch(() => 0);
+      if (!closingRate) continue;
+      const restatedInr = n2(foreignAmount * closingRate);
+      const partyLedger = await accountsService.ensureSupplierLedger(bill.supplier);
+      lines.push({
+        documentType: "GRN_INVOICE",
+        documentId: bill.id,
+        documentNo: bill.invoiceNo,
+        partyName: bill.supplier.legalName ?? "",
+        partyLedgerCode: partyLedger.code,
+        currencyCode,
+        foreignAmount,
+        bookedRate,
+        bookedInr: outstandingInr,
+        closingRate,
+        restatedInr,
+        // A payable is worth more when the rupee weakens, but that costs us rather than gains
+        // us — so a payable's difference carries the opposite sign to a receivable's.
+        difference: n2(outstandingInr - restatedInr),
       });
     }
     return lines;
@@ -253,25 +316,45 @@ class FxService {
     const asOn = new Date(`${preview.asOn}T00:00:00Z`);
     const nextDay = new Date(asOn.getTime() + 86400000);
 
+    // Grouped by the party's own ledger (P2-06) rather than netted to one Sundry Debtors/Creditors
+    // line, so a single customer's or supplier's ledger can be checked against the restatement —
+    // the total across every party line is exactly the net amount either way.
+    const byParty = new Map<string, { partyName: string; amount: number }>();
+    for (const line of preview.lines) {
+      const row = byParty.get(line.partyLedgerCode) ?? { partyName: line.partyName, amount: 0 };
+      row.amount = n2(row.amount + line.difference);
+      byParty.set(line.partyLedgerCode, row);
+    }
+
     return prisma.$transaction(async (tx) => {
       await accountsService.ensureSystemLedgersExist(tx);
       await periodService.assertPostingAllowed(asOn, undefined, tx);
       await periodService.assertPostingAllowed(nextDay, undefined, tx);
-      const debtors = await ledgerByCode(tx, "DEBT-001");
       const gain = await ledgerByCode(tx, "FX-GAIN-001");
       const loss = await ledgerByCode(tx, "FX-LOSS-001");
-      const net = preview.netAmount;
       const label = `Restatement at ${preview.asOn}`;
 
-      const build = (reverse: boolean): Line[] => {
-        const amount = Math.abs(net);
-        const isGain = net > 0;
-        // A gain raises the receivable and credits the gain ledger; the reversal is the same
-        // entry the other way round, which is why it is built from one place.
-        const raiseDebtors = isGain !== reverse;
-        return raiseDebtors
-          ? [debit(debtors.id, amount, label), credit(isGain ? gain.id : loss.id, amount, label)]
-          : [debit(isGain ? gain.id : loss.id, amount, label), credit(debtors.id, amount, label)];
+      const build = async (reverse: boolean): Promise<Line[]> => {
+        const items: Line[] = [];
+        for (const [code, row] of byParty) {
+          if (Math.abs(row.amount) < 0.01) continue;
+          const party = await ledgerByCode(tx, code);
+          const amount = Math.abs(row.amount);
+          const isGain = row.amount > 0;
+          const partyLine = `${row.partyName} — ${label}`;
+          // A gain raises what the party owes us (or lowers what we owe them) and credits the
+          // gain ledger; the reversal is the same entry the other way round.
+          const raiseParty = isGain !== reverse;
+          items.push(
+            raiseParty
+              ? debit(party.id, amount, partyLine)
+              : debit(isGain ? gain.id : loss.id, amount, partyLine),
+            raiseParty
+              ? credit(isGain ? gain.id : loss.id, amount, partyLine)
+              : credit(party.id, amount, partyLine)
+          );
+        }
+        return items;
       };
 
       const voucher = await tx.voucher.create({
@@ -283,7 +366,7 @@ class FxService {
           refDocType: "FX_REVALUATION",
           refDocId: `${periodKey}`,
           createdBy: actor.userId?.slice(0, 36) ?? null,
-          items: { create: build(false) },
+          items: { create: await build(false) },
         },
       });
       const reversal = await tx.voucher.create({
@@ -295,7 +378,7 @@ class FxService {
           refDocType: "FX_REVALUATION_REVERSAL",
           refDocId: `${periodKey}`,
           createdBy: actor.userId?.slice(0, 36) ?? null,
-          items: { create: build(true) },
+          items: { create: await build(true) },
         },
       });
 
@@ -303,7 +386,7 @@ class FxService {
         periodKey,
         asOn,
         status: "POSTED" as const,
-        netAmount: net,
+        netAmount: preview.netAmount,
         lines: preview.lines as unknown as Prisma.InputJsonValue,
         voucherId: voucher.id,
         reversalVoucherId: reversal.id,

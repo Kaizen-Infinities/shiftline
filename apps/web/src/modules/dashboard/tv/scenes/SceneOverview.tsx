@@ -119,15 +119,21 @@ const SceneOverview: React.FC<{
               }}
             >
               <div>
-                <div style={{ fontSize: u(22), fontWeight: 800, letterSpacing: u(0.3) }}>
-                  PRODUCTION PERFORMANCE
+                <div style={{ fontSize: u(24), fontWeight: 700, letterSpacing: "-0.015em" }}>
+                  Production performance
                 </div>
                 <div style={{ fontSize: u(14), color: T.textDim, marginTop: u(4) }}>
                   Planned <b style={{ color: T.text }}>{tv.production.plannedLabel}</b> · Produced{" "}
                   <b style={{ color: T.text }}>{tv.production.producedLabel}</b>
                 </div>
               </div>
-              <Gauge theme={theme} pct={achievement} color={achColor} size={76} display={`${achievement}%`} />
+              <Gauge
+                theme={theme}
+                pct={achievement}
+                color={achColor}
+                size={76}
+                display={`${achievement}%`}
+              />
             </div>
 
             {tv.production.lines.length === 0 ? (
@@ -160,7 +166,7 @@ const SceneOverview: React.FC<{
             )}
           </Panel>
 
-          <Panel theme={theme} title="ORDER / DISPATCH STATUS">
+          <Panel theme={theme} title="Orders and dispatch">
             <div style={{ flex: 1, minHeight: 0, display: "flex", gap: u(12) }}>
               {tv.pipeline.map((p) => {
                 const isDelayed = !!p.delayed && p.count > 0;
@@ -172,7 +178,7 @@ const SceneOverview: React.FC<{
                       minWidth: 0,
                       background: isDelayed ? A.critTint : T.tile,
                       border: `${u(1)} solid ${isDelayed ? A.red : T.panelBorder}`,
-                      borderRadius: u(2),
+                      borderRadius: u(16),
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
@@ -183,7 +189,7 @@ const SceneOverview: React.FC<{
                     <div
                       style={{
                         fontSize: u(44),
-                        fontWeight: 800,
+                        fontWeight: 700,
                         color: isDelayed ? A.red : A.blue,
                         lineHeight: 1,
                       }}
@@ -215,7 +221,7 @@ const SceneOverview: React.FC<{
         >
           <Panel
             theme={theme}
-            title="MANAGEMENT ATTENTION"
+            title="Needs attention"
             accentBorder={alerts.length > 0 ? A.red : undefined}
           >
             {alerts.length === 0 ? (
@@ -232,13 +238,13 @@ const SceneOverview: React.FC<{
                 <div
                   style={{
                     fontSize: u(26),
-                    fontWeight: 800,
+                    fontWeight: 700,
                     color: A.green,
                     letterSpacing: u(0.3),
                     textAlign: "center",
                   }}
                 >
-                  ALL SYSTEMS ON TRACK
+                  All systems on track
                 </div>
                 <div style={{ fontSize: u(14), color: T.textDim, textAlign: "center" }}>
                   No critical exceptions across production, sales, inventory or finance
@@ -264,7 +270,7 @@ const SceneOverview: React.FC<{
                       alignItems: "flex-start",
                       gap: u(12),
                       background: T.tile,
-                      borderRadius: u(2),
+                      borderRadius: u(16),
                       padding: `${u(9)} ${u(14)}`,
                     }}
                   >
@@ -272,7 +278,7 @@ const SceneOverview: React.FC<{
                       style={{
                         flex: `0 0 ${u(82)}`,
                         fontSize: u(12),
-                        fontWeight: 800,
+                        fontWeight: 700,
                         letterSpacing: u(0.6),
                         color:
                           a.level === "CRITICAL" ? A.red : a.level === "HIGH" ? A.amber : A.blue,
@@ -288,7 +294,7 @@ const SceneOverview: React.FC<{
             )}
           </Panel>
 
-          <Panel theme={theme} title="INVENTORY HEALTH">
+          <Panel theme={theme} title="Inventory health">
             {tv.inventory.skuTotal === 0 ? (
               <TvEmpty theme={theme} label="No raw materials tracked" />
             ) : (

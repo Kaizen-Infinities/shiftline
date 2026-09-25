@@ -27,6 +27,7 @@ const ItemSchema = z.object({
 });
 
 const PaymentSchema = z.object({
+  id: z.string().optional(),
   amount: z.coerce.number().min(0.01, "Amount must be greater than 0"),
   paymentMethod: z.string().min(1, "Payment method is required"),
   referenceNumber: z.string().optional().nullable(),
@@ -34,6 +35,15 @@ const PaymentSchema = z.object({
     const d = new Date(val);
     return !isNaN(d.getTime()) && d <= new Date(new Date().setHours(23, 59, 59, 999));
   }, "Payment date must be a valid date and not in the future"),
+  /** A cheque instrument (P2-06) schedules the receipt for its own clearing rather than posting
+   * today; the register row is created either way. */
+  instrumentType: z.preprocess(blankToUndefined, z.enum(["CASH", "BANK", "CHEQUE"]).optional()),
+  chequeNo: z.preprocess(blankToUndefined, z.string().max(20).optional()),
+  chequeDate: z.preprocess(blankToUndefined, z.string().optional()),
+  chequeBank: z.preprocess(blankToUndefined, z.string().max(120).optional()),
+  chequeParty: z.preprocess(blankToUndefined, z.string().max(160).optional()),
+  /** The settlement rate for a foreign-currency invoice; defaults to the day's rate table. */
+  settlementRate: z.preprocess(blankToUndefined, z.coerce.number().positive().optional()),
 });
 
 export const CreateSalesInvoiceSchema = z.object({
@@ -81,6 +91,11 @@ export const CreateSalesInvoiceSchema = z.object({
   totalDiscount: z.coerce.number().optional().default(0),
   taxTotal: z.coerce.number().optional(),
   grandTotal: z.coerce.number().optional(),
+
+  /** P2-05: TCS (section 394) — scrap sales (206C(1)) or a buyer above the annual threshold
+   * (206C(1H)). Accepting the preview collects it; the preview alone does not. */
+  collectTcs: z.preprocess((val) => val === true || val === "true", z.boolean().optional()),
+  tcsSectionCode: z.preprocess(blankToUndefined, z.string().max(20).optional()),
 });
 
 export const UpdateSalesInvoiceSchema = CreateSalesInvoiceSchema.partial();
@@ -88,6 +103,41 @@ export const UpdateSalesInvoiceSchema = CreateSalesInvoiceSchema.partial();
 export const SalesInvoiceIdSchema = z.object({
   id: z.string().uuid("Invalid Sales Invoice ID"),
 });
+
+/** P2-12: recording a receipt against a sales invoice by hand — cash, bank or cheque, with a
+ * settlement rate for a foreign-currency invoice (defaulted from the rate table when omitted). */
+export const RecordReceiptSchema = z
+  .object({
+    amount: z.coerce.number().positive("Amount must be greater than 0"),
+    paymentDate: z.string().refine((val) => {
+      const d = new Date(val);
+      return !isNaN(d.getTime()) && d <= new Date(new Date().setHours(23, 59, 59, 999));
+    }, "Payment date must be a valid date and not in the future"),
+    instrumentType: z.enum(["CASH", "BANK", "CHEQUE"]).default("CASH"),
+    referenceNumber: z.preprocess(blankToUndefined, z.string().max(100).optional()),
+    chequeNo: z.preprocess(blankToUndefined, z.string().max(20).optional()),
+    chequeDate: z.preprocess(blankToUndefined, z.string().optional()),
+    chequeBank: z.preprocess(blankToUndefined, z.string().max(120).optional()),
+    chequeParty: z.preprocess(blankToUndefined, z.string().max(160).optional()),
+    /** The settlement rate for a foreign-currency invoice; defaults to the day's rate table. */
+    settlementRate: z.preprocess(blankToUndefined, z.coerce.number().positive().optional()),
+  })
+  .superRefine((data, ctx) => {
+    if (data.instrumentType === "CHEQUE" && !data.chequeNo) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["chequeNo"],
+        message: "A cheque receipt needs a cheque number",
+      });
+    }
+  });
+
+export const recordReceiptRequestSchema = z.object({
+  params: SalesInvoiceIdSchema,
+  body: RecordReceiptSchema,
+});
+
+export type RecordReceiptInput = z.infer<typeof RecordReceiptSchema>;
 
 // Request-level schemas
 export const createSalesInvoiceRequestSchema = z.object({

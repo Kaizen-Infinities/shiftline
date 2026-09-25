@@ -63,12 +63,18 @@ import costingRoutes from "../modules/costing/costing.routes";
 import bankingRoutes from "../modules/banking/banking.routes";
 import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
 import labourRoutes from "../modules/payroll/labour.routes";
+import leaveRoutes from "../modules/leave/leave.routes";
+import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
+import deliveryScheduleRoutes from "../modules/delivery-schedules/delivery-schedules.routes";
+import exportIncentivesRoutes from "../modules/export-incentives/export-incentives.routes";
 import smsRoutes from "../modules/sms/sms.routes";
 import paymentsRoutes, {
   paymentWebhookRouter,
   platformBillingRouter,
 } from "../modules/payments/payments.routes";
 import payrollRoutes from "../modules/payroll/payroll.routes";
+import registersRoutes from "../modules/registers/registers.routes";
+import finesRoutes from "../modules/fines/fines.routes";
 import dashboardRoutes from "../modules/dashboard/dashboard.routes";
 import categoryRoutes from "../modules/category/category.routes";
 import retentionRoutes from "../modules/retention/retention.routes";
@@ -89,6 +95,10 @@ import insightsRoutes from "../modules/insights/insights.routes";
 import eInvoiceRoutes from "../modules/e-invoice/e-invoice.routes";
 import ewayBillRoutes from "../modules/eway-bill/eway-bill.routes";
 import transporterRoutes from "../modules/eway-bill/transporter.routes";
+import {
+  machineGatewayRoutes,
+  machineTelemetryRoutes,
+} from "../modules/machine-telemetry/machine-telemetry.routes";
 import gstReturnsRoutes from "../modules/gst-returns/gst-returns.routes";
 import gstRoutes from "../modules/gst/gst.routes";
 import documentsRoutes from "../modules/documents/documents.routes";
@@ -146,6 +156,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/sales-invoices", router: salesInvoiceRoutes },
   { path: "/oee", router: oeeRoutes },
   { path: "/goods-dispatches", router: goodsDispatchRoutes },
+  { path: "/delivery-schedules", router: deliveryScheduleRoutes },
   { path: "/inventory", router: inventoryRoutes },
   { path: "/machine-operation-assignments", router: machineOperationAssignmentRoutes },
   { path: "/product-shift-records", router: productShiftRecordRoutes },
@@ -167,6 +178,9 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/banking", router: bankingRoutes },
   { path: "/payroll-statutory", router: statutoryPayrollRoutes },
   { path: "/labour", router: labourRoutes },
+  { path: "/leave", router: leaveRoutes },
+  { path: "/order-tna", router: orderTnaRoutes },
+  { path: "/export-incentives", router: exportIncentivesRoutes },
   // The callback router must be mounted before /payments so a gateway's POST never meets
   // authMiddleware; it is authenticated by the signature on its body instead.
   { path: "/payments/webhook", router: paymentWebhookRouter },
@@ -174,6 +188,8 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/platform/billing", router: platformBillingRouter },
   { path: "/sms", router: smsRoutes },
   { path: "/payroll", router: payrollRoutes },
+  { path: "/registers", router: registersRoutes },
+  { path: "/fines", router: finesRoutes },
   { path: "/dashboard", router: dashboardRoutes },
   { path: "/categories", router: categoryRoutes },
   { path: "/retention", router: retentionRoutes },
@@ -193,6 +209,8 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/v1/insights", router: insightsRoutes },
   { path: "/e-invoice", router: eInvoiceRoutes },
   { path: "/eway-bills", router: ewayBillRoutes },
+  { path: "/machine-gateways", router: machineGatewayRoutes },
+  { path: "/machine-telemetry", router: machineTelemetryRoutes },
   { path: "/transporters", router: transporterRoutes },
   { path: "/gst-returns", router: gstReturnsRoutes },
   { path: "/gst", router: gstRoutes },

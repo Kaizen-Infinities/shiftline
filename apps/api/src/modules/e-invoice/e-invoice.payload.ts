@@ -526,5 +526,8 @@ export const buildPayload = (docType: EInvoiceDocType, docId: string): Promise<B
       return buildSalesReturnPayload(docId);
     case "DBN":
       return buildPurchaseReturnPayload(docId);
+    default:
+      // "JWC" (job-work challan) never raises an e-invoice — a challan carries no tax.
+      throw new ApiError(400, `${docType} does not raise an e-invoice`);
   }
 };

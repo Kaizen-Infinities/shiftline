@@ -181,6 +181,7 @@ const ForexPage: React.FC = () => {
                 <thead>
                   <tr>
                     <th className={th}>Document</th>
+                    <th className={th}>Type</th>
                     <th className={th}>Party</th>
                     <th className={`${th} text-right`}>Outstanding</th>
                     <th className={`${th} text-right`}>Booked at</th>
@@ -193,6 +194,9 @@ const ForexPage: React.FC = () => {
                   {exposure.map((l) => (
                     <tr key={l.documentId} className="border-t border-line-soft">
                       <td className={td}>{l.documentNo}</td>
+                      <td className={td}>
+                        {l.documentType === "GRN_INVOICE" ? "Payable" : "Receivable"}
+                      </td>
                       <td className={td}>{l.partyName}</td>
                       <td className={`${td} text-right`}>
                         {l.currencyCode} {l.foreignAmount.toLocaleString("en-IN")}

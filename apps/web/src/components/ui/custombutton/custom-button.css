@@ -1,228 +1,63 @@
-/* ==================================
-   BASE BUTTON
-================================== */
+/* CustomButton — the concept pills (.sl-cta / .sl-btn / .sl-btn-*) do the styling.
+   These rules only cover the two tones without a .sl-* class and a few shared details. */
 
 .custom-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-
-  padding: 14px 24px;
-
-  border: none;
-  border-radius: 12px;
-
-  font-weight: 600;
-  line-height: 1;
-
-  cursor: pointer;
-
+  gap: 0.5rem;
+  border-radius: 999px;
   white-space: nowrap;
-
-  transition:
-    all 0.3s ease;
-
-  overflow: hidden;
+  cursor: pointer;
 }
 
-.custom-btn:hover {
-  transform: translateY(-2px);
-}
-
-.custom-btn:active {
-  transform: translateY(0);
+.custom-btn--warning,
+.custom-btn--dark {
+  font-weight: 600;
 }
 
 .custom-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
-  pointer-events: none;
 }
-
-/* ==================================
-   ICON
-================================== */
 
 .custom-btn-icon {
-  transition: transform 0.3s ease;
-}
-
-.custom-btn:hover .custom-btn-icon {
-  animation: customBtnArrow 0.8s infinite;
+  flex-shrink: 0;
 }
 
 .custom-btn-text {
   white-space: nowrap;
 }
 
-/* ==================================
-   SIZE
-================================== */
-
-.custom-btn--sm {
-  padding: 10px 18px;
-  font-size: 14px;
+.custom-btn--warning,
+.custom-btn--dark {
+  border: 0;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease;
 }
-
-.custom-btn--md {
-  padding: 14px 24px;
-  font-size: 16px;
-}
-
-.custom-btn--lg {
-  padding: 16px 32px;
-  font-size: 18px;
-}
-
-/* ==================================
-   PRIMARY
-================================== */
-
-.custom-btn--primary {
-  background: #003428;
-  color: #ffffff;
-
-  box-shadow: 0 6px 16px rgba(0, 52, 40, 0.15);
-}
-
-.custom-btn--primary:hover {
-  background: #004c3a;
-
-  box-shadow: 0 12px 24px rgba(0, 52, 40, 0.25);
-}
-
-/* ==================================
-   SECONDARY
-================================== */
-
-.custom-btn--secondary {
-  background: var(--color-card-2, #1C2536);
-  color: var(--color-ink, #E2E8F0);
-  border: 1px solid var(--color-line-soft, #202A3C);
-}
-
-.custom-btn--secondary:hover {
-  background: var(--color-card, #151D2C);
-  border-color: var(--color-line, #2A3548);
-}
-
-/* ==================================
-   SUCCESS
-================================== */
-
-.custom-btn--success {
-  background: #16a34a;
-  color: #ffffff;
-
-  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.2);
-}
-
-.custom-btn--success:hover {
-  background: #15803d;
-}
-
-/* ==================================
-   WARNING
-================================== */
 
 .custom-btn--warning {
-  background: #f59e0b;
-  color: #ffffff;
-
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.2);
+  background: var(--color-warning);
+  color: var(--color-cta-ink);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--color-warning) 70%, #000 30%);
 }
-
-.custom-btn--warning:hover {
-  background: #d97706;
-}
-
-/* ==================================
-   DANGER
-================================== */
-
-.custom-btn--danger {
-  background: #dc2626;
-  color: #ffffff;
-
-  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.2);
-}
-
-.custom-btn--danger:hover {
-  background: #b91c1c;
-}
-
-/* ==================================
-   INFO
-================================== */
-
-.custom-btn--info {
-  background: #0284c7;
-  color: #ffffff;
-
-  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.2);
-}
-
-.custom-btn--info:hover {
-  background: #0369a1;
-}
-
-/* ==================================
-   OUTLINE
-================================== */
-
-.custom-btn--outline {
-  background: transparent;
-  color: var(--color-ink, #E2E8F0);
-  border: 2px solid var(--color-line, #2A3548);
-}
-
-.custom-btn--outline:hover {
-  background: var(--color-card-2, #1C2536);
-  color: var(--color-accent, #2DD4BF);
-  border-color: var(--color-accent, #2DD4BF);
-}
-
-/* ==================================
-   GHOST
-================================== */
-
-.custom-btn--ghost {
-  background: transparent;
-  color: var(--color-ink, #E2E8F0);
-}
-
-.custom-btn--ghost:hover {
-  background: var(--color-card-2, #1C2536);
-}
-
-/* ==================================
-   DARK
-================================== */
 
 .custom-btn--dark {
-  background: #111827;
-  color: #ffffff;
+  background: var(--color-ink);
+  color: var(--color-card);
+  box-shadow: var(--shadow-sm);
 }
 
-.custom-btn--dark:hover {
-  background: #1f2937;
+.custom-btn--warning:hover:not(:disabled),
+.custom-btn--dark:hover:not(:disabled) {
+  filter: brightness(1.06);
 }
 
-/* ==================================
-   ANIMATION
-================================== */
+.custom-btn--warning:active:not(:disabled) {
+  transform: translateY(2px);
+}
 
-@keyframes customBtnArrow {
-  0% {
-    transform: translateX(0);
-  }
-
-  50% {
-    transform: translateX(5px);
-  }
-
-  100% {
-    transform: translateX(0);
-  }
+.custom-btn--outline {
+  box-shadow: none;
 }

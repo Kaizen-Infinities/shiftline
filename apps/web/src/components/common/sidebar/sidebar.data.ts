@@ -1,7 +1,21 @@
 import type { SidebarItem } from "./sidebar.types";
-import { FiPieChart, FiSettings, FiBarChart2, FiClock, FiRepeat, FiServer } from "react-icons/fi";
+import {
+  FiPieChart,
+  FiSettings,
+  FiBarChart2,
+  FiClock,
+  FiRepeat,
+  FiServer,
+  FiShoppingCart,
+  FiTruck,
+  FiBox,
+  FiTool,
+  FiDollarSign,
+  FiUsers,
+  FiGlobe,
+} from "react-icons/fi";
 
-export const sidebarItems: SidebarItem[] = [
+const legacySidebarItems: SidebarItem[] = [
   // ── 1. Dashboard (Direct Top-Level Link) ──────────────────────────────────
   {
     title: "Dashboard",
@@ -297,6 +311,11 @@ export const sidebarItems: SidebarItem[] = [
             path: "/settings/transporters",
             permission: "transporters.view",
           },
+          {
+            title: "Machine Gateways",
+            path: "/settings/machine-gateways",
+            permission: "machine-telemetry.view",
+          },
           { title: "Field Devices", path: "/settings/devices", permission: "mobile-app.manage" },
           { title: "Account Export", path: "/settings/export", permission: "account-export.view" },
         ],
@@ -340,6 +359,7 @@ export const sidebarItems: SidebarItem[] = [
       "/settings/gst",
       "/settings/e-invoice",
       "/settings/transporters",
+      "/settings/machine-gateways",
       "/settings/devices",
       "/settings/export",
       "/roles",
@@ -584,6 +604,11 @@ export const sidebarItems: SidebarItem[] = [
             permission: "production-wastages.view",
           },
           {
+            title: "Order T&A",
+            path: "/production/order-tna",
+            permission: "order-tna.view",
+          },
+          {
             title: "Weekly Schedules",
             path: "/weekly-machine-schedules",
             permission: "weekly_programs.view",
@@ -592,6 +617,11 @@ export const sidebarItems: SidebarItem[] = [
             title: "Goods Dispatch",
             path: "/production/goods-dispatch",
             permission: "goods-dispatch.view",
+          },
+          {
+            title: "Delivery Schedules",
+            path: "/sales/delivery-schedules",
+            permission: "delivery-schedules.view",
           },
           {
             title: "Shift Execution Board",
@@ -640,6 +670,7 @@ export const sidebarItems: SidebarItem[] = [
       "/hourly-work-reports",
       "/production-wastages",
       "/production/goods-dispatch",
+      "/sales/delivery-schedules",
       "/shift-execution",
       "/inventory/stock-adjustments",
       "/inventory/eod-stock",
@@ -660,6 +691,7 @@ export const sidebarItems: SidebarItem[] = [
       "hourly_productions.view",
       "production-wastages.view",
       "goods-dispatch.view",
+      "delivery-schedules.view",
       "shift-execution.view",
       "stock-adjustments.view",
       "eod-stock.view",
@@ -822,6 +854,8 @@ export const sidebarItems: SidebarItem[] = [
       { permission: "payroll-settings.view", path: "/payroll/settings" },
       { permission: "payroll-attendance.view", path: "/payroll/attendance" },
       { permission: "payroll-advance.view", path: "/payroll/advance" },
+      { permission: "registers.view", path: "/hr/registers" },
+      { permission: "fines.view", path: "/hr/fines" },
     ],
     children: [
       { title: "Payroll Dashboard", path: "/payroll", permission: "payroll.view" },
@@ -839,6 +873,18 @@ export const sidebarItems: SidebarItem[] = [
         path: "/payroll/monthly-report",
         permission: "payroll.view",
       },
+      { title: "Leave Requests", path: "/hr/leave", permission: "leave.view" },
+      { title: "My Leave", path: "/me/leave", permission: "leave.view" },
+      {
+        title: "Statutory Registers",
+        path: "/hr/registers",
+        permission: "registers.view",
+      },
+      {
+        title: "Fines and Deductions",
+        path: "/hr/fines",
+        permission: "fines.view",
+      },
     ],
     activePaths: [
       "/payroll",
@@ -848,6 +894,10 @@ export const sidebarItems: SidebarItem[] = [
       "/payroll/advance",
       "/payroll/weekly-report",
       "/payroll/monthly-report",
+      "/hr/leave",
+      "/me/leave",
+      "/hr/registers",
+      "/hr/fines",
     ],
     permissionAny: [
       "payroll.view",
@@ -855,7 +905,27 @@ export const sidebarItems: SidebarItem[] = [
       "payroll-settings.view",
       "payroll-attendance.view",
       "payroll-advance.view",
+      "leave.view",
+      "registers.view",
+      "fines.view",
     ],
+  },
+
+  // ── Exports (TN-01) ────────────────────────────────────────────────────────
+  {
+    title: "Exports",
+    icon: FiGlobe,
+    path: "/exports/incentives",
+    permission: "export-incentives.view",
+    children: [
+      {
+        title: "Export Incentives",
+        path: "/exports/incentives",
+        permission: "export-incentives.view",
+      },
+    ],
+    activePaths: ["/exports"],
+    permissionAny: ["export-incentives.view"],
   },
 
   // ── Platform console (super admins only, P1-02) ───────────────────────────
@@ -871,4 +941,91 @@ export const sidebarItems: SidebarItem[] = [
     ],
     activePaths: ["/platform"],
   },
+];
+
+const dashboard = legacySidebarItems.find((item) => item.title === "Dashboard")!;
+const administration = legacySidebarItems.find((item) => item.title === "Administration")!;
+const transactions = legacySidebarItems.find((item) => item.title === "Transactions")!;
+const display = legacySidebarItems.find((item) => item.title === "Display")!;
+const payroll = legacySidebarItems.find((item) => item.title === "Payroll")!;
+const platform = legacySidebarItems.find((item) => item.title === "Platform")!;
+const exportsMenu = legacySidebarItems.find((item) => item.title === "Exports")!;
+
+const adminGroup = (title: string) => administration.children?.find((item) => item.title === title);
+const transactionGroup = (title: string) =>
+  transactions.children?.find((item) => item.title === title);
+
+/**
+ * Navigation is intentionally organised by day-to-day job instead of by the
+ * technical distinction between "masters", "transactions" and "display".
+ * Keeping the original item objects here preserves every route and permission
+ * while presenting smaller, predictable menus.
+ */
+export const sidebarItems: SidebarItem[] = [
+  dashboard,
+  {
+    title: "Sales",
+    icon: FiShoppingCart,
+    children: [
+      transactionGroup("Quotations"),
+      transactionGroup("Sales Order"),
+      transactionGroup("Sales"),
+      transactionGroup("Sales Return (Cr. Note)"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  {
+    title: "Purchases",
+    icon: FiTruck,
+    children: [
+      transactionGroup("Purchase Order"),
+      transactionGroup("Purchase"),
+      transactionGroup("Purchase Return (Dr. Note)"),
+      transactionGroup("Expenses"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  exportsMenu,
+  {
+    title: "Inventory",
+    icon: FiBox,
+    children: [adminGroup("Inventory Masters"), transactionGroup("Inventory")].filter(
+      Boolean
+    ) as NonNullable<SidebarItem["children"]>,
+  },
+  {
+    title: "Production",
+    icon: FiTool,
+    children: [transactionGroup("Production")].filter(Boolean) as NonNullable<
+      SidebarItem["children"]
+    >,
+  },
+  {
+    title: "Accounting",
+    icon: FiDollarSign,
+    children: [
+      transactionGroup("Payment"),
+      transactionGroup("Receipt"),
+      transactionGroup("Journal"),
+      transactionGroup("Contra"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  {
+    title: "People & Payroll",
+    icon: FiUsers,
+    children: [payroll],
+  },
+  {
+    ...display,
+    title: "Reports",
+    icon: FiBarChart2,
+  },
+  {
+    title: "Setup",
+    icon: FiSettings,
+    children: [
+      adminGroup("Masters"),
+      adminGroup("Configuration"),
+      adminGroup("Users & Roles"),
+    ].filter(Boolean) as NonNullable<SidebarItem["children"]>,
+  },
+  platform,
 ];

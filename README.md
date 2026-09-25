@@ -58,7 +58,8 @@ make dev                                    # api (embedded worker) + web
 (or `make e2e`) runs the Playwright smoke suite against a seeded database; `npm run audit:gate`
 is the dependency gate CI runs. The API answers `GET /health` and `GET /ready`; logs are pino
 JSON with an `x-request-id` that also appears in error responses. Backups: `make backup`,
-`make restore` (see `docs/runbooks/backup-restore.md`).
+`make restore` (see `docs/runbooks/backup-restore.md`). For a production deployment, follow the
+Railway and Cloudflare runbook in `docs/runbooks/railway-cloudflare.md`.
 
 ## Working model
 

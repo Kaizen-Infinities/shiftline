@@ -113,6 +113,125 @@ export const createRawMaterial = async (
   });
 };
 
+export const createEmployee = async (
+  overrides: Partial<Prisma.EmployeeUncheckedCreateInput> = {}
+) => {
+  return asDemoTenant(async () => {
+    const prisma = await getPrisma();
+    const owner = await demoOwner();
+    return prisma.employee.create({
+      data: {
+        empCode: code("EMP"),
+        fullName: faker.person.fullName(),
+        status: "active",
+        designation: "Operator",
+        createdBy: owner.userId,
+        ...overrides,
+      },
+    });
+  });
+};
+
+export const createAttendanceRecord = async (
+  overrides: Partial<Prisma.AttendanceRecordUncheckedCreateInput> & {
+    employeeId: bigint;
+    date: string;
+  }
+) => {
+  return asDemoTenant(async () => {
+    const prisma = await getPrisma();
+    return prisma.attendanceRecord.create({
+      data: {
+        period: overrides.date.slice(0, 7),
+        status: "PRESENT",
+        otHours: D(0),
+        lateMinutes: 0,
+        permissionMinutes: 0,
+        salaryAdvance: D(0),
+        ...overrides,
+      },
+    });
+  });
+};
+
+export const createPayrollRun = async (
+  overrides: Partial<Prisma.PayrollRunUncheckedCreateInput> = {}
+) => {
+  return asDemoTenant(async () => {
+    const prisma = await getPrisma();
+    const owner = await demoOwner();
+    return prisma.payrollRun.create({
+      data: {
+        runCode: code("PR-T"),
+        period: "2026-09",
+        type: "MONTHLY",
+        status: "DRAFT",
+        createdById: owner.userId,
+        ...overrides,
+      },
+    });
+  });
+};
+
+export const createPayrollResult = async (
+  overrides: Partial<Prisma.PayrollResultUncheckedCreateInput> & {
+    payrollRunId: number;
+    employeeId: bigint;
+  }
+) => {
+  return asDemoTenant(async () => {
+    const prisma = await getPrisma();
+    return prisma.payrollResult.create({
+      data: {
+        employeeCode: code("EMP"),
+        employeeName: faker.person.fullName(),
+        department: "",
+        salaryType: "FIXED_MONTHLY",
+        ...overrides,
+      },
+    });
+  });
+};
+
+export const createSalaryAdvance = async (
+  overrides: Partial<Prisma.SalaryAdvanceUncheckedCreateInput> & { employeeId: bigint }
+) => {
+  return asDemoTenant(async () => {
+    const prisma = await getPrisma();
+    return prisma.salaryAdvance.create({
+      data: {
+        amount: D(1000),
+        disbursedDate: new Date(),
+        status: "PENDING",
+        ...overrides,
+      },
+    });
+  });
+};
+
+export const createFineDeduction = async (
+  overrides: Partial<Prisma.EmployeeFineDeductionUncheckedCreateInput> & { employeeId: bigint }
+) => {
+  return asDemoTenant(async () => {
+    const prisma = await getPrisma();
+    const occurredOn = overrides.occurredOn ? new Date(overrides.occurredOn as any) : new Date();
+    return prisma.employeeFineDeduction.create({
+      data: {
+        kind: "FINE",
+        occurredOn,
+        cause: "Late to shift without notice",
+        amount: D(50),
+        shownCauseGiven: true,
+        // Registers (P2-03/P2-13) only show APPROVED rows; factory-created rows simulate
+        // already-approved data unless a test overrides status explicitly.
+        status: "APPROVED",
+        wagePeriod: occurredOn.toISOString().slice(0, 7),
+        ...overrides,
+      },
+    });
+  });
+};
+
 export const createSalesInvoice = async (
   overrides: Partial<Prisma.SalesInvoiceUncheckedCreateInput> & { customerId: string }
 ) => {

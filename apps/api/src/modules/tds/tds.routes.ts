@@ -50,7 +50,9 @@ router.post(
         rateNoPan: z.coerce.number().min(0).max(100).optional(),
         thresholdSingle: z.coerce.number().min(0).optional(),
         thresholdAnnual: z.coerce.number().min(0).optional(),
-        ledgerCode: z.string().max(20).optional().nullable(),
+        // A section with no payable ledger can never post — the challan refuses it outright
+        // (P2-17), so the edit screen is where that gets caught instead.
+        ledgerCode: z.string().trim().min(1, "A payable ledger code is required").max(20),
         isActive: z.boolean().optional(),
       })
       .parse(req.body);

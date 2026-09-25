@@ -97,7 +97,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   // ── HR & Organization ───────────────────────────────────────────────────────
   {
     module: "employees",
-    actions: ["view", "create", "edit", "delete", "export"],
+    // "search" (P2-15) is a lighter key than "view": a typeahead over id/code/name/department/
+    // business place for the HR screens that need to pick an employee (leave, fines) but do not
+    // hold payroll.view — granted to every role that already holds leave.view, fines.view or
+    // payroll.view (see provisioning.service.ts).
+    actions: ["view", "create", "edit", "delete", "export", "search"],
     description: "Employees",
   },
   {
@@ -262,7 +266,7 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
   },
   {
     module: "job-work",
-    actions: ["view", "create", "manage", "export"],
+    actions: ["view", "create", "manage", "export", "cancel", "file"],
     description: "Job work, delivery challans and ITC-04",
   },
   {
@@ -323,9 +327,20 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "Production Wastage",
   },
   {
+    // TN-03: buyer-order milestone plan counted back from the ex-factory date.
+    module: "order-tna",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Export order time-and-action calendar",
+  },
+  {
     module: "goods-dispatch",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Goods Dispatch",
+  },
+  {
+    module: "delivery-schedules",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Customer delivery schedules and adherence",
   },
   { module: "shift-execution", actions: ["view", "edit"], description: "Shift Execution Board" },
   { module: "oee-dashboard", actions: ["view", "export"], description: "OEE Dashboard" },
@@ -460,6 +475,36 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     module: "payroll-extended-comp",
     actions: ["view", "export"],
     description: "Extended Compensation",
+  },
+  {
+    module: "leave",
+    actions: ["view", "request", "approve"],
+    description: "Leave Requests and Calendar",
+  },
+  {
+    module: "registers",
+    actions: ["view", "export"],
+    description:
+      "Inspector's Registers (muster roll, wages, overtime, fines, deductions, advances)",
+  },
+  {
+    module: "fines",
+    actions: ["view", "manage", "approve"],
+    description: "Fines and Deductions",
+  },
+
+  // ── Shop floor (Phase 2) ────────────────────────────────────────────────────
+  {
+    module: "machine-telemetry",
+    actions: ["view", "configure", "ingest"],
+    description: "Machine telemetry: gateways, signal maps, cycles",
+  },
+
+  // ── Exports (TN-01) ─────────────────────────────────────────────────────────
+  {
+    module: "export-incentives",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Export incentives and EPCG/AA authorisations",
   },
 ];
 

@@ -217,12 +217,104 @@ export const buildDispatchEwb = async (dispatchId: bigint, t: EwbTransport): Pro
   };
 };
 
+/**
+ * A job-work (or other) delivery challan raised by `modules/job-work`. Same shape as a goods
+ * dispatch's challan, valued off the challan's own lines instead of a `GoodsDispatch`.
+ */
+export const buildJobWorkChallanEwb = async (
+  challanId: string,
+  t: EwbTransport
+): Promise<BuiltEwb> => {
+  const c = await prisma.deliveryChallan.findUnique({
+    where: { id: challanId },
+    include: { items: true, jobWorker: true },
+  });
+  if (!c) throw new ApiError(404, "Job-work challan not found");
+  if (c.cancelledAt) {
+    throw new ApiError(409, `Challan ${c.challanNo} was cancelled`, "DOCUMENT_CANCELLED");
+  }
+  const seller = await sellerFor(c.businessPlaceId);
+  // `toBusinessPlaceId` has no Prisma relation field (see the challan schema); fetch it directly.
+  const toPlace = c.toBusinessPlaceId
+    ? await prisma.businessPlace.findUnique({ where: { id: c.toBusinessPlaceId } })
+    : null;
+  const toGstin = c.jobWorker?.gstin ?? toPlace?.gstin ?? seller.gstin;
+  const toStcd = c.placeOfSupply ?? toGstin?.slice(0, 2) ?? seller.stateCode;
+  const items: EwbItem[] = c.items.map((i) => {
+    const qty = Number(i.quantitySent);
+    const rate = Number(i.rate ?? 0);
+    const gst = Number(i.gstRate ?? 0);
+    const intra = toStcd === seller.stateCode;
+    return {
+      productName: (i.description ?? "Item").slice(0, 100),
+      hsnCode: i.hsnCode ?? "",
+      quantity: qty,
+      qtyUnit: unitCode(i.uom),
+      taxableAmount: n(qty * rate),
+      cgstRate: intra ? gst / 2 : 0,
+      sgstRate: intra ? gst / 2 : 0,
+      igstRate: intra ? 0 : gst,
+      cessRate: 0,
+    };
+  });
+  const taxable = n(items.reduce((s, i) => s + i.taxableAmount, 0));
+  const cgst = n(items.reduce((s, i) => s + (i.taxableAmount * i.cgstRate) / 100, 0));
+  const sgst = n(items.reduce((s, i) => s + (i.taxableAmount * i.sgstRate) / 100, 0));
+  const igst = n(items.reduce((s, i) => s + (i.taxableAmount * i.igstRate) / 100, 0));
+  const total = n(taxable + cgst + sgst + igst);
+  const toName = c.jobWorker?.name ?? toPlace?.name ?? seller.legalName;
+  const request: EwbRequest = {
+    supplyType: "O",
+    // 4 = job work, per the e-way bill sub-supply-type list.
+    subSupplyType: c.jobWorker ? "4" : "5",
+    subSupplyDesc: c.jobWorker ? "Job work" : "For own use",
+    docType: "CHL",
+    docNo: c.challanNo.slice(0, 16),
+    docDate: dt(c.challanDate),
+    fromGstin: seller.gstin,
+    fromTrdName: (seller.tradeName ?? seller.legalName).slice(0, 100),
+    fromAddr1: (seller.addressLine1 ?? "-").slice(0, 100),
+    fromPlace: (seller.city ?? "-").slice(0, 50),
+    fromPincode: pinOf(seller.pincode),
+    fromStateCode: Number(seller.stateCode),
+    actFromStateCode: Number(seller.stateCode),
+    toGstin,
+    toTrdName: toName.slice(0, 100),
+    toAddr1: (c.jobWorker?.addressLine1 ?? "-").slice(0, 100),
+    toPlace: (c.jobWorker?.city ?? "-").slice(0, 50),
+    toPincode: pinOf(c.jobWorker?.pincode ?? seller.pincode),
+    toStateCode: Number(toStcd),
+    actToStateCode: Number(toStcd),
+    totalValue: taxable,
+    cgstValue: cgst,
+    sgstValue: sgst,
+    igstValue: igst,
+    cessValue: 0,
+    totInvValue: total,
+    ...transportFields(t),
+    itemList: items,
+  };
+  return {
+    request,
+    docType: "JWC",
+    docRef: challanId,
+    docNo: c.challanNo,
+    docDate: c.challanDate,
+    fromGstin: seller.gstin,
+    toGstin,
+    totalValue: total,
+    irn: null,
+    eInvoiceId: null,
+  };
+};
+
 export const buildEwb = (
   docType: EwbDocType,
   docRef: string,
   t: EwbTransport
 ): Promise<BuiltEwb> => {
   if (docType === "INV") return buildInvoiceEwb(docRef, t);
+  if (docType === "JWC") return buildJobWorkChallanEwb(docRef, t);
   let id: bigint;
   try {
     id = BigInt(docRef);

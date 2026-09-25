@@ -67,6 +67,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "currencies",
       "job-work",
       "goods-dispatch",
+      "delivery-schedules",
       "sales-reports",
       "gst_tax",
     ],
@@ -123,6 +124,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "oee-dashboard",
       "production-reports",
       "dash-machines",
+      "order-tna",
     ],
   },
   {
@@ -157,6 +159,9 @@ export const FEATURES: readonly FeatureDef[] = [
       "payroll-attendance",
       "payroll-advance",
       "payroll-extended-comp",
+      "leave",
+      "registers",
+      "fines",
     ],
   },
   {
@@ -182,6 +187,18 @@ export const FEATURES: readonly FeatureDef[] = [
     name: "API access",
     description: "Integration tokens for third-party systems",
     modules: [],
+  },
+  {
+    key: "shop-floor",
+    name: "Shop floor",
+    description: "Machine telemetry, andon, energy, maintenance and piece-rate pay (Phase 2)",
+    modules: ["machine-telemetry"],
+  },
+  {
+    key: "exports",
+    name: "Exports",
+    description: "Export incentives, EPCG / Advance Authorisation obligations",
+    modules: ["export-incentives"],
   },
 ];
 
@@ -236,6 +253,8 @@ export const PLAN_TIERS: readonly PlanTierDef[] = [
       "accounts",
       "field-app",
       "gst-compliance",
+      "shop-floor",
+      "exports",
     ],
     seatLimit: 25,
     apiLimit: 3000,

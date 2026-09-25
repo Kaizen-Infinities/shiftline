@@ -159,7 +159,14 @@ describe("audit trail", () => {
     const keys = role.rolePermissions.map((rp) => rp.permission.key);
     expect(keys).toContain("audit-reports.view");
     expect(keys).toContain("accounts.view");
-    expect(keys.filter((k) => !k.endsWith(".view") && k !== "audit-reports.export")).toEqual([]);
+    // "employees.search" (P2-15) is a lighter read — a name/code typeahead, no payroll or
+    // identity fields — than "employees.view"; it changes nothing, so it belongs in this
+    // read-only role the same way "audit-reports.export" is carved out below.
+    expect(
+      keys.filter(
+        (k) => !k.endsWith(".view") && k !== "audit-reports.export" && k !== "employees.search"
+      )
+    ).toEqual([]);
   });
 
   it("never shows another tenant's rows", async () => {

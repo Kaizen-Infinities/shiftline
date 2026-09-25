@@ -6,19 +6,18 @@ import { usePermission } from "./usePermission";
 // ── Custom event names fired by F-keys ───────────────────────────────────────
 // Any component can listen:  window.addEventListener('fkey-save', handler)
 export const FKEY_EVENTS = {
-  SAVE:       "fkey-save",       // F2  — forms listen → submit
-  OPEN:       "fkey-open",       // F4  — selects/dropdowns listen → open
-  REFRESH:    "fkey-refresh",    // F5  — list pages listen → reload data
+  SAVE: "fkey-save", // F2  — forms listen → submit
+  OPEN: "fkey-open", // F4  — selects/dropdowns listen → open
+  REFRESH: "fkey-refresh", // F5  — list pages listen → reload data
   NEXT_FIELD: "fkey-next-field", // F6  — focus next focusable element
-  DELETE:     "fkey-delete",     // F8  — forms/lists listen → delete
-  SUBMIT:     "fkey-submit",     // F9  — forms listen → confirm submit
-  NEW:        "fkey-new",        // Ins — list pages listen → open create form
-  EXPORT:     "fkey-export",     // Ctrl+Shift+E — list/report pages listen → export
+  DELETE: "fkey-delete", // F8  — forms/lists listen → delete
+  SUBMIT: "fkey-submit", // F9  — forms listen → confirm submit
+  NEW: "fkey-new", // Ins — list pages listen → open create form
+  EXPORT: "fkey-export", // Ctrl+Shift+E — list/report pages listen → export
 } as const;
 
 /** Dispatch a named fkey event on window */
-export const dispatchFKey = (name: string) =>
-  window.dispatchEvent(new CustomEvent(name));
+export const dispatchFKey = (name: string) => window.dispatchEvent(new CustomEvent(name));
 
 interface UseGlobalShortcutsOptions {
   onTogglePanel: () => void;
@@ -86,9 +85,9 @@ export function useGlobalShortcuts({
 
       const key = e.key;
       const lowerKey = key ? key.toLowerCase() : "";
-      const isCtrl      = e.ctrlKey && !e.altKey && !e.shiftKey;
+      const isCtrl = e.ctrlKey && !e.altKey && !e.shiftKey;
       const isCtrlShift = e.ctrlKey && !e.altKey && e.shiftKey;
-      const isAlt       = e.altKey  && !e.ctrlKey && !e.shiftKey;
+      const isAlt = e.altKey && !e.ctrlKey && !e.shiftKey;
 
       // ── Alt+C Calculator (Tally-style — works even inside form fields) ────
       if (isAlt && (lowerKey === "c" || e.code === "KeyC")) {
@@ -241,12 +240,18 @@ export function useGlobalShortcuts({
       // Transactions (Alt+T / Ctrl+T / Shift+T)
       if (
         ((isCtrl || isAlt) && (lowerKey === "t" || e.code === "KeyT")) ||
-        (e.shiftKey && !e.ctrlKey && !e.altKey && !inField && (lowerKey === "t" || e.code === "KeyT"))
+        (e.shiftKey &&
+          !e.ctrlKey &&
+          !e.altKey &&
+          !inField &&
+          (lowerKey === "t" || e.code === "KeyT"))
       ) {
         e.preventDefault();
         e.stopPropagation();
         flash(isCtrl ? "Ctrl+T" : isAlt ? "Alt+T" : "Shift+T");
-        window.dispatchEvent(new CustomEvent("nav-open-menu", { detail: { menuTitle: "Transactions" } }));
+        window.dispatchEvent(
+          new CustomEvent("nav-open-menu", { detail: { menuTitle: "Transactions" } })
+        );
         return;
       }
 
@@ -260,7 +265,9 @@ export function useGlobalShortcuts({
             e.preventDefault();
             e.stopPropagation();
             flash(isCtrl ? "Ctrl+A" : "Alt+A");
-            window.dispatchEvent(new CustomEvent("nav-open-menu", { detail: { menuTitle: "Administration" } }));
+            window.dispatchEvent(
+              new CustomEvent("nav-open-menu", { detail: { menuTitle: "Administration" } })
+            );
             return;
           }
         }
@@ -270,7 +277,9 @@ export function useGlobalShortcuts({
           e.preventDefault();
           e.stopPropagation();
           flash(isAlt ? "Alt+D" : "Ctrl+D");
-          window.dispatchEvent(new CustomEvent("nav-open-menu", { detail: { menuTitle: "Display" } }));
+          window.dispatchEvent(
+            new CustomEvent("nav-open-menu", { detail: { menuTitle: "Display" } })
+          );
           return;
         }
 
@@ -279,7 +288,9 @@ export function useGlobalShortcuts({
           e.preventDefault();
           e.stopPropagation();
           flash(isCtrl ? "Ctrl+Y" : "Alt+P");
-          window.dispatchEvent(new CustomEvent("nav-open-menu", { detail: { menuTitle: "Payroll" } }));
+          window.dispatchEvent(
+            new CustomEvent("nav-open-menu", { detail: { menuTitle: "Payroll" } })
+          );
           return;
         }
       }
@@ -289,7 +300,13 @@ export function useGlobalShortcuts({
 
       // ── Plain single letter shortcuts (Tally/Busy style) ───────────────
       // Single key 'D' / 'd' -> Direct Dashboard navigation
-      if (!e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && (lowerKey === "d" || e.code === "KeyD")) {
+      if (
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.shiftKey &&
+        !e.metaKey &&
+        (lowerKey === "d" || e.code === "KeyD")
+      ) {
         e.preventDefault();
         e.stopPropagation();
         flash("D");
@@ -299,13 +316,15 @@ export function useGlobalShortcuts({
 
       // ── Other Alt+ or Ctrl+ or Ctrl+Shift+ combinations ───────────────
       if (isCtrl || isAlt || isCtrlShift) {
-        const match =
-          allowedShortcuts.find(
-            (s) =>
-              (s.ctrl && !s.shift && isCtrl      && (s.key === lowerKey || s.key === key)) ||
-              (s.alt  &&            isAlt         && (s.key === lowerKey || s.key === key)) ||
-              (s.ctrl && s.shift  && isCtrlShift  && (s.key === lowerKey || s.key === key))
-          );
+        const match = allowedShortcuts.find(
+          (s) =>
+            (s.ctrl && !s.shift && isCtrl && (s.key === lowerKey || s.key === key)) ||
+            // e.code as well: on macOS Option+letter types a symbol into e.key.
+            (s.alt &&
+              isAlt &&
+              (s.key === lowerKey || s.key === key || `Key${s.key.toUpperCase()}` === e.code)) ||
+            (s.ctrl && s.shift && isCtrlShift && (s.key === lowerKey || s.key === key))
+        );
 
         if (match?.route) {
           e.preventDefault();

@@ -1,22 +1,25 @@
 /* ══════════════════════════════════════════════════════════════════
-   MANAGEMENT TV DASHBOARD — THEME
+   MANAGEMENT TV DASHBOARD — THEME (UI v2)
    ------------------------------------------------------------------
-   Palette is lifted verbatim from the design. Colours are authored in
-   oklch so the dark and light sets stay perceptually matched.
+   The wall display wears the product's own tokens (docs/specs/UI-v2.md):
+   every colour below is a CSS variable, so the same references resolve to
+   the airy light theme or the deep-navy dark theme. TvDashboard sets the
+   document's data-theme to the wall's own light/dark choice while it is
+   mounted and puts the app's theme back when it leaves.
    ══════════════════════════════════════════════════════════════════ */
 
 export interface TvPalette {
   bg: string;
-  scan: string;
   panel: string;
   panelBorder: string;
+  panelShadow: string;
   tile: string;
   track: string;
   text: string;
   textDim: string;
   textMute: string;
   badgeBg: string;
-  badgeBorder: string;
+  badgeText: string;
   dotInactive: string;
   headerBorder: string;
 }
@@ -33,67 +36,39 @@ export interface TvAccents {
   okTint: string;
 }
 
-const DARK: TvPalette = {
-  bg: "oklch(0.1 0.012 260)",
-  scan: "oklch(0.16 0.014 260 / 0.55)",
-  panel: "oklch(0.15 0.016 260)",
-  panelBorder: "oklch(0.32 0.03 260)",
-  tile: "oklch(0.2 0.02 260)",
-  track: "oklch(0.24 0.02 260)",
-  text: "oklch(0.96 0.004 260)",
-  textDim: "oklch(0.7 0.02 260)",
-  textMute: "oklch(0.55 0.02 260)",
-  badgeBg: "oklch(0.2 0.02 260)",
-  badgeBorder: "oklch(0.36 0.03 260)",
-  dotInactive: "oklch(0.3 0.02 260)",
-  headerBorder: "oklch(0.28 0.02 260)",
+const PALETTE: TvPalette = {
+  bg: "var(--color-page)",
+  panel: "var(--color-card)",
+  panelBorder: "var(--color-line-soft)",
+  panelShadow: "var(--shadow-sm)",
+  tile: "var(--color-card-2)",
+  track: "var(--color-line-soft)",
+  text: "var(--color-ink)",
+  textDim: "var(--color-ink-muted)",
+  textMute: "var(--color-ink-subtle)",
+  badgeBg: "var(--color-chip)",
+  badgeText: "var(--color-chip-fg)",
+  dotInactive: "var(--color-line)",
+  headerBorder: "var(--color-line-soft)",
 };
 
-const LIGHT: TvPalette = {
-  bg: "oklch(0.97 0.005 260)",
-  scan: "oklch(0.9 0.006 260 / 0.6)",
-  panel: "oklch(0.995 0.002 260)",
-  panelBorder: "oklch(0.83 0.012 260)",
-  tile: "oklch(0.94 0.01 260)",
-  track: "oklch(0.89 0.012 260)",
-  text: "oklch(0.16 0.012 260)",
-  textDim: "oklch(0.4 0.014 260)",
-  textMute: "oklch(0.5 0.014 260)",
-  badgeBg: "oklch(0.94 0.01 260)",
-  badgeBorder: "oklch(0.83 0.012 260)",
-  dotInactive: "oklch(0.83 0.012 260)",
-  headerBorder: "oklch(0.85 0.01 260)",
-};
-
-const DARK_ACCENTS: TvAccents = {
-  green: "oklch(0.78 0.23 148)",
-  amber: "oklch(0.82 0.21 78)",
-  red: "oklch(0.7 0.25 22)",
-  blue: "oklch(0.76 0.19 222)",
-  accentBg: "oklch(0.72 0.15 175)",
-  accentText: "oklch(0.12 0.02 175)",
-  critTint: "oklch(0.28 0.09 22)",
-  lowTint: "oklch(0.3 0.08 78)",
-  okTint: "oklch(0.19 0.06 148)",
-};
-
-const LIGHT_ACCENTS: TvAccents = {
-  green: "oklch(0.56 0.21 148)",
-  amber: "oklch(0.6 0.2 68)",
-  red: "oklch(0.55 0.24 24)",
-  blue: "oklch(0.5 0.2 235)",
-  accentBg: "oklch(0.5 0.14 175)",
-  accentText: "oklch(0.99 0.004 175)",
-  critTint: "oklch(0.94 0.07 24)",
-  lowTint: "oklch(0.94 0.07 78)",
-  okTint: "oklch(0.93 0.06 148)",
+const ACCENTS: TvAccents = {
+  green: "var(--color-success)",
+  amber: "var(--color-warning)",
+  red: "var(--color-danger)",
+  blue: "var(--color-primary)",
+  accentBg: "var(--color-primary)",
+  accentText: "var(--color-white)",
+  critTint: "color-mix(in srgb, var(--color-danger) 14%, var(--color-card))",
+  lowTint: "color-mix(in srgb, var(--color-warning) 16%, var(--color-card))",
+  okTint: "color-mix(in srgb, var(--color-success) 14%, var(--color-card))",
 };
 
 export type TvMode = "dark" | "light";
 
 export const getTvTheme = (mode: TvMode) => ({
-  T: mode === "dark" ? DARK : LIGHT,
-  A: mode === "dark" ? DARK_ACCENTS : LIGHT_ACCENTS,
+  T: PALETTE,
+  A: ACCENTS,
   isDark: mode === "dark",
 });
 
@@ -124,11 +99,7 @@ export const trendText = (pct: number | null | undefined) => {
 };
 
 /** Green for a rise, red for a fall, blue for flat/unknown. */
-export const trendColor = (
-  pct: number | null | undefined,
-  A: TvAccents,
-  invert = false
-) => {
+export const trendColor = (pct: number | null | undefined, A: TvAccents, invert = false) => {
   if (pct == null || !isFinite(pct) || Math.round(pct) === 0) return A.blue;
   const good = invert ? pct < 0 : pct > 0;
   return good ? A.green : A.red;

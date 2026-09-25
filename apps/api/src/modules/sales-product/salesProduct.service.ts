@@ -19,6 +19,8 @@ const includeDefaults = {
   components: {
     include: {
       componentProduct: {
+        // A full include: every scalar (including `isScrap`, which the sales-invoice TCS default
+        // reads) plus the stock and unit relations. Never narrow this to a select.
         include: {
           finishedGoodsStocks: true,
           uom: true,
@@ -157,8 +159,12 @@ class SalesProductService {
     return prisma.salesProduct.update({
       where: { id },
       data: {
-        salesProductName: data.salesProductName !== undefined ? cleanString(data.salesProductName, 160)! : undefined,
-        description: data.description !== undefined ? cleanString(data.description, 255) : undefined,
+        salesProductName:
+          data.salesProductName !== undefined
+            ? cleanString(data.salesProductName, 160)!
+            : undefined,
+        description:
+          data.description !== undefined ? cleanString(data.description, 255) : undefined,
         rate: data.rate !== undefined ? toNumberOrNull(data.rate) : undefined,
         isActive: data.isActive !== undefined ? Boolean(data.isActive) : undefined,
       },

@@ -7,6 +7,7 @@ import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { OVERHEAD_BASES, costingService } from "./costing.service";
 import { valuationService } from "./valuation.service";
+import { wipService } from "./wip.service";
 
 /**
  * /api/costing (P1-19): the valuation ledger, cost centres, budgets and the cost sheet.
@@ -81,6 +82,49 @@ router.post(
 );
 
 router.post(
+  "/valuation/backfill",
+  requirePermission("costing.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(new ApiResponse("Backfill complete", await valuationService.backfill(actorOf(req))));
+  })
+);
+
+// ── Work in progress ────────────────────────────────────────────────────────────
+router.get(
+  "/wip",
+  requirePermission("costing.view"),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(new ApiResponse("Work in progress", await wipService.total()));
+  })
+);
+
+router.get(
+  "/wip/:productionOrderId",
+  requirePermission("costing.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(
+      new ApiResponse(
+        "Work in progress",
+        await wipService.wipFor(String(req.params.productionOrderId))
+      )
+    );
+  })
+);
+
+router.get(
+  "/valuation/:periodKey/closing-stock-status",
+  requirePermission("costing.view"),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(
+      new ApiResponse(
+        "Closing stock status",
+        await costingService.closingStockStatus(periodKey.parse(req.params.periodKey))
+      )
+    );
+  })
+);
+
+router.post(
   "/valuation/:periodKey/post-closing-stock",
   requirePermission("costing.manage"),
   asyncHandler(async (req: Request, res: Response) => {
@@ -88,6 +132,29 @@ router.post(
       new ApiResponse(
         "Closing stock posted",
         await costingService.postClosingStock(periodKey.parse(req.params.periodKey), actorOf(req))
+      )
+    );
+  })
+);
+
+// ── Settings (P2-14) ────────────────────────────────────────────────────────────
+router.get(
+  "/settings",
+  requirePermission("costing.view"),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(new ApiResponse("Costing settings", await costingService.getSettings()));
+  })
+);
+
+router.put(
+  "/settings",
+  requirePermission("costing.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z.object({ wipLedgerCode: z.string().min(1).max(20) }).parse(req.body);
+    res.json(
+      new ApiResponse(
+        "Costing settings saved",
+        await costingService.updateSettings(body, actorOf(req))
       )
     );
   })

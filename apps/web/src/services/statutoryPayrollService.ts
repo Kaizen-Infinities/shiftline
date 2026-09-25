@@ -93,5 +93,10 @@ export const statutoryPayrollService = {
     (await apiClient.post(`${p.runs}/${runId}/register-filings`)).data.data as {
       registered: number;
     },
-  runs: async (): Promise<PayrollRunRow[]> => (await apiClient.get("/payroll/runs")).data.data,
+  runs: async (): Promise<PayrollRunRow[]> => {
+    // The payroll list is paged: { runs, total, page, limit }.
+    const body = (await apiClient.get("/payroll/runs", { params: { limit: 100 } })).data.data as
+      PayrollRunRow[] | { runs?: PayrollRunRow[] };
+    return Array.isArray(body) ? body : (body?.runs ?? []);
+  },
 };

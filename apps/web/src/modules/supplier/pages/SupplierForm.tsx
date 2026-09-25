@@ -21,6 +21,8 @@ import AddressForm from "../../../components/form/AddressFrom/AddressFrom";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import BackButton from "../../../components/ui/BackButton/BackButton";
 import { useSocket } from "../../../providers/SocketProvider";
+import { usePermission } from "../../../hooks/usePermission";
+import { tdsService, type TdsSectionRow } from "../../../services/tdsService";
 
 const supplierFormSchema = z.object({
   companyId: z.string().optional(),
@@ -108,11 +110,15 @@ const SupplierForm: React.FC = () => {
   const { addSupplier, editSupplier, loading } = useSuppliers();
   const user = useSelector((state: any) => state.auth.user);
   const { socket } = useSocket();
+  const { can } = usePermission();
+  const canViewTds = can("tds.view");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [phones, setPhones] = useState<PhoneEntry[]>([]);
   const [initialSupplier, setInitialSupplier] = useState<any>(null);
+  // P2-17: sections for the TDS default picker; skipped for a role without tds.view.
+  const [tdsSections, setTdsSections] = useState<TdsSectionRow[]>([]);
 
   const [formData, setFormData] = useState({
     companyId: "",
@@ -140,6 +146,11 @@ const SupplierForm: React.FC = () => {
     udyamNumber: "",
     hasWrittenContract: false,
     agreedPaymentDays: "",
+    // P2-17: the TDS section, deductee type and 206AB flag the GRN form's own preview defaults
+    // from when the caller does not name them by hand.
+    defaultTdsSectionCode: "",
+    deducteeType: "",
+    higherRate206AB: false,
     status: "Active",
   });
 
@@ -190,6 +201,9 @@ const SupplierForm: React.FC = () => {
       hasWrittenContract: Boolean(supplier.hasWrittenContract),
       agreedPaymentDays:
         supplier.agreedPaymentDays != null ? String(supplier.agreedPaymentDays) : "",
+      defaultTdsSectionCode: supplier.defaultTdsSectionCode || "",
+      deducteeType: supplier.deducteeType || "",
+      higherRate206AB: Boolean(supplier.higherRate206AB),
       status: supplier.status || "Active",
     });
 
@@ -256,6 +270,18 @@ const SupplierForm: React.FC = () => {
     initForm();
   }, [id, isEdit, location.state, user]);
 
+  // TDS/TCS sections for the default-section picker (P2-17, P2-26): skipped for a role
+  // without tds.view, so the section text input falls back when they lack the permission.
+  useEffect(() => {
+    if (!canViewTds) return;
+    tdsService
+      .sections()
+      .then((rows) => setTdsSections(rows))
+      .catch(() => {
+        /* the picker just has nothing to offer */
+      });
+  }, [canViewTds]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -303,6 +329,9 @@ const SupplierForm: React.FC = () => {
         udyamNumber: "",
         hasWrittenContract: false,
         agreedPaymentDays: "",
+        defaultTdsSectionCode: "",
+        deducteeType: "",
+        higherRate206AB: false,
         status: "Active",
       });
       setAddresses([
@@ -498,6 +527,12 @@ const SupplierForm: React.FC = () => {
       formData.agreedPaymentDays === "" || formData.agreedPaymentDays == null
         ? null
         : Number(formData.agreedPaymentDays);
+    // P2-17: TDS defaults the GRN form's own picker reads from this supplier.
+    payload.defaultTdsSectionCode = formData.defaultTdsSectionCode?.trim()
+      ? formData.defaultTdsSectionCode.trim().toUpperCase()
+      : null;
+    payload.deducteeType = formData.deducteeType || null;
+    payload.higherRate206AB = Boolean(formData.higherRate206AB);
 
     if (!isEdit) {
       payload.openingBalance = Number(formData.openingBalance || 0);
@@ -552,7 +587,7 @@ const SupplierForm: React.FC = () => {
                 .supplier-form-compact button[role="combobox"] { height: 32px !important; min-height: 32px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
                 .supplier-form-compact .group { margin-bottom: 0 !important; }
             `}</style>
-      <div className="bg-card rounded-xl border border-line-soft shadow-xs overflow-visible">
+      <div className="bg-card rounded-sm border border-line-soft overflow-visible">
         {/* Header */}
         <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
           <h2 className="text-base font-bold text-ink">
@@ -664,7 +699,7 @@ const SupplierForm: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
                 <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Billing Address <span className="text-rose-500">*</span>
+                  Billing Address <span className="text-[color:var(--color-danger)]">*</span>
                 </h3>
               </div>
               <AddressForm
@@ -722,7 +757,8 @@ const SupplierForm: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-line-soft">
                 <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Delivery / Plant Addresses <span className="text-rose-500">*</span>
+                  Delivery / Plant Addresses{" "}
+                  <span className="text-[color:var(--color-danger)]">*</span>
                 </h3>
                 <CustomButton
                   text="Add Address"
@@ -829,7 +865,7 @@ const SupplierForm: React.FC = () => {
                       error={errors.openingBalance}
                       onChange={handleChange}
                     />
-                    <p className="mt-0.5 text-[10px] text-amber-600">
+                    <p className="mt-0.5 text-[10px] text-[color:var(--color-warning)]">
                       Set once. Cannot be edited later.
                     </p>
                   </div>
@@ -927,6 +963,76 @@ const SupplierForm: React.FC = () => {
                   />
                   <p className="mt-0.5 text-[10px] text-ink-muted">
                     Section 15 caps this at 45 days however long the contract says.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">TDS Defaults</h3>
+              </div>
+              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
+                <div>
+                  {canViewTds ? (
+                    <SelectInput
+                      label="Default TDS Section"
+                      name="defaultTdsSectionCode"
+                      value={String(formData.defaultTdsSectionCode ?? "")}
+                      defaultOptionLabel="-- None --"
+                      options={tdsSections
+                        .filter((s) => !s.isTcs)
+                        .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
+                      onChange={handleChange}
+                    />
+                  ) : (
+                    <TextInput
+                      label="Default TDS Section"
+                      name="defaultTdsSectionCode"
+                      value={formData.defaultTdsSectionCode}
+                      placeholder="e.g. 194C(5)"
+                      error={errors.defaultTdsSectionCode}
+                      onChange={handleChange}
+                    />
+                  )}
+                  <p className="mt-0.5 text-[10px] text-ink-muted">
+                    The GRN form's TDS picker defaults to this section for this supplier.
+                  </p>
+                </div>
+                <div>
+                  <SelectInput
+                    label="Deductee Type"
+                    name="deducteeType"
+                    value={String(formData.deducteeType ?? "")}
+                    defaultOptionLabel="-- Not set --"
+                    options={[
+                      { value: "COMPANY", label: "Company / Firm" },
+                      { value: "INDIVIDUAL_HUF", label: "Individual / HUF" },
+                      { value: "FIRM", label: "Firm" },
+                      { value: "AOP_BOI", label: "AOP / BOI" },
+                      { value: "LOCAL_AUTHORITY", label: "Local Authority" },
+                      { value: "NON_RESIDENT", label: "Non-Resident" },
+                    ]}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div>
+                  <SelectInput
+                    label="Higher Rate (206AB)"
+                    name="higherRate206AB"
+                    value={formData.higherRate206AB ? "yes" : "no"}
+                    options={[
+                      { value: "no", label: "No" },
+                      { value: "yes", label: "Yes — non-filer" },
+                    ]}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        higherRate206AB: e.target.value === "yes",
+                      }))
+                    }
+                  />
+                  <p className="mt-0.5 text-[10px] text-ink-muted">
+                    Doubles the TDS rate when this supplier has not filed their returns.
                   </p>
                 </div>
               </div>

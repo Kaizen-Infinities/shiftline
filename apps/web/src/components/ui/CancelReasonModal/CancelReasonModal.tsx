@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 
@@ -31,6 +31,9 @@ const CancelReasonModal: React.FC<CancelReasonModalProps> = ({
   minLength = 3,
 }) => {
   const [reason, setReason] = useState("");
+  const titleId = useId();
+  const reasonId = useId();
+  const hintId = useId();
 
   useEffect(() => {
     if (show) setReason("");
@@ -49,47 +52,62 @@ const CancelReasonModal: React.FC<CancelReasonModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="sl-backdrop z-[99999] flex items-center justify-center p-4"
       onClick={() => !isLoading && onHide()}
     >
       <div
-        className="bg-card border border-line-soft rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="sl-dialog w-full max-w-md overflow-hidden"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 border border-red-500/20">
-            <AlertTriangle className="text-red-400" size={22} />
+        <div className="px-6 pb-5 pt-7">
+          <div className="sl-dialog-icon sl-dialog-icon-danger mx-auto mb-4" aria-hidden="true">
+            <AlertTriangle size={24} />
           </div>
-          <h5 className="text-lg font-bold text-ink text-center mb-1">{title}</h5>
-          <p className="text-sm text-ink-muted text-center mb-4">{message}</p>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-ink-subtle mb-1">
+          <h5 id={titleId} className="sl-dialog-title mb-1.5 text-center">
+            {title}
+          </h5>
+          <p className="m-0 mb-5 text-center text-sm leading-relaxed text-ink-muted">{message}</p>
+          <label htmlFor={reasonId} className="sl-label">
             Reason
+            <span className="sl-required" aria-hidden="true">
+              *
+            </span>
           </label>
           <textarea
+            id={reasonId}
             autoFocus
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Why is it being cancelled? This is kept in the audit trail."
-            className="w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink outline-none focus:border-red-400"
+            aria-describedby={hintId}
+            aria-required="true"
+            className="sl-input resize-y py-2.5 text-sm"
             data-testid="cancel-reason"
           />
-          <div className="flex justify-end gap-2.5 mt-5">
-            <CustomButton
-              text="Keep it"
-              variant="secondary"
-              onClick={onHide}
-              disabled={isLoading}
-            />
-            <CustomButton
-              text={isLoading ? "Cancelling…" : confirmText}
-              variant="danger"
-              onClick={() => onConfirm(reason.trim())}
-              disabled={!ok || isLoading}
-            />
-          </div>
+          <p id={hintId} className="sl-field-hint m-0">
+            At least {minLength} characters.
+          </p>
+        </div>
+        <div className="sl-dialog-footer">
+          <CustomButton
+            text="Keep it"
+            variant="secondary"
+            onClick={onHide}
+            disabled={isLoading}
+            size="md"
+          />
+          <CustomButton
+            text={isLoading ? "Cancelling…" : confirmText}
+            variant="danger"
+            onClick={() => onConfirm(reason.trim())}
+            disabled={!ok || isLoading}
+            loading={isLoading}
+            size="md"
+          />
         </div>
       </div>
     </div>,

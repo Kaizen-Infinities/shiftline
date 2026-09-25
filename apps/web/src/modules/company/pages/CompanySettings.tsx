@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { FaSave, FaInfoCircle, FaMapMarkerAlt, FaPhoneAlt } from 'react-icons/fa';
+import { FaSave, FaInfoCircle, FaMapMarkerAlt, FaPhoneAlt } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from "react-redux";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import ImageUpload from "../../../components/form/ImageUpload/ImageUpload";
 import Button from "../../../components/ui/Button/Button";
 // import BackButton from "../../../components/ui/BackButton/BackButton";
 import CityStateSelect from "../../../components/ui/CityStateSelect/CityStateSelect";
 import IndiaPhoneInput from "../../../components/ui/PhoneInput/PhoneInput";
-import type { RootState, AppDispatch } from '../../../app/store';
+import type { RootState, AppDispatch } from "../../../app/store";
 import { usePermission } from "../../../hooks/usePermission";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import ThemeToggle from "../../../components/common/ThemeToggle";
-import { fetchCompany, updateCompany } from '../../../features/company/companySlice';
-import type { UpdateCompanyDto } from '../../../features/company/types';
+import { fetchCompany, updateCompany } from "../../../features/company/companySlice";
+import type { UpdateCompanyDto } from "../../../features/company/types";
 import { validatePhoneEntries } from "../../../components/ui/PhoneInput/PhoneInput";
 import { GST_STATES } from "@shiftline/shared";
 
@@ -28,7 +28,10 @@ const CompanySettings: React.FC = () => {
 
   const [phones, setPhones] = useState<any[]>([]);
 
-  const isEditMode = location.pathname.includes('edit') || location.pathname.includes('settings') || !!(company && company.isOnboarded);
+  const isEditMode =
+    location.pathname.includes("edit") ||
+    location.pathname.includes("settings") ||
+    !!(company && company.isOnboarded);
 
   const [formData, setFormData] = useState<UpdateCompanyDto>({});
   const [errors, setErrors] = useState<any>({});
@@ -70,7 +73,9 @@ const CompanySettings: React.FC = () => {
     }
   }, [company]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value, type } = e.target;
     let val: any = value;
     if (type === "checkbox") {
@@ -154,18 +159,21 @@ const CompanySettings: React.FC = () => {
       });
 
       await dispatch(updateCompany({ id: company.id, data: submitData as any })).unwrap();
-      toast.success(company.isOnboarded ? "Company updated successfully!" : "Onboarding completed successfully!");
+      toast.success(
+        company.isOnboarded ? "Company updated successfully!" : "Onboarding completed successfully!"
+      );
       if (!company.isOnboarded) {
-        navigate('/dashboard');
+        navigate("/dashboard");
       } else {
-        navigate('/company/view');
+        navigate("/company/view");
       }
     } catch (err: any) {
       toast.error(err?.message || err || "Failed to update company");
     }
   };
 
-  if (loading && !company) return <CommonLoader text="Loading Company Settings..." fullScreen={false} />;
+  if (loading && !company)
+    return <CommonLoader text="Loading Company Settings..." fullScreen={false} />;
 
   // Onboarding Screen Design
   if (company && !company.isOnboarded) {
@@ -177,12 +185,13 @@ const CompanySettings: React.FC = () => {
         <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-ink pb-2">Welcome to Shiftline</h2>
-            <p className="text-ink-muted">Please complete your company onboarding to get started.</p>
+            <p className="text-ink-muted">
+              Please complete your company onboarding to get started.
+            </p>
           </div>
-          <div className="bg-card rounded-xl shadow-lg border border-line-soft">
+          <div className="bg-card rounded-sm border border-line-soft">
             <form onSubmit={handleSubmit} noValidate>
               <div className="flex flex-col lg:flex-row min-h-[calc(100vh-270px)]">
-
                 {/* Left: All Input Fields — 70% */}
                 <div className="lg:w-[70%] px-6 py-6 space-y-8">
                   {/* General Info */}
@@ -192,11 +201,33 @@ const CompanySettings: React.FC = () => {
                       <h6 className="text-lg font-semibold text-ink m-0">General Info</h6>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <TextInput label="Legal Company Name" name="legalName" value={formData.legalName || ""} onChange={handleChange} placeholder="Enter Legal Name" required error={errors.legalName} />
-                      <TextInput label="GSTIN" name="gstin" value={formData.gstin || ""} onChange={handleChange} placeholder="Enter GSTIN" />
+                      <TextInput
+                        label="Legal Company Name"
+                        name="legalName"
+                        value={formData.legalName || ""}
+                        onChange={handleChange}
+                        placeholder="Enter Legal Name"
+                        required
+                        error={errors.legalName}
+                      />
+                      <TextInput
+                        label="GSTIN"
+                        name="gstin"
+                        value={formData.gstin || ""}
+                        onChange={handleChange}
+                        placeholder="Enter GSTIN"
+                      />
                     </div>
                     <div className="hidden">
-                      <TextInput label="Company Code (Auto Generated)" name="companyCode" value={formData.companyCode || ""} onChange={handleChange} placeholder="Auto Generated" disabled error={errors.companyCode} />
+                      <TextInput
+                        label="Company Code (Auto Generated)"
+                        name="companyCode"
+                        value={formData.companyCode || ""}
+                        onChange={handleChange}
+                        placeholder="Auto Generated"
+                        disabled
+                        error={errors.companyCode}
+                      />
                     </div>
                   </div>
 
@@ -207,7 +238,15 @@ const CompanySettings: React.FC = () => {
                       <h6 className="text-lg font-semibold text-ink m-0">Address Details</h6>
                     </div>
                     <div className="space-y-4">
-                      <TextInput label="Address" name="addressLine1" value={formData.addressLine1 || ""} onChange={handleChange} placeholder="Enter full address" required error={errors.addressLine1} />
+                      <TextInput
+                        label="Address"
+                        name="addressLine1"
+                        value={formData.addressLine1 || ""}
+                        onChange={handleChange}
+                        placeholder="Enter full address"
+                        required
+                        error={errors.addressLine1}
+                      />
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="lg:col-span-3">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -228,7 +267,15 @@ const CompanySettings: React.FC = () => {
                             />
                           </div>
                         </div>
-                        <TextInput label="Zipcode" name="zipcode" value={formData.zipcode || ""} onChange={handleChange} placeholder="Enter Zipcode" required error={errors.zipcode} />
+                        <TextInput
+                          label="Zipcode"
+                          name="zipcode"
+                          value={formData.zipcode || ""}
+                          onChange={handleChange}
+                          placeholder="Enter Zipcode"
+                          required
+                          error={errors.zipcode}
+                        />
                       </div>
                     </div>
                   </div>
@@ -240,7 +287,16 @@ const CompanySettings: React.FC = () => {
                       <h6 className="text-lg font-semibold text-ink m-0">Contact Details</h6>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <TextInput label="Email Address" name="email" type="email" value={formData.email || ""} onChange={handleChange} placeholder="Enter Email" required error={errors.email} />
+                      <TextInput
+                        label="Email Address"
+                        name="email"
+                        type="email"
+                        value={formData.email || ""}
+                        onChange={handleChange}
+                        placeholder="Enter Email"
+                        required
+                        error={errors.email}
+                      />
                       <IndiaPhoneInput
                         multi
                         label="Mobile Numbers"
@@ -261,14 +317,29 @@ const CompanySettings: React.FC = () => {
 
                 {/* Right: Image Uploads — 30% */}
                 <div className="lg:w-[30%] lg:border-l border-t lg:border-t-0 border-line-soft/50 px-6 py-6 flex lg:flex-col items-center justify-evenly">
-                  <ImageUpload label="Company Logo" name="logoFile" currentImageUrl={formData.logoUrl || undefined} onChange={handleChange as any} />
-                  <ImageUpload label="Favicon" name="faviconFile" currentImageUrl={formData.faviconUrl || undefined} onChange={handleChange as any} />
+                  <ImageUpload
+                    label="Company Logo"
+                    name="logoFile"
+                    currentImageUrl={formData.logoUrl || undefined}
+                    onChange={handleChange as any}
+                  />
+                  <ImageUpload
+                    label="Favicon"
+                    name="faviconFile"
+                    currentImageUrl={formData.faviconUrl || undefined}
+                    onChange={handleChange as any}
+                  />
                 </div>
-
               </div>
 
               <div className="flex justify-end px-6 py-5 border-t border-line-soft">
-                <Button text="Complete Onboarding" icon={FaSave} type="submit" disabled={loading} className="py-3 px-8 text-lg" />
+                <Button
+                  text="Complete Onboarding"
+                  icon={FaSave}
+                  type="submit"
+                  disabled={loading}
+                  className="py-3 px-8 text-lg"
+                />
               </div>
             </form>
           </div>
@@ -280,10 +351,9 @@ const CompanySettings: React.FC = () => {
   // Normal Settings/Edit Screen Design
   return (
     <div className="max-w-[1024px] xl:mr-auto">
-      <div className="bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+      <div className="bg-card rounded-sm border border-line overflow-hidden">
         <form onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col lg:flex-row">
-
             {/* Left: All Input Fields — 70% */}
             <div className="lg:w-[70%] px-6 py-6 space-y-6">
               {/* General Info */}
@@ -293,9 +363,32 @@ const CompanySettings: React.FC = () => {
                   <h6 className="text-sm font-bold text-ink m-0">General Info</h6>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextInput label="Legal Name" name="legalName" value={formData.legalName || ""} onChange={handleChange} placeholder="Enter Legal Name" required error={errors.legalName} />
-                  <TextInput label="Email" name="email" type="email" value={formData.email || ""} onChange={handleChange} placeholder="Enter Email" required error={errors.email} />
-                  <TextInput label="GSTIN" name="gstin" value={formData.gstin || ""} onChange={handleChange} placeholder="Enter GSTIN" />
+                  <TextInput
+                    label="Legal Name"
+                    name="legalName"
+                    value={formData.legalName || ""}
+                    onChange={handleChange}
+                    placeholder="Enter Legal Name"
+                    required
+                    error={errors.legalName}
+                  />
+                  <TextInput
+                    label="Email"
+                    name="email"
+                    type="email"
+                    value={formData.email || ""}
+                    onChange={handleChange}
+                    placeholder="Enter Email"
+                    required
+                    error={errors.email}
+                  />
+                  <TextInput
+                    label="GSTIN"
+                    name="gstin"
+                    value={formData.gstin || ""}
+                    onChange={handleChange}
+                    placeholder="Enter GSTIN"
+                  />
                 </div>
               </div>
 
@@ -307,9 +400,11 @@ const CompanySettings: React.FC = () => {
                     <h6 className="text-sm font-bold text-ink m-0">Places of business</h6>
                   </div>
                   <p className="text-xs text-ink-subtle mb-3">
-                    Documents are numbered per place and taxed from its GST state. A branch registered on its own carries its GSTIN; the head office bills under the company GSTIN above.
+                    Documents are numbered per place and taxed from its GST state. A branch
+                    registered on its own carries its GSTIN; the head office bills under the company
+                    GSTIN above.
                   </p>
-                  <div className="overflow-x-auto rounded-xl border border-line-soft">
+                  <div className="overflow-x-auto rounded-lg border border-line-soft">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-card-2 text-[10px] uppercase tracking-wide text-ink-muted">
                         <tr>
@@ -325,16 +420,28 @@ const CompanySettings: React.FC = () => {
                           const updatePlace = (patch: Record<string, unknown>) =>
                             setFormData((prev) => ({
                               ...prev,
-                              businessPlaces: (prev.businessPlaces ?? []).map((p, i) => (i === idx ? { ...p, ...patch } : p)),
+                              businessPlaces: (prev.businessPlaces ?? []).map((p, i) =>
+                                i === idx ? { ...p, ...patch } : p
+                              ),
                             }));
                           return (
                             <tr key={String(bp.id ?? idx)}>
-                              <td className="px-3 py-2 font-mono font-semibold text-ink">{bp.code}</td>
+                              <td className="px-3 py-2 font-mono font-semibold text-ink">
+                                {bp.code}
+                              </td>
                               <td className="px-3 py-2 text-ink">
                                 {bp.name}
-                                {bp.isHeadOffice && <span className="ml-2 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600">Head office</span>}
+                                {bp.isHeadOffice && (
+                                  <span className="ml-2 rounded-full border border-line bg-card-2 px-2 py-0.5 text-[10px] font-semibold text-ink-muted">
+                                    Head office
+                                  </span>
+                                )}
                               </td>
-                              <td className="px-3 py-2 text-ink-muted">{String(bp.type ?? "").replace("_", " ").toLowerCase()}</td>
+                              <td className="px-3 py-2 text-ink-muted">
+                                {String(bp.type ?? "")
+                                  .replace("_", " ")
+                                  .toLowerCase()}
+                              </td>
                               <td className="px-3 py-2">
                                 <select
                                   className="w-full rounded-lg border border-line-soft bg-card px-2 py-1 text-xs text-ink"
@@ -354,14 +461,22 @@ const CompanySettings: React.FC = () => {
                               <td className="px-3 py-2">
                                 <input
                                   className="w-full rounded-lg border border-line-soft bg-card px-2 py-1 font-mono text-xs uppercase text-ink disabled:opacity-60"
-                                  value={bp.isHeadOffice ? formData.gstin || "" : bp.gstin ?? ""}
+                                  value={bp.isHeadOffice ? formData.gstin || "" : (bp.gstin ?? "")}
                                   onChange={(e) => {
-                                    const v = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 15);
-                                    updatePlace({ gstin: v || null, ...(v.length >= 2 ? { gstPlaceCode: v.slice(0, 2) } : {}) });
+                                    const v = e.target.value
+                                      .toUpperCase()
+                                      .replace(/[^0-9A-Z]/g, "")
+                                      .slice(0, 15);
+                                    updatePlace({
+                                      gstin: v || null,
+                                      ...(v.length >= 2 ? { gstPlaceCode: v.slice(0, 2) } : {}),
+                                    });
                                   }}
                                   maxLength={15}
                                   disabled={!canEdit || Boolean(bp.isHeadOffice)}
-                                  placeholder={bp.isHeadOffice ? "Company GSTIN" : "Blank = head office GSTIN"}
+                                  placeholder={
+                                    bp.isHeadOffice ? "Company GSTIN" : "Blank = head office GSTIN"
+                                  }
                                   aria-label={`${bp.code} GSTIN`}
                                 />
                               </td>
@@ -381,7 +496,13 @@ const CompanySettings: React.FC = () => {
                   <h6 className="text-sm font-bold text-ink m-0">Contact Details</h6>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextInput label="Website" name="website" value={formData.website || ""} onChange={handleChange} placeholder="http://www.example.com" />
+                  <TextInput
+                    label="Website"
+                    name="website"
+                    value={formData.website || ""}
+                    onChange={handleChange}
+                    placeholder="http://www.example.com"
+                  />
                   <IndiaPhoneInput
                     multi
                     label="Mobile Numbers"
@@ -406,7 +527,15 @@ const CompanySettings: React.FC = () => {
                   <h6 className="text-sm font-bold text-ink m-0">Address Details</h6>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextInput label="Street Address" name="addressLine1" value={formData.addressLine1 || ""} onChange={handleChange} placeholder="Building, street, area" required error={errors.addressLine1} />
+                  <TextInput
+                    label="Street Address"
+                    name="addressLine1"
+                    value={formData.addressLine1 || ""}
+                    onChange={handleChange}
+                    placeholder="Building, street, area"
+                    required
+                    error={errors.addressLine1}
+                  />
                   <CityStateSelect
                     countryLabel=""
                     countryValue={formData.country || "India"}
@@ -439,27 +568,59 @@ const CompanySettings: React.FC = () => {
                     required
                     renderOnly="state-country"
                   />
-                  <TextInput label="Zipcode" name="zipcode" value={formData.zipcode || ""} onChange={handleChange} placeholder="Zipcode" required error={errors.zipcode} />
+                  <TextInput
+                    label="Zipcode"
+                    name="zipcode"
+                    value={formData.zipcode || ""}
+                    onChange={handleChange}
+                    placeholder="Zipcode"
+                    required
+                    error={errors.zipcode}
+                  />
                 </div>
               </div>
             </div>
 
             {/* Right: Image Uploads — 30% */}
             <div className="lg:w-[30%] lg:border-l border-t lg:border-t-0 border-line/50 px-6 py-6 flex lg:flex-col items-center justify-evenly gap-6">
-              <ImageUpload label="Company Logo" name="logoFile" hint="PNG or SVG · min 256×256px" currentImageUrl={formData.logoUrl || undefined} onChange={handleChange as any} />
-              <ImageUpload label="Favicon" name="faviconFile" hint="PNG · min 64×64px" currentImageUrl={formData.faviconUrl || undefined} onChange={handleChange as any} />
+              <ImageUpload
+                label="Company Logo"
+                name="logoFile"
+                hint="PNG or SVG · min 256×256px"
+                currentImageUrl={formData.logoUrl || undefined}
+                onChange={handleChange as any}
+              />
+              <ImageUpload
+                label="Favicon"
+                name="faviconFile"
+                hint="PNG · min 64×64px"
+                currentImageUrl={formData.faviconUrl || undefined}
+                onChange={handleChange as any}
+              />
             </div>
-
           </div>
 
           <div className="hidden">
-            <TextInput label="Company Code" name="companyCode" value={formData.companyCode || ""} onChange={handleChange} placeholder="Auto Generated" disabled error={errors.companyCode} />
+            <TextInput
+              label="Company Code"
+              name="companyCode"
+              value={formData.companyCode || ""}
+              onChange={handleChange}
+              placeholder="Auto Generated"
+              disabled
+              error={errors.companyCode}
+            />
           </div>
 
           {/* Footer */}
           {canEdit && (
             <div className="flex justify-end px-6 py-4 border-t border-line">
-              <Button text={isEditMode ? "Save Changes" : "Create Company"} icon={FaSave} type="submit" disabled={loading} />
+              <Button
+                text={isEditMode ? "Save Changes" : "Create Company"}
+                icon={FaSave}
+                type="submit"
+                disabled={loading}
+              />
             </div>
           )}
         </form>

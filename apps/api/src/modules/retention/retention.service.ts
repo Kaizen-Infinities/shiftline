@@ -203,6 +203,17 @@ const CLASS_OPS: Record<RetentionDataClass, ClassOps> = {
     remove: async (tx, ids) =>
       (await tx.notification.deleteMany({ where: { id: { in: ids as string[] } } })).count,
   },
+  MACHINE_TELEMETRY: {
+    count: (tx, cutoff) => tx.machineSignal.count({ where: { timestamp: { lt: cutoff } } }),
+    fetch: (tx, cutoff, take) =>
+      tx.machineSignal.findMany({
+        where: { timestamp: { lt: cutoff } },
+        orderBy: { id: "asc" },
+        take,
+      }),
+    remove: async (tx, ids) =>
+      (await tx.machineSignal.deleteMany({ where: { id: { in: ids as bigint[] } } })).count,
+  },
 };
 
 const BATCH = 1000;

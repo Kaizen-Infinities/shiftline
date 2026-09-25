@@ -17,8 +17,17 @@ export interface TotalCell {
   value: string | number;
 }
 
-export interface SundryOption { value: string; label: string; sign: 1 | -1; }
-export interface SundryRow { id: string; type: string; rate: string; amount: string; }
+export interface SundryOption {
+  value: string;
+  label: string;
+  sign: 1 | -1;
+}
+export interface SundryRow {
+  id: string;
+  type: string;
+  rate: string;
+  amount: string;
+}
 export interface BillSundryConfig {
   rows: SundryRow[];
   onChange: (rows: SundryRow[]) => void;
@@ -65,43 +74,79 @@ const fmtINR = (v: string | number) => {
 
 // ─── Shared cell / border style ──────────────────────────────────────────────
 
-const B = "1px solid var(--color-line-soft, rgba(148,163,184,.25))";
-const B2 = "2px solid var(--color-line, rgba(148,163,184,.4))";
+const B = "1px solid var(--color-line-soft)";
+const B2 = "1px solid var(--color-line)";
 
 const cellStyle: React.CSSProperties = {
-  display: "flex", alignItems: "center", padding: "0 6px",
-  fontSize: 13, minWidth: 0, overflow: "hidden", borderRight: B,
+  display: "flex",
+  alignItems: "center",
+  padding: "0 6px",
+  fontSize: 13,
+  minWidth: 0,
+  overflow: "hidden",
+  borderRight: B,
 };
 const hdStyle: React.CSSProperties = {
-  ...cellStyle, fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-  letterSpacing: 0.4, padding: "5px 6px",
+  ...cellStyle,
+  fontSize: 11,
+  fontWeight: 600,
+  textTransform: "uppercase",
+  letterSpacing: "0.06em",
+  padding: "8px 8px",
+  color: "var(--color-ink-subtle)",
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 function BusyItemsTable<T extends Record<string, any>>({
-  columns, rows, onChange, emptyRow, visibleRows = 10, showTotals, billSundry,
-  editable = true, className = "", onAdd, onRemove,
-  renderExpandedRow, expandedIndex, onExpandToggle, expandable = false, canExpand,
+  columns,
+  rows,
+  onChange,
+  emptyRow,
+  visibleRows = 10,
+  showTotals,
+  billSundry,
+  editable = true,
+  className = "",
+  onAdd,
+  onRemove,
+  renderExpandedRow,
+  expandedIndex,
+  onExpandToggle,
+  expandable = false,
+  canExpand,
 }: BusyItemsTableProps<T>) {
-
   const ROW = 32;
   const SN = "40px";
-  const colW = columns.map(c => c.width || "1fr").join(" ");
+  const colW = columns.map((c) => c.width || "1fr").join(" ");
   const grid = `${SN} ${colW}${expandable ? " 32px" : ""}${editable ? " 36px" : ""}`;
 
-  const updateRow = useCallback((i: number, patch: Partial<T>) => {
-    if (!onChange) return;
-    const n = [...rows]; n[i] = { ...n[i], ...patch }; onChange(n);
-  }, [rows, onChange]);
+  const updateRow = useCallback(
+    (i: number, patch: Partial<T>) => {
+      if (!onChange) return;
+      const n = [...rows];
+      n[i] = { ...n[i], ...patch };
+      onChange(n);
+    },
+    [rows, onChange]
+  );
 
-  const doRemove = useCallback((i: number) => {
-    if (onRemove) { onRemove(i); return; }
-    if (onChange) onChange(rows.filter((_, j) => j !== i));
-  }, [rows, onChange, onRemove]);
+  const doRemove = useCallback(
+    (i: number) => {
+      if (onRemove) {
+        onRemove(i);
+        return;
+      }
+      if (onChange) onChange(rows.filter((_, j) => j !== i));
+    },
+    [rows, onChange, onRemove]
+  );
 
   const doAdd = useCallback(() => {
-    if (onAdd) { onAdd(); return; }
+    if (onAdd) {
+      onAdd();
+      return;
+    }
     if (emptyRow && onChange) onChange([...rows, { ...emptyRow }]);
   }, [rows, onChange, emptyRow, onAdd]);
 
@@ -127,53 +172,103 @@ function BusyItemsTable<T extends Record<string, any>>({
     else cell.focus();
   }, []);
 
-  const onKey = useCallback((e: React.KeyboardEvent) => {
-    const tgt = e.target as HTMLElement;
-    // Skip if inside an open dropdown (autocomplete handles its own keys)
-    if (tgt.closest("[data-dropdown-open]")) return;
-    // Skip Enter/Space when inside an autocomplete cell (let it open the dropdown)
-    if ((e.key === "Enter" || e.key === " ") && tgt.closest("[data-autocomplete]")) return;
-    // Skip Enter/Space/ArrowDown/ArrowUp when target is a <select> (let browser handle it)
-    if ((e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") && tgt.tagName === "SELECT") return;
-    const cell = tgt.closest("[data-r][data-c]") as HTMLElement | null;
-    if (!cell) return;
-    const r = Number(cell.dataset.r), c = Number(cell.dataset.c);
-    // Skip Enter/Space on the expand column (let it toggle components)
-    if ((e.key === "Enter" || e.key === " ") && expandable && c === columns.length) return;
+  const onKey = useCallback(
+    (e: React.KeyboardEvent) => {
+      const tgt = e.target as HTMLElement;
+      // Skip if inside an open dropdown (autocomplete handles its own keys)
+      if (tgt.closest("[data-dropdown-open]")) return;
+      // Skip Enter/Space when inside an autocomplete cell (let it open the dropdown)
+      if ((e.key === "Enter" || e.key === " ") && tgt.closest("[data-autocomplete]")) return;
+      // Skip Enter/Space/ArrowDown/ArrowUp when target is a <select> (let browser handle it)
+      if (
+        (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") &&
+        tgt.tagName === "SELECT"
+      )
+        return;
+      const cell = tgt.closest("[data-r][data-c]") as HTMLElement | null;
+      if (!cell) return;
+      const r = Number(cell.dataset.r),
+        c = Number(cell.dataset.c);
+      // Skip Enter/Space on the expand column (let it toggle components)
+      if ((e.key === "Enter" || e.key === " ") && expandable && c === columns.length) return;
 
-    if (e.key === "ArrowDown" || e.key === "Enter") {
-      e.preventDefault();
-      if (r >= rows.length - 1) {
-        doAdd();
-        setTimeout(() => focus(r + 1, c), 50);
-      } else {
-        focus(r + 1, c);
+      if (e.key === "ArrowDown" || e.key === "Enter") {
+        e.preventDefault();
+        if (r >= rows.length - 1) {
+          doAdd();
+          setTimeout(() => focus(r + 1, c), 50);
+        } else {
+          focus(r + 1, c);
+        }
+      } else if (e.key === "ArrowUp" && r > 0) {
+        e.preventDefault();
+        focus(r - 1, c);
+      } else if (e.key === "ArrowRight" && c < colCount - 1) {
+        e.preventDefault();
+        focus(r, c + 1);
+      } else if (e.key === "ArrowLeft" && c > 0) {
+        e.preventDefault();
+        focus(r, c - 1);
+      } else if (e.key === "Tab" && !e.shiftKey) {
+        if (c < colCount - 1) {
+          e.preventDefault();
+          focus(r, c + 1);
+        } else if (r < rows.length - 1) {
+          e.preventDefault();
+          focus(r + 1, 0);
+        } else if (r >= rows.length - 1) {
+          e.preventDefault();
+          doAdd();
+          setTimeout(() => focus(r + 1, 0), 50);
+        }
+      } else if (e.key === "Tab" && e.shiftKey) {
+        if (c > 0) {
+          e.preventDefault();
+          focus(r, c - 1);
+        } else if (r > 0) {
+          e.preventDefault();
+          focus(r - 1, colCount - 1);
+        }
       }
-    } else if (e.key === "ArrowUp" && r > 0) {
-      e.preventDefault(); focus(r - 1, c);
-    } else if (e.key === "ArrowRight" && c < colCount - 1) {
-      e.preventDefault(); focus(r, c + 1);
-    } else if (e.key === "ArrowLeft" && c > 0) {
-      e.preventDefault(); focus(r, c - 1);
-    } else if (e.key === "Tab" && !e.shiftKey) {
-      if (c < colCount - 1) { e.preventDefault(); focus(r, c + 1); }
-      else if (r < rows.length - 1) { e.preventDefault(); focus(r + 1, 0); }
-      else if (r >= rows.length - 1) { e.preventDefault(); doAdd(); setTimeout(() => focus(r + 1, 0), 50); }
-    } else if (e.key === "Tab" && e.shiftKey) {
-      if (c > 0) { e.preventDefault(); focus(r, c - 1); }
-      else if (r > 0) { e.preventDefault(); focus(r - 1, colCount - 1); }
-    }
-  }, [rows.length, colCount, focus, doAdd]);
+    },
+    [rows.length, colCount, focus, doAdd]
+  );
 
   return (
     <div className={className}>
-      <div ref={tableRef} onKeyDownCapture={onKey} style={{ border: B2, overflow: "hidden" }}>
-
+      <div
+        ref={tableRef}
+        onKeyDownCapture={onKey}
+        style={{
+          border: B2,
+          overflow: "hidden",
+          borderRadius: 14,
+          background: "var(--color-card)",
+        }}
+      >
         {/* Header */}
-        <div style={{ display: "grid", gridTemplateColumns: grid, borderBottom: B2, background: "var(--color-card-2, #1e293b)" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: grid,
+            borderBottom: B2,
+            background: "var(--color-card-2)",
+          }}
+        >
           <div style={{ ...hdStyle, justifyContent: "center" }}>S.N.</div>
-          {columns.map(col => (
-            <div key={col.key} style={{ ...hdStyle, justifyContent: col.align === "right" ? "flex-end" : col.align === "center" ? "center" : "flex-start" }}>
+          {columns.map((col) => (
+            <div
+              key={col.key}
+              style={{
+                ...hdStyle,
+                justifyContent:
+                  col.align === "right"
+                    ? "flex-end"
+                    : col.align === "center"
+                      ? "center"
+                      : "flex-start",
+              }}
+            >
               {col.header}
             </div>
           ))}
@@ -182,7 +277,11 @@ function BusyItemsTable<T extends Record<string, any>>({
         </div>
 
         {/* Rows */}
-        <div ref={scrollRef} onScroll={onScroll} style={{ overflowY: "auto", maxHeight: visibleRows * ROW }}>
+        <div
+          ref={scrollRef}
+          onScroll={onScroll}
+          style={{ overflowY: "auto", maxHeight: visibleRows * ROW }}
+        >
           {Array.from({ length: count }).map((_, i) => {
             const row = rows[i];
             const real = i < rows.length;
@@ -193,42 +292,98 @@ function BusyItemsTable<T extends Record<string, any>>({
             return (
               <React.Fragment key={i}>
                 <div
-                  style={{ display: "grid", gridTemplateColumns: grid, height: ROW, borderBottom: B }}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: grid,
+                    height: ROW,
+                    borderBottom: B,
+                  }}
                   onClick={undefined}
                 >
                   {/* S.N. */}
-                  <div style={{ ...cellStyle, justifyContent: "center", color: "var(--color-ink-subtle)", fontWeight: 500 }}>{i + 1}</div>
+                  <div
+                    style={{
+                      ...cellStyle,
+                      justifyContent: "center",
+                      color: "var(--color-ink-subtle)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {i + 1}
+                  </div>
 
                   {/* Cells */}
                   {columns.map((col, ci) => (
                     <div
-                      key={col.key} data-r={i} data-c={ci} tabIndex={-1}
-                      style={{ ...cellStyle, justifyContent: col.align === "right" ? "flex-end" : col.align === "center" ? "center" : "flex-start", outline: "none", position: "relative" }}
+                      key={col.key}
+                      data-r={i}
+                      data-c={ci}
+                      tabIndex={-1}
+                      style={{
+                        ...cellStyle,
+                        justifyContent:
+                          col.align === "right"
+                            ? "flex-end"
+                            : col.align === "center"
+                              ? "center"
+                              : "flex-start",
+                        outline: "none",
+                        position: "relative",
+                      }}
                     >
                       {real
-                        ? col.render ? col.render(row, i, p => updateRow(i, p))
-                          : col.accessor ? col.accessor(row)
-                          : (row[col.key] ?? "")
+                        ? col.render
+                          ? col.render(row, i, (p) => updateRow(i, p))
+                          : col.accessor
+                            ? col.accessor(row)
+                            : (row[col.key] ?? "")
                         : ""}
                     </div>
                   ))}
 
                   {/* Expand */}
                   {expandable && (
-                    <div data-r={i} data-c={columns.length} tabIndex={-1}
+                    <div
+                      data-r={i}
+                      data-c={columns.length}
+                      tabIndex={-1}
                       style={{ ...cellStyle, justifyContent: "center", outline: "none" }}
                       onKeyDown={(ev) => {
                         if ((ev.key === "Enter" || ev.key === " ") && canExp && onExpandToggle) {
-                          ev.preventDefault(); ev.stopPropagation();
+                          ev.preventDefault();
+                          ev.stopPropagation();
                           onExpandToggle(i);
                         }
                       }}
                     >
                       {canExp && onExpandToggle && (
-                        <button type="button" tabIndex={-1} onClick={() => onExpandToggle(i)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-ink-subtle)", padding: 2 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            {expanded ? <polyline points="18 15 12 9 6 15" /> : <polyline points="6 9 12 15 18 9" />}
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          onClick={() => onExpandToggle(i)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "var(--color-ink-subtle)",
+                            padding: 2,
+                          }}
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            {expanded ? (
+                              <polyline points="18 15 12 9 6 15" />
+                            ) : (
+                              <polyline points="6 9 12 15 18 9" />
+                            )}
                           </svg>
                         </button>
                       )}
@@ -243,7 +398,11 @@ function BusyItemsTable<T extends Record<string, any>>({
                   )}
                 </div>
 
-                {expContent && <div style={{ borderBottom: B, background: "var(--color-card-2, #1e293b)" }}>{expContent}</div>}
+                {expContent && (
+                  <div style={{ borderBottom: B, background: "var(--color-card-2)" }}>
+                    {expContent}
+                  </div>
+                )}
               </React.Fragment>
             );
           })}
@@ -251,12 +410,32 @@ function BusyItemsTable<T extends Record<string, any>>({
 
         {/* Totals */}
         {showTotals && showTotals.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: grid, height: ROW, borderTop: B2, background: "var(--color-card-2, #1e293b)" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: grid,
+              height: ROW,
+              borderTop: B2,
+              background: "var(--color-card-2)",
+            }}
+          >
             <div style={cellStyle} />
-            {columns.map(col => {
-              const tot = showTotals.find(t => t.colKey === col.key);
+            {columns.map((col) => {
+              const tot = showTotals.find((t) => t.colKey === col.key);
               return (
-                <div key={col.key} style={{ ...cellStyle, fontWeight: 700, justifyContent: col.align === "right" ? "flex-end" : col.align === "center" ? "center" : "flex-start" }}>
+                <div
+                  key={col.key}
+                  style={{
+                    ...cellStyle,
+                    fontWeight: 700,
+                    justifyContent:
+                      col.align === "right"
+                        ? "flex-end"
+                        : col.align === "center"
+                          ? "center"
+                          : "flex-start",
+                  }}
+                >
                   {tot ? tot.value : ""}
                 </div>
               );
@@ -269,11 +448,15 @@ function BusyItemsTable<T extends Record<string, any>>({
 
       {billSundry && <BillSundryTable {...billSundry} />}
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        [data-r][data-c]:focus-within { box-shadow: inset 0 0 0 2px var(--color-primary, #2dd4bf); z-index: 1; }
-        [data-r][data-c]:focus { box-shadow: inset 0 0 0 2px var(--color-primary, #2dd4bf); z-index: 1; }
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        [data-r][data-c]:focus-within { box-shadow: inset 0 0 0 2px var(--color-primary); z-index: 1; }
+        [data-r][data-c]:focus { box-shadow: inset 0 0 0 2px var(--color-primary); z-index: 1; }
         [data-r][data-c] input:focus { outline: none; }
-      `}} />
+      `,
+        }}
+      />
     </div>
   );
 }
@@ -281,21 +464,52 @@ function BusyItemsTable<T extends Record<string, any>>({
 // ─── Bill Sundry ─────────────────────────────────────────────────────────────
 
 const BillSundryTable: React.FC<BillSundryConfig> = ({
-  rows, onChange, options = DEFAULT_SUNDRY_OPTIONS, title = "Bill Sundry",
+  rows,
+  onChange,
+  options = DEFAULT_SUNDRY_OPTIONS,
+  title = "Bill Sundry",
 }) => {
   const ROW = 32;
   const grid = "40px 1fr 120px 36px";
-  const usedTypes = new Set(rows.map(r => r.type));
-  const nextAvailable = options.find(o => !usedTypes.has(o.value))?.value ?? options[0]?.value ?? "";
-  const add = () => { if (nextAvailable) onChange([...rows, { id: `${Date.now()}-${Math.random()}`, type: nextAvailable, rate: "", amount: "" }]); };
-  const upd = (id: string, p: Partial<SundryRow>) => onChange(rows.map(r => r.id === id ? { ...r, ...p } : r));
-  const del = (id: string) => onChange(rows.filter(r => r.id !== id));
-  const total = rows.reduce((s, r) => { const a = Number(r.amount) || 0; const o = options.find(x => x.value === r.type); return s + (o?.sign === -1 ? -a : a); }, 0);
+  const usedTypes = new Set(rows.map((r) => r.type));
+  const nextAvailable =
+    options.find((o) => !usedTypes.has(o.value))?.value ?? options[0]?.value ?? "";
+  const add = () => {
+    if (nextAvailable)
+      onChange([
+        ...rows,
+        { id: `${Date.now()}-${Math.random()}`, type: nextAvailable, rate: "", amount: "" },
+      ]);
+  };
+  const upd = (id: string, p: Partial<SundryRow>) =>
+    onChange(rows.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  const del = (id: string) => onChange(rows.filter((r) => r.id !== id));
+  const total = rows.reduce((s, r) => {
+    const a = Number(r.amount) || 0;
+    const o = options.find((x) => x.value === r.type);
+    return s + (o?.sign === -1 ? -a : a);
+  }, 0);
   const allUsed = rows.length >= options.length;
 
   return (
-    <div style={{ border: B2, overflow: "hidden", maxWidth: 480, marginTop: 12 }}>
-      <div style={{ display: "grid", gridTemplateColumns: grid, borderBottom: B2, background: "var(--color-card-2)" }}>
+    <div
+      style={{
+        border: B2,
+        overflow: "hidden",
+        maxWidth: 480,
+        marginTop: 12,
+        borderRadius: 14,
+        background: "var(--color-card)",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: grid,
+          borderBottom: B2,
+          background: "var(--color-card-2)",
+        }}
+      >
         <div style={{ ...hdStyle, justifyContent: "center" }}>S.N.</div>
         <div style={hdStyle}>{title}</div>
         <div style={{ ...hdStyle, justifyContent: "flex-end" }}>Amount (₹)</div>
@@ -303,36 +517,129 @@ const BillSundryTable: React.FC<BillSundryConfig> = ({
       </div>
       <div>
         {rows.length === 0 ? (
-          <div onClick={!allUsed ? add : undefined} style={{ padding: "12px", textAlign: "center", fontSize: 12, color: "var(--color-ink-muted)", cursor: allUsed ? "default" : "pointer" }}>
+          <div
+            onClick={!allUsed ? add : undefined}
+            style={{
+              padding: "12px",
+              textAlign: "center",
+              fontSize: 12,
+              color: "var(--color-ink-muted)",
+              cursor: allUsed ? "default" : "pointer",
+            }}
+          >
             Click to add {title.toLowerCase()} entry
           </div>
-        ) : rows.map((r, i) => {
-          const isNeg = options.find(o => o.value === r.type)?.sign === -1;
-          return (
-            <div key={r.id} style={{ display: "grid", gridTemplateColumns: grid, height: ROW, borderBottom: B }}>
-              <div style={{ ...cellStyle, justifyContent: "center", color: "var(--color-ink-subtle)" }}>{i + 1}</div>
-              <div style={cellStyle}>
-                <select value={r.type} onChange={e => upd(r.id, { type: e.target.value })}
-                  style={{ width: "100%", background: "transparent", border: "none", outline: "none", fontSize: 13, color: "var(--color-ink)", cursor: "pointer" }}>
-                  {options.map(o => <option key={o.value} value={o.value} disabled={o.value !== r.type && usedTypes.has(o.value)}>{o.label}</option>)}
-                </select>
+        ) : (
+          rows.map((r, i) => {
+            const isNeg = options.find((o) => o.value === r.type)?.sign === -1;
+            return (
+              <div
+                key={r.id}
+                style={{ display: "grid", gridTemplateColumns: grid, height: ROW, borderBottom: B }}
+              >
+                <div
+                  style={{
+                    ...cellStyle,
+                    justifyContent: "center",
+                    color: "var(--color-ink-subtle)",
+                  }}
+                >
+                  {i + 1}
+                </div>
+                <div style={cellStyle}>
+                  <select
+                    value={r.type}
+                    onChange={(e) => upd(r.id, { type: e.target.value })}
+                    style={{
+                      width: "100%",
+                      background: "transparent",
+                      border: "none",
+                      outline: "none",
+                      fontSize: 13,
+                      color: "var(--color-ink)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {options.map((o) => (
+                      <option
+                        key={o.value}
+                        value={o.value}
+                        disabled={o.value !== r.type && usedTypes.has(o.value)}
+                      >
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={cellStyle}>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={r.amount}
+                    onChange={(e) => upd(r.id, { amount: e.target.value.replace(/[^0-9.]/g, "") })}
+                    placeholder="0.00"
+                    style={{
+                      width: "100%",
+                      background: "transparent",
+                      border: "none",
+                      outline: "none",
+                      fontSize: 13,
+                      textAlign: "right",
+                      fontWeight: 600,
+                      color: isNeg ? "var(--color-danger)" : "var(--color-ink)",
+                    }}
+                  />
+                </div>
+                <div style={{ ...cellStyle, justifyContent: "center", borderRight: "none" }}>
+                  <DeleteButton onClick={() => del(r.id)} />
+                </div>
               </div>
-              <div style={cellStyle}>
-                <input type="text" inputMode="decimal" value={r.amount} onChange={e => upd(r.id, { amount: e.target.value.replace(/[^0-9.]/g, "") })}
-                  placeholder="0.00" style={{ width: "100%", background: "transparent", border: "none", outline: "none", fontSize: 13, textAlign: "right", fontWeight: 600, color: isNeg ? "#ef4444" : "var(--color-ink)" }} />
-              </div>
-              <div style={{ ...cellStyle, justifyContent: "center", borderRight: "none" }}><DeleteButton onClick={() => del(r.id)} /></div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: grid, height: ROW, borderTop: B2, background: "var(--color-card-2)" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: grid,
+          height: ROW,
+          borderTop: B2,
+          background: "var(--color-card-2)",
+        }}
+      >
         <div style={cellStyle} />
         <div style={cellStyle}>
-          {!allUsed && <button type="button" onClick={add} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "var(--color-accent)" }}>+ Add Entry</button>}
+          {!allUsed && (
+            <button
+              type="button"
+              onClick={add}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--color-accent)",
+              }}
+            >
+              + Add Entry
+            </button>
+          )}
         </div>
-        <div style={{ ...cellStyle, justifyContent: "flex-end", fontWeight: 700, color: total < 0 ? "#ef4444" : "var(--color-ink)" }}>
-          {fmtINR(Math.abs(total))}{total !== 0 && <span style={{ fontSize: 10, marginLeft: 4, color: "var(--color-ink-muted)" }}>{total > 0 ? "(+)" : "(-)"}</span>}
+        <div
+          style={{
+            ...cellStyle,
+            justifyContent: "flex-end",
+            fontWeight: 700,
+            color: total < 0 ? "var(--color-danger)" : "var(--color-ink)",
+          }}
+        >
+          {fmtINR(Math.abs(total))}
+          {total !== 0 && (
+            <span style={{ fontSize: 10, marginLeft: 4, color: "var(--color-ink-muted)" }}>
+              {total > 0 ? "(+)" : "(-)"}
+            </span>
+          )}
         </div>
         <div style={{ ...cellStyle, borderRight: "none" }} />
       </div>

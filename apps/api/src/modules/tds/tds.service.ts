@@ -7,6 +7,8 @@ import { ApiError } from "../../utils/ApiError";
 import { periodService } from "../accounts/period.service";
 import { TDS_SECTION_SEEDS, fyAndQuarter, isValidPan, panHolderType } from "./tds.sections";
 
+type Db = Prisma.TransactionClient | typeof prisma;
+
 /**
  * Tax deducted and collected at source (P1-15).
  *
@@ -24,6 +26,8 @@ const n2 = (v: unknown) => Math.round((Number(v ?? 0) || 0) * 100) / 100;
 export interface DeductionInput {
   sectionCode: string;
   supplierId?: number | null;
+  /** The buyer, for a TCS collection (section 394) — mutually exclusive with supplierId. */
+  customerId?: string | null;
   deducteeName?: string;
   deducteePan?: string | null;
   deducteeType?: DeducteeType;
@@ -50,10 +54,10 @@ export interface RateDecision {
 
 class TdsService {
   /** The tenant's sections, seeding the standard list the first time they are asked for. */
-  async sections(includeInactive = false) {
-    const existing = await prisma.tdsSection.findMany({ orderBy: { code: "asc" } });
+  async sections(includeInactive = false, db: Db = prisma) {
+    const existing = await db.tdsSection.findMany({ orderBy: { code: "asc" } });
     if (existing.length === 0) {
-      await prisma.tdsSection.createMany({
+      await db.tdsSection.createMany({
         data: TDS_SECTION_SEEDS.map((s) => ({
           companyId: requireTenantId(),
           code: s.code,
@@ -69,7 +73,7 @@ class TdsService {
         })),
         skipDuplicates: true,
       });
-      return prisma.tdsSection.findMany({ orderBy: { code: "asc" } });
+      return db.tdsSection.findMany({ orderBy: { code: "asc" } });
     }
     return includeInactive ? existing : existing.filter((s) => s.isActive);
   }
@@ -116,17 +120,21 @@ class TdsService {
    * payee under this section in the same financial year, and for the sections that say so only
    * the excess is taxed.
    */
-  async rateFor(input: {
-    sectionCode: string;
-    supplierId?: number | null;
-    deducteePan?: string | null;
-    deducteeType?: DeducteeType;
-    higherRate?: boolean;
-    amount: number;
-    on: Date;
-  }): Promise<RateDecision> {
-    await this.sections();
-    const section = await prisma.tdsSection.findUnique({
+  async rateFor(
+    input: {
+      sectionCode: string;
+      supplierId?: number | null;
+      customerId?: string | null;
+      deducteePan?: string | null;
+      deducteeType?: DeducteeType;
+      higherRate?: boolean;
+      amount: number;
+      on: Date;
+    },
+    db: Db = prisma
+  ): Promise<RateDecision> {
+    await this.sections(false, db);
+    const section = await db.tdsSection.findUnique({
       where: {
         companyId_code: { companyId: requireTenantId(), code: input.sectionCode.toUpperCase() },
       },
@@ -138,18 +146,33 @@ class TdsService {
     const amount = n2(input.amount);
     const { fyCode } = fyAndQuarter(input.on);
 
+    // 206C(1H) taxes a buyer, and the same real-world buyer can be entered as more than one
+    // Customer row (a branch, a typo'd duplicate); the section's threshold is theirs, not any
+    // one row's, so when a PAN is on file the aggregate pools every row sharing it (P2-17).
+    // Without a PAN — or for any other section — the threshold stays per document-party row,
+    // same as before.
+    const pooledPan =
+      section.code === "206C(1H)" && input.customerId && isValidPan(input.deducteePan)
+        ? input.deducteePan!.trim().toUpperCase()
+        : null;
+
     // What has already gone to this payee under this section this year.
-    const prior = input.supplierId
-      ? await prisma.tdsDeduction.aggregate({
-          where: {
-            sectionId: section.id,
-            supplierId: input.supplierId,
-            fyCode,
-            cancelledAt: null,
-          },
-          _sum: { amountPaid: true },
-        })
-      : { _sum: { amountPaid: null } };
+    const prior =
+      input.supplierId || input.customerId
+        ? await db.tdsDeduction.aggregate({
+            where: {
+              sectionId: section.id,
+              ...(pooledPan
+                ? { deducteePan: pooledPan }
+                : input.supplierId
+                  ? { supplierId: input.supplierId }
+                  : { customerId: input.customerId }),
+              fyCode,
+              cancelledAt: null,
+            },
+            _sum: { amountPaid: true },
+          })
+        : { _sum: { amountPaid: null } };
     const already = n2(Number(prior._sum.amountPaid ?? 0));
     const yearToDate = n2(already + amount);
 
@@ -203,17 +226,25 @@ class TdsService {
   }
 
   /** Records a deduction against a document. One per document per section. */
-  async deduct(input: DeductionInput, actor: { userId?: string }) {
+  async deduct(input: DeductionInput, actor: { userId?: string }, db: Db = prisma) {
     const on = new Date(input.deductionDate);
     if (Number.isNaN(on.getTime())) throw new ApiError(400, "Invalid deduction date");
-    await periodService.assertPostingAllowed(on);
+    await periodService.assertPostingAllowed(on, actor, db as Prisma.TransactionClient);
 
     const supplier = input.supplierId
-      ? await prisma.supplier.findUnique({ where: { id: input.supplierId } })
+      ? await db.supplier.findUnique({ where: { id: input.supplierId } })
       : null;
     if (input.supplierId && !supplier) throw new ApiError(404, "That supplier does not exist");
+    const customer = input.customerId
+      ? await db.customer.findUnique({ where: { id: input.customerId } })
+      : null;
+    if (input.customerId && !customer) throw new ApiError(404, "That customer does not exist");
 
-    const pan = (input.deducteePan ?? supplier?.pan ?? null)?.trim().toUpperCase() ?? null;
+    // TCS on a customer: no PAN field on the master, but the GSTIN carries it (characters 3-12).
+    const customerPan =
+      customer?.gstin && customer.gstin.length >= 12 ? customer.gstin.slice(2, 12) : null;
+    const pan =
+      (input.deducteePan ?? supplier?.pan ?? customerPan ?? null)?.trim().toUpperCase() ?? null;
     const deducteeType =
       input.deducteeType ??
       supplier?.deducteeType ??
@@ -229,17 +260,21 @@ class TdsService {
             base: n2(input.amount),
             belowThreshold: false,
           }
-        : await this.rateFor({
-            sectionCode: input.sectionCode,
-            supplierId: input.supplierId,
-            deducteePan: pan,
-            deducteeType,
-            higherRate,
-            amount: input.amount,
-            on,
-          });
+        : await this.rateFor(
+            {
+              sectionCode: input.sectionCode,
+              supplierId: input.supplierId,
+              customerId: input.customerId,
+              deducteePan: pan,
+              deducteeType,
+              higherRate,
+              amount: input.amount,
+              on,
+            },
+            db
+          );
 
-    const section = await prisma.tdsSection.findUniqueOrThrow({
+    const section = await db.tdsSection.findUniqueOrThrow({
       where: {
         companyId_code: { companyId: requireTenantId(), code: input.sectionCode.toUpperCase() },
       },
@@ -247,7 +282,7 @@ class TdsService {
     const { fyCode, quarter } = fyAndQuarter(on);
     const tdsAmount = n2((decision.base * decision.rate) / 100);
 
-    const existing = await prisma.tdsDeduction.findUnique({
+    const existing = await db.tdsDeduction.findUnique({
       where: {
         companyId_docType_docId_sectionId: {
           companyId: requireTenantId(),
@@ -268,11 +303,17 @@ class TdsService {
     const data = {
       sectionId: section.id,
       supplierId: input.supplierId ?? null,
-      deducteeName: (input.deducteeName ?? supplier?.legalName ?? "Unknown").slice(0, 160),
+      customerId: input.customerId ?? null,
+      deducteeName: (
+        input.deducteeName ??
+        supplier?.legalName ??
+        customer?.firmName ??
+        "Unknown"
+      ).slice(0, 160),
       deducteePan: pan,
       deducteeType,
       higherRate,
-      kind: input.kind ?? "ON_BILL",
+      kind: input.kind ?? (section.isTcs ? "ON_COLLECTION" : "ON_BILL"),
       docType: input.docType,
       docId: input.docId,
       docNo: input.docNo.slice(0, 40),
@@ -288,9 +329,125 @@ class TdsService {
       createdBy: actor.userId ?? null,
     };
     const row = existing
-      ? await prisma.tdsDeduction.update({ where: { id: existing.id }, data })
-      : await prisma.tdsDeduction.create({ data });
+      ? await db.tdsDeduction.update({ where: { id: existing.id }, data })
+      : await db.tdsDeduction.create({ data });
     return { ...row, decision };
+  }
+
+  /**
+   * Posts the journal for a deduction or collection: reduces what is owed to (or receivable
+   * from) the payee, and credits the section's payable ledger. One voucher per deduction row
+   * (`refDocType "TDS_DEDUCTION"`), so cancelling it reverses cleanly through the same helper
+   * every other document posting uses.
+   */
+  async postDeductionVoucher(deductionId: string, db: Prisma.TransactionClient | typeof prisma) {
+    const { accountsService } = await import("../accounts/accounts.service.js");
+    const { safeCreateVoucher } = await import("../accounts/voucherPosting.service.js");
+    const { VoucherType, Prisma: PrismaNs } = await import("@prisma/client");
+
+    const deduction = await db.tdsDeduction.findUnique({
+      where: { id: deductionId },
+      include: { section: true, supplier: true, customer: true },
+    });
+    if (!deduction || Number(deduction.tdsAmount) <= 0) return null;
+
+    await accountsService.ensureSystemLedgersExist(db as Prisma.TransactionClient);
+    const sectionLedger = deduction.section.ledgerCode
+      ? await db.accountLedger.findFirst({ where: { code: deduction.section.ledgerCode } })
+      : null;
+    if (!sectionLedger) {
+      logger.error(
+        { deductionId, sectionCode: deduction.section.code },
+        "TDS: no payable ledger configured for section"
+      );
+      return null;
+    }
+
+    const partyLedger = deduction.supplier
+      ? await accountsService.ensureSupplierLedger(
+          deduction.supplier,
+          db as Prisma.TransactionClient
+        )
+      : deduction.customer
+        ? await accountsService.ensureCustomerLedger(
+            deduction.customer,
+            db as Prisma.TransactionClient
+          )
+        : null;
+    if (!partyLedger) return null;
+
+    const amount = n2(Number(deduction.tdsAmount));
+    const isTcs = deduction.section.isTcs;
+    // A deduction (TDS) reduces what we owe the supplier: debit the supplier, credit TDS payable.
+    // A collection (TCS) increases what the customer owes us: debit TCS receivable-on-customer is
+    // already inside the invoice's own receivable, so here we debit the customer for the extra
+    // amount collected and credit the TCS payable — the same shape, opposite party.
+    const items = [
+      {
+        debitLedgerId: partyLedger.id,
+        debitAmount: new PrismaNs.Decimal(amount),
+        creditAmount: new PrismaNs.Decimal(0),
+        narration: isTcs
+          ? `TCS collected u/s ${deduction.section.code} on ${deduction.docNo}`
+          : `TDS deducted u/s ${deduction.section.code} on ${deduction.docNo}`,
+      },
+      {
+        creditLedgerId: sectionLedger.id,
+        debitAmount: new PrismaNs.Decimal(0),
+        creditAmount: new PrismaNs.Decimal(amount),
+        narration: `${isTcs ? "TCS" : "TDS"} payable u/s ${deduction.section.code}`,
+      },
+    ];
+
+    return safeCreateVoucher(
+      db,
+      {
+        voucherNo: `TDS-${deduction.docNo}-${deduction.section.code}`.slice(0, 40),
+        type: VoucherType.JOURNAL,
+        date: deduction.deductionDate,
+        narration: `${isTcs ? "TCS collection" : "TDS deduction"} u/s ${deduction.section.code} on ${deduction.docType} ${deduction.docNo}`,
+        refDocType: "TDS_DEDUCTION",
+        refDocId: deduction.id,
+        items: { create: items },
+      },
+      "TDS_DEDUCTION",
+      deduction.id
+    );
+  }
+
+  /** Cancels the deduction (if any) recorded against a document, and reverses its voucher. */
+  async reverseForDoc(
+    docType: string,
+    docId: string,
+    reason: string,
+    actor: { userId?: string; isSuperAdmin?: boolean },
+    db: Prisma.TransactionClient
+  ) {
+    const rows = await db.tdsDeduction.findMany({ where: { docType, docId, cancelledAt: null } });
+    if (!rows.length) return [];
+    const { cancellationService } = await import("../accounts/cancellation.service.js");
+    await cancellationService.cancelVouchersFor(
+      ["TDS_DEDUCTION"],
+      rows.map((r) => r.id),
+      { reason, actor },
+      db
+    );
+    const results = [];
+    for (const row of rows) {
+      if (row.status === "RETURN_FILED") continue; // filed rows are corrected, not reversed here
+      results.push(
+        await db.tdsDeduction.update({
+          where: { id: row.id },
+          data: {
+            cancelledAt: new Date(),
+            cancelReason: reason.slice(0, 255),
+            status: "CANCELLED",
+            challanId: null,
+          },
+        })
+      );
+    }
+    return results;
   }
 
   async list(params: {
@@ -372,6 +529,16 @@ class TdsService {
         "MIXED_QUARTER"
       );
     }
+    // A section with no ledgerCode used to fall back to TDS-LIA-001 here, silently posting the
+    // wrong section's liability off the books (P2-17); refused instead — fix the section master.
+    const noLedger = deductions.find((d) => !d.section.ledgerCode);
+    if (noLedger) {
+      throw new ApiError(
+        409,
+        `Section ${noLedger.section.code} has no payable ledger on file; set one before paying this challan`,
+        "SECTION_NO_LEDGER"
+      );
+    }
 
     const tdsAmount = n2(deductions.reduce((s, d) => s + Number(d.tdsAmount), 0));
     const totalAmount = n2(
@@ -408,6 +575,7 @@ class TdsService {
         where: { id: { in: input.deductionIds } },
         data: { challanId: challan.id, status: "CHALLAN_PAID" },
       });
+      await this.postChallanVoucher(challan.id, deductions, totalAmount - tdsAmount, tx);
       logger.info(
         { challanId: challan.id, tdsAmount, count: deductions.length },
         "TDS challan recorded"
@@ -417,6 +585,89 @@ class TdsService {
         include: { deductions: { include: { section: true } } },
       });
     });
+  }
+
+  /**
+   * Records the bank payment for a challan: Dr each section's payable (what it was raised for)
+   * plus any surcharge/interest/late fee as an expense, Cr the bank the challan was paid from.
+   */
+  private async postChallanVoucher(
+    challanId: string,
+    deductions: Array<{
+      tdsAmount: Prisma.Decimal | number;
+      section: { code: string; ledgerCode: string | null };
+    }>,
+    penal: number,
+    db: Prisma.TransactionClient
+  ) {
+    const { accountsService } = await import("../accounts/accounts.service.js");
+    const { safeCreateVoucher } = await import("../accounts/voucherPosting.service.js");
+    const { VoucherType, Prisma: PrismaNs } = await import("@prisma/client");
+    await accountsService.ensureSystemLedgersExist(db);
+
+    // `payChallan` already refuses a section with no `ledgerCode` (P2-17: SECTION_NO_LEDGER)
+    // before this runs, so every deduction here has one — no silent TDS-LIA-001 fallback.
+    const bySection = new Map<string, number>();
+    for (const d of deductions) {
+      const code = d.section.ledgerCode;
+      if (!code) continue;
+      bySection.set(code, n2((bySection.get(code) ?? 0) + Number(d.tdsAmount)));
+    }
+    const items: Array<{
+      debitLedgerId?: number;
+      creditLedgerId?: number;
+      debitAmount: Prisma.Decimal;
+      creditAmount: Prisma.Decimal;
+      narration: string;
+    }> = [];
+    for (const [code, amount] of bySection) {
+      if (amount <= 0) continue;
+      const ledger = await db.accountLedger.findFirst({ where: { code } });
+      if (!ledger) continue;
+      items.push({
+        debitLedgerId: ledger.id,
+        debitAmount: new PrismaNs.Decimal(amount),
+        creditAmount: new PrismaNs.Decimal(0),
+        narration: `Challan payment against ${code}`,
+      });
+    }
+    if (penal > 0) {
+      const expLedger = await db.accountLedger.findFirst({ where: { code: "EXP-001" } });
+      if (expLedger) {
+        items.push({
+          debitLedgerId: expLedger.id,
+          debitAmount: new PrismaNs.Decimal(n2(penal)),
+          creditAmount: new PrismaNs.Decimal(0),
+          narration: "Surcharge, interest or late fee on TDS/TCS challan",
+        });
+      }
+    }
+    const total = n2(items.reduce((s, i) => s + Number(i.debitAmount ?? 0), 0));
+    if (total <= 0 || !items.length) return null;
+    const bankLedger = await db.accountLedger.findFirst({ where: { code: "BANK-001" } });
+    if (!bankLedger) return null;
+    items.push({
+      creditLedgerId: bankLedger.id,
+      debitAmount: new PrismaNs.Decimal(0),
+      creditAmount: new PrismaNs.Decimal(total),
+      narration: "TDS/TCS challan paid",
+    });
+
+    const challan = await db.tdsChallan.findUniqueOrThrow({ where: { id: challanId } });
+    return safeCreateVoucher(
+      db,
+      {
+        voucherNo: `TDSC-${challan.bsrCode}-${challan.challanSerial}`.slice(0, 40),
+        type: VoucherType.PAYMENT,
+        date: challan.challanDate,
+        narration: `TDS/TCS challan ${challan.bsrCode}/${challan.challanSerial}`,
+        refDocType: "TDS_CHALLAN",
+        refDocId: challan.id,
+        items: { create: items },
+      },
+      "TDS_CHALLAN",
+      challan.id
+    );
   }
 
   async challans(params: { fyCode?: string; quarter?: string } = {}) {
@@ -444,14 +695,18 @@ class TdsService {
     }
     if (!reason?.trim())
       throw new ApiError(400, "A cancellation needs a reason", "REASON_REQUIRED");
-    return prisma.tdsDeduction.update({
-      where: { id },
-      data: {
-        cancelledAt: new Date(),
-        cancelReason: reason.trim().slice(0, 255),
-        status: "CANCELLED",
-        challanId: null,
-      },
+    return prisma.$transaction(async (tx) => {
+      const { cancellationService } = await import("../accounts/cancellation.service.js");
+      await cancellationService.cancelVouchersFor(["TDS_DEDUCTION"], [id], { reason, actor }, tx);
+      return tx.tdsDeduction.update({
+        where: { id },
+        data: {
+          cancelledAt: new Date(),
+          cancelReason: reason.trim().slice(0, 255),
+          status: "CANCELLED",
+          challanId: null,
+        },
+      });
     });
   }
 

@@ -9,8 +9,11 @@ interface IconButtonProps {
   disabled?: boolean;
   className?: string;
   size?: "sm" | "md";
+  /** Accessible name; defaults to `title`. */
+  ariaLabel?: string;
 }
 
+/** Round tinted icon pill (row actions, toolbars); the tone says what the action does. */
 const IconButton: React.FC<IconButtonProps> = ({
   onClick,
   icon: Icon,
@@ -19,16 +22,18 @@ const IconButton: React.FC<IconButtonProps> = ({
   disabled = false,
   className = "",
   size = "sm",
+  ariaLabel,
 }) => {
   return (
     <button
       type="button"
-      className={`icon-btn icon-btn-${variant} icon-btn-${size} ${className}`}
+      className={`icon-btn icon-btn-${variant} icon-btn-${size} sl-icon-btn sl-icon-btn-tone-${variant} ${size === "md" ? "sl-icon-btn-md" : ""} ${className}`}
       onClick={onClick}
       title={title}
+      aria-label={ariaLabel ?? title}
       disabled={disabled}
     >
-      <Icon className="icon-btn-icon" />
+      <Icon className="icon-btn-icon" aria-hidden="true" />
     </button>
   );
 };

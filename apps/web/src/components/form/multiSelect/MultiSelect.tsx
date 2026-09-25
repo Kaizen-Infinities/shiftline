@@ -1,130 +1,167 @@
-import React, { useState, useRef, useEffect } from "react";
-import { FaChevronDown, FaChevronUp, FaTimes } from "react-icons/fa";
+import React, { useState, useRef, useEffect, useId } from "react";
+import { ChevronDown, X } from "lucide-react";
+import {
+  FieldError,
+  RequiredMark,
+  fieldControlClasses,
+  fieldLabelClass,
+  optionClasses,
+} from "../fieldStyles";
 
 interface Option {
-    value: string;
-    label: string;
+  value: string;
+  label: string;
 }
 
 interface MultiSelectProps {
-    label: string;
-    name: string;
-    options: Option[];
-    value: string[];
-    onChange: (name: string, values: string[]) => void;
-    placeholder?: string;
-    error?: string;
-    required?: boolean;
+  label: string;
+  name: string;
+  options: Option[];
+  value: string[];
+  onChange: (name: string, values: string[]) => void;
+  placeholder?: string;
+  error?: string;
+  required?: boolean;
 }
 
+/** Multi-pick field: chosen values show as chips in the box; the list has checkboxes. */
 const MultiSelect: React.FC<MultiSelectProps> = ({
-    label,
-    name,
-    options,
-    value,
-    onChange,
-    placeholder = "-- Select --",
-    error,
-    required = false,
+  label,
+  name,
+  options,
+  value,
+  onChange,
+  placeholder = "-- Select --",
+  error,
+  required = false,
 }) => {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const baseId = useId();
+  const labelId = `${baseId}-label`;
+  const listId = `${baseId}-list`;
+  const errorId = `${baseId}-error`;
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    const handleToggle = (optionValue: string) => {
-        const already = value.includes(optionValue);
-        const updated = already
-            ? value.filter((v) => v !== optionValue)
-            : [...value, optionValue];
-        onChange(name, updated);
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    const selectedLabels = options
-        .filter((o) => value.includes(o.value))
-        .map((o) => o.label);
+  const handleToggle = (optionValue: string) => {
+    const already = value.includes(optionValue);
+    const updated = already ? value.filter((v) => v !== optionValue) : [...value, optionValue];
+    onChange(name, updated);
+  };
 
-    return (
-        <div className="relative w-full" ref={ref}>
-            <label className="block text-xs font-extrabold text-ink uppercase tracking-[0.5px] mb-2">
+  const selectedLabels = options.filter((o) => value.includes(o.value)).map((o) => o.label);
+
+  return (
+    <div className="group relative w-full min-w-0" ref={ref}>
+      <label id={labelId} className={fieldLabelClass()}>
+        <span>{label}</span>
+        {required && <RequiredMark />}
+      </label>
+
+      <div
+        role="button"
+        tabIndex={0}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-labelledby={labelId}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
+        className={fieldControlClasses({
+          invalid: Boolean(error),
+          open,
+          className:
+            "flex min-h-11 cursor-pointer items-center justify-between gap-2 py-1.5 pl-3 pr-3",
+        })}
+        onClick={() => setOpen((prev) => !prev)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+            e.preventDefault();
+            setOpen(true);
+          } else if (e.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+      >
+        <div className="flex flex-1 flex-wrap gap-1.5">
+          {selectedLabels.length === 0 ? (
+            <span className="px-1 py-1 text-[15px] font-normal text-ink-subtle">{placeholder}</span>
+          ) : (
+            selectedLabels.map((label, i) => (
+              <span key={i} className="sl-chip sl-chip-sm gap-1 pr-1">
                 {label}
-                {required && <span className="text-red-500 ml-1">*</span>}
-            </label>
-
-            <div
-                className={`flex items-center justify-between w-full min-h-10 py-1 px-3 bg-card-2 border rounded-md ${error ? 'border-red-500' : 'border-line-soft'} cursor-pointer ${open ? 'ring-1 ring-primary border-primary' : 'hover:border-line-soft/80'}`}
-                onClick={() => setOpen((prev) => !prev)}
-            >
-                <div className="flex flex-wrap gap-1 flex-1">
-                    {selectedLabels.length === 0 ? (
-                        <span className="text-xs font-semibold text-ink-subtle py-1">{placeholder}</span>
-                    ) : (
-                        selectedLabels.map((label, i) => (
-                            <span key={i} className="flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded text-[11px] font-bold">
-                                {label}
-                                <button
-                                    type="button"
-                                    className="text-primary hover:text-primary-dark hover:bg-primary/20 rounded-full p-0.5 transition-colors focus:outline-none"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleToggle(options.find((o) => o.label === label)!.value);
-                                    }}
-                                >
-                                    <FaTimes size={10} />
-                                </button>
-                            </span>
-                        ))
-                    )}
-                </div>
-                <div className="text-ink-subtle pl-2">
-                    {open ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
-                </div>
-            </div>
-
-            {open && (
-                <div className="absolute z-50 w-full mt-1 bg-card border border-line-soft rounded-md shadow-xl max-h-60 overflow-y-auto text-ink">
-                    {options.length === 0 ? (
-                        <div className="p-3 text-xs text-ink-subtle text-center">No options available</div>
-                    ) : (
-                        <div className="py-1">
-                            {options.map((option) => (
-                                <div
-                                    key={option.value}
-                                    className={`flex items-center px-3 py-2 text-xs font-semibold cursor-pointer hover:bg-card-2 transition-colors ${value.includes(option.value) ? "bg-primary/10 text-primary" : "text-ink"}`}
-                                    onClick={() => handleToggle(option.value)}
-                                >
-                                    <div className="flex-shrink-0 mr-2 flex items-center justify-center">
-                                        <input
-                                            type="checkbox"
-                                            className="w-4 h-4 rounded border-line-soft text-primary focus:ring-primary focus:ring-offset-0 pointer-events-none"
-                                            checked={value.includes(option.value)}
-                                            readOnly
-                                        />
-                                    </div>
-                                    <span className="truncate">{option.label}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {error && (
-                <div className="text-red-500 text-xs mt-1">
-                    {error}
-                </div>
-            )}
+                <button
+                  type="button"
+                  aria-label={`Remove ${label}`}
+                  className="flex h-4 w-4 items-center justify-center rounded-full transition-colors hover:bg-card/70 focus:outline-none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggle(options.find((o) => o.label === label)!.value);
+                  }}
+                >
+                  <X size={11} aria-hidden="true" />
+                </button>
+              </span>
+            ))
+          )}
         </div>
-    );
+        <ChevronDown
+          size={17}
+          aria-hidden="true"
+          className={`shrink-0 text-ink-subtle transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+        />
+      </div>
+
+      {open && (
+        <div
+          id={listId}
+          role="listbox"
+          aria-multiselectable="true"
+          aria-labelledby={labelId}
+          className="sl-popover absolute z-50 mt-1.5 max-h-60 w-full overflow-y-auto"
+        >
+          {options.length === 0 ? (
+            <div className="sl-popover-empty">No options available</div>
+          ) : (
+            options.map((option) => {
+              const checked = value.includes(option.value);
+              return (
+                <div
+                  key={option.value}
+                  role="option"
+                  aria-selected={checked}
+                  className={optionClasses({ selected: checked })}
+                  onClick={() => handleToggle(option.value)}
+                >
+                  <input
+                    type="checkbox"
+                    className="sl-check pointer-events-none"
+                    checked={checked}
+                    readOnly
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{option.label}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {error && <FieldError id={errorId}>{error}</FieldError>}
+    </div>
+  );
 };
 
 export default MultiSelect;

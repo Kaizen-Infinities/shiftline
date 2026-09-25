@@ -149,7 +149,9 @@ export interface Gstr2bSummary {
     docNo: string;
     docDate: string;
     taxable: number;
+    supplierGstin: string | null;
   }[];
+  followUps: LastFollowUp[];
 }
 
 export interface Gstr9Return {
@@ -173,6 +175,43 @@ export interface Gstr9Return {
   warnings: string[];
   payloadHash: string;
   filing: FilingRow | null;
+}
+
+export interface Gstr2bSettingsRow {
+  dateToleranceDays: number;
+  valueTolerance: number;
+  /** FIXTURE never reaches a live gateway; LIVE sends through WhatsApp/email for real (P2-18). */
+  followUpProvider?: "FIXTURE" | "LIVE";
+  /** Days an unfollowed MISSING_IN_2B/MISMATCH record sits before the daily nudge flags it. */
+  nudgeAfterDays?: number;
+}
+export interface FollowUpLine {
+  docNo: string;
+  docDate: string;
+  taxable: number;
+  differs: string | null;
+}
+export interface FollowUpPreview {
+  supplierGstin: string;
+  supplierName: string | null;
+  message: string;
+  lines: FollowUpLine[];
+}
+export interface FollowUpRow {
+  id: string;
+  supplierGstin: string;
+  supplierName: string | null;
+  channel: "WHATSAPP" | "EMAIL";
+  recipient: string;
+  status: "SENT" | "FAILED";
+  sentAt: string;
+}
+export interface LastFollowUp {
+  supplierGstin: string;
+  channel: "WHATSAPP" | "EMAIL";
+  status: "SENT" | "FAILED";
+  sentAt: string;
+  recipient: string;
 }
 
 export interface ComplianceDue {
@@ -239,4 +278,29 @@ export const gstReturnsService = {
     post<Gstr9Return>(`${p.gstr9}/register`, { fy, gstin }),
 
   calendar: () => get<ComplianceDue[]>(p.calendar),
+
+  gstr2bSettings: () => get<Gstr2bSettingsRow>(p.gstr2bSettings),
+  gstr2bSettingsUpdate: (input: Gstr2bSettingsRow) =>
+    (async () => (await apiClient.put(p.gstr2bSettings, input)).data.data as Gstr2bSettingsRow)(),
+
+  gstr2bFollowUpPreview: (
+    period: string,
+    body: {
+      gstin?: string;
+      supplierId?: number;
+      supplierGstin?: string;
+      channel: "WHATSAPP" | "EMAIL";
+      recordIds: string[];
+    }
+  ) => post<FollowUpPreview>(`${p.gstr2bFollowUpBase}/${period}/follow-up/preview`, body),
+  gstr2bFollowUp: (
+    period: string,
+    body: {
+      gstin?: string;
+      supplierId?: number;
+      supplierGstin?: string;
+      channel: "WHATSAPP" | "EMAIL";
+      recordIds: string[];
+    }
+  ) => post<FollowUpRow>(`${p.gstr2bFollowUpBase}/${period}/follow-up`, body),
 };

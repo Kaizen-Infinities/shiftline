@@ -91,7 +91,7 @@ const BankStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {rows.map((r, idx) => (
           <div
             key={r.ledgerId ?? `new-${idx}`}
-            className="rounded-xl border border-line-soft bg-card-2/60 p-4"
+            className="rounded-[18px] border border-line-soft bg-card-2 p-4 sm:p-5"
           >
             <div className="grid gap-3 md:grid-cols-6">
               <Field
@@ -183,7 +183,7 @@ const BankStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
               {!r.ledgerId && rows.length > 1 && (
                 <button
                   type="button"
-                  className="text-red-500 hover:underline"
+                  className="text-[color:var(--color-danger)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
                   onClick={() => setRows((rs) => rs.filter((_, i) => i !== idx))}
                 >
                   Remove

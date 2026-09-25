@@ -18,6 +18,7 @@ describe("retention API", () => {
         "EOD_SNAPSHOTS",
         "FILINGS",
         "LOGIN_ATTEMPTS",
+        "MACHINE_TELEMETRY",
         "NOTIFICATIONS",
         "PAYROLL",
         "SESSIONS",
@@ -76,7 +77,7 @@ describe("retention API", () => {
     const client = await api();
     const run = await client.post("/api/retention/sweeps").set(auth).send({ dryRun: true });
     expect(run.status).toBe(200);
-    expect(run.body.data).toHaveLength(10);
+    expect(run.body.data).toHaveLength(11);
     expect(run.body.data.every((r: { affected: number }) => r.affected === 0)).toBe(true);
 
     const list = await client.get("/api/retention/sweeps?limit=10&dataClass=SESSIONS").set(auth);

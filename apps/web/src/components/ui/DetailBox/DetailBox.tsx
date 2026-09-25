@@ -1,13 +1,22 @@
 import React from "react";
 
-const DetailBox: React.FC<{ label: string; value: React.ReactNode; icon?: React.ReactNode }> = ({ label, value, icon }) => (
-    <div>
-        <div className="text-[11px] font-bold text-ink-subtle uppercase tracking-wide flex items-center gap-1.5 mb-0.5">
-            {icon && <span className="text-blue-500/70">{icon}</span>}
-            {label}
-        </div>
-        <div className="text-sm text-ink">{value ?? "—"}</div>
+/** A labelled value on a detail screen: small slate label above, the value below. */
+const DetailBox: React.FC<{ label: string; value: React.ReactNode; icon?: React.ReactNode }> = ({
+  label,
+  value,
+  icon,
+}) => (
+  <div className="min-w-0">
+    <div className="mb-1 flex items-center gap-1.5 text-[13px] font-medium text-ink-subtle">
+      {icon && (
+        <span className="inline-flex text-ink-subtle" aria-hidden="true">
+          {icon}
+        </span>
+      )}
+      {label}
     </div>
+    <div className="break-words text-sm font-semibold text-ink">{value ?? "—"}</div>
+  </div>
 );
 
 export default DetailBox;

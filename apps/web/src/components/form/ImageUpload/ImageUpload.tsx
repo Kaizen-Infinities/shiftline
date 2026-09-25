@@ -10,7 +10,14 @@ interface ImageUploadProps {
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const ImageUpload: React.FC<ImageUploadProps> = ({ label, name, currentImageUrl, hint, onChange }) => {
+/** Round dashed image picker with a preview and a label/hint beside it. */
+const ImageUpload: React.FC<ImageUploadProps> = ({
+  label,
+  name,
+  currentImageUrl,
+  hint,
+  onChange,
+}) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = React.useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -38,27 +45,40 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ label, name, currentImageUrl,
   };
 
   return (
-    <div className="image-upload-wrapper" onClick={handleClick}>
+    <div
+      className="image-upload-wrapper"
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      aria-label={label ? `Upload ${label}` : "Upload image"}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
       <input
         type="file"
         name={name}
         accept="image/*"
         onChange={handleFileChange}
         ref={fileInputRef}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
+        tabIndex={-1}
       />
       <div className="image-upload-box">
         {previewUrl ? (
           <div className="relative w-full h-full flex justify-center items-center overflow-hidden rounded-full group">
             <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center text-white cursor-pointer rounded-full">
+            <div className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center rounded-full bg-[color:var(--sl-scrim)] text-white opacity-0 transition-opacity group-hover:opacity-100">
               <FaCloudUploadAlt className="text-xl" />
               <span className="text-[10px] font-medium">Change</span>
             </div>
           </div>
         ) : fileName ? (
-          <div className="image-upload-placeholder text-success">
-            <FaCheckCircle className="image-upload-icon text-success" />
+          <div className="image-upload-placeholder text-[color:var(--color-success)]">
+            <FaCheckCircle className="image-upload-icon !text-[color:var(--color-success)]" />
           </div>
         ) : (
           <div className="image-upload-placeholder">

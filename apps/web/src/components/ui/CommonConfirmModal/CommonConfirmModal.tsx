@@ -1,10 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import CustomButton from "../Button/Button";
 import { FaTrash } from "react-icons/fa";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, HelpCircle } from "lucide-react";
 import type { CommonConfirmModalProps } from "./common-confirm-modal.types";
 
+/** Confirm dialog: icon tile, question, optional warning and Cancel / Confirm pills. */
 const CommonConfirmModal: React.FC<CommonConfirmModalProps> = ({
   show,
   isOpen,
@@ -26,6 +27,8 @@ const CommonConfirmModal: React.FC<CommonConfirmModalProps> = ({
   const isVisible = show ?? isOpen ?? false;
   const handleClose = onHide ?? onClose ?? (() => {});
   const dangerMode = isDangerous ?? confirmVariant === "danger";
+  const titleId = useId();
+  const messageId = useId();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,53 +42,58 @@ const CommonConfirmModal: React.FC<CommonConfirmModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="sl-backdrop z-[99999] flex items-center justify-center p-4"
       onClick={handleClose}
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}
     >
       <div
-        className="bg-card border border-line-soft rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 relative my-auto"
+        className="sl-dialog relative my-auto w-full max-w-sm overflow-hidden"
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 text-center">
-          {/* Icon */}
-          <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full mb-4 ${dangerMode ? "bg-red-500/15 border border-red-500/20" : "bg-accent/15 border border-accent/20"}`}>
-            <AlertTriangle className={dangerMode ? "text-red-400" : "text-accent"} size={24} />
+        <div className="px-6 pb-5 pt-7 text-center">
+          <div
+            className={`sl-dialog-icon mx-auto mb-4 ${dangerMode ? "sl-dialog-icon-danger" : ""}`}
+            aria-hidden="true"
+          >
+            {dangerMode ? <AlertTriangle size={24} /> : <HelpCircle size={24} />}
           </div>
 
-          <h5 className={`text-lg font-bold mb-2 ${dangerMode ? "text-red-400" : "text-ink"}`}>
+          <h5 id={titleId} className="sl-dialog-title mb-1.5">
             {title}
           </h5>
 
-          <p className="text-sm text-ink-muted mb-1.5">
+          <div id={messageId} className="text-sm leading-relaxed text-ink-muted">
             {message}
-          </p>
+          </div>
 
           {warningText && (
-            <p className="text-xs text-ink-subtle font-medium">
-              {warningText}
-            </p>
+            <p className="m-0 mt-2 text-[13px] font-medium text-ink-subtle">{warningText}</p>
           )}
+        </div>
 
-          <div className="flex justify-center gap-2.5 mt-6">
-            <CustomButton
-              text={cancelText}
-              variant="secondary"
-              onClick={handleClose}
-              disabled={isLoading}
-              className="px-5"
-            />
-            <CustomButton
-              text={isLoading ? loadingText : confirmText}
-              icon={confirmIcon}
-              variant={dangerMode ? "danger" : "primary"}
-              onClick={onConfirm}
-              disabled={confirmDisabled || isLoading}
-              className="px-5"
-            />
-          </div>
+        <div className="sl-dialog-footer justify-center">
+          <CustomButton
+            text={cancelText}
+            variant="secondary"
+            onClick={handleClose}
+            disabled={isLoading}
+            size="md"
+            className="flex-1"
+          />
+          <CustomButton
+            text={isLoading ? loadingText : confirmText}
+            icon={confirmIcon}
+            variant={dangerMode ? "danger" : "primary"}
+            onClick={onConfirm}
+            disabled={confirmDisabled || isLoading}
+            loading={isLoading}
+            size="md"
+            className="flex-1"
+          />
         </div>
       </div>
     </div>,

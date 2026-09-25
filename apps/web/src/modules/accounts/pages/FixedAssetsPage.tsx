@@ -7,9 +7,12 @@ import {
   type AssetClassRow,
   type AssetRegister,
   type AssetRow,
+  type DepreciationMethod,
   type DepreciationPreview,
+  type DepreciationRunDetail,
   type DepreciationRunRow,
   type ItBlocks,
+  type OpeningRowError,
 } from "../../../services/assetService";
 import {
   Card,
@@ -57,6 +60,9 @@ const FixedAssetsPage: React.FC = () => {
   const [blocks, setBlocks] = useState<ItBlocks | null>(null);
   const [adding, setAdding] = useState(false);
   const [disposing, setDisposing] = useState<AssetRow | null>(null);
+  const [importingOpening, setImportingOpening] = useState(false);
+  const [editingClass, setEditingClass] = useState<AssetClassRow | "new" | null>(null);
+  const [viewingRunId, setViewingRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -135,9 +141,19 @@ const FixedAssetsPage: React.FC = () => {
               ))}
             </select>
           )}
+          {tab === "register" && can("assets.manage") && (
+            <button className={secondary} onClick={() => setImportingOpening(true)}>
+              Import opening balances
+            </button>
+          )}
           {tab === "register" && can("assets.create") && (
             <button className={primary} onClick={() => setAdding(true)}>
               Add an asset
+            </button>
+          )}
+          {tab === "classes" && can("assets.manage") && (
+            <button className={primary} onClick={() => setEditingClass("new")}>
+              Add a class
             </button>
           )}
         </div>
@@ -314,6 +330,7 @@ const FixedAssetsPage: React.FC = () => {
                     <th className={`${th} text-right`}>Charge</th>
                     <th className={th}>Status</th>
                     <th className={th}>Posted</th>
+                    <th className={th} />
                   </tr>
                 </thead>
                 <tbody>
@@ -324,11 +341,29 @@ const FixedAssetsPage: React.FC = () => {
                       <td className={`${td} text-right`}>{money(r.totalAmount)}</td>
                       <td className={td}>{r.status.toLowerCase()}</td>
                       <td className={td}>{r.postedAt ? day(r.postedAt) : "—"}</td>
+                      <td className={`${td} text-right space-x-2`}>
+                        {r.status === "REVERSED" && (
+                          <button className={secondary} onClick={() => setViewingRunId(r.id)}>
+                            View
+                          </button>
+                        )}
+                        {r.status === "POSTED" && can("assets.depreciate") && (
+                          <button
+                            className={secondary}
+                            disabled={busy}
+                            onClick={() =>
+                              act(() => assetService.reverseRun(r.id), `${r.periodKey} reversed`)
+                            }
+                          >
+                            Reverse
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {runs.length === 0 && !loading && (
                     <tr>
-                      <td className={`${td} text-ink-muted`} colSpan={5}>
+                      <td className={`${td} text-ink-muted`} colSpan={6}>
                         No month has been run yet.
                       </td>
                     </tr>
@@ -458,6 +493,7 @@ const FixedAssetsPage: React.FC = () => {
                   <th className={th}>Schedule III head</th>
                   <th className={th}>Income-tax block</th>
                   <th className={`${th} text-right`}>Rate</th>
+                  <th className={th} />
                 </tr>
               </thead>
               <tbody>
@@ -471,6 +507,13 @@ const FixedAssetsPage: React.FC = () => {
                     <td className={td}>{c.scheduleIiHead ?? "—"}</td>
                     <td className={td}>{c.itBlockName ?? "—"}</td>
                     <td className={`${td} text-right`}>{Number(c.itBlockRate)}%</td>
+                    <td className={`${td} text-right`}>
+                      {can("assets.manage") && (
+                        <button className={secondary} onClick={() => setEditingClass(c)}>
+                          Edit
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -506,6 +549,120 @@ const FixedAssetsPage: React.FC = () => {
           }
         />
       )}
+
+      {importingOpening && (
+        <OpeningImportDialog
+          onCancel={() => setImportingOpening(false)}
+          onImported={(result) => {
+            setImportingOpening(false);
+            toast.success(
+              `Imported ${result.imported} asset(s), ${result.vouchers} opening voucher(s) posted`
+            );
+            void load();
+          }}
+        />
+      )}
+
+      {editingClass && (
+        <ClassEditDialog
+          value={editingClass === "new" ? null : editingClass}
+          busy={busy}
+          onCancel={() => setEditingClass(null)}
+          onDone={(body) =>
+            act(async () => {
+              await assetService.upsertClass(body);
+              setEditingClass(null);
+            }, "Class saved")
+          }
+        />
+      )}
+
+      {viewingRunId && (
+        <RunDetailDialog runId={viewingRunId} onClose={() => setViewingRunId(null)} />
+      )}
+    </div>
+  );
+};
+
+/**
+ * A reversed run's restored figures against each asset (P2-19), in one place: what this run
+ * charged, and what the asset's accumulated depreciation was before and after the reversal put it
+ * back — instead of checking the asset row and the run separately.
+ */
+const RunDetailDialog: React.FC<{ runId: string; onClose: () => void }> = ({ runId, onClose }) => {
+  const [detail, setDetail] = useState<DepreciationRunDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    assetService
+      .runDetail(runId)
+      .then((d) => {
+        if (!cancelled) setDetail(d);
+      })
+      .catch((err) => toast.error(message(err)))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [runId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line-soft bg-card p-4">
+        <h2 className="text-lg font-semibold text-ink">
+          Depreciation run {detail?.periodKey ?? ""}
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Reversed. What each asset&apos;s accumulated depreciation was before the reversal (with
+          this run&apos;s charge still on it) and after (restored).
+        </p>
+        {loading && <p className="mt-3 text-sm text-ink-muted">Loading…</p>}
+        {detail && (
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Asset</th>
+                  <th className={`${th} text-right`}>This run&apos;s charge</th>
+                  <th className={`${th} text-right`}>Accum. dep. before</th>
+                  <th className={`${th} text-right`}>Accum. dep. after</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.lines.map((l) => (
+                  <tr key={l.assetId} className="border-t border-line-soft">
+                    <td className={td}>
+                      {l.name}
+                      <div className="text-xs text-ink-muted">{l.code}</div>
+                    </td>
+                    <td className={`${td} text-right`}>{money(l.amount)}</td>
+                    <td className={`${td} text-right`}>{money(l.accumulatedDepreciationBefore)}</td>
+                    <td className={`${td} text-right font-semibold`}>
+                      {money(l.accumulatedDepreciationAfter)}
+                    </td>
+                  </tr>
+                ))}
+                {detail.lines.length === 0 && (
+                  <tr>
+                    <td className={`${td} text-ink-muted`} colSpan={4}>
+                      No lines on this run.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="mt-4 flex justify-end">
+          <button className={secondary} onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -699,6 +856,270 @@ const DisposeDialog: React.FC<{
             onClick={() => onDone({ disposedOn, proceeds: Number(proceeds || 0) })}
           >
             Take it off the register
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Opening balances (P2-07): a file or a pasted sheet, one row per asset already part-depreciated.
+ * Every row is validated before anything is written, so a bad row shows its own line here and
+ * nothing else in the sheet is touched — the same all-or-nothing guarantee the API gives.
+ */
+const OPENING_TEMPLATE =
+  "classCode,code,name,businessPlaceCode,capitalisedOn,cost,accumulatedDepreciation,method,remainingLifeMonths,wdvRatePercent,quantity,location\n" +
+  "PM,FA-0101,Injection Moulding Machine,,2023-06-15,850000,212500,SLM,84,,1,Shed 2\n";
+
+const OpeningImportDialog: React.FC<{
+  onCancel: () => void;
+  onImported: (result: { imported: number; vouchers: number }) => void;
+}> = ({ onCancel, onImported }) => {
+  const [csv, setCsv] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [rowErrors, setRowErrors] = useState<OpeningRowError[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const onFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => setCsv(String(reader.result ?? ""));
+    reader.readAsText(file);
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const blob = await assetService.openingTemplate();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "shiftline-asset-opening-template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(message(err));
+    }
+  };
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    setRowErrors([]);
+    try {
+      const result = await assetService.importOpeningCsv(csv);
+      onImported(result);
+    } catch (err) {
+      const details = (
+        err as { response?: { data?: { code?: string; details?: { errors?: OpeningRowError[] } } } }
+      )?.response?.data;
+      if (details?.code === "OPENING_IMPORT_INVALID" && details.details?.errors) {
+        setRowErrors(details.details.errors);
+      } else {
+        setError(message(err));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line-soft bg-card p-4">
+        <h2 className="text-lg font-semibold text-ink">Import opening balances</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          One row per asset already part-depreciated: class code, asset code, name, business place
+          (optional), put-to-use date, cost, accumulated depreciation to date, method, and either
+          the remaining life in months (SLM) or a WDV rate percent. Every row is checked before
+          anything is written.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
+            className="text-sm text-ink-muted"
+          />
+          <button className={secondary} onClick={downloadTemplate}>
+            Download the template
+          </button>
+        </div>
+        <textarea
+          className={`${field} mt-3 h-40 w-full font-mono text-xs`}
+          value={csv}
+          onChange={(e) => setCsv(e.target.value)}
+          placeholder={OPENING_TEMPLATE}
+        />
+        {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+        {rowErrors.length > 0 && (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-rose-300">
+            <table className="min-w-full text-sm">
+              <thead className="bg-rose-50">
+                <tr>
+                  <th className={th}>Row</th>
+                  <th className={th}>Problem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rowErrors.map((e, i) => (
+                  <tr key={i} className="border-t border-rose-200">
+                    <td className={td}>{e.row}</td>
+                    <td className={`${td} text-rose-800`}>{e.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="mt-4 flex justify-end gap-2">
+          <button className={secondary} onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button className={primary} disabled={busy || !csv.trim()} onClick={submit}>
+            Import
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** Both regimes on one class, editable together (P2-07): the endpoint has always allowed it. */
+const ClassEditDialog: React.FC<{
+  value: AssetClassRow | null;
+  busy: boolean;
+  onCancel: () => void;
+  onDone: (body: {
+    id?: string;
+    code: string;
+    name: string;
+    usefulLifeYears: number;
+    method: DepreciationMethod;
+    residualPercent: number;
+    scheduleIiHead: string | null;
+    itBlockName: string | null;
+    itBlockRate: number;
+    isActive: boolean;
+  }) => void;
+}> = ({ value, busy, onCancel, onDone }) => {
+  const [code, setCode] = useState(value?.code ?? "");
+  const [name, setName] = useState(value?.name ?? "");
+  const [usefulLifeYears, setUsefulLifeYears] = useState(String(value?.usefulLifeYears ?? 10));
+  const [method, setMethod] = useState<DepreciationMethod>(value?.method ?? "SLM");
+  const [residualPercent, setResidualPercent] = useState(String(value?.residualPercent ?? 5));
+  const [scheduleIiHead, setScheduleIiHead] = useState(value?.scheduleIiHead ?? "");
+  const [itBlockName, setItBlockName] = useState(value?.itBlockName ?? "");
+  const [itBlockRate, setItBlockRate] = useState(String(value?.itBlockRate ?? 15));
+  const [isActive, setIsActive] = useState(value?.isActive ?? true);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-xl border border-line-soft bg-card p-4">
+        <h2 className="text-lg font-semibold text-ink">{value ? "Edit class" : "Add a class"}</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          The Schedule II life and method for the accounts, and the income-tax block and rate for
+          the return — the same class, both regimes.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <label className="text-sm text-ink-muted">
+            Code
+            <input
+              className={`${field} mt-1 w-full`}
+              value={code}
+              disabled={!!value}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Name
+            <input
+              className={`${field} mt-1 w-full`}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Useful life (years)
+            <input
+              className={`${field} mt-1 w-full`}
+              value={usefulLifeYears}
+              onChange={(e) => setUsefulLifeYears(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Method
+            <select
+              className={`${field} mt-1 w-full`}
+              value={method}
+              onChange={(e) => setMethod(e.target.value as DepreciationMethod)}
+            >
+              <option value="SLM">Straight line</option>
+              <option value="WDV">Written down value</option>
+            </select>
+          </label>
+          <label className="text-sm text-ink-muted">
+            Residual (%)
+            <input
+              className={`${field} mt-1 w-full`}
+              value={residualPercent}
+              onChange={(e) => setResidualPercent(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Schedule II head
+            <input
+              className={`${field} mt-1 w-full`}
+              value={scheduleIiHead}
+              onChange={(e) => setScheduleIiHead(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Income-tax block
+            <input
+              className={`${field} mt-1 w-full`}
+              value={itBlockName}
+              onChange={(e) => setItBlockName(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-ink-muted">
+            Block rate (%)
+            <input
+              className={`${field} mt-1 w-full`}
+              value={itBlockRate}
+              onChange={(e) => setItBlockRate(e.target.value)}
+            />
+          </label>
+          <label className="col-span-2 flex items-center gap-2 text-sm text-ink-muted">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+            />
+            Active
+          </label>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button className={secondary} onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className={primary}
+            disabled={busy || !code.trim() || !name.trim()}
+            onClick={() =>
+              onDone({
+                id: value?.id,
+                code: code.trim(),
+                name: name.trim(),
+                usefulLifeYears: Number(usefulLifeYears),
+                method,
+                residualPercent: Number(residualPercent),
+                scheduleIiHead: scheduleIiHead.trim() || null,
+                itBlockName: itBlockName.trim() || null,
+                itBlockRate: Number(itBlockRate),
+                isActive,
+              })
+            }
+          >
+            Save
           </button>
         </div>
       </div>

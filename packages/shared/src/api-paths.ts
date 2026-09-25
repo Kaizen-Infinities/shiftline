@@ -21,6 +21,9 @@ export const API_PATHS = {
     base: "/employees",
     nextCode: "/employees/next-code",
     me: "/employees/me",
+    // A light typeahead (P2-15) behind "employees.search" rather than "employees.view", for
+    // screens (leave, fines) that need to pick an employee without holding payroll.view.
+    search: "/employees/search",
   },
   designation: {
     base: "/designations",
@@ -182,6 +185,9 @@ export const API_PATHS = {
     gstr9: "/gst-returns/gstr9",
     calendar: "/gst-returns/calendar",
     itc: "/gst-returns/itc",
+    gstr2bSettings: "/gst-returns/gstr2b/settings",
+    /** `${gstr2bFollowUpBase}/<period>/follow-up` and `.../follow-up/preview`. */
+    gstr2bFollowUpBase: "/gst-returns/gstr2b",
   },
   status: "/status",
   notifications: {
@@ -234,6 +240,18 @@ export const API_PATHS = {
     bonus: "/labour/bonus",
     settlements: "/labour/settlements",
   },
+  registers: {
+    base: "/registers",
+    musterRoll: "/registers/muster-roll",
+    wages: "/registers/wages",
+    overtime: "/registers/overtime",
+    fines: "/registers/fines",
+    deductions: "/registers/deductions",
+    advances: "/registers/advances",
+  },
+  fines: {
+    base: "/fines",
+  },
   payments: {
     base: "/payments",
     links: "/payments/links",
@@ -259,7 +277,7 @@ export const API_PATHS = {
     statements: "/banking/statements",
     lines: "/banking/lines",
     brs: "/banking/brs",
-    cheques: "/banking/cheques",
+    cheques: "/banking/cheques", // ← service appends /:id/re-present
     autoMatch: "/banking/auto-match",
   },
   costing: {
@@ -268,6 +286,7 @@ export const API_PATHS = {
     costCentres: "/costing/cost-centres",
     budgets: "/costing/budgets",
     costSheets: "/costing/cost-sheets",
+    settings: "/costing/settings",
   },
   fx: {
     base: "/fx",
@@ -282,12 +301,18 @@ export const API_PATHS = {
     register: "/assets/register",
     itBlocks: "/assets/it-blocks",
     depreciation: "/assets/depreciation",
+    opening: "/assets/opening",
+    openingImport: "/assets/opening/import",
+    openingTemplate: "/assets/opening/template.csv",
+    capitalise: "/assets/capitalise",
+    depreciationRuns: "/assets/depreciation-runs",
   },
   msme: {
     base: "/msme",
     bills: "/msme/bills",
     disallowance: "/msme/disallowance",
     form1: "/msme/form1",
+    paymentWarning: "/msme/payment-warning",
   },
   tally: {
     base: "/tally",
@@ -296,6 +321,7 @@ export const API_PATHS = {
     preview: "/tally/preview",
     mappings: "/tally/mappings",
     runs: "/tally/runs",
+    settings: "/tally/settings",
   },
   jobWork: {
     base: "/job-work",
@@ -303,6 +329,8 @@ export const API_PATHS = {
     challans: "/job-work/challans",
     register: "/job-work/register",
     itc04: "/job-work/itc04",
+    itc04Register: "/job-work/itc04/register",
+    itc04MarkFiled: "/job-work/itc04/mark-filed",
   },
   goodsDispatch: {
     base: "/goods-dispatches",
@@ -327,6 +355,42 @@ export const API_PATHS = {
   },
   inventory: {
     eodStock: "/inventory/eod-stock",
+  },
+  orderTna: {
+    base: "/order-tna", // ← service appends /:id, /:id/milestones[/:milestoneId]
+    templates: "/order-tna/templates",
+    alerts: "/order-tna/alerts",
+  },
+  deliverySchedules: {
+    base: "/delivery-schedules",
+    due: "/delivery-schedules/due",
+    adherence: "/delivery-schedules/adherence",
+    lines: "/delivery-schedules/lines", // ← base; service appends /:lineId[/dispatches]
+    dispatches: "/delivery-schedules/dispatches", // ← base; service appends /:dispatchId
+  },
+  leave: {
+    base: "/leave",
+    requests: "/leave/requests",
+    calendar: "/leave/calendar",
+    me: "/leave/me",
+  },
+  machineGateway: {
+    base: "/machine-gateways",
+    testConnection: "/machine-gateways", // ← base; service appends /:id/test-connection
+    signalMap: "/machine-gateways", // ← base; service appends /:id/signal-map
+  },
+  machineTelemetry: {
+    base: "/machine-telemetry",
+    signals: "/machine-telemetry/signals",
+    cycles: "/machine-telemetry/cycles",
+    health: "/machine-telemetry/health",
+  },
+  exportIncentives: {
+    base: "/export-incentives",
+    claims: "/export-incentives/claims",
+    claimsSummary: "/export-incentives/claims/summary",
+    claimFromInvoice: "/export-incentives/claims/from-invoice", // ← service appends /:salesInvoiceId
+    authorisations: "/export-incentives/authorisations",
   },
 };
 

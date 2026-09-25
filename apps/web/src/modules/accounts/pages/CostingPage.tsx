@@ -2,13 +2,16 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
 import { usePermission } from "../../../hooks/usePermission";
+import { accountService, type AccountLedger } from "../../../services/accountService";
 import {
   costingService,
+  type BackfillResult,
   type ClosingStock,
   type CostCentrePl,
   type CostSheetRow,
   type ValuationEntry,
   type VarianceReport,
+  type WipTotal,
 } from "../../../services/costingService";
 import {
   Card,
@@ -39,19 +42,48 @@ const CostingPage: React.FC = () => {
   const years = useMemo(() => fyOptions(3), []);
   const [tab, setTab] = useState<Tab>("stock");
   const [periodKey, setPeriodKey] = useState(months[1]?.value ?? months[0].value);
+  // The stock tab's own period, independent of the cost-centres tab's selector above — the two
+  // answer different questions ("what was stock worth in July" vs "how did July's spend compare
+  // to plan") and sharing one control meant changing one always changed the other by accident.
+  const [stockPeriodKey, setStockPeriodKey] = useState(months[1]?.value ?? months[0].value);
   const [fyCode, setFyCode] = useState(years[0].value);
   const [stock, setStock] = useState<ClosingStock | null>(null);
+  const [wip, setWip] = useState<WipTotal | null>(null);
+  const [wipStatus, setWipStatus] = useState<{
+    posted: boolean;
+    wip: number;
+    wipPosted: number | null;
+    upToDate: boolean;
+  } | null>(null);
+  const [wipLedgerCode, setWipLedgerCode] = useState("WIP");
+  const [assetLedgers, setAssetLedgers] = useState<AccountLedger[]>([]);
+  const [savingWipLedger, setSavingWipLedger] = useState(false);
   const [ledger, setLedger] = useState<ValuationEntry[]>([]);
   const [pl, setPl] = useState<CostCentrePl | null>(null);
   const [variance, setVariance] = useState<VarianceReport | null>(null);
   const [sheets, setSheets] = useState<CostSheetRow[]>([]);
+  const [backfillResult, setBackfillResult] = useState<BackfillResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (tab === "stock") setStock(await costingService.closingStock());
+      if (tab === "stock") {
+        const [sy, sm] = stockPeriodKey.split("-").map(Number);
+        const stockAsOn = new Date(Date.UTC(sy, sm, 0)).toISOString().slice(0, 10);
+        setStock(await costingService.closingStock(stockAsOn));
+        setWip(await costingService.wip());
+        setWipStatus(await costingService.closingStockStatus(stockPeriodKey));
+        if (can("costing.manage")) {
+          const [settings, ledgers] = await Promise.all([
+            costingService.settings(),
+            accountService.fetchLedgers({ type: "ASSET", limit: 500 }),
+          ]);
+          setWipLedgerCode(settings.wipLedgerCode);
+          setAssetLedgers(ledgers.ledgers);
+        }
+      }
       if (tab === "ledger") setLedger(await costingService.ledger());
       if (tab === "centres") {
         const [y, m] = periodKey.split("-").map(Number);
@@ -66,7 +98,7 @@ const CostingPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [tab, periodKey, fyCode]);
+  }, [tab, periodKey, stockPeriodKey, fyCode, can]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -82,6 +114,20 @@ const CostingPage: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {tab === "stock" && (
+            <select
+              className={field}
+              value={stockPeriodKey}
+              onChange={(e) => setStockPeriodKey(e.target.value)}
+              aria-label="Stock period"
+            >
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          )}
           {tab === "centres" && (
             <select
               className={field}
@@ -111,28 +157,50 @@ const CostingPage: React.FC = () => {
             </select>
           )}
           {tab === "stock" && can("costing.manage") && (
-            <button
-              className={primary}
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  const out = await costingService.postClosingStock(periodKey);
-                  toast.success(
-                    out.posted
-                      ? `Posted the movement of ${out.movement}`
-                      : "Nothing to post for that month"
-                  );
-                  await load();
-                } catch (err) {
-                  toast.error(message(err));
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Post {periodKey} stock movement
-            </button>
+            <>
+              <button
+                className={primary}
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const out = await costingService.postClosingStock(stockPeriodKey);
+                    toast.success(
+                      out.posted
+                        ? `Posted the movement of ${out.movement}`
+                        : "Nothing to post for that month"
+                    );
+                    await load();
+                  } catch (err) {
+                    toast.error(message(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Post {stockPeriodKey} stock movement
+              </button>
+              <button
+                className={primary}
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const result = await costingService.backfillValuation();
+                    setBackfillResult(result);
+                    toast.success(
+                      `Backfilled ${result.created} valuation entries (${result.skipped} skipped)`
+                    );
+                  } catch (err) {
+                    toast.error(message(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Backfill valuation
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -179,6 +247,91 @@ const CostingPage: React.FC = () => {
               </p>
             )}
           </Card>
+          {wip && (
+            <Card title="Work in progress">
+              <p className="text-2xl font-semibold text-ink">{money(wip.total)}</p>
+              <p className="mt-1 text-xs text-ink-muted">
+                Material issued to {wip.rows.length} open production order(s), still on the floor —
+                not in raw-material stock above, and not yet finished goods.
+              </p>
+              {wipStatus && (
+                <p
+                  className={`mt-2 rounded-lg border p-2 text-sm ${
+                    wipStatus.upToDate
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                      : "border-amber-300 bg-amber-50 text-amber-900"
+                  }`}
+                >
+                  {wipStatus.posted
+                    ? wipStatus.upToDate
+                      ? `Posted for ${stockPeriodKey}, and matches the current figure.`
+                      : `Posted for ${stockPeriodKey} at ${money(wipStatus.wipPosted ?? 0)} — WIP has moved since; post again to bring it current.`
+                    : `Not posted for ${stockPeriodKey} yet.`}
+                </p>
+              )}
+              {can("costing.manage") && (
+                <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line-soft pt-3">
+                  <label className="text-xs text-ink-muted">
+                    WIP ledger
+                    <select
+                      className={`${field} mt-1 block`}
+                      value={wipLedgerCode}
+                      onChange={(e) => setWipLedgerCode(e.target.value)}
+                    >
+                      {!assetLedgers.some((l) => l.code === wipLedgerCode) && (
+                        <option value={wipLedgerCode}>{wipLedgerCode}</option>
+                      )}
+                      {assetLedgers.map((l) => (
+                        <option key={l.id} value={l.code}>
+                          {l.name} ({l.code})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className={primary}
+                    disabled={savingWipLedger}
+                    onClick={async () => {
+                      setSavingWipLedger(true);
+                      try {
+                        await costingService.saveSettings(wipLedgerCode);
+                        toast.success(`WIP now posts to ${wipLedgerCode}`);
+                        await load();
+                      } catch (err) {
+                        toast.error(message(err));
+                      } finally {
+                        setSavingWipLedger(false);
+                      }
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+              {wip.rows.length > 0 && (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr>
+                        <th className={th}>Production order</th>
+                        <th className={th}>Status</th>
+                        <th className={`${th} text-right`}>WIP value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {wip.rows.map((r) => (
+                        <tr key={r.productionOrderId} className="border-t border-line-soft">
+                          <td className={td}>{r.productionOrderId}</td>
+                          <td className={td}>{r.status}</td>
+                          <td className={`${td} text-right`}>{money(r.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
           <Card title="By item">
             <div className="overflow-x-auto">
               <table className="min-w-full">
@@ -224,6 +377,43 @@ const CostingPage: React.FC = () => {
               </table>
             </div>
           </Card>
+          {backfillResult && (
+            <Card title="Backfill valuation report">
+              <p className="mb-3 text-sm text-ink-muted">
+                Scanned {backfillResult.scanned} rows, filled {backfillResult.created}, skipped{" "}
+                {backfillResult.skipped}.
+              </p>
+              {backfillResult.pairs.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr>
+                        <th className={th}>Item</th>
+                        <th className={th}>Store</th>
+                        <th className={`${th} text-right`}>Filled</th>
+                        <th className={`${th} text-right`}>Skipped</th>
+                        <th className={th}>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {backfillResult.pairs.map((p) => (
+                        <tr
+                          key={`${p.itemCode}-${p.storeCode}`}
+                          className="border-t border-line-soft"
+                        >
+                          <td className={td}>{p.itemCode}</td>
+                          <td className={td}>{p.storeCode}</td>
+                          <td className={`${td} text-right`}>{p.filled}</td>
+                          <td className={`${td} text-right`}>{p.skipped}</td>
+                          <td className={td}>{p.skipReason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          )}
         </>
       )}
 

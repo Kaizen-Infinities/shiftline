@@ -73,6 +73,8 @@ export interface ChequeRow {
   bouncedOn: string | null;
   bounceCharges: string;
   bounceReason: string | null;
+  /** The invoice/GRN a payment cheque belongs to (P2-06/P2-17); null for a manually-added one. */
+  sourceDocId?: string | null;
 }
 
 const p = API_PATHS.banking;
@@ -129,4 +131,7 @@ export const bankingService = {
       bounceReason?: string;
     }
   ): Promise<ChequeRow> => (await apiClient.post(`${p.cheques}/${id}/status`, body)).data.data,
+  /** Posts the receipt/payment again and moves a BOUNCED cheque to DEPOSITED (P2-06). */
+  rePresent: async (id: string): Promise<ChequeRow> =>
+    (await apiClient.post(`${p.cheques}/${id}/re-present`)).data.data,
 };

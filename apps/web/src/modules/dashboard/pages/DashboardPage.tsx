@@ -1,141 +1,100 @@
-
-
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  LuArrowDownLeft,
+  LuArrowUpRight,
+  LuBanknote,
+  LuBell,
+  LuCalendarCheck,
+  LuChevronRight,
+  LuCircleAlert,
+  LuCircleCheck,
+  LuFileText,
+  LuHandCoins,
+  LuInfo,
+  LuLandmark,
+  LuReceipt,
+  LuShoppingCart,
+  LuTriangleAlert,
+} from "react-icons/lu";
 import { usePageSocketSync } from "../../../hooks/usePageSocketSync";
 import dashboardService, { type AccountsSummary } from "../../../services/dashboardService";
 import { useListCache } from "../../../hooks/useListCache";
-
-// Recharts
-import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, LineChart, Line,
-} from "recharts";
-
-// Icons
-import {
-  FaBoxes, FaCalendarCheck, FaCogs, FaCubes,
-  FaLayerGroup, FaBoxOpen, FaUsers, FaUserTie,
-  FaShoppingCart, FaTruck, FaChartLine, FaClock,
-  FaMoneyBillWave, FaCalendarAlt, FaHourglassHalf, FaUserFriends,
-  FaArrowUp, FaArrowDown, FaHandHoldingUsd, FaFileInvoiceDollar,
-  FaUniversity, FaWarehouse, FaCheckCircle, FaTimesCircle, FaSync, FaMapMarkerAlt, FaTimes,FaTv,
-  FaChartBar, FaChartPie, FaListUl, FaArrowLeft, FaArrowRight, FaPlus, FaSearch, FaBox,
-  FaBell, FaExclamationTriangle, FaExclamationCircle, FaInfoCircle, FaChevronRight,
-} from "react-icons/fa";
-import { LuLayoutDashboard } from "react-icons/lu";
-import { FiTrendingUp, FiTrendingDown, FiMoreVertical } from "react-icons/fi";
-
-import CommonLoader from "../../../components/ui/Loader/CommonLoader";
-import { SparklineCard } from "../components/SparklineCard";
+import { usePermission } from "../../../hooks/usePermission";
 import SalesPurchaseTrendChart from "../components/SalesPurchaseTrendChart";
 import { SalesPersonLiveMap } from "../components/SalesPersonLiveMap";
 import { InventoryStockIntelligence } from "../components/InventoryStockIntelligence";
 import { WorkforceShiftAttendance } from "../components/WorkforceShiftAttendance";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "../../../components/ui/chart";
-import { usePermission } from "../../../hooks/usePermission";
+import { WelcomeHeader, type DashPeriod } from "../components/WelcomeHeader";
+import { QuickActions } from "../components/QuickActions";
+import { TopProductsTile } from "../components/TopProductsTile";
+import { CustomerPurchaseReport } from "../components/CustomerPurchaseReport";
+import {
+  DashTile,
+  TileHeader,
+  EmptyState,
+  SkeletonRows,
+  StatTile,
+  StatTileSkeleton,
+  TileLink,
+  type Trend,
+} from "../components/DashboardPrimitives";
+import { inr, plural, statusChipClass } from "../components/dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
-   COLOUR PALETTE
+   HOME DASHBOARD (UI v2)
+   Greeting → role-aware quick actions → money overview → trend and
+   alerts → today's work → books → customers and field team → stock.
+   Every widget keeps its data call, socket refresh and permission gate;
+   the layout is white tiles on the pale page, with skeleton slabs while
+   loading and a friendly line plus the next step when a list is empty.
    ════════════════════════════════════════════════════════════════ */
-const PALETTE = {
-  blue: "#3b82f6",
-  purple: "#8b5cf6",
-  cyan: "#06b6d4",
-  emerald: "#10b981",
-  amber: "#f59e0b",
-  rose: "#ef4444",
-  indigo: "#6366f1",
-  pink: "#ec4899",
-  teal: "#14b8a6",
-  orange: "#f97316",
+
+const PERIOD_LABEL: Record<DashPeriod, string> = {
+  day: "today",
+  week: "this week",
+  month: "this month",
+  year: "this year",
 };
 
-const PIE_COLORS = [
-  "#6366f1", "#0ea5e9", "#10b981", "#f59e0b",
-  "#ec4899", "#8b5cf6", "#f43f5e", "#14b8a6"
-];
+// Dashboard period → SalesPurchaseTrendChart bucket size.
+const TREND_PERIOD: Record<DashPeriod, "7d" | "30d" | "90d" | "12m"> = {
+  day: "7d",
+  week: "30d",
+  month: "90d",
+  year: "12m",
+};
 
-const inventoryChartConfig = {
-  "Finished Goods": { label: "Finished Goods", color: PALETTE.amber },
-  "Raw Materials": { label: "Raw Materials", color: PALETTE.rose },
-  "Other": { label: "Other", color: PALETTE.blue },
-} satisfies ChartConfig;
+const safe = (d: any) => (Array.isArray(d) ? d : []);
 
-/* ════════════════════════════════════════════════════════════════
-   REUSABLE PRIMITIVES
-   ════════════════════════════════════════════════════════════════ */
-
-
-
-/* ════════════════════════════════════════════════════════════════
-   MAIN DASHBOARD
-   ════════════════════════════════════════════════════════════════ */
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { can, isSuperAdmin } = usePermission();
-  const [selectedCustomerReport, setSelectedCustomerReport] = useState<{
-    customer: string;
-    type: "purchased" | "notPurchased";
-  } | null>(null);
-  const [customerProductSearch, setCustomerProductSearch] = useState("");
-  const [topProductsChartType, setTopProductsChartType] = useState<"list" | "bar" | "pie">(() => {
-    try {
-      const saved = localStorage.getItem("dashboard_top_products_chart_type");
-      if (saved && ["list", "bar", "pie"].includes(saved)) {
-        return saved as "list" | "bar" | "pie";
-      }
-    } catch (e) {}
-    return "list";
-  });
 
-  type DashPeriod = "day" | "week" | "month" | "year";
   const [dashPeriod, setDashPeriod] = useState<DashPeriod>(() => {
     try {
       const saved = localStorage.getItem("dashboard_period");
-      if (saved && ["day", "week", "month", "year"].includes(saved)) {
-        return saved as DashPeriod;
-      }
-    } catch (e) {}
+      if (saved && ["day", "week", "month", "year"].includes(saved)) return saved as DashPeriod;
+    } catch {}
     return "year";
   });
 
   const handleDashPeriodChange = (p: DashPeriod) => {
     setDashPeriod(p);
-    try { localStorage.setItem("dashboard_period", p); } catch (e) {}
-  };
-
-  // Map dashboard period → SalesPurchaseTrendChart period key
-  const trendPeriodMap: Record<DashPeriod, "7d" | "30d" | "90d" | "12m"> = {
-    day: "7d",
-    week: "30d",
-    month: "90d",
-    year: "12m",
-  };
-
-  const handleTopProductsChartTypeChange = (newType: "list" | "bar" | "pie") => {
-    setTopProductsChartType(newType);
     try {
-      localStorage.setItem("dashboard_top_products_chart_type", newType);
-    } catch (e) {}
+      localStorage.setItem("dashboard_period", p);
+    } catch {}
   };
 
-  // Dashboard widget visibility — super admin always sees everything
-  const showOverview     = isSuperAdmin || can("dash-overview.view");
-  const showTrend        = isSuperAdmin || can("dash-trend.view");
-  const showTasks        = isSuperAdmin || can("dash-tasks.view");
-  const showInventory    = isSuperAdmin || can("dash-inventory.view");
-  const showMachines     = isSuperAdmin || can("dash-machines.view");
-  const showTopProducts  = isSuperAdmin || can("dash-top-products.view");
-  const showRecentSales  = isSuperAdmin || can("dash-recent-sales.view");
+  // Widget visibility — super admin always sees everything.
+  const showOverview = isSuperAdmin || can("dash-overview.view");
+  const showTrend = isSuperAdmin || can("dash-trend.view");
+  const showTasks = isSuperAdmin || can("dash-tasks.view");
+  const showInventory = isSuperAdmin || can("dash-inventory.view");
+  const showTopProducts = isSuperAdmin || can("dash-top-products.view");
+  const showRecentSales = isSuperAdmin || can("dash-recent-sales.view");
 
-  // ─────────────────────────────────────────────────────────────
-  //  DASHBOARD SUMMARY — cache-first (no full-page Loading spinner)
-  //  Same pattern used across all accounts pages: cached data shows
-  //  instantly on repeat visits, silent background refetch keeps it fresh,
-  //  socket events invalidate and refetch in the background.
-  // ─────────────────────────────────────────────────────────────
+  /* ── Dashboard summary — cache-first; sockets refresh it in the background ── */
   const dashboardFetcher = useCallback(async (_signal: AbortSignal) => {
     const data = await dashboardService.getSummary();
     return { data: [data], total: 1 };
@@ -147,1595 +106,658 @@ const DashboardPage: React.FC = () => {
     fetcher: dashboardFetcher,
   });
   const dashData = dashboardCache.data[0] || {};
-  const refreshDashboard = dashboardCache.refresh;
+  const summaryLoading = dashboardCache.loading;
 
-  // Derive the individual arrays from the cached payload. Empty arrays fall
-  // through cleanly during cold-load; downstream useMemos handle that.
   const salesOrders = dashData.salesOrders || [];
   const purchaseOrders = dashData.purchaseOrders || [];
   const productionOrders = dashData.productionOrders || [];
   const dailyPlans = dashData.dailyPlans || [];
   const finishedGoodsStocks = dashData.finishedGoodsStocks || [];
   const rawMaterialStocks = dashData.rawMaterialStocks || [];
-  const machines = dashData.machines || [];
   const weeklyPrograms = dashData.weeklyPrograms || [];
   const rawMaterials = dashData.rawMaterials || [];
   const allProducts = dashData.products || [];
   const allSalesProducts = dashData.salesProducts || [];
   const allCustomers = dashData.customers || [];
-  const productsCount = dashData.productsCount || (Array.isArray(allProducts) ? allProducts.length : 0);
   const employeesCount = dashData.employeesCount || 0;
   const salesInvoices = dashData.salesInvoices || [];
   const purchaseInvoices = dashData.purchaseInvoices || [];
-  void rawMaterialStocks; // reserved for future use
 
-  // ── Real-time socket refresh on any relevant change ─────────
-  // Single 300ms debounce shared across all modules — prevents up to 5
-  // independent refetches when one save touches multiple collections.
+  // One 300 ms debounce across every module that feeds the summary.
   usePageSocketSync(
-    ["purchaseOrder", "productionOrder", "dailyPlan", "finishedGoodsStock", "rawMaterialStock", "salesOrder", "salesInvoice", "grnInvoice"],
-    refreshDashboard
+    [
+      "purchaseOrder",
+      "productionOrder",
+      "dailyPlan",
+      "finishedGoodsStock",
+      "rawMaterialStock",
+      "salesOrder",
+      "salesInvoice",
+      "grnInvoice",
+    ],
+    dashboardCache.refresh
   );
 
-  // ─────────────────────────────────────────────────────────────
-  //  ACCOUNTS SUMMARY — 6 top cards + Alerts + Recent Transactions
-  //  Uses useListCache so it is auto-tracked by the global prefetch
-  //  progress bar and gets prefetched on app boot. Multiple socket
-  //  listeners keep it fresh in realtime as vouchers are posted.
-  // ─────────────────────────────────────────────────────────────
-  const accountsSummaryFetcher = useCallback(async (_signal: AbortSignal) => {
-    const summary = await dashboardService.getAccountsSummary(dashPeriod);
-    return { data: [summary], total: 1 };
-  }, [dashPeriod]);
+  /* ── Accounts summary: stat tiles, alerts and recent transactions ── */
+  const accountsSummaryFetcher = useCallback(
+    async (_signal: AbortSignal) => {
+      const summary = await dashboardService.getAccountsSummary(dashPeriod);
+      return { data: [summary], total: 1 };
+    },
+    [dashPeriod]
+  );
 
   const accountsSummaryCache = useListCache<AccountsSummary>({
     cacheKey: `accounts:dashboard-summary:${dashPeriod}`,
     socketModule: "voucher",
     fetcher: accountsSummaryFetcher,
   });
-  const accSummaryList = accountsSummaryCache.data;
-  const isSyncingAccounts = accountsSummaryCache.refreshing;
-  const refreshAccountsSummary = accountsSummaryCache.refresh;
-  const accountsSummary = accSummaryList[0] || null;
+  const accountsSummary = accountsSummaryCache.data[0] || null;
+  const accountsLoading = accountsSummaryCache.loading && !accountsSummary;
 
   usePageSocketSync(
     ["payment", "journalItem", "accountLedger", "salesInvoice", "grnInvoice", "pettyCashEntry"],
-    refreshAccountsSummary
+    accountsSummaryCache.refresh
   );
 
-  /* ─── ACCOUNTS CARD TRENDS ──────────────────────────────────── */
+  /* ── Stat tile trends: latest voucher of a type vs the one before it ── */
   const cardTrends = useMemo(() => {
-    if (!accountsSummary) return { sales: "neutral", purchase: "neutral", receivable: "neutral", payable: "neutral", cash: "neutral", bank: "neutral" } as const;
-
+    const neutral: Trend = "neutral";
+    if (!accountsSummary)
+      return {
+        sales: neutral,
+        purchase: neutral,
+        receivable: neutral,
+        payable: neutral,
+        cash: neutral,
+      };
     const txns = accountsSummary.recentTransactions || [];
-
-    const getTrend = (type: string): "up" | "down" | "neutral" => {
-      const filtered = txns.filter((t: any) => t.type === type);
+    const getTrend = (type: string): Trend => {
+      const filtered = txns.filter((t) => t.type === type);
       if (filtered.length < 2) return "neutral";
       return filtered[0].amount >= filtered[1].amount ? "up" : "down";
     };
-
-    const cashTrend: "up" | "down" | "neutral" =
-      accountsSummary.todayReceipts > accountsSummary.todayPayments ? "up"
-      : accountsSummary.todayReceipts < accountsSummary.todayPayments ? "down"
-      : "neutral";
-
+    const cash: Trend =
+      accountsSummary.todayReceipts > accountsSummary.todayPayments
+        ? "up"
+        : accountsSummary.todayReceipts < accountsSummary.todayPayments
+          ? "down"
+          : "neutral";
     return {
       sales: getTrend("SALES"),
       purchase: getTrend("PURCHASE"),
       receivable: getTrend("RECEIPT"),
       payable: getTrend("PAYMENT"),
-      cash: cashTrend,
-      bank: cashTrend,
+      cash,
     };
   }, [accountsSummary]);
 
-  /* ─── DERIVED DATA ────────────────────────────────────────── */
-  const safe = (d: any) => (Array.isArray(d) ? d : []);
-
-  // Top stats
-  const topStats = useMemo(() => {
-    const po = safe(productionOrders);
-    const so = safe(salesOrders);
-    const purc = safe(purchaseOrders);
-    const mach = safe(machines);
-    const wp = safe(weeklyPrograms);
-    const totalFinished = po.reduce((a: number, o: any) => a + (Number(o.producedQty) || 0), 0);
-
-    const totalRevenue = so.reduce((acc: number, s: any) => acc + (Number(s.netAmount) || 0), 0);
-    
-    // Calculate last month revenue
-    const now = new Date();
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-    const lastMonthRevenue = so
-      .filter((s: any) => {
-        const d = new Date(s.createdAt || s.orderDate);
-        return !isNaN(d.getTime()) && d >= lastMonthStart && d <= lastMonthEnd;
-      })
-      .reduce((acc: number, s: any) => acc + (Number(s.netAmount) || 0), 0);
-
-    // Pending amount = sum of (grandTotal - totalPaid) across all non-cancelled invoices
-    const pendingAmount = safe(salesInvoices).reduce((acc: number, inv: any) => {
-      const payments = Array.isArray(inv.payments) ? inv.payments : (typeof inv.payments === "string" ? JSON.parse(inv.payments || "[]") : []);
-      const totalPaid = payments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-      const balanceDue = Math.max(0, Number(inv.grandTotal) - totalPaid);
-      return acc + balanceDue;
-    }, 0);
-    const uniqueCustomers = new Set(so.filter((s: any) => s.customer).map((s: any) => s.customer?.id || s.customer?.firmName)).size;
-
-    return {
-      salesOrders: so.length,
-      purchaseOrders: purc.length,
-      productionOrders: po.length,
-      weeklySchedules: wp.length,
-      machines: mach.length,
-      products: productsCount,
-      rawMaterials: rawMaterials.length,
-      finishedGoods: totalFinished,
-      employees: employeesCount,
-      totalRevenue,
-      lastMonthRevenue,
-      pendingAmount,
-      uniqueCustomers,
-    };
-  }, [productionOrders, salesOrders, purchaseOrders, rawMaterials, machines, weeklyPrograms, productsCount, employeesCount, salesInvoices]);
-
-  // Today's Tasks Stats
-  const todayStats = useMemo(() => {
+  /* ── Today's daily production plans ── */
+  const todayPlans = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    const isToday = (dateStr: string) => {
-      if (!dateStr) return false;
-      const d = new Date(dateStr);
+    return safe(dailyPlans).filter((p: any) => {
+      const raw = p.productionDate || p.date || p.createdAt;
+      if (!raw) return false;
+      const d = new Date(raw);
       d.setHours(0, 0, 0, 0);
       return d.getTime() === today.getTime();
-    };
-
-    const poToday = safe(productionOrders).filter((o: any) => isToday(o.createdAt || o.orderDate));
-    const soToday = safe(salesOrders).filter((o: any) => isToday(o.createdAt || o.orderDate));
-    const puToday = safe(purchaseOrders).filter((o: any) => isToday(o.createdAt || o.orderDate));
-    const wpToday = safe(weeklyPrograms).filter((w: any) => isToday(w.createdAt || w.startDate || w.date || w.scheduleDate));
-    const dpToday = safe(dailyPlans).filter((p: any) => isToday(p.productionDate || p.date || p.createdAt));
-    const pendingCount = safe(salesOrders).filter((s: any) => s.status === 'DRAFT' || s.status === 'PENDING').length +
-      safe(purchaseOrders).filter((p: any) => p.status === 'DRAFT' || p.status === 'PENDING').length;
-
-    return {
-      production: poToday.length,
-      sales: soToday.length,
-      purchase: puToday.length,
-      schedules: wpToday.length,
-      pending: pendingCount,
-      tasksList: dpToday,
-    };
-  }, [productionOrders, salesOrders, purchaseOrders, weeklyPrograms, dailyPlans]);
-
-  // Production status counts
-  const prodStatusData = useMemo(() => {
-    const po = safe(productionOrders);
-    const counts: Record<string, number> = {};
-    po.forEach((o: any) => {
-      const s = o.status?.toUpperCase() || "PLANNED";
-      counts[s] = (counts[s] || 0) + 1;
     });
-    return Object.entries(counts).map(([name, value]) => ({ name: name.replace(/_/g, " "), value }));
-  }, [productionOrders]);
+  }, [dailyPlans]);
 
-  // Sales status doughnut
-  const salesStatusData = useMemo(() => {
-    const so = safe(salesOrders);
-    const counts: Record<string, number> = {};
-    so.forEach((o: any) => { counts[o.status || "DRAFT"] = (counts[o.status || "DRAFT"] || 0) + 1; });
-    return Object.entries(counts)
-      .map(([name, value], i) => ({ name: name.replace(/_/g, " "), value, color: PIE_COLORS[i % PIE_COLORS.length] }))
-      .sort((a, b) => b.value - a.value);
-  }, [salesOrders]);
-
-  // Purchase status doughnut
-  const purchaseStatusData = useMemo(() => {
-    const po = safe(purchaseOrders);
-    const counts: Record<string, number> = {};
-    po.forEach((o: any) => { counts[o.status || "DRAFT"] = (counts[o.status || "DRAFT"] || 0) + 1; });
-    return Object.entries(counts)
-      .map(([name, value], i) => ({ name: name.replace(/_/g, " "), value, color: PIE_COLORS[(i + 3) % PIE_COLORS.length] }))
-      .sort((a, b) => b.value - a.value);
-  }, [purchaseOrders]);
-
-  // Inventory breakdown doughnut (Stock by Store)
-  const formatUom = (uomStr: string | undefined) => {
-    if (!uomStr) return "";
-    let code = uomStr.trim();
-    if (code.toUpperCase() === "EA" || code.toUpperCase() === "EACH") return "PCS";
-    if (code.includes(",")) code = code.split(",")[0].trim();
-    return code;
-  };
-
-  const inventoryData = useMemo(() => {
-    const rm = safe(rawMaterials);
-    const itemMap: Record<string, { qty: number, storeName: string, productName: string, uom: string }> = {};
-
-    // Process Raw Materials
-    rm.forEach((item: any) => {
-      const storeName = item.store?.storeName || "Main Warehouse";
-      const qty = Number(item.onHandQty) || 0;
-      const productName = item.materialName || item.rawMaterial?.materialName || "Unknown RM";
-      const uom = formatUom(item.baseUom || item.rawMaterial?.baseUom);
-      const key = `${storeName}::${productName}`;
-      
-      if (!itemMap[key]) {
-        itemMap[key] = { qty: 0, storeName, productName, uom };
-      }
-      itemMap[key].qty += qty;
-    });
-
-    const data = Object.entries(itemMap)
-      .map(([key, obj], i) => ({
-        name: obj.productName,
-        storeName: obj.storeName,
-        value: 1, // Equal slice for each unique item
-        displayValue: `${obj.qty} ${obj.uom}`.trim(),
-        products: obj.storeName,
-        color: PIE_COLORS[i % PIE_COLORS.length],
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    return data.length > 0 ? data : [{ name: "No Stock", storeName: "", value: 1, displayValue: "0", products: "", color: "#cbd5e1" }];
-  }, [rawMaterials]);
-
-
-
-
-  // Machine utilization list
-  const machineList = useMemo(() => {
-    const m = safe(machines);
-    const wp = safe(weeklyPrograms);
-    return m.slice(0, 5).map((mac: any) => {
-      const jobs = wp.filter((w: any) => w.machineId === mac.machineId || w.machine?.machineId === mac.machineId);
-      return { name: mac.machineName, jobs: jobs.length, status: mac.status || "Active" };
-    });
-  }, [machines, weeklyPrograms]);
-
-  // Production priority bar chart
-  const priorityData = useMemo(() => {
-    const po = safe(productionOrders);
-    const map: Record<string, number> = { Urgent: 0, High: 0, Medium: 0, Low: 0 };
-    po.forEach((o: any) => {
-      const p = (o.priority || "Medium").charAt(0).toUpperCase() + (o.priority || "Medium").slice(1).toLowerCase();
-      if (map[p] !== undefined) map[p]++;
-      else map["Medium"]++;
-    });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, [productionOrders]);
-
+  /* ── Top products by finished-goods stock ── */
   const topProducts = useMemo(() => {
-    const fg = safe(finishedGoodsStocks);
-    
-    // Group stocks by product name
-    const grouped = fg.reduce((acc: Record<string, number>, curr: any) => {
+    const grouped = safe(finishedGoodsStocks).reduce((acc: Record<string, number>, curr: any) => {
       const name = curr.product?.productName || curr.productItem?.productName || "Unknown";
       acc[name] = (acc[name] || 0) + (Number(curr.onHandQty) || 0);
       return acc;
     }, {});
-
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value: value as number }))
+      .filter((p) => p.value > 0)
       .sort((a, b) => b.value - a.value)
       .slice(0, 7);
   }, [finishedGoodsStocks]);
 
-  const topProductsTotal = useMemo(() => {
-    return topProducts.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
-  }, [topProducts]);
+  /* ── Latest five sales orders ── */
+  const recentSales = useMemo(
+    () =>
+      [...safe(salesOrders)]
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        )
+        .slice(0, 5),
+    [salesOrders]
+  );
 
-  const topProductsWithColors = useMemo(() => {
-    return topProducts.map((item, idx) => ({
-      ...item,
-      color: PIE_COLORS[idx % PIE_COLORS.length],
-      percent: topProductsTotal > 0 ? item.value / topProductsTotal : 0,
-    }));
-  }, [topProducts, topProductsTotal]);
+  const alerts = accountsSummary?.alerts ?? [];
+  const transactions = accountsSummary?.recentTransactions ?? [];
+  const showAccountsTiles = !!accountsSummary || accountsLoading;
 
-  // Recent orders
-  const recentSales = useMemo(() => {
-    return safe(salesOrders)
-      .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      .slice(0, 5);
-  }, [salesOrders]);
-
-  // Customer Purchase Report — per-customer: which sales products purchased in last 3 months vs not purchased
-  const customerPurchaseReport = useMemo(() => {
-    const so = safe(salesOrders);
-    const salesProducts = safe(allSalesProducts);
-    const customers = safe(allCustomers);
-    const productNames = salesProducts
-      .map((p: any) => p.salesProductName || p.name || "")
-      .filter(Boolean);
-    const totalProducts = productNames.length;
-
-    const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
-
-    // Map: customerName -> { productName -> { lastOrderDate, orderNo } }
-    const customerProductLastOrder: Record<string, Record<string, { lastOrderDate: Date; orderNo?: string }>> = {};
-
-    for (const order of so) {
-      const cName = order.customer?.firmName || "Unknown";
-      if (!customerProductLastOrder[cName]) customerProductLastOrder[cName] = {};
-      const orderDateVal = order.orderDate || order.createdAt;
-      const orderTime = orderDateVal ? new Date(orderDateVal) : new Date(0);
-      const items = Array.isArray(order.items) ? order.items : [];
-      for (const item of items) {
-        const pName =
-          item.salesProduct?.salesProductName ||
-          item.salesProductName ||
-          "";
-        if (!pName) continue;
-
-        const existing = customerProductLastOrder[cName][pName];
-        if (!existing || orderTime.getTime() > existing.lastOrderDate.getTime()) {
-          customerProductLastOrder[cName][pName] = {
-            lastOrderDate: orderTime,
-            orderNo: order.orderNo,
-          };
-        }
-      }
-    }
-
-    interface ProductPurchaseDetail {
-      name: string;
-      lastOrderDate?: Date;
-      daysAgo?: number;
-      isPurchasedWithin3Months: boolean;
-      hasEverPurchased: boolean;
-    }
-
-    interface CustomerReportItem {
-      name: string;
-      purchasedProducts: ProductPurchaseDetail[];
-      notPurchasedProducts: ProductPurchaseDetail[];
-    }
-
-    const processCustomer = (cName: string): CustomerReportItem => {
-      const productHistory = customerProductLastOrder[cName] || {};
-      const purchasedProducts: ProductPurchaseDetail[] = [];
-      const notPurchasedProducts: ProductPurchaseDetail[] = [];
-
-      for (const pName of productNames) {
-        const history = productHistory[pName];
-        if (history && !isNaN(history.lastOrderDate.getTime()) && history.lastOrderDate.getTime() > 0) {
-          const diffMs = now - history.lastOrderDate.getTime();
-          const daysAgo = Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)));
-          const isWithin3Months = diffMs <= THREE_MONTHS_MS;
-
-          const detail: ProductPurchaseDetail = {
-            name: pName,
-            lastOrderDate: history.lastOrderDate,
-            daysAgo,
-            isPurchasedWithin3Months: isWithin3Months,
-            hasEverPurchased: true,
-          };
-
-          if (isWithin3Months) {
-            purchasedProducts.push(detail);
-          } else {
-            notPurchasedProducts.push(detail);
-          }
-        } else {
-          const detail: ProductPurchaseDetail = {
-            name: pName,
-            isPurchasedWithin3Months: false,
-            hasEverPurchased: false,
-          };
-          notPurchasedProducts.push(detail);
-        }
-      }
-
-      return {
-        name: cName,
-        purchasedProducts,
-        notPurchasedProducts,
-      };
-    };
-
-    const seen = new Set<string>();
-    const result: CustomerReportItem[] = [];
-
-    // Customers from master
-    for (const c of customers) {
-      const cName = c.firmName || "";
-      if (!cName) continue;
-      seen.add(cName);
-      result.push(processCustomer(cName));
-    }
-
-    // Customers from orders not in master
-    for (const cName of Object.keys(customerProductLastOrder)) {
-      if (seen.has(cName)) continue;
-      result.push(processCustomer(cName));
-    }
-
-    return {
-      totalProducts,
-      customers: result.sort(
-        (a, b) => b.purchasedProducts.length - a.purchasedProducts.length || a.name.localeCompare(b.name)
-      ),
-    };
-  }, [salesOrders, allSalesProducts, allCustomers]);
-
-  /* ═══════════════ RENDER ═══════════════ */
-  // Cache-first render: no full-page CommonLoader anymore. On first cold visit
-  // cards may briefly show ₹0 / empty until the background fetch resolves.
-  // On repeat visits data appears instantly from cache. The "Syncing…" pill in
-  // the header signals when a silent background refresh is in flight.
   return (
-    <div className="bg-page flex flex-col min-h-0" style={{ height: "calc(100vh - 100px)" }}>
+    <div className="flex w-full flex-col gap-8 pb-10">
+      <WelcomeHeader
+        period={dashPeriod}
+        onPeriodChange={handleDashPeriodChange}
+        syncing={accountsSummaryCache.refreshing}
+      />
 
-      {/* ── SCROLLABLE MAIN CONTENT ─────────────────────────── */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-2 py-3 sm:px-6 sm:py-4 lg:px-8">
+      <QuickActions />
 
-        {/* ── NON-STICKY HEADER ───── */}
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div>
-            <h1 className="text-lg sm:text-xl font-black tracking-tight text-ink">
-              Dashboard
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isSyncingAccounts && (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-xs">
-                <FaSync className="animate-spin text-[10px]" /> Syncing…
-              </span>
+      {/* ── MONEY OVERVIEW ─────────────────────────────────────── */}
+      {showOverview && showAccountsTiles && (
+        <section aria-labelledby="dash-overview" className="flex flex-col gap-3">
+          <h2 id="dash-overview" className="sl-section-label">
+            Money · {PERIOD_LABEL[dashPeriod]}
+          </h2>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 2xl:grid-cols-6">
+            {!accountsSummary ? (
+              Array.from({ length: 6 }).map((_, i) => <StatTileSkeleton key={i} />)
+            ) : (
+              <>
+                <StatTile
+                  label="Total sales"
+                  value={inr(accountsSummary.totalSales)}
+                  icon={LuArrowUpRight}
+                  trend={cardTrends.sales}
+                  note={plural(accountsSummary.salesVoucherCount, "voucher")}
+                  onClick={() => navigate("/sales-invoices")}
+                />
+                <StatTile
+                  label="Total purchase"
+                  value={inr(accountsSummary.totalPurchase)}
+                  icon={LuArrowDownLeft}
+                  trend={cardTrends.purchase}
+                  note={plural(accountsSummary.purchaseVoucherCount, "voucher")}
+                  onClick={() => navigate("/invoice")}
+                />
+                <StatTile
+                  label="Receivable"
+                  value={
+                    <>
+                      {inr(accountsSummary.totalReceivable)}
+                      {accountsSummary.totalReceivable < 0 && (
+                        <span className="ml-1.5 align-middle text-sm font-semibold text-ink-subtle">
+                          Cr
+                        </span>
+                      )}
+                    </>
+                  }
+                  icon={LuHandCoins}
+                  trend={cardTrends.receivable}
+                  note={plural(accountsSummary.receivableCustomerCount, "customer")}
+                  onClick={() => navigate("/accounts/receivable")}
+                />
+                <StatTile
+                  label="Payable"
+                  value={
+                    <>
+                      {inr(accountsSummary.totalPayable)}
+                      {accountsSummary.totalPayable < 0 && (
+                        <span className="ml-1.5 align-middle text-sm font-semibold text-ink-subtle">
+                          Dr
+                        </span>
+                      )}
+                    </>
+                  }
+                  icon={LuFileText}
+                  trend={cardTrends.payable}
+                  note={plural(accountsSummary.payableSupplierCount, "supplier")}
+                  onClick={() => navigate("/accounts/payable")}
+                />
+                <StatTile
+                  label="Cash in hand"
+                  value={inr(accountsSummary.totalCashInHand)}
+                  icon={LuBanknote}
+                  trend={cardTrends.cash}
+                  note={plural(accountsSummary.cashAccountCount, "account")}
+                  onClick={() => navigate("/accounts/bank-accounts?filter=cash")}
+                />
+                <StatTile
+                  label="Bank balance"
+                  value={inr(accountsSummary.totalBankBalance)}
+                  icon={LuLandmark}
+                  trend={cardTrends.cash}
+                  note={plural(accountsSummary.bankAccountCount, "account")}
+                  onClick={() => navigate("/accounts/bank-accounts?filter=bank")}
+                />
+              </>
             )}
-              
-              <button
-              type="button"
-              onClick={() => navigate("/tv-dashboard")}
-              title="Open the full-screen TV dashboard"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-accent/10 text-accent border border-accent/20 shadow-xs hover:bg-accent/20 transition-colors cursor-pointer"
-            >
-              <FaTv className="text-[11px]" /> TV Dashboard
-            </button>
-            
-            {/* Period filter toggle */}
-            <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-0.5 gap-0.5 shadow-inner">
-              {(["day", "week", "month", "year"] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => handleDashPeriodChange(p)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-extrabold uppercase tracking-wide transition-all duration-200 cursor-pointer ${
-                    dashPeriod === p
-                      ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/40"
-                      : "text-ink-muted hover:text-ink hover:bg-white/5"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
           </div>
-        </div>
+        </section>
+      )}
 
-        {/* ══════════════════════════════════════════════════════
-           ROW 0  –  ACCOUNTS SUMMARY (Busy-style)
-           6 stat cards + Quick Actions + Alerts + Recent Txns
-           ══════════════════════════════════════════════════════ */}
-        {accountsSummary && (
-          <>
-            {/* 6 Top Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-3 sm:mb-4">
-
-              {/* TOTAL SALES */}
-              <button
-                onClick={() => navigate("/sales-invoices")}
-                className="relative text-left rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%)", border: "1px solid rgba(52,211,153,0.25)" }}
-              >
-                {/* Bottom-right corner white shade on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-                  style={{ background: "radial-gradient(circle at 100% 100%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)" }} />
-                {/* BG Icon — visible, scales on hover */}
-                <FaArrowUp
-                  className="absolute -right-3 -bottom-2 text-white/20 group-hover:text-white/35 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 pointer-events-none select-none"
-                  style={{ fontSize: "5.5rem" }}
-                />
-                <div className="relative z-10 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] uppercase tracking-wider font-extrabold text-emerald-200">Total Sales</span>
-                    {cardTrends.sales !== "neutral" && (
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        cardTrends.sales === "up"
-                          ? "bg-white/10 border-white/20 text-white"
-                          : "bg-rose-400/20 border-rose-400/40 text-rose-300"
-                      }`}>
-                        {cardTrends.sales === "up" ? <FaArrowUp size={7} /> : <FaArrowDown size={7} />}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl sm:text-[26px] xl:text-[28px] font-sans font-black text-white tracking-tight leading-none mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-                    ₹{Number(accountsSummary.totalSales).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-sm" />
-                    <span className="text-[11px] font-bold text-emerald-100/80">{accountsSummary.salesVoucherCount} vouchers</span>
-                  </div>
-                </div>
-              </button>
-
-              {/* TOTAL PURCHASE */}
-              <button
-                onClick={() => navigate("/invoice")}
-                className="relative text-left rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #1e40af 50%, #1d4ed8 100%)", border: "1px solid rgba(96,165,250,0.25)" }}
-              >
-                {/* Bottom-right corner white shade on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-                  style={{ background: "radial-gradient(circle at 100% 100%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)" }} />
-                <FaCheckCircle
-                  className="absolute -right-3 -bottom-2 text-white/20 group-hover:text-white/35 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 pointer-events-none select-none"
-                  style={{ fontSize: "5.5rem" }}
-                />
-                <div className="relative z-10 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] uppercase tracking-wider font-extrabold text-blue-200">Total Purchase</span>
-                    {cardTrends.purchase !== "neutral" && (
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        cardTrends.purchase === "up"
-                          ? "bg-white/10 border-white/20 text-white"
-                          : "bg-rose-400/20 border-rose-400/40 text-rose-300"
-                      }`}>
-                        {cardTrends.purchase === "up" ? <FaArrowUp size={7} /> : <FaArrowDown size={7} />}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl sm:text-[26px] xl:text-[28px] font-sans font-black text-white tracking-tight leading-none mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-                    ₹{Number(accountsSummary.totalPurchase).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-sm" />
-                    <span className="text-[11px] font-bold text-blue-100/80">{accountsSummary.purchaseVoucherCount} vouchers</span>
-                  </div>
-                </div>
-              </button>
-
-              {/* RECEIVABLE */}
-              <button
-                onClick={() => navigate("/accounts/receivable")}
-                className="relative text-left rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "linear-gradient(135deg, #451a03 0%, #78350f 50%, #92400e 100%)", border: "1px solid rgba(251,191,36,0.25)" }}
-              >
-                {/* Bottom-right corner white shade on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-                  style={{ background: "radial-gradient(circle at 100% 100%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)" }} />
-                <FaHandHoldingUsd
-                  className="absolute -right-3 -bottom-2 text-white/20 group-hover:text-white/35 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 pointer-events-none select-none"
-                  style={{ fontSize: "5.5rem" }}
-                />
-                <div className="relative z-10 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] uppercase tracking-wider font-extrabold text-amber-200">Receivable</span>
-                    {cardTrends.receivable !== "neutral" && (
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        cardTrends.receivable === "up"
-                          ? "bg-white/10 border-white/20 text-white"
-                          : "bg-rose-400/20 border-rose-400/40 text-rose-300"
-                      }`}>
-                        {cardTrends.receivable === "up" ? <FaArrowUp size={7} /> : <FaArrowDown size={7} />}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl sm:text-[26px] xl:text-[28px] font-sans font-black text-white tracking-tight leading-none mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] flex items-baseline gap-1">
-                    <span>₹{Math.abs(accountsSummary.totalReceivable).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-                    {accountsSummary.totalReceivable < 0 && (
-                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-black/40 text-emerald-300 border border-emerald-400/30">Cr</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" />
-                    <span className="text-[11px] font-bold text-amber-100/80">{accountsSummary.receivableCustomerCount} customers</span>
-                  </div>
-                </div>
-              </button>
-
-              {/* PAYABLE */}
-              <button
-                onClick={() => navigate("/accounts/payable")}
-                className="relative text-left rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "linear-gradient(135deg, #4c0519 0%, #9f1239 50%, #be123c 100%)", border: "1px solid rgba(251,113,133,0.25)" }}
-              >
-                {/* Bottom-right corner white shade on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-                  style={{ background: "radial-gradient(circle at 100% 100%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)" }} />
-                <FaFileInvoiceDollar
-                  className="absolute -right-3 -bottom-2 text-white/20 group-hover:text-white/35 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 pointer-events-none select-none"
-                  style={{ fontSize: "5.5rem" }}
-                />
-                <div className="relative z-10 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] uppercase tracking-wider font-extrabold text-rose-200">Payable</span>
-                    {cardTrends.payable !== "neutral" && (
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        cardTrends.payable === "up"
-                          ? "bg-white/10 border-white/20 text-white"
-                          : "bg-rose-400/20 border-rose-400/40 text-rose-300"
-                      }`}>
-                        {cardTrends.payable === "up" ? <FaArrowUp size={7} /> : <FaArrowDown size={7} />}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl sm:text-[26px] xl:text-[28px] font-sans font-black text-white tracking-tight leading-none mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] flex items-baseline gap-1">
-                    <span>₹{Math.abs(accountsSummary.totalPayable).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
-                    {accountsSummary.totalPayable < 0 && (
-                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-black/40 text-rose-300 border border-rose-400/30">Dr</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-rose-400 shadow-sm" />
-                    <span className="text-[11px] font-bold text-rose-100/80">{accountsSummary.payableSupplierCount} suppliers</span>
-                  </div>
-                </div>
-              </button>
-
-              {/* CASH */}
-              <button
-                onClick={() => navigate("/accounts/bank-accounts?filter=cash")}
-                className="relative text-left rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "linear-gradient(135deg, #042f2e 0%, #115e59 50%, #0d9488 100%)", border: "1px solid rgba(45,212,191,0.25)" }}
-              >
-                {/* Bottom-right corner white shade on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-                  style={{ background: "radial-gradient(circle at 100% 100%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)" }} />
-                <FaMoneyBillWave
-                  className="absolute -right-3 -bottom-2 text-white/20 group-hover:text-white/35 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 pointer-events-none select-none"
-                  style={{ fontSize: "5.5rem" }}
-                />
-                <div className="relative z-10 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] uppercase tracking-wider font-extrabold text-teal-200">Cash</span>
-                    {cardTrends.cash !== "neutral" && (
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        cardTrends.cash === "up"
-                          ? "bg-white/10 border-white/20 text-white"
-                          : "bg-rose-400/20 border-rose-400/40 text-rose-300"
-                      }`}>
-                        {cardTrends.cash === "up" ? <FaArrowUp size={7} /> : <FaArrowDown size={7} />}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl sm:text-[26px] xl:text-[28px] font-sans font-black text-white tracking-tight leading-none mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-                    ₹{Math.abs(accountsSummary.totalCashInHand).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shadow-sm" />
-                    <span className="text-[11px] font-bold text-teal-100/80">{accountsSummary.cashAccountCount || 0} accounts</span>
-                  </div>
-                </div>
-              </button>
-
-              {/* BANK */}
-              <button
-                onClick={() => navigate("/accounts/bank-accounts?filter=bank")}
-                className="relative text-left rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "linear-gradient(135deg, #2e1065 0%, #4c1d95 50%, #6d28d9 100%)", border: "1px solid rgba(167,139,250,0.25)" }}
-              >
-                {/* Bottom-right corner white shade on hover */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
-                  style={{ background: "radial-gradient(circle at 100% 100%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 45%, transparent 70%)" }} />
-                <FaUniversity
-                  className="absolute -right-3 -bottom-2 text-white/20 group-hover:text-white/35 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 pointer-events-none select-none"
-                  style={{ fontSize: "5.5rem" }}
-                />
-                <div className="relative z-10 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] uppercase tracking-wider font-extrabold text-violet-200">Bank</span>
-                    {cardTrends.bank !== "neutral" && (
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        cardTrends.bank === "up"
-                          ? "bg-white/10 border-white/20 text-white"
-                          : "bg-rose-400/20 border-rose-400/40 text-rose-300"
-                      }`}>
-                        {cardTrends.bank === "up" ? <FaArrowUp size={7} /> : <FaArrowDown size={7} />}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-2xl sm:text-[26px] xl:text-[28px] font-sans font-black text-white tracking-tight leading-none mb-3 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
-                    ₹{Math.abs(accountsSummary.totalBankBalance).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-sm" />
-                    <span className="text-[11px] font-bold text-violet-100/80">{accountsSummary.bankAccountCount || 0} accounts</span>
-                  </div>
-                </div>
-              </button>
-
-            </div>
-          </>
-        )}        {/* ══════════════════════════════════════════════════════
-           ROW 2  –  Sales/Purchase Trend Chart (Left) + Today's Tasks & Recent Sales (Right)
-           ══════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6" style={{ minHeight: "530px" }}>
-          {/* Left: Sales & Purchase Trend Chart */}
+      {/* ── TREND + ALERTS ─────────────────────────────────────── */}
+      {(showTrend || showAccountsTiles) && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {showTrend && (
-            <div className="h-full min-h-[530px]">
-              <SalesPurchaseTrendChart
-                salesOrders={salesOrders}
-                purchaseOrders={purchaseOrders}
-                productionOrders={productionOrders}
-                salesInvoices={salesInvoices}
-                purchaseInvoices={purchaseInvoices}
-                externalPeriod={trendPeriodMap[dashPeriod]}
-              />
-            </div>
+            <SalesPurchaseTrendChart
+              className={showAccountsTiles ? "lg:col-span-2" : "lg:col-span-3"}
+              salesOrders={salesOrders}
+              purchaseOrders={purchaseOrders}
+              productionOrders={productionOrders}
+              salesInvoices={salesInvoices}
+              purchaseInvoices={purchaseInvoices}
+              externalPeriod={TREND_PERIOD[dashPeriod]}
+              loading={summaryLoading}
+            />
           )}
 
-          {/* Right: Today's Tasks & Production (Top) + Recent Sales Orders (Bottom) */}
-          <div className="flex flex-col gap-3 sm:gap-4 h-full min-h-[530px]">
-            {/* 1. Today's Tasks / Daily Production Planning */}
-            {showTasks && (
-              <div className="bg-card border border-line-soft rounded-xl shadow-md flex flex-col overflow-hidden flex-1 min-h-[255px]">
-                {/* Card Header */}
-                <div className="shrink-0 px-3.5 py-2.5 border-b border-line-soft flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-6 h-6 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                      <FaCalendarCheck className="text-xs" />
-                    </div>
-                    <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink truncate">
-                      Today's Tasks & Production
-                    </div>
-                  </div>
-                  
-                  <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Live
-                  </span>
-                </div>
-
-                {/* Card Content */}
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
-                  {todayStats.tasksList.length > 0 ? (
-                    todayStats.tasksList.map((task: any, i: number) => {
-                      const linkedPo = safe(productionOrders).find((po: any) => po.productionOrderId === task.productionOrderId || po.id === task.productionOrderId);
-                      const productName = task.product?.productName || task.productName || task.productionOrder?.productItem?.productName || task.productionOrder?.product?.productName || linkedPo?.productItem?.productName || linkedPo?.product?.productName || linkedPo?.productName || "No Product Linked";
-                      const machineName = task.machine?.machineName || task.machineName || task.weeklyProgram?.machine?.machineName || `Plan #${task.dailyPlanId || task.id || i + 1}`;
-                      const shiftName = task.shift?.shiftName || task.shiftName || task.weeklyProgram?.shift?.shiftName || "General Shift";
-                      return (
-                        <div
-                          key={i}
-                          onClick={() => navigate("/daily-machine-planning")}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-card-2 border border-line-soft hover:border-emerald-500/40 hover:bg-card transition-all group cursor-pointer shadow-sm"
+          {showAccountsTiles && (
+            <DashTile
+              labelledBy="dash-alerts"
+              className={`max-h-[560px] ${showTrend ? "" : "lg:col-span-3"}`}
+            >
+              <TileHeader
+                id="dash-alerts"
+                icon={LuBell}
+                title="Needs attention"
+                subtitle="Alerts from your books"
+                actions={
+                  alerts.length > 0 ? (
+                    <span className="sl-chip sl-chip-danger px-2.5 py-0.5 text-xs">
+                      {alerts.length} open
+                    </span>
+                  ) : accountsSummary ? (
+                    <span className="sl-chip sl-chip-success px-2.5 py-0.5 text-xs">All clear</span>
+                  ) : null
+                }
+              />
+              {!accountsSummary ? (
+                <SkeletonRows rows={3} />
+              ) : alerts.length === 0 ? (
+                <EmptyState
+                  icon={LuCircleCheck}
+                  tone="success"
+                  title="All clear"
+                  hint="Nothing needs your attention right now. Overdue bills and low balances show up here."
+                />
+              ) : (
+                <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-5 pb-5">
+                  {alerts.map((a, i) => {
+                    const Icon =
+                      a.level === "danger"
+                        ? LuCircleAlert
+                        : a.level === "warn"
+                          ? LuTriangleAlert
+                          : LuInfo;
+                    const tone =
+                      a.level === "danger"
+                        ? "sl-chip-danger"
+                        : a.level === "warn"
+                          ? "sl-chip-warning"
+                          : "sl-chip";
+                    const body = (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className={`sl-chip ${tone} grid h-8 w-8 shrink-0 place-items-center p-0`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-emerald-500/20 to-teal-600/30 text-emerald-400 border border-emerald-500/30 group-hover:scale-105 transition-transform">
-                              <FaCalendarCheck className="text-xs" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[12px] font-bold text-ink truncate">{machineName}</span>
-                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-card text-ink-muted border border-line-soft">
-                                  {shiftName}
+                          <Icon />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm leading-snug font-medium text-ink">
+                            {a.message}
+                          </span>
+                          {a.details && a.details.length > 0 && (
+                            <span className="mt-1.5 flex flex-col gap-1">
+                              {a.details.map((d, di) => (
+                                <span
+                                  key={di}
+                                  className="flex items-center justify-between gap-2 text-xs text-ink-subtle"
+                                >
+                                  <span className="truncate">{d.name}</span>
+                                  <span className="font-semibold whitespace-nowrap text-ink tabular-nums">
+                                    {d.amount}
+                                  </span>
                                 </span>
-                              </div>
-                              <span className="text-[10.5px] font-medium text-ink-muted truncate block mt-0.5">{productName}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
-                              {task.status || "SCHEDULED"}
+                              ))}
                             </span>
-                            <FaChevronRight className="text-ink-subtle text-[10px] group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+                          )}
+                        </span>
+                        {a.link && (
+                          <LuChevronRight
+                            aria-hidden="true"
+                            className="mt-1 shrink-0 text-ink-subtle"
+                          />
+                        )}
+                      </>
+                    );
+                    return (
+                      <li key={i}>
+                        {a.link ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate(a.link!)}
+                            className="flex w-full items-start gap-3 rounded-[14px] bg-card-2 p-3 text-left transition-colors hover:bg-nav-active"
+                          >
+                            {body}
+                          </button>
+                        ) : (
+                          <div className="flex items-start gap-3 rounded-[14px] bg-card-2 p-3">
+                            {body}
                           </div>
-                        </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </DashTile>
+          )}
+        </div>
+      )}
+
+      {/* ── TODAY ──────────────────────────────────────────────── */}
+      {(showTasks || showRecentSales || showTopProducts) && (
+        <section aria-labelledby="dash-today" className="flex flex-col gap-3">
+          <h2 id="dash-today" className="sl-section-label">
+            Today
+          </h2>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {showTasks && (
+              <DashTile labelledBy="dash-tasks" className="min-h-[360px]">
+                <TileHeader
+                  id="dash-tasks"
+                  icon={LuCalendarCheck}
+                  title="Today's production"
+                  subtitle="Machine plans scheduled for today"
+                  actions={
+                    todayPlans.length > 0 ? (
+                      <TileLink to="/daily-machine-planning">All plans →</TileLink>
+                    ) : null
+                  }
+                />
+                {summaryLoading && todayPlans.length === 0 ? (
+                  <SkeletonRows rows={3} />
+                ) : todayPlans.length === 0 ? (
+                  <EmptyState
+                    icon={LuCalendarCheck}
+                    title="Nothing planned for today"
+                    hint="Plan machines, shifts and products for the day and they will line up here."
+                    action={
+                      can("daily-machine-planning.create")
+                        ? { label: "Plan production", to: "/daily-production-plans/create" }
+                        : can("daily-machine-planning.view")
+                          ? { label: "Open planning", to: "/daily-machine-planning" }
+                          : null
+                    }
+                  />
+                ) : (
+                  <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4">
+                    {todayPlans.map((task: any, i: number) => {
+                      const linkedPo = safe(productionOrders).find(
+                        (po: any) =>
+                          po.productionOrderId === task.productionOrderId ||
+                          po.id === task.productionOrderId
                       );
-                    })
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full py-8 text-center text-ink-subtle">
-                      <FaCalendarCheck size={32} className="mb-2 opacity-25 text-emerald-400" />
-                      <p className="text-[12px] font-bold text-ink-muted">No tasks scheduled for today</p>
-                      <p className="text-[10px] text-ink-subtle mt-0.5">Daily production plans for today will appear here</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                      const productName =
+                        task.product?.productName ||
+                        task.productName ||
+                        task.productionOrder?.productItem?.productName ||
+                        task.productionOrder?.product?.productName ||
+                        linkedPo?.productItem?.productName ||
+                        linkedPo?.product?.productName ||
+                        linkedPo?.productName ||
+                        "No product linked";
+                      const machineName =
+                        task.machine?.machineName ||
+                        task.machineName ||
+                        task.weeklyProgram?.machine?.machineName ||
+                        `Plan #${task.dailyPlanId || task.id || i + 1}`;
+                      const shiftName =
+                        task.shift?.shiftName ||
+                        task.shiftName ||
+                        task.weeklyProgram?.shift?.shiftName ||
+                        "General shift";
+                      const status = String(task.status || "SCHEDULED");
+                      return (
+                        <li
+                          key={task.id || i}
+                          className="border-b border-line-soft last:border-b-0"
+                        >
+                          <Link
+                            to="/daily-machine-planning"
+                            className="group flex min-h-[56px] items-center gap-3 py-2"
+                          >
+                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-card-2 text-accent">
+                              <LuCalendarCheck aria-hidden="true" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold text-ink">
+                                {machineName}
+                              </span>
+                              <span className="block truncate text-xs text-ink-subtle">
+                                {productName} · {shiftName}
+                              </span>
+                            </span>
+                            <span
+                              className={`sl-chip ${statusChipClass(status)} shrink-0 px-2.5 py-0.5 text-[11px] capitalize`}
+                            >
+                              {status.replace(/_/g, " ").toLowerCase()}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </DashTile>
             )}
 
-            {/* 2. Recent Sales Orders */}
             {showRecentSales && (
-              <div className="bg-card border border-line-soft rounded-xl shadow-md flex flex-col overflow-hidden flex-1 min-h-[255px]">
-                {/* Header */}
-                <div className="shrink-0 px-3.5 py-2.5 border-b border-line-soft bg-card-2/50 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-6 h-6 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-                      <FaShoppingCart className="text-xs" />
-                    </div>
-                    <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink truncate">
-                      Recent Sales Orders
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 uppercase">
-                      Latest {recentSales.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/sales-order")}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold text-ink-muted hover:text-ink bg-card hover:bg-card-2 border border-line-soft transition-colors flex items-center gap-1 cursor-pointer"
-                      title="View all sales orders"
-                    >
-                      <span>View All</span>
-                      <FaArrowRight className="text-[8px]" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
-                  {recentSales.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full py-8 text-center text-ink-subtle">
-                      <FaShoppingCart size={32} className="mb-2 opacity-25 text-blue-400" />
-                      <p className="text-[12px] font-bold text-ink-muted">No Sales Orders Yet</p>
-                      <p className="text-[10px] text-ink-subtle mt-0.5">New sales orders placed in the system will display here</p>
-                    </div>
-                  ) : (
-                    recentSales.map((so: any, i: number) => {
-                      const custName = so.customer?.firmName || so.customer?.displayName || so.customerName || "Customer";
-                      const initial = (custName || "C").trim().charAt(0).toUpperCase();
-                      const status = (so.status || "DRAFT").toUpperCase();
-                      const isCompleted = status === "COMPLETED" || status === "INVOICED" || status === "DELIVERED";
-                      const isCancelled = status === "CANCELLED";
-
+              <DashTile labelledBy="dash-recent-sales" className="min-h-[360px]">
+                <TileHeader
+                  id="dash-recent-sales"
+                  icon={LuShoppingCart}
+                  title="Recent sales orders"
+                  subtitle={
+                    recentSales.length > 0 ? `Latest ${recentSales.length}` : "Newest first"
+                  }
+                  actions={
+                    recentSales.length > 0 ? (
+                      <TileLink to="/sales-order">View all →</TileLink>
+                    ) : null
+                  }
+                />
+                {summaryLoading && recentSales.length === 0 ? (
+                  <SkeletonRows rows={4} />
+                ) : recentSales.length === 0 ? (
+                  <EmptyState
+                    icon={LuShoppingCart}
+                    title="No sales orders yet"
+                    hint="Orders you book appear here with their value and status."
+                    action={
+                      can("sales-orders.create")
+                        ? { label: "New sales order", to: "/sales-order/create" }
+                        : null
+                    }
+                  />
+                ) : (
+                  <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-4">
+                    {recentSales.map((so: any, i: number) => {
+                      const custName =
+                        so.customer?.firmName ||
+                        so.customer?.displayName ||
+                        so.customerName ||
+                        "Customer";
+                      const status = String(so.status || "DRAFT");
                       return (
-                        <div
-                          key={i}
-                          onClick={() => navigate(`/sales-order/details/${so.id || so.salesOrderId || ""}`)}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-card-2 border border-line-soft hover:border-blue-500/40 hover:bg-card transition-all group cursor-pointer shadow-sm"
+                        <li
+                          key={so.id || so.salesOrderId || i}
+                          className="border-b border-line-soft last:border-b-0"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="shrink-0 w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 font-extrabold flex items-center justify-center text-xs group-hover:scale-105 transition-transform">
-                              {initial}
-                            </div>
-                            <div className="min-w-0">
-                              <span className="block text-[11.5px] font-mono font-bold text-ink truncate group-hover:text-blue-400 transition-colors">
+                          <Link
+                            to={`/sales-order/details/${so.id || so.salesOrderId || ""}`}
+                            className="flex min-h-[56px] items-center gap-3 py-2"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-chip text-sm font-bold text-chip-fg"
+                            >
+                              {custName.trim().charAt(0).toUpperCase() || "C"}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold text-ink">
+                                {custName}
+                              </span>
+                              <span className="block truncate text-xs text-ink-subtle">
                                 {so.orderNo || `SO-${so.id}`}
                               </span>
-                              <span className="text-[10px] font-medium text-ink-muted truncate block">{custName}</span>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-0.5 shrink-0">
-                            <span className="text-[12px] font-mono font-black text-ink whitespace-nowrap">
-                              ₹{Number(so.netAmount || 0).toLocaleString("en-IN")}
                             </span>
-                            <span
-                              className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${
-                                isCompleted
-                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
-                                  : isCancelled
-                                  ? "bg-rose-500/20 text-rose-400 border-rose-500/40"
-                                  : "bg-amber-500/20 text-amber-400 border-amber-500/40"
-                              }`}
-                            >
-                              {status.replace(/_/g, " ")}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ══════════════════════════════════════════════════════
-           ROW 3  –  Alerts & Recent Transactions (3/4 Left) + Top Products (1/4 Right)
-           ══════════════════════════════════════════════════════ */}
-        {accountsSummary && <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6" style={{ minHeight: "360px" }}>
-          {/* Left 3/4: Alerts (1/3) + Recent Transactions (2/3) */}
-          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 h-full">
-            {/* Alerts (1 of 3 inside 3/4) */}
-            <div className="bg-card border border-line-soft rounded-xl shadow-md flex flex-col overflow-hidden h-full min-h-[360px]">
-              <div className="shrink-0 px-3.5 py-2.5 border-b border-line-soft flex items-center justify-between">
-                <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink flex items-center gap-1.5">
-                  <FaBell className="text-amber-400 text-xs" />
-                  <span>Alerts</span>
-                </div>
-                {accountsSummary.alerts.length > 0 ? (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                    {accountsSummary.alerts.length} Action{accountsSummary.alerts.length > 1 ? "s" : ""}
-                  </span>
-                ) : (
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    0 Active
-                  </span>
-                )}
-              </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-2">
-                {accountsSummary.alerts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                    <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-2">
-                      <FaCheckCircle className="text-sm" />
-                    </div>
-                    <p className="text-xs font-bold text-ink">All Systems Clear</p>
-                    <p className="text-[10px] text-ink-subtle mt-0.5">No pending warnings or actions</p>
-                  </div>
-                ) : (
-                  accountsSummary.alerts.map((a, i) => {
-                    const isDanger = a.level === "danger";
-                    const isWarn = a.level === "warn";
-
-                    const borderAccent = isDanger
-                      ? "border-l-rose-500"
-                      : isWarn
-                      ? "border-l-amber-500"
-                      : "border-l-blue-500";
-
-                    const iconColor = isDanger
-                      ? "text-rose-400"
-                      : isWarn
-                      ? "text-amber-400"
-                      : "text-blue-400";
-
-                    const IconComponent = isDanger
-                      ? FaExclamationCircle
-                      : isWarn
-                      ? FaExclamationTriangle
-                      : FaInfoCircle;
-
-                    const content = (
-                      <div className="w-full">
-                        <div className="flex items-center justify-between gap-2.5">
-                          <div className="flex items-start gap-2.5 min-w-0">
-                            <IconComponent className={`text-xs mt-0.5 shrink-0 ${iconColor}`} />
-                            <p className="text-[11px] font-semibold text-ink leading-snug break-words">
-                              {a.message}
-                            </p>
-                          </div>
-                          {a.link && (
-                            <FaChevronRight className="text-[9px] text-ink-subtle group-hover:text-ink group-hover:translate-x-0.5 transition-all shrink-0" />
-                          )}
-                        </div>
-                        {a.details && a.details.length > 0 && (
-                          <div className="ml-5 mt-1.5 space-y-1">
-                            {a.details.map((d, di) => (
-                              <div key={di} className="flex items-center justify-between text-[10px] text-ink-subtle">
-                                <span className="truncate mr-2">{d.name}</span>
-                                <span className="font-semibold text-ink whitespace-nowrap">{d.amount}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-
-                    return a.link ? (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => navigate(a.link!)}
-                        className={`w-full text-left rounded-md p-2.5 bg-card-2 border border-line-soft hover:bg-card border-l-[3px] ${borderAccent} transition-all duration-150 cursor-pointer shadow-sm group`}
-                      >
-                        {content}
-                      </button>
-                    ) : (
-                      <div
-                        key={i}
-                        className={`w-full text-left rounded-md p-2.5 bg-card-2 border border-line-soft border-l-[3px] ${borderAccent} shadow-sm`}
-                      >
-                        {content}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {accountsSummary.alerts.length > 0 && (
-                <div className="shrink-0 px-3 py-1.5 bg-card-2/50 border-t border-line-soft flex items-center justify-between text-[10px] text-ink-subtle">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Active Alerts
-                  </span>
-                  <span className="text-[9px] text-ink-muted">Click to view</span>
-                </div>
-              )}
-            </div>
-
-            {/* Recent Transactions (2 of 3 inside 3/4) */}
-            <div className="md:col-span-2 bg-card border border-line-soft rounded-xl shadow-md flex flex-col overflow-hidden h-full min-h-[360px]">
-              <div className="shrink-0 px-3.5 py-2.5 border-b border-line-soft flex items-center justify-between">
-                <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink">Recent Transactions</div>
-                <button
-                  type="button"
-                  onClick={() => navigate("/accounts/ledger-statement")}
-                  className="text-[11px] font-semibold text-blue-400 hover:underline cursor-pointer"
-                >
-                  View Ledger Statement →
-                </button>
-              </div>
-              <div className="flex-1 min-h-0 overflow-auto">
-                {accountsSummary.recentTransactions.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-ink-subtle">No recent transactions</div>
-                ) : (
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-card-2 text-ink-subtle uppercase text-[10px] font-bold tracking-wide border-b border-line-soft sticky top-0 z-10">
-                      <tr>
-                        <th className="px-3 py-2 bg-card-2">Voucher No</th>
-                        <th className="px-2 py-2 bg-card-2">Type</th>
-                        <th className="px-3 py-2 bg-card-2">Party / Account</th>
-                        <th className="px-2 py-2 bg-card-2">Date</th>
-                        <th className="px-3 py-2 bg-card-2 text-right">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line-soft">
-                      {accountsSummary.recentTransactions.map((t) => {
-                        const typeColor: Record<string, string> = {
-                          SALES: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-                          PURCHASE: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-                          RECEIPT: "bg-green-500/10 text-green-500 border-green-500/20",
-                          PAYMENT: "bg-rose-500/10 text-rose-500 border-rose-500/20",
-                          JOURNAL: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-                          CONTRA: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-                        };
-                        const party = t.debitLedger || t.creditLedger || t.narration || "-";
-                        return (
-                          <tr key={t.id} className="hover:bg-card-2 transition-colors">
-                            <td className="px-3 py-2 font-mono font-semibold text-blue-400 whitespace-nowrap text-[11px]">{t.voucherNo}</td>
-                            <td className="px-2 py-2">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${typeColor[t.type] || "bg-card-2 text-ink-subtle border-line"}`}>
-                                {t.type}
+                            <span className="flex shrink-0 flex-col items-end gap-1">
+                              <span className="text-sm font-semibold text-ink tabular-nums">
+                                ₹{Number(so.netAmount || 0).toLocaleString("en-IN")}
                               </span>
-                            </td>
-                            <td className="px-3 py-2 text-ink truncate max-w-[160px] text-[11px] font-medium">{party}</td>
-                            <td className="px-2 py-2 font-mono text-[10px] text-ink-muted whitespace-nowrap">
-                              {new Date(t.date).toLocaleDateString("en-IN")}
-                            </td>
-                            <td className="px-3 py-2 text-right font-mono font-bold text-ink whitespace-nowrap text-[11px]">
-                              ₹{Number(t.amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right 1/4: Top Products */}
-          {showTopProducts && (
-            <div className="lg:col-span-1 bg-card border border-line-soft rounded-xl shadow-md flex flex-col overflow-hidden h-full min-h-[360px]">
-              <div className="shrink-0 px-3 py-2 border-b border-line-soft flex items-center justify-between">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink truncate">Top Products</div>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-500 border border-teal-500/30 uppercase shrink-0">By stock</span>
-                </div>
-                {/* 3 Chart Type Switch Icons */}
-                <div className="flex items-center bg-card-2 p-0.5 rounded-lg border border-line-soft gap-1 shrink-0 shadow-inner">
-                  <button
-                    type="button"
-                    onClick={() => handleTopProductsChartTypeChange("list")}
-                    title="Horizontal Ranking Bars"
-                    className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
-                      topProductsChartType === "list"
-                        ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
-                        : "text-ink-muted hover:text-ink hover:bg-card"
-                    }`}
-                  >
-                    <FaListUl className="text-xs" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTopProductsChartTypeChange("bar")}
-                    title="Vertical Column Chart"
-                    className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
-                      topProductsChartType === "bar"
-                        ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
-                        : "text-ink-muted hover:text-ink hover:bg-card"
-                    }`}
-                  >
-                    <FaChartBar className="text-xs" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleTopProductsChartTypeChange("pie")}
-                    title="Donut Distribution Chart"
-                    className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer ${
-                      topProductsChartType === "pie"
-                        ? "bg-teal-500 text-white shadow-md shadow-teal-500/40 font-bold"
-                        : "text-ink-muted hover:text-ink hover:bg-card"
-                    }`}
-                  >
-                    <FaChartPie className="text-xs" />
-                  </button>
-                </div>
-              </div>
-
-              {/* 1. Horizontal Progress Ranking */}
-              {topProductsChartType === "list" && (
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2.5">
-                  {topProducts.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-ink-muted text-xs">No Products</div>
-                  ) : (
-                    topProductsWithColors.map((prod: any, i: number) => {
-                      const maxVal = topProducts[0]?.value || 1;
-                      const pct = Math.min((prod.value / maxVal) * 100, 100);
-                      return (
-                        <div key={i} className="flex flex-col gap-1 group">
-                          <div className="flex justify-between items-end">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-[9px] font-bold w-4 h-4 rounded bg-card-2 border border-line-soft text-ink-muted flex items-center justify-center shrink-0 group-hover:border-teal-500/40 group-hover:text-teal-500 transition-colors">
-                                {i + 1}
-                              </span>
-                              <span className="text-[11px] font-semibold text-ink-muted truncate max-w-[130px] group-hover:text-ink transition-colors" title={prod.name}>
-                                {prod.name}
-                              </span>
-                            </div>
-                            <span className="text-[11px] font-bold text-ink whitespace-nowrap">{prod.value.toLocaleString()}</span>
-                          </div>
-                          <div className="w-full bg-line-soft rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="h-1.5 rounded-full transition-all duration-700"
-                              style={{
-                                width: `${pct}%`,
-                                backgroundColor: prod.color,
-                                boxShadow: `0 0 6px ${prod.color}40`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-
-              {/* 2. Vertical Column Bar Chart */}
-              {topProductsChartType === "bar" && (
-                <div className="flex-1 min-h-0 p-2.5 flex flex-col">
-                  {topProducts.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-ink-muted text-xs">No Products</div>
-                  ) : (
-                    <div className="w-full h-full min-h-[220px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={topProductsWithColors} margin={{ top: 12, right: 8, left: -24, bottom: 26 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-line-soft)" />
-                          <XAxis
-                            dataKey="name"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 9, fill: "var(--color-ink-subtle)" }}
-                            interval={0}
-                            tickFormatter={(val) => (val && val.length > 7 ? `${val.slice(0, 6)}…` : val)}
-                            angle={-25}
-                            textAnchor="end"
-                            height={30}
-                          />
-                          <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 9, fill: "var(--color-ink-subtle)" }}
-                            tickFormatter={(val) => (val >= 1000 ? `${(val / 1000).toFixed(0)}k` : `${val}`)}
-                          />
-                          <Tooltip
-                            content={({ active, payload }: any) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload || {};
-                                return (
-                                  <div className="bg-card/95 backdrop-blur-md border border-line-soft rounded-lg px-2.5 py-1.5 shadow-xl text-ink text-[11px] z-50">
-                                    <p className="font-bold text-ink max-w-[170px] truncate mb-0.5">{data.name}</p>
-                                    <div className="flex items-center gap-1.5 text-ink-muted">
-                                      <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: data.color || "#14b8a6" }} />
-                                      <span>Stock: <strong className="text-ink font-mono">{Number(data.value || 0).toLocaleString()}</strong></span>
-                                    </div>
-                                    {data.percent !== undefined && (
-                                      <p className="text-[9px] text-ink-subtle mt-0.5">{(data.percent * 100).toFixed(1)}% of top items</p>
-                                    )}
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                            {topProductsWithColors.map((entry, index) => (
-                              <Cell key={`cell-bar-${index}`} fill={entry.color} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 3. Donut / Pie Chart */}
-              {topProductsChartType === "pie" && (
-                <div className="flex-1 min-h-0 p-2 flex flex-col justify-between overflow-hidden">
-                  {topProducts.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-ink-muted text-xs">No Products</div>
-                  ) : (
-                    <>
-                      <div className="h-[145px] w-full relative shrink-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Tooltip
-                              content={({ active, payload }: any) => {
-                                if (active && payload && payload.length) {
-                                  const data = payload[0].payload || {};
-                                  return (
-                                    <div className="bg-card/95 backdrop-blur-md border border-line-soft rounded-lg px-2.5 py-1.5 shadow-xl text-ink text-[11px] z-50">
-                                      <p className="font-bold text-ink max-w-[170px] truncate mb-0.5">{data.name}</p>
-                                      <div className="flex items-center gap-1.5 text-ink-muted">
-                                        <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: data.color || "#14b8a6" }} />
-                                        <span>Stock: <strong className="text-ink font-mono">{Number(data.value || 0).toLocaleString()}</strong></span>
-                                      </div>
-                                      {data.percent !== undefined && (
-                                        <p className="text-[9px] text-ink-subtle mt-0.5">{(data.percent * 100).toFixed(1)}% of top items</p>
-                                      )}
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              }}
-                            />
-                            <Pie
-                              data={topProductsWithColors}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={36}
-                              outerRadius={60}
-                              paddingAngle={3}
-                              dataKey="value"
-                            >
-                              {topProductsWithColors.map((entry, index) => (
-                                <Cell key={`cell-pie-${index}`} fill={entry.color} stroke="transparent" />
-                              ))}
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <span className="text-[8px] text-ink-muted font-bold uppercase tracking-wider">Total</span>
-                          <span className="text-[11px] font-black text-ink">{topProductsTotal.toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-1 max-h-[85px] overflow-y-auto px-1 pt-1 border-t border-line-soft">
-                        {topProductsWithColors.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-1.5 min-w-0" title={`${item.name}: ${item.value.toLocaleString()}`}>
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                            <span className="text-[10px] text-ink-muted truncate flex-1">{item.name}</span>
-                            <span className="text-[10px] font-bold text-ink shrink-0">{item.value.toLocaleString()}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>}
-
-        {/* ══════════════════════════════════════════════════════
-           ROW 4  –  Customer Product Purchase Report (Left) + Sales Person Location (Right)
-           ══════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6" style={{ height: "360px" }}>
-          {/* Customer Product Purchase Report — in-card drill-down view */}
-          <div className="bg-card border border-line-soft rounded-xl shadow-md flex flex-col overflow-hidden h-full min-h-0">
-            {/* Header */}
-            <div className="shrink-0 px-3 py-2 border-b border-line-soft flex items-center justify-between gap-2">
-              {selectedCustomerReport ? (
-                <>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedCustomerReport(null);
-                        setCustomerProductSearch("");
-                      }}
-                      className="px-2 py-1 rounded bg-card-2 text-ink-muted hover:text-ink hover:bg-card transition-colors flex items-center gap-1.5 text-[11px] font-bold cursor-pointer border border-line-soft shadow-sm"
-                      title="Back to Customer List"
-                    >
-                      <FaArrowLeft className="text-[10px]" />
-                      <span>Back</span>
-                    </button>
-                    <span className="text-[12px] uppercase tracking-wider font-extrabold text-ink truncate">
-                      {selectedCustomerReport.customer}
-                    </span>
-                  </div>
-
-                  {/* In-Card Toggle: Purchased (≤3 Mo) vs Not Purchased */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {(() => {
-                      const customerObj = customerPurchaseReport.customers.find(
-                        (c) => c.name === selectedCustomerReport.customer
-                      );
-                      const purchasedCount = customerObj?.purchasedProducts.length || 0;
-                      const notPurchasedCount = customerObj?.notPurchasedProducts.length || 0;
-                      return (
-                        <div className="flex items-center bg-card-2 p-0.5 rounded-lg border border-line-soft gap-0.5 shadow-inner">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedCustomerReport({ customer: selectedCustomerReport.customer, type: "purchased" })}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                              selectedCustomerReport.type === "purchased"
-                                ? "bg-emerald-600 text-white shadow-sm"
-                                : "text-ink-muted hover:text-ink hover:bg-card"
-                            }`}
-                          >
-                            <FaCheckCircle className="text-[9px]" />
-                            <span>Purchased (≤3 Mo) ({purchasedCount})</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedCustomerReport({ customer: selectedCustomerReport.customer, type: "notPurchased" })}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                              selectedCustomerReport.type === "notPurchased"
-                                ? "bg-rose-600 text-white shadow-sm"
-                                : "text-ink-muted hover:text-ink hover:bg-card"
-                            }`}
-                          >
-                            <FaTimesCircle className="text-[9px]" />
-                            <span>Not Purchased ({notPurchasedCount})</span>
-                          </button>
-                        </div>
-                      );
-                    })()}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedCustomerReport(null);
-                        setCustomerProductSearch("");
-                      }}
-                      className="p-1 text-ink-subtle hover:text-ink hover:bg-card-2 rounded transition-colors cursor-pointer"
-                      title="Close details"
-                    >
-                      <FaTimes className="text-xs" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink flex items-center gap-1.5">
-                    <FaShoppingCart className="text-indigo-400 text-xs" /> Product Purchase Report
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" title="Purchased within last 90 days">
-                      3-Month Window
-                    </span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 border border-indigo-500/30">
-                      {customerPurchaseReport.totalProducts} Products · {customerPurchaseReport.customers.length} Customers
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Body */}
-            {selectedCustomerReport ? (
-              /* In-Card Details View */
-              (() => {
-                const customerObj = customerPurchaseReport.customers.find(
-                  (c) => c.name === selectedCustomerReport.customer
-                );
-                const isPurchased = selectedCustomerReport.type === "purchased";
-                const rawList = isPurchased
-                  ? customerObj?.purchasedProducts || []
-                  : customerObj?.notPurchasedProducts || [];
-                const filtered = rawList.filter((item) =>
-                  item.name.toLowerCase().includes(customerProductSearch.toLowerCase())
-                );
-
-                return (
-                  <div className="flex-1 min-h-0 flex flex-col p-3 overflow-hidden">
-                    {/* Search bar */}
-                    <div className="flex items-center gap-2 mb-2.5 shrink-0">
-                      <div className="relative flex-1">
-                        <FaSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted text-[10px]" />
-                        <input
-                          type="text"
-                          value={customerProductSearch}
-                          onChange={(e) => setCustomerProductSearch(e.target.value)}
-                          placeholder={`Search ${isPurchased ? "purchased" : "not purchased"} products...`}
-                          className="w-full bg-card-2 border border-line-soft rounded-lg pl-7 pr-3 py-1 text-xs text-ink placeholder:text-ink-subtle focus:outline-none focus:border-teal-500/50"
-                        />
-                        {customerProductSearch && (
-                          <button
-                            type="button"
-                            onClick={() => setCustomerProductSearch("")}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-[10px]"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                      <span
-                        className={`text-[9px] font-bold px-2 py-1 rounded-md border shrink-0 ${
-                          isPurchased
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                            : "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                        }`}
-                      >
-                        {rawList.length} of {customerPurchaseReport.totalProducts} products
-                      </span>
-                    </div>
-
-                    {/* Product items list */}
-                    <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1">
-                      {filtered.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full py-10 text-ink-subtle">
-                          <FaBox className="text-2xl mb-2 opacity-20" />
-                          <p className="text-xs font-semibold">No products found</p>
-                          <p className="text-[10px] mt-0.5">
-                            {rawList.length === 0
-                              ? `No ${isPurchased ? "purchased" : "unpurchased"} products for this customer`
-                              : "No matching search results"}
-                          </p>
-                        </div>
-                      ) : (
-                        filtered.map((item, idx) => {
-                          const isInactive = !item.isPurchasedWithin3Months && item.hasEverPurchased;
-
-                          return (
-                            <div
-                              key={idx}
-                              className="flex items-center justify-between p-2 rounded-lg bg-card-2 border border-line-soft hover:bg-card transition-colors group gap-2"
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span
-                                  className={`w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0 ${
-                                    isPurchased
-                                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                      : isInactive
-                                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                                      : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
-                                  }`}
-                                >
-                                  {idx + 1}
-                                </span>
-                                <div className="flex flex-col min-w-0">
-                                  <span
-                                    className="text-xs font-semibold text-ink truncate group-hover:text-white transition-colors"
-                                    title={item.name}
-                                  >
-                                    {item.name}
-                                  </span>
-                                  <span className="text-[10px] text-ink-subtle flex items-center gap-1 mt-0.5">
-                                    {item.hasEverPurchased && item.lastOrderDate ? (
-                                      <>
-                                        <span>Last ordered:</span>
-                                        <span className="font-semibold text-ink-muted">
-                                          {item.lastOrderDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                                        </span>
-                                        <span className="text-[9px]">({item.daysAgo}d ago)</span>
-                                        {isInactive && (
-                                          <span className="text-amber-400 font-bold ml-1">• Inactive for &gt;3 Mo</span>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span>Never ordered by customer</span>
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
                               <span
-                                className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border shrink-0 ${
-                                  isPurchased
-                                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                                    : isInactive
-                                    ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                                    : "bg-rose-500/15 text-rose-400 border-rose-500/30"
-                                }`}
+                                className={`sl-chip ${statusChipClass(status)} px-2 py-0 text-[11px] capitalize`}
                               >
-                                {isPurchased ? "Active (≤3 Mo)" : isInactive ? "Inactive (>3 Mo)" : "Never Bought"}
+                                {status.replace(/_/g, " ").toLowerCase()}
                               </span>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              /* Customer Overview Table */
-              <div className="flex-1 min-h-0 overflow-auto">
-                {customerPurchaseReport.customers.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-ink-subtle">No customers available</div>
-                ) : (
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-card-2 text-ink-subtle uppercase text-[10px] font-bold tracking-wide border-b border-line-soft sticky top-0 z-10">
-                      <tr>
-                        <th className="px-3 py-2 bg-card-2">Customer</th>
-                        <th className="px-3 py-2 bg-card-2 text-center" title="Purchased within the last 3 months (90 days)">Purchased (≤3 Mo)</th>
-                        <th className="px-3 py-2 bg-card-2 text-center" title="Not purchased in the last 3 months">Not Purchased</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line-soft">
-                      {customerPurchaseReport.customers.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-card-2/80 transition-colors group">
-                          <td className="px-3 py-2.5">
-                            <span
-                              onClick={() =>
-                                setSelectedCustomerReport({
-                                  customer: row.name,
-                                  type: row.purchasedProducts.length > 0 ? "purchased" : "notPurchased",
-                                })
-                              }
-                              className="text-[12px] font-semibold text-ink group-hover:text-teal-400 cursor-pointer truncate block max-w-[200px] transition-colors"
-                              title="Click to view product breakdown"
-                            >
-                              {row.name}
                             </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-center">
-                            {row.purchasedProducts.length > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelectedCustomerReport({ customer: row.name, type: "purchased" })
-                                }
-                                title={`View ${row.purchasedProducts.length} active products (purchased in last 3 months) for ${row.name}`}
-                                className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-mono font-bold text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer shadow-sm"
-                              >
-                                {row.purchasedProducts.length}
-                              </button>
-                            ) : (
-                              <span className="text-[11px] font-mono text-ink-muted">0</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-center">
-                            {row.notPurchasedProducts.length > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelectedCustomerReport({ customer: row.name, type: "notPurchased" })
-                                }
-                                title={`View ${row.notPurchasedProducts.length} not purchased / inactive products for ${row.name}`}
-                                className="px-2.5 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-[11px] font-mono font-bold text-rose-400 hover:bg-rose-500 hover:text-white transition-all cursor-pointer shadow-sm"
-                              >
-                                {row.notPurchasedProducts.length}
-                              </button>
-                            ) : (
-                              <span className="text-[11px] font-mono text-emerald-400 font-semibold">0</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
-              </div>
+              </DashTile>
+            )}
+
+            {showTopProducts && (
+              <TopProductsTile
+                className="min-h-[360px] md:col-span-2 xl:col-span-1"
+                products={topProducts}
+                loading={summaryLoading}
+              />
             )}
           </div>
+        </section>
+      )}
 
-          {/* Sales Person Live GPS Interactive Map */}
-          <SalesPersonLiveMap />
-        </div>
+      {/* ── BOOKS + PEOPLE ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        {showAccountsTiles && (
+          <DashTile labelledBy="dash-transactions" className="xl:col-span-2">
+            <TileHeader
+              id="dash-transactions"
+              icon={LuReceipt}
+              title="Recent transactions"
+              subtitle={`Vouchers posted ${PERIOD_LABEL[dashPeriod]}`}
+              actions={<TileLink to="/accounts/ledger-statement">Ledger statement →</TileLink>}
+            />
+            {!accountsSummary ? (
+              <SkeletonRows rows={4} />
+            ) : transactions.length === 0 ? (
+              <EmptyState
+                icon={LuReceipt}
+                title={`No transactions ${PERIOD_LABEL[dashPeriod]}`}
+                hint="Receipts, payments and invoices post here as soon as they are saved."
+                action={
+                  can("vouchers.view") || can("accounts.view")
+                    ? { label: "Record a receipt", to: "/accounts/receipt-voucher/add" }
+                    : null
+                }
+              />
+            ) : (
+              <div className="min-h-0 flex-1 overflow-x-auto pb-2">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-card-2 text-xs text-ink-subtle">
+                    <tr>
+                      <th scope="col" className="px-5 py-2.5 font-medium">
+                        Voucher
+                      </th>
+                      <th scope="col" className="hidden px-3 py-2.5 font-medium sm:table-cell">
+                        Type
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 font-medium">
+                        Party / account
+                      </th>
+                      <th scope="col" className="hidden px-3 py-2.5 font-medium md:table-cell">
+                        Date
+                      </th>
+                      <th scope="col" className="px-5 py-2.5 text-right font-medium">
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((t) => (
+                      <tr key={t.id} className="border-b border-line-soft last:border-b-0">
+                        <td className="h-[52px] px-5 font-medium whitespace-nowrap text-ink">
+                          {t.voucherNo}
+                        </td>
+                        <td className="hidden px-3 sm:table-cell">
+                          <span className="sl-chip sl-chip-muted px-2.5 py-0 text-[11px] capitalize">
+                            {String(t.type).toLowerCase()}
+                          </span>
+                        </td>
+                        <td className="max-w-[220px] truncate px-3 text-ink-muted">
+                          {t.debitLedger || t.creditLedger || t.narration || "—"}
+                        </td>
+                        <td className="hidden px-3 whitespace-nowrap text-ink-subtle md:table-cell">
+                          {new Date(t.date).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </td>
+                        <td className="px-5 text-right font-semibold whitespace-nowrap text-ink tabular-nums">
+                          ₹
+                          {Number(t.amount).toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </DashTile>
+        )}
 
-        {/* ══════════════════════════════════════════════════════
-           ROW 4  –  INVENTORY & STOCK INTELLIGENCE (Multi-Chart & Reorder Alerts)
-           ══════════════════════════════════════════════════════ */}
-        <InventoryStockIntelligence
-          rawMaterials={rawMaterials}
-          rawMaterialStocks={rawMaterialStocks}
-          finishedGoodsStocks={finishedGoodsStocks}
-          allProducts={allProducts}
-        />
-
-        {/* ══════════════════════════════════════════════════════
-           ROW 5  –  WORKFORCE & SHIFT ATTENDANCE SNAPSHOT
-           ══════════════════════════════════════════════════════ */}
         <WorkforceShiftAttendance
+          className={showAccountsTiles ? "" : "xl:col-span-3"}
           employeesCount={employeesCount}
           dailyPlans={dailyPlans}
           weeklyPrograms={weeklyPrograms}
         />
       </div>
 
+      {/* ── CUSTOMERS + FIELD TEAM ─────────────────────────────── */}
+      <section aria-labelledby="dash-customers" className="flex flex-col gap-3">
+        <h2 id="dash-customers" className="sl-section-label">
+          Customers and field team
+        </h2>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <CustomerPurchaseReport
+            salesOrders={salesOrders}
+            salesProducts={allSalesProducts}
+            customers={allCustomers}
+            loading={summaryLoading}
+          />
+          <div className="h-[420px]">
+            <SalesPersonLiveMap />
+          </div>
+        </div>
+      </section>
+
+      {/* ── STOCK ──────────────────────────────────────────────── */}
+      {showInventory && (
+        <section aria-labelledby="dash-stock-label" className="flex flex-col gap-3">
+          <h2 id="dash-stock-label" className="sl-section-label">
+            Stock
+          </h2>
+          <InventoryStockIntelligence
+            rawMaterials={rawMaterials}
+            rawMaterialStocks={rawMaterialStocks}
+            finishedGoodsStocks={finishedGoodsStocks}
+            allProducts={allProducts}
+          />
+        </section>
+      )}
     </div>
   );
 };

@@ -50,11 +50,14 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "EmailConfig",
   "ConsolidatedEwayBill",
   "EInvoice",
+  "EmployeeFineDeduction",
   "EInvoiceConfig",
   "EwayBill",
   "ItcEntry",
   "Gstr2bRecord",
   "ImsAction",
+  "Gstr2bSettings",
+  "SupplierFollowUp",
   "AdvanceReceipt",
   "AdvanceAdjustment",
   "DeliveryChallan",
@@ -76,6 +79,7 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "CostCentre",
   "Budget",
   "ProductCostSheet",
+  "CostingSetting",
   "BankStatement",
   "BankStatementLine",
   "Cheque",
@@ -86,6 +90,13 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "LeaveType",
   "LeaveBalance",
   "FinalSettlement",
+  "LeaveRequest",
+  // TN-02: delivery schedules start empty; delivery-schedules.spec.ts has the cross-tenant test.
+  "CustomerSchedule",
+  "CustomerScheduleLine",
+  "CustomerScheduleDispatch",
+  "EsiContributionPeriod",
+  "OvertimeQuarterPeriod",
   "PaymentGatewayConfig",
   "PaymentLink",
   "PaymentCapture",
@@ -95,6 +106,7 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "SmsTemplate",
   "SmsMessage",
   "OtpChallenge",
+  "TallyConfig",
   "Currency",
   "ExchangeRate",
   "EmployeePayrollConfig",
@@ -161,6 +173,18 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "WhatsappConfig",
   "YearEndClosing",
   "AccountExport",
+  // shop floor (Phase 2)
+  "MachineGateway",
+  "MachineSignalMap",
+  "MachineSignal",
+  "MachineCycle",
+  // export order T&A (TN-03); order-tna.spec proves a foreign company sees none
+  "OrderTna",
+  "OrderTnaMilestone",
+  // exports (TN-01): its own suite proves a foreign tenant's rows read as absent
+  "ExportIncentiveClaim",
+  "ExportAuthorisation",
+  "ExportObligationEntry",
 ]);
 
 describe("cross-tenant leak suite", () => {

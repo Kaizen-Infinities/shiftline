@@ -2,10 +2,13 @@ import React from "react";
 import { u, ring, type TvTheme } from "../tvTheme";
 
 /* ══════════════════════════════════════════════════════════════════
-   SHARED TV PRIMITIVES
-   Every size here is a design-board pixel run through u(), so the whole
-   set scales together with the display.
+   SHARED TV PRIMITIVES (UI v2)
+   The concept's white rounded tiles, scaled for a wall: every size is a
+   design-board pixel run through u(), so the whole set grows with the
+   display. Numbers stay in ink; colour marks identity or state.
    ══════════════════════════════════════════════════════════════════ */
+
+const RADIUS = 22;
 
 /* ── Panel ──────────────────────────────────────────────────────── */
 export const Panel: React.FC<{
@@ -18,7 +21,7 @@ export const Panel: React.FC<{
   padY?: number;
   style?: React.CSSProperties;
   children: React.ReactNode;
-}> = ({ theme, title, right, accentBorder, padX = 22, padY = 16, style, children }) => (
+}> = ({ theme, title, right, accentBorder, padX = 24, padY = 20, style, children }) => (
   <div
     className="tv-panel"
     style={{
@@ -26,7 +29,8 @@ export const Panel: React.FC<{
       border: accentBorder
         ? `${u(2)} solid ${accentBorder}`
         : `${u(1)} solid ${theme.T.panelBorder}`,
-      borderRadius: u(2),
+      borderRadius: u(RADIUS),
+      boxShadow: theme.T.panelShadow,
       padding: `${u(padY)} ${u(padX)}`,
       ...style,
     }}
@@ -36,14 +40,14 @@ export const Panel: React.FC<{
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "baseline",
+          alignItems: "center",
           gap: u(12),
-          marginBottom: u(10),
+          marginBottom: u(12),
           flex: "0 0 auto",
         }}
       >
         {title && (
-          <div style={{ fontSize: u(22), fontWeight: 800, letterSpacing: u(0.3) }}>{title}</div>
+          <div style={{ fontSize: u(24), fontWeight: 700, letterSpacing: "-0.015em" }}>{title}</div>
         )}
         {right}
       </div>
@@ -70,12 +74,22 @@ export const TvEmpty: React.FC<{ theme: TvTheme; label: string; hint?: string }>
       flexDirection: "column",
       alignItems: "center",
       justifyContent: "center",
-      gap: u(6),
+      gap: u(8),
       textAlign: "center",
     }}
   >
-    <div style={{ fontSize: u(18), fontWeight: 700, color: theme.T.textMute }}>{label}</div>
-    {hint && <div style={{ fontSize: u(14), color: theme.T.textMute }}>{hint}</div>}
+    <div
+      aria-hidden="true"
+      style={{
+        width: u(44),
+        height: u(44),
+        borderRadius: u(14),
+        background: theme.T.badgeBg,
+        marginBottom: u(4),
+      }}
+    />
+    <div style={{ fontSize: u(20), fontWeight: 600, color: theme.T.textDim }}>{label}</div>
+    {hint && <div style={{ fontSize: u(15), color: theme.T.textMute }}>{hint}</div>}
   </div>
 );
 
@@ -87,89 +101,103 @@ export const KpiCard: React.FC<{
   sub?: string;
   trend?: string;
   trendColor?: string;
+  /** Identity/state colour: the marker beside the label, and the value when it is an alarm. */
   color: string;
-  /** Coloured rail down the left edge (scene 0 style). */
+  /** Kept for API compatibility with scene 0; the marker replaces the old rail. */
   rail?: boolean;
   valueSize?: number;
-}> = ({ theme, label, value, sub, trend, trendColor, color, rail, valueSize = 42 }) => (
-  <div
-    className="tv-panel"
-    style={{
-      flex: 1,
-      background: theme.T.panel,
-      border: `${u(1)} solid ${theme.T.panelBorder}`,
-      borderRadius: u(2),
-      padding: `${u(18)} ${u(20)}`,
-      justifyContent: "space-between",
-      position: "relative",
-    }}
-  >
-    {rail && (
+}> = ({ theme, label, value, sub, trend, trendColor, color, valueSize = 44 }) => {
+  // Big numbers stay in ink so they read at distance; only an alarm turns red.
+  const valueColor = color === theme.A.red ? color : theme.T.text;
+  return (
+    <div
+      className="tv-panel"
+      style={{
+        flex: 1,
+        background: theme.T.panel,
+        border: `${u(1)} solid ${theme.T.panelBorder}`,
+        borderRadius: u(RADIUS),
+        boxShadow: theme.T.panelShadow,
+        padding: `${u(20)} ${u(22)}`,
+        justifyContent: "space-between",
+      }}
+    >
       <div
         style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: u(6),
-          height: "100%",
-          background: color,
-        }}
-      />
-    )}
-    <div
-      style={{
-        fontSize: u(14),
-        fontWeight: 700,
-        letterSpacing: u(0.6),
-        color: theme.T.textMute,
-        textTransform: "uppercase",
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      }}
-    >
-      {label}
-    </div>
-    <div
-      style={{
-        fontSize: u(valueSize),
-        fontWeight: 800,
-        lineHeight: 1,
-        marginTop: u(4),
-        color,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {value}
-    </div>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "baseline",
-        marginTop: u(6),
-        gap: u(8),
-      }}
-    >
-      <span
-        style={{
-          fontSize: u(14),
+          display: "flex",
+          alignItems: "center",
+          gap: u(10),
+          fontSize: u(16),
+          fontWeight: 600,
           color: theme.T.textDim,
+          whiteSpace: "nowrap",
           overflow: "hidden",
-          textOverflow: "ellipsis",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: u(10),
+            height: u(22),
+            flex: "0 0 auto",
+            borderRadius: u(6),
+            background: color,
+          }}
+        />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+      </div>
+      <div
+        style={{
+          fontSize: u(valueSize),
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
+          marginTop: u(8),
+          color: valueColor,
           whiteSpace: "nowrap",
         }}
       >
-        {sub}
-      </span>
-      {trend && (
-        <span style={{ fontSize: u(16), fontWeight: 700, color: trendColor, flex: "0 0 auto" }}>
-          {trend}
+        {value}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: u(10),
+          gap: u(8),
+        }}
+      >
+        <span
+          style={{
+            fontSize: u(15),
+            color: theme.T.textMute,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {sub}
         </span>
-      )}
+        {trend && (
+          <span
+            style={{
+              fontSize: u(15),
+              fontWeight: 700,
+              color: trendColor,
+              flex: "0 0 auto",
+              padding: `${u(3)} ${u(10)}`,
+              borderRadius: u(999),
+              background: theme.T.tile,
+            }}
+          >
+            {trend}
+          </span>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ── Circular percentage gauge ──────────────────────────────────── */
 export const Gauge: React.FC<{
@@ -181,14 +209,14 @@ export const Gauge: React.FC<{
   /** Overrides the centred text — use when the KPI shows a decimal. */
   display?: string;
 }> = ({ theme, pct, color, size = 76, label, display }) => {
-  const inner = size - 18;
+  const inner = size - 16;
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: u(6),
+        gap: u(8),
         flex: "0 0 auto",
       }}
     >
@@ -212,9 +240,9 @@ export const Gauge: React.FC<{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: u(17),
-            fontWeight: 800,
-            color,
+            fontSize: u(18),
+            fontWeight: 700,
+            color: theme.T.text,
           }}
         >
           {display ?? `${Math.round(pct)}%`}
@@ -223,9 +251,9 @@ export const Gauge: React.FC<{
       {label && (
         <div
           style={{
-            fontSize: u(13),
-            fontWeight: 700,
-            color: theme.T.textMute,
+            fontSize: u(14),
+            fontWeight: 600,
+            color: theme.T.textDim,
             textAlign: "center",
           }}
         >
@@ -252,11 +280,11 @@ export const BarRow: React.FC<{
   name,
   pct,
   color,
-  nameWidth = 82,
-  barHeight = 26,
+  nameWidth = 96,
+  barHeight = 22,
   valueText,
   status,
-  fontSize = 16,
+  fontSize = 17,
 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: u(14) }}>
     <div
@@ -264,8 +292,8 @@ export const BarRow: React.FC<{
         width: u(nameWidth),
         flex: "0 0 auto",
         fontSize: u(fontSize),
-        fontWeight: 700,
-        color: theme.T.textDim,
+        fontWeight: 600,
+        color: theme.T.text,
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
@@ -280,15 +308,15 @@ export const BarRow: React.FC<{
         minWidth: 0,
         height: u(barHeight),
         background: theme.T.track,
-        borderRadius: u(1),
+        borderRadius: u(999),
         overflow: "hidden",
-        border: `${u(1)} solid ${theme.T.panelBorder}`,
       }}
     >
       <div
         style={{
           height: "100%",
           background: color,
+          borderRadius: u(999),
           width: `${Math.max(0, Math.min(100, pct))}%`,
           transition: "width 600ms ease",
         }}
@@ -296,12 +324,12 @@ export const BarRow: React.FC<{
     </div>
     <div
       style={{
-        width: u(60),
+        width: u(64),
         flex: "0 0 auto",
         textAlign: "right",
         fontSize: u(fontSize + 2),
-        fontWeight: 800,
-        color,
+        fontWeight: 700,
+        color: theme.T.text,
       }}
     >
       {valueText ?? `${Math.round(pct)}%`}
@@ -334,7 +362,7 @@ export const BarChart: React.FC<{
   barWidth?: string;
   gap?: number;
   pad?: number;
-}> = ({ theme, points, color, showDays = false, barWidth = "62%", gap = 8, pad = 6 }) => {
+}> = ({ theme, points, color, showDays = false, barWidth = "56%", gap = 8, pad = 6 }) => {
   // Zero-baselined (bar charts must be), but scaled against the peak plus
   // headroom — otherwise the tallest bar fills the track and a week of similar
   // values reads as one solid block instead of a trend.
@@ -348,9 +376,8 @@ export const BarChart: React.FC<{
         display: "flex",
         alignItems: "flex-end",
         gap: u(gap),
-        background: theme.T.track,
-        borderRadius: u(1),
-        padding: u(pad),
+        borderRadius: u(14),
+        padding: `${u(pad)} ${u(pad)} 0`,
       }}
     >
       {points.map((p, i) => {
@@ -373,14 +400,15 @@ export const BarChart: React.FC<{
             <div
               style={{
                 width: barWidth,
-                background: color,
+                background: h > 0 ? color : theme.T.track,
                 height: `${h}%`,
-                minHeight: u(4),
+                minHeight: u(6),
+                borderRadius: `${u(6)} ${u(6)} ${u(2)} ${u(2)}`,
                 transition: "height 600ms ease",
               }}
             />
             {showDays && (
-              <div style={{ fontSize: u(12), color: theme.T.textMute, flex: "0 0 auto" }}>
+              <div style={{ fontSize: u(13), color: theme.T.textMute, flex: "0 0 auto" }}>
                 {p.day}
               </div>
             )}
@@ -406,31 +434,37 @@ export const TrendCard: React.FC<{
       flex: 1,
       background: theme.T.panel,
       border: `${u(1)} solid ${theme.T.panelBorder}`,
-      borderRadius: u(2),
-      padding: `${u(14)} ${u(18)}`,
+      borderRadius: u(RADIUS),
+      boxShadow: theme.T.panelShadow,
+      padding: `${u(16)} ${u(20)}`,
     }}
   >
     <div
       style={{
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "baseline",
+        alignItems: "center",
         marginBottom: u(8),
         flex: "0 0 auto",
       }}
     >
       <div
         style={{
-          fontSize: u(15),
-          fontWeight: 700,
-          letterSpacing: u(0.4),
-          color: theme.T.textMute,
-          textTransform: "uppercase",
+          display: "flex",
+          alignItems: "center",
+          gap: u(8),
+          fontSize: u(16),
+          fontWeight: 600,
+          color: theme.T.textDim,
         }}
       >
+        <span
+          aria-hidden="true"
+          style={{ width: u(10), height: u(10), borderRadius: "50%", background: color }}
+        />
         {label}
       </div>
-      <div style={{ fontSize: u(16), fontWeight: 800, color: trendColor }}>{trend}</div>
+      <div style={{ fontSize: u(16), fontWeight: 700, color: trendColor }}>{trend}</div>
     </div>
     <BarChart theme={theme} points={points} color={color} />
   </div>

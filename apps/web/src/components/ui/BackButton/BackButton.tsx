@@ -1,7 +1,7 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaArrowLeft } from 'react-icons/fa';
-import CustomButton from '../Button/Button';
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
+import CustomButton from "../Button/Button";
 
 interface BackButtonProps {
   /** Optional path to navigate to. If not provided, it will go back in history. */
@@ -12,11 +12,7 @@ interface BackButtonProps {
   className?: string;
 }
 
-const BackButton: React.FC<BackButtonProps> = ({
-  to,
-  text = "Back",
-  className = ""
-}) => {
+const BackButton: React.FC<BackButtonProps> = ({ to, text = "Back", className = "" }) => {
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -29,7 +25,7 @@ const BackButton: React.FC<BackButtonProps> = ({
 
   return (
     <CustomButton
-      variant='secondary'
+      variant="secondary"
       text={text}
       icon={FaArrowLeft}
       onClick={handleBack}

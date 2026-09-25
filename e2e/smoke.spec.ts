@@ -50,9 +50,17 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/accounts/bank-reconciliation", marker: /Bank Reconciliation/ },
   { path: "/payroll/statutory", marker: /Statutory Payroll/ },
   { path: "/payroll/entitlements", marker: /Leave and Entitlements/ },
+  { path: "/sales/delivery-schedules", marker: /Delivery Schedules/ },
+  { path: "/hr/leave", marker: /^Leave$/ },
+  { path: "/me/leave", marker: /My Leave/ },
+  { path: "/production/order-tna", marker: /Order T&A/ },
+  { path: "/exports/incentives", marker: /Export incentives/ },
+  { path: "/hr/registers", marker: /Statutory Registers/ },
+  { path: "/hr/fines", marker: /Fines and deductions/ },
   { path: "/accounts/payment-links", marker: /Payment Links/ },
   { path: "/settings/sms", marker: /SMS and OTP/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
+  { path: "/settings/machine-gateways", marker: /Machine gateways/i },
 ];
 
 const trackApi = (page: Page) => {

@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useId } from "react";
+import { FieldError, RequiredMark, fieldControlClasses, fieldLabelClass } from "../fieldStyles";
 
-interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "size"> {
+interface TextInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "onChange" | "size"
+> {
   label?: string;
   name: string;
   type?: string;
@@ -22,6 +26,7 @@ interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement
   onChange?: (event: any) => void;
 }
 
+/** Text / number / textarea field: label above, `.sl-input` box, error tied by aria-describedby. */
 const TextInput: React.FC<TextInputProps> = ({
   label,
   name,
@@ -46,11 +51,17 @@ const TextInput: React.FC<TextInputProps> = ({
   rows = 3,
   ...rest
 }) => {
+  const generatedId = useId();
+  const inputId = rest.id ?? name;
+  const errorId = `${generatedId}-error`;
   const isNumberType = type === "number";
   const shouldPreventNegative = preventNegative || isNumberType;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (shouldPreventNegative && (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+")) {
+    if (
+      shouldPreventNegative &&
+      (e.key === "-" || e.key === "e" || e.key === "E" || e.key === "+")
+    ) {
       e.preventDefault();
     }
     onKeyDown?.(e as React.KeyboardEvent<HTMLInputElement>);
@@ -70,46 +81,26 @@ const TextInput: React.FC<TextInputProps> = ({
     onChange?.(e as React.ChangeEvent<HTMLInputElement>);
   };
 
+  const describedBy = error ? errorId : rest["aria-describedby"];
+
   return (
-    <div className={`${bottom ? "mb-[18px]" : ""} group ${horizontal ? "flex items-start gap-3" : ""}`}>
+    <div
+      className={`${bottom ? "mb-[18px]" : ""} group min-w-0 ${horizontal ? "flex flex-col sm:flex-row sm:items-start sm:gap-3" : ""}`}
+    >
       {label && (
-        <label
-          htmlFor={name}
-          className={`
-            flex items-center gap-[6px]
-            text-[12px] font-extrabold uppercase
-            tracking-[0.5px]
-            transition-colors duration-250
-            ${error ? "text-red-400" : "text-ink"}
-            group-focus-within:text-primary
-            ${horizontal ? "shrink-0 w-[140px] mb-0 pt-[10px]" : "mb-2"}
-            ${labelClassName}
-          `}
-        >
-          {icon && (
-            <span
-              className={`
-                flex items-center text-sm
-                transition-colors duration-250
-                ${error ? "text-red-400" : "text-primary"}
-                group-focus-within:text-primary
-              `}
-            >
-              {icon}
-            </span>
-          )}
+        <label htmlFor={inputId} className={fieldLabelClass(horizontal, labelClassName)}>
+          {icon && <span className="sl-label-icon">{icon}</span>}
           <span>{label}</span>
-          {required && (
-            <span className="text-red-500 ml-0.5">*</span>
-          )}
+          {required && <RequiredMark />}
         </label>
       )}
 
-      <div className={`flex flex-col ${horizontal ? "flex-1" : ""}`}>
+      <div className={`flex min-w-0 flex-col ${horizontal ? "flex-1" : ""}`}>
         <div className="relative">
           {as === "textarea" ? (
             <textarea
-              id={name}
+              {...(rest as unknown as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+              id={inputId}
               name={name}
               value={value}
               placeholder={placeholder}
@@ -117,26 +108,19 @@ const TextInput: React.FC<TextInputProps> = ({
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={disabled}
+              aria-required={required || undefined}
+              aria-invalid={Boolean(error)}
+              aria-describedby={describedBy}
               rows={rows}
-              className={`
-                w-full min-h-[35px] px-4 py-[5px] text-sm font-semibold
-                border rounded-[5px] outline-none
-                transition-all duration-250
-                placeholder:text-ink-subtle/80 placeholder:font-normal
-                text-ink
-                ${error
-                  ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-                  : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-                }
-                ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-bold opacity-85" : ""}
-                resize-y
-                ${inputClassName}
-              `}
-              {...(rest as unknown as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+              className={fieldControlClasses({
+                invalid: Boolean(error),
+                className: `min-h-11 resize-y px-4 py-2.5 leading-relaxed ${inputClassName}`,
+              })}
             />
           ) : (
             <input
-              id={name}
+              {...rest}
+              id={inputId}
               type={type || "text"}
               name={name}
               value={value}
@@ -147,42 +131,30 @@ const TextInput: React.FC<TextInputProps> = ({
               min={isNumberType ? (rest.min ?? "0") : rest.min}
               step={step}
               disabled={disabled}
+              aria-required={required || undefined}
+              aria-invalid={Boolean(error)}
+              aria-describedby={describedBy}
               autoComplete="off"
-              className={`
-                w-full h-10 px-4
-                border rounded-[5px] outline-none
-                text-sm font-semibold leading-normal
+              className={fieldControlClasses({
+                invalid: Boolean(error),
+                className: `h-11 px-4 leading-normal
                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-                transition-all duration-250
-                placeholder:text-ink-subtle/80 placeholder:font-normal
-                text-ink
-                [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]
-                [&:-webkit-autofill:hover]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)]
-                [&:-webkit-autofill:focus]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)]
-                ${error
-                  ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-                  : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-                }
-                ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-bold opacity-85" : ""}
+                [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]
+                ${isNumberType ? "tabular-nums" : ""}
                 ${trailingIcon ? "pr-10" : ""}
-                ${inputClassName}
-              `}
-              {...rest}
+                ${inputClassName}`,
+              })}
             />
           )}
 
           {trailingIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-ink-subtle">
+            <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center text-ink-subtle">
               {trailingIcon}
             </div>
           )}
         </div>
 
-        {error && (
-          <div className="text-[#dc3545] text-sm font-medium mt-1">
-            {error}
-          </div>
-        )}
+        {error && <FieldError id={errorId}>{error}</FieldError>}
       </div>
     </div>
   );

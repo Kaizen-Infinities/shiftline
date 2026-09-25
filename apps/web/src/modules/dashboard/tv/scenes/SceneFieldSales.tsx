@@ -82,22 +82,23 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
 
     for (const p of team) {
       const colour = statusColor(p.status);
-      const markerTextColor = theme.isDark ? "#0b1020" : "#ffffff";
-      const labelBg = theme.isDark ? "rgba(6,10,20,.82)" : "rgba(255,255,255,.88)";
-      const labelColor = theme.isDark ? "#fff" : "#0b1020";
+      // Theme tokens resolve inside Leaflet's markup too: card-coloured initials
+      // on the status colour, and a card-coloured city label.
       const icon = L.divIcon({
         className: "tv-sales-marker",
         iconSize: [34, 34],
         iconAnchor: [17, 17],
         html: `
           <div style="display:flex;flex-direction:column;align-items:center;">
-            <div style="width:30px;height:30px;border-radius:50%;background:${colour};
+            <div style="width:32px;height:32px;border-radius:50%;background:${colour};
                         display:flex;align-items:center;justify-content:center;
-                        font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:11px;
-                        color:${markerTextColor};box-shadow:0 0 10px ${colour};">${p.initials}</div>
-            <div style="margin-top:3px;padding:1px 5px;border-radius:2px;white-space:nowrap;
-                        background:${labelBg};color:${labelColor};font-size:9px;font-weight:700;
-                        font-family:'IBM Plex Mono',monospace;">${p.city}</div>
+                        font-family:var(--font-body);font-weight:700;font-size:12px;
+                        color:var(--color-card);border:2px solid var(--color-card);
+                        box-shadow:var(--shadow-md);">${p.initials}</div>
+            <div style="margin-top:4px;padding:2px 8px;border-radius:999px;white-space:nowrap;
+                        background:var(--color-card);color:var(--color-ink);font-size:10px;
+                        font-weight:600;font-family:var(--font-body);
+                        box-shadow:var(--shadow-sm);">${p.city}</div>
           </div>`,
       });
       markers.current[p.id] = L.marker([p.lat, p.lng], { icon }).addTo(map);
@@ -119,10 +120,20 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
   const visitPct = visitsTarget ? Math.round((visitsDone / visitsTarget) * 100) : 0;
 
   const kpis = [
-    { label: "Field Staff On Duty", value: `${onDuty}/${team.length}`, sub: "reporting today", color: A.green },
+    {
+      label: "Field Staff On Duty",
+      value: `${onDuty}/${team.length}`,
+      sub: "reporting today",
+      color: A.green,
+    },
     { label: "Orders Booked", value: String(orders), sub: "today, field team", color: A.blue },
     { label: "Order Value", value: inrCompact(value), sub: "today, field team", color: A.amber },
-    { label: "Visits Completed", value: `${visitPct}%`, sub: `${visitsDone} of ${visitsTarget} planned`, color: visitPct >= 75 ? A.green : A.amber },
+    {
+      label: "Visits Completed",
+      value: `${visitPct}%`,
+      sub: `${visitsDone} of ${visitsTarget} planned`,
+      color: visitPct >= 75 ? A.green : A.amber,
+    },
   ];
 
   return (
@@ -135,11 +146,17 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
 
       <div
         className="tv-body-grid"
-        style={{ flex: 1, display: "grid", gridTemplateColumns: "1.45fr 1fr", gap: u(14), minHeight: 0 }}
+        style={{
+          flex: 1,
+          display: "grid",
+          gridTemplateColumns: "1.45fr 1fr",
+          gap: u(14),
+          minHeight: 0,
+        }}
       >
         <Panel
           theme={theme}
-          title="FIELD TEAM — LIVE LOCATION"
+          title="Field team location"
           padX={0}
           padY={0}
           right={
@@ -149,17 +166,17 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
               <div
                 style={{
                   fontSize: u(12),
-                  fontWeight: 800,
+                  fontWeight: 700,
                   letterSpacing: u(0.6),
                   color: A.amber,
                   border: `${u(1)} solid ${A.amber}`,
-                  borderRadius: u(1),
+                  borderRadius: u(999),
                   padding: `${u(3)} ${u(8)}`,
                   marginRight: u(16),
                 }}
                 title="Positions are simulated — no GPS feed is connected yet"
               >
-                SIMULATED
+                Simulated
               </div>
             ) : undefined
           }
@@ -171,13 +188,14 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
               flex: 1,
               minHeight: 0,
               width: "100%",
-              background: theme.isDark ? "oklch(0.18 0.02 260)" : "oklch(0.92 0.01 260)",
+              background: T.tile,
+              borderRadius: u(16),
               filter: theme.isDark ? "brightness(0.78) saturate(0.85)" : "none",
             }}
           />
         </Panel>
 
-        <Panel theme={theme} title="TEAM STATUS">
+        <Panel theme={theme} title="Team status">
           {team.length === 0 ? (
             <TvEmpty theme={theme} label="No field staff on duty" />
           ) : (
@@ -200,7 +218,7 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
                     alignItems: "center",
                     gap: u(12),
                     background: T.tile,
-                    borderRadius: u(2),
+                    borderRadius: u(16),
                     padding: `${u(10)} ${u(14)}`,
                   }}
                 >
@@ -211,11 +229,11 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
                       flex: "0 0 auto",
                       borderRadius: "50%",
                       background: statusColor(p.status),
-                      color: theme.isDark ? "#0b1020" : "#ffffff",
+                      color: "var(--color-card)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontWeight: 800,
+                      fontWeight: 700,
                       fontSize: u(13),
                     }}
                   >
@@ -248,7 +266,7 @@ const SceneFieldSales: React.FC<{ theme: TvTheme }> = ({ theme }) => {
                   </div>
 
                   <div style={{ textAlign: "right", flex: "0 0 auto" }}>
-                    <div style={{ fontSize: u(12), fontWeight: 800, color: statusColor(p.status) }}>
+                    <div style={{ fontSize: u(12), fontWeight: 700, color: statusColor(p.status) }}>
                       {STATUS_LABEL[p.status]}
                     </div>
                     <div style={{ fontSize: u(13), color: T.textDim }}>

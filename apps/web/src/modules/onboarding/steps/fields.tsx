@@ -1,6 +1,6 @@
 import React from "react";
 
-/** Small form primitives shared by the onboarding steps (Tailwind, theme tokens). */
+/** Small form primitives shared by the onboarding steps (UI v2 `.sl-*` classes, theme tokens). */
 
 export const Field: React.FC<{
   label: string;
@@ -8,32 +8,23 @@ export const Field: React.FC<{
   className?: string;
   children: React.ReactNode;
 }> = ({ label, hint, className, children }) => (
-  <label
-    className={`block text-xs font-bold uppercase tracking-wider text-ink-muted ${className ?? ""}`}
-  >
+  <label className={`block text-sm font-semibold text-ink-muted ${className ?? ""}`}>
     {label}
     {children}
-    {hint && (
-      <span className="mt-1 block text-[11px] font-normal normal-case tracking-normal text-ink-muted/80">
-        {hint}
-      </span>
-    )}
+    {hint && <span className="mt-1.5 block text-xs font-normal text-ink-subtle">{hint}</span>}
   </label>
 );
 
 export const StepHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subtitle }) => (
-  <div className="mb-6">
-    <h2 className="text-xl font-bold text-ink">{title}</h2>
-    <p className="mt-1 text-sm text-ink-muted">{subtitle}</p>
+  <div className="mb-7">
+    <h2 className="sl-h1 !text-[1.5rem]">{title}</h2>
+    <p className="sl-muted mt-1.5 max-w-2xl text-sm leading-relaxed">{subtitle}</p>
   </div>
 );
 
 export const ErrorBox: React.FC<{ message: string | null }> = ({ message }) =>
   message ? (
-    <div
-      role="alert"
-      className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-500"
-    >
+    <div role="alert" className="sl-chip-danger mt-5 rounded-[14px] px-4 py-3 text-sm font-medium">
       {message}
     </div>
   ) : null;
@@ -41,26 +32,15 @@ export const ErrorBox: React.FC<{ message: string | null }> = ({ message }) =>
 export const PrimaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
   className,
   ...props
-}) => (
-  <button
-    {...props}
-    className={`rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-500 disabled:opacity-60 ${className ?? ""}`}
-  />
-);
+}) => <button {...props} className={`sl-cta ${className ?? ""}`} />;
 
 export const SecondaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
   className,
   ...props
-}) => (
-  <button
-    {...props}
-    type={props.type ?? "button"}
-    className={`rounded-xl border border-line-soft bg-card-2 px-4 py-2.5 text-sm font-semibold text-ink hover:bg-card disabled:opacity-60 ${className ?? ""}`}
-  />
-);
+}) => <button {...props} type={props.type ?? "button"} className={`sl-btn ${className ?? ""}`} />;
 
 export const Actions: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-5">
+  <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-6">
     {children}
   </div>
 );

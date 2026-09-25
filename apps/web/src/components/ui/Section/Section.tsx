@@ -2,55 +2,34 @@
 import React from "react";
 
 export interface SectionProps {
-    title: string;
-    icon?: React.ReactNode;
-    children: React.ReactNode;
-    className?: string;
-    action?: React.ReactNode; // optional right-aligned header action, e.g. an "Add Item" button
+  title: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  action?: React.ReactNode; // optional right-aligned header action, e.g. an "Add Item" button
 }
 
+/** Form/detail section: a tile with an `.sl-h2` heading, optional icon and a right-hand action. */
 const Section: React.FC<SectionProps> = ({ title, icon, children, className = "", action }) => (
-    <div
-        className={`mb-4 p-4 ${className}`}
-        style={{
-            background: "var(--color-surface)",
-            borderRadius: "var(--radius-lg)",
-            border: "1px solid var(--color-border)",
-            boxShadow: "var(--shadow-sm)",
-        }}
-    >
-        <div
-            className="d-flex align-items-center justify-content-between gap-2 mb-3 pb-2"
-            style={{ borderBottom: "1px solid var(--color-border)" }}
-        >
-            <div className="d-flex align-items-center gap-2">
-                {icon && (
-                    <span
-                        className="d-inline-flex align-items-center justify-content-center"
-                        style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: "var(--radius-sm)",
-                            background: "rgba(203, 122, 33, 0.1)",
-                            color: "var(--color-secondary)",
-                        }}
-                    >
-                        {icon}
-                    </span>
-                )}
-                <h6
-                    className="mb-0 fw-bold"
-                    style={{ color: "var(--color-primary)", fontFamily: "var(--font-head)" }}
-                >
-                    {title}
-                </h6>
-            </div>
+  <section className={`sl-tile mb-4 p-4 sm:p-5 ${className}`}>
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {icon && (
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-chip text-accent"
+          >
+            {icon}
+          </span>
+        )}
+        <h2 className="sl-h2 m-0 truncate">{title}</h2>
+      </div>
 
-            {action && <div>{action}</div>}
-        </div>
-
-        {children}
+      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
     </div>
+
+    {children}
+  </section>
 );
 
 export default Section;

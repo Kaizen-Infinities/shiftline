@@ -1,7 +1,7 @@
 /** Helpers shared by the onboarding steps that are not React components. */
 
 export const inputClass =
-  "mt-1 w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink placeholder:text-ink-muted/60 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60";
+  "sl-input mt-1.5 min-h-11 text-sm font-normal placeholder:text-ink-subtle disabled:opacity-50";
 
 /** Message from an axios error body (`message`, plus the first field error when present). */
 export const apiMessage = (err: unknown): string => {

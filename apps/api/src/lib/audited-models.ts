@@ -81,6 +81,7 @@ export const AUDITED_MODELS = [
   "StockValuationEntry",
   "CostCentre",
   "Budget",
+  "CostingSetting",
   "Cheque",
   "BankStatement",
   "PayrollStatutory",
@@ -89,6 +90,24 @@ export const AUDITED_MODELS = [
   "LeaveType",
   "LeaveBalance",
   "FinalSettlement",
+  "LeaveRequest",
+  "EsiContributionPeriod",
+  "OvertimeQuarterPeriod",
+  // shop floor (Phase 2)
+  "MachineGateway",
+  "MachineSignalMap",
+  "MachineCycle",
+  // export order time-and-action calendar (TN-03)
+  "OrderTna",
+  "OrderTnaMilestone",
+  // customer delivery schedules (TN-02)
+  "CustomerSchedule",
+  "CustomerScheduleLine",
+  "CustomerScheduleDispatch",
+  // exports (TN-01): incentive claims are receivables and authorisations a legal obligation
+  "ExportIncentiveClaim",
+  "ExportAuthorisation",
+  "ExportObligationEntry",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

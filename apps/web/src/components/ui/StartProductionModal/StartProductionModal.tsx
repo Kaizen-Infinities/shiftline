@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Play } from "lucide-react";
 import { Modal, Form, Row, Col, Button } from "../TailwindPrimitives";
 import { shiftService } from "../../../services/shiftService";
 import type { Shift } from "../../../features/shifts/types";
@@ -55,21 +56,24 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
 
   return (
     <Modal show={show} onHide={onHide} centered>
-      <Modal.Header
-        closeButton
-        style={{ background: "var(--color-success, #22C55E)", color: "#fff" }}
-      >
-        <Modal.Title className="fs-5 fw-bold">Start Production Run</Modal.Title>
+      <Modal.Header closeButton>
+        <div className="flex items-center gap-3">
+          <span
+            className="sl-dialog-icon sl-dialog-icon-success h-10 w-10 rounded-[14px]"
+            aria-hidden="true"
+          >
+            <Play size={18} />
+          </span>
+          <Modal.Title>Start Production Run</Modal.Title>
+        </div>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
         <Modal.Body>
-          <Row className="g-3">
+          <Row>
             <Col md={12}>
               <Form.Group>
-                <Form.Label className="fw-bold small text-muted text-uppercase">
-                  Run Details
-                </Form.Label>
-                <div className="p-3 bg-light rounded border small">
+                <Form.Label>Run Details</Form.Label>
+                <div className="rounded-[14px] border border-line-soft bg-card-2 p-3.5 text-sm leading-relaxed text-ink">
                   <strong>PO ID:</strong> {program?.productionOrderId}
                   <br />
                   <strong>Product Name:</strong>{" "}
@@ -80,16 +84,14 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
               </Form.Group>
             </Col>
 
-            <Col md={6}>
+            <Col md={6} className="md:col-span-6">
               <Form.Group>
-                <Form.Label className="fw-bold small text-muted text-uppercase">
-                  Select Machine to Run On
-                </Form.Label>
+                <Form.Label htmlFor="start-run-machine">Select Machine to Run On</Form.Label>
                 <Form.Select
+                  id="start-run-machine"
                   required
                   value={machineId}
                   onChange={(e) => setMachineId(e.target.value)}
-                  style={{ height: "42px", borderRadius: "8px" }}
                 >
                   <option value="">-- Choose Active Machine --</option>
                   {allowedMachines.map((m) => (
@@ -98,22 +100,20 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
                     </option>
                   ))}
                 </Form.Select>
-                <Form.Text className="text-danger small fw-medium mt-1 d-block">
+                <Form.Text className="mt-1 font-medium text-[color:var(--color-danger)]">
                   * MAC-001 disabled for planning
                 </Form.Text>
               </Form.Group>
             </Col>
 
-            <Col md={6}>
+            <Col md={6} className="md:col-span-6">
               <Form.Group>
-                <Form.Label className="fw-bold small text-muted text-uppercase">
-                  Select Shift
-                </Form.Label>
+                <Form.Label htmlFor="start-run-shift">Select Shift</Form.Label>
                 <Form.Select
+                  id="start-run-shift"
                   required
                   value={shiftId}
                   onChange={(e) => setShiftId(e.target.value)}
-                  style={{ height: "42px", borderRadius: "8px" }}
                 >
                   <option value="">-- Choose Shift --</option>
                   {shifts.map((s) => (
@@ -127,10 +127,10 @@ const StartProductionModal: React.FC<StartProductionModalProps> = ({
           </Row>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" className="rounded-3" onClick={onHide}>
+          <Button variant="secondary" onClick={onHide}>
             Cancel
           </Button>
-          <Button type="submit" variant="success" className="rounded-3 px-4">
+          <Button type="submit" variant="success">
             Confirm Start Run
           </Button>
         </Modal.Footer>

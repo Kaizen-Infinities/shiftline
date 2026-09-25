@@ -277,12 +277,14 @@ describe("bank reconciliation and cheques", () => {
     expect(Math.round(net)).toBe(0);
     expect(voucher.items.length).toBe(4);
 
-    // A cheque that has bounced cannot be cleared afterwards by mistake.
+    // A cheque that has bounced cannot be cleared afterwards by mistake — it has to be
+    // re-presented first (P2-06), which posts the receipt again.
     const cleared = await client
       .post(`/api/banking/cheques/${cheque.body.data.id}/status`)
       .set(OWNER.auth)
       .send({ status: "CLEARED" });
-    expect(cleared.status).toBe(200);
+    expect(cleared.status).toBe(409);
+    expect(cleared.body.code).toBe("CHEQUE_BOUNCED");
   });
 
   it("lists the cheques whose date has arrived", async () => {

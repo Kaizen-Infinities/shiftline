@@ -5,16 +5,16 @@ import TextInput from "../../form/TextInput/TextInput";
 import DeleteButton from "../DeleteButton/DeleteButton";
 
 export interface ProductionWorkflowInputProps {
-    /** Ordered list of step names. Empty = no workflow. */
-    value: string[];
-    /** Called with the updated ordered list whenever steps are added/removed. */
-    onChange: (steps: string[]) => void;
-    /** Optional error message to show below the list (e.g. duplicate step). */
-    error?: string;
-    /** Optional heading override. */
-    label?: string;
-    /** Optional helper text override. */
-    helperText?: string;
+  /** Ordered list of step names. Empty = no workflow. */
+  value: string[];
+  /** Called with the updated ordered list whenever steps are added/removed. */
+  onChange: (steps: string[]) => void;
+  /** Optional error message to show below the list (e.g. duplicate step). */
+  error?: string;
+  /** Optional heading override. */
+  label?: string;
+  /** Optional helper text override. */
+  helperText?: string;
 }
 
 /**
@@ -31,96 +31,94 @@ export interface ProductionWorkflowInputProps {
  *   <ProductionWorkflowInput value={steps} onChange={setSteps} error={errors.productionSteps} />
  */
 const FlowInput: React.FC<ProductionWorkflowInputProps> = ({
-    value,
-    onChange,
-    error,
-    label = "Production Workflow",
-
+  value,
+  onChange,
+  error,
+  label = "Production Workflow",
 }) => {
-    const [stepInput, setStepInput] = useState("");
+  const [stepInput, setStepInput] = useState("");
 
-    const handleAddStep = () => {
-        const trimmed = stepInput.trim();
-        if (!trimmed) {
-            toast.error("Type a step name first");
-            return;
-        }
-        const alreadyExists = value.some(
-            s => s.trim().toLowerCase() === trimmed.toLowerCase()
-        );
-        if (alreadyExists) {
-            toast.error("That step has already been added");
-            return;
-        }
-        onChange([...value, trimmed]);
-        setStepInput("");
-    };
+  const handleAddStep = () => {
+    const trimmed = stepInput.trim();
+    if (!trimmed) {
+      toast.error("Type a step name first");
+      return;
+    }
+    const alreadyExists = value.some((s) => s.trim().toLowerCase() === trimmed.toLowerCase());
+    if (alreadyExists) {
+      toast.error("That step has already been added");
+      return;
+    }
+    onChange([...value, trimmed]);
+    setStepInput("");
+  };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            handleAddStep();
-        }
-    };
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddStep();
+    }
+  };
 
-    const handleRemoveStep = (index: number) => {
-        onChange(value.filter((_, i) => i !== index));
-    };
+  const handleRemoveStep = (index: number) => {
+    onChange(value.filter((_, i) => i !== index));
+  };
 
-    return (
-        <div>
-            <h6 className="text-base font-semibold text-gray-800 mb-1">{label}</h6>
+  return (
+    <div>
+      <h6 className="sl-h2 m-0 mb-2 !text-base">{label}</h6>
 
-
-            {/* Text box + Add button */}
-            <div className="flex items-start gap-2 mb-3">
-                <div className="flex-1">
-                    <TextInput
-                        label=""
-                        name="productionWorkflowStepInput"
-                        value={stepInput}
-                        placeholder="e.g. Production"
-                        onChange={(e) => setStepInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                    />
-                </div>
-                <button
-                    type="button"
-                    onClick={handleAddStep}
-                    className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-2.5 rounded-lg font-medium transition-colors border border-indigo-100 flex items-center gap-1 whitespace-nowrap shrink-0"
-                >
-                    <FaPlus size={10} /> Add Step
-                </button>
-            </div>
-
-            {value.length > 0 ? (
-                <div className="border border-slate-200 rounded-xl p-4 bg-white">
-                    <div className="flex flex-col gap-2">
-                        {value.map((step, idx) => (
-                            <div key={idx} className="flex items-center gap-3">
-                                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold shrink-0">
-                                    {idx + 1}
-                                </span>
-                                <span className="flex-1 text-sm text-gray-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                                    {step}
-                                </span>
-                                <div className="shrink-0 flex items-center">
-                                    <DeleteButton onClick={() => handleRemoveStep(idx)} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    {error && (
-                        <div className="mt-3 px-3 py-2 bg-red-50 text-red-600 text-sm font-medium rounded-lg border border-red-100">
-                            {error}
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <></>
-            )}
+      {/* Text box + Add button */}
+      <div className="mb-3 flex items-start gap-2 [&_.sl-pill-md]:mt-0">
+        <div className="flex-1">
+          <TextInput
+            label=""
+            name="productionWorkflowStepInput"
+            value={stepInput}
+            placeholder="e.g. Production"
+            onChange={(e) => setStepInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
         </div>
-    );
+        <button type="button" onClick={handleAddStep} className="sl-btn sl-pill-md shrink-0">
+          <FaPlus size={11} aria-hidden="true" /> Add Step
+        </button>
+      </div>
+
+      {value.length > 0 ? (
+        <div className="rounded-[18px] border border-line-soft bg-card-2 p-3 sm:p-4">
+          <ol className="m-0 flex list-none flex-col gap-2 p-0">
+            {value.map((step, idx) => (
+              <li key={idx} className="flex items-center gap-3">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white"
+                  aria-hidden="true"
+                >
+                  {idx + 1}
+                </span>
+                <span className="flex-1 rounded-[12px] border border-line-soft bg-card px-3.5 py-2.5 text-sm font-medium text-ink">
+                  {step}
+                </span>
+                <div className="shrink-0 flex items-center">
+                  <DeleteButton onClick={() => handleRemoveStep(idx)} />
+                </div>
+              </li>
+            ))}
+          </ol>
+          {error && (
+            <div
+              role="alert"
+              className="sl-field-error mt-3 rounded-[12px] border border-[color:var(--color-danger)]/25 bg-[color:var(--color-danger)]/10 px-3 py-2"
+            >
+              {error}
+            </div>
+          )}
+        </div>
+      ) : (
+        <></>
+      )}
+    </div>
+  );
 };
 
 export default FlowInput;

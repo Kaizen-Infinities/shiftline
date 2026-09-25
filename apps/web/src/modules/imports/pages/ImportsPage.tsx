@@ -7,9 +7,9 @@ import {
 } from "../../../services/importsService";
 
 const badge: Record<string, string> = {
-  ok: "bg-emerald-500/15 text-emerald-500",
-  exists: "bg-amber-500/15 text-amber-500",
-  error: "bg-red-500/15 text-red-500",
+  ok: "bg-[color:var(--color-success)]/15 text-[color:var(--color-success)]",
+  exists: "bg-[color:var(--color-warning)]/15 text-[color:var(--color-warning)]",
+  error: "bg-[color:var(--color-danger)]/15 text-[color:var(--color-danger)]",
 };
 
 const apiMessage = (err: unknown) =>
@@ -116,9 +116,9 @@ const ImportsPage: React.FC = () => {
                 key={t.key}
                 type="button"
                 onClick={() => choose(t)}
-                className={`w-full rounded-xl border px-4 py-3 text-left ${
+                className={`w-full rounded-lg border px-4 py-3 text-left ${
                   selected?.key === t.key
-                    ? "border-blue-500 bg-blue-500/10"
+                    ? "border-accent bg-accent/10"
                     : "border-line-soft bg-card hover:bg-card-2"
                 }`}
               >
@@ -130,7 +130,7 @@ const ImportsPage: React.FC = () => {
 
           {selected && (
             <main className="space-y-6">
-              <section className="rounded-2xl border border-line-soft bg-card p-5">
+              <section className="rounded-sm border border-line-soft bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-bold">{selected.label}</h2>
@@ -142,7 +142,7 @@ const ImportsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={downloadTemplate}
-                    className="rounded-xl border border-line-soft bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-card"
+                    className="rounded-lg border border-line-soft bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-card"
                   >
                     Download template
                   </button>
@@ -161,7 +161,9 @@ const ImportsPage: React.FC = () => {
                         <tr key={c.key} className="border-t border-line-soft">
                           <td className="py-1.5 pr-3 font-mono">
                             {c.key}
-                            {c.required && <span className="text-red-500">*</span>}
+                            {c.required && (
+                              <span className="text-[color:var(--color-danger)]">*</span>
+                            )}
                           </td>
                           <td className="py-1.5 pr-3 text-ink-muted">{c.example}</td>
                           <td className="py-1.5 text-ink-muted">{c.description}</td>
@@ -172,7 +174,7 @@ const ImportsPage: React.FC = () => {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-line-soft bg-card p-5">
+              <section className="rounded-sm border border-line-soft bg-card p-5">
                 <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
                   CSV file
                   <input
@@ -208,7 +210,7 @@ const ImportsPage: React.FC = () => {
                           onClick={() => setFilter(key)}
                           className={`rounded-full px-3 py-1 font-semibold ${
                             filter === key
-                              ? "bg-blue-600 text-white"
+                              ? "bg-accent text-white"
                               : (badge[key] ?? "bg-card-2 text-ink")
                           }`}
                         >
@@ -216,24 +218,24 @@ const ImportsPage: React.FC = () => {
                         </button>
                       ))}
                       {!report.dryRun && (
-                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 font-semibold text-emerald-500">
+                        <span className="rounded-full bg-[color:var(--color-success)]/15 px-3 py-1 font-semibold text-[color:var(--color-success)]">
                           {report.imported} imported
                         </span>
                       )}
                     </div>
                     {report.ignoredColumns.length > 0 && (
-                      <p className="mt-2 text-xs text-amber-500">
+                      <p className="mt-2 text-xs text-[color:var(--color-warning)]">
                         Ignored columns: {report.ignoredColumns.join(", ")}
                       </p>
                     )}
                     {report.failed && (
-                      <p className="mt-2 text-xs text-red-500">
+                      <p className="mt-2 text-xs text-[color:var(--color-danger)]">
                         Stopped at row {report.failed.row}: {report.failed.message}. Rows before it
                         were imported; remove them from the file and run again.
                       </p>
                     )}
 
-                    <div className="mt-3 max-h-96 overflow-auto rounded-xl border border-line-soft">
+                    <div className="mt-3 max-h-96 overflow-auto rounded-lg border border-line-soft">
                       <table className="w-full text-left text-xs">
                         <thead className="sticky top-0 bg-card-2 text-ink-muted">
                           <tr>
@@ -284,7 +286,7 @@ const ImportsPage: React.FC = () => {
                           type="button"
                           onClick={commit}
                           disabled={busy !== null || report.errors > 0 || report.ok === 0}
-                          className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-500 disabled:opacity-60"
+                          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
                         >
                           {busy === "commit" ? "Importing…" : `Import ${report.ok} row(s)`}
                         </button>

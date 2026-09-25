@@ -28,25 +28,13 @@ const employeeBodySchema = z.object({
     .optional()
     .nullable()
     .transform((v) => (v ? new Date(v) : null)),
-  bloodGroup: z
-    .enum(["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"])
-    .optional()
-    .nullable(),
-  maritalStatus: z
-    .enum(["single", "married", "divorced", "widowed"])
-    .optional()
-    .nullable(),
-  status: z
-    .enum(["active", "inactive", "resigned", "retired", "terminated"])
-    .optional(),
+  bloodGroup: z.enum(["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]).optional().nullable(),
+  maritalStatus: z.enum(["single", "married", "divorced", "widowed"]).optional().nullable(),
+  status: z.enum(["active", "inactive", "resigned", "retired", "terminated"]).optional(),
 
   // ── Section 2: Contact Info ───────────────────────────────────────────────
   // BUG-EMP-001 fix: mobile is now optional on backend
-  mobile: z
-    .string()
-    .min(10, "Mobile number must be at least 10 digits")
-    .optional()
-    .nullable(),
+  mobile: z.string().min(10, "Mobile number must be at least 10 digits").optional().nullable(),
   // BUG-EMP-002 fix: email is now optional on backend
   email: z.string().email("Invalid email format").optional().nullable(),
   personalMobile: z.string().optional().nullable(),
@@ -122,6 +110,9 @@ const employeeBodySchema = z.object({
   esiNumber: z.string().optional().nullable(),
   professionalTax: z.boolean().optional(),
   tdsApplicable: z.boolean().optional(),
+  // The state the employee actually works in, for professional tax and the labour welfare fund
+  // (P2-02); defaults to the company's state when left blank.
+  workStateCode: z.string().length(2).optional().nullable(),
   bankName: z.string().optional().nullable(),
   bankBranch: z.string().optional().nullable(),
   accountNumber: z.string().optional().nullable(),

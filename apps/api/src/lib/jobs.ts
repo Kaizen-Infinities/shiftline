@@ -46,6 +46,24 @@ export const QUEUES = {
   DEPRECIATION_RUN: "accounts.depreciation.run",
   /** Daily: pull the day's exchange rates for every tenant (P1-17). */
   FX_RATES: "accounts.fx.rates",
+  /** Monthly on the 1st: raise the subscription invoice for every tenant (P1-21, P2-01). */
+  BILLING_SWEEP: "platform.billing.sweep",
+  /** Daily: warn before a post-dated cheque, received or issued, comes due (P1-20, P2-01). */
+  CHEQUE_DUE: "banking.cheque.due",
+  /** Monthly on the 1st: prepare last month's Tally export for opted-in tenants (P1-06, P2-01). */
+  TALLY_EXPORT_SWEEP: "accounts.tally.export.sweep",
+  /** One SMS send per job, queued off the request path; retried by pg-boss (P1-22, P2-01). */
+  SMS_SEND: "comms.sms.send",
+  /** Monthly on the 1st: accrue leave from last month's attendance, every tenant (P2-09). */
+  LEAVE_ACCRUAL: "payroll.leave.accrual",
+  /** Monthly on the 1st: remind employees with no tax declaration on file for the FY (P2-16). */
+  TAX_DECLARATION_REMINDER: "payroll.tax-declaration.reminder",
+  /** Daily: flag a GSTR-2B MISSING_IN_2B/MISMATCH record nobody has followed up (P2-18). */
+  GSTR2B_NUDGE: "gst.gstr2b.nudge",
+  /** Every minute: enqueue a poll job for every active MachineGateway due this cycle (P2-01). */
+  MACHINE_TELEMETRY_FANOUT: "shop-floor.machine-telemetry.fanout",
+  /** One gateway poll per job; connects, reads, writes the batch, rolls up cycles. */
+  MACHINE_TELEMETRY_POLL: "shop-floor.machine-telemetry.poll",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -55,6 +73,9 @@ const TENANT_QUEUES: ReadonlySet<string> = new Set([
   QUEUES.EOD_SNAPSHOT,
   QUEUES.RETENTION_SWEEP,
   QUEUES.ACCOUNT_EXPORT,
+  // Per-gateway, not per-tenant, but the same "one queued, one active" stately policy applies:
+  // its singletonKey is `${companyId}:${gatewayId}`, not companyId alone.
+  QUEUES.MACHINE_TELEMETRY_POLL,
 ]);
 
 let boss: PgBoss | undefined;

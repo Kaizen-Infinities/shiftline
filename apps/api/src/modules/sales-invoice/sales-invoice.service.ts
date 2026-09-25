@@ -4,7 +4,7 @@ import type { SalesDocumentType, SupplyType } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import type { Db } from "../../lib/prisma";
 import { ApiError } from "../../utils/ApiError";
-import { CreateSalesInvoiceInput } from "./sales-invoice.validation";
+import { CreateSalesInvoiceInput, RecordReceiptInput } from "./sales-invoice.validation";
 import crypto from "crypto";
 import { logger } from "../../lib/logger";
 import { documentNumberService } from "../documents/document-number.service";
@@ -22,6 +22,8 @@ import { periodService } from "../accounts/period.service";
 import { BASE_CURRENCY, currencyService } from "../currency/currency.service";
 import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
+import { tdsService } from "../tds/tds.service";
+import { extractPaymentsArray } from "../../utils/payments";
 
 type SaleItemInput = CreateSalesInvoiceInput["items"][number];
 type SaleHeaderInput = {
@@ -272,8 +274,38 @@ class SalesInvoiceService {
       }
     }
 
+    // P2-05: TCS (section 394) on scrap sales or on a buyer above the annual threshold. Offered
+    // as a preview unless collectTcs is accepted; either way it rides on the receivable.
+    let tcsPreview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
+    let tcsAmount = 0;
+    const tcsSectionCode = (data as any).tcsSectionCode as string | undefined;
+    if (tcsSectionCode) {
+      // No PAN field on the customer master; the GSTIN carries it (characters 3-12).
+      const customerPan =
+        customer.gstin && customer.gstin.length >= 12
+          ? customer.gstin.slice(2, 12).toUpperCase()
+          : null;
+      tcsPreview = await tdsService.rateFor({
+        sectionCode: tcsSectionCode,
+        customerId: data.customerId,
+        deducteePan: customerPan,
+        amount: taxableAmount,
+        on: new Date(data.invoiceDate),
+      });
+      if ((data as any).collectTcs) {
+        tcsAmount = Math.round((tcsPreview.base * tcsPreview.rate) / 100 + Number.EPSILON) * 1;
+        tcsAmount = Math.round(tcsAmount * 100) / 100;
+      }
+    }
+
     const grandTotal =
-      taxableAmount + taxTotal + cessTotal + chargeAdditions - chargeDeductions + billSundryTotal;
+      taxableAmount +
+      taxTotal +
+      cessTotal +
+      chargeAdditions -
+      chargeDeductions +
+      billSundryTotal +
+      tcsAmount;
 
     const exportHeader = {
       exportType: (data as SaleExportInput).exportType ?? null,
@@ -351,6 +383,8 @@ class SalesInvoiceService {
             totalDiscount,
             taxTotal,
             grandTotal,
+            tcsAmount,
+            tcsSectionCode: (data as any).collectTcs ? (tcsSectionCode ?? null) : null,
             companyId: currentUser.companyId,
             createdBy: currentUser.userId,
             status: computedStatus,
@@ -545,7 +579,37 @@ class SalesInvoiceService {
       }
     }
 
-    return serializeInvoice(invoice);
+    // P2-05: accepting the TCS preview records the collection (for the quarterly return and the
+    // buyer threshold); the payable ledger itself is credited inside postSalesVoucher above,
+    // since the invoice's own receivable already carries the amount — a second journal would
+    // debit the customer twice.
+    // A below-threshold invoice (tcsAmount 0) still records a PENDING row — same as the GRN
+    // side's own TDS deduction (P2-05) — so the running year-to-date total this buyer's next
+    // invoice checks against actually has this one counted in it (P2-17: without this, a run of
+    // under-threshold invoices to the same buyer, or the same PAN across rows, never crosses the
+    // threshold at all, because nothing was ever kept on file to add up).
+    if ((data as any).collectTcs && tcsSectionCode) {
+      try {
+        await tdsService.deduct(
+          {
+            sectionCode: tcsSectionCode,
+            customerId: data.customerId,
+            kind: "ON_COLLECTION",
+            docType: "SALES_INVOICE",
+            docId: invoice.id,
+            docNo: invoice.invoiceNo,
+            deductionDate: invoice.invoiceDate,
+            amount: taxableAmount,
+          },
+          { userId: currentUser.userId }
+        );
+      } catch (tcsErr) {
+        logger.error({ err: tcsErr }, "[Sales Invoice TCS] Failed to record TCS collection:");
+      }
+    }
+
+    const result = serializeInvoice(invoice);
+    return tcsPreview && !(data as any).collectTcs ? { ...result, tcsPreview } : result;
   }
 
   async getAllSalesInvoices(params: {
@@ -709,6 +773,15 @@ class SalesInvoiceService {
           ["SALES_INVOICE", "SALES_PAYMENT"],
           [invoice.id, ...paymentIds],
           { reason, actor },
+          tx
+        );
+        // P2-05: the TCS collection (if any) was folded into the sales voucher above; the
+        // TdsDeduction row itself is marked cancelled so it drops out of the quarterly return.
+        await tdsService.reverseForDoc(
+          "SALES_INVOICE",
+          invoice.id,
+          reason?.trim() || `Invoice ${invoice.invoiceNo} cancelled`,
+          actor,
           tx
         );
 
@@ -1083,6 +1156,190 @@ class SalesInvoiceService {
       },
       { maxWait: 10000, timeout: 30000 }
     );
+  }
+
+  /**
+   * P2-12: a receipt recorded by hand against a sales invoice — cash, bank or cheque, and for a
+   * foreign-currency invoice a settlement rate (defaulted from the rate table when omitted). It
+   * rides on `postReceiptVouchersForSales` (P2-06), the same helper the payment-gateway capture
+   * path uses, so the cheque register row and any FX realisation happen exactly the same way a
+   * counter receipt would produce them.
+   */
+  async recordReceipt(
+    id: string,
+    data: RecordReceiptInput,
+    currentUser: { userId: string; companyId: string }
+  ) {
+    const invoice = await prisma.salesInvoice.findFirst({
+      where: { id, companyId: currentUser.companyId },
+    });
+    if (!invoice) throw new ApiError(404, "Sales Invoice not found");
+    if (invoice.cancelledAt) {
+      throw new ApiError(
+        409,
+        `Invoice ${invoice.invoiceNo} is cancelled; it cannot record a receipt`,
+        "INVOICE_CANCELLED"
+      );
+    }
+
+    await periodService.assertPostingAllowed(new Date(data.paymentDate), currentUser);
+
+    const isForeign = Boolean(invoice.currencyCode && invoice.currencyCode !== BASE_CURRENCY);
+    const existingPayments = extractPaymentsArray(invoice.payments);
+    const amount = Math.round(Number(data.amount) * 100) / 100;
+
+    // A foreign-currency invoice settles at the day's rate unless one was given explicitly
+    // (P2-06's realiseFxForPayment would default it too, but resolving it here means the
+    // receipt on file shows the rate it was actually recorded at, and the over-receipt check
+    // below can compare in the currency the invoice was actually raised in).
+    let settlementRate = data.settlementRate ?? null;
+    if (!settlementRate && isForeign) {
+      settlementRate = await currencyService.rateFor(
+        invoice.currencyCode,
+        new Date(data.paymentDate)
+      );
+    }
+
+    // The outstanding balance: in rupees for a rupee invoice; in the invoice's own foreign
+    // currency for a foreign one, since a receipt settling at a different rate than the
+    // invoice was booked at legitimately moves a different rupee figure without over- or
+    // under-collecting the debt itself (that difference is exactly the realised FX gain/loss).
+    let outstandingDisplay: number;
+    if (isForeign) {
+      const bookedRate = Number(invoice.exchangeRate ?? 1) || 1;
+      const foreignAlreadyPaid = existingPayments.reduce((s, p: any) => {
+        const rate = Number(p.settlementRate) > 0 ? Number(p.settlementRate) : bookedRate;
+        return s + (Number(p.amount) || 0) / rate;
+      }, 0);
+      const foreignOutstanding =
+        Math.round((Number(invoice.foreignTotal ?? 0) - foreignAlreadyPaid) * 100) / 100;
+      const rateForThisReceipt = settlementRate ?? bookedRate;
+      const inrCeiling = Math.round(foreignOutstanding * rateForThisReceipt * 100) / 100;
+      outstandingDisplay = inrCeiling;
+      if (amount > inrCeiling + 1) {
+        // Foreign-currency roundings can differ by a few paise per rupee of rate; a rupee of
+        // slack per unit of rate is generous enough to absorb that without hiding a real
+        // over-receipt.
+        throw new ApiError(
+          400,
+          `Receipt exceeds the outstanding balance (₹${Math.max(inrCeiling, 0)}) on invoice ${invoice.invoiceNo}`,
+          "OVER_RECEIPT"
+        );
+      }
+    } else {
+      const alreadyPaid =
+        Math.round(existingPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0) * 100) /
+        100;
+      outstandingDisplay = Math.round((Number(invoice.grandTotal) - alreadyPaid) * 100) / 100;
+      if (amount > outstandingDisplay + 0.01) {
+        throw new ApiError(
+          400,
+          `Receipt of ${amount} exceeds the outstanding balance of ${Math.max(outstandingDisplay, 0)} on invoice ${invoice.invoiceNo}`,
+          "OVER_RECEIPT"
+        );
+      }
+    }
+
+    const methodLabel =
+      data.instrumentType === "CHEQUE"
+        ? "Cheque"
+        : data.instrumentType === "BANK"
+          ? "Bank Transfer"
+          : "Cash";
+
+    const paymentId = crypto.randomUUID();
+    const payment: Record<string, unknown> = {
+      id: paymentId,
+      amount,
+      paymentMethod: methodLabel,
+      referenceNumber: data.referenceNumber ?? null,
+      paymentDate: data.paymentDate,
+      instrumentType: data.instrumentType,
+      recordedBy: currentUser.userId,
+      createdAt: new Date().toISOString(),
+      source: "MANUAL",
+    };
+    if (data.instrumentType === "CHEQUE") {
+      payment.chequeNo = data.chequeNo;
+      payment.chequeDate = data.chequeDate ?? data.paymentDate;
+      payment.chequeBank = data.chequeBank ?? null;
+      payment.chequeParty = data.chequeParty ?? null;
+    }
+    if (settlementRate) payment.settlementRate = settlementRate;
+
+    const allPayments = [...existingPayments, payment];
+    const totalPaid = allPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+    const fullyPaid = totalPaid >= Number(invoice.grandTotal) - 0.01;
+
+    return prisma.$transaction(
+      async (tx) => {
+        await tx.salesInvoice.update({
+          where: { id },
+          data: {
+            payments: allPayments as any,
+            ...(fullyPaid ? { status: "PAID" } : {}),
+          },
+        });
+
+        await tx.salesInvoicePayment.create({
+          data: {
+            salesInvoiceId: id,
+            amount,
+            paymentMethod: methodLabel,
+            referenceNumber: data.referenceNumber ? data.referenceNumber.slice(0, 100) : null,
+            paymentDate: new Date(`${data.paymentDate.slice(0, 10)}T00:00:00Z`),
+            recordedBy: currentUser.userId,
+            voucherPosted: false,
+          },
+        });
+
+        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
+        await voucherPostingService.postReceiptVouchersForSales(id, tx);
+
+        const updated = await tx.salesInvoice.findUnique({
+          where: { id },
+          include: {
+            customer: { select: { id: true, firmName: true, displayName: true, email: true } },
+          },
+        });
+        return serializeInvoice(updated);
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
+  }
+
+  /**
+   * P2-12: every receipt recorded on this invoice (both by hand and via the payment-gateway
+   * capture path), joined with the cheque register row when the instrument was a cheque, so the
+   * view page can show its status (IN_HAND / DEPOSITED / CLEARED / BOUNCED) without a second call.
+   */
+  async listReceipts(id: string, companyId: string) {
+    const invoice = await prisma.salesInvoice.findFirst({
+      where: { id, companyId },
+      select: { payments: true },
+    });
+    if (!invoice) throw new ApiError(404, "Sales Invoice not found");
+
+    const payments = extractPaymentsArray(invoice.payments);
+    const cheques = await prisma.cheque.findMany({
+      where: { refDocType: "SALES_PAYMENT", sourceDocId: id },
+    });
+    const chequeByRef = new Map(cheques.map((c) => [c.refDocId, c]));
+
+    return payments.map((p: any) => {
+      const cheque = p.id ? chequeByRef.get(String(p.id)) : undefined;
+      return {
+        ...p,
+        cheque: cheque
+          ? {
+              status: cheque.status,
+              chequeNo: cheque.chequeNo,
+              chequeDate: cheque.chequeDate,
+              bankName: cheque.bankName,
+            }
+          : null,
+      };
+    });
   }
 }
 

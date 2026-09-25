@@ -8,7 +8,7 @@ import { eInvoiceService, type EInvoiceSettings } from "../../../services/eInvoi
  * the 30-day window, and the GSP connection. Secrets are write-only.
  */
 const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
+const primary = `${btn} bg-accent text-white hover:brightness-110`;
 const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
 const input = "w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink";
 const label = "block text-xs font-semibold uppercase tracking-wide text-ink-subtle mb-1";
@@ -108,7 +108,7 @@ const EInvoiceSettingsPage: React.FC = () => {
           provider mimics the portal so the flow can be tried without filing anything.
         </p>
       </div>
-      <div className="grid gap-4 rounded-xl border border-line-soft bg-card p-4 md:grid-cols-2">
+      <div className="grid gap-4 rounded-lg border border-line-soft bg-card p-4 md:grid-cols-2">
         <label className="flex items-center gap-2 text-sm text-ink md:col-span-2">
           <input
             type="checkbox"

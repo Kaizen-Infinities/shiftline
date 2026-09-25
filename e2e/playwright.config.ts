@@ -60,6 +60,10 @@ export default defineConfig({
             PORT: new URL(API).port || "5000",
             // One login per screen: the suite outgrows the production cap of 30 per 15 minutes.
             AUTH_RATE_LIMIT_MAX: process.env.AUTH_RATE_LIMIT_MAX ?? "500",
+            // And every screen makes a dozen calls of its own. The whole suite arrives from one
+            // address, so the global cap of 1200 runs out partway down the list and every test
+            // after that fails at login rather than on anything the screen did.
+            GLOBAL_RATE_LIMIT_MAX: process.env.GLOBAL_RATE_LIMIT_MAX ?? "50000",
           },
         },
         {

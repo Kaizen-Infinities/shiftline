@@ -1,49 +1,10 @@
-.pricing-btn {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--color-primary, #6366f1);
-  transition: all 0.25s ease;
-}
-
+/* PricingButton — shape and tone come from .sl-icon-btn / .sl-icon-btn-tone-primary
+   (style.css, "UI v2 — components"). */
 .pricing-btn-icon {
-  font-size: 18px;
-}
-
-.pricing-btn:hover {
-  transform: translateY(-3px);
-  background: rgba(99, 102, 241, 0.22);
-  box-shadow:
-    0 8px 18px rgba(99, 102, 241, 0.18);
-}
-
-.pricing-btn:active {
-  transform: scale(0.95);
+  font-size: 14px;
 }
 
 .pricing-btn.disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
-  pointer-events: none;
-  box-shadow: none;
-  transform: none;
-}
-
-/* Dark Theme Overrides */
-:root[data-theme="dark"] .pricing-btn {
-  background: rgba(99, 102, 241, 0.2);
-  color: #818cf8;
-  border: 1px solid rgba(99, 102, 241, 0.3);
-}
-
-:root[data-theme="dark"] .pricing-btn:hover {
-  background: #6366f1;
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
 }

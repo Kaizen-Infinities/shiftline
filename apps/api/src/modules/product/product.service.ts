@@ -98,6 +98,7 @@ class ProductService {
       weightPerPiece: toNumberOrNull(data.weightPerPiece),
       weightUom: cleanString(data.weightUom, 10) || "g",
       isActive: toBoolean(data.isActive, true),
+      isScrap: toBoolean(data.isScrap, false),
 
       minimumQty: data.minimumQty || "0",
       rate: toNumberOrNull(data.rate),
@@ -522,6 +523,7 @@ class ProductService {
       weightUom: data.weightUom !== undefined ? cleanString(data.weightUom, 10) || "g" : undefined,
       minimumQty: data.minimumQty !== undefined ? data.minimumQty : undefined,
       isActive: data.isActive !== undefined ? toBoolean(data.isActive, true) : undefined,
+      isScrap: data.isScrap !== undefined ? toBoolean(data.isScrap, false) : undefined,
 
       rate: data.rate !== undefined ? toNumberOrNull(data.rate) : undefined,
       gradeRates:

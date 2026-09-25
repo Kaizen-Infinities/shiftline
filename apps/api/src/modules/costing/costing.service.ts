@@ -6,6 +6,7 @@ import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
 import { periodService } from "../accounts/period.service";
 import { valuationService } from "./valuation.service";
+import { wipService } from "./wip.service";
 
 /**
  * Cost centres, budgets, the product cost sheet and the closing-stock posting (P1-19).
@@ -373,11 +374,85 @@ class CostingService {
     return rows.map((r) => ({ ...r, productId: String(r.productId) }));
   }
 
+  // ── Costing settings (P2-14) ─────────────────────────────────────────────────
+  /** Which ledger WIP posts to. A tenant that never visits the setting reads the "WIP" default. */
+  async getSettings() {
+    const row = await prisma.costingSetting.findFirst();
+    return { wipLedgerCode: row?.wipLedgerCode ?? "WIP" };
+  }
+
+  async updateSettings(input: { wipLedgerCode: string }, actor: { userId?: string }) {
+    const wipLedgerCode = input.wipLedgerCode.trim().toUpperCase().slice(0, 20);
+    if (!wipLedgerCode) throw new ApiError(400, "A WIP ledger code is required");
+    await accountsService.ensureSystemLedgersExist();
+    const ledger = await prisma.accountLedger.findFirst({ where: { code: wipLedgerCode } });
+    if (!ledger) throw new ApiError(400, "That ledger code does not exist", "UNKNOWN_LEDGER");
+    const companyId = requireTenantId();
+    const row = await prisma.costingSetting.upsert({
+      where: { companyId },
+      create: { companyId, wipLedgerCode, updatedBy: actor.userId?.slice(0, 36) ?? null },
+      update: { wipLedgerCode, updatedBy: actor.userId?.slice(0, 36) ?? null },
+    });
+    return { wipLedgerCode: row.wipLedgerCode };
+  }
+
   // ── Closing stock ──────────────────────────────────────────────────────────
+  /** A ledger's booked balance (debit − credit) as of a date, from POSTED vouchers only. */
+  private async ledgerBalanceAsOf(
+    tx: Prisma.TransactionClient | typeof prisma,
+    ledgerId: number,
+    asOn: Date
+  ) {
+    const where = { voucher: { date: { lte: asOn }, status: "POSTED" as const } };
+    const [debit, credit] = await Promise.all([
+      tx.journalItem.aggregate({
+        where: { debitLedgerId: ledgerId, ...where },
+        _sum: { debitAmount: true },
+      }),
+      tx.journalItem.aggregate({
+        where: { creditLedgerId: ledgerId, ...where },
+        _sum: { creditAmount: true },
+      }),
+    ]);
+    return n2(Number(debit._sum.debitAmount ?? 0) - Number(credit._sum.creditAmount ?? 0));
+  }
+
+  /**
+   * Whether a period's closing stock (and the WIP carved out of it) has been posted, without
+   * posting anything — the costing screen's WIP card uses this to say so, or to say that WIP has
+   * moved since the period was last posted.
+   */
+  async closingStockStatus(periodKey: string) {
+    const period = monthRange(periodKey);
+    const existing = await prisma.voucher.findFirst({
+      where: { refDocType: "CLOSING_STOCK", refDocId: periodKey, status: "POSTED" },
+    });
+    const wip = (await wipService.total()).total;
+    let wipPosted: number | null = null;
+    if (existing) {
+      const { wipLedgerCode } = await this.getSettings();
+      const wipLedger = await prisma.accountLedger.findFirst({ where: { code: wipLedgerCode } });
+      wipPosted = wipLedger ? await this.ledgerBalanceAsOf(prisma, wipLedger.id, period.to) : null;
+    }
+    return {
+      posted: !!existing,
+      wip,
+      wipPosted,
+      upToDate: wipPosted !== null && wipPosted === wip,
+    };
+  }
+
   /**
    * Posts the movement in stock for a period: the difference between what the valuation ledger
    * says at the start and at the end, against "Change in Inventories". Posting the closing figure
    * itself rather than the movement would double the stock every month.
+   *
+   * Work in progress (P2-14) rides in the same voucher: the change in `wipService.total()` since
+   * whatever was last posted to the WIP ledger moves Dr WIP / Cr Closing Stock (or the reverse
+   * when WIP fell), so the WIP ledger always ends the period at the current total and the closing
+   * stock ledger carries the rest. Because the movement is a delta from what the WIP ledger
+   * already books, re-posting the same period is a no-op (the existing-voucher guard below) and
+   * the next period only ever adjusts for what changed since.
    */
   async postClosingStock(periodKey: string, actor: { userId?: string }) {
     const period = monthRange(periodKey);
@@ -385,13 +460,11 @@ class CostingService {
     const opening = (await valuationService.closingStock(dayBefore)).total;
     const closing = (await valuationService.closingStock(period.to)).total;
     const movement = n2(closing - opening);
-    if (Math.abs(movement) < 0.01) {
-      return { posted: false, opening, closing, movement: 0, voucherId: null as number | null };
-    }
+    const wip = (await wipService.total()).total;
+    const { wipLedgerCode } = await this.getSettings();
 
     return prisma.$transaction(async (tx) => {
       await accountsService.ensureSystemLedgersExist(tx);
-      await periodService.assertPostingAllowed(period.to, undefined, tx);
       const ledger = async (code: string) => {
         const row = await tx.accountLedger.findFirst({ where: { code } });
         if (!row) throw new ApiError(500, `Missing ledger ${code}`, "MISSING_LEDGER");
@@ -399,46 +472,110 @@ class CostingService {
       };
       const stock = await ledger("STOCK-001");
       const change = await ledger("STOCK-CHG-001");
+      const wipLedger = await tx.accountLedger.findFirst({ where: { code: wipLedgerCode } });
+      if (!wipLedger) {
+        throw new ApiError(400, `Unknown WIP ledger code ${wipLedgerCode}`, "UNKNOWN_LEDGER");
+      }
+      const wipPrevious = await this.ledgerBalanceAsOf(tx, wipLedger.id, dayBefore);
+      const wipMovement = n2(wip - wipPrevious);
+
+      if (Math.abs(movement) < 0.01 && Math.abs(wipMovement) < 0.01) {
+        return {
+          posted: false,
+          opening,
+          closing,
+          movement: 0,
+          wip,
+          voucherId: null as number | null,
+        };
+      }
+
+      await periodService.assertPostingAllowed(period.to, undefined, tx);
       const existing = await tx.voucher.findFirst({
         where: { refDocType: "CLOSING_STOCK", refDocId: periodKey, status: "POSTED" },
       });
       if (existing) {
-        return { posted: false, opening, closing, movement, voucherId: existing.id };
+        return { posted: false, opening, closing, movement, wip, voucherId: existing.id };
       }
 
       const D = (n: number) => new Prisma.Decimal(n2(n));
-      const amount = Math.abs(movement);
-      // Stock went up: the asset rises and the charge to the profit and loss falls.
-      const items =
-        movement > 0
-          ? [
-              {
-                debitLedgerId: stock.id,
-                debitAmount: D(amount),
-                creditAmount: D(0),
-                narration: `Increase in stock — ${periodKey}`,
-              },
-              {
-                creditLedgerId: change.id,
-                debitAmount: D(0),
-                creditAmount: D(amount),
-                narration: `Increase in stock — ${periodKey}`,
-              },
-            ]
-          : [
-              {
-                debitLedgerId: change.id,
-                debitAmount: D(amount),
-                creditAmount: D(0),
-                narration: `Decrease in stock — ${periodKey}`,
-              },
-              {
-                creditLedgerId: stock.id,
-                debitAmount: D(0),
-                creditAmount: D(amount),
-                narration: `Decrease in stock — ${periodKey}`,
-              },
-            ];
+      const items: Prisma.JournalItemCreateWithoutVoucherInput[] = [];
+
+      if (Math.abs(movement) > 0.01) {
+        const amount = Math.abs(movement);
+        // Stock went up: the asset rises and the charge to the profit and loss falls.
+        if (movement > 0) {
+          items.push(
+            {
+              debitLedger: { connect: { id: stock.id } },
+              debitAmount: D(amount),
+              creditAmount: D(0),
+              narration: `Increase in stock — ${periodKey}`,
+            },
+            {
+              creditLedger: { connect: { id: change.id } },
+              debitAmount: D(0),
+              creditAmount: D(amount),
+              narration: `Increase in stock — ${periodKey}`,
+            }
+          );
+        } else {
+          items.push(
+            {
+              debitLedger: { connect: { id: change.id } },
+              debitAmount: D(amount),
+              creditAmount: D(0),
+              narration: `Decrease in stock — ${periodKey}`,
+            },
+            {
+              creditLedger: { connect: { id: stock.id } },
+              debitAmount: D(0),
+              creditAmount: D(amount),
+              narration: `Decrease in stock — ${periodKey}`,
+            }
+          );
+        }
+      }
+
+      if (Math.abs(wipMovement) > 0.01) {
+        const amount = Math.abs(wipMovement);
+        // Material issued to an open production order left raw-material stock the moment it was
+        // issued; this carves that value out of the blended stock ledger and into its own WIP
+        // ledger, so raw-material stock in the books reads as valuation minus WIP rather than
+        // silently including material that is sitting on the shop floor. WIP falling — the order
+        // finished or was cancelled — moves it back the other way.
+        if (wipMovement > 0) {
+          items.push(
+            {
+              debitLedger: { connect: { id: wipLedger.id } },
+              debitAmount: D(amount),
+              creditAmount: D(0),
+              narration: `Material moved to work in progress — ${periodKey}`,
+            },
+            {
+              creditLedger: { connect: { id: stock.id } },
+              debitAmount: D(0),
+              creditAmount: D(amount),
+              narration: `Material moved to work in progress — ${periodKey}`,
+            }
+          );
+        } else {
+          items.push(
+            {
+              debitLedger: { connect: { id: stock.id } },
+              debitAmount: D(amount),
+              creditAmount: D(0),
+              narration: `Work in progress cleared — ${periodKey}`,
+            },
+            {
+              creditLedger: { connect: { id: wipLedger.id } },
+              debitAmount: D(0),
+              creditAmount: D(amount),
+              narration: `Work in progress cleared — ${periodKey}`,
+            }
+          );
+        }
+      }
 
       const voucher = await tx.voucher.create({
         data: {
@@ -452,7 +589,7 @@ class CostingService {
           items: { create: items },
         },
       });
-      return { posted: true, opening, closing, movement, voucherId: voucher.id };
+      return { posted: true, opening, closing, movement, wip, voucherId: voucher.id };
     });
   }
 }

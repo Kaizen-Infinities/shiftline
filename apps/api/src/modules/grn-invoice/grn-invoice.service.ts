@@ -11,6 +11,8 @@ import { documentNumberService } from "../documents/document-number.service";
 import { periodService } from "../accounts/period.service";
 import { dueDateFrom } from "../accounts/ageing";
 import { cancellationService } from "../accounts/cancellation.service";
+import { valuationService } from "../costing/valuation.service";
+import { tdsService } from "../tds/tds.service";
 import { splitGst } from "../gst/gst.calc";
 import {
   cessOn,
@@ -18,6 +20,7 @@ import {
   rawMaterialTaxDefaults,
   type PurchaseGstContext,
 } from "../gst/gst.context";
+import { currencyService } from "../currency/currency.service";
 
 function getUomMultiplier(uom: string = "", baseUom: string = ""): number {
   const u = (uom || "").trim().toLowerCase();
@@ -175,6 +178,24 @@ class GrnInvoiceService {
     const items = typeof data.items === "string" ? JSON.parse(data.items) : data.items;
     const sameAsBilling = (data.sameAsBilling as any) === "true" || data.sameAsBilling === true;
 
+    // Foreign currency (P2-06, mirroring what P1-14 did for the sales invoice). The line rates
+    // arrive in the bill's currency; converting them here means every figure computed below —
+    // and every voucher and the exposure/restatement downstream — is already in rupees.
+    const currencyCode = String(data.currencyCode ?? "INR").toUpperCase();
+    const exchangeRate =
+      currencyCode === "INR"
+        ? 1
+        : (data.exchangeRate ??
+          (await currencyService.rateFor(currencyCode, new Date(data.grnDate))));
+    const itemsInInr =
+      exchangeRate === 1
+        ? items
+        : items.map((i: any) => ({
+            ...i,
+            unitPrice: Number(i.unitPrice) * exchangeRate,
+            discountAmount: Number(i.discountAmount ?? 0) * exchangeRate,
+          }));
+
     const {
       itemsWithTotals,
       subtotal,
@@ -185,7 +206,9 @@ class GrnInvoiceService {
       totalIgst,
       totalCess,
       netAmount,
-    } = await this.calculateTotals(items, gst, discountType, discountValue, roundingAdjust);
+    } = await this.calculateTotals(itemsInInr, gst, discountType, discountValue, roundingAdjust);
+    const foreignTotal =
+      exchangeRate === 1 ? null : Math.round((netAmount / exchangeRate) * 100) / 100;
 
     // Upload invoice image to ImageKit if provided
     let invoiceImageUrl: string | null = null;
@@ -201,6 +224,21 @@ class GrnInvoiceService {
 
     const updateStockEnabled = data.updateStock === true || (data.updateStock as any) === "true";
 
+    // P2-05: TDS is worked out on the taxable value, not the GST-inclusive bill.
+    const tdsBaseAmount = Math.max(0, Number(subtotal) - Number(totalDiscount));
+    let tdsPreview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
+    if (data.tdsSectionCode) {
+      tdsPreview = await tdsService.rateFor({
+        sectionCode: data.tdsSectionCode,
+        supplierId: Number(data.supplierId),
+        deducteePan: supplier.pan,
+        deducteeType: supplier.deducteeType ?? undefined,
+        higherRate: supplier.higherRate206AB ?? false,
+        amount: tdsBaseAmount,
+        on: new Date(data.grnDate),
+      });
+    }
+
     const rawPayments =
       typeof (data as any).payments === "string"
         ? JSON.parse((data as any).payments)
@@ -213,6 +251,14 @@ class GrnInvoiceService {
       paymentDate: p.paymentDate,
       recordedBy: currentUser.userId,
       createdAt: new Date().toISOString(),
+      // Cheque instrument and settlement rate (P2-06); posting these is voucherPostingService's
+      // job, not this one — a payment here is just recorded, converted to a voucher afterwards.
+      instrumentType: p.instrumentType ?? undefined,
+      chequeNo: p.chequeNo ?? undefined,
+      chequeDate: p.chequeDate ?? undefined,
+      chequeBank: p.chequeBank ?? undefined,
+      chequeParty: p.chequeParty ?? undefined,
+      settlementRate: p.settlementRate ?? undefined,
     }));
     const totalPaid =
       Math.round(
@@ -295,6 +341,9 @@ class GrnInvoiceService {
             totalIgst,
             totalCess,
             netAmount,
+            currencyCode,
+            exchangeRate,
+            foreignTotal,
 
             companyId: currentUser.companyId,
             createdBy: currentUser.userId,
@@ -402,6 +451,25 @@ class GrnInvoiceService {
                 remarks: `GRN Created (Auto Adjustment): ${grnNumber}`,
               },
             });
+
+            // Values the receipt at the line's landed-free cost; a linked bill of entry tops the
+            // average up with landed cost separately (P2-04).
+            await valuationService.record(
+              {
+                itemType: "RAW_MATERIAL",
+                itemId: item.productId,
+                storeId: data.storeId,
+                movedOn: data.grnDate,
+                kind: "RECEIPT",
+                quantity: receivedQtyNum,
+                rate: Number(item.unitPrice) / (mult || 1),
+                refDocType: "GRN",
+                refDocId: grnInvoice.id,
+                narration: `GRN ${grnNumber}`,
+              },
+              { userId: currentUser.userId },
+              tx
+            );
           }
 
           await tx.stockAdjustment.create({
@@ -493,7 +561,52 @@ class GrnInvoiceService {
       );
     }
 
-    return grnInvoice;
+    // P2-05: accepting the TDS preview records the deduction and posts its journal — the
+    // supplier's payable balance and TDS-<section> ledger both move.
+    if (data.deductTds && data.tdsSectionCode) {
+      try {
+        const deduction = await tdsService.deduct(
+          {
+            sectionCode: data.tdsSectionCode,
+            supplierId: Number(data.supplierId),
+            docType: "GRN_INVOICE",
+            docId: grnInvoice.id,
+            docNo: grnInvoice.grnNumber,
+            deductionDate: grnInvoice.grnDate,
+            amount: tdsBaseAmount,
+          },
+          { userId: currentUser.userId }
+        );
+        const tdsAmount = Number(deduction.tdsAmount);
+        if (tdsAmount > 0) {
+          await tdsService.postDeductionVoucher(deduction.id, prisma);
+          const payable = Number(grnInvoice.netAmount) - tdsAmount;
+          const totalPaid =
+            Math.round(
+              (Array.isArray(grnInvoice.payments) ? (grnInvoice.payments as any[]) : []).reduce(
+                (s: number, p: any) => s + Number(p.amount || 0),
+                0
+              ) * 100
+            ) / 100;
+          const paymentStatus =
+            totalPaid === 0 ? "Unpaid" : totalPaid >= payable ? "Closed" : "Partial";
+          await prisma.grnInvoice.update({
+            where: { id: grnInvoice.id },
+            data: { tdsAmount, tdsSectionCode: data.tdsSectionCode, paymentStatus },
+          });
+        }
+      } catch (tdsErr) {
+        logger.error({ err: tdsErr }, "[GRN TDS] Failed to record TDS deduction:");
+      }
+    }
+
+    const finalInvoice = await prisma.grnInvoice.findUniqueOrThrow({
+      where: { id: grnInvoice.id },
+      include: { items: true },
+    });
+    // Offer the preview only when it was not already accepted — once accepted the row itself
+    // carries tdsAmount/tdsSectionCode.
+    return data.deductTds ? finalInvoice : { ...finalInvoice, tdsPreview };
   }
 
   // ── Get All ─────────────────────────────────────────────────────────────────
@@ -669,10 +782,36 @@ class GrnInvoiceService {
       let netAmount = Number(existing.netAmount);
 
       let itemsToCreate = existing.items;
+      let currencyCode = existing.currencyCode ?? "INR";
+      let exchangeRate = Number(existing.exchangeRate ?? 1);
+      let foreignTotal =
+        existing.foreignTotal !== null && existing.foreignTotal !== undefined
+          ? Number(existing.foreignTotal)
+          : null;
+
+      if (data.currencyCode !== undefined) currencyCode = String(data.currencyCode).toUpperCase();
+      if (currencyCode !== "INR" && data.exchangeRate !== undefined) {
+        exchangeRate = Number(data.exchangeRate);
+      } else if (currencyCode === "INR") {
+        exchangeRate = 1;
+      } else if (!exchangeRate || exchangeRate <= 0) {
+        exchangeRate = await currencyService.rateFor(
+          currencyCode,
+          data.grnDate ? new Date(data.grnDate) : existing.grnDate
+        );
+      }
 
       if (items) {
+        const itemsInInr =
+          exchangeRate === 1
+            ? items
+            : items.map((i: any) => ({
+                ...i,
+                unitPrice: Number(i.unitPrice) * exchangeRate,
+                discountAmount: Number(i.discountAmount ?? 0) * exchangeRate,
+              }));
         const totals = await this.calculateTotals(
-          items,
+          itemsInInr,
           gst,
           discountType,
           discountValue,
@@ -693,6 +832,7 @@ class GrnInvoiceService {
           where: { grnInvoiceId: id },
         });
       }
+      foreignTotal = exchangeRate === 1 ? null : Math.round((netAmount / exchangeRate) * 100) / 100;
 
       let processedPayments = existing.payments
         ? ((typeof existing.payments === "string"
@@ -710,6 +850,12 @@ class GrnInvoiceService {
           paymentDate: p.paymentDate,
           recordedBy: "System",
           createdAt: p.createdAt || new Date().toISOString(),
+          instrumentType: p.instrumentType ?? undefined,
+          chequeNo: p.chequeNo ?? undefined,
+          chequeDate: p.chequeDate ?? undefined,
+          chequeBank: p.chequeBank ?? undefined,
+          chequeParty: p.chequeParty ?? undefined,
+          settlementRate: p.settlementRate ?? undefined,
         }));
         const totalPaid =
           Math.round(
@@ -803,6 +949,9 @@ class GrnInvoiceService {
           totalSgst,
           totalIgst,
           netAmount,
+          currencyCode,
+          exchangeRate,
+          foreignTotal,
           poId: data.poId !== undefined ? data.poId : existing.poId,
 
           ...(data.items && {
@@ -1282,7 +1431,18 @@ class GrnInvoiceService {
           { reason, actor },
           tx
         );
+        // P2-05: a cancelled bill's TDS deduction (if any) is reversed alongside it.
+        await tdsService.reverseForDoc(
+          "GRN_INVOICE",
+          existing.id,
+          reason?.trim() || `GRN ${existing.grnNumber} cancelled`,
+          actor,
+          tx
+        );
         if (existing.updateStock) {
+          // Undo every valuation row this GRN raised — a reversal row each, never a delete.
+          await valuationService.reverseDocument("GRN", existing.id, actor, tx);
+
           const revAdjustmentNumber = `ADJ-REV-${existing.grnNumber}`;
           const revAdjustmentItems = [];
 

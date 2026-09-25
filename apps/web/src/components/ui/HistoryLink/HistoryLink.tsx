@@ -19,10 +19,11 @@ const HistoryLink: React.FC<{ entity: string; entityId: string; className?: stri
     <Link
       to={`/reports/audit?entity=${encodeURIComponent(entity)}&entityId=${encodeURIComponent(entityId)}`}
       title="History (audit trail)"
-      className={`inline-flex items-center justify-center rounded border border-line bg-card-2 p-1 text-ink-muted hover:bg-line hover:text-ink ${className}`}
+      aria-label="History (audit trail)"
+      className={`sl-icon-btn sl-icon-btn-hover-primary ${className}`}
       onClick={(e) => e.stopPropagation()}
     >
-      <FaHistory className="h-3 w-3" />
+      <FaHistory className="h-3.5 w-3.5" aria-hidden="true" />
     </Link>
   );
 };

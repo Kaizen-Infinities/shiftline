@@ -138,10 +138,10 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {REG_TYPES.map((r) => (
           <label
             key={r.value}
-            className={`cursor-pointer rounded-xl border p-3 ${
+            className={`cursor-pointer rounded-[18px] border p-4 transition-colors ${
               registrationType === r.value
-                ? "border-blue-500 bg-blue-500/10"
-                : "border-line-soft bg-card-2"
+                ? "border-transparent bg-nav-active"
+                : "border-line-soft bg-card hover:bg-nav-hover"
             }`}
           >
             <input
@@ -150,7 +150,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
               value={r.value}
               checked={registrationType === r.value}
               onChange={() => setRegistrationType(r.value)}
-              className="mr-2"
+              className="mr-2 accent-[var(--color-accent)]"
             />
             <span className="text-sm font-semibold text-ink">{r.label}</span>
             <span className="mt-1 block text-xs text-ink-muted">{r.hint}</span>
@@ -173,7 +173,11 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
             <input
               name="gstin"
               className={`${inputClass} font-mono tracking-wider ${
-                gstin.length === 15 ? (gstinOk ? "border-emerald-500/60" : "border-red-500/60") : ""
+                gstin.length === 15
+                  ? gstinOk
+                    ? "border-[color:var(--color-success)]/60"
+                    : "border-[color:var(--color-danger)]/60"
+                  : ""
               }`}
               value={gstin}
               onChange={(e) => onGstin(e.target.value)}
@@ -185,9 +189,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
       )}
 
       <div className="mt-6 flex items-center justify-between">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-ink-muted">
-          Places of business
-        </h3>
+        <h3 className="sl-h2 !text-base">Places of business</h3>
         <SecondaryButton
           onClick={() => setPlaces((ps) => [...ps, emptyPlace(false, gstin.slice(0, 2))])}
         >
@@ -199,7 +201,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {places.map((p, idx) => (
           <div
             key={p.id ?? `new-${idx}`}
-            className="rounded-xl border border-line-soft bg-card-2/60 p-4"
+            className="rounded-[18px] border border-line-soft bg-card-2 p-4 sm:p-5"
           >
             <div className="grid gap-3 md:grid-cols-6">
               <Field label="Code">
@@ -309,7 +311,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
               {!p.isHeadOffice && (
                 <button
                   type="button"
-                  className="text-red-500 hover:underline"
+                  className="text-[color:var(--color-danger)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
                   onClick={() => setPlaces((ps) => ps.filter((_, i) => i !== idx))}
                 >
                   Remove

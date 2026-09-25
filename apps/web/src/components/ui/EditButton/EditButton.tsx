@@ -1,7 +1,6 @@
 import React from "react";
 import { FiEdit2 } from "react-icons/fi";
 import { toast } from "react-toastify";
-import "./EditButton.css";
 
 interface EditButtonProps {
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -9,11 +8,7 @@ interface EditButtonProps {
   disabledMessage?: string;
 }
 
-const EditButton: React.FC<EditButtonProps> = ({
-  onClick,
-  disabled,
-  disabledMessage
-}) => {
+const EditButton: React.FC<EditButtonProps> = ({ onClick, disabled, disabledMessage }) => {
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled && disabledMessage) {
       toast.warning(disabledMessage);
@@ -26,11 +21,14 @@ const EditButton: React.FC<EditButtonProps> = ({
   return (
     <button
       type="button"
-      className={`edit-btn ${disabled ? 'disabled' : ''}`}
       onClick={handleClick}
       disabled={disabled && !disabledMessage}
+      aria-label="Edit"
+      title="Edit"
+      aria-disabled={disabled || undefined}
+      className="sl-icon-btn sl-icon-btn-hover-primary"
     >
-      <FiEdit2 />
+      <FiEdit2 className="text-[14px]" aria-hidden="true" />
     </button>
   );
 };

@@ -23,9 +23,18 @@
   --color-line-soft: var(--color-line-soft);
   --color-head: var(--color-head);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  /* ── Concept v2: action gradient and chips ─────────────────── */
+  --color-cta: var(--color-cta);
+  --color-cta-2: var(--color-cta-2);
+  --color-cta-ink: var(--color-cta-ink);
+  --color-cta-edge: var(--color-cta-edge);
+  --color-chip: var(--color-chip);
+  --color-chip-fg: var(--color-chip-fg);
+  --color-brand: var(--color-brand);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
 }
 
 /* Compatibility utilities use the active semantic theme colour. */
@@ -51,120 +60,167 @@
   root
 ================================ */
 :root {
-  /* Brand Colors */
-  --color-primary: #5d87ff;
-  --color-primary-light: #1e3a5f;
+  /* Brand — concept v2: a clear product blue for identity and links; the
+     green-to-lime action gradient (--color-cta*) is reserved for the one
+     primary action on a screen ("Run Payroll", "Pay Taxes"). */
+  --color-primary: #3b62d6;
+  --color-on-primary: #ffffff;
+  --color-primary-light: #6d8ff5;
+  --color-brand: #5b82f6;
 
-  --color-secondary: #cbd5e1;
-  --color-secondary-light: #1c273c;
+  --color-secondary: #dbe5ec;
+  --color-secondary-light: #26394f;
 
-  --color-neutral: #94a3b8;
-  --color-neutral-light: #1c273c;
+  --color-neutral: #7a8fa0;
+  --color-neutral-light: #26394f;
 
-  /* Text (dark) */
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #cbd5e1;
-  --color-text-muted: #94a3b8;
+  /* Text (light default) */
+  --color-text-primary: #1c3548;
+  --color-text-secondary: #4a6275;
+  --color-text-muted: #5c7184;
 
-  /* Background (dark) */
-  --color-bg: #0b1120;
-  --color-surface: #131b2e;
-  --color-border: #28354a;
+  /* Background (light default) */
+  --color-bg: #eef3f6;
+  --color-surface: #ffffff;
+  --color-border: #dbe5ec;
 
-  /* Status */
-  --color-success: #22c55e;
-  --color-warning: #fdb702;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  /* Status — clear, friendly, readable on white and on navy */
+  --color-success: #1a6e3c;
+  --color-warning: #8a5a00;
+  --color-danger: #b8322a;
+  --color-danger-fill: #b8322a;
+  --color-info: #2f6bbf;
+  --color-input-border: #7f94a6;
   --color-black: #000000;
   --color-white: #ffffff;
 
-  /* Fonts */
-  --font-head: "Inter", sans-serif;
-  --font-body: "Inter", sans-serif;
+  /* Fonts — a plain workhorse grotesk for chrome and labels; numerals get
+     tabular figures everywhere via .tabular-nums / the numeric-nums utility */
+  --font-head: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
 
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  /* Radius — soft tiles and pills (concept v2) */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
 
-  /* Shadow */
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  /* Shadow — soft, cool, low: resting tiles float a little off the page */
+  --shadow-sm: 0 1px 2px rgba(28, 53, 72, 0.05), 0 2px 8px rgba(28, 53, 72, 0.05);
+  --shadow-md: 0 10px 30px rgba(28, 53, 72, 0.1);
+  --shadow-cta: 0 5px 0 var(--color-cta-edge), 0 12px 24px rgba(79, 184, 96, 0.28);
 
   /* Transition */
   --transition-fast: 0.2s ease;
   --transition-base: 0.3s ease;
 
-  color-scheme: dark;
-}
-
-/* ===============================
-   Dark theme tokens
-================================ */
-:root[data-theme="dark"] {
-  --color-page: #0b1120;
-  --color-card: #131b2e;
-  --color-card-2: #1c273c;
-  --color-ink: #f8fafc;
-  --color-ink-muted: #cbd5e1;
-  --color-ink-subtle: #94a3b8;
-  --color-line: #28354a;
-  --color-line-soft: #1e2a3e;
-  --color-head: #1a2438;
-  --color-nav: #0f172a;
-  --color-nav-fg: #94a3b8;
-  --color-nav-hover: #1e293b;
-  --color-nav-active: #0d9488;
-  --color-nav-active-fg: #ffffff;
-  --color-accent: #2dd4bf;
-  color-scheme: dark;
-}
-
-/* ===============================
-   Light theme tokens
-================================ */
-:root[data-theme="light"] {
-  --color-page: #f8fafc;
-  --color-card: #ffffff;
-  --color-card-2: #f8fafc;
-  --color-ink: #0f172a;
-  --color-ink-muted: #334155;
-  --color-ink-subtle: #64748b;
-  --color-line: #e2e8f0;
-  --color-line-soft: #eef2f6;
-  --color-head: #f8fafc;
-  --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
-  --color-text-muted: #64748b;
-  --color-nav: #1e293b;
-  --color-nav-fg: #94a3b8;
-  --color-nav-hover: #334155;
-  --color-nav-active: #0d9488;
-  --color-nav-active-fg: #ffffff;
-  --color-accent: #0d9488;
   color-scheme: light;
 }
 
-/* Clean modern soft shadow for Light theme (Dashboard cards & tables) */
-:root[data-theme="light"] .shadow-md,
-:root[data-theme="light"] .shadow-lg,
-:root[data-theme="light"] .shadow-xl {
-  box-shadow:
-    0 4px 16px -2px rgba(15, 23, 42, 0.08),
-    0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
+/* ===============================
+   Dark theme tokens — deep navy
+================================ */
+:root[data-theme="dark"] {
+  --color-page: #0f1b26;
+  --color-card: #16263a;
+  --color-card-2: #1c2f45;
+  --color-ink: #e6eef5;
+  --color-ink-muted: #a8bccd;
+  --color-ink-subtle: #8aa1b5;
+  --color-line: #26394f;
+  --color-line-soft: #1f3145;
+  --color-head: #1c2f45;
+  --color-surface: #16263a;
+  --color-border: #26394f;
+  --color-text-primary: #e6eef5;
+  --color-text-secondary: #a8bccd;
+  --color-text-muted: #8aa1b5;
+  --color-nav: #16263a;
+  --color-nav-fg: #e6eef5;
+  --color-nav-hover: #1c2f45;
+  --color-nav-active: #1f3d5c;
+  --color-nav-active-fg: #cfe3f5;
+  --color-accent: #7c9cff;
+  --color-primary: #7c9cff;
+  --color-on-primary: #0f1b26;
+  --color-brand: #6d8ff5;
+  --color-cta: #5fcf6e;
+  --color-cta-2: #b6e85f;
+  --color-cta-ink: #0e2a18;
+  --color-cta-edge: #3f9a4f;
+  --color-chip: #1f3d5c;
+  --color-chip-fg: #cfe3f5;
+  --color-success: #4cc27a;
+  --color-warning: #e0a53a;
+  --color-danger: #ff8078;
+  --color-danger-fill: #c43d35;
+  --color-input-border: #5a7591;
+  --color-info: #6aa6f0;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
 }
 
-:root[data-theme="light"] .shadow-sm {
-  box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.06) !important;
+/* ===============================
+   Light theme tokens — concept v2: airy blue-white, the default
+================================ */
+:root,
+:root[data-theme="light"] {
+  --color-page: #eef3f6;
+  --color-card: #ffffff;
+  --color-card-2: #f4f8fb;
+  --color-ink: #1c3548;
+  --color-ink-muted: #4a6275;
+  --color-ink-subtle: #5c7184;
+  --color-line: #dbe5ec;
+  --color-line-soft: #e8eff4;
+  --color-head: #f4f8fb;
+  --color-surface: #ffffff;
+  --color-border: #dbe5ec;
+  --color-text-primary: #1c3548;
+  --color-text-secondary: #4a6275;
+  --color-text-muted: #5c7184;
+  --color-nav: #ffffff;
+  --color-nav-fg: #1c3548;
+  --color-nav-hover: #f0f6fa;
+  --color-nav-active: #d7eaf6;
+  --color-nav-active-fg: #1c3548;
+  --color-accent: #3b62d6;
+  --color-cta: #74de7c;
+  --color-cta-2: #c6f06a;
+  --color-cta-ink: #123524;
+  --color-cta-edge: #4fb860;
+  --color-chip: #d7eaf6;
+  --color-chip-fg: #1c3548;
+  color-scheme: light;
 }
 
-:root[data-theme="light"] .bg-card {
-  box-shadow:
-    0 4px 16px -2px rgba(15, 23, 42, 0.08),
-    0 2px 6px -1px rgba(15, 23, 42, 0.04);
+/* ===============================
+   Chart categorical palette — "registry inks"
+   Four muted, ledger-appropriate hues for chart series identity (never for
+   UI chrome — the One Ink Rule's accent stays reserved for the primary
+   action and status stamps). Distinct from --color-accent and the
+   success/warning/danger/info tokens so a series color never impersonates
+   a status. Validated for CVD-safety and contrast against each theme's own
+   --color-card surface via the dataviz skill's validator — all checks pass
+   in both modes, in this order, as adjacent pairs (stacks/bars/lines).
+   Teal-ink and sienna-ink together clear the strongest pairing, so use
+   them first for a two-series chart. For a pie/doughnut with more slices
+   than slots, cycle the four with a visible legend/direct labels (already
+   the convention here) rather than adding a fifth generated hue.
+================================ */
+:root[data-theme="dark"] {
+  --chart-series-1: #7c9cff; /* product blue */
+  --chart-series-2: #e0a53a; /* amber */
+  --chart-series-3: #4cc27a; /* green */
+  --chart-series-4: #b48cf2; /* violet */
+}
+
+:root[data-theme="light"] {
+  --chart-series-1: #3d66e0; /* product blue */
+  --chart-series-2: #b8740f; /* amber */
+  --chart-series-3: #2f8f52; /* green */
+  --chart-series-4: #7a4fc4; /* violet */
 }
 
 /* ===============================
@@ -238,7 +294,7 @@ ul {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #003428;
+  color: var(--color-ink);
 }
 
 /* 
@@ -259,10 +315,10 @@ ul {
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
   background: var(--color-card);
-  color: #334155;
+  color: var(--color-ink-muted);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -270,10 +326,8 @@ ul {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: #f4a100;
-  color: #f4a100;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(244, 161, 0, 0.15);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
 .pagination-btn:disabled {
@@ -289,12 +343,12 @@ ul {
   min-width: 120px;
   height: 40px;
   padding: 0 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
   background: var(--color-card);
   font-size: 14px;
   font-weight: 600;
-  color: #475569;
+  color: var(--color-ink-muted);
 }
 
 /* ===========================
@@ -306,17 +360,16 @@ ul {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: linear-gradient(135deg, var(--color-bg), #f5f7f4);
+  background: var(--color-page);
 }
 
 .not-found-card {
   width: 100%;
   text-align: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 24px;
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
   padding: 40px;
-  box-shadow: 0 15px 40px rgba(0, 52, 40, 0.08);
   animation: notFoundFadeIn 0.8s ease;
 }
 
@@ -340,20 +393,18 @@ ul {
   align-items: center;
   justify-content: center;
   padding: 14px 28px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: none;
   text-decoration: none;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  background: var(--color-accent);
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .not-found-btn:hover {
-  transform: translateY(-3px);
-
-  box-shadow: 0 10px 25px rgba(0, 52, 40, 0.25);
+  filter: brightness(1.1);
 }
 
 .not-found-btn:active {
@@ -405,11 +456,10 @@ ul {
 .master-data-table {
   width: 100%;
   border-collapse: collapse;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 .master-data-table thead {
-  background: rgba(203, 122, 33, 0.08);
+  background: var(--color-head);
 }
 
 .master-data-table th {
@@ -445,7 +495,7 @@ ul {
 }
 
 .master-data-row:hover {
-  background: rgba(0, 52, 40, 0.03);
+  background: var(--color-card-2);
 }
 
 .master-data-row:hover .master-data-cell:first-child {
@@ -606,8 +656,8 @@ ul {
 }
 
 .inner-container .page-search-input:focus {
-  border-color: #f4a100;
-  box-shadow: 0 0 0 3px rgba(244, 161, 0, 0.15);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 /* image input css */
@@ -774,4 +824,1249 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: #0f172a !important;
   caret-color: #0f172a !important;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* =====================================================================
+   Concept v2 design language — shared building blocks (docs/specs/UI-v2.md)
+   Every screen composes from these; do not re-invent them per page.
+===================================================================== */
+@layer components {
+  /* A resting white tile: cards, nav rows, list rows, panels. */
+  .sl-tile {
+    background: var(--color-card);
+    border: 1px solid var(--color-line-soft);
+    border-radius: 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .sl-tile-hover {
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .sl-tile-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* The one primary action on a screen: green→lime pill with a raised edge. */
+  .sl-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: 999px;
+    border: 0;
+    background: linear-gradient(100deg, var(--color-cta) 0%, var(--color-cta-2) 100%);
+    color: var(--color-cta-ink);
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    box-shadow: var(--shadow-cta);
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease,
+      filter 0.12s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sl-cta:hover {
+    filter: brightness(1.03) saturate(1.05);
+  }
+  .sl-cta:active {
+    transform: translateY(3px);
+    box-shadow:
+      0 2px 0 var(--color-cta-edge),
+      0 6px 12px rgba(79, 184, 96, 0.22);
+  }
+  .sl-cta:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .sl-cta-lg {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
+
+  /* Secondary pill: white, hairline, soft shadow. */
+  .sl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    background: var(--color-card);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line);
+    box-shadow: var(--shadow-sm);
+    font-weight: 600;
+    transition: background 0.12s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sl-btn:hover {
+    background: var(--color-nav-hover);
+  }
+  .sl-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* Brand-blue solid pill: links out, "view", non-primary confirmations. */
+  .sl-btn-blue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    border: 0;
+    font-weight: 600;
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--color-primary) 70%, #000 30%);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sl-btn-blue:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--color-primary) 70%, #000 30%);
+  }
+
+  /* Danger pill for destructive confirmations. */
+  .sl-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    background: var(--color-danger-fill);
+    color: #fff;
+    border: 0;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Pale-blue chip: sub-areas, filters, statuses, tags ("TDS", "PF", "Admin"). */
+  .sl-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    background: var(--color-chip);
+    color: var(--color-chip-fg);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    white-space: nowrap;
+  }
+  .sl-chip-muted {
+    background: var(--color-card-2);
+    color: var(--color-ink-muted);
+  }
+  .sl-chip-success {
+    background: color-mix(in srgb, var(--color-success) 16%, transparent);
+    color: var(--color-success);
+  }
+  .sl-chip-warning {
+    background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+    color: var(--color-warning);
+  }
+  .sl-chip-danger {
+    background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+    color: var(--color-danger);
+  }
+  button.sl-chip,
+  a.sl-chip {
+    cursor: pointer;
+  }
+  button.sl-chip:hover,
+  a.sl-chip:hover {
+    filter: brightness(0.97);
+  }
+  .sl-chip[aria-pressed="true"],
+  .sl-chip.is-active {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+  }
+
+  /* Navigation row: a white pill tile with icon + label; active = pale blue. */
+  .sl-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    border-radius: 14px;
+    background: var(--color-card);
+    color: var(--color-nav-fg);
+    font-weight: 500;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-line-soft);
+    transition:
+      background 0.12s ease,
+      transform 0.12s ease;
+  }
+  .sl-nav-item:hover {
+    background: var(--color-nav-hover);
+  }
+  .sl-nav-item[aria-current="page"],
+  .sl-nav-item.is-active {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+    border-color: transparent;
+    box-shadow: none;
+    font-weight: 600;
+  }
+
+  /* Small section label above a group ("Admin", "Money"). */
+  .sl-section-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-subtle);
+    letter-spacing: 0.02em;
+    padding: 0 0.25rem;
+  }
+
+  /* Brand tile: the blue rounded square that carries the mark. */
+  .sl-brand-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 12px;
+    background: var(--color-brand);
+    color: #fff;
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--color-brand) 65%, #000 35%);
+  }
+
+  /* "Welcome Riya": light greeting, bold name. */
+  .sl-welcome {
+    font-size: clamp(1.75rem, 2.4vw, 2.5rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--color-ink-muted);
+  }
+  .sl-welcome strong {
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  /* Page heading and supporting text. */
+  .sl-h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+  }
+  .sl-h2 {
+    font-size: 1.125rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .sl-muted {
+    color: var(--color-ink-subtle);
+  }
+
+  /* Inputs: rounded, calm, blue focus ring. */
+  .sl-input {
+    width: 100%;
+    border-radius: 12px;
+    background: var(--color-card);
+    border: 1px solid var(--color-input-border);
+    color: var(--color-ink);
+    padding: 0.6rem 0.9rem;
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+  .sl-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+
+  /* Placeholder bar used in skeleton loaders (the concept's grey slabs). */
+  .sl-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-line-soft) 0%,
+      var(--color-card-2) 50%,
+      var(--color-line-soft) 100%
+    );
+    background-size: 200% 100%;
+    animation: sl-shimmer 1.4s ease-in-out infinite;
+    border-radius: 12px;
+  }
+}
+
+@keyframes sl-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-skeleton {
+    animation: none;
+  }
+  .sl-cta,
+  .sl-tile-hover,
+  .sl-nav-item {
+    transition: none;
+  }
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 55%, transparent);
+  outline-offset: 2px;
+}
+
+/* UI v2 — dashboard */
+/* Field team map (modules/dashboard): the canvas sits on the tile's quiet
+   surface instead of Leaflet's grey, and dark mode darkens only the street
+   tiles so markers and labels keep their real colours. */
+.sl-dash-map.leaflet-container {
+  background: var(--color-card-2);
+  font-family: var(--font-body);
+}
+.sl-dash-map-dark .leaflet-tile-pane {
+  filter: brightness(0.82) invert(92%) hue-rotate(180deg) contrast(1.15);
+}
+
+/* =====================================================================
+   UI v2 — components
+   Helpers for the shared component library (components/ui, components/form
+   and components/ui/v2). Everything composes the .sl-* building blocks above
+   and reads colour from tokens, so light and dark both work. Kept in the
+   components layer so a Tailwind utility on the element still wins.
+===================================================================== */
+:root,
+:root[data-theme="light"] {
+  --sl-scrim: rgba(28, 53, 72, 0.3);
+  --sl-shadow-dialog: 0 24px 64px rgba(28, 53, 72, 0.18), 0 2px 8px rgba(28, 53, 72, 0.06);
+  --sl-shadow-popover: 0 14px 36px rgba(28, 53, 72, 0.14), 0 1px 3px rgba(28, 53, 72, 0.06);
+}
+:root[data-theme="dark"] {
+  --sl-scrim: rgba(3, 9, 16, 0.62);
+  --sl-shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --sl-shadow-popover: 0 14px 36px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+/* Chart series fall back to the light palette before a theme attribute is set. */
+:root:not([data-theme]) {
+  --chart-series-1: #3d66e0;
+  --chart-series-2: #b8740f;
+  --chart-series-3: #2f8f52;
+  --chart-series-4: #7a4fc4;
+}
+
+@layer components {
+  /* ── Readable status chips: the tone mixed toward ink reads at >=4.5:1 on its tint ── */
+  .sl-chip-success {
+    color: color-mix(in srgb, var(--color-success) 55%, var(--color-ink));
+  }
+  .sl-chip-warning {
+    color: color-mix(in srgb, var(--color-warning) 55%, var(--color-ink));
+  }
+  .sl-chip-danger {
+    color: color-mix(in srgb, var(--color-danger) 55%, var(--color-ink));
+  }
+  .sl-chip-info {
+    background: color-mix(in srgb, var(--color-info) 14%, transparent);
+    color: color-mix(in srgb, var(--color-info) 55%, var(--color-ink));
+  }
+  .sl-chip-sm {
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+  }
+  .sl-chip-lg {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.875rem;
+  }
+  button.sl-chip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: none;
+  }
+  .sl-chip[aria-selected="true"] {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .sl-chip-ghost {
+    background: transparent;
+    color: var(--color-ink-muted);
+  }
+  .sl-chip-ghost:hover {
+    background: var(--color-nav-hover);
+    color: var(--color-ink);
+  }
+  .sl-chip-ghost[aria-selected="true"],
+  .sl-chip-ghost[aria-pressed="true"] {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+  }
+  .sl-chip-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .sl-chip-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Pill sizes (with .sl-cta, .sl-btn, .sl-btn-blue, .sl-btn-danger, .sl-btn-ghost) ── */
+  .sl-pill-sm {
+    min-height: 2.25rem;
+    padding: 0 0.95rem;
+    font-size: 0.8125rem;
+    gap: 0.4rem;
+  }
+  .sl-pill-md {
+    min-height: 2.75rem;
+    padding: 0 1.25rem;
+    font-size: 0.875rem;
+  }
+  .sl-pill-lg {
+    min-height: 3.25rem;
+    padding: 0 1.75rem;
+    font-size: 1rem;
+  }
+  .sl-cta.sl-pill-sm {
+    box-shadow:
+      0 3px 0 var(--color-cta-edge),
+      0 6px 14px color-mix(in srgb, var(--color-cta-edge) 24%, transparent);
+  }
+  .sl-cta.sl-pill-sm:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--color-cta-edge);
+  }
+  .sl-btn-blue:hover,
+  .sl-btn-danger:hover {
+    filter: brightness(1.05);
+  }
+  .sl-btn-blue:disabled,
+  .sl-btn-danger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    filter: none;
+  }
+  .sl-btn-danger {
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--color-danger) 70%, #000 30%);
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease,
+      filter 0.12s ease;
+    white-space: nowrap;
+  }
+  .sl-btn-danger:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--color-danger) 70%, #000 30%);
+  }
+  .sl-btn-blue.sl-pill-sm {
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--color-primary) 70%, #000 30%);
+  }
+  .sl-btn-danger.sl-pill-sm {
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--color-danger) 70%, #000 30%);
+  }
+  .sl-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.1rem;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-ink-muted);
+    border: 1px solid transparent;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
+  }
+  .sl-btn-ghost:hover:not(:disabled) {
+    background: var(--color-nav-hover);
+    color: var(--color-ink);
+  }
+  .sl-btn-ghost:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .sl-btn-soft-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-danger) 12%, var(--color-card));
+    color: color-mix(in srgb, var(--color-danger) 70%, var(--color-ink));
+    border: 1px solid color-mix(in srgb, var(--color-danger) 22%, transparent);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sl-btn-soft-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-danger) 18%, var(--color-card));
+  }
+  .sl-btn-soft-danger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .sl-spinner {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border-radius: 999px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    animation: sl-spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  /* ── Round icon pill for row actions and toolbars ── */
+  .sl-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--color-card);
+    color: var(--color-ink-muted);
+    border: 1px solid var(--color-line);
+    cursor: pointer;
+    transition:
+      background 0.12s ease,
+      color 0.12s ease,
+      border-color 0.12s ease,
+      transform 0.12s ease;
+  }
+  .sl-icon-btn:hover:not(:disabled) {
+    background: var(--color-nav-hover);
+    color: var(--color-ink);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-line));
+  }
+  .sl-icon-btn:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+  .sl-icon-btn:disabled,
+  .sl-icon-btn[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .sl-icon-btn-md {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .sl-icon-btn-lg {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .sl-icon-btn-ghost {
+    border-color: transparent;
+    background: transparent;
+  }
+  /* Hover tints for neutral buttons */
+  .sl-icon-btn-hover-primary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card));
+    color: var(--color-primary);
+  }
+  .sl-icon-btn-hover-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-danger) 12%, var(--color-card));
+    color: var(--color-danger);
+    border-color: color-mix(in srgb, var(--color-danger) 35%, var(--color-line));
+  }
+  /* Tinted-at-rest tones (IconButton variants, WhatsApp, Email, Pricing) */
+  .sl-icon-btn-tone-primary,
+  .sl-icon-btn-tone-info,
+  .sl-icon-btn-tone-success,
+  .sl-icon-btn-tone-warning,
+  .sl-icon-btn-tone-danger {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--sl-tone) 13%, var(--color-card));
+    color: color-mix(in srgb, var(--sl-tone) 70%, var(--color-ink));
+  }
+  .sl-icon-btn-tone-primary {
+    --sl-tone: var(--color-primary);
+  }
+  .sl-icon-btn-tone-info {
+    --sl-tone: var(--color-info);
+  }
+  .sl-icon-btn-tone-success {
+    --sl-tone: var(--color-success);
+  }
+  .sl-icon-btn-tone-warning {
+    --sl-tone: var(--color-warning);
+  }
+  .sl-icon-btn-tone-danger {
+    --sl-tone: var(--color-danger);
+  }
+  .sl-icon-btn-tone-primary:hover:not(:disabled),
+  .sl-icon-btn-tone-info:hover:not(:disabled),
+  .sl-icon-btn-tone-success:hover:not(:disabled),
+  .sl-icon-btn-tone-warning:hover:not(:disabled),
+  .sl-icon-btn-tone-danger:hover:not(:disabled) {
+    background: var(--sl-tone);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* ── Form fields: label above, calm input, clear error ── */
+  .sl-label {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    color: var(--color-ink-muted);
+  }
+  .sl-label-icon {
+    display: inline-flex;
+    color: var(--color-ink-subtle);
+    font-size: 0.875rem;
+  }
+  .sl-required {
+    color: var(--color-danger);
+    font-weight: 700;
+  }
+  .sl-field-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.2rem;
+    color: color-mix(in srgb, var(--color-danger) 80%, var(--color-ink));
+  }
+  .sl-field-hint {
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    line-height: 1.2rem;
+    color: var(--color-ink-subtle);
+  }
+  .sl-input {
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+  .sl-input::placeholder {
+    color: var(--color-ink-subtle);
+    font-weight: 400;
+    opacity: 1;
+  }
+  .sl-input:hover:not(:disabled):not(:focus):not(:focus-within):not(.is-open) {
+    border-color: color-mix(in srgb, var(--color-ink-subtle) 45%, var(--color-line));
+  }
+  /* A wrapper that looks like an input (prefix/suffix fields, pickers). */
+  .sl-input:focus-within,
+  .sl-input.is-open {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+  .sl-input[aria-invalid="true"],
+  .sl-input.is-invalid {
+    border-color: var(--color-danger);
+  }
+  .sl-input[aria-invalid="true"]:focus,
+  .sl-input.is-invalid:focus,
+  .sl-input.is-invalid:focus-within,
+  .sl-input.is-invalid.is-open {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-danger) 16%, transparent);
+  }
+  .sl-input:disabled,
+  .sl-input.is-disabled {
+    background: var(--color-card-2);
+    color: var(--color-ink-muted);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .sl-input-bare {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: var(--color-ink);
+    font: inherit;
+    padding: 0;
+  }
+  .sl-input-bare::placeholder {
+    color: var(--color-ink-subtle);
+    font-weight: 400;
+  }
+  .sl-input-bare:focus {
+    outline: none;
+    box-shadow: none;
+  }
+  .sl-check {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+  }
+
+  /* ── Floating panels: select menus, popovers, date pickers ── */
+  .sl-popover {
+    background: var(--color-card);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line-soft);
+    border-radius: 16px;
+    box-shadow: var(--sl-shadow-popover);
+    padding: 0.375rem;
+    animation: sl-pop-in 0.12s ease-out;
+  }
+  .sl-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--color-ink);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s ease;
+  }
+  .sl-option:hover,
+  .sl-option.is-highlighted {
+    background: var(--color-nav-hover);
+  }
+  .sl-option.is-selected,
+  .sl-option[aria-selected="true"] {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+    font-weight: 600;
+  }
+  .sl-option.is-selected.is-highlighted {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  .sl-option.is-disabled,
+  .sl-option[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: transparent;
+  }
+  .sl-popover-label {
+    padding: 0.5rem 0.75rem 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-ink-subtle);
+  }
+  .sl-popover-empty {
+    padding: 0.9rem 0.75rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-ink-subtle);
+  }
+
+  /* ── Dialogs: soft blurred scrim, 24px card, pill footer ── */
+  .sl-backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--sl-scrim);
+    -webkit-backdrop-filter: blur(6px) saturate(1.05);
+    backdrop-filter: blur(6px) saturate(1.05);
+    animation: sl-fade-in 0.16s ease-out;
+  }
+  .sl-dialog {
+    position: relative;
+    background: var(--color-card);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line-soft);
+    border-radius: 24px;
+    box-shadow: var(--sl-shadow-dialog);
+    animation: sl-dialog-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+  }
+  .sl-dialog:focus {
+    outline: none;
+  }
+  .sl-dialog-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1.25rem 1.5rem 0.75rem;
+  }
+  .sl-dialog-title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.5rem;
+    color: var(--color-ink);
+  }
+  .sl-dialog-body {
+    padding: 0.5rem 1.5rem 1.25rem;
+  }
+  .sl-dialog-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.625rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--color-line-soft);
+    background: color-mix(in srgb, var(--color-card-2) 55%, var(--color-card));
+    border-radius: 0 0 24px 24px;
+  }
+  .sl-dialog-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 18px;
+    background: var(--color-chip);
+    color: var(--color-primary);
+  }
+  .sl-dialog-icon-danger {
+    background: color-mix(in srgb, var(--color-danger) 14%, var(--color-card));
+    color: var(--color-danger);
+  }
+  .sl-dialog-icon-success {
+    background: color-mix(in srgb, var(--color-success) 14%, var(--color-card));
+    color: var(--color-success);
+  }
+
+  /* ── Tables ── */
+  .sl-th {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-subtle);
+    white-space: nowrap;
+  }
+  .sl-row-hover:hover {
+    background: color-mix(in srgb, var(--color-nav-hover) 85%, transparent);
+  }
+
+  /* ── Stat tile value ── */
+  .sl-stat-value {
+    font-size: clamp(1.5rem, 2.2vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sl-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-line);
+    background: var(--color-card-2);
+    color: var(--color-ink-muted);
+    font-family: inherit;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+}
+
+/* Touch screens: an invisible 44px hit area around the 32px row-action pills,
+   so dense rows keep their layout but stay easy to tap. */
+@media (pointer: coarse) {
+  .sl-icon-btn {
+    position: relative;
+  }
+  .sl-icon-btn::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+  }
+}
+
+@keyframes sl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sl-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sl-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sl-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-popover,
+  .sl-backdrop,
+  .sl-dialog {
+    animation: none;
+  }
+  .sl-spinner {
+    animation-duration: 1.6s;
+  }
+  .sl-icon-btn {
+    transition: none;
+  }
+}
+/* ── end UI v2 — components ── */
+
+/* UI v2 — shell */
+/* =====================================================================
+   App shell, navigation, command palette, hubs and sign-in scene
+   (docs/specs/UI-v2.md, "Shell and information architecture"). Tokens only.
+===================================================================== */
+@layer components {
+  /* Sub-links under the active area: smaller pill rows. */
+  .sl-subnav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.25rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-ink-muted);
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
+  }
+  .sl-subnav-item:hover {
+    background: var(--color-nav-hover);
+    color: var(--color-ink);
+  }
+  .sl-subnav-item[aria-current="page"],
+  .sl-subnav-item[aria-current="true"] {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+    font-weight: 600;
+  }
+
+  /* Round icon button (top bar, menus). */
+  .sl-icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--color-card);
+    color: var(--color-ink-muted);
+    border: 1px solid var(--color-line-soft);
+    box-shadow: var(--shadow-sm);
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
+    cursor: pointer;
+  }
+  .sl-icon-btn:hover {
+    background: var(--color-nav-hover);
+    color: var(--color-ink);
+  }
+  .sl-icon-btn[aria-expanded="true"] {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+  }
+  .sl-icon-btn-plain {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  /* Keyboard key cap. */
+  .sl-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.375rem;
+    padding: 0 0.375rem;
+    border-radius: 6px;
+    background: var(--color-card-2);
+    border: 1px solid var(--color-line);
+    border-bottom-width: 2px;
+    color: var(--color-ink-subtle);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  /* Floating surfaces: menus, popovers, the palette. */
+  .sl-popover {
+    background: var(--color-card);
+    border: 1px solid var(--color-line-soft);
+    border-radius: 18px;
+    box-shadow: var(--shadow-md);
+  }
+  .sl-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-ink);
+    text-align: left;
+    cursor: pointer;
+  }
+  .sl-menu-item:hover,
+  .sl-menu-item:focus-visible {
+    background: var(--color-nav-hover);
+    outline: none;
+  }
+
+  /* Frosted scrim behind drawers and dialogs; follows the page colour in both themes. */
+  .sl-backdrop {
+    background: color-mix(in srgb, var(--color-page) 55%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* The search field in the top bar (a button that opens the palette). */
+  .sl-search-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    height: 2.75rem;
+    padding: 0 0.5rem 0 1rem;
+    border-radius: 999px;
+    background: var(--color-card);
+    border: 1px solid var(--color-line-soft);
+    box-shadow: var(--shadow-sm);
+    color: var(--color-ink-subtle);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.12s ease;
+  }
+  .sl-search-trigger:hover {
+    border-color: var(--color-line);
+    color: var(--color-ink-muted);
+  }
+
+  /* Pale-blue rounded square that holds an icon on hub tiles. */
+  .sl-icon-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: var(--color-chip);
+    color: var(--color-primary);
+  }
+
+  /* Mobile bottom tab bar. */
+  .sl-tabbar {
+    background: color-mix(in srgb, var(--color-card) 92%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--color-line-soft);
+  }
+  .sl-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    min-height: 3.5rem;
+    min-width: 2.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-ink-subtle);
+    border-radius: 14px;
+  }
+  .sl-tab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 1.875rem;
+    border-radius: 999px;
+    transition: background 0.12s ease;
+  }
+  .sl-tab[aria-current="page"] {
+    color: var(--color-ink);
+  }
+  .sl-tab[aria-current="page"] .sl-tab-icon {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+  }
+
+  /* Rail tooltip (collapsed sidebar); inverted colours in both themes. */
+  .sl-tooltip {
+    padding: 0.35rem 0.7rem;
+    border-radius: 10px;
+    background: var(--color-ink);
+    color: var(--color-page);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* Thin, quiet scrollbars for the sidebar and palette. */
+  .sl-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+  .sl-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sl-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 999px;
+  }
+
+  /* Sign-in scene: a tilted stage for floating tiles, in the concept's isometric spirit. */
+  .sl-iso-stage {
+    transform: perspective(1800px) rotateX(22deg) rotateZ(-9deg);
+    transform-style: preserve-3d;
+  }
+  .sl-iso-lift {
+    box-shadow:
+      0 1px 0 var(--color-line-soft),
+      0 14px 30px color-mix(in srgb, var(--color-ink) 12%, transparent);
+  }
+}
+
+@keyframes sl-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sl-sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sl-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sl-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sl-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+.sl-anim-drawer {
+  animation: sl-drawer-in 0.22s ease-out;
+}
+.sl-anim-sheet {
+  animation: sl-sheet-in 0.22s ease-out;
+}
+.sl-anim-pop {
+  animation: sl-pop-in 0.16s ease-out;
+}
+.sl-anim-fade {
+  animation: sl-fade-in 0.16s ease-out;
+}
+.sl-float {
+  animation: sl-float 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-anim-drawer,
+  .sl-anim-sheet,
+  .sl-anim-pop,
+  .sl-anim-fade,
+  .sl-float {
+    animation: none;
+  }
+  .sl-subnav-item,
+  .sl-icon-btn,
+  .sl-search-trigger,
+  .sl-tab-icon {
+    transition: none;
+  }
 }

@@ -10,15 +10,21 @@
  * ► Manages statutory flags & bank details
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo } from "react";
 import {
-  FaMoneyBillWave, FaUniversity, FaCalculator, FaClock,
-  FaInfoCircle, FaCheckCircle,
-} from 'react-icons/fa';
+  FaMoneyBillWave,
+  FaUniversity,
+  FaCalculator,
+  FaClock,
+  FaInfoCircle,
+  FaCheckCircle,
+} from "react-icons/fa";
 
-import TextInput from '../form/TextInput/TextInput';
-import SelectInput from '../form/SelectInput/SelectInput';
-import { usePayrollConfig } from '../../hooks/usePayrollConfig';
+import { GST_STATES } from "@shiftline/shared";
+
+import TextInput from "../form/TextInput/TextInput";
+import SelectInput from "../form/SelectInput/SelectInput";
+import { usePayrollConfig } from "../../hooks/usePayrollConfig";
 import {
   deriveFromMonthly,
   deriveFromWeekly,
@@ -30,7 +36,7 @@ import {
   formatINR,
   calcMethodLabel,
   type PayrollCalcConfig,
-} from '../../utils/salaryCalculation';
+} from "../../utils/salaryCalculation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +71,8 @@ export interface SalaryFormFields {
   esiNumber: string;
   professionalTax: boolean;
   tdsApplicable: boolean;
+  /** The state the employee actually works in — drives professional tax and the welfare fund. */
+  workStateCode: string;
   // Bank
   paymentMode: string;
   bankName: string;
@@ -83,7 +91,15 @@ interface Props {
   ) => void;
   onToggle: (name: string) => (v: boolean) => void;
   errors?: Partial<Record<string, string>>;
-  selectedShift?: { id?: string | number; name?: string; startTime?: string; endTime?: string; breakDuration?: any; shiftCode?: string; shiftName?: string } | null;
+  selectedShift?: {
+    id?: string | number;
+    name?: string;
+    startTime?: string;
+    endTime?: string;
+    breakDuration?: any;
+    shiftCode?: string;
+    shiftName?: string;
+  } | null;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -92,7 +108,7 @@ const SectionHeader: React.FC<{
   icon: React.ElementType;
   title: string;
   color?: string;
-}> = ({ icon: Icon, title, color = 'text-primary' }) => (
+}> = ({ icon: Icon, title, color = "text-primary" }) => (
   <div className="flex items-center gap-2 mb-4 pb-2 border-b border-line-soft">
     <Icon className={`${color} text-base`} />
     <h3 className="text-sm font-extrabold text-ink uppercase tracking-wide">{title}</h3>
@@ -105,11 +121,13 @@ const Toggle: React.FC<{
   onChange: (v: boolean) => void;
   disabled?: boolean;
 }> = ({ label, value, onChange, disabled }) => (
-  <div className={`flex items-center gap-3 ${disabled ? 'opacity-50' : ''}`}>
+  <div className={`flex items-center gap-3 ${disabled ? "opacity-50" : ""}`}>
     <label className="text-xs font-extrabold uppercase tracking-[0.5px] text-ink select-none">
       {label}
     </label>
-    <label className={`relative inline-flex items-center ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+    <label
+      className={`relative inline-flex items-center ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+    >
       <input
         type="checkbox"
         className="sr-only"
@@ -118,16 +136,18 @@ const Toggle: React.FC<{
         onChange={(e) => !disabled && onChange(e.target.checked)}
       />
       <div
-        className={`block w-12 h-7 rounded-full transition-colors duration-300 ${value ? 'bg-primary' : 'bg-card-2 border border-line-soft'
-          }`}
+        className={`block w-12 h-7 rounded-full transition-colors duration-300 ${
+          value ? "bg-[color:var(--color-success)]" : "bg-line-soft border border-line"
+        }`}
       />
       <div
-        className={`dot absolute left-0.5 top-0.5 bg-white w-6 h-6 rounded-full shadow transition-transform duration-300 ${value ? 'translate-x-5' : 'translate-x-0'
-          }`}
+        className={`dot absolute left-0.5 top-0.5 bg-card w-6 h-6 rounded-full shadow transition-transform duration-300 ${
+          value ? "translate-x-5" : "translate-x-0"
+        }`}
       />
     </label>
-    <span className={`text-xs font-bold ${value ? 'text-primary' : 'text-ink-subtle'}`}>
-      {value ? 'YES' : 'NO'}
+    <span className={`text-xs font-bold ${value ? "text-primary" : "text-ink-subtle"}`}>
+      {value ? "YES" : "NO"}
     </span>
   </div>
 );
@@ -144,7 +164,12 @@ interface PreviewProps {
 }
 
 const SalaryPreview: React.FC<PreviewProps> = ({
-  salaryType, primaryLabel, primaryAmount, derivatives, calcConfig, loading,
+  salaryType,
+  primaryLabel,
+  primaryAmount,
+  derivatives,
+  calcConfig,
+  loading,
 }) => {
   const workingDays = getMonthlyWorkingDays(calcConfig);
   const weeklyDays = getWeeklyWorkingDays(calcConfig);
@@ -152,10 +177,10 @@ const SalaryPreview: React.FC<PreviewProps> = ({
   const methodLabel = calcMethodLabel(calcConfig.salaryCalculationMethod);
 
   const SALARY_TYPE_LABELS: Record<string, string> = {
-    MONTHLY: 'Monthly',
-    WEEKLY: 'Weekly',
-    DAILY: 'Daily Wage',
-    HOURLY: 'Hourly',
+    MONTHLY: "Monthly",
+    WEEKLY: "Weekly",
+    DAILY: "Daily Wage",
+    HOURLY: "Hourly",
   };
 
   const isEmpty = primaryAmount <= 0;
@@ -165,13 +190,9 @@ const SalaryPreview: React.FC<PreviewProps> = ({
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-primary">
         <FaCalculator className="text-white text-sm" />
-        <span className="text-sm font-bold text-white tracking-wide uppercase">
-          Salary Preview
-        </span>
+        <span className="text-sm font-bold text-white tracking-wide uppercase">Salary Preview</span>
         {loading && (
-          <span className="ml-auto text-xs text-white/80 animate-pulse">
-            Loading config…
-          </span>
+          <span className="ml-auto text-xs text-white/80 animate-pulse">Loading config…</span>
         )}
       </div>
 
@@ -187,25 +208,27 @@ const SalaryPreview: React.FC<PreviewProps> = ({
         ) : (
           <>
             {/* Primary row */}
-            <PreviewRow
-              label={primaryLabel}
-              value={formatINR(primaryAmount)}
-              highlight
-            />
+            <PreviewRow label={primaryLabel} value={formatINR(primaryAmount)} highlight />
 
             {derivatives && (
               <>
-                {salaryType !== 'DAILY' && salaryType !== 'HOURLY' && (
+                {salaryType !== "DAILY" && salaryType !== "HOURLY" && (
                   <PreviewRow label="Daily Wage" value={formatINR(derivatives.dailyWage)} />
                 )}
-                {salaryType !== 'HOURLY' && (
+                {salaryType !== "HOURLY" && (
                   <PreviewRow label="Hourly Wage" value={formatINR(derivatives.hourlyWage)} />
                 )}
-                {salaryType !== 'WEEKLY' && (
-                  <PreviewRow label="Weekly Equivalent" value={formatINR(derivatives.weeklyEquivalent)} />
+                {salaryType !== "WEEKLY" && (
+                  <PreviewRow
+                    label="Weekly Equivalent"
+                    value={formatINR(derivatives.weeklyEquivalent)}
+                  />
                 )}
-                {salaryType !== 'MONTHLY' && (
-                  <PreviewRow label="Monthly Equivalent" value={formatINR(derivatives.monthlyEquivalent)} />
+                {salaryType !== "MONTHLY" && (
+                  <PreviewRow
+                    label="Monthly Equivalent"
+                    value={formatINR(derivatives.monthlyEquivalent)}
+                  />
                 )}
               </>
             )}
@@ -214,7 +237,10 @@ const SalaryPreview: React.FC<PreviewProps> = ({
               <div className="text-[10px] font-bold uppercase text-primary tracking-widest mb-1">
                 Company Policy
               </div>
-              <PreviewMeta label="Salary Type" value={SALARY_TYPE_LABELS[salaryType] ?? salaryType} />
+              <PreviewMeta
+                label="Salary Type"
+                value={SALARY_TYPE_LABELS[salaryType] ?? salaryType}
+              />
               <PreviewMeta label="Calc. Method" value={methodLabel} />
               <PreviewMeta label="Monthly Working Days" value={String(workingDays)} />
               <PreviewMeta label="Weekly Working Days" value={String(weeklyDays)} />
@@ -228,14 +254,19 @@ const SalaryPreview: React.FC<PreviewProps> = ({
 };
 
 const PreviewRow: React.FC<{ label: string; value: string; highlight?: boolean }> = ({
-  label, value, highlight,
+  label,
+  value,
+  highlight,
 }) => (
-  <div className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 ${highlight ? 'bg-primary text-white' : 'bg-card-2 text-ink border border-line-soft'
-    }`}>
-    <span className={`text-xs font-medium ${highlight ? 'text-white/90' : 'text-ink-subtle'}`}>
+  <div
+    className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 ${
+      highlight ? "bg-primary text-white" : "bg-card-2 text-ink border border-line-soft"
+    }`}
+  >
+    <span className={`text-xs font-medium ${highlight ? "text-white/90" : "text-ink-subtle"}`}>
       {label}
     </span>
-    <span className={`text-sm font-bold tabular-nums ${highlight ? 'text-white' : 'text-ink'}`}>
+    <span className={`text-sm font-bold tabular-nums ${highlight ? "text-white" : "text-ink"}`}>
       {value}
     </span>
   </div>
@@ -250,7 +281,13 @@ const PreviewMeta: React.FC<{ label: string; value: string }> = ({ label, value 
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, errors = {}, selectedShift }) => {
+const SalaryStructureSection: React.FC<Props> = ({
+  form,
+  onChange,
+  onToggle,
+  errors = {},
+  selectedShift,
+}) => {
   const { config, loading, configError } = usePayrollConfig();
 
   const shiftHours = useMemo(() => {
@@ -259,26 +296,31 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
   }, [selectedShift]);
 
   const defaultHours = config.defaultWorkingHoursPerDay || 8;
-  const hoursPerDay = (shiftHours && shiftHours > 0) ? shiftHours : defaultHours;
+  const hoursPerDay = shiftHours && shiftHours > 0 ? shiftHours : defaultHours;
 
   const calcConfig: PayrollCalcConfig = {
-    salaryCalculationMethod: (config.salaryCalculationMethod as any) || 'WORKING_DAYS',
+    salaryCalculationMethod: (config.salaryCalculationMethod as any) || "WORKING_DAYS",
     fixedDays: config.fixedDays || 26,
     defaultWorkingHoursPerDay: hoursPerDay,
     weeklyOffDays: config.weeklyOffDays || [0],
   };
 
-  const salaryType = (form.salaryType || 'MONTHLY').toUpperCase();
+  const salaryType = (form.salaryType || "MONTHLY").toUpperCase();
 
   // ── Primary salary amount and label for this salary type
   const { primaryAmount, primaryLabel } = useMemo(() => {
     const parse = (s: string) => parseFloat(s) || 0;
     switch (salaryType) {
-      case 'MONTHLY': return { primaryAmount: parse(form.monthlySalary), primaryLabel: 'Monthly Gross Salary' };
-      case 'WEEKLY': return { primaryAmount: parse(form.weeklySalary), primaryLabel: 'Weekly Gross Salary' };
-      case 'DAILY': return { primaryAmount: parse(form.dailySalary), primaryLabel: 'Daily Wage' };
-      case 'HOURLY': return { primaryAmount: parse(form.hourlySalary), primaryLabel: 'Hourly Rate' };
-      default: return { primaryAmount: 0, primaryLabel: 'Gross Salary' };
+      case "MONTHLY":
+        return { primaryAmount: parse(form.monthlySalary), primaryLabel: "Monthly Gross Salary" };
+      case "WEEKLY":
+        return { primaryAmount: parse(form.weeklySalary), primaryLabel: "Weekly Gross Salary" };
+      case "DAILY":
+        return { primaryAmount: parse(form.dailySalary), primaryLabel: "Daily Wage" };
+      case "HOURLY":
+        return { primaryAmount: parse(form.hourlySalary), primaryLabel: "Hourly Rate" };
+      default:
+        return { primaryAmount: 0, primaryLabel: "Gross Salary" };
     }
   }, [salaryType, form.monthlySalary, form.weeklySalary, form.dailySalary, form.hourlySalary]);
 
@@ -286,11 +328,16 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
   const derivatives = useMemo(() => {
     if (primaryAmount <= 0) return null;
     switch (salaryType) {
-      case 'MONTHLY': return deriveFromMonthly(primaryAmount, calcConfig);
-      case 'WEEKLY': return deriveFromWeekly(primaryAmount, calcConfig);
-      case 'DAILY': return deriveFromDaily(primaryAmount, calcConfig);
-      case 'HOURLY': return deriveFromHourly(primaryAmount, calcConfig);
-      default: return null;
+      case "MONTHLY":
+        return deriveFromMonthly(primaryAmount, calcConfig);
+      case "WEEKLY":
+        return deriveFromWeekly(primaryAmount, calcConfig);
+      case "DAILY":
+        return deriveFromDaily(primaryAmount, calcConfig);
+      case "HOURLY":
+        return deriveFromHourly(primaryAmount, calcConfig);
+      default:
+        return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [primaryAmount, salaryType, config]);
@@ -304,47 +351,58 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
     const { name, value } = e.target;
     onChange(e);
 
-    const isGrossField = ['monthlySalary', 'weeklySalary', 'dailySalary', 'hourlySalary'].includes(name);
+    const isGrossField = ["monthlySalary", "weeklySalary", "dailySalary", "hourlySalary"].includes(
+      name
+    );
 
     if (isGrossField) {
       const gross = parseFloat(value) || 0;
       if (gross > 0) {
-        const basic = Math.round(gross * 0.50);
-        const da = Math.round(gross * 0.10);
-        const hra = Math.round(gross * 0.10);
+        const basic = Math.round(gross * 0.5);
+        const da = Math.round(gross * 0.1);
+        const hra = Math.round(gross * 0.1);
         const other = Math.max(0, gross - basic - da - hra);
 
-        onChange({ target: { name: 'basicSalary', value: String(basic) } });
-        onChange({ target: { name: 'da', value: String(da) } });
-        onChange({ target: { name: 'hra', value: String(hra) } });
-        onChange({ target: { name: 'otherAllowance', value: String(other) } });
+        onChange({ target: { name: "basicSalary", value: String(basic) } });
+        onChange({ target: { name: "da", value: String(da) } });
+        onChange({ target: { name: "hra", value: String(hra) } });
+        onChange({ target: { name: "otherAllowance", value: String(other) } });
       } else {
-        onChange({ target: { name: 'basicSalary', value: '' } });
-        onChange({ target: { name: 'da', value: '' } });
-        onChange({ target: { name: 'hra', value: '' } });
-        onChange({ target: { name: 'otherAllowance', value: '' } });
+        onChange({ target: { name: "basicSalary", value: "" } });
+        onChange({ target: { name: "da", value: "" } });
+        onChange({ target: { name: "hra", value: "" } });
+        onChange({ target: { name: "otherAllowance", value: "" } });
       }
-    } else if (['basicSalary', 'hra', 'da'].includes(name)) {
-      const gross = parseFloat(form.monthlySalary || form.weeklySalary || form.dailySalary || form.hourlySalary || '0') || 0;
+    } else if (["basicSalary", "hra", "da"].includes(name)) {
+      const gross =
+        parseFloat(
+          form.monthlySalary || form.weeklySalary || form.dailySalary || form.hourlySalary || "0"
+        ) || 0;
       if (gross > 0) {
-        const b = name === 'basicSalary' ? (parseFloat(value) || 0) : (parseFloat(form.basicSalary || '0') || 0);
-        const d = name === 'da' ? (parseFloat(value) || 0) : (parseFloat(form.da || '0') || 0);
-        const h = name === 'hra' ? (parseFloat(value) || 0) : (parseFloat(form.hra || '0') || 0);
+        const b =
+          name === "basicSalary"
+            ? parseFloat(value) || 0
+            : parseFloat(form.basicSalary || "0") || 0;
+        const d = name === "da" ? parseFloat(value) || 0 : parseFloat(form.da || "0") || 0;
+        const h = name === "hra" ? parseFloat(value) || 0 : parseFloat(form.hra || "0") || 0;
         const other = Math.max(0, gross - b - d - h);
-        onChange({ target: { name: 'otherAllowance', value: String(other) } });
+        onChange({ target: { name: "otherAllowance", value: String(other) } });
       }
-    } else if (name === 'paymentMode' && value === 'BANK') {
-      const gross = parseFloat(form.monthlySalary || form.weeklySalary || form.dailySalary || form.hourlySalary || '0') || 0;
+    } else if (name === "paymentMode" && value === "BANK") {
+      const gross =
+        parseFloat(
+          form.monthlySalary || form.weeklySalary || form.dailySalary || form.hourlySalary || "0"
+        ) || 0;
       if (gross > 0 && (!form.basicSalary || parseFloat(form.basicSalary) === 0)) {
-        const basic = Math.round(gross * 0.50);
-        const da = Math.round(gross * 0.10);
-        const hra = Math.round(gross * 0.10);
+        const basic = Math.round(gross * 0.5);
+        const da = Math.round(gross * 0.1);
+        const hra = Math.round(gross * 0.1);
         const other = Math.max(0, gross - basic - da - hra);
 
-        onChange({ target: { name: 'basicSalary', value: String(basic) } });
-        onChange({ target: { name: 'da', value: String(da) } });
-        onChange({ target: { name: 'hra', value: String(hra) } });
-        onChange({ target: { name: 'otherAllowance', value: String(other) } });
+        onChange({ target: { name: "basicSalary", value: String(basic) } });
+        onChange({ target: { name: "da", value: String(da) } });
+        onChange({ target: { name: "hra", value: String(hra) } });
+        onChange({ target: { name: "otherAllowance", value: String(other) } });
       }
     }
   };
@@ -355,10 +413,9 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
 
   return (
     <div className="space-y-6">
-
       {/* Config error banner */}
       {configError && (
-        <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs">
+        <div className="flex items-start gap-2 px-4 py-3 rounded-[14px] border border-[color:var(--color-warning)]/35 bg-[color:var(--color-warning)]/10 text-ink text-sm">
           <FaInfoCircle className="mt-0.5 shrink-0" />
           <span>{configError}</span>
         </div>
@@ -366,13 +423,11 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
 
       {/* ── Main layout: fields (left) + preview (right) ── */}
       <div className="flex flex-col xl:flex-row gap-6">
-
         {/* ───────── LEFT: dynamic salary fields ───────── */}
         <div className="flex-1 space-y-6">
-
           {/* ── Bank & Payment Details ── */}
           <div>
-            <SectionHeader icon={FaUniversity} title="Bank & Payment Details" color="text-emerald-600" />
+            <SectionHeader icon={FaUniversity} title="Bank & Payment Details" color="text-accent" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5">
               <SelectInput
                 label="Payment Mode"
@@ -380,11 +435,11 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
                 value={form.paymentMode}
                 onChange={handleSalaryChange}
                 options={[
-                  { value: 'BANK', label: 'Bank Transfer' },
-                  { value: 'CASH', label: 'Cash' },
+                  { value: "BANK", label: "Bank Transfer" },
+                  { value: "CASH", label: "Cash" },
                 ]}
               />
-              {form.paymentMode === 'BANK' && (
+              {form.paymentMode === "BANK" && (
                 <>
                   <TextInput
                     label="Bank Name"
@@ -448,15 +503,15 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
                 required
                 error={errors.salaryType}
                 options={[
-                  { value: 'MONTHLY', label: 'Monthly' },
-                  { value: 'WEEKLY', label: 'Weekly' },
+                  { value: "MONTHLY", label: "Monthly" },
+                  { value: "WEEKLY", label: "Weekly" },
                   // { value: 'DAILY', label: 'Daily Wage' },
                   // { value: 'HOURLY', label: 'Hourly' },
                 ]}
               />
 
               {/* ── MONTHLY fields ── */}
-              {salaryType === 'MONTHLY' && (
+              {salaryType === "MONTHLY" && (
                 <TextInput
                   label="Monthly Gross Salary (₹)"
                   name="monthlySalary"
@@ -470,7 +525,7 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
               )}
 
               {/* ── WEEKLY fields ── */}
-              {salaryType === 'WEEKLY' && (
+              {salaryType === "WEEKLY" && (
                 <TextInput
                   label="Weekly Gross Salary (₹)"
                   name="weeklySalary"
@@ -484,7 +539,7 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
               )}
 
               {/* ── DAILY WAGE fields ── */}
-              {salaryType === 'DAILY' && (
+              {salaryType === "DAILY" && (
                 <TextInput
                   label="Daily Wage (₹)"
                   name="dailySalary"
@@ -498,7 +553,7 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
               )}
 
               {/* ── HOURLY fields ── */}
-              {salaryType === 'HOURLY' && (
+              {salaryType === "HOURLY" && (
                 <>
                   <TextInput
                     label="Hourly Rate (₹)"
@@ -530,7 +585,7 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
               )}
 
               {/* ── Allowance & Component Breakdown (Bank Transfer Only) ── */}
-              {form.paymentMode === 'BANK' && (
+              {form.paymentMode === "BANK" && (
                 <>
                   <TextInput
                     label="Basic Salary (₹)"
@@ -584,35 +639,41 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
             </div>
 
             {/* Live component balance calculator for Bank Transfer */}
-            {form.paymentMode === 'BANK' && primaryAmount > 0 && (
+            {form.paymentMode === "BANK" && primaryAmount > 0 && (
               <div className="mt-4 text-xs font-medium">
                 {(() => {
                   const gross = primaryAmount;
-                  const basic = parseFloat(form.basicSalary || '0') || 0;
-                  const da = parseFloat(form.da || '0') || 0;
-                  const hra = parseFloat(form.hra || '0') || 0;
-                  const other = parseFloat(form.otherAllowance || '0') || 0;
+                  const basic = parseFloat(form.basicSalary || "0") || 0;
+                  const da = parseFloat(form.da || "0") || 0;
+                  const hra = parseFloat(form.hra || "0") || 0;
+                  const other = parseFloat(form.otherAllowance || "0") || 0;
                   const total = basic + da + hra + other;
                   const diff = gross - total;
 
                   if (Math.abs(diff) < 0.01) {
                     return (
-                      <div className="flex items-center justify-between text-emerald-700 bg-emerald-50 border border-emerald-200 p-3 rounded-xl shadow-xs">
+                      <div className="flex items-center justify-between gap-2 rounded-[14px] border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 p-3 text-ink">
                         <span className="font-semibold flex items-center gap-1.5">
-                          ✓ Salary components sum (Basic + DA + HRA + Other) equals Gross Salary (₹{gross.toLocaleString('en-IN')})
+                          ✓ Salary components sum (Basic + DA + HRA + Other) equals Gross Salary (₹
+                          {gross.toLocaleString("en-IN")})
                         </span>
-                        <span className="font-mono text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">100% Matched</span>
+                        <span className="sl-chip sl-chip-sm sl-chip-success shrink-0">
+                          100% Matched
+                        </span>
                       </div>
                     );
                   }
 
                   if (diff > 0) {
                     return (
-                      <div className="flex items-center justify-between text-amber-900 bg-amber-50 border border-amber-200 p-3 rounded-xl shadow-xs">
+                      <div className="flex items-center justify-between rounded-[14px] border border-[color:var(--color-warning)]/35 bg-[color:var(--color-warning)]/10 text-ink p-3">
                         <div>
-                          <span className="font-bold">⚠️ Remaining Balance: ₹{diff.toLocaleString('en-IN')}</span>
-                          <span className="ml-1 text-slate-600">
-                            (Total components: ₹{total.toLocaleString('en-IN')} / Gross: ₹{gross.toLocaleString('en-IN')})
+                          <span className="font-bold">
+                            ⚠️ Remaining Balance: ₹{diff.toLocaleString("en-IN")}
+                          </span>
+                          <span className="ml-1 text-ink-muted">
+                            (Total components: ₹{total.toLocaleString("en-IN")} / Gross: ₹
+                            {gross.toLocaleString("en-IN")})
                           </span>
                         </div>
                       </div>
@@ -620,9 +681,11 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
                   }
 
                   return (
-                    <div className="flex items-center justify-between text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl shadow-xs">
+                    <div className="flex items-center justify-between rounded-[14px] border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 p-3 text-ink">
                       <span className="font-semibold">
-                        ❌ Components sum (₹{total.toLocaleString('en-IN')}) exceeds Gross Salary (₹{gross.toLocaleString('en-IN')}) by ₹{Math.abs(diff).toLocaleString('en-IN')}
+                        ❌ Components sum (₹{total.toLocaleString("en-IN")}) exceeds Gross Salary (₹
+                        {gross.toLocaleString("en-IN")}) by ₹
+                        {Math.abs(diff).toLocaleString("en-IN")}
                       </span>
                     </div>
                   );
@@ -631,33 +694,73 @@ const SalaryStructureSection: React.FC<Props> = ({ form, onChange, onToggle, err
             )}
 
             {/* Overtime eligible — shown for Daily and Hourly */}
-            {(salaryType === 'DAILY' || salaryType === 'HOURLY') && (
-              <div className="mt-4 flex items-center gap-4 p-3 rounded-lg bg-orange-50 border border-orange-100">
-                <FaClock className="text-orange-400 text-sm shrink-0" />
+            {(salaryType === "DAILY" || salaryType === "HOURLY") && (
+              <div className="mt-4 flex items-center gap-4 p-3 rounded-[14px] bg-card-2 border border-line-soft">
+                <FaClock
+                  className="text-[color:var(--color-warning)] text-sm shrink-0"
+                  aria-hidden="true"
+                />
                 <Toggle
                   label="Overtime Eligible"
                   value={form.overtimeEligible}
-                  onChange={onToggle('overtimeEligible')}
+                  onChange={onToggle("overtimeEligible")}
                 />
-                <span className="text-xs text-slate-400 ml-auto">
+                <span className="text-xs text-ink-subtle ml-auto">
                   {form.overtimeEligible
-                    ? 'OT pay will be calculated per company OT policy'
-                    : 'No overtime applicable'}
+                    ? "OT pay will be calculated per company OT policy"
+                    : "No overtime applicable"}
                 </span>
               </div>
             )}
-
-
           </div>
 
           {/* ── Statutory Section ── */}
-          {form.paymentMode === 'BANK' && (
+          {form.paymentMode === "BANK" && (
             <div>
-              <SectionHeader icon={FaCheckCircle} title="Statutory Deductions" color="text-violet-500" />
+              <SectionHeader
+                icon={FaCheckCircle}
+                title="Statutory Deductions"
+                color="text-accent"
+              />
               <div className="flex flex-wrap gap-8">
-                <Toggle label="PF Applicable" value={form.pfApplicable} onChange={onToggle('pfApplicable')} />
-                <Toggle label="ESI Applicable" value={form.esiApplicable} onChange={onToggle('esiApplicable')} />
-                <Toggle label="Professional Tax" value={form.professionalTax} onChange={onToggle('professionalTax')} />
+                <Toggle
+                  label="PF Applicable"
+                  value={form.pfApplicable}
+                  onChange={onToggle("pfApplicable")}
+                />
+                <Toggle
+                  label="ESI Applicable"
+                  value={form.esiApplicable}
+                  onChange={onToggle("esiApplicable")}
+                />
+                <Toggle
+                  label="Professional Tax"
+                  value={form.professionalTax}
+                  onChange={onToggle("professionalTax")}
+                />
+                <Toggle
+                  label="Salary TDS"
+                  value={form.tdsApplicable}
+                  onChange={onToggle("tdsApplicable")}
+                />
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <SelectInput
+                  label="Work State"
+                  name="workStateCode"
+                  value={form.workStateCode}
+                  onChange={onChange}
+                  defaultOptionLabel="Same as company"
+                  options={GST_STATES.map((s) => ({
+                    value: s.code,
+                    label: `${s.name} (${s.alpha})`,
+                  }))}
+                  searchable
+                />
+                <span className="text-xs text-ink-subtle self-center">
+                  Professional tax and the welfare fund follow this state, not the company's.
+                </span>
               </div>
 
               {form.pfApplicable && (

@@ -113,7 +113,10 @@ describe("subscription billing", () => {
     )
       .post("/api/payments/webhook/platform")
       .set("Content-Type", "application/json")
-      .set("x-payment-signature", sign(body).replace(/^./, "0"))
+      .set(
+        "x-payment-signature",
+        sign(body).replace(/^./, (c) => (c === "0" ? "1" : "0"))
+      )
       .send(body);
     expect(res.status).toBe(401);
     expect(res.body.code).toBe("BAD_CALLBACK");

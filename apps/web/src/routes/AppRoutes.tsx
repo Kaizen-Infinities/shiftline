@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import BaseLayout from "../components/layout/BaseLayout";
 import PageContainer from "../components/layout/PageContainer";
@@ -25,6 +25,7 @@ const GstMastersPage = lazy(() => import("../modules/gst/pages/GstMastersPage"))
 const NotificationsPage = lazy(() => import("../modules/notifications/pages/NotificationsPage"));
 const UpgradePage = lazy(() => import("../modules/upgrade/pages/UpgradePage"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
+const AreaHubPage = lazy(() => import("../modules/hub/pages/AreaHubPage"));
 
 // ===========================================================================
 // ADMINISTRATION & ORGANIZATION
@@ -242,6 +243,13 @@ const StatutoryPayrollPage = lazy(() => import("../modules/payroll/pages/Statuto
 const LabourEntitlementsPage = lazy(
   () => import("../modules/payroll/pages/LabourEntitlementsPage")
 );
+const LeaveHrPage = lazy(() => import("../modules/leave/pages/LeaveHrPage"));
+const OrderTnaPage = lazy(() => import("../modules/production/pages/OrderTnaPage"));
+const DeliverySchedulesPage = lazy(() => import("../modules/sales/pages/DeliverySchedulesPage"));
+const MyLeavePage = lazy(() => import("../modules/leave/pages/MyLeavePage"));
+const ExportIncentivesPage = lazy(() => import("../modules/exports/pages/ExportIncentivesPage"));
+const RegistersPage = lazy(() => import("../modules/payroll/pages/RegistersPage"));
+const FinesPage = lazy(() => import("../modules/payroll/pages/FinesPage"));
 const PaymentLinksPage = lazy(() => import("../modules/payments/pages/PaymentLinksPage"));
 const SmsPage = lazy(() => import("../modules/sms/pages/SmsPage"));
 const ComplianceCalendarPage = lazy(
@@ -249,6 +257,7 @@ const ComplianceCalendarPage = lazy(
 );
 const TransportersPage = lazy(() => import("../modules/settings/pages/TransportersPage"));
 const EInvoiceSettingsPage = lazy(() => import("../modules/settings/pages/EInvoiceSettingsPage"));
+const MachineGatewaysPage = lazy(() => import("../modules/settings/pages/MachineGatewaysPage"));
 const CashFlowPage = lazy(() => import("../modules/accounts/pages/books/CashFlowPage"));
 
 // ===========================================================================
@@ -405,6 +414,10 @@ const AppRoutes = () => {
             <Route path="/company/edit" element={<CompanySettings />} />
             <Route path="/settings" element={<Settings />} />
 
+            {/* Area hubs (UI v2): one page per navigation area, built from the nav config;
+                each tile shows only when the user holds that screen's permission. */}
+            <Route path="/hub/:area" element={<AreaHubPage />} />
+
             {/* Administration pages that ship their own `.inner-container` */}
             <Route element={<ProtectedRoute permission="users.view" />}>
               <Route path="/users" element={<UserList />} />
@@ -546,6 +559,9 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="production-wastages.view" />}>
                 <Route path="/production-wastages" element={<WastageList />} />
               </Route>
+              <Route element={<ProtectedRoute permission="order-tna.view" />}>
+                <Route path="/production/order-tna" element={<OrderTnaPage />} />
+              </Route>
               <Route element={<ProtectedRoute permission="goods-dispatch.view" />}>
                 <Route path="/production/goods-dispatch" element={<GoodsDispatchList />} />
               </Route>
@@ -621,6 +637,22 @@ const AppRoutes = () => {
                 <Route path="/payroll/statutory" element={<StatutoryPayrollPage />} />
                 <Route path="/payroll/entitlements" element={<LabourEntitlementsPage />} />
               </Route>
+              <Route element={<ProtectedRoute permission="delivery-schedules.view" />}>
+                <Route path="/sales/delivery-schedules" element={<DeliverySchedulesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="export-incentives.view" />}>
+                <Route path="/exports/incentives" element={<ExportIncentivesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="leave.view" />}>
+                <Route path="/hr/leave" element={<LeaveHrPage />} />
+                <Route path="/me/leave" element={<MyLeavePage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="registers.view" />}>
+                <Route path="/hr/registers" element={<RegistersPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="fines.view" />}>
+                <Route path="/hr/fines" element={<FinesPage />} />
+              </Route>
               <Route element={<ProtectedRoute permission="payments.view" />}>
                 <Route path="/accounts/payment-links" element={<PaymentLinksPage />} />
               </Route>
@@ -629,6 +661,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="transporters.view" />}>
                 <Route path="/settings/transporters" element={<TransportersPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="machine-telemetry.view" />}>
+                <Route path="/settings/machine-gateways" element={<MachineGatewaysPage />} />
               </Route>
 
               {/* ---------- Sales ---------- */}
@@ -674,6 +709,11 @@ const AppRoutes = () => {
                 }
               >
                 <Route path="/purchase-returns" element={<PurchaseReturnPage />} />
+                {/* The legacy menu's "Add" link: returns are raised from a dialog on the list. */}
+                <Route
+                  path="/purchase-returns/create"
+                  element={<Navigate to="/purchase-returns" replace />}
+                />
               </Route>
 
               {/* ---------- Accounts & Financials ---------- */}
