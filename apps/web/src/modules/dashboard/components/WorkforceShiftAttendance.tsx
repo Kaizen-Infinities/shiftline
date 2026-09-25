@@ -1,30 +1,22 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FaUsers,
-  FaUserCheck,
-  FaUserClock,
-  FaUserTimes,
-  FaArrowRight,
-  FaCogs,
-  FaSun,
-  FaMoon,
-  FaSync,
-} from "react-icons/fa";
+import { LuMoon, LuRefreshCw, LuSun, LuUserCheck, LuUserX, LuUsers } from "react-icons/lu";
 import { employeeService } from "../../../services/employeeService";
 import { shiftService } from "../../../services/shiftService";
 import { payrollService } from "../../../services/payrollService";
 import { usePageSocketSync } from "../../../hooks/usePageSocketSync";
+import { DashTile, TileHeader } from "./DashboardPrimitives";
 
 interface WorkforceShiftAttendanceProps {
   employeesCount?: number;
   dailyPlans?: any[];
   weeklyPrograms?: any[];
+  className?: string;
 }
 
 export const WorkforceShiftAttendance: React.FC<WorkforceShiftAttendanceProps> = ({
   employeesCount: initialEmpCount = 0,
-  dailyPlans = [],
+  className = "",
 }) => {
   const navigate = useNavigate();
 
@@ -99,8 +91,7 @@ export const WorkforceShiftAttendance: React.FC<WorkforceShiftAttendanceProps> =
   // Accurate Workforce Calculations
   const totalStaff = useMemo(() => {
     if (liveEmployees.length > 0) return liveEmployees.length;
-    if (initialEmpCount > 0) return initialEmpCount;
-    return 7;
+    return initialEmpCount;
   }, [liveEmployees, initialEmpCount]);
 
   // Calculate Today's Real Attendance without any fake estimates
@@ -203,163 +194,121 @@ export const WorkforceShiftAttendance: React.FC<WorkforceShiftAttendanceProps> =
       };
     }, [liveShifts, liveAttendanceRecords, isMarkedToday, todayStr]);
 
+  const stats: {
+    key: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    value: React.ReactNode;
+    note: React.ReactNode;
+    to: string;
+    title: string;
+  }[] = [
+    {
+      key: "present",
+      label: "Present today",
+      icon: LuUserCheck,
+      value: (
+        <>
+          {presentCount}
+          <span className="ml-1 text-sm font-medium text-ink-subtle">/ {totalStaff}</span>
+        </>
+      ),
+      note: isMarkedToday ? (
+        <span className="sl-chip sl-chip-success px-2 py-0 text-[11px]">
+          {turnoverRate}% present
+        </span>
+      ) : (
+        <span className="sl-chip sl-chip-warning px-2 py-0 text-[11px]">Not marked yet</span>
+      ),
+      to: "/payroll/attendance",
+      title: "View and mark today's attendance",
+    },
+    {
+      key: "leave",
+      label: "On leave / off",
+      icon: LuUserX,
+      value: (
+        <>
+          {leaveCount}
+          {absentCount > 0 && (
+            <span className="ml-1 text-sm font-medium text-ink-subtle">+{absentCount} absent</span>
+          )}
+        </>
+      ),
+      note: (
+        <span className="sl-muted text-[11px]">
+          {isMarkedToday ? "Leave, holiday and weekly off" : "Nothing recorded yet"}
+        </span>
+      ),
+      to: "/payroll/attendance",
+      title: "View approved leave and absences",
+    },
+    {
+      key: "shift1",
+      label: shift1Name,
+      icon: LuSun,
+      value: shift1Count,
+      note: <span className="sl-muted text-[11px]">{shift1Time}</span>,
+      to: "/shift-execution",
+      title: `View ${shift1Name} on the shift execution board`,
+    },
+    {
+      key: "shift2",
+      label: shift2Name,
+      icon: LuMoon,
+      value: shift2Count,
+      note: <span className="sl-muted text-[11px]">{shift2Time}</span>,
+      to: "/shift-execution",
+      title: `View ${shift2Name} on the shift execution board`,
+    },
+  ];
+
   return (
-    <div className="bg-card border border-line-soft rounded-md overflow-hidden flex flex-col mb-4 sm:mb-6 transition-all">
-      {/* ── CARD HEADER ── */}
-      <div className="shrink-0 px-4 py-3.5 border-b border-line-soft flex flex-wrap items-center justify-between gap-3 bg-card-2/40">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-sm bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 shrink-0">
-            <FaUsers className="text-sm" />
-          </div>
-          <div>
-            <div className="text-[13px] font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
-              <span>Workforce & Shift Attendance</span>
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 border border-indigo-500/30 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                Live Attendance
-              </span>
-              {isLoading && <FaSync className="animate-spin text-indigo-500 text-[10px]" />}
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Links */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate("/employees")}
-            className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-sm text-xs font-bold text-ink-muted hover:text-ink bg-card hover:bg-card-2 border border-line-soft transition-all cursor-pointer"
-            title="View Employee Directory"
-          >
-            <span>Staff ({totalStaff})</span>
-          </button>
-
+    <DashTile labelledBy="dash-workforce" className={className}>
+      <TileHeader
+        id="dash-workforce"
+        icon={LuUsers}
+        title="Workforce today"
+        subtitle={
+          <>
+            Attendance and shifts · {totalStaff} staff
+            {isLoading && (
+              <LuRefreshCw
+                aria-label="Refreshing"
+                className="ml-1.5 inline animate-spin align-[-2px] motion-reduce:animate-none"
+              />
+            )}
+          </>
+        }
+        actions={
           <button
             type="button"
             onClick={() => navigate("/payroll/attendance")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all cursor-pointer"
-            title="Open Attendance Sheet"
+            className="rounded-full px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-chip"
+            title="Open the attendance sheet"
           >
-            <span>Attendance Sheet</span>
-            <FaArrowRight className="text-[9px]" />
+            Attendance →
           </button>
-        </div>
+        }
+      />
+      <div className="grid flex-1 grid-cols-2 gap-3 px-5 pb-5">
+        {stats.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => navigate(s.to)}
+            title={s.title}
+            className="flex min-w-0 flex-col gap-1.5 rounded-[14px] bg-card-2 p-3.5 text-left transition-colors hover:bg-nav-active"
+          >
+            <span className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-ink-muted">
+              <s.icon className="shrink-0 text-accent" aria-hidden="true" />
+              <span className="truncate">{s.label}</span>
+            </span>
+            <span className="text-2xl leading-none font-bold text-ink tabular-nums">{s.value}</span>
+            <span className="min-w-0 truncate">{s.note}</span>
+          </button>
+        ))}
       </div>
-
-      {/* ── 4 KEY METRIC CARDS (ALL FULLY CLICKABLE) ── */}
-      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 bg-card-2/40">
-        {/* 1. Present Today -> Navigates to Attendance Sheet */}
-        <div
-          onClick={() => navigate("/payroll/attendance")}
-          className="p-3.5 rounded-md bg-card border border-line-soft flex items-center justify-between hover:border-emerald-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title="Click to view & mark daily attendance"
-        >
-          <div>
-            <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-ink-muted mb-1">
-              Present Today
-            </div>
-            <div className="text-2xl font-mono font-bold text-ink">
-              <span
-                className={
-                  isMarkedToday && presentCount > 0
-                    ? "text-[color:var(--color-success)]"
-                    : "text-ink"
-                }
-              >
-                {presentCount}
-              </span>{" "}
-              <span className="text-xs text-ink-muted font-normal">/ {totalStaff}</span>
-            </div>
-            <div className="text-[11px] font-bold flex items-center gap-1 mt-0.5">
-              {isMarkedToday ? (
-                <span className="text-[color:var(--color-success)]">
-                  {turnoverRate}% Present Rate
-                </span>
-              ) : (
-                <span className="text-[color:var(--color-warning)] font-semibold">
-                  ● Not Marked Yet →
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="w-11 h-11 rounded-sm bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 shrink-0">
-            <FaUserCheck className="text-lg" />
-          </div>
-        </div>
-
-        {/* 2. On Leave & Absent -> Navigates to Attendance / Leave Sheet */}
-        <div
-          onClick={() => navigate("/payroll/attendance")}
-          className="p-3.5 rounded-md bg-card border border-line-soft flex items-center justify-between hover:border-amber-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title="Click to view Approved Leaves & Absences"
-        >
-          <div>
-            <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-ink-muted mb-1">
-              Approved Leave / Off
-            </div>
-            <div className="text-2xl font-mono font-bold text-[color:var(--color-warning)]">
-              {leaveCount}{" "}
-              <span className="text-xs text-ink-muted font-normal">
-                {absentCount > 0 ? `(${absentCount} abs)` : ""}
-              </span>
-            </div>
-            <div className="text-[11px] text-ink-muted font-medium mt-0.5">
-              {isMarkedToday ? "Medical & Scheduled" : "No Leaves Recorded"}
-            </div>
-          </div>
-          <div className="w-11 h-11 rounded-sm bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 shrink-0">
-            <FaUserClock className="text-lg" />
-          </div>
-        </div>
-
-        {/* 3. Shift 1 -> Navigates to Shift Execution Board */}
-        <div
-          onClick={() => navigate("/shift-execution")}
-          className="p-3.5 rounded-md bg-card border border-line-soft flex items-center justify-between hover:border-amber-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title={`Click to view ${shift1Name} on Shift Execution Board`}
-        >
-          <div>
-            <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-ink-muted mb-1 flex items-center gap-1.5">
-              <FaSun className="text-amber-500 text-[11px]" />
-              <span className="truncate max-w-[130px]">{shift1Name}</span>
-            </div>
-            <div className="text-2xl font-mono font-bold text-ink">
-              {shift1Count}{" "}
-              <span className="text-xs text-ink-muted font-normal">
-                {isMarkedToday ? "Active" : "Checked In"}
-              </span>
-            </div>
-            <div className="text-[11px] text-ink-muted font-medium mt-0.5">{shift1Time}</div>
-          </div>
-          <div className="w-11 h-11 rounded-sm bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 shrink-0">
-            <FaCogs className="text-lg" />
-          </div>
-        </div>
-
-        {/* 4. Shift 2 -> Navigates to Shift Execution Board */}
-        <div
-          onClick={() => navigate("/shift-execution")}
-          className="p-3.5 rounded-md bg-card border border-line-soft flex items-center justify-between hover:border-indigo-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title={`Click to view ${shift2Name} on Shift Execution Board`}
-        >
-          <div>
-            <div className="text-[10.5px] font-extrabold uppercase tracking-wider text-ink-muted mb-1 flex items-center gap-1.5">
-              <FaMoon className="text-indigo-400 text-[11px]" />
-              <span className="truncate max-w-[130px]">{shift2Name}</span>
-            </div>
-            <div className="text-2xl font-mono font-bold text-ink">
-              {shift2Count}{" "}
-              <span className="text-xs text-ink-muted font-normal">
-                {isMarkedToday ? "Active" : "Checked In"}
-              </span>
-            </div>
-            <div className="text-[11px] text-ink-muted font-medium mt-0.5">{shift2Time}</div>
-          </div>
-          <div className="w-11 h-11 rounded-sm bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-600 shrink-0">
-            <FaCogs className="text-lg" />
-          </div>
-        </div>
-      </div>
-    </div>
+    </DashTile>
   );
 };

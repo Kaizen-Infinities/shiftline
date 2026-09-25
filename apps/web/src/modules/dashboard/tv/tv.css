@@ -16,10 +16,12 @@
   overflow: hidden;
   /* 1 unit == 1px at exactly 1920×1080; shrinks on the tighter axis. */
   --tv-u: min(calc(100vw / 1920), calc(100vh / 1080));
-  --tv-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-family: var(--tv-mono);
-  letter-spacing: 0.2px;
+  /* The product's own face: Inter, tight headings, tabular figures so
+     numbers do not jitter as they tick. */
+  font-family: var(--font-body);
+  letter-spacing: -0.005em;
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Portrait and near-square displays: the width axis is the constraint,
@@ -37,17 +39,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-/* CRT-style scanline texture from the design. */
-.tv-scan {
-  background-image: repeating-linear-gradient(
-    180deg,
-    var(--tv-scan) 0px,
-    var(--tv-scan) 1px,
-    transparent 1px,
-    transparent 28px
-  );
 }
 
 .tv-root ::-webkit-scrollbar {

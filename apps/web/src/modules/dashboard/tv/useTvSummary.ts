@@ -161,7 +161,20 @@ export function useTvClock() {
 
   // Fixed 3-letter months — toLocaleDateString renders "Sept" in some locales,
   // which breaks the header's fixed-width alignment.
-  const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const MONTHS = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ];
   const dateStr = `${String(now.getDate()).padStart(2, "0")} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
   const timeStr = now.toLocaleTimeString("en-US", {
     hour: "2-digit",

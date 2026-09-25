@@ -28,7 +28,7 @@ const SceneProduction: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, t
         ))}
       </div>
 
-      <Panel theme={theme} title="PRODUCTION LINES" padX={26} padY={20} style={{ flex: 1 }}>
+      <Panel theme={theme} title="Production lines" padX={26} padY={20} style={{ flex: 1 }}>
         {p.lines.length === 0 ? (
           <TvEmpty
             theme={theme}
@@ -72,7 +72,7 @@ const SceneProduction: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, t
           gap: u(14),
         }}
       >
-        <Panel theme={theme} title="DOWNTIME TODAY">
+        <Panel theme={theme} title="Downtime today">
           {tv.downtime.length === 0 ? (
             <TvEmpty theme={theme} label="No downtime logged today" />
           ) : (
@@ -96,7 +96,7 @@ const SceneProduction: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, t
                     alignItems: "center",
                     gap: u(12),
                     background: T.tile,
-                    borderRadius: u(1),
+                    borderRadius: u(999),
                     padding: `${u(10)} ${u(16)}`,
                   }}
                 >
@@ -114,7 +114,7 @@ const SceneProduction: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, t
                   <div
                     style={{
                       fontSize: u(16),
-                      fontWeight: 800,
+                      fontWeight: 700,
                       color: A.amber,
                       flex: "0 0 auto",
                     }}
@@ -129,12 +129,12 @@ const SceneProduction: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, t
 
         <Panel
           theme={theme}
-          title="EFFICIENCY (OEE) — 7 DAYS"
+          title="Efficiency (OEE) · 7 days"
           right={
             <div
               style={{
                 fontSize: u(17),
-                fontWeight: 800,
+                fontWeight: 700,
                 color: trendColor(tv.trends.efficiency.trend, A),
               }}
             >

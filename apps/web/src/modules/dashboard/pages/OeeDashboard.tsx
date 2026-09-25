@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Container, Row, Col, Card } from "../../../components/ui/TailwindPrimitives";
 import {
-  FaChartLine,
-  FaIndustry,
-  FaCogs,
-  FaCheckCircle,
-  FaExclamationTriangle,
-  FaPauseCircle,
-} from "react-icons/fa";
+  LuCircleAlert,
+  LuCircleCheck,
+  LuCirclePause,
+  LuCog,
+  LuFactory,
+  LuGauge,
+  LuHourglass,
+  LuWrench,
+} from "react-icons/lu";
 import { oeeService } from "../../../services/oeeService";
 import { toast } from "react-toastify";
 import { useSocketSync } from "../../../hooks/useSocketSync";
+import { usePermission } from "../../../hooks/usePermission";
+import { EmptyState } from "../components/DashboardPrimitives";
+
+/* ════════════════════════════════════════════════════════════════
+   OEE & MACHINE ACTIVITY (UI v2)
+   Factory OEE and its three factors, machines by state, then one tile per
+   machine. A machine with no OEE for the day shows "—", not zero.
+   ════════════════════════════════════════════════════════════════ */
 
 const formatLocalDateString = (d: Date) => {
   const year = d.getFullYear();
@@ -19,7 +28,30 @@ const formatLocalDateString = (d: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const thresholdColor = (value: number | null) =>
+  value == null
+    ? "var(--color-ink-subtle)"
+    : value >= 85
+      ? "var(--color-success)"
+      : value >= 60
+        ? "var(--color-warning)"
+        : "var(--color-danger)";
+
+const STATUS: Record<
+  string,
+  { label: string; chip: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  RUNNING: { label: "Running", chip: "sl-chip-success", icon: LuCircleCheck },
+  IDLE: { label: "Idle", chip: "sl-chip-muted", icon: LuCirclePause },
+  BREAKDOWN: { label: "Breakdown", chip: "sl-chip-danger", icon: LuCircleAlert },
+  SETUP: { label: "Setup", chip: "sl-chip-warning", icon: LuWrench },
+  MATERIAL_WAITING: { label: "Waiting for material", chip: "sl-chip", icon: LuHourglass },
+};
+const statusOf = (s: string) =>
+  STATUS[s] ?? { label: s || "Unknown", chip: "sl-chip-muted", icon: LuCog };
+
 const OeeDashboard: React.FC = () => {
+  const { can } = usePermission();
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState<string>(formatLocalDateString(new Date()));
@@ -30,7 +62,7 @@ const OeeDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [date]);
 
-  const fetchMachineStatus = async () => {
+  async function fetchMachineStatus() {
     try {
       const data = await oeeService.getAllMachinesStatus(date);
       setMachines(data);
@@ -40,50 +72,43 @@ const OeeDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  // Refresh OEE data when production activity happens
+  // Refresh when production activity happens.
   useSocketSync("hourlyProduction", undefined, fetchMachineStatus);
   useSocketSync("productionWastage", undefined, fetchMachineStatus);
   useSocketSync("dailyPlan", undefined, fetchMachineStatus);
   useSocketSync("machine", undefined, fetchMachineStatus);
 
-  // Calculate aggregated metrics
-  const aggregateMetrics = useMemo(() => {
-    if (machines.length === 0) return { oee: 0, avail: 0, perf: 0, qual: 0, count: 0 };
-
+  const agg = useMemo(() => {
     let totalOee = 0,
       totalAvail = 0,
       totalPerf = 0,
-      totalQual = 0;
-    let validCount = 0;
-
-    let running = 0,
+      totalQual = 0,
+      validCount = 0,
+      running = 0,
       idle = 0,
       breakdown = 0,
       waiting = 0;
-
     machines.forEach((m) => {
-      if (m.currentOee !== null) {
+      if (m.currentOee !== null && m.currentOee !== undefined) {
         totalOee += m.currentOee;
         totalAvail += m.availability || 0;
         totalPerf += m.performance || 0;
         totalQual += m.quality || 0;
         validCount++;
       }
-
       if (m.machineStatus === "RUNNING") running++;
       else if (m.machineStatus === "IDLE") idle++;
       else if (m.machineStatus === "BREAKDOWN") breakdown++;
       else waiting++;
     });
-
+    const avg = (v: number) => (validCount > 0 ? Number((v / validCount).toFixed(1)) : null);
     return {
-      oee: validCount > 0 ? (totalOee / validCount).toFixed(1) : 0,
-      avail: validCount > 0 ? (totalAvail / validCount).toFixed(1) : 0,
-      perf: validCount > 0 ? (totalPerf / validCount).toFixed(1) : 0,
-      qual: validCount > 0 ? (totalQual / validCount).toFixed(1) : 0,
-      count: machines.length,
+      oee: avg(totalOee),
+      avail: avg(totalAvail),
+      perf: avg(totalPerf),
+      qual: avg(totalQual),
       running,
       idle,
       breakdown,
@@ -91,298 +116,208 @@ const OeeDashboard: React.FC = () => {
     };
   }, [machines]);
 
-  const getStatusTokens = (status: string) => {
-    switch (status) {
-      case "RUNNING":
-        return {
-          text: "text-[color:var(--color-success)]",
-          border: "border-[color:var(--color-success)]",
-          bg: "bg-[color:var(--color-success)]/10",
-        };
-      case "BREAKDOWN":
-        return {
-          text: "text-[color:var(--color-danger)]",
-          border: "border-[color:var(--color-danger)]",
-          bg: "bg-[color:var(--color-danger)]/10",
-        };
-      case "SETUP":
-        return {
-          text: "text-[color:var(--color-warning)]",
-          border: "border-[color:var(--color-warning)]",
-          bg: "bg-[color:var(--color-warning)]/10",
-        };
-      case "MATERIAL_WAITING":
-        return {
-          text: "text-[color:var(--color-info)]",
-          border: "border-[color:var(--color-info)]",
-          bg: "bg-[color:var(--color-info)]/10",
-        };
-      default:
-        return { text: "text-ink-muted", border: "border-line", bg: "bg-card-2" };
-    }
-  };
+  const fmt = (v: number | null) => (v == null ? "—" : `${v}%`);
 
-  const thresholdColor = (value: number) =>
-    value > 85
-      ? "var(--color-success)"
-      : value > 60
-        ? "var(--color-warning)"
-        : "var(--color-danger)";
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "RUNNING":
-        return <FaCheckCircle />;
-      case "BREAKDOWN":
-        return <FaExclamationTriangle />;
-      case "IDLE":
-        return <FaPauseCircle />;
-      default:
-        return <FaCogs />;
-    }
-  };
-
-  if (loading && machines.length === 0) {
-    return (
-      <div className="flex justify-center items-center" style={{ minHeight: "400px" }}>
-        <div className="animate-spin rounded-full border-b-2 border-accent h-8 w-8"></div>
-      </div>
-    );
-  }
+  const counts = [
+    {
+      key: "running",
+      label: "Running",
+      value: agg.running,
+      chip: "sl-chip-success",
+      icon: LuCircleCheck,
+    },
+    { key: "idle", label: "Idle", value: agg.idle, chip: "sl-chip-muted", icon: LuCirclePause },
+    {
+      key: "breakdown",
+      label: "Breakdown",
+      value: agg.breakdown,
+      chip: "sl-chip-danger",
+      icon: LuCircleAlert,
+    },
+    {
+      key: "waiting",
+      label: "Waiting / setup",
+      value: agg.waiting,
+      chip: "sl-chip-warning",
+      icon: LuHourglass,
+    },
+  ];
 
   return (
-    <div className="inner-container bg-page" style={{ minHeight: "100vh", paddingBottom: "2rem" }}>
-      <Container fluid>
-        <div className="page-header mb-4">
-          <Row className="items-center">
-            <Col className="col-span-12 sm:col-span-8">
-              <h2 className="page-title mb-1">
-                <FaChartLine className="mr-2" /> OEE & Machine Activity Dashboard
-              </h2>
-              <div className="page-breadcrumb">Factory Overview & Equipment Effectiveness</div>
-            </Col>
-            <Col className="col-span-12 sm:col-span-4 sm:flex sm:justify-end">
-              <input
-                type="date"
-                className="min-h-10 rounded-md border border-line bg-card px-3 py-2 font-bold text-ink-muted outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </Col>
-          </Row>
+    <div className="flex w-full flex-col gap-6 pb-10">
+      {/* ── Header ── */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="sl-h1">OEE and machine activity</h1>
+          <p className="sl-muted mt-1 text-sm">Factory overview and equipment effectiveness</p>
         </div>
+        <label className="flex items-center gap-2 text-sm text-ink-muted">
+          <span>Day</span>
+          <input
+            type="date"
+            className="sl-input w-auto py-2"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </label>
+      </header>
 
-        {/* Overall Aggregate OEE Card */}
-        <Card className="rounded-lg mb-4">
-          <Card.Body className="p-4">
-            <Row className="text-center gap-4">
-              <Col className="col-span-6 sm:col-span-3">
-                <div className="text-ink-muted text-xs uppercase tracking-wide">Factory OEE</div>
-                <div
-                  className="text-5xl font-extrabold"
-                  style={{ color: thresholdColor(Number(aggregateMetrics.oee)) }}
+      {/* ── Factory OEE + factors ── */}
+      <section
+        aria-label="Factory OEE"
+        className="sl-tile grid grid-cols-2 gap-y-6 p-6 md:grid-cols-4"
+      >
+        {loading && machines.length === 0
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-3" aria-hidden="true">
+                <div className="sl-skeleton h-3 w-20" />
+                <div className="sl-skeleton h-10 w-24" />
+              </div>
+            ))
+          : [
+              { label: "Factory OEE", v: agg.oee, color: thresholdColor(agg.oee), big: true },
+              { label: "Availability", v: agg.avail, color: "var(--color-ink)" },
+              { label: "Performance", v: agg.perf, color: "var(--color-ink)" },
+              { label: "Quality", v: agg.qual, color: "var(--color-ink)" },
+            ].map((m, i) => (
+              <div
+                key={m.label}
+                className={`flex flex-col items-center gap-1.5 text-center ${
+                  i > 0 ? "md:border-l md:border-line-soft" : ""
+                }`}
+              >
+                <span className="text-[13px] font-medium text-ink-muted">{m.label}</span>
+                <span
+                  className={`leading-none font-bold tracking-tight tabular-nums ${
+                    m.big ? "text-5xl" : "text-4xl"
+                  }`}
+                  style={{ color: m.color }}
                 >
-                  {aggregateMetrics.oee}%
-                </div>
-              </Col>
-              <Col className="col-span-6 sm:col-span-3 sm:border-l sm:border-line">
-                <div className="text-ink-muted text-xs uppercase tracking-wide">Availability</div>
-                <div className="text-4xl font-bold" style={{ color: "var(--chart-series-1)" }}>
-                  {aggregateMetrics.avail}%
-                </div>
-              </Col>
-              <Col className="col-span-6 sm:col-span-3 sm:border-l sm:border-line">
-                <div className="text-ink-muted text-xs uppercase tracking-wide">Performance</div>
-                <div className="text-4xl font-bold" style={{ color: "var(--chart-series-2)" }}>
-                  {aggregateMetrics.perf}%
-                </div>
-              </Col>
-              <Col className="col-span-6 sm:col-span-3 sm:border-l sm:border-line">
-                <div className="text-ink-muted text-xs uppercase tracking-wide">Quality</div>
-                <div className="text-4xl font-bold" style={{ color: "var(--chart-series-3)" }}>
-                  {aggregateMetrics.qual}%
-                </div>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
+                  {fmt(m.v)}
+                </span>
+              </div>
+            ))}
+      </section>
 
-        {/* Status Count Summary */}
-        <Row className="mb-4 gap-3 text-center">
-          <Col className="col-span-6 sm:col-span-3">
-            <Card className="rounded-lg border-b-4 border-b-[color:var(--color-success)]">
-              <Card.Body>
-                <div className="text-ink-muted font-bold uppercase" style={{ fontSize: "12px" }}>
-                  Running
-                </div>
-                <h3 className="mb-0 text-[color:var(--color-success)]">
-                  {aggregateMetrics.running}
-                </h3>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col className="col-span-6 sm:col-span-3">
-            <Card className="rounded-lg border-b-4 border-b-line">
-              <Card.Body>
-                <div className="text-ink-muted font-bold uppercase" style={{ fontSize: "12px" }}>
-                  Idle
-                </div>
-                <h3 className="mb-0 text-ink-muted">{aggregateMetrics.idle}</h3>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col className="col-span-6 sm:col-span-3">
-            <Card className="rounded-lg border-b-4 border-b-[color:var(--color-danger)]">
-              <Card.Body>
-                <div className="text-ink-muted font-bold uppercase" style={{ fontSize: "12px" }}>
-                  Breakdown
-                </div>
-                <h3 className="mb-0 text-[color:var(--color-danger)]">
-                  {aggregateMetrics.breakdown}
-                </h3>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col className="col-span-6 sm:col-span-3">
-            <Card className="rounded-lg border-b-4 border-b-[color:var(--color-info)]">
-              <Card.Body>
-                <div className="text-ink-muted font-bold uppercase" style={{ fontSize: "12px" }}>
-                  Waiting / Setup
-                </div>
-                <h3 className="mb-0 text-[color:var(--color-info)]">{aggregateMetrics.waiting}</h3>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
+      {/* ── Machines by state ── */}
+      <section aria-label="Machines by state" className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {counts.map((c) => (
+          <div key={c.key} className="sl-tile flex items-center justify-between gap-3 p-5">
+            <div>
+              <p className="text-[13px] font-medium text-ink-muted">{c.label}</p>
+              <p className="mt-1 text-3xl leading-none font-bold text-ink tabular-nums">
+                {c.value}
+              </p>
+            </div>
+            <span
+              aria-hidden="true"
+              className={`${c.chip} grid h-10 w-10 place-items-center rounded-[12px]`}
+            >
+              <c.icon className="text-lg" />
+            </span>
+          </div>
+        ))}
+      </section>
 
-        {/* Individual Machine Cards */}
-        <h5 className="font-bold mb-3 mt-2 text-ink">
-          <FaIndustry className="mr-2 text-accent" /> Machine Activities
-        </h5>
-        <Row>
-          {machines.map((machine) => {
-            const tokens = getStatusTokens(machine.machineStatus);
-            return (
-              <Col className="col-span-12 sm:col-span-6 lg:col-span-4" key={machine.machineId}>
-                <Card className="rounded-lg h-full overflow-hidden">
-                  <div
-                    className={`${tokens.bg} px-4 py-3 flex justify-between items-center border-b ${tokens.border}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={`${tokens.text} text-xl`}>
-                        {getStatusIcon(machine.machineStatus)}
-                      </div>
-                      <h6 className="mb-0 font-bold text-ink">{machine.machineName}</h6>
+      {/* ── Machine tiles ── */}
+      <section aria-labelledby="oee-machines" className="flex flex-col gap-3">
+        <h2 id="oee-machines" className="sl-section-label">
+          Machines
+        </h2>
+        {loading && machines.length === 0 ? (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="sl-tile flex flex-col gap-4 p-5">
+                <div className="sl-skeleton h-4 w-1/2" />
+                <div className="sl-skeleton mx-auto h-12 w-24" />
+                <div className="sl-skeleton h-20 w-full" />
+              </div>
+            ))}
+          </div>
+        ) : machines.length === 0 ? (
+          <div className="sl-tile">
+            <EmptyState
+              icon={LuFactory}
+              title="No machines to show"
+              hint="Machines appear here with their live state and OEE once they are set up."
+              action={can("machines.view") ? { label: "Open machines", to: "/machines" } : null}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {machines.map((machine) => {
+              const st = statusOf(machine.machineStatus);
+              const oee = machine.currentOee ?? null;
+              return (
+                <article key={machine.machineId} className="sl-tile flex flex-col overflow-hidden">
+                  <header className="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-chip text-accent"
+                      >
+                        <LuGauge className="text-lg" />
+                      </span>
+                      <h3 className="sl-h2 truncate text-[15px]">{machine.machineName}</h3>
                     </div>
+                    <span className={`sl-chip ${st.chip} shrink-0 px-2.5 py-0.5 text-xs`}>
+                      <st.icon aria-hidden="true" />
+                      {st.label}
+                    </span>
+                  </header>
+
+                  <div className="flex flex-col items-center gap-1 px-5 py-3">
+                    <span className="text-xs text-ink-subtle">Current OEE</span>
                     <span
-                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${tokens.border} ${tokens.text} ${tokens.bg}`}
+                      className="text-5xl leading-none font-bold tracking-tight tabular-nums"
+                      style={{ color: thresholdColor(oee) }}
                     >
-                      {machine.machineStatus}
+                      {oee == null ? "—" : `${oee}%`}
                     </span>
                   </div>
-                  <Card.Body className="p-4">
-                    {/* Primary Metric */}
-                    <div className="text-center mb-4 pb-3 border-b border-dashed border-line">
-                      <div
-                        className="text-ink-muted uppercase font-bold"
-                        style={{ fontSize: "11px", letterSpacing: "1px" }}
-                      >
-                        Current OEE
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "3rem",
-                          fontWeight: "800",
-                          lineHeight: 1,
-                          color:
-                            machine.currentOee === null
-                              ? "var(--color-ink-subtle)"
-                              : machine.currentOee >= 85
-                                ? "var(--color-success)"
-                                : machine.currentOee >= 60
-                                  ? "var(--color-warning)"
-                                  : "var(--color-danger)",
-                        }}
-                      >
-                        {machine.currentOee !== null ? `${machine.currentOee}%` : "—"}
-                      </div>
-                    </div>
 
-                    {/* Sub Metrics */}
-                    <Row className="text-center gap-2 mb-4">
-                      <Col className="col-span-4">
-                        <div
-                          className="text-ink-muted"
-                          style={{ fontSize: "10px", textTransform: "uppercase" }}
-                        >
-                          Avail
-                        </div>
-                        <div className="font-bold" style={{ color: "var(--chart-series-1)" }}>
-                          {machine.availability !== null ? `${machine.availability}%` : "-"}
-                        </div>
-                      </Col>
-                      <Col className="col-span-4 border-l border-line">
-                        <div
-                          className="text-ink-muted"
-                          style={{ fontSize: "10px", textTransform: "uppercase" }}
-                        >
-                          Perf
-                        </div>
-                        <div className="font-bold" style={{ color: "var(--chart-series-2)" }}>
-                          {machine.performance !== null ? `${machine.performance}%` : "-"}
-                        </div>
-                      </Col>
-                      <Col className="col-span-4 border-l border-line">
-                        <div
-                          className="text-ink-muted"
-                          style={{ fontSize: "10px", textTransform: "uppercase" }}
-                        >
-                          Qual
-                        </div>
-                        <div className="font-bold" style={{ color: "var(--chart-series-3)" }}>
-                          {machine.quality !== null ? `${machine.quality}%` : "-"}
-                        </div>
-                      </Col>
-                    </Row>
+                  <dl className="mx-5 grid grid-cols-3 divide-x divide-line-soft rounded-[14px] bg-card-2 py-3 text-center">
+                    {[
+                      { k: "Availability", v: machine.availability },
+                      { k: "Performance", v: machine.performance },
+                      { k: "Quality", v: machine.quality },
+                    ].map((x) => (
+                      <div key={x.k} className="flex flex-col gap-0.5 px-2">
+                        <dt className="truncate text-[11px] text-ink-subtle">{x.k}</dt>
+                        <dd className="text-sm font-semibold text-ink tabular-nums">
+                          {x.v == null ? "—" : `${x.v}%`}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
 
-                    {/* Additional Details */}
-                    <div className="bg-card-2 p-3 rounded-lg" style={{ fontSize: "13px" }}>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-ink-muted">Operator:</span>
-                        <span className="font-bold text-ink">
-                          {machine.operatorId || "Unassigned"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-ink-muted">Active Plan:</span>
-                        <span
-                          className="font-bold text-ink text-right"
-                          style={{ maxWidth: "150px" }}
-                          title={machine.activeProductionOrderId || "None"}
-                        >
-                          {machine.activeProductionOrderId || "None"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-ink-muted">Planned Run:</span>
-                        <span className="font-bold text-ink">
-                          {machine.todayPlannedHours ? `${machine.todayPlannedHours} hrs` : "0 hrs"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-ink-muted">Cycle Time:</span>
-                        <span className="font-bold text-ink">
-                          {machine.cycleTime ? `${machine.cycleTime}s` : "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-            );
-          })}
-        </Row>
-      </Container>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-5 py-4 text-sm">
+                    <dt className="text-ink-subtle">Operator</dt>
+                    <dd className="truncate text-right font-medium text-ink">
+                      {machine.operatorId || "Unassigned"}
+                    </dd>
+                    <dt className="text-ink-subtle">Active plan</dt>
+                    <dd
+                      className="truncate text-right font-medium text-ink"
+                      title={machine.activeProductionOrderId || "None"}
+                    >
+                      {machine.activeProductionOrderId || "None"}
+                    </dd>
+                    <dt className="text-ink-subtle">Planned run</dt>
+                    <dd className="text-right font-medium text-ink tabular-nums">
+                      {machine.todayPlannedHours ? `${machine.todayPlannedHours} h` : "0 h"}
+                    </dd>
+                    <dt className="text-ink-subtle">Cycle time</dt>
+                    <dd className="text-right font-medium text-ink tabular-nums">
+                      {machine.cycleTime ? `${machine.cycleTime} s` : "—"}
+                    </dd>
+                  </dl>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 };
