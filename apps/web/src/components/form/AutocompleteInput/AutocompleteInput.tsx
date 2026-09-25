@@ -1,5 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
+import {
+  FieldError,
+  RequiredMark,
+  fieldControlClasses,
+  fieldLabelClass,
+  optionClasses,
+} from "../fieldStyles";
 
 export interface AutocompleteOption {
   value: string;
@@ -26,6 +33,7 @@ interface AutocompleteInputProps {
   onChange: (value: string) => void;
 }
 
+/** Type-to-filter picker; `inline` mode is a borderless cell editor for item tables. */
 const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   label,
   name,
@@ -58,7 +66,10 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     if (!search) return options.filter((o) => !o.disabled);
     const term = search.toLowerCase();
     return options.filter(
-      (o) => !o.disabled && (o.label.toLowerCase().includes(term) || (o.selectedLabel || "").toLowerCase().includes(term))
+      (o) =>
+        !o.disabled &&
+        (o.label.toLowerCase().includes(term) ||
+          (o.selectedLabel || "").toLowerCase().includes(term))
     );
   }, [options, search]);
 
@@ -90,9 +101,17 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     };
 
     if (spaceBelow < maxH && spaceAbove > spaceBelow) {
-      setDropdownStyle({ ...base, bottom: viewportH - rect.top + 4, maxHeight: Math.min(maxH, spaceAbove - 16) });
+      setDropdownStyle({
+        ...base,
+        bottom: viewportH - rect.top + 4,
+        maxHeight: Math.min(maxH, spaceAbove - 16),
+      });
     } else {
-      setDropdownStyle({ ...base, top: rect.bottom + 4, maxHeight: Math.min(maxH, spaceBelow - 16) });
+      setDropdownStyle({
+        ...base,
+        top: rect.bottom + 4,
+        maxHeight: Math.min(maxH, spaceBelow - 16),
+      });
     }
   }, []);
 
@@ -100,7 +119,12 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (wrapperRef.current && !wrapperRef.current.contains(target) && listRef.current && !listRef.current.contains(target)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(target) &&
+        listRef.current &&
+        !listRef.current.contains(target)
+      ) {
         setOpen(false);
         setIsFocused(false);
         setSearch("");
@@ -169,25 +193,16 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
   return (
     <div
-      className={`group ${inline ? "relative w-full" : horizontal ? "flex items-start gap-3" : ""}`}
+      className={`group ${inline ? "relative w-full" : horizontal ? "flex flex-col sm:flex-row sm:items-start sm:gap-3" : "min-w-0"}`}
       ref={wrapperRef}
-      {...(inline ? { "data-autocomplete": true, ...(open ? { "data-dropdown-open": true } : {}) } : {})}
+      {...(inline
+        ? { "data-autocomplete": true, ...(open ? { "data-dropdown-open": true } : {}) }
+        : {})}
     >
       {!inline && label && (
-        <label
-          htmlFor={name}
-          className={`
-            flex items-center gap-[6px]
-            text-[11px] font-extrabold uppercase
-            tracking-[0.5px]
-            transition-colors duration-250
-            ${error ? "text-red-400" : "text-ink"}
-            group-focus-within:text-primary
-            ${horizontal ? "shrink-0 mb-0 pt-[10px]" : "mb-2"}
-          `}
-        >
+        <label htmlFor={name} className={fieldLabelClass(horizontal)}>
           <span>{label}</span>
-          {required && <span className="text-red-500 ml-0.5">*</span>}
+          {required && <RequiredMark />}
         </label>
       )}
 
@@ -224,59 +239,63 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               {selectedOption.info && <div className="shrink-0">{selectedOption.info}</div>}
             </div>
           ) : (
-          <input
-            ref={inputRef}
-            id={name}
-            type="text"
-            autoComplete="off"
-            disabled={disabled}
-            value={isFocused ? search : displayText}
-            placeholder={isFocused ? (displayText || placeholder) : placeholder}
-            onFocus={() => {
-              if (disabled) return;
-              setIsFocused(true);
-              setSearch("");
-              if (inline) {
-                if (!value) {
+            <input
+              ref={inputRef}
+              id={name}
+              type="text"
+              autoComplete="off"
+              disabled={disabled}
+              value={isFocused ? search : displayText}
+              placeholder={isFocused ? displayText || placeholder : placeholder}
+              onFocus={() => {
+                if (disabled) return;
+                setIsFocused(true);
+                setSearch("");
+                if (inline) {
+                  if (!value) {
+                    updatePosition();
+                    setOpen(true);
+                  }
+                } else {
                   updatePosition();
                   setOpen(true);
                 }
-              } else {
-                updatePosition();
-                setOpen(true);
+              }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (!open) {
+                  updatePosition();
+                  setOpen(true);
+                }
+              }}
+              onKeyDown={handleKeyDown}
+              aria-expanded={open}
+              aria-haspopup="listbox"
+              aria-invalid={Boolean(error)}
+              aria-required={required || undefined}
+              aria-describedby={error && !inline ? `${name}-error` : undefined}
+              className={
+                inline
+                  ? "w-full bg-transparent text-[13px] text-ink outline-none border-none p-0 h-full placeholder:text-ink-subtle/80 placeholder:font-normal"
+                  : fieldControlClasses({
+                      invalid: Boolean(error),
+                      open,
+                      className:
+                        "h-11 px-4 [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]",
+                    })
               }
-            }}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              if (!open) {
-                updatePosition();
-                setOpen(true);
-              }
-            }}
-            onKeyDown={handleKeyDown}
-            className={inline
-              ? "w-full bg-transparent text-[13px] text-ink outline-none border-none p-0 h-full placeholder:text-ink-subtle/80 placeholder:font-normal"
-              : `
-              w-full h-8 sm:h-9 px-3
-              border rounded-[5px] outline-none
-              text-xs sm:text-[13px] font-semibold leading-normal
-              transition-all duration-250
-              placeholder:text-ink-subtle/80 placeholder:font-normal
-              text-ink
-              [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]
-              ${error
-                ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-                : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-              }
-              ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-bold opacity-85" : ""}
-            `}
-          />
+            />
           )}
         </div>
 
-        {error && (
-          <div className={inline ? "text-red-500 text-[10px] leading-none absolute -bottom-3 left-0" : "text-[#dc3545] text-sm font-medium mt-1"}>{error}</div>
-        )}
+        {error &&
+          (inline ? (
+            <div className="absolute -bottom-3 left-0 text-[10px] leading-none text-[color:var(--color-danger)]">
+              {error}
+            </div>
+          ) : (
+            <FieldError id={`${name}-error`}>{error}</FieldError>
+          ))}
       </div>
 
       {/* Dropdown */}
@@ -284,27 +303,23 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
         createPortal(
           <div
             ref={listRef}
-            className="bg-card border border-line-soft rounded-lg shadow-2xl flex flex-col py-1 overflow-y-auto text-ink ring-1 ring-black/10"
+            role="listbox"
+            className="sl-popover flex flex-col overflow-y-auto"
             style={dropdownStyle}
           >
             {filtered.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-ink-subtle text-center">
-                {search ? "No match found" : "No options"}
-              </div>
+              <div className="sl-popover-empty">{search ? "No match found" : "No options"}</div>
             ) : (
               filtered.map((opt, idx) => (
                 <div
                   key={opt.value}
-                  className={`
-                    px-4 py-2.5 text-sm cursor-pointer flex items-center justify-between gap-2
-                    transition-colors duration-150
-                    ${idx === highlightIdx
-                      ? "bg-primary/20 text-primary font-semibold"
-                      : value === opt.value
-                        ? "bg-primary/10 text-primary font-semibold"
-                        : "text-ink hover:bg-card-2"
-                    }
-                  `}
+                  role="option"
+                  aria-selected={value === opt.value}
+                  className={optionClasses({
+                    highlighted: idx === highlightIdx,
+                    selected: value === opt.value,
+                    className: "shrink-0 justify-between",
+                  })}
                   onMouseEnter={() => setHighlightIdx(idx)}
                   onMouseDown={(e) => {
                     e.preventDefault();

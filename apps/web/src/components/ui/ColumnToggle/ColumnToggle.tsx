@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaCheck, FaFilter } from "react-icons/fa";
+import { FaCheck, FaColumns } from "react-icons/fa";
 import Button from "../Button/Button";
 
 interface ColumnToggleProps {
@@ -9,6 +9,7 @@ interface ColumnToggleProps {
   align?: "left" | "right";
 }
 
+/** "Columns" pill with a checklist popover to show or hide table columns. */
 const ColumnToggle: React.FC<ColumnToggleProps> = ({
   columns,
   visibleColumns,
@@ -48,53 +49,55 @@ const ColumnToggle: React.FC<ColumnToggleProps> = ({
     <div className="relative inline-block text-left" ref={dropdownRef}>
       <Button
         text="Columns"
-        icon={FaFilter}
+        icon={FaColumns}
         variant="secondary"
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
-        className="!text-primary font-semibold"
       />
 
       {isOpen && (
         <div
-          className={`absolute ${align === "right" ? "right-0" : "left-0"} mt-2 w-64 rounded-sm bg-card shadow-md z-50 overflow-hidden border border-line transition-colors duration-200 text-ink`}
+          role="dialog"
+          aria-label="Show or hide columns"
+          className={`sl-popover absolute ${align === "right" ? "right-0" : "left-0"} z-50 mt-2 w-64 !p-0`}
         >
-          <div className="p-3 flex justify-between items-center text-[11px] uppercase tracking-wider text-ink-subtle font-bold bg-card-2 border-b border-line-soft">
-            <span>Show / Hide Columns</span>
-            <div className="flex gap-2 items-center">
+          <div className="flex items-center justify-between px-4 pb-2 pt-3">
+            <span className="text-[13px] font-semibold text-ink-muted">Show columns</span>
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="text-accent hover:underline font-bold transition-colors cursor-pointer"
+                className="rounded-full px-2.5 py-1 text-xs font-semibold text-accent hover:bg-nav-hover"
                 onClick={selectAll}
               >
                 All
               </button>
-              <span className="text-line-soft">|</span>
               <button
                 type="button"
-                className="text-ink-subtle hover:text-ink transition-colors font-bold cursor-pointer"
+                className="rounded-full px-2.5 py-1 text-xs font-semibold text-ink-subtle hover:bg-nav-hover hover:text-ink"
                 onClick={deselectAll}
               >
                 None
               </button>
             </div>
           </div>
-          <div className="max-h-72 overflow-y-auto p-1.5 custom-scrollbar">
+          <div className="max-h-72 overflow-y-auto px-1.5 pb-1.5">
             {columns.map((col, index) => {
               const isVisible = visibleColumns.includes(col.header);
               return (
                 <button
                   key={index}
                   type="button"
+                  aria-pressed={isVisible}
                   onClick={() => toggleColumn(col.header)}
-                  className="w-full text-left px-3 py-2 text-xs text-ink hover:bg-card-2 flex items-center gap-3 rounded-sm transition-colors group cursor-pointer"
+                  className="sl-option"
                 >
-                  <div
-                    className={`w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${isVisible ? "bg-accent border-accent text-white" : "border-line-soft bg-card-2 group-hover:border-accent/50"}`}
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[6px] border transition-colors ${isVisible ? "border-transparent bg-accent text-white" : "border-line bg-card"}`}
                   >
                     {isVisible && <FaCheck size={9} />}
-                  </div>
-                  <span className="truncate font-semibold capitalize">
+                  </span>
+                  <span className="truncate font-medium capitalize">
                     {col.header.toLowerCase()}
                   </span>
                 </button>

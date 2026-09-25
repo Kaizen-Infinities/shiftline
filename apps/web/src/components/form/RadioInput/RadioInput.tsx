@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { Form } from "../../ui/TailwindPrimitives";
 
 import "./RadioInput.css";
@@ -16,6 +16,7 @@ interface RadioGroupProps {
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
+/** Labelled group of radios laid out in a row. */
 const RadioGroup: React.FC<RadioGroupProps> = ({
   label,
   name,
@@ -24,12 +25,17 @@ const RadioGroup: React.FC<RadioGroupProps> = ({
   required = false,
   onChange,
 }) => {
+  const labelId = useId();
   return (
-    <Form.Group className="radio-group">
-      <Form.Label className="radio-label">
+    <Form.Group className="radio-group" role="radiogroup" aria-labelledby={labelId}>
+      <Form.Label id={labelId} className="radio-label">
         {label}
 
-        {required && <span className="required-star">*</span>}
+        {required && (
+          <span className="required-star sl-required" aria-hidden="true">
+            *
+          </span>
+        )}
       </Form.Label>
 
       <div className="radio-options">

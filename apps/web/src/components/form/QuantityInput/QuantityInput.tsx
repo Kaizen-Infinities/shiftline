@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
+import { FieldError, RequiredMark, fieldControlClasses, fieldLabelClass } from "../fieldStyles";
 import convert from "convert-units";
 
 interface QuantityInputProps {
@@ -16,6 +17,7 @@ interface QuantityInputProps {
   onUomChange?: (uom: string) => void;
 }
 
+/** Quantity with its unit: number box and a unit picker joined in one `.sl-input`. */
 const QuantityInput: React.FC<QuantityInputProps> = ({
   name,
   label = "",
@@ -30,12 +32,23 @@ const QuantityInput: React.FC<QuantityInputProps> = ({
   uom,
   onUomChange,
 }) => {
-  const rawList = baseUoms ? baseUoms.split(",").map((u) => u.trim()).filter(Boolean) : [];
+  const baseId = useId();
+  const inputId = `${baseId}-qty`;
+  const errorId = `${baseId}-error`;
+  const rawList = baseUoms
+    ? baseUoms
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean)
+    : [];
 
   // Custom peers for count-based units not known to convert-units
   const CUSTOM_PEERS: Record<string, string[]> = {
-    pcs: ["pcs", "dz", "box"], ea: ["pcs", "dz", "box"], each: ["pcs", "dz", "box"],
-    dz: ["dz", "pcs"], box: ["box", "pcs"],
+    pcs: ["pcs", "dz", "box"],
+    ea: ["pcs", "dz", "box"],
+    each: ["pcs", "dz", "box"],
+    dz: ["dz", "pcs"],
+    box: ["box", "pcs"],
   };
   const PREFERRED = new Set(["g", "kg", "t", "ml", "l", "mm", "cm", "m", "km"]);
 
@@ -56,15 +69,15 @@ const QuantityInput: React.FC<QuantityInputProps> = ({
   };
 
   const uomList = expandUoms(rawList);
-  
+
   // Track selected UOM locally if not controlled from parent
   const [localUom, setLocalUom] = useState<string>("");
-  const activeUom = uom !== undefined ? uom : (localUom || (uomList.length > 0 ? uomList[0] : ""));
+  const activeUom = uom !== undefined ? uom : localUom || (uomList.length > 0 ? uomList[0] : "");
 
   useEffect(() => {
     if (uomList.length > 0) {
       // Find matching UOM or default to first
-      const matches = uomList.find(u => u.toLowerCase() === activeUom.toLowerCase());
+      const matches = uomList.find((u) => u.toLowerCase() === activeUom.toLowerCase());
       if (!matches) {
         setLocalUom(uomList[0]);
       }
@@ -86,38 +99,39 @@ const QuantityInput: React.FC<QuantityInputProps> = ({
   const primaryUom = uomList.length > 0 ? uomList[0] : "";
 
   return (
-    <div className={`w-full ${!hideLabel ? "mb-4" : ""} group`}>
+    <div className={`group w-full min-w-0 ${!hideLabel ? "mb-4" : ""}`}>
       {!hideLabel && (
-        <label
-          className={`
-            flex items-center gap-[6px] mb-2
-            text-xs font-extrabold uppercase
-            tracking-[0.5px]
-            transition-colors duration-250
-            ${error ? "text-red-400" : "text-ink"}
-            group-focus-within:text-primary
-          `}
-        >
+        <label htmlFor={inputId} className={fieldLabelClass()}>
           <span>{label}</span>
-          {required && (
-            <span className="text-red-500 ml-0.5">*</span>
-          )}
+          {required && <RequiredMark />}
         </label>
       )}
 
-      <div className="flex relative rounded-md h-10 border border-line-soft focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 overflow-hidden transition-all bg-card-2">
+      <div
+        className={fieldControlClasses({
+          invalid: Boolean(error),
+          disabled: disabled || !primaryUom,
+          className: "relative flex h-11 overflow-hidden !p-0",
+        })}
+      >
         <input
+          id={inputId}
           type="number"
           value={displayValue}
           onChange={handleQtyChange}
           disabled={disabled || !primaryUom}
           placeholder="0.00"
           step={step || "any"}
-          className={`flex-1 min-w-0 bg-transparent px-2 py-2 text-sm font-semibold text-ink placeholder:text-ink-subtle placeholder:font-normal focus:outline-none border-r border-line-soft h-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${disabled ? "bg-card-2/50 opacity-60 cursor-not-allowed text-ink-subtle" : ""}`}
+          aria-label={hideLabel ? label || name : undefined}
+          aria-invalid={Boolean(error)}
+          aria-required={required || undefined}
+          aria-describedby={error ? errorId : undefined}
+          className={`sl-input-bare flex-1 px-3.5 text-[15px] font-medium tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${disabled ? "cursor-not-allowed text-ink-muted" : ""}`}
         />
         {uomList.length > 1 ? (
           <select
             value={activeUom}
+            aria-label="Unit"
             onChange={(e) => {
               const val = e.target.value;
               setLocalUom(val);
@@ -125,10 +139,10 @@ const QuantityInput: React.FC<QuantityInputProps> = ({
               onChange({ target: { name, value: displayValue, uom: val } });
             }}
             disabled={disabled}
-            className="px-1 text-xs font-medium text-ink bg-card-2 border-0 focus:outline-none h-full cursor-pointer w-[46px] flex-shrink-0"
+            className="h-full w-[58px] flex-shrink-0 cursor-pointer border-0 border-l border-line-soft bg-card-2 px-1.5 text-xs font-semibold text-ink-muted focus:outline-none"
           >
             {uomList.map((u) => {
-              const display = u.toLowerCase() === 'ea' ? 'pcs' : u;
+              const display = u.toLowerCase() === "ea" ? "pcs" : u;
               return (
                 <option key={u} value={u} className="bg-card text-ink">
                   {display}
@@ -137,17 +151,13 @@ const QuantityInput: React.FC<QuantityInputProps> = ({
             })}
           </select>
         ) : (
-          <span className="px-1 text-xs font-medium text-ink-muted bg-card-2 flex items-center justify-center w-[46px] flex-shrink-0 h-full border-l border-line-soft">
-            {activeUom ? (activeUom.toLowerCase() === 'ea' ? 'pcs' : activeUom) : "UOM"}
+          <span className="flex h-full w-[58px] flex-shrink-0 items-center justify-center border-l border-line-soft bg-card-2 px-1 text-xs font-semibold text-ink-muted">
+            {activeUom ? (activeUom.toLowerCase() === "ea" ? "pcs" : activeUom) : "UOM"}
           </span>
         )}
       </div>
 
-      {error && (
-        <p className="mt-1.5 text-sm text-rose-500 font-medium animate-in fade-in slide-in-from-top-1">
-          {error}
-        </p>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 };

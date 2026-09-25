@@ -59,11 +59,11 @@ const DayScheduleCard: React.FC<DayScheduleCardProps> = ({
   const hasPlans = day.shifts.some((s) => s.programs.length > 0);
 
   return (
-    <Card className="h-100 shadow-sm border-0 day-schedule-card">
-      <Card.Header className="bg-white pt-4 px-4 pb-0 border-0 d-flex justify-content-between align-items-center">
+    <Card className="day-schedule-card sl-tile-hover h-full">
+      <Card.Header className="flex items-center justify-between gap-3 !border-0 !px-5 !pb-0 !pt-5">
         <div>
-          <h5 className="mb-1 fw-bold text-dark">{day.dayName}</h5>
-          <span className="text-muted small fw-medium">
+          <h5 className="sl-h2 m-0 mb-0.5">{day.dayName}</h5>
+          <span className="text-[13px] font-medium text-ink-subtle">
             {new Date(day.date).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -75,40 +75,42 @@ const DayScheduleCard: React.FC<DayScheduleCardProps> = ({
         <StatusBadge
           status={hasPlans ? "SCHEDULED" : "DRAFT"}
           customText={hasPlans ? "Scheduled" : "No Plan"}
-          customColor={hasPlans ? undefined : { bg: "#f8f9fa", text: "#6c757d" }}
+          tone={hasPlans ? undefined : "muted"}
         />
       </Card.Header>
 
-      <Card.Body className="px-4 py-3">
-        <div className="d-flex flex-column gap-3">
+      <Card.Body className="!px-5 !py-4">
+        <div className="flex flex-col gap-3">
           {day.shifts.map((shift) => {
             const hasProgramsInShift = shift.programs.length > 0;
 
             return (
-              <div key={shift.shiftId} className="p-3 bg-light rounded border border-light">
+              <div
+                key={shift.shiftId}
+                className="rounded-[14px] border border-line-soft bg-card-2 p-3"
+              >
                 {/* Shift Sub-Header */}
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="section-title border-bottom-0 mb-0">{shift.shiftName}</span>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-ink">{shift.shiftName}</span>
                     {onAddUrgentClick && (
                       <button
                         type="button"
                         onClick={() => onAddUrgentClick(day, shift)}
-                        className="btn btn-link p-0 ms-2 text-decoration-none fw-bold"
-                        style={{ fontSize: "12px", color: "var(--color-primary, #4caf50)" }}
+                        className="sl-chip sl-chip-sm"
                       >
                         + Add Urgent Run
                       </button>
                     )}
                   </div>
-                  <span className="badge bg-secondary">
+                  <span className="sl-chip sl-chip-sm sl-chip-muted tabular-nums">
                     {shift.startTime} - {shift.endTime}
                   </span>
                 </div>
 
                 {/* Shift Programs */}
                 {hasProgramsInShift ? (
-                  <div className="d-flex flex-column gap-3">
+                  <div className="flex flex-col gap-3">
                     {shift.programs.map((prog) => {
                       const isStarted = prog.status === "IN_PROGRESS";
                       const programKey = prog.weeklyProgramId;
@@ -121,91 +123,84 @@ const DayScheduleCard: React.FC<DayScheduleCardProps> = ({
                       return (
                         <div
                           key={prog.weeklyProgramId}
-                          className="bg-white p-3 rounded border shadow-sm"
+                          className="rounded-[14px] border border-line-soft bg-card p-3.5 shadow-[var(--shadow-sm)]"
                         >
-                          <div className="d-flex justify-content-between align-items-start mb-3">
+                          <div className="mb-3 flex items-start justify-between gap-2">
                             <div>
                               {(prog.machineName || machineName) && (
-                                <div className="text-muted small mb-1">
-                                  MACHINE:{" "}
-                                  <span className="text-dark fw-bold px-1 rounded bg-light">
+                                <div className="mb-1 text-xs text-ink-subtle">
+                                  Machine{" "}
+                                  <span className="font-semibold text-ink">
                                     {prog.machineName || machineName}
                                   </span>
                                 </div>
                               )}
-                              <div className="text-muted small mb-2">
-                                PO NO:{" "}
-                                <span
-                                  className="color-primary fw-bold rounded"
-                                  style={{ fontSize: "0.85rem" }}
-                                >
+                              <div className="mb-2 text-xs text-ink-subtle">
+                                PO{" "}
+                                <span className="font-semibold text-accent">
                                   {prog.productionOrderId}
                                 </span>
                               </div>
-                              <div className="text-dark fw-bold fs-6">{prog.productName}</div>
+                              <div className="text-[15px] font-semibold text-ink">
+                                {prog.productName}
+                              </div>
                             </div>
                             <StatusBadge status={prog.status} />
                           </div>
 
                           {/* Quantities Grid */}
-                          <Row className="g-2 my-3 text-center bg-light p-2 rounded border border-light">
-                            <Col xs={4}>
-                              <div
-                                className="text-muted fw-bold mb-1"
-                                style={{ fontSize: "10px", letterSpacing: "0.5px" }}
-                              >
-                                PLANNED
+                          <Row className="my-3 !gap-2 rounded-[12px] bg-card-2 p-2.5 text-center">
+                            <Col xs={4} className="!col-span-4">
+                              <div className="mb-0.5 text-[11px] font-medium text-ink-subtle">
+                                Planned
                               </div>
-                              <div className="fw-bold text-dark fs-5">{prog.plannedQty}</div>
+                              <div className="text-lg font-bold tabular-nums text-ink">
+                                {prog.plannedQty}
+                              </div>
                             </Col>
-                            <Col xs={4}>
-                              <div
-                                className="text-muted fw-bold mb-1"
-                                style={{ fontSize: "10px", letterSpacing: "0.5px" }}
-                              >
-                                PRODUCED
+                            <Col xs={4} className="!col-span-4">
+                              <div className="mb-0.5 text-[11px] font-medium text-ink-subtle">
+                                Produced
                               </div>
-                              <div className="fw-bold text-success fs-5">{prog.producedQty}</div>
+                              <div className="text-lg font-bold tabular-nums text-[color:var(--color-success)]">
+                                {prog.producedQty}
+                              </div>
                             </Col>
-                            <Col xs={4}>
-                              <div
-                                className="text-muted fw-bold mb-1"
-                                style={{ fontSize: "10px", letterSpacing: "0.5px" }}
-                              >
-                                REMAINING
+                            <Col xs={4} className="!col-span-4">
+                              <div className="mb-0.5 text-[11px] font-medium text-ink-subtle">
+                                Remaining
                               </div>
-                              <div className="fw-bold text-warning fs-5">{prog.remainingQty}</div>
+                              <div className="text-lg font-bold tabular-nums text-[color:var(--color-warning)]">
+                                {prog.remainingQty}
+                              </div>
                             </Col>
                           </Row>
 
-                          <div className="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-3">
                             <StatusBadge status={prog.status} />
 
                             {isCompleted ? (
-                              <div className="d-flex flex-column align-items-end">
+                              <div className="flex flex-col items-end">
                                 <span
-                                  className={`fw-bold ${prog.producedQty >= prog.plannedQty ? "text-success" : "text-danger"}`}
+                                  className={`font-semibold ${prog.producedQty >= prog.plannedQty ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
                                 >
                                   Completed
                                 </span>
                                 {prog.producedQty < prog.plannedQty && (
-                                  <span
-                                    className="text-danger small fw-bold"
-                                    style={{ fontSize: "10px" }}
-                                  >
+                                  <span className="text-[11px] font-semibold text-[color:var(--color-danger)]">
                                     Target Not Reached ({prog.plannedQty - prog.producedQty} Short)
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <div className="d-flex gap-2 align-items-center">
+                              <div className="flex items-center gap-2">
                                 {isStarted && onStopProductionClick && (
                                   <button
                                     type="button"
                                     title="Stop & Complete Run"
                                     onClick={() => onStopProductionClick(day, shift, prog)}
-                                    className="btn btn-outline-danger d-flex align-items-center justify-content-center p-0"
-                                    style={{ width: "36px", height: "36px", borderRadius: "8px" }}
+                                    aria-label="Stop & Complete Run"
+                                    className="sl-icon-btn sl-icon-btn-md sl-icon-btn-tone-danger"
                                   >
                                     <svg
                                       stroke="currentColor"
@@ -225,8 +220,8 @@ const DayScheduleCard: React.FC<DayScheduleCardProps> = ({
                                     type="button"
                                     title="Edit Run"
                                     onClick={() => onEditClick(day, shift, prog)}
-                                    className="btn btn-outline-secondary d-flex align-items-center justify-content-center p-0"
-                                    style={{ width: "36px", height: "36px", borderRadius: "8px" }}
+                                    aria-label="Edit Run"
+                                    className="sl-icon-btn sl-icon-btn-md sl-icon-btn-hover-primary"
                                   >
                                     <svg
                                       stroke="currentColor"
@@ -246,8 +241,8 @@ const DayScheduleCard: React.FC<DayScheduleCardProps> = ({
                                     type="button"
                                     title="Delete Run"
                                     onClick={() => onDeleteClick(day, shift, prog)}
-                                    className="btn btn-outline-danger d-flex align-items-center justify-content-center p-0"
-                                    style={{ width: "36px", height: "36px", borderRadius: "8px" }}
+                                    aria-label="Delete Run"
+                                    className="sl-icon-btn sl-icon-btn-md sl-icon-btn-hover-danger"
                                   >
                                     <svg
                                       stroke="currentColor"
@@ -276,24 +271,9 @@ const DayScheduleCard: React.FC<DayScheduleCardProps> = ({
                     })}
                   </div>
                 ) : (
-                  <div
-                    className="d-flex align-items-center justify-content-center py-4 rounded mt-2"
-                    style={{
-                      border: "2px dashed #cbd5e0",
-                      backgroundColor: "#ffffff",
-                      minHeight: "100px",
-                    }}
-                  >
-                    <span
-                      className="fw-bold"
-                      style={{
-                        color: "#a0aec0",
-                        fontSize: "13px",
-                        textTransform: "uppercase",
-                        letterSpacing: "1px",
-                      }}
-                    >
-                      No Schedules Assigned
+                  <div className="mt-2 flex min-h-[100px] items-center justify-center rounded-[14px] border-2 border-dashed border-line bg-card py-4">
+                    <span className="text-[13px] font-medium text-ink-subtle">
+                      No runs scheduled
                     </span>
                   </div>
                 )}

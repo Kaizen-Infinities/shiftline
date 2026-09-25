@@ -33,6 +33,27 @@ interface CustomButtonProps {
   onClick?: MouseEventHandler<HTMLButtonElement>;
 }
 
+/* Each legacy variant maps onto a concept pill; the custom-btn--* classes stay for callers
+   and for the few tones (warning, dark) that have no .sl-* equivalent. */
+const pillClass: Record<NonNullable<CustomButtonProps["variant"]>, string> = {
+  primary: "sl-cta",
+  success: "sl-cta",
+  secondary: "sl-btn",
+  outline: "sl-btn",
+  ghost: "sl-btn-ghost",
+  danger: "sl-btn-danger",
+  info: "sl-btn-blue",
+  warning: "",
+  dark: "",
+};
+
+const sizeClass: Record<NonNullable<CustomButtonProps["size"]>, string> = {
+  sm: "sl-pill-sm",
+  md: "sl-pill-md",
+  lg: "sl-pill-lg",
+};
+
+/** Legacy pill button with nine variants; all render as concept pills. */
 const CustomButton = ({
   text,
   icon: Icon,
@@ -50,33 +71,19 @@ const CustomButton = ({
       type={type}
       disabled={disabled || loading}
       onClick={onClick}
+      aria-busy={loading || undefined}
       style={{ width }}
-      className={`
-        custom-btn
-        custom-btn--${variant}
-        custom-btn--${size}
-        ${loading ? "custom-btn--loading" : ""}
-        ${className}
-      `}
+      className={`custom-btn custom-btn--${variant} custom-btn--${size} ${pillClass[variant]} ${sizeClass[size]} ${loading ? "custom-btn--loading" : ""} ${className}`}
     >
       {loading ? (
-        <span
-          className="spinner-border spinner-border-sm me-2"
-          role="status"
-          aria-hidden="true"
-        />
+        <span className="sl-spinner" role="status" aria-hidden="true" />
       ) : (
         Icon && (
-          <Icon
-            className="custom-btn-icon"
-            size={18}
-          />
+          <Icon className="custom-btn-icon" size={size === "lg" ? 19 : size === "sm" ? 15 : 17} />
         )
       )}
 
-      <span className="custom-btn-text">
-        {text}
-      </span>
+      <span className="custom-btn-text">{text}</span>
     </button>
   );
 };

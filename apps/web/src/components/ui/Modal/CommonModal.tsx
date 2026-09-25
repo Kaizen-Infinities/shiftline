@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 import { X } from "lucide-react";
 
 export interface CommonModalProps {
@@ -27,6 +27,7 @@ const maxWidthMap: Record<string, string> = {
   wide: "max-w-[95vw]",
 };
 
+/** General dialog: blurred backdrop, 24px card, title with a close pill, body and pill footer. */
 const CommonModal: React.FC<CommonModalProps> = ({
   show,
   onHide,
@@ -36,6 +37,8 @@ const CommonModal: React.FC<CommonModalProps> = ({
   overflowVisible,
   maxWidth = "lg",
 }) => {
+  const titleId = useId();
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && show) onHide();
@@ -50,39 +53,41 @@ const CommonModal: React.FC<CommonModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+      className="sl-backdrop z-[9999] flex items-center justify-center p-3 sm:p-4"
       onClick={onHide}
     >
       <div
-        className={`bg-card border border-line-soft rounded-sm shadow-md w-full ${widthClass} animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 flex flex-col max-h-[90vh] ${overflowVisible ? "overflow-visible" : "overflow-hidden"}`}
+        className={`sl-dialog w-full ${widthClass} flex max-h-[90dvh] flex-col ${overflowVisible ? "overflow-visible" : "overflow-hidden"}`}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-line-soft flex justify-between items-center">
-          <h3 className="text-base font-bold text-ink m-0">{title}</h3>
+        <div className="sl-dialog-header items-center border-b border-line-soft pb-4">
+          <h3 id={titleId} className="sl-dialog-title">
+            {title}
+          </h3>
           <button
+            type="button"
             onClick={onHide}
-            className="w-8 h-8 flex items-center justify-center text-ink-subtle hover:text-ink transition-all p-1 rounded-lg hover:bg-card-2 border border-transparent hover:border-line-soft cursor-pointer"
+            aria-label="Close dialog"
+            title="Close"
+            className="sl-icon-btn sl-icon-btn-md sl-icon-btn-ghost -mr-2 shrink-0"
           >
-            <X size={16} />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
         {/* Body */}
         <div
-          className={`flex-1 px-6 py-5 min-h-0 ${overflowVisible ? "overflow-visible" : "overflow-y-auto"}`}
+          className={`min-h-0 flex-1 px-4 py-5 sm:px-6 ${overflowVisible ? "overflow-visible" : "overflow-y-auto"}`}
         >
           {children}
         </div>
 
         {/* Footer */}
-        {footer && (
-          <div className="px-6 py-3.5 border-t border-line-soft bg-card-2/50 flex justify-end gap-2.5 rounded-b-sm">
-            {footer}
-          </div>
-        )}
+        {footer && <div className="sl-dialog-footer">{footer}</div>}
       </div>
     </div>
   );

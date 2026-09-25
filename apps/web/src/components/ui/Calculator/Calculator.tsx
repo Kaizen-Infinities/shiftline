@@ -21,6 +21,7 @@ interface HistoryItem {
   timestamp: string;
 }
 
+/** Draggable quick calculator with GST presets and history (Alt+C). */
 const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   const [display, setDisplay] = useState("0");
   const [prevValue, setPrevValue] = useState<number | null>(null);
@@ -307,13 +308,13 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   };
 
   const digitBtn =
-    "py-3.5 rounded-sm text-base font-bold text-ink bg-card-2 hover:bg-card border border-line transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+    "py-3.5 rounded-[14px] text-base font-bold text-ink bg-card-2 hover:bg-card border border-line transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
   const digitActive = (key: string) => (activeBtnKey === key ? "border-accent bg-accent/10" : "");
   const funcBtn =
-    "py-3.5 rounded-sm text-sm font-bold text-ink-muted bg-card hover:bg-card-2 border border-line transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent flex items-center justify-center";
+    "py-3.5 rounded-[14px] text-sm font-bold text-ink-muted bg-card hover:bg-card-2 border border-line transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent flex items-center justify-center";
   const funcActive = (key: string) => (activeBtnKey === key ? "border-accent text-accent" : "");
   const opBtn =
-    "py-3.5 rounded-sm text-xl font-bold border transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
+    "py-3.5 rounded-[14px] text-xl font-bold border transition-colors active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
   const opActive = (key: CalcOp) =>
     op === key || activeBtnKey === key
       ? "bg-accent text-white border-accent"
@@ -326,14 +327,14 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
       style={{ left: pos.x, top: pos.y, width: 380 }}
     >
       {/* Outer shell — bordered sheet, not a floating glass card */}
-      <div className="rounded-sm overflow-hidden border border-line bg-card text-ink flex flex-col shadow-md">
+      <div className="sl-dialog overflow-hidden flex flex-col">
         {/* ── 1. HEADER / DRAGGABLE TITLE BAR ── */}
         <div
-          className="flex items-center justify-between px-3.5 py-2.5 bg-head border-b border-line cursor-grab active:cursor-grabbing"
+          className="flex items-center justify-between px-3.5 py-2.5 bg-card-2 border-b border-line-soft cursor-grab active:cursor-grabbing"
           onMouseDown={onMouseDown}
         >
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-sm border border-accent/40 text-accent flex items-center justify-center text-xs">
+            <div className="w-6 h-6 rounded-[14px] border border-accent/40 text-accent flex items-center justify-center text-xs">
               <FaCalculator />
             </div>
             <div className="flex flex-col leading-none">
@@ -350,8 +351,9 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               type="button"
               onClick={() => setShowHistory(!showHistory)}
               title="Calculation History"
+              aria-label="Calculation history"
               aria-pressed={showHistory}
-              className={`w-7 h-7 rounded-sm border flex items-center justify-center text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 showHistory
                   ? "border-accent text-accent bg-accent/10"
                   : "border-line text-ink-muted hover:text-ink hover:bg-card-2"
@@ -365,7 +367,8 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               type="button"
               onClick={onClose}
               title="Close (Esc)"
-              className="w-7 h-7 rounded-sm border border-line text-ink-muted hover:text-ink hover:bg-card-2 flex items-center justify-center text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Close calculator"
+              className="w-8 h-8 rounded-full border border-line text-ink-muted hover:text-ink hover:bg-card-2 flex items-center justify-center text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <FaTimes className="text-[11px]" />
             </button>
@@ -380,7 +383,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               {history.length > 0 && (
                 <button
                   onClick={() => setHistory([])}
-                  className="text-[color:var(--color-danger)] hover:underline font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+                  className="text-[color:var(--color-danger)] hover:underline font-medium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-[14px]"
                 >
                   Clear
                 </button>
@@ -397,7 +400,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
                       setDisplay(h.result);
                       setWaitingForOperand(true);
                     }}
-                    className="p-1.5 rounded-sm bg-card hover:border-accent/40 hover:bg-card-2 border border-line-soft transition-colors cursor-pointer group text-right"
+                    className="p-1.5 rounded-[14px] bg-card hover:border-accent/40 hover:bg-card-2 border border-line-soft transition-colors cursor-pointer group text-right"
                   >
                     <div className="text-[10px] text-ink-subtle font-mono truncate group-hover:text-ink-muted">
                       {h.expression}
@@ -416,7 +419,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
         <div className="px-5 py-4 bg-card-2 border-b border-line relative group">
           {/* Top Expression Row */}
           <div className="flex items-center justify-between text-xs font-mono h-5 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted border border-line-soft px-1.5 py-0.5 rounded-sm">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted border border-line-soft px-1.5 py-0.5 rounded-[14px]">
               {op ? `OP: ${op === "*" ? "×" : op === "/" ? "÷" : op === "-" ? "−" : "+"}` : "READY"}
             </span>
             <span className="truncate max-w-[260px] text-right text-ink-muted font-semibold">
@@ -431,7 +434,8 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               type="button"
               onClick={handleCopy}
               title="Copy Result"
-              className={`p-2 rounded-sm border transition-colors cursor-pointer shrink-0 mb-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              aria-label="Copy result"
+              className={`p-2 rounded-[14px] border transition-colors cursor-pointer shrink-0 mb-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 copied
                   ? "border-accent text-accent bg-accent/10"
                   : "border-line text-ink-muted hover:text-accent hover:border-accent/40"
@@ -457,7 +461,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
               key={gst}
               type="button"
               onClick={() => handleQuickGST(gst)}
-              className={`py-1.5 rounded-sm text-[11px] font-bold tracking-wide border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+              className={`py-1.5 rounded-[14px] text-[11px] font-bold tracking-wide border transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 activeBtnKey === `GST${gst}`
                   ? "bg-accent text-white border-accent"
                   : "border-line text-ink-muted hover:text-accent hover:border-accent/40 hover:bg-card-2"
@@ -587,6 +591,7 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
             type="button"
             onClick={handleBackspace}
             title="Backspace"
+            aria-label="Backspace"
             className={`${funcBtn} ${funcActive("Backspace")}`}
           >
             <FaBackspace className="text-base" />
@@ -611,7 +616,8 @@ const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
           <button
             type="button"
             onClick={handleEquals}
-            className={`py-3.5 rounded-sm text-sm font-bold text-white bg-accent hover:brightness-110 border border-accent flex items-center justify-center transition-[filter] active:scale-95 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
+            aria-label="Equals"
+            className={`sl-cta !px-0 py-3.5 text-sm ${
               activeBtnKey === "=" ? "ring-2 ring-accent/40" : ""
             }`}
           >

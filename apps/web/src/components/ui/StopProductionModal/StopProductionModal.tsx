@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Square } from "lucide-react";
 import { Modal, Form, Button } from "../TailwindPrimitives";
 import TextInput from "../../form/TextInput/TextInput";
 
@@ -44,28 +45,33 @@ const StopProductionModal: React.FC<StopProductionModalProps> = ({
 
   return (
     <Modal show={show} onHide={onHide} centered>
-      <Modal.Header
-        closeButton
-        style={{ background: "var(--color-danger, #EF4444)", color: "#fff" }}
-      >
-        <Modal.Title className="fs-5 fw-bold">Stop Production Run</Modal.Title>
+      <Modal.Header closeButton>
+        <div className="flex items-center gap-3">
+          <span
+            className="sl-dialog-icon sl-dialog-icon-danger h-10 w-10 rounded-[14px]"
+            aria-hidden="true"
+          >
+            <Square size={16} />
+          </span>
+          <Modal.Title>Stop Production Run</Modal.Title>
+        </div>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
         <Modal.Body>
-          <div className="mb-3 p-3 bg-light rounded border small">
+          <div className="mb-4 rounded-[14px] border border-line-soft bg-card-2 p-3.5 text-sm leading-relaxed text-ink">
             <strong>PO ID:</strong> {program?.productionOrderId}
             <br />
             <strong>Product Name:</strong> {program?.productionOrder?.productItem?.productName}
             <br />
           </div>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-bold small text-muted text-uppercase">Stop Reason</Form.Label>
+          <Form.Group className="mb-4">
+            <Form.Label htmlFor="stop-run-reason">Stop Reason</Form.Label>
             <Form.Select
+              id="stop-run-reason"
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              style={{ height: "42px", borderRadius: "8px" }}
             >
               <option value="">-- Select Reason --</option>
               {stopReasons.map((r) => (
@@ -77,8 +83,8 @@ const StopProductionModal: React.FC<StopProductionModalProps> = ({
           </Form.Group>
 
           {reason === "Others" && (
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold small text-muted text-uppercase">Remarks</Form.Label>
+            <Form.Group className="mb-2">
+              <Form.Label htmlFor="remarks">Remarks</Form.Label>
               <TextInput
                 name="remarks"
                 value={remarks}
@@ -90,10 +96,10 @@ const StopProductionModal: React.FC<StopProductionModalProps> = ({
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" className="rounded-3" onClick={onHide}>
+          <Button variant="secondary" onClick={onHide}>
             Cancel
           </Button>
-          <Button type="submit" variant="danger" className="rounded-3 px-4">
+          <Button type="submit" variant="danger">
             Confirm Stop Run
           </Button>
         </Modal.Footer>

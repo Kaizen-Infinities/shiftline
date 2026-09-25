@@ -10,6 +10,7 @@ interface CheckboxProps {
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
+/** A single checkbox with its label to the right. */
 const Checkbox: React.FC<CheckboxProps> = ({ label, name, checked, onChange }) => {
   return (
     <Form.Group className="checkbox-group">

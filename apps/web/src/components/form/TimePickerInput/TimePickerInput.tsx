@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useId } from "react";
 import ReactDOM from "react-dom";
-import { FaRegClock } from "react-icons/fa";
-import "./TimePickerInput.css";
+import { Clock } from "lucide-react";
+import { FieldError, RequiredMark, fieldControlClasses, fieldLabelClass } from "../fieldStyles";
 
 interface TimePickerInputProps {
   label?: string;
@@ -15,6 +15,7 @@ interface TimePickerInputProps {
   onChange: (value: string) => void;
 }
 
+/** 12-hour time field: `.sl-input` trigger and a popover with hour, minute and AM/PM columns. */
 const TimePickerInput: React.FC<TimePickerInputProps> = ({
   label,
   name: _name,
@@ -30,6 +31,9 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const baseId = useId();
+  const labelId = `${baseId}-label`;
+  const errorId = `${baseId}-error`;
 
   // Parse 24h (HH:mm) into 12h components
   const parseTime = (timeStr: string) => {
@@ -37,10 +41,10 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({
     const [hStr, mStr] = timeStr.split(":");
     const h24 = parseInt(hStr, 10);
     const minute = mStr || "00";
-    
+
     let hour = h24;
     let period = "AM";
-    
+
     if (h24 === 0) {
       hour = 12;
       period = "AM";
@@ -54,7 +58,7 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({
       hour = h24;
       period = "AM";
     }
-    
+
     return {
       hour: String(hour).padStart(2, "0"),
       minute: minute.padStart(2, "0"),
@@ -149,125 +153,126 @@ const TimePickerInput: React.FC<TimePickerInputProps> = ({
 
   const displayValue = value ? `${hour}:${minute} ${period}` : "";
 
+  const column = (
+    title: string,
+    items: string[],
+    selected: string,
+    onPick: (v: string) => void,
+    scroll = true
+  ) => (
+    <div className="flex-1">
+      <div className="px-2 pb-1.5 pt-1 text-center text-[12px] font-semibold text-ink-subtle">
+        {title}
+      </div>
+      <div
+        role="listbox"
+        aria-label={title}
+        className={`flex flex-col gap-0.5 px-1 ${scroll ? "h-[200px] overflow-y-auto overflow-x-hidden" : ""}`}
+        style={{ scrollbarWidth: "thin" }}
+      >
+        {items.map((item) => (
+          <button
+            key={item}
+            type="button"
+            role="option"
+            aria-selected={selected === item}
+            className={`rounded-[10px] py-2 text-center text-sm tabular-nums transition-colors ${
+              selected === item ? "bg-accent font-bold text-white" : "text-ink hover:bg-nav-hover"
+            }`}
+            onClick={() => onPick(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <div className={`group ${horizontal ? "flex items-center gap-3" : ""}`} ref={containerRef}>
+    <div
+      className={`group min-w-0 ${horizontal ? "flex flex-col sm:flex-row sm:items-center sm:gap-3" : ""}`}
+      ref={containerRef}
+    >
       {label && (
-        <label
-          className={`
-            flex items-center gap-[6px]
-            text-xs font-bold uppercase
-            tracking-[0.5px]
-            transition-colors duration-250
-            ${error ? "text-red-500" : "text-ink-muted"}
-            group-focus-within:text-primary
-            ${horizontal ? "shrink-0 w-[140px] mb-0" : "mb-2"}
-          `}
-        >
+        <label id={labelId} className={fieldLabelClass(horizontal, horizontal ? "sm:pt-0" : "")}>
           <span>{label}</span>
-          {required && <span className="text-[#e53935] ml-0.5">*</span>}
+          {required && <RequiredMark />}
         </label>
       )}
 
       <div className={`relative ${horizontal ? "flex-1" : ""}`}>
         <div
           ref={triggerRef}
-          className={`
-            w-full h-10 px-4 flex items-center justify-between
-            border rounded-[10px] outline-none cursor-pointer
-            text-[15px] font-medium
-            transition-all duration-250
-            ${error
-              ? "border-red-500 bg-card-2"
-              : "border-line-soft bg-card-2 hover:border-line-soft/80 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15"
+          role="button"
+          tabIndex={disabled ? -1 : 0}
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          aria-labelledby={label ? labelId : undefined}
+          aria-disabled={disabled || undefined}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          className={fieldControlClasses({
+            invalid: Boolean(error),
+            open: isOpen,
+            disabled,
+            className: `flex h-11 items-center justify-between px-4 ${disabled ? "" : "cursor-pointer"}`,
+          })}
+          onClick={() => {
+            if (!disabled) {
+              checkPosition();
+              setIsOpen(!isOpen);
             }
-            ${disabled ? "bg-card-2/50 cursor-not-allowed text-ink-subtle opacity-70" : "text-ink"}
-          `}
-          onClick={() => { if (!disabled) { checkPosition(); setIsOpen(!isOpen); } }}
+          }}
+          onKeyDown={(e) => {
+            if (disabled) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              checkPosition();
+              setIsOpen((o) => !o);
+            } else if (e.key === "Escape") {
+              setIsOpen(false);
+            }
+          }}
         >
-          <span className={`truncate ${!displayValue ? "text-ink-subtle" : ""}`}>
+          <span
+            className={`truncate tabular-nums ${!displayValue ? "font-normal text-ink-subtle" : ""}`}
+          >
             {displayValue || "hh:mm AM/PM"}
           </span>
-          <FaRegClock className="text-ink-subtle flex-shrink-0" />
+          <Clock size={17} className="shrink-0 text-ink-subtle" aria-hidden="true" />
         </div>
 
-        {isOpen && !disabled && ReactDOM.createPortal(
-          <div
-            ref={dropdownRef}
-            className="bg-card border border-line-soft rounded-xl shadow-2xl overflow-hidden text-ink"
-            style={dropdownStyle}
-          >
-            <div className="flex bg-card border-b border-line-soft">
-              {/* Hour Column */}
-              <div className="flex-1 border-r border-line-soft">
-                <div className="text-center py-2 text-xs font-bold text-ink-subtle uppercase bg-card-2 border-b border-line-soft">Hour</div>
-                <div className="h-[200px] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin' }}>
-                  {hours.map((h) => (
-                    <button
-                      key={h}
-                      type="button"
-                      className={`w-full text-center py-2 text-sm transition-colors ${hour === h ? "bg-primary text-white font-bold" : "hover:bg-card-2 text-ink"}`}
-                      onClick={() => handleSelectHour(h)}
-                    >
-                      {h}
-                    </button>
-                  ))}
-                </div>
+        {isOpen &&
+          !disabled &&
+          ReactDOM.createPortal(
+            <div
+              ref={dropdownRef}
+              role="dialog"
+              aria-label={label ? `Pick ${label}` : "Pick a time"}
+              className="sl-popover !p-0"
+              style={dropdownStyle}
+            >
+              <div className="flex gap-1 px-2 pt-2">
+                {column("Hour", hours, hour, handleSelectHour)}
+                {column("Min", minutes, minute, handleSelectMinute)}
+                {column("AM/PM", ["AM", "PM"], period, handleTogglePeriod, false)}
               </div>
 
-              {/* Minute Column */}
-              <div className="flex-1 border-r border-line-soft">
-                <div className="text-center py-2 text-xs font-bold text-ink-subtle uppercase bg-card-2 border-b border-line-soft">Min</div>
-                <div className="h-[200px] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin' }}>
-                  {minutes.map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      className={`w-full text-center py-2 text-sm transition-colors ${minute === m ? "bg-primary text-white font-bold" : "hover:bg-card-2 text-ink"}`}
-                      onClick={() => handleSelectMinute(m)}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
+              <div className="mt-2 flex justify-end border-t border-line-soft px-3 py-2.5">
+                <button
+                  type="button"
+                  className="sl-btn sl-pill-sm"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Done
+                </button>
               </div>
-
-              {/* AM/PM Column */}
-              <div className="flex-1">
-                <div className="text-center py-2 text-xs font-bold text-ink-subtle uppercase bg-card-2 border-b border-line-soft">AM/PM</div>
-                <div className="h-[200px] overflow-y-auto">
-                  {["AM", "PM"].map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      className={`w-full text-center py-2 text-sm transition-colors ${period === p ? "bg-primary text-white font-bold" : "hover:bg-card-2 text-ink"}`}
-                      onClick={() => handleTogglePeriod(p)}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-card border-t border-line-soft">
-              <button
-                type="button"
-                className="w-full py-2 bg-card-2 hover:bg-card-2/80 text-ink font-bold rounded-lg transition-colors text-sm border border-line-soft"
-                onClick={() => setIsOpen(false)}
-              >
-                Done
-              </button>
-            </div>
-          </div>,
-          document.body
-        )}
+            </div>,
+            document.body
+          )}
       </div>
 
-      {error && (
-        <div className="text-[#dc3545] text-sm font-medium mt-1">
-          {error}
-        </div>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 };

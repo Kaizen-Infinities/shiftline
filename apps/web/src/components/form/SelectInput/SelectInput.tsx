@@ -1,6 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useId } from "react";
 import { createPortal } from "react-dom";
-import { FaChevronDown } from "react-icons/fa";
+import { ChevronDown } from "lucide-react";
+import {
+  FieldError,
+  RequiredMark,
+  fieldControlClasses,
+  fieldLabelClass,
+  optionClasses,
+} from "../fieldStyles";
 
 interface Option {
   label: string | React.ReactNode;
@@ -28,6 +35,7 @@ interface SelectInputProps {
   onChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
+/** Searchable single select: `.sl-input` trigger, popover list, keyboard navigation. */
 const SelectInput: React.FC<SelectInputProps> = ({
   label,
   name,
@@ -52,6 +60,10 @@ const SelectInput: React.FC<SelectInputProps> = ({
   const triggerRef = useRef<any>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const baseId = useId();
+  const triggerId = `${baseId}-trigger`;
+  const listId = `${baseId}-list`;
+  const errorId = `${baseId}-error`;
 
   // Scroll highlighted item into view
   useEffect(() => {
@@ -221,46 +233,41 @@ const SelectInput: React.FC<SelectInputProps> = ({
     }
   };
 
+  const triggerClass = fieldControlClasses({
+    invalid: Boolean(error),
+    open: isOpen,
+    disabled,
+    className: `flex h-11 items-center justify-between pl-4 text-left ${
+      selectedOption?.badge && !isOpen ? "pr-24 sm:pr-28" : "pr-10"
+    } ${selectedOption ? "text-ink" : "text-ink-subtle"}`,
+  });
+
   return (
     <div
-      className={`${noMargin ? "" : "mb-0.5 "}group ${horizontal ? "flex items-start gap-3" : "flex flex-col"} w-full`}
+      className={`${noMargin ? "" : "mb-0.5 "}group ${horizontal ? "flex flex-col sm:flex-row sm:items-start sm:gap-3" : "flex flex-col"} w-full min-w-0`}
       ref={wrapperRef}
     >
       {!hideLabel && (
-        <label
-          className={`
-          flex items-center gap-1.5
-          text-xs font-extrabold uppercase
-          tracking-[0.5px]
-          transition-colors duration-250
-          ${error ? "text-[color:var(--color-danger)]" : "text-ink"}
-          group-focus-within:text-primary
-          ${horizontal ? "shrink-0 w-[140px] mb-0 pt-[10px]" : "mb-2"}
-        `}
-        >
-          {icon && (
-            <span
-              className={`
-              flex items-center text-sm
-              transition-colors duration-250
-              ${error ? "text-[color:var(--color-danger)]" : "text-accent"}
-              group-focus-within:text-primary
-            `}
-            >
-              {icon}
-            </span>
-          )}
+        <label htmlFor={triggerId} className={fieldLabelClass(horizontal)}>
+          {icon && <span className="sl-label-icon">{icon}</span>}
           <span>{label}</span>
-          {required && <span className="text-[color:var(--color-danger)] ml-0.5">*</span>}
+          {required && <RequiredMark />}
         </label>
       )}
 
       {/* Wrap trigger + error together so error always sits below the input,
           even when the outer container is a horizontal flex row. */}
-      <div className={`flex flex-col ${horizontal ? "flex-1" : ""}`}>
+      <div className={`flex min-w-0 flex-col ${horizontal ? "flex-1" : ""}`}>
         <div className="relative">
           {/* Hidden native select for form serialization if needed */}
-          <select name={name} value={value} className="hidden" onChange={() => {}}>
+          <select
+            name={name}
+            value={value}
+            className="hidden"
+            onChange={() => {}}
+            tabIndex={-1}
+            aria-hidden="true"
+          >
             {defaultOptionLabel && <option value="">{defaultOptionLabel}</option>}
             {options.map((opt, i) => (
               <option key={i} value={opt.value}>
@@ -271,12 +278,19 @@ const SelectInput: React.FC<SelectInputProps> = ({
 
           {searchable ? (
             <input
+              id={triggerId}
               type="text"
               autoComplete="off"
               ref={triggerRef}
               disabled={disabled}
               value={isOpen ? searchTerm : toPlainText(displayLabel)}
               placeholder={toPlainText(displayLabel)}
+              aria-expanded={isOpen}
+              aria-haspopup="listbox"
+              aria-controls={isOpen ? listId : undefined}
+              aria-invalid={Boolean(error)}
+              aria-required={required || undefined}
+              aria-describedby={error ? errorId : undefined}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 if (!isOpen) {
@@ -291,27 +305,21 @@ const SelectInput: React.FC<SelectInputProps> = ({
                 }
               }}
               onKeyDown={handleKeyDown}
-              className={`
-                w-full h-8 sm:h-10 pl-3 sm:pl-4 ${selectedOption?.badge && !isOpen ? "pr-24 sm:pr-28" : "pr-8 sm:pr-10"}
-                border rounded-md outline-none
-                text-xs sm:text-[15px] font-semibold flex items-center justify-between
-                transition-all duration-250 text-left
-                [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]
-                ${selectedOption ? "text-ink" : "text-ink-subtle font-normal"}
-                ${
-                  error
-                    ? "border-[color:var(--color-danger)] bg-card-2 focus:border-[color:var(--color-danger)] focus:ring-4 focus:ring-[color:var(--color-danger)]/15"
-                    : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-                }
-                ${isOpen ? (error ? "border-[color:var(--color-danger)] ring-4 ring-[color:var(--color-danger)]/15" : "border-primary ring-4 ring-primary/15") : ""}
-                ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-semibold opacity-85" : ""}
-              `}
+              className={`${triggerClass} [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)] ${
+                selectedOption ? "" : "placeholder:!text-ink-subtle"
+              }`}
             />
           ) : (
             <button
+              id={triggerId}
               type="button"
               ref={triggerRef}
               disabled={disabled}
+              aria-expanded={isOpen}
+              aria-haspopup="listbox"
+              aria-controls={isOpen ? listId : undefined}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : undefined}
               onClick={() => {
                 if (!disabled) {
                   if (!isOpen) updateDropdownPosition();
@@ -319,34 +327,23 @@ const SelectInput: React.FC<SelectInputProps> = ({
                 }
               }}
               onKeyDown={handleKeyDown}
-              className={`
-                w-full h-8 sm:h-10 pl-3 sm:pl-4 ${selectedOption?.badge && !isOpen ? "pr-24 sm:pr-28" : "pr-8 sm:pr-10"}
-                border rounded-md outline-none
-                text-xs sm:text-[15px] font-semibold flex items-center justify-between
-                transition-all duration-250 text-left
-                ${selectedOption ? "text-ink" : "text-ink-subtle"}
-                ${
-                  error
-                    ? "border-[color:var(--color-danger)] bg-card-2 focus:border-[color:var(--color-danger)] focus:ring-4 focus:ring-[color:var(--color-danger)]/15"
-                    : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-                }
-                ${isOpen ? (error ? "border-[color:var(--color-danger)] ring-4 ring-[color:var(--color-danger)]/15" : "border-primary ring-4 ring-primary/15") : ""}
-                ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-semibold opacity-85" : ""}
-              `}
+              className={triggerClass}
             >
               <span className="truncate">{displayLabel}</span>
             </button>
           )}
 
           {selectedOption?.badge && !isOpen && (
-            <div className="absolute right-7 sm:right-9 top-1/2 -translate-y-1/2 pointer-events-none flex items-center z-10">
+            <div className="pointer-events-none absolute right-9 top-1/2 z-10 flex -translate-y-1/2 items-center">
               {selectedOption.badge}
             </div>
           )}
 
-          <span className="absolute right-2.5 sm:right-4 top-1/2 -translate-y-1/2 text-ink-subtle pointer-events-none">
-            <FaChevronDown
-              className={`text-[10px] sm:text-xs transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-subtle">
+            <ChevronDown
+              size={17}
+              aria-hidden="true"
+              className={`transition-transform duration-200 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
             />
           </span>
 
@@ -356,44 +353,41 @@ const SelectInput: React.FC<SelectInputProps> = ({
               <div
                 data-select-portal="true"
                 ref={portalRef}
-                className="bg-card border border-line rounded-sm shadow-md max-h-60 flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100 overflow-hidden text-ink"
+                className="sl-popover flex max-h-60 flex-col overflow-hidden"
                 style={dropdownStyle}
               >
-                <div ref={listRef} className="overflow-y-auto min-h-0 flex-1">
+                <div
+                  ref={listRef}
+                  id={listId}
+                  role="listbox"
+                  aria-label={label || undefined}
+                  className="min-h-0 flex-1 overflow-y-auto"
+                >
                   {defaultOptionLabel && !searchTerm && (
                     <div
+                      role="option"
+                      aria-selected={!value}
                       onClick={() => handleSelect("")}
-                      className={`
-                      px-4 py-2.5 text-sm cursor-pointer
-                      transition-colors duration-150
-                      ${!value ? "bg-primary/10 text-primary font-semibold" : "text-ink-muted hover:bg-card-2"}
-                    `}
+                      className={optionClasses({ className: value ? "text-ink-muted" : "" })}
                     >
                       {defaultOptionLabel}
                     </div>
                   )}
                   {filteredOptions.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-ink-subtle text-center">
-                      No results found
-                    </div>
+                    <div className="sl-popover-empty">No results found</div>
                   ) : (
                     filteredOptions.map((option, index) => (
                       <div
                         key={index}
+                        role="option"
+                        aria-selected={String(value) === String(option.value)}
+                        aria-disabled={option.disabled || undefined}
                         onClick={() => handleSelect(option.value, option.disabled)}
-                        className={`
-                        px-4 py-2.5 text-sm
-                        transition-colors duration-150
-                        ${
-                          option.disabled
-                            ? "opacity-40 cursor-not-allowed text-ink-subtle select-none bg-transparent"
-                            : index === highlightedIndex
-                              ? "bg-primary/20 text-primary font-semibold cursor-pointer"
-                              : String(value) === String(option.value)
-                                ? "bg-primary/10 text-primary font-semibold cursor-pointer"
-                                : "text-ink hover:bg-card-2 cursor-pointer"
-                        }
-                      `}
+                        className={optionClasses({
+                          highlighted: !option.disabled && index === highlightedIndex,
+                          disabled: option.disabled,
+                          className: option.disabled ? "select-none" : "",
+                        })}
                       >
                         {option.label}
                       </div>
@@ -405,9 +399,7 @@ const SelectInput: React.FC<SelectInputProps> = ({
             )}
         </div>
 
-        {error && (
-          <div className="text-[color:var(--color-danger)] text-sm font-medium mt-1">{error}</div>
-        )}
+        {error && <FieldError id={errorId}>{error}</FieldError>}
       </div>
     </div>
   );

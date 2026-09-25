@@ -1,4 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useId } from "react";
+import { X } from "lucide-react";
+import { RequiredMark, fieldLabelClass } from "../fieldStyles";
 import { createPortal } from "react-dom";
 import type { AccountLedger } from "../../../services/accountService";
 
@@ -26,6 +28,7 @@ export function isBankOrCashLedger(l: AccountLedger): boolean {
   return g.includes("cash") || g.includes("bank");
 }
 
+/** Account (ledger) picker grouped by account group; `cell` variant fits voucher grids. */
 const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
   label,
   value,
@@ -47,6 +50,9 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const baseId = useId();
+  const inputId = `${baseId}-ledger`;
+  const listId = `${baseId}-list`;
 
   // Find selected ledger name for display
   const selectedLedger = ledgers.find((l) => String(l.id) === value);
@@ -178,22 +184,29 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
       ? `${selectedLedger.name} (${selectedLedger.group})`
       : "";
 
-  const ringClass = `focus:ring-${accentColor}`;
+  // `accentColor` used to pick a Tailwind ring colour; the concept uses one focus ring.
+  void accentColor;
   const inputClass =
     variant === "cell"
-      ? `w-full px-2 py-1 bg-transparent border-0 text-xs text-ink focus:outline-none focus:bg-card-2/60`
-      : `w-full px-3 py-2 border border-line bg-card rounded-lg text-sm text-ink focus:ring-2 ${ringClass} focus:outline-none`;
+      ? `w-full px-2 py-1 bg-transparent border-0 text-xs text-ink focus:outline-none focus:bg-nav-hover`
+      : `sl-input h-11 pl-4 ${value && !isOpen ? "pr-10" : "pr-4"} text-sm`;
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="group relative min-w-0">
       {label && (
-        <label className="block text-xs font-semibold text-ink uppercase mb-1">
-          {label} {required && <span className="text-red-500">*</span>}
+        <label htmlFor={inputId} className={fieldLabelClass()}>
+          <span>{label}</span>
+          {required && <RequiredMark />}
         </label>
       )}
       <input
         ref={inputRef}
+        id={inputId}
         type="text"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-autocomplete="list"
+        aria-controls={isOpen ? listId : undefined}
         value={displayValue}
         placeholder={placeholder}
         required={required && !value}
@@ -213,7 +226,7 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
           updatePosition();
         }}
         onKeyDown={handleKeyDown}
-        className={`${inputClass} ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+        className={`${inputClass} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
         autoComplete="off"
       />
 
@@ -227,10 +240,13 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
             setSearchText("");
             inputRef.current?.focus();
           }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-xs cursor-pointer"
-          style={label ? { top: "calc(50% + 10px)" } : undefined}
+          aria-label="Clear account"
+          title="Clear"
+          className={`absolute right-2 flex items-center justify-center rounded-full text-ink-subtle transition-colors hover:bg-nav-hover hover:text-ink ${
+            variant === "cell" ? "top-1/2 h-6 w-6 -translate-y-1/2" : "bottom-1.5 h-8 w-8"
+          }`}
         >
-          x
+          <X size={14} aria-hidden="true" />
         </button>
       )}
 
@@ -239,23 +255,26 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-card border border-line rounded-xl shadow-2xl overflow-hidden"
+            className="sl-popover fixed z-[9999] overflow-hidden !p-0"
             style={{
-              top: dropdownPos.top,
+              top: dropdownPos.top + 2,
               left: dropdownPos.left,
-              width: dropdownPos.width,
+              width: Math.max(dropdownPos.width, 260),
               maxHeight: 320,
             }}
           >
-            <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
+            <div
+              id={listId}
+              role="listbox"
+              className="overflow-y-auto p-1.5"
+              style={{ maxHeight: 320 }}
+            >
               {flatFiltered.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-ink-subtle text-center">
-                  No accounts found
-                </div>
+                <div className="sl-popover-empty">No accounts found</div>
               ) : (
                 groupNames.map((groupName) => (
-                  <div key={groupName}>
-                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-ink-subtle bg-card-2 border-b border-line sticky top-0">
+                  <div key={groupName} role="group" aria-label={groupName}>
+                    <div className="sl-popover-label sticky top-0 z-[1] bg-card">
                       {groupName} ({grouped[groupName].length})
                     </div>
                     {grouped[groupName].map((ledger) => {
@@ -267,27 +286,23 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
                         <div
                           key={ledger.id}
                           data-ledger-item
+                          role="option"
+                          aria-selected={isSelected}
                           onClick={() => handleSelect(ledger)}
-                          className={`px-3 py-2 cursor-pointer flex items-center justify-between text-sm transition-colors ${
-                            isHighlighted
-                              ? "bg-blue-600/10 text-ink"
-                              : isSelected
-                                ? "bg-blue-50/10 text-ink font-medium"
-                                : "text-ink-muted hover:bg-card-2"
-                          }`}
+                          className={`sl-option justify-between ${isHighlighted ? "is-highlighted" : ""} ${isSelected ? "is-selected" : ""}`}
                         >
                           <div className="flex-1 min-w-0">
                             <span className="font-medium text-ink truncate block">
                               {ledger.name}
                             </span>
                             {(ledger.customer || ledger.supplier) && (
-                              <span className="text-[10px] text-ink-subtle">
+                              <span className="text-[11px] font-normal text-ink-subtle">
                                 {ledger.customer ? `Customer: ${ledger.customer.firmName}` : ""}
                                 {ledger.supplier ? `Supplier: ${ledger.supplier.legalName}` : ""}
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-ink-subtle ml-2 shrink-0">
+                          <span className="ml-2 shrink-0 text-[11px] font-normal text-ink-subtle">
                             {ledger.group}
                           </span>
                         </div>

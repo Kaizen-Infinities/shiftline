@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 import type { CommonViewModalProps } from "./commonViewModal.types";
 
+/** Read-only record dialog: avatar, title and status chips, then labelled field rows by section. */
 const CommonViewModal: React.FC<CommonViewModalProps> = ({
   show,
   onHide,
@@ -16,6 +17,7 @@ const CommonViewModal: React.FC<CommonViewModalProps> = ({
   customContent,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -46,87 +48,85 @@ const CommonViewModal: React.FC<CommonViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
-        onClick={onHide}
-      />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6">
+      <div className="sl-backdrop" onClick={onHide} aria-hidden="true" />
 
       <div
         ref={modalRef}
-        className={`relative w-full ${sizeClasses[size]} max-h-[90vh] bg-card border border-line rounded-sm shadow-md flex flex-col overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-300`}
+        className={`sl-dialog relative flex max-h-[90dvh] w-full ${sizeClasses[size]} flex-col overflow-hidden`}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
       >
         {/* Header with title info */}
-        <div className="px-6 py-5 border-b border-line">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <div className="border-b border-line-soft px-5 py-5 sm:px-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3.5">
               {avatarText && (
-                <div className="w-10 h-10 rounded-sm bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0">
+                <div
+                  className="sl-brand-tile h-12 w-12 shrink-0 text-base font-bold"
+                  aria-hidden="true"
+                >
                   {avatarText}
                 </div>
               )}
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h3 className="text-base font-bold text-ink">{headerTitle || modalTitle}</h3>
+              <div className="min-w-0">
+                {modalTitle && headerTitle && (
+                  <p className="m-0 mb-0.5 text-[12px] font-medium text-ink-subtle">{modalTitle}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 id={titleId} className="sl-dialog-title truncate">
+                    {headerTitle || modalTitle}
+                  </h3>
                   {statusNode && <div className="shrink-0">{statusNode}</div>}
                 </div>
                 {headerSubtitle && (
-                  <p className="text-xs text-ink-muted mt-0.5">{headerSubtitle}</p>
-                )}
-                {modalTitle && headerTitle && (
-                  <p className="text-[10px] text-ink-subtle uppercase tracking-widest font-bold mt-0.5">
-                    {modalTitle}
-                  </p>
+                  <p className="m-0 mt-0.5 text-sm text-ink-muted">{headerSubtitle}</p>
                 )}
               </div>
             </div>
             <button
+              type="button"
               onClick={onHide}
-              className="w-8 h-8 flex items-center justify-center text-ink-subtle hover:text-ink transition-colors rounded-sm hover:bg-card-2 border border-transparent hover:border-line-soft cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Close dialog"
+              title="Close"
+              className="sl-icon-btn sl-icon-btn-md sl-icon-btn-ghost -mr-2 -mt-1 shrink-0"
             >
-              <X size={16} />
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           {sections.map((section, sIdx) => (
-            <div key={sIdx}>
+            <section key={sIdx} className={sIdx > 0 ? "mt-3" : undefined}>
               {section.title && (
-                <div className="px-6 py-2.5 bg-card-2/50 border-b border-line-soft/50">
-                  <span className="text-[10px] font-extrabold text-ink-subtle uppercase tracking-[2px]">
-                    {section.title}
-                  </span>
-                </div>
+                <h4 className="sl-section-label m-0 px-3 pb-1.5 pt-2">{section.title}</h4>
               )}
-              <div className="divide-y divide-line-soft/40">
+              <dl className="m-0 overflow-hidden rounded-[14px] border border-line-soft">
                 {section.fields.map((field, fIdx) => (
                   <div
                     key={fIdx}
-                    className={`flex items-center px-6 py-3 hover:bg-card-2/30 transition-colors ${field.xs === 12 ? "col-span-full" : ""}`}
+                    className={`flex flex-col gap-0.5 border-b border-line-soft px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4 ${field.xs === 12 ? "col-span-full" : ""}`}
                   >
-                    <span className="text-xs text-ink-subtle w-[160px] shrink-0">
+                    <dt className="shrink-0 text-[13px] text-ink-subtle sm:w-[170px]">
                       {field.label}
-                    </span>
-                    <span className="text-sm font-semibold text-ink">{field.value || "-"}</span>
+                    </dt>
+                    <dd className="m-0 min-w-0 break-words text-sm font-semibold text-ink">
+                      {field.value || "-"}
+                    </dd>
                   </div>
                 ))}
-              </div>
-            </div>
+              </dl>
+            </section>
           ))}
 
-          {customContent && <div className="px-6 py-4">{customContent}</div>}
+          {customContent && <div className="px-2 py-4">{customContent}</div>}
         </div>
 
         {/* Footer */}
-        {footer && (
-          <div className="px-6 py-3.5 border-t border-line-soft bg-card-2/50 flex items-center justify-end gap-2.5 rounded-b-sm">
-            {footer}
-          </div>
-        )}
+        {footer && <div className="sl-dialog-footer">{footer}</div>}
       </div>
     </div>
   );

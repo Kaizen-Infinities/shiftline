@@ -25,9 +25,10 @@ const DeleteButton: React.FC<DeleteButtonProps> = ({ onClick, disabled, disabled
       disabled={disabled && !disabledMessage}
       aria-label="Delete"
       title="Delete"
-      className="w-7 h-7 flex items-center justify-center rounded-sm border border-line bg-card text-ink-muted transition-colors hover:border-[color:var(--color-danger)]/40 hover:bg-[color:var(--color-danger)]/10 hover:text-[color:var(--color-danger)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:bg-card disabled:hover:text-ink-muted"
+      aria-disabled={disabled || undefined}
+      className="sl-icon-btn sl-icon-btn-hover-danger"
     >
-      <FiTrash2 className="text-[13px]" />
+      <FiTrash2 className="text-[14px]" aria-hidden="true" />
     </button>
   );
 };

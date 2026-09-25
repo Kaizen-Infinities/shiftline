@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useId } from "react";
+import { FieldError, RequiredMark, fieldControlClasses, fieldLabelClass } from "../fieldStyles";
 
 interface TextAreaProps {
   label: string;
@@ -13,6 +14,7 @@ interface TextAreaProps {
   onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
 }
 
+/** Multi-line field: label above, `.sl-input` box that grows vertically, error tied by id. */
 const TextArea: React.FC<TextAreaProps> = ({
   label,
   name,
@@ -25,69 +27,35 @@ const TextArea: React.FC<TextAreaProps> = ({
   disabled = false,
   onChange,
 }) => {
+  const errorId = `${useId()}-error`;
   return (
-    <div className="mb-[18px] group">
+    <div className="group mb-[18px] min-w-0">
       {label && (
-        <label
-          htmlFor={name}
-          className={`
-            flex items-center gap-[6px] mb-2
-            text-xs font-extrabold uppercase
-            tracking-[0.5px]
-            transition-colors duration-200
-            ${error ? "text-red-400" : "text-ink"}
-            group-focus-within:text-primary
-          `}
-        >
-          {icon && (
-            <span
-              className={`
-                flex items-center text-sm
-                transition-colors duration-200
-                ${error ? "text-red-400" : "text-primary"}
-                group-focus-within:text-primary
-              `}
-            >
-              {icon}
-            </span>
-          )}
+        <label htmlFor={name} className={fieldLabelClass()}>
+          {icon && <span className="sl-label-icon">{icon}</span>}
           <span>{label}</span>
-          {required && (
-            <span className="text-red-500 ml-0.5">*</span>
-          )}
+          {required && <RequiredMark />}
         </label>
       )}
 
-      <div className="relative">
-        <textarea
-          id={name}
-          name={name}
-          value={value}
-          placeholder={placeholder}
-          onChange={onChange}
-          disabled={disabled}
-          rows={rows}
-          className={`
-            w-full min-h-[35px] px-4 py-[5px] text-[15px] font-semibold
-            border rounded-[10px] outline-none
-            transition-all duration-200
-            placeholder:text-ink-subtle/80 placeholder:font-normal
-            text-ink
-            ${error
-              ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-              : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-            }
-            ${disabled ? "bg-card-2/50 cursor-not-allowed text-ink-subtle opacity-70" : ""}
-            resize-y
-          `}
-        />
-      </div>
+      <textarea
+        id={name}
+        name={name}
+        value={value}
+        placeholder={placeholder}
+        onChange={onChange}
+        disabled={disabled}
+        rows={rows}
+        aria-invalid={Boolean(error)}
+        aria-required={required || undefined}
+        aria-describedby={error ? errorId : undefined}
+        className={fieldControlClasses({
+          invalid: Boolean(error),
+          className: "min-h-11 resize-y px-4 py-2.5 leading-relaxed",
+        })}
+      />
 
-      {error && (
-        <div className="text-red-500 text-sm font-medium mt-1">
-          {error}
-        </div>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 };

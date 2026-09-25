@@ -21,11 +21,5 @@ export interface CommonConfirmModalProps {
   confirmIcon?: any;
   size?: "sm" | "md" | "lg" | "xl";
 
-  confirmVariant?:
-    | "primary"
-    | "secondary"
-    | "success"
-    | "warning"
-    | "danger"
-    | "info";
+  confirmVariant?: "primary" | "secondary" | "success" | "warning" | "danger" | "info";
 }
