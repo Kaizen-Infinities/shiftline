@@ -1,8 +1,4 @@
-/* Schedule-card additions complement the shared Tailwind primitives. */
+/* Schedule card — the tile, lift and colours come from .sl-tile / .sl-tile-hover. */
 .day-schedule-card {
-  transition: all 0.2s ease;
-}
-
-.day-schedule-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  height: 100%;
 }

@@ -4,7 +4,14 @@ import { Controller } from "react-hook-form";
 import type { Control } from "react-hook-form";
 import Select, { components } from "react-select";
 import type { MultiValueProps } from "react-select";
-import { FaChevronDown } from "react-icons/fa";
+import { ChevronDown } from "lucide-react";
+import {
+  FieldError,
+  RequiredMark,
+  fieldControlClasses,
+  fieldLabelClass,
+  optionClasses,
+} from "../fieldStyles";
 import { useUOM } from "../../../hooks/useUOM";
 
 const SortableMultiValue = (props: MultiValueProps<any>) => {
@@ -128,7 +135,9 @@ const CustomSingleSelect = ({
 
   const selectedOpt = options.find((u) => u.code === value);
   const displayLabel = selectedOpt
-    ? (selectedOpt.code.toLowerCase() === 'ea' ? 'pcs' : `${selectedOpt.label} (${selectedOpt.code})`)
+    ? selectedOpt.code.toLowerCase() === "ea"
+      ? "pcs"
+      : `${selectedOpt.label} (${selectedOpt.code})`
     : placeholder;
 
   return (
@@ -143,72 +152,62 @@ const CustomSingleSelect = ({
             setIsOpen(!isOpen);
           }
         }}
-        className={`
-          w-full h-10 pl-4 pr-10
-          border rounded-md outline-none
-          text-[15px] font-medium flex items-center justify-between
-          transition-all duration-250 text-left
-          ${value ? "text-ink" : "text-ink-subtle"}
-          ${error
-            ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-            : "border-line-soft bg-card-2 hover:border-line focus:border-primary focus:ring-4 focus:ring-primary/15"
-          }
-          ${isOpen ? (error ? "border-red-500 ring-4 ring-red-500/15" : "border-primary ring-4 ring-primary/15") : ""}
-          ${disabled ? "bg-card-2/50 opacity-60 cursor-not-allowed text-ink-subtle" : ""}
-        `}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-invalid={Boolean(error)}
+        className={fieldControlClasses({
+          invalid: Boolean(error),
+          open: isOpen,
+          disabled,
+          className: `flex h-11 items-center justify-between pl-4 pr-10 text-left ${value ? "text-ink" : "text-ink-subtle"}`,
+        })}
       >
         <span className="truncate">{displayLabel}</span>
-        <span className="absolute right-4 text-ink-muted">
-          <FaChevronDown className={`text-xs transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        <span className="absolute right-3.5 text-ink-subtle">
+          <ChevronDown
+            size={17}
+            aria-hidden="true"
+            className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          />
         </span>
       </button>
 
-      {isOpen && createPortal(
-        <div
-          ref={portalRef}
-          className="bg-card border border-line rounded-lg flex flex-col text-ink"
-          style={{
-            ...dropdownStyle,
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <div className="overflow-y-auto py-1 min-h-0 flex-1">
-            <div
-              onClick={() => {
-                onChange("");
-                setIsOpen(false);
-              }}
-              className={`
-                px-4 py-2.5 text-sm cursor-pointer
-                transition-colors duration-150
-                ${!value ? "bg-primary/15 text-primary font-semibold" : "text-ink-muted hover:bg-card-2"}
-              `}
-            >
-              {placeholder}
-            </div>
-            {options.map((u) => (
+      {isOpen &&
+        createPortal(
+          <div ref={portalRef} className="sl-popover flex flex-col" style={dropdownStyle}>
+            <div role="listbox" className="min-h-0 flex-1 overflow-y-auto">
               <div
-                key={u.code}
                 onClick={() => {
-                  onChange(u.code);
+                  onChange("");
                   setIsOpen(false);
                 }}
-                className={`
-                  px-4 py-2.5 text-sm cursor-pointer
-                  transition-colors duration-150
-                  ${value === u.code
-                    ? "bg-primary/15 text-primary font-semibold"
-                    : "text-ink hover:bg-card-2"
-                  }
-                `}
+                role="option"
+                aria-selected={!value}
+                className={optionClasses({
+                  selected: !value,
+                  className: value ? "text-ink-muted" : "",
+                })}
               >
-                {u.code.toLowerCase() === 'ea' ? 'pcs' : `${u.label} (${u.code})`}
+                {placeholder}
               </div>
-            ))}
-          </div>
-        </div>,
-        document.body
-      )}
+              {options.map((u) => (
+                <div
+                  key={u.code}
+                  onClick={() => {
+                    onChange(u.code);
+                    setIsOpen(false);
+                  }}
+                  role="option"
+                  aria-selected={value === u.code}
+                  className={optionClasses({ selected: value === u.code })}
+                >
+                  {u.code.toLowerCase() === "ea" ? "pcs" : `${u.label} (${u.code})`}
+                </div>
+              ))}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
@@ -267,56 +266,63 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
   const selectStyles = (isError: boolean) => ({
     control: (base: any, state: any) => ({
       ...base,
-      minHeight: '40px',
-      borderRadius: '0.375rem',
-      fontSize: '15px',
+      minHeight: "44px",
+      borderRadius: "12px",
+      fontSize: "15px",
       boxShadow: state.isFocused
         ? isError
-          ? '0 0 0 4px rgba(239, 68, 68, 0.15)'
-          : '0 0 0 4px color-mix(in srgb, var(--color-primary) 15%, transparent)'
-        : 'none',
+          ? "0 0 0 4px color-mix(in srgb, var(--color-danger) 16%, transparent)"
+          : "0 0 0 4px color-mix(in srgb, var(--color-primary) 18%, transparent)"
+        : "none",
       borderColor: isError
-        ? '#ef4444'
+        ? "var(--color-danger)"
         : state.isFocused
-        ? 'var(--color-primary)'
-        : 'var(--color-line-soft)',
-      '&:hover': {
-        borderColor: isError ? '#ef4444' : state.isFocused ? 'var(--color-primary)' : 'var(--color-line)'
+          ? "var(--color-primary)"
+          : "var(--color-line)",
+      "&:hover": {
+        borderColor: isError
+          ? "var(--color-danger)"
+          : state.isFocused
+            ? "var(--color-primary)"
+            : "var(--color-ink-subtle)",
       },
-      backgroundColor: 'var(--color-card-2)',
-      color: 'var(--color-ink)',
+      backgroundColor: "var(--color-card)",
+      color: "var(--color-ink)",
       opacity: disabled ? 0.6 : 1,
     }),
     singleValue: (base: any) => ({
       ...base,
-      color: 'var(--color-ink)',
+      color: "var(--color-ink)",
     }),
     multiValue: (base: any) => ({
       ...base,
-      backgroundColor: 'var(--color-card)',
-      borderRadius: '0.25rem',
-      border: '1px solid var(--color-line-soft)',
+      backgroundColor: "var(--color-chip)",
+      borderRadius: "999px",
+      border: "none",
+      paddingLeft: "4px",
     }),
     multiValueLabel: (base: any) => ({
       ...base,
-      color: 'var(--color-ink)',
+      color: "var(--color-chip-fg)",
+      fontWeight: 600,
     }),
     multiValueRemove: (base: any) => ({
       ...base,
-      color: 'var(--color-ink-subtle)',
-      ':hover': {
-        backgroundColor: 'rgba(239, 68, 68, 0.2)',
-        color: '#ef4444',
+      color: "var(--color-ink-subtle)",
+      ":hover": {
+        backgroundColor: "color-mix(in srgb, var(--color-danger) 16%, transparent)",
+        color: "var(--color-danger)",
+        borderRadius: "999px",
       },
     }),
     menu: (base: any) => ({
       ...base,
-      backgroundColor: 'var(--color-card)',
-      border: '1px solid var(--color-line)',
-      borderRadius: '0.5rem',
-      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1)',
+      backgroundColor: "var(--color-card)",
+      border: "1px solid var(--color-line-soft)",
+      borderRadius: "16px",
+      boxShadow: "var(--sl-shadow-popover)",
       zIndex: 100000,
-      overflow: 'hidden',
+      overflow: "hidden",
     }),
     menuPortal: (base: any) => ({
       ...base,
@@ -324,79 +330,73 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
     }),
     menuList: (base: any) => ({
       ...base,
-      padding: '4px 0',
-      maxHeight: '180px',
+      padding: "6px",
+      maxHeight: "180px",
     }),
     option: (base: any, state: any) => ({
       ...base,
       backgroundColor: state.isSelected
-        ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)'
+        ? "var(--color-nav-active)"
         : state.isFocused
-        ? 'var(--color-card-2)'
-        : 'transparent',
-      color: state.isSelected ? 'var(--color-primary)' : 'var(--color-ink)',
+          ? "var(--color-nav-hover)"
+          : "transparent",
+      color: state.isSelected ? "var(--color-nav-active-fg)" : "var(--color-ink)",
+      borderRadius: "10px",
       fontWeight: state.isSelected ? 600 : 400,
-      cursor: 'pointer',
-      padding: '10px 16px',
-      fontSize: '14px',
-      transition: 'background-color 150ms ease',
+      cursor: "pointer",
+      padding: "10px 16px",
+      fontSize: "14px",
+      transition: "background-color 150ms ease",
     }),
     input: (base: any) => ({
       ...base,
-      color: 'var(--color-ink)',
+      color: "var(--color-ink)",
     }),
     placeholder: (base: any) => ({
       ...base,
-      color: 'var(--color-ink-subtle)',
+      color: "var(--color-ink-subtle)",
     }),
     indicatorSeparator: () => ({
-      display: 'none',
+      display: "none",
     }),
     dropdownIndicator: (base: any) => ({
       ...base,
-      color: 'var(--color-ink-muted)',
-      '&:hover': {
-        color: 'var(--color-ink)',
+      color: "var(--color-ink-muted)",
+      "&:hover": {
+        color: "var(--color-ink)",
       },
     }),
     clearIndicator: (base: any) => ({
       ...base,
-      color: 'var(--color-ink-muted)',
-      '&:hover': {
-        color: '#ef4444',
+      color: "var(--color-ink-muted)",
+      "&:hover": {
+        color: "var(--color-danger)",
       },
     }),
     noOptionsMessage: (base: any) => ({
       ...base,
-      color: 'var(--color-ink-subtle)',
+      color: "var(--color-ink-subtle)",
     }),
   });
 
   return (
     <div className="mb-[18px] group flex flex-col w-full">
-      <label className={`
-        flex items-center gap-[6px] mb-2
-        text-xs font-extrabold uppercase
-        tracking-[0.5px]
-        transition-colors duration-250
-        ${error ? "text-red-400" : "text-ink"}
-        group-focus-within:text-primary
-      `}>
+      <label className={fieldLabelClass()}>
         <span>{label}</span>
-        {required && (
-          <span className="text-red-500 ml-0.5">*</span>
-        )}
+        {required && <RequiredMark />}
       </label>
 
       {loading ? (
-        <div className="flex items-center gap-2 py-1">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-          <span className="text-ink-muted text-sm font-medium">Loading units...</span>
+        <div role="status" className="sl-skeleton h-11 w-full">
+          <span className="sr-only">Loading units...</span>
         </div>
       ) : fetchError ? (
-        <div className="flex items-center gap-2 border border-red-500 rounded-lg p-2 bg-red-500/10">
-          <span className="text-red-500 text-sm font-medium">{fetchError}</span>
-          <button type="button" className="text-sm font-bold text-red-500 border border-red-500 px-2 py-0.5 rounded hover:bg-red-500/20 transition-colors" onClick={retry}>
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-2 rounded-[12px] border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 px-3 py-2"
+        >
+          <span className="text-sm font-medium text-ink">{fetchError}</span>
+          <button type="button" className="sl-btn sl-pill-sm" onClick={retry}>
             Retry
           </button>
         </div>
@@ -408,7 +408,12 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
           rules={{ required: required ? `${label} is required` : false }}
           render={({ field, fieldState }) => {
             if (isMulti) {
-              const currentValueArray = field.value ? field.value.split(",").map((v: string) => v.trim()).filter(Boolean) : [];
+              const currentValueArray = field.value
+                ? field.value
+                    .split(",")
+                    .map((v: string) => v.trim())
+                    .filter(Boolean)
+                : [];
               const firstSelectedCode = currentValueArray.length > 0 ? currentValueArray[0] : null;
               const lockedCategory = firstSelectedCode
                 ? filteredUnits.find((u) => u.code === firstSelectedCode)?.category
@@ -417,7 +422,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
               const options = filteredUnits
                 .filter((u) => !lockedCategory || u.category === lockedCategory)
                 .map((u) => ({
-                  label: u.code.toLowerCase() === 'ea' ? 'pcs' : `${u.label} (${u.code})`,
+                  label: u.code.toLowerCase() === "ea" ? "pcs" : `${u.label} (${u.code})`,
                   value: u.code,
                 }));
               const selectedOptions = currentValueArray
@@ -444,7 +449,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
                         const newValueStr = newValues.join(",");
                         field.onChange(newValueStr);
                         if (customOnChange) customOnChange(newValueStr);
-                      }
+                      },
                     } as any)}
                     styles={selectStyles(!!fieldState.error)}
                     onChange={(selected: any) => {
@@ -455,11 +460,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
                       }
                     }}
                   />
-                  {fieldState.error && (
-                    <div className="text-[#dc3545] text-sm font-medium mt-1">
-                      {fieldState.error.message}
-                    </div>
-                  )}
+                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                 </>
               );
             }
@@ -478,11 +479,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
                   disabled={disabled}
                   error={!!fieldState.error}
                 />
-                {fieldState.error && (
-                  <div className="text-[#dc3545] text-sm font-medium mt-1">
-                    {fieldState.error.message}
-                  </div>
-                )}
+                {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </>
             );
           }}
@@ -491,7 +488,12 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
         <>
           {isMulti ? (
             (() => {
-              const currentValueArray = value ? value.split(",").map((v) => v.trim()).filter(Boolean) : [];
+              const currentValueArray = value
+                ? value
+                    .split(",")
+                    .map((v) => v.trim())
+                    .filter(Boolean)
+                : [];
               const firstSelectedCode = currentValueArray.length > 0 ? currentValueArray[0] : null;
               const lockedCategory = firstSelectedCode
                 ? filteredUnits.find((u) => u.code === firstSelectedCode)?.category
@@ -500,7 +502,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
               const options = filteredUnits
                 .filter((u) => !lockedCategory || u.category === lockedCategory)
                 .map((u) => ({
-                  label: u.code.toLowerCase() === 'ea' ? 'pcs' : `${u.label} (${u.code})`,
+                  label: u.code.toLowerCase() === "ea" ? "pcs" : `${u.label} (${u.code})`,
                   value: u.code,
                 }));
               const selectedOptions = currentValueArray
@@ -525,7 +527,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
                       newValues.splice(hoverIndex, 0, dragged);
                       const newValueStr = newValues.join(",");
                       if (customOnChange) customOnChange(newValueStr);
-                    }
+                    },
                   } as any)}
                   styles={selectStyles(!!error)}
                   onChange={(selected: any) => {
@@ -551,11 +553,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
               error={!!error}
             />
           )}
-          {error && (
-            <div className="text-[#dc3545] text-sm font-medium mt-1">
-              {error}
-            </div>
-          )}
+          {error && <FieldError>{error}</FieldError>}
         </>
       )}
     </div>

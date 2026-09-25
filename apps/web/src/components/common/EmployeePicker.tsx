@@ -16,7 +16,7 @@ export interface EmployeePickerProps {
   disabled?: boolean;
 }
 
-const field = "rounded-lg border border-line-soft bg-card px-3 py-1.5 text-sm text-ink";
+const field = "sl-input h-11 px-4 text-sm";
 
 export const EmployeePicker: React.FC<EmployeePickerProps> = ({
   value,
@@ -108,27 +108,23 @@ export const EmployeePicker: React.FC<EmployeePickerProps> = ({
         {selected && (
           <button
             type="button"
-            className="text-xs text-ink-muted hover:text-ink"
+            className="sl-icon-btn sl-icon-btn-ghost sl-icon-btn-md shrink-0"
             onClick={clear}
             aria-label="Clear employee"
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         )}
       </div>
       {open && !selected && query.trim() && (
-        <ul className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-line-soft bg-card shadow-lg">
-          {loading && <li className="px-3 py-2 text-xs text-ink-muted">Searching…</li>}
+        <ul className="sl-popover absolute z-10 mt-1.5 max-h-64 w-full overflow-y-auto">
+          {loading && <li className="sl-popover-empty">Searching…</li>}
           {!loading && results.length === 0 && (
-            <li className="px-3 py-2 text-xs text-ink-muted">No matching employees.</li>
+            <li className="sl-popover-empty">No matching employees.</li>
           )}
           {results.map((r) => (
             <li key={r.id}>
-              <button
-                type="button"
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-card-2"
-                onClick={() => pick(r)}
-              >
+              <button type="button" className="sl-option block" onClick={() => pick(r)}>
                 <span className="font-medium text-ink">{r.fullName}</span>{" "}
                 <span className="text-ink-muted">({r.empCode})</span>
                 {(r.department || r.businessPlace) && (

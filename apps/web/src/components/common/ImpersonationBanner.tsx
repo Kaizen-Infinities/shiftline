@@ -51,7 +51,7 @@ const ImpersonationBanner: React.FC = () => {
 
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-2 bg-amber-500 px-4 py-1.5 text-xs font-semibold text-amber-950"
+      className="flex flex-wrap items-center justify-between gap-2 border-b border-[color:var(--color-warning)]/40 bg-[color:color-mix(in_srgb,var(--color-warning)_22%,var(--color-card))] px-4 py-2 text-[13px] font-medium text-ink"
       role="status"
       data-testid="impersonation-banner"
     >
@@ -59,12 +59,7 @@ const ImpersonationBanner: React.FC = () => {
         Acting as <b>{user?.fullName ?? user?.username}</b> for support ({impersonation.reason}).
         Every change is recorded against you. Ends in {mmss(left)}.
       </span>
-      <button
-        type="button"
-        onClick={stop}
-        disabled={busy}
-        className="rounded bg-amber-950 px-3 py-1 text-amber-50 hover:bg-black disabled:opacity-50"
-      >
+      <button type="button" onClick={stop} disabled={busy} className="sl-btn sl-pill-sm">
         {busy ? "Stopping…" : "Stop impersonating"}
       </button>
     </div>

@@ -1,150 +1,205 @@
 // src/components/ui/StatusBadge/StatusBadge.tsx
-import React from 'react';
+import React from "react";
+
+export type StatusTone = "default" | "muted" | "success" | "warning" | "danger" | "info";
 
 interface StatusBadgeProps {
-    status: string;
-    className?: string;
-    customText?: string;
-    customColor?: { bg: string; text: string };
-    title?: string;
-    style?: React.CSSProperties;
+  status: string;
+  className?: string;
+  customText?: string;
+  /**
+   * Legacy explicit colours. Hex/rgb pairs are read as a tone (so they follow the theme);
+   * `var(...)` / `color-mix(...)` values are applied as given.
+   */
+  customColor?: { bg: string; text: string };
+  /** Explicit chip tone; wins over the status lookup and `customColor`. */
+  tone?: StatusTone;
+  title?: string;
+  style?: React.CSSProperties;
 }
 
-const statusColors: Record<string, { bg: string; text: string }> = {
-    // ========== DRAFT & GENERAL ==========
-    DRAFT: { bg: '#f3e8ff', text: '#6b21a8' },           // Gray - not yet submitted
-    OPEN: { bg: '#e0f2fe', text: '#0369a1' },             // Sky Blue
-    PARTIALLY_RECEIVED: { bg: '#ffedd5', text: '#c2410c' },       // Orange
-    CLOSED: { bg: '#f3f4f6', text: '#374151' },                   // Dark Gray
-    MONTHLY: { bg: '#e0f2fe', text: '#0369a1' },                  // Light Blue
-    WEEKLY: { bg: '#fef3c7', text: '#b45309' },                   // Amber
+/** Status → chip tone. Anything unknown is a muted chip. */
+const statusTones: Record<string, StatusTone> = {
+  // ========== DRAFT & GENERAL ==========
+  DRAFT: "muted",
+  OPEN: "default",
+  PARTIALLY_RECEIVED: "warning",
+  CLOSED: "muted",
+  MONTHLY: "default",
+  WEEKLY: "warning",
 
-    // ========== MD APPROVAL FLOW ==========
-    PENDING_MD_APPROVAL: { bg: '#fef3c7', text: '#b45309' },  // Amber - awaiting MD review
-    MD_APPROVED: { bg: '#d1fae5', text: '#065f46' },          // Green - MD approved
-    MD_REJECTED: { bg: '#fee2e2', text: '#b91c1c' },          // Red - MD rejected
+  // ========== MD APPROVAL FLOW ==========
+  PENDING_MD_APPROVAL: "warning",
+  MD_APPROVED: "success",
+  MD_REJECTED: "danger",
 
-    // ========== CUSTOMER APPROVAL FLOW ==========
-    PENDING_CUSTOMER_APPROVAL: { bg: '#fde68a', text: '#92400e' }, // Yellow - awaiting customer
-    CUSTOMER_APPROVED: { bg: '#a7f3d0', text: '#064e3b' },         // Light Green - customer approved
-    CUSTOMER_REJECTED: { bg: '#fecaca', text: '#991b1b' },         // Light Red - customer rejected
+  // ========== CUSTOMER APPROVAL FLOW ==========
+  PENDING_CUSTOMER_APPROVAL: "warning",
+  CUSTOMER_APPROVED: "success",
+  CUSTOMER_REJECTED: "danger",
 
-    // ========== CONFIRMED & QUOTATION ==========
-    CONFIRMED: { bg: '#dbeafe', text: '#1d4ed8' },                 // Blue - order confirmed
-    QUOTATION_IN_PROGRESS: { bg: '#e0e7ff', text: '#4338ca' },     // Indigo - preparing quote
-    QUOTATION_COMPLETED: { bg: '#c7d2fe', text: '#3730a3' },       // Dark Indigo - quote done
+  // ========== CONFIRMED & QUOTATION ==========
+  CONFIRMED: "default",
+  QUOTATION_IN_PROGRESS: "info",
+  QUOTATION_COMPLETED: "info",
 
-    // ========== PRODUCTION FLOW ==========
-    PLANNED: { bg: '#e8f0fe', text: '#1a73e8' },                   // Light Blue - production planned
-    MATERIAL_PENDING: { bg: '#fef7e0', text: '#e37400' },          // Orange - waiting for materials
-    MATERIAL_RESERVED: { bg: '#fde68a', text: '#b45309' },         // Amber - materials reserved
-    MATERIAL_ISSUED: { bg: '#fcd34d', text: '#92400e' },           // Gold - materials issued
-    SCHEDULED: { bg: '#d1fae5', text: '#065f46' },                 // Green - scheduled
-    IN_PROGRESS: { bg: '#e8f0fe', text: '#1a73e8' },               // Blue - actively being made
-    ON_HOLD: { bg: '#fce8e6', text: '#d93025' },                   // Red - paused
-    IN_PRODUCTION: { bg: '#dbeafe', text: '#1d4ed8' },             // Blue - in production
-    STOPPED: { bg: '#fee2e2', text: '#b91c1c' },                   // Red - stopped prematurely
-    POST_PRODUCTION: { bg: '#ede9fe', text: '#5b21b6' },           // Lavender/Purple - Post Production / Finishing Stage
+  // ========== PRODUCTION FLOW ==========
+  PLANNED: "default",
+  MATERIAL_PENDING: "warning",
+  MATERIAL_RESERVED: "warning",
+  MATERIAL_ISSUED: "warning",
+  SCHEDULED: "success",
+  IN_PROGRESS: "default",
+  ON_HOLD: "danger",
+  IN_PRODUCTION: "default",
+  STOPPED: "danger",
+  POST_PRODUCTION: "info",
 
-    // ========== COMPLETION & DISPATCH ==========
-    FG_RECEIVED: { bg: '#d1fae5', text: '#065f46' },               // Green - finished goods received
-    READY_FOR_DISPATCH: { bg: '#a7f3d0', text: '#064e3b' },        // Light Green - ready to ship
-    PARTIALLY_DISPATCHED: { bg: '#fde68a', text: '#92400e' },      // Amber - partially shipped
-    DISPATCHED: { bg: '#d1fae5', text: '#065f46' },                // Green - fully shipped
-    PENDING_GATE_APPROVAL: { bg: '#fef3c7', text: '#b45309' },     // Amber - awaiting gate check
-    PENDING_STORE_RECEIPT: { bg: '#e0f2fe', text: '#0369a1' },     // Sky Blue - awaiting store receipt
-    WAREHOUSE_RECEIVED: { bg: '#d1fae5', text: '#065f46' },        // Green - received at warehouse
-    GATE_REJECTED: { bg: '#fee2e2', text: '#b91c1c' },             // Red - rejected at gate
-    STORE_REJECTED: { bg: '#fee2e2', text: '#b91c1c' },            // Red - rejected at store
+  // ========== COMPLETION & DISPATCH ==========
+  FG_RECEIVED: "success",
+  READY_FOR_DISPATCH: "success",
+  PARTIALLY_DISPATCHED: "warning",
+  DISPATCHED: "success",
+  PENDING_GATE_APPROVAL: "warning",
+  PENDING_STORE_RECEIPT: "default",
+  WAREHOUSE_RECEIVED: "success",
+  GATE_REJECTED: "danger",
+  STORE_REJECTED: "danger",
 
-    // ========== FINAL STATES ==========
-    COMPLETED: { bg: '#d1fae5', text: '#065f46' },                 // Green - Completed
-    SHORT_CLOSED: { bg: '#ffedd5', text: '#c2410c' },              // Orange - closed without hitting target
-    PARTIAL_COMPLETED: { bg: '#e0f2fe', text: '#0284c7' },         // Light Blue
-    COMPLETED_WITH_SHORTFALL: { bg: '#fee2e2', text: '#b91c1c' },  // Red-orange - Stopped with shortfall
-    CANCELLED: { bg: '#f3e8ff', text: '#6b21a8' },                 // Purple - cancelled
+  // ========== FINAL STATES ==========
+  COMPLETED: "success",
+  SHORT_CLOSED: "warning",
+  PARTIAL_COMPLETED: "default",
+  COMPLETED_WITH_SHORTFALL: "danger",
+  CANCELLED: "muted",
 
-    // ========== LEGACY/COMMON STATUSES (for other modules) ==========
-    ACTIVE: { bg: '#e6f4ea', text: '#1e8e3e' },
-    INACTIVE: { bg: '#fce8e6', text: '#d93025' },
-    PENDING: { bg: '#fef7e0', text: '#e37400' },
-    APPROVED: { bg: '#e6f4ea', text: '#1e8e3e' },
-    REJECTED: { bg: '#fce8e6', text: '#d93025' },
-    AVAILABLE: { bg: '#e6f4ea', text: '#1e8e3e' },
-    INSUFFICIENT: { bg: '#fce8e6', text: '#d93025' },
+  // ========== LEGACY/COMMON STATUSES (for other modules) ==========
+  ACTIVE: "success",
+  INACTIVE: "danger",
+  PENDING: "warning",
+  APPROVED: "success",
+  REJECTED: "danger",
+  AVAILABLE: "success",
+  INSUFFICIENT: "danger",
 
-    // Production Orders
+  // Production Orders
+  RM_AVAILABLE: "success",
+  RM_PENDING: "warning",
+  SCHEDULE_DELETED: "danger",
 
-    RM_AVAILABLE: { bg: '#e6f4ea', text: '#1e8e3e' },
-    RM_PENDING: { bg: '#fef7e0', text: '#e37400' },
-    SCHEDULE_DELETED: { bg: '#fee2e2', text: '#b91c1c' }, // Light red background with dark red text
+  // ========== SALES ORDER WORKFLOW ==========
+  QUOTED: "info",
+  INVOICED: "success",
 
+  // ========== INVOICE PAYMENT STATUSES ==========
+  UNPAID: "danger",
+  PARTIALLY_PAID: "warning",
+  PAID: "success",
 
-    // ========== SALES ORDER WORKFLOW ==========
-    QUOTED: { bg: '#e0e7ff', text: '#4338ca' },                    // Indigo - quotation created
-    INVOICED: { bg: '#d1fae5', text: '#065f46' },                  // Green - invoice generated
-
-    // ========== INVOICE PAYMENT STATUSES ==========
-    UNPAID: { bg: '#fee2e2', text: '#b91c1c' },                    // Red - not paid
-    PARTIALLY_PAID: { bg: '#fef3c7', text: '#b45309' },            // Amber - partially paid
-    PAID: { bg: '#d1fae5', text: '#065f46' },                      // Green - fully paid
-
-    // Priorities
-    HIGH: { bg: '#fce8e6', text: '#d93025' },
-    URGENT: { bg: '#fce8e6', text: '#d93025' },
-    MEDIUM: { bg: '#fef7e0', text: '#e37400' },
-    LOW: { bg: '#e6f4ea', text: '#1e8e3e' },
+  // Priorities
+  HIGH: "danger",
+  URGENT: "danger",
+  MEDIUM: "warning",
+  LOW: "success",
 };
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '', customText, customColor, title, style }) => {
-    const normalizedStatus = (status || '').toUpperCase().replace(/\s+/g, '_');
-    const colorScheme = customColor || statusColors[normalizedStatus] || { bg: '#f1f3f4', text: '#5f6368' };
+const TONE_CLASS: Record<StatusTone, string> = {
+  default: "",
+  muted: "sl-chip-muted",
+  success: "sl-chip-success",
+  warning: "sl-chip-warning",
+  danger: "sl-chip-danger",
+  info: "sl-chip-info",
+};
 
-    // Format display text: "PENDING_MD_APPROVAL" → "Pending MD Approval"
-    let displayText = customText;
-    if (!displayText) {
-        if (normalizedStatus === 'POST_PRODUCTION') {
-            displayText = "Post Production";
-        } else {
-            displayText = (status || 'UNKNOWN')
-                .replace(/_/g, ' ')
-                .toLowerCase()
-                .split(' ')
-                .map((word) => {
-                    // Keep common acronyms uppercase
-                    if (['md', 'rm', 'fg', 'wip', 'grn'].includes(word)) {
-                        return word.toUpperCase();
-                    }
-                    return word.charAt(0).toUpperCase() + word.slice(1);
-                })
-                .join(' ');
-        }
+/** Reads "#065f46" / "rgb(6,95,70)" / "rgba(…)" into [r, g, b]; null for anything else. */
+const parseColor = (value: string): [number, number, number] | null => {
+  const v = value.trim().toLowerCase();
+  const hex = v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
+  if (hex) {
+    const h = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join("") : hex[1];
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
+  }
+  const rgb = v.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+  if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  return null;
+};
+
+/** Maps a legacy text colour to the nearest chip tone by hue, so it follows the theme. */
+const toneFromColor = (value: string): StatusTone | null => {
+  const rgb = parseColor(value);
+  if (!rgb) return null;
+  const [r, g, b] = rgb.map((c) => c / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+  if (saturation < 0.2) return "muted";
+  let hue = 0;
+  if (max === r) hue = 60 * (((g - b) / delta) % 6);
+  else if (max === g) hue = 60 * ((b - r) / delta + 2);
+  else hue = 60 * ((r - g) / delta + 4);
+  if (hue < 0) hue += 360;
+  if (hue < 18 || hue >= 330) return "danger";
+  if (hue < 65) return "warning";
+  if (hue < 175) return "success";
+  if (hue < 250) return "default";
+  return "info";
+};
+
+/** Status chip: the status name in words, coloured by what it means (done, waiting, blocked). */
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
+  status,
+  className = "",
+  customText,
+  customColor,
+  tone,
+  title,
+  style,
+}) => {
+  const normalizedStatus = (status || "").toUpperCase().replace(/\s+/g, "_");
+
+  // Explicit tone → legacy colour pair read as a tone → status lookup → muted.
+  const legacyTone = customColor ? toneFromColor(customColor.text) : null;
+  const inlineColor =
+    customColor && !legacyTone && !tone
+      ? { backgroundColor: customColor.bg, color: customColor.text }
+      : undefined;
+  const resolvedTone: StatusTone =
+    tone ?? legacyTone ?? (customColor ? "muted" : (statusTones[normalizedStatus] ?? "muted"));
+
+  // Format display text: "PENDING_MD_APPROVAL" → "Pending MD Approval"
+  let displayText = customText;
+  if (!displayText) {
+    if (normalizedStatus === "POST_PRODUCTION") {
+      displayText = "Post Production";
+    } else {
+      displayText = (status || "UNKNOWN")
+        .replace(/_/g, " ")
+        .toLowerCase()
+        .split(" ")
+        .map((word) => {
+          // Keep common acronyms uppercase
+          if (["md", "rm", "fg", "wip", "grn"].includes(word)) {
+            return word.toUpperCase();
+          }
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(" ");
     }
+  }
 
-    return (
-        <span
-            className={`status-pill ${className}`}
-            title={title}
-            style={{
-                backgroundColor: colorScheme.bg,
-                color: colorScheme.text,
-                // 17% opacity
-                padding: '4px 10px',
-                borderRadius: '9999px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                lineHeight: '1.5',
-                ...style,
-            }}
-        >
-
-            {displayText}
-        </span>
-    );
+  return (
+    <span
+      className={`sl-chip sl-chip-sm ${inlineColor ? "" : TONE_CLASS[resolvedTone]} ${className}`}
+      title={title}
+      style={{ ...inlineColor, ...style }}
+    >
+      <span className="sl-chip-dot" aria-hidden="true" />
+      {displayText}
+    </span>
+  );
 };
 
 export default StatusBadge;

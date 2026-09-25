@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef } from "react";
+import React, { createContext, useContext, useEffect, useId, useRef } from "react";
+import { X } from "lucide-react";
 
 type PrimitiveProps = React.HTMLAttributes<HTMLElement> & Record<string, unknown>;
 
@@ -16,6 +17,7 @@ const stripLayoutProps = (props: PrimitiveProps) => {
   return htmlProps;
 };
 
+/** Page-width wrapper with the standard gutters. */
 export const Container = ({ className, ...props }: PrimitiveProps) => (
   <div
     className={join("mx-auto w-full max-w-[1920px] px-3 sm:px-4 lg:px-6", className)}
@@ -23,30 +25,48 @@ export const Container = ({ className, ...props }: PrimitiveProps) => (
   />
 );
 
+/** Twelve-column grid row. */
 export const Row = ({ className, ...props }: PrimitiveProps) => (
   <div className={join("grid grid-cols-12 gap-4", className)} {...stripLayoutProps(props)} />
 );
 
+/** Grid column; full width unless the caller adds `col-span-*` classes. */
 export const Col = ({ className, ...props }: PrimitiveProps) => (
   <div className={join("col-span-12 min-w-0", className)} {...stripLayoutProps(props)} />
 );
 
 const CardRoot = ({ className, ...props }: PrimitiveProps) => (
   <section
-    className={join("overflow-hidden rounded-sm border border-line bg-card text-ink", className)}
+    className={join("sl-tile overflow-hidden text-ink", className)}
     {...stripLayoutProps(props)}
   />
 );
 const CardHeader = ({ className, ...props }: PrimitiveProps) => (
   <header
-    className={join("border-b border-line bg-head px-4 py-3 font-semibold", className)}
+    className={join(
+      "border-b border-line-soft px-4 py-3.5 font-semibold text-ink sm:px-5",
+      className
+    )}
     {...props}
   />
 );
 const CardBody = ({ className, ...props }: PrimitiveProps) => (
-  <div className={join("p-4", className)} {...props} />
+  <div className={join("p-4 sm:p-5", className)} {...props} />
 );
+/** White rounded tile with optional `Card.Header` and `Card.Body`. */
 export const Card = Object.assign(CardRoot, { Header: CardHeader, Body: CardBody });
+
+interface ModalContextValue {
+  titleId: string;
+  onHide?: () => void;
+}
+const ModalContext = createContext<ModalContextValue | null>(null);
+
+const MODAL_WIDTH: Record<string, string> = {
+  sm: "max-w-md",
+  lg: "max-w-3xl",
+  xl: "max-w-5xl",
+};
 
 const ModalRoot = ({
   show,
@@ -100,35 +120,39 @@ const ModalRoot = ({
   }, [show, onHide]);
 
   if (!show) return null;
-  void size;
   void centered;
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-3 sm:p-6"
-      onMouseDown={(event) => event.target === event.currentTarget && onHide?.()}
-    >
+  const width = (typeof size === "string" && MODAL_WIDTH[size]) || "max-w-2xl";
+  const dialog = (
+    <ModalContext.Provider value={{ titleId, onHide }}>
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className={join(
-          "my-auto max-h-[calc(100vh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-sm border border-line bg-card text-ink shadow-md outline-none focus-visible:ring-2 focus-visible:ring-accent",
-          className
-        )}
-        {...stripLayoutProps(props)}
+        className="sl-backdrop z-[100] flex items-center justify-center overflow-y-auto p-3 sm:p-6"
+        onMouseDown={(event) => event.target === event.currentTarget && onHide?.()}
       >
-        {React.Children.map(children as React.ReactNode, (child) =>
-          React.isValidElement(child)
-            ? React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
-                "data-modal-title-id": titleId,
-              })
-            : child
-        )}
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
+          className={join(
+            "sl-dialog my-auto max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto outline-none",
+            width,
+            className
+          )}
+          {...stripLayoutProps(props)}
+        >
+          {React.Children.map(children as React.ReactNode, (child) =>
+            React.isValidElement(child)
+              ? React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+                  "data-modal-title-id": titleId,
+                })
+              : child
+          )}
+        </div>
       </div>
-    </div>
+    </ModalContext.Provider>
   );
+  return dialog;
 };
 const ModalHeader = ({
   className,
@@ -136,39 +160,42 @@ const ModalHeader = ({
   children,
   onHide,
   ...props
-}: PrimitiveProps & { closeButton?: unknown; onHide?: () => void }) => (
-  <header
-    className={join(
-      "flex items-center justify-between gap-3 border-b border-line px-4 py-3",
-      className
-    )}
-    {...props}
-  >
-    {children}
-    {closeButton ? (
-      <button
-        type="button"
-        onClick={onHide}
-        aria-label="Close dialog"
-        className="rounded-md p-2 text-ink-muted hover:bg-card-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      >
-        ✕
-      </button>
-    ) : null}
-  </header>
-);
-const ModalTitle = ({ className, ...props }: PrimitiveProps) => (
-  <h2 className={join("text-lg font-semibold text-ink", className)} {...props} />
-);
+}: PrimitiveProps & { closeButton?: unknown; onHide?: () => void }) => {
+  const context = useContext(ModalContext);
+  const close = onHide ?? context?.onHide;
+  return (
+    <header className={join("sl-dialog-header items-center", className)} {...props}>
+      {children}
+      {closeButton ? (
+        <button
+          type="button"
+          onClick={close}
+          aria-label="Close dialog"
+          className="sl-icon-btn sl-icon-btn-md sl-icon-btn-ghost -mr-2 shrink-0"
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
+      ) : null}
+    </header>
+  );
+};
+const ModalTitle = ({ className, id, ...props }: PrimitiveProps) => {
+  const context = useContext(ModalContext);
+  return (
+    <h2
+      id={(id as string | undefined) ?? context?.titleId}
+      className={join("sl-dialog-title", className)}
+      {...props}
+    />
+  );
+};
 const ModalBody = ({ className, ...props }: PrimitiveProps) => (
-  <div className={join("p-4", className)} {...props} />
+  <div className={join("sl-dialog-body", className)} {...props} />
 );
 const ModalFooter = ({ className, ...props }: PrimitiveProps) => (
-  <footer
-    className={join("flex flex-wrap justify-end gap-2 border-t border-line px-4 py-3", className)}
-    {...props}
-  />
+  <footer className={join("sl-dialog-footer", className)} {...props} />
 );
+/** Dialog with a soft blurred backdrop, 24px card, focus trap and Escape to close. */
 export const Modal = Object.assign(ModalRoot, {
   Header: ModalHeader,
   Title: ModalTitle,
@@ -176,44 +203,89 @@ export const Modal = Object.assign(ModalRoot, {
   Footer: ModalFooter,
 });
 
+const BUTTON_VARIANT: Record<string, string> = {
+  primary: "sl-cta",
+  success: "sl-cta",
+  secondary: "sl-btn",
+  light: "sl-btn",
+  "outline-primary": "sl-btn",
+  "outline-secondary": "sl-btn",
+  "outline-success": "sl-btn",
+  "outline-dark": "sl-btn",
+  danger: "sl-btn-danger",
+  "outline-danger": "sl-btn-soft-danger",
+  info: "sl-btn-blue",
+  dark: "sl-btn-blue",
+  link: "sl-btn-ghost",
+};
+const BUTTON_SIZE: Record<string, string> = { sm: "sl-pill-sm", lg: "sl-pill-lg" };
+
+/** Pill button; `variant` picks the pill (primary/success = green CTA, secondary = white, danger). */
 export const Button = ({
   className,
   variant,
   size,
+  type = "button",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) => (
   <button
+    type={type}
     className={join(
-      "inline-flex min-h-10 items-center justify-center rounded-md bg-primary px-4 py-2 font-semibold text-white hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      BUTTON_VARIANT[variant ?? "primary"] ?? "sl-cta",
+      BUTTON_SIZE[size ?? ""] ?? "sl-pill-md",
       className
     )}
     {...props}
   />
 );
 
+const TONE_BY_BG: Record<string, string> = {
+  success: "sl-chip-success",
+  warning: "sl-chip-warning",
+  danger: "sl-chip-danger",
+  info: "sl-chip-info",
+  secondary: "sl-chip-muted",
+  light: "sl-chip-muted",
+  dark: "sl-chip-muted",
+};
+/** Small chip; `bg` picks the tone (success, warning, danger, info, secondary). */
 export const Badge = ({ className, bg, ...props }: PrimitiveProps & { bg?: unknown }) => (
   <span
     className={join(
-      "inline-flex rounded-full bg-card-2 px-2.5 py-1 text-xs font-semibold text-ink",
+      "sl-chip sl-chip-sm",
+      typeof bg === "string" ? TONE_BY_BG[bg] : undefined,
       className
     )}
     {...props}
   />
 );
+
+const ALERT_TONE: Record<string, string> = {
+  success: "border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10",
+  warning: "border-[color:var(--color-warning)]/35 bg-[color:var(--color-warning)]/10",
+  danger: "border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10",
+  info: "border-[color:var(--color-info)]/30 bg-[color:var(--color-info)]/10",
+};
+/** Tinted notice tile; `variant` picks the tone. */
 export const Alert = ({ className, variant, ...props }: PrimitiveProps & { variant?: unknown }) => (
   <div
     role="alert"
-    className={join("rounded-lg border border-line bg-card-2 p-3 text-sm text-ink", className)}
+    className={join(
+      "rounded-[14px] border p-3.5 text-sm text-ink",
+      (typeof variant === "string" && ALERT_TONE[variant]) || "border-line-soft bg-card-2",
+      className
+    )}
     {...props}
   />
 );
+/** Thin rounded progress track with a blue fill. */
 export const ProgressBar = ({
   now = 0,
   label,
   className,
   ...props
 }: PrimitiveProps & { now?: number; label?: React.ReactNode }) => (
-  <div className={join("h-2.5 overflow-hidden rounded-full bg-card-2", className)} {...props}>
+  <div className={join("h-2.5 overflow-hidden rounded-full bg-line-soft", className)} {...props}>
     <div
       className="h-full rounded-full bg-accent transition-[width]"
       style={{ width: `${Math.min(100, Math.max(0, now))}%` }}
@@ -228,6 +300,7 @@ export const ProgressBar = ({
   </div>
 );
 
+/** Plain table with the concept header band, hairline rows and horizontal scroll. */
 export const Table = ({
   className,
   hover,
@@ -241,15 +314,19 @@ export const Table = ({
   responsive?: boolean;
   size?: string;
 }) => {
-  void hover;
   void bordered;
   void responsive;
-  void size;
   return (
     <div className="w-full overflow-x-auto">
       <table
         className={join(
-          "w-full min-w-[640px] border-collapse text-left text-sm text-ink [&_th]:bg-head [&_th]:font-semibold [&_td]:border-b [&_td]:border-line-soft [&_td]:p-3 [&_th]:p-3",
+          "w-full min-w-[640px] border-collapse text-left text-sm text-ink",
+          "[&_th]:bg-card-2 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.06em] [&_th]:text-ink-subtle [&_th]:whitespace-nowrap",
+          "[&_td]:border-b [&_td]:border-line-soft [&_tr:last-child>td]:border-b-0",
+          size === "sm"
+            ? "[&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2"
+            : "[&_td]:px-4 [&_td]:py-3 [&_th]:px-4 [&_th]:py-3",
+          hover && "[&_tbody_tr:hover]:bg-nav-hover",
           className
         )}
         {...props}
@@ -262,10 +339,9 @@ const FormGroup = ({ className, ...props }: PrimitiveProps) => (
   <div className={join("space-y-1.5", className)} {...props} />
 );
 const FormLabel = ({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
-  <label className={join("block text-sm font-medium text-ink", className)} {...props} />
+  <label className={join("sl-label", className)} {...props} />
 );
-const fieldClass =
-  "min-h-10 w-full rounded-md border border-line bg-card px-3 py-2 text-ink outline-none placeholder:text-ink-subtle focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-50";
+const fieldClass = "sl-input min-h-11";
 const FormControl = ({
   className,
   as,
@@ -273,7 +349,7 @@ const FormControl = ({
 }: React.InputHTMLAttributes<HTMLInputElement> & { as?: string }) =>
   as === "textarea" ? (
     <textarea
-      className={join(fieldClass, className)}
+      className={join(fieldClass, "py-2.5", className)}
       {...(props as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
     />
   ) : (
@@ -284,12 +360,12 @@ const FormSelect = ({
   children,
   ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-  <select className={join(fieldClass, className)} {...props}>
+  <select className={join(fieldClass, "cursor-pointer pr-9", className)} {...props}>
     {children}
   </select>
 );
 const FormText = ({ className, ...props }: PrimitiveProps) => (
-  <small className={join("text-sm text-ink-muted", className)} {...props} />
+  <small className={join("block text-[13px] text-ink-subtle", className)} {...props} />
 );
 const FormCheck = ({
   className,
@@ -301,19 +377,15 @@ const FormCheck = ({
   <label
     htmlFor={id}
     className={join(
-      "inline-flex min-h-10 cursor-pointer items-center gap-2 text-sm text-ink",
+      "inline-flex min-h-10 cursor-pointer items-center gap-2.5 text-sm font-medium text-ink",
       className
     )}
   >
-    <input
-      id={id}
-      type={type}
-      className="size-4 accent-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      {...props}
-    />
+    <input id={id} type={type} className="sl-check" {...props} />
     {label}
   </label>
 );
+/** Form with Group, Label, Control, Select, Text and Check parts in the concept field style. */
 export const Form = Object.assign(
   ({ className, ...props }: React.FormHTMLAttributes<HTMLFormElement>) => (
     <form className={className} {...props} />

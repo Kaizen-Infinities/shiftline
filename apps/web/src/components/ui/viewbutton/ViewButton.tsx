@@ -16,9 +16,9 @@ const ViewButton: React.FC<ViewButtonProps> = ({ onClick, disabled, onMouseEnter
       disabled={disabled}
       aria-label="View"
       title="View"
-      className="w-7 h-7 flex items-center justify-center rounded-sm border border-line bg-card text-ink-muted transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
+      className="sl-icon-btn sl-icon-btn-hover-primary"
     >
-      <FiEye className="text-[13px]" />
+      <FiEye className="text-[14px]" aria-hidden="true" />
     </button>
   );
 };

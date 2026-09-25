@@ -1,6 +1,6 @@
 import React from "react";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import CommonLoader from "../Loader/CommonLoader";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { EmptyState } from "../v2/EmptyState";
 
 export interface DataTableColumn<T> {
   header: string;
@@ -50,10 +50,12 @@ interface DataTableProps<T> {
   minHeightClassName?: string;
   /** Optional override for the default max-height (scroll cap) classes */
   maxHeightClassName?: string;
-  /** Reduce cell/header padding for dense tables */
+  /** Row density: `default` = 52px rows, `compact` = 40px rows for dense sub-tables. */
   density?: "default" | "compact";
   /** Accessible name announced for the table region. */
   ariaLabel?: string;
+  /** Optional action shown under the empty message (e.g. the screen's primary CTA). */
+  emptyAction?: React.ReactNode;
 }
 
 const alignClass: Record<NonNullable<DataTableColumn<any>["align"]>, string> = {
@@ -65,18 +67,29 @@ const alignClass: Record<NonNullable<DataTableColumn<any>["align"]>, string> = {
 // Sizing for the table region.
 //
 // MIN is applied *only* in the loading / empty states, where there is no
-// content to give the panel height — without it the card would collapse to a
-// sliver and leave dead space under it. Once real rows are present the panel
-// sizes to its content instead, so a full page of rows ends flush against the
-// bottom of the card with no leftover white strip beneath the last row.
+// content to give the panel height — without it the tile would collapse to a
+// sliver. Once real rows are present the panel sizes to its content.
 //
-// MAX always applies, capping the panel so an unusually long page scrolls
-// internally (keeping the sticky header in view) rather than pushing the
-// footer off-screen. The offset covers the horizontal nav, page padding, card
-// header and footer that surround the table in BaseLayout.
+// MAX (empty by default) can cap the panel so a long page scrolls internally
+// while the sticky header stays in view.
 const TABLE_MIN_HEIGHT_CLASS = "min-h-36";
 const TABLE_MAX_HEIGHT_CLASS = "";
 
+/** Page numbers to show around the current one: 1 … 4 5 6 … 12. */
+const pageWindow = (current: number, total: number): Array<number | "gap"> => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set([1, total, current - 1, current, current + 1]);
+  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const out: Array<number | "gap"> = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) out.push("gap");
+    out.push(p);
+  });
+  return out;
+};
+
+/** List table inside a tile: card-2 header band, 52px rows with hairlines, skeleton loading,
+ *  friendly empty state, pill pager and horizontal scroll on narrow screens. */
 function DataTable<T>({
   columns,
   data,
@@ -91,40 +104,26 @@ function DataTable<T>({
   getRowStyle,
   minHeightClassName = TABLE_MIN_HEIGHT_CLASS,
   maxHeightClassName = TABLE_MAX_HEIGHT_CLASS,
-  density = "compact",
+  density = "default",
   ariaLabel = "Data table",
+  emptyAction,
 }: DataTableProps<T>) {
-  const cellPaddingClass =
-    density === "compact" ? "px-2 py-1 sm:px-3 sm:py-1.5" : "px-3 py-1.5 sm:px-4 sm:py-2";
+  const cellPaddingClass = density === "compact" ? "px-3 py-1.5" : "px-3 py-2 sm:px-4";
+  const headerPaddingClass = density === "compact" ? "px-3 py-2" : "px-3 py-3 sm:px-4";
+  const rowMinHeightClass = density === "compact" ? "min-h-[40px]" : "min-h-[52px]";
 
-  // Header keeps slightly more vertical room than the (now denser) body rows
-  // so it still reads as a distinct band above the data.
-  const headerPaddingClass =
-    density === "compact" ? "px-2 py-1.5 sm:px-3 sm:py-2" : "px-3 py-2 sm:px-4 sm:py-2.5";
-
-  // Every row is held to the same minimum height so different tables line up
-  // with each other regardless of what their cells contain. Without this a row
-  // is only as tall as its tallest child, so a table with 40px action buttons
-  // renders ~56px rows while a text-only table renders ~37px ones.
-  const rowMinHeightClass = density === "compact" ? "min-h-[36px]" : "min-h-[48px]";
-
-  // By using `minmax(max-content, 1fr)`:
-  // 1. `max-content` ensures the column is always wide enough for its content without squishing/wrapping text.
-  // 2. `1fr` ensures any leftover table space is distributed equally, so the table stretches to fill 100% width.
-  // 3. If the total max-content exceeds the screen, it naturally forces the responsive horizontal scrollbar!
+  // `minmax(max-content, 1fr)`: a column is never narrower than its content and
+  // leftover width is shared out, so the table fills the tile; when the content
+  // is wider than the screen the scroll area scrolls sideways.
   const gridTemplateColumns = columns
     .map((col) => col.width ?? "minmax(max-content, 1fr)")
     .join(" ");
 
-  // True while the table is showing the loader or the empty message instead of
-  // real rows. In that case the grid holds only the header and the message is
-  // rendered as a flexible sibling beneath it (see below).
+  // True while the table shows the skeleton or the empty message instead of rows.
   const showingPlaceholder = loading || data.length === 0;
 
   const hasPager = Boolean(pagination && pagination.totalPages > 1);
 
-  // On the outer grid, using 1fr tracks allows leftover width to stretch the
-  // flexible columns themselves, so headers and content fill the space equally.
   const outerGridStyle: React.CSSProperties = {
     display: "grid",
     gridTemplateColumns,
@@ -132,8 +131,7 @@ function DataTable<T>({
     minWidth: "100%",
   };
 
-  // Each row spans every column and uses `subgrid` so it inherits the exact
-  // same track sizes/positions computed by the outer grid above.
+  // Each row spans every column and uses `subgrid` so it inherits the outer tracks.
   const rowStyle: React.CSSProperties = {
     display: "grid",
     gridColumn: "1 / -1",
@@ -142,42 +140,67 @@ function DataTable<T>({
 
   const fullSpanStyle: React.CSSProperties = { gridColumn: "1 / -1" };
 
+  const skeletonRows = density === "compact" ? 4 : 5;
+
   return (
-    <div className={`w-full border border-line-soft rounded-md overflow-hidden ${className}`}>
-      {/*
-        Flex column holding the scroll area and — when paginating — the pager
-        beneath it. A modest minimum height is reserved for loading and empty
-        states only; populated tables hug their rows instead of leaving a blank
-        strip beneath short result sets.
-      */}
+    <div className={`sl-tile w-full overflow-hidden ${className}`}>
       <div
         className={`flex flex-col ${showingPlaceholder ? minHeightClassName : ""} ${maxHeightClassName}`}
       >
         <div
-          className="w-full flex-1 min-h-0 overflow-auto overscroll-contain flex flex-col"
+          className="flex min-h-0 w-full flex-1 flex-col overflow-auto overscroll-contain"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           <div
             role="table"
             aria-label={ariaLabel}
+            aria-busy={loading || undefined}
+            aria-rowcount={showingPlaceholder ? undefined : data.length + 1}
             className="w-full text-sm"
             style={outerGridStyle}
           >
-            {/* Header row — cells are individually sticky (rather than the row)
-                because a `subgrid` row is not a reliable sticky containing box
-                across browsers. Each carries its own background so the header
-                band stays solid while rows scroll underneath it. */}
+            {/* Header row — cells are individually sticky because a `subgrid`
+                row is not a reliable sticky box across browsers. */}
             <div role="row" style={rowStyle}>
               {columns.map((col, i) => (
                 <div
                   key={i}
                   role="columnheader"
-                  className={`sticky top-0 z-10 bg-head flex items-center ${headerPaddingClass} font-bold text-[10px] sm:text-[11px] tracking-[1.5px] uppercase text-ink-muted whitespace-nowrap border-b border-line-soft ${alignClass[col.align ?? "left"]}`}
+                  className={`sl-th sticky top-0 z-10 flex items-center border-b border-line-soft bg-card-2 ${headerPaddingClass} ${alignClass[col.align ?? "left"]}`}
                 >
                   {col.headerNode ?? col.header}
                 </div>
               ))}
             </div>
+
+            {/* Skeleton rows while loading, drawn on the same grid as real rows. */}
+            {loading &&
+              Array.from({ length: skeletonRows }).map((_, r) => (
+                <div
+                  key={`sk-${r}`}
+                  role="row"
+                  aria-hidden="true"
+                  style={rowStyle}
+                  className={`${rowMinHeightClass} border-b border-line-soft last:border-b-0`}
+                >
+                  {columns.map((col, ci) => (
+                    <div
+                      key={ci}
+                      role="cell"
+                      className={`flex items-center ${cellPaddingClass} ${alignClass[col.align ?? "left"]}`}
+                    >
+                      <div
+                        className="sl-skeleton h-3"
+                        style={{
+                          width: `${[70, 52, 84, 44, 62][(r + ci) % 5]}%`,
+                          minWidth: 24,
+                          opacity: 1 - r * 0.12,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
 
             {/* Body */}
             {!showingPlaceholder &&
@@ -185,12 +208,13 @@ function DataTable<T>({
                 const subRow = renderSubRow ? renderSubRow(row, index) : null;
                 const extraClassName = rowClassName ? rowClassName(row, index) : "";
                 const extraStyle = getRowStyle ? getRowStyle(row, index) : {};
+                const isLast = index === data.length - 1;
                 return (
                   <React.Fragment key={rowKey(row)}>
                     <div
                       role="row"
                       style={{ ...rowStyle, ...extraStyle }}
-                      className={`${rowMinHeightClass} border-b border-line-soft/50 hover:bg-card-2/70 transition-all duration-200 ${onRowClick ? "cursor-pointer" : ""} ${extraClassName}`}
+                      className={`${rowMinHeightClass} ${isLast && !subRow ? "" : "border-b border-line-soft"} sl-row-hover transition-colors duration-150 ${onRowClick ? "cursor-pointer focus-visible:bg-nav-hover" : ""} ${extraClassName}`}
                       onClick={() => onRowClick && onRowClick(row, index)}
                       onKeyDown={(event) => {
                         if (onRowClick && (event.key === "Enter" || event.key === " ")) {
@@ -204,7 +228,7 @@ function DataTable<T>({
                         <div
                           key={ci}
                           role="cell"
-                          className={`flex items-center ${cellPaddingClass} text-ink text-[13px] font-medium min-w-0 ${alignClass[col.align ?? "left"]}`}
+                          className={`flex min-w-0 items-center gap-1.5 ${cellPaddingClass} text-sm text-ink ${alignClass[col.align ?? "left"]}`}
                         >
                           {col.render ? (
                             col.render(row, index)
@@ -220,8 +244,17 @@ function DataTable<T>({
                       ))}
                     </div>
                     {subRow && (
-                      <div role="row" style={rowStyle}>
-                        <div style={fullSpanStyle} onClick={(e) => e.stopPropagation()}>
+                      <div
+                        role="row"
+                        style={rowStyle}
+                        className={isLast ? "" : "border-b border-line-soft"}
+                      >
+                        <div
+                          role="cell"
+                          style={fullSpanStyle}
+                          className="bg-card-2/60"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {subRow}
                         </div>
                       </div>
@@ -231,55 +264,83 @@ function DataTable<T>({
               })}
           </div>
 
-          {/*
-            The loader / empty message is a flexible sibling of the grid rather
-            than a row inside it. A grid row cannot be stretched reliably here:
-            a percentage height on the grid resolves against the scroll area's
-            `height: auto`, so it collapsed and the message hugged the header.
-            As a `flex-1` sibling it simply absorbs the remaining height and
-            centres itself in the middle of the panel.
-          */}
-          {showingPlaceholder && (
-            <div className="flex-1 flex items-center justify-center min-w-full px-6 py-8 text-center text-base sm:text-lg text-ink-subtle">
-              {loading ? <CommonLoader text="Loading data..." fullScreen={false} /> : emptyMessage}
+          {loading && (
+            <p role="status" className="sr-only">
+              Loading data...
+            </p>
+          )}
+
+          {/* Empty state: a flexible sibling of the grid so it can fill the
+              reserved height and sit in the middle of the tile. */}
+          {!loading && data.length === 0 && (
+            <div className="flex min-w-full flex-1 items-center justify-center">
+              {typeof emptyMessage === "string" ? (
+                <EmptyState compact title={emptyMessage} action={emptyAction} />
+              ) : (
+                <div className="px-6 py-8 text-center text-sm text-ink-subtle">
+                  {emptyMessage}
+                  {emptyAction && <div className="mt-3 flex justify-center">{emptyAction}</div>}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Pager lives inside the panel and never shrinks, so it stays put at
-            the foot of the rows and rides along if the scroll area is capped
-            by the max-height. */}
+        {/* Pager: pill buttons at the foot of the tile. */}
         {hasPager && pagination && (
-          <div className="shrink-0 flex items-center justify-center gap-3 sm:gap-4 py-3 sm:py-4 border-t border-line-soft bg-head/50">
-            <button
-              type="button"
-              aria-label="Previous page"
-              disabled={pagination.currentPage === 1}
-              onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
-              className="flex items-center justify-center h-10 w-10 rounded-sm border border-line-soft
-                            text-ink-subtle hover:text-accent hover:border-accent/30 hover:bg-accent/10
-                            disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent
-                            transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <FaChevronLeft size={11} />
-            </button>
-            <div className="text-xs sm:text-sm text-ink-muted font-semibold">
-              Page <span className="text-ink">{pagination.currentPage}</span> of{" "}
-              <span className="text-ink">{pagination.totalPages}</span>
+          <nav
+            aria-label="Pagination"
+            className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-line-soft px-3 py-3 sm:px-4"
+          >
+            <span className="text-[13px] font-medium text-ink-subtle">
+              Page <span className="font-semibold text-ink">{pagination.currentPage}</span> of{" "}
+              <span className="font-semibold text-ink">{pagination.totalPages}</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={pagination.currentPage === 1}
+                onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+                className="sl-icon-btn sl-icon-btn-md"
+              >
+                <ChevronLeft size={17} aria-hidden="true" />
+              </button>
+              <div className="hidden items-center gap-1 sm:flex">
+                {pageWindow(pagination.currentPage, pagination.totalPages).map((p, i) =>
+                  p === "gap" ? (
+                    <span key={`gap-${i}`} className="px-1 text-ink-subtle" aria-hidden="true">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => pagination.onPageChange(p)}
+                      aria-label={`Page ${p}`}
+                      aria-current={p === pagination.currentPage ? "page" : undefined}
+                      className={`h-10 min-w-10 rounded-full px-3 text-[13px] font-semibold tabular-nums transition-colors ${
+                        p === pagination.currentPage
+                          ? "bg-nav-active text-[color:var(--color-nav-active-fg)]"
+                          : "text-ink-muted hover:bg-nav-hover hover:text-ink"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              </div>
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={pagination.currentPage === pagination.totalPages}
+                onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+                className="sl-icon-btn sl-icon-btn-md"
+              >
+                <ChevronRight size={17} aria-hidden="true" />
+              </button>
             </div>
-            <button
-              type="button"
-              aria-label="Next page"
-              disabled={pagination.currentPage === pagination.totalPages}
-              onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
-              className="flex items-center justify-center h-10 w-10 rounded-sm border border-line-soft
-                            text-ink-subtle hover:text-accent hover:border-accent/30 hover:bg-accent/10
-                            disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent
-                            transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <FaChevronRight size={11} />
-            </button>
-          </div>
+          </nav>
         )}
       </div>
     </div>

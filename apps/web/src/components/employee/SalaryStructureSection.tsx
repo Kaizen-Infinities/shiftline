@@ -137,11 +137,11 @@ const Toggle: React.FC<{
       />
       <div
         className={`block w-12 h-7 rounded-full transition-colors duration-300 ${
-          value ? "bg-primary" : "bg-card-2 border border-line-soft"
+          value ? "bg-[color:var(--color-success)]" : "bg-line-soft border border-line"
         }`}
       />
       <div
-        className={`dot absolute left-0.5 top-0.5 bg-white w-6 h-6 rounded-full shadow transition-transform duration-300 ${
+        className={`dot absolute left-0.5 top-0.5 bg-card w-6 h-6 rounded-full shadow transition-transform duration-300 ${
           value ? "translate-x-5" : "translate-x-0"
         }`}
       />
@@ -415,7 +415,7 @@ const SalaryStructureSection: React.FC<Props> = ({
     <div className="space-y-6">
       {/* Config error banner */}
       {configError && (
-        <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs">
+        <div className="flex items-start gap-2 px-4 py-3 rounded-[14px] border border-[color:var(--color-warning)]/35 bg-[color:var(--color-warning)]/10 text-ink text-sm">
           <FaInfoCircle className="mt-0.5 shrink-0" />
           <span>{configError}</span>
         </div>
@@ -427,11 +427,7 @@ const SalaryStructureSection: React.FC<Props> = ({
         <div className="flex-1 space-y-6">
           {/* ── Bank & Payment Details ── */}
           <div>
-            <SectionHeader
-              icon={FaUniversity}
-              title="Bank & Payment Details"
-              color="text-emerald-600"
-            />
+            <SectionHeader icon={FaUniversity} title="Bank & Payment Details" color="text-accent" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5">
               <SelectInput
                 label="Payment Mode"
@@ -656,12 +652,12 @@ const SalaryStructureSection: React.FC<Props> = ({
 
                   if (Math.abs(diff) < 0.01) {
                     return (
-                      <div className="flex items-center justify-between text-emerald-700 bg-emerald-50 border border-emerald-200 p-3 rounded-xl shadow-xs">
+                      <div className="flex items-center justify-between gap-2 rounded-[14px] border border-[color:var(--color-success)]/30 bg-[color:var(--color-success)]/10 p-3 text-ink">
                         <span className="font-semibold flex items-center gap-1.5">
                           ✓ Salary components sum (Basic + DA + HRA + Other) equals Gross Salary (₹
                           {gross.toLocaleString("en-IN")})
                         </span>
-                        <span className="font-mono text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                        <span className="sl-chip sl-chip-sm sl-chip-success shrink-0">
                           100% Matched
                         </span>
                       </div>
@@ -670,12 +666,12 @@ const SalaryStructureSection: React.FC<Props> = ({
 
                   if (diff > 0) {
                     return (
-                      <div className="flex items-center justify-between text-amber-900 bg-amber-50 border border-amber-200 p-3 rounded-xl shadow-xs">
+                      <div className="flex items-center justify-between rounded-[14px] border border-[color:var(--color-warning)]/35 bg-[color:var(--color-warning)]/10 text-ink p-3">
                         <div>
                           <span className="font-bold">
                             ⚠️ Remaining Balance: ₹{diff.toLocaleString("en-IN")}
                           </span>
-                          <span className="ml-1 text-slate-600">
+                          <span className="ml-1 text-ink-muted">
                             (Total components: ₹{total.toLocaleString("en-IN")} / Gross: ₹
                             {gross.toLocaleString("en-IN")})
                           </span>
@@ -685,7 +681,7 @@ const SalaryStructureSection: React.FC<Props> = ({
                   }
 
                   return (
-                    <div className="flex items-center justify-between text-rose-700 bg-rose-50 border border-rose-200 p-3 rounded-xl shadow-xs">
+                    <div className="flex items-center justify-between rounded-[14px] border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 p-3 text-ink">
                       <span className="font-semibold">
                         ❌ Components sum (₹{total.toLocaleString("en-IN")}) exceeds Gross Salary (₹
                         {gross.toLocaleString("en-IN")}) by ₹
@@ -699,14 +695,17 @@ const SalaryStructureSection: React.FC<Props> = ({
 
             {/* Overtime eligible — shown for Daily and Hourly */}
             {(salaryType === "DAILY" || salaryType === "HOURLY") && (
-              <div className="mt-4 flex items-center gap-4 p-3 rounded-lg bg-orange-50 border border-orange-100">
-                <FaClock className="text-orange-400 text-sm shrink-0" />
+              <div className="mt-4 flex items-center gap-4 p-3 rounded-[14px] bg-card-2 border border-line-soft">
+                <FaClock
+                  className="text-[color:var(--color-warning)] text-sm shrink-0"
+                  aria-hidden="true"
+                />
                 <Toggle
                   label="Overtime Eligible"
                   value={form.overtimeEligible}
                   onChange={onToggle("overtimeEligible")}
                 />
-                <span className="text-xs text-slate-400 ml-auto">
+                <span className="text-xs text-ink-subtle ml-auto">
                   {form.overtimeEligible
                     ? "OT pay will be calculated per company OT policy"
                     : "No overtime applicable"}
@@ -721,7 +720,7 @@ const SalaryStructureSection: React.FC<Props> = ({
               <SectionHeader
                 icon={FaCheckCircle}
                 title="Statutory Deductions"
-                color="text-violet-500"
+                color="text-accent"
               />
               <div className="flex flex-wrap gap-8">
                 <Toggle
@@ -759,7 +758,7 @@ const SalaryStructureSection: React.FC<Props> = ({
                   }))}
                   searchable
                 />
-                <span className="text-xs text-slate-400 self-center">
+                <span className="text-xs text-ink-subtle self-center">
                   Professional tax and the welfare fund follow this state, not the company's.
                 </span>
               </div>

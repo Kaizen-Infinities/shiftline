@@ -2,26 +2,33 @@ import React from "react";
 import { LuSunMedium, LuMoonStar } from "react-icons/lu";
 import { useTheme } from "../../providers/ThemeProvider";
 
+/** Round icon pill that switches between the light and dark theme. */
 const ThemeToggle: React.FC<{ className?: string }> = ({ className = "" }) => {
   const { mode, toggle } = useTheme();
   const isDark = mode === "dark";
+  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
 
   return (
     <button
       type="button"
       onClick={toggle}
-      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={`w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 flex items-center justify-center cursor-pointer transition-all duration-200 active:scale-95 shadow-xs group ${className}`}
+      title={label}
+      aria-label={label}
+      className={`sl-icon-btn sl-icon-btn-md group ${className}`}
     >
       {isDark ? (
-        <LuSunMedium className="text-[16px] text-amber-400 group-hover:text-amber-300 group-hover:scale-110 transition-all duration-200" />
+        <LuSunMedium
+          aria-hidden="true"
+          className="text-[17px] text-[color:var(--color-warning)] transition-transform duration-200 group-hover:scale-110 motion-reduce:transition-none"
+        />
       ) : (
-        <LuMoonStar className="text-[15px] text-slate-300 group-hover:text-indigo-400 group-hover:scale-110 transition-all duration-200" />
+        <LuMoonStar
+          aria-hidden="true"
+          className="text-[16px] transition-transform duration-200 group-hover:scale-110 motion-reduce:transition-none"
+        />
       )}
     </button>
   );
 };
 
 export default ThemeToggle;
-
-

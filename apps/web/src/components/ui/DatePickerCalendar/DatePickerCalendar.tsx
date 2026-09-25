@@ -1,4 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useId } from "react";
+import {
+  FieldError,
+  RequiredMark,
+  fieldControlClasses,
+  fieldLabelClass,
+} from "../../form/fieldStyles";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 
 /**
@@ -29,15 +35,28 @@ interface DayCell {
 
 const WEEKDAYS: string[] = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTHS: string[] = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function isSameDay(a: Date | null | undefined, b: Date | null | undefined): boolean {
-  return !!a && !!b &&
+  return (
+    !!a &&
+    !!b &&
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
+    a.getDate() === b.getDate()
+  );
 }
 
 function stripTime(d: Date): Date {
@@ -127,6 +146,9 @@ export default function DatePickerCalendar({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const yearSelectRef = useRef<HTMLSelectElement>(null);
+  const baseId = useId();
+  const triggerId = `${baseId}-date`;
+  const errorId = `${baseId}-error`;
 
   const yearOptions = buildYearOptions(today);
 
@@ -195,71 +217,80 @@ export default function DatePickerCalendar({
   const cells = buildMonthGrid(viewYear, viewMonth);
 
   return (
-    <div ref={containerRef} className={`relative w-full group ${horizontal ? "flex items-center gap-3" : ""}`}>
+    <div
+      ref={containerRef}
+      className={`relative w-full min-w-0 group ${horizontal ? "flex flex-col sm:flex-row sm:items-center sm:gap-3" : ""}`}
+    >
       {label && (
         <label
-          className={`
-            flex items-center gap-[6px]
-            text-xs font-extrabold uppercase
-            tracking-[0.5px]
-            transition-colors duration-250
-            ${error ? "text-red-400" : "text-ink"}
-            group-focus-within:text-primary
-            ${horizontal ? "shrink-0 w-[140px] mb-0" : "mb-2"}
-          `}
+          htmlFor={triggerId}
+          className={fieldLabelClass(horizontal, horizontal ? "sm:pt-0" : "")}
         >
           <span>{label}</span>
-          {required && (
-            <span className="text-red-500 ml-0.5">*</span>
-          )}
+          {required && <RequiredMark />}
         </label>
       )}
 
       <div className={`relative ${horizontal ? "flex-1" : ""}`}>
         {/* Input trigger */}
         <button
+          id={triggerId}
           type="button"
           disabled={disabled}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-invalid={Boolean(error)}
+          aria-required={required || undefined}
+          aria-describedby={error ? errorId : undefined}
           onClick={() => setOpen((o) => !o)}
-          className={`flex w-full h-10 items-center justify-between rounded-md border px-4 text-sm font-semibold transition-all duration-250 outline-none text-left
-            ${error
-              ? "border-red-500 bg-card-2 focus:border-red-500 focus:ring-4 focus:ring-red-500/15"
-              : open
-                ? "border-primary bg-card-2 ring-4 ring-primary/15"
-                : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-            }
-            ${disabled ? "bg-card-2/50 cursor-not-allowed text-ink-subtle opacity-70" : ""}
-          `}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setOpen(false);
+          }}
+          className={fieldControlClasses({
+            invalid: Boolean(error),
+            open,
+            disabled,
+            className: "flex h-11 items-center justify-between px-4 text-left",
+          })}
         >
-          <span className={selected ? "text-ink font-semibold" : "text-ink-subtle font-normal"}>
+          <span className={selected ? "text-ink tabular-nums" : "font-normal text-ink-subtle"}>
             {selected ? formatLocalDate(selected) : placeholder}
           </span>
-          <CalendarIcon size={16} className={disabled ? "text-ink-subtle" : "text-primary"} />
+          <CalendarIcon size={17} aria-hidden="true" className="shrink-0 text-ink-subtle" />
         </button>
 
         {/* Popover */}
         {open && !disabled && (
-          <div className="absolute left-0 top-full z-50 mt-1 w-60 rounded-xl border border-line-soft bg-card p-2 shadow-xl text-ink">
-
+          <div
+            role="dialog"
+            aria-label={label ? `Choose ${label}` : "Choose a date"}
+            className="sl-popover absolute left-0 top-full z-50 mt-1.5 w-[272px] !p-3"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setOpen(false);
+            }}
+          >
             {/* Header: prev arrow | month select | year select | next arrow */}
-            <div className="mb-1 flex items-center justify-between gap-1">
+            <div className="mb-2 flex items-center justify-between gap-1.5">
               <button
                 type="button"
                 onClick={goPrevMonth}
                 aria-label="Previous month"
-                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-card-2 text-ink-muted hover:bg-card-2/80 hover:text-ink transition-colors"
+                className="sl-icon-btn sl-icon-btn-ghost"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={16} aria-hidden="true" />
               </button>
 
               {/* Month dropdown */}
               <select
                 value={viewMonth}
+                aria-label="Month"
                 onChange={(e) => setViewMonth(Number(e.target.value))}
-                className="flex-1 min-w-0 rounded border border-line-soft bg-card-2 px-1 py-0.5 text-[11px] font-semibold text-ink focus:outline-none focus:border-primary cursor-pointer"
+                className="h-8 min-w-0 flex-1 cursor-pointer rounded-full border border-line bg-card px-2 text-[13px] font-semibold text-ink focus:border-[color:var(--color-primary)] focus:outline-none"
               >
                 {MONTHS.map((m, i) => (
-                  <option key={m} value={i} className="bg-card text-ink">{m}</option>
+                  <option key={m} value={i} className="bg-card text-ink">
+                    {m}
+                  </option>
                 ))}
               </select>
 
@@ -267,11 +298,14 @@ export default function DatePickerCalendar({
               <select
                 ref={yearSelectRef}
                 value={viewYear}
+                aria-label="Year"
                 onChange={(e) => setViewYear(Number(e.target.value))}
-                className="w-16 flex-shrink-0 rounded border border-line-soft bg-card-2 px-1 py-0.5 text-[11px] font-semibold text-ink focus:outline-none focus:border-primary cursor-pointer"
+                className="h-8 w-[74px] flex-shrink-0 cursor-pointer rounded-full border border-line bg-card px-2 text-[13px] font-semibold text-ink focus:border-[color:var(--color-primary)] focus:outline-none"
               >
                 {yearOptions.map((y) => (
-                  <option key={y} value={y} className="bg-card text-ink">{y}</option>
+                  <option key={y} value={y} className="bg-card text-ink">
+                    {y}
+                  </option>
                 ))}
               </select>
 
@@ -279,16 +313,16 @@ export default function DatePickerCalendar({
                 type="button"
                 onClick={goNextMonth}
                 aria-label="Next month"
-                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-card-2 text-ink-muted hover:bg-card-2/80 hover:text-ink transition-colors"
+                className="sl-icon-btn sl-icon-btn-ghost"
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
 
             {/* Weekday labels */}
-            <div className="mb-0.5 grid grid-cols-7">
+            <div className="mb-1 grid grid-cols-7">
               {WEEKDAYS.map((w) => (
-                <div key={w} className="pb-0.5 text-center text-[10px] font-semibold text-ink-subtle">
+                <div key={w} className="pb-1 text-center text-[11px] font-semibold text-ink-subtle">
                   {w}
                 </div>
               ))}
@@ -306,17 +340,22 @@ export default function DatePickerCalendar({
                     key={i}
                     type="button"
                     disabled={disabledCell}
+                    aria-label={date.toDateString()}
+                    aria-pressed={isSelected}
+                    aria-current={isToday ? "date" : undefined}
                     onClick={() => handleSelect(date)}
-                    className={`aspect-square rounded text-[11px] transition
-                      ${disabledCell ? "cursor-not-allowed text-ink-subtle/40" : "cursor-pointer"}
-                      ${isSelected
-                        ? "bg-primary font-bold text-white shadow-xs"
-                        : !disabledCell && inMonth
-                          ? "font-semibold text-ink hover:bg-primary/20"
-                          : !disabledCell
-                            ? "font-normal text-ink-subtle/60 hover:bg-primary/15"
-                            : ""}
-                      ${isToday && !isSelected ? "ring-1 ring-inset ring-primary font-bold text-primary" : ""}
+                    className={`aspect-square rounded-full text-[13px] tabular-nums transition-colors
+                      ${disabledCell ? "cursor-not-allowed text-ink-subtle opacity-40" : "cursor-pointer"}
+                      ${
+                        isSelected
+                          ? "bg-accent font-bold text-white"
+                          : !disabledCell && inMonth
+                            ? "font-medium text-ink hover:bg-nav-hover"
+                            : !disabledCell
+                              ? "text-ink-subtle hover:bg-nav-hover"
+                              : ""
+                      }
+                      ${isToday && !isSelected ? "bg-chip font-bold text-[color:var(--color-chip-fg)]" : ""}
                     `}
                   >
                     {date.getDate()}
@@ -326,18 +365,14 @@ export default function DatePickerCalendar({
             </div>
 
             {/* Footer */}
-            <div className="mt-1.5 flex justify-between border-t border-line-soft pt-1.5">
-              <button
-                type="button"
-                onClick={goToday}
-                className="rounded px-1 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/15 transition-colors"
-              >
+            <div className="mt-2 flex justify-between border-t border-line-soft pt-2">
+              <button type="button" onClick={goToday} className="sl-chip sl-chip-sm">
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded px-1 py-0.5 text-[10px] font-semibold text-ink-subtle hover:bg-card-2 hover:text-ink transition-colors"
+                className="sl-btn-ghost !px-3 !py-1 text-[13px]"
               >
                 Close
               </button>
@@ -345,11 +380,7 @@ export default function DatePickerCalendar({
           </div>
         )}
       </div>
-      {error && (
-        <div className="text-[#dc3545] text-sm font-medium mt-1">
-          {error}
-        </div>
-      )}
+      {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 }
@@ -358,12 +389,13 @@ export default function DatePickerCalendar({
 export function Demo() {
   const [date, setDate] = useState<Date | null>(null);
   return (
-    <div className="flex min-h-[480px] items-start justify-center bg-gray-50 pt-16">
+    <div className="flex min-h-[480px] items-start justify-center bg-page pt-16">
       <div>
-        <label className="mb-1.5 block text-xs font-semibold text-gray-500">
-          Invoice date
-        </label>
-        <DatePickerCalendar value={date} onChange={(e) => setDate(e.target.value ? new Date(e.target.value) : null)} />
+        <DatePickerCalendar
+          label="Invoice date"
+          value={date}
+          onChange={(e) => setDate(e.target.value ? new Date(e.target.value) : null)}
+        />
       </div>
     </div>
   );

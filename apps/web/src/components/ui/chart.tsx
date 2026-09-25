@@ -5,8 +5,22 @@ import * as RechartsPrimitive from "recharts";
 
 const cn = (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(" ");
 
-// Format: { THEME_NAME: CSS_SELECTOR }
-const THEMES = { dark: ".dark" } as const;
+// Format: { THEME_NAME: CSS_SELECTOR } — the app sets data-theme on <html>.
+const THEMES = { light: "", dark: ':root[data-theme="dark"]' } as const;
+
+/** The four categorical series colours (style.css `--chart-series-*`), in order of use. */
+export const CHART_SERIES = [
+  "var(--chart-series-1)",
+  "var(--chart-series-2)",
+  "var(--chart-series-3)",
+  "var(--chart-series-4)",
+] as const;
+
+/** Series colour for index `i`, cycling through the four-colour palette. */
+export const chartSeriesColor = (i: number): string => CHART_SERIES[i % CHART_SERIES.length];
+
+const RESERVED_TOKEN =
+  /^(primary|accent|ink|card|line|page|head|success|warning|danger|info|chip|cta|brand|nav|surface|border|bg|text|secondary|neutral|black|white)(-|$)/;
 
 export type ChartConfig = {
   [k in string]: {
@@ -14,7 +28,7 @@ export type ChartConfig = {
     icon?: React.ComponentType;
   } & (
     | { color?: string; theme?: never }
-    | { color?: never; theme: Record<keyof typeof THEMES, string> }
+    | { color?: never; theme: Partial<Record<keyof typeof THEMES, string>> }
   );
 };
 
@@ -34,6 +48,7 @@ export function useChart() {
   return context;
 }
 
+/** Recharts wrapper: themed axis/grid colours and `--color-<key>` vars from the config. */
 export function ChartContainer({
   id,
   className,
@@ -53,7 +68,8 @@ export function ChartContainer({
         data-slot="chart"
         data-chart={chartId}
         className={cn(
-          "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-sector]:outline-none [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-none [&_:focus]:outline-none [&_*:focus]:outline-none",
+          // Axis text, grid and cursors read from the theme tokens (recharts draws #ccc / #fff by default).
+          "[&_.recharts-cartesian-axis-tick_text]:fill-[color:var(--color-ink-subtle)] [&_.recharts-cartesian-axis-line]:stroke-[color:var(--color-line)] [&_.recharts-cartesian-axis-tick-line]:stroke-[color:var(--color-line)] [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-[color:var(--color-line-soft)] [&_.recharts-curve.recharts-tooltip-cursor]:stroke-[color:var(--color-line)] [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-[color:var(--color-line-soft)] [&_.recharts-radial-bar-background-sector]:fill-[color:var(--color-card-2)] [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-[color:var(--color-nav-hover)] [&_.recharts-reference-line_[stroke='#ccc']]:stroke-[color:var(--color-line)] flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-[color:var(--color-card)] [&_.recharts-layer]:outline-none [&_.recharts-sector]:outline-none [&_.recharts-sector[stroke='#fff']]:stroke-[color:var(--color-card)] [&_.recharts-surface]:outline-none [&_:focus]:outline-none [&_*:focus]:outline-none",
           className
         )}
         {...props}
@@ -66,7 +82,12 @@ export function ChartContainer({
 }
 
 export const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color);
+  // Only keys that make valid custom-property names, and never ones that would shadow a
+  // theme token (a series called "primary" must not repaint the app's --color-primary).
+  const colorConfig = Object.entries(config).filter(
+    ([key, config]) =>
+      (config.theme || config.color) && /^[\w-]+$/.test(key) && !RESERVED_TOKEN.test(key)
+  );
 
   if (!colorConfig.length) {
     return null;
@@ -78,7 +99,7 @@ export const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) 
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix ? `${prefix} ` : ""}[data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
@@ -96,6 +117,7 @@ ${colorConfig
 
 export const ChartTooltip = RechartsPrimitive.Tooltip;
 
+/** Tooltip card in the popover style with a coloured dot per series. */
 export function ChartTooltipContent({
   active,
   payload,
@@ -161,7 +183,7 @@ export function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "border-line bg-card grid min-w-[8rem] items-start gap-1.5 rounded-sm border px-3 py-2 text-xs shadow-md text-ink",
+        "sl-popover grid min-w-[9rem] items-start gap-1.5 !rounded-[12px] !px-3 !py-2 text-xs",
         className
       )}
     >
@@ -176,7 +198,7 @@ export function ChartTooltipContent({
             <div
               key={item.dataKey}
               className={cn(
-                "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5",
+                "[&>svg]:text-ink-subtle flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5",
                 indicator === "dot" && "items-center"
               )}
             >
@@ -190,7 +212,7 @@ export function ChartTooltipContent({
                     !hideIndicator && (
                       <div
                         className={cn(
-                          "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
+                          "shrink-0 rounded-full border-(--color-border) bg-(--color-bg)",
                           indicator === "dot" && "h-2.5 w-2.5",
                           indicator === "line" && "w-1",
                           indicator === "dashed" &&
@@ -219,7 +241,7 @@ export function ChartTooltipContent({
                       </span>
                     </div>
                     {item.value && (
-                      <span className="text-ink font-mono font-bold tabular-nums">
+                      <span className="text-ink font-bold tabular-nums">
                         {item.value.toLocaleString()}
                       </span>
                     )}
@@ -236,6 +258,7 @@ export function ChartTooltipContent({
 
 export const ChartLegend = RechartsPrimitive.Legend;
 
+/** Legend row with round swatches. */
 export function ChartLegendContent({
   className,
   hideIcon = false,
@@ -270,14 +293,14 @@ export function ChartLegendContent({
           <div
             key={item.value}
             className={cn(
-              "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 text-[11px] font-semibold text-ink-muted"
+              "[&>svg]:text-ink-subtle flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 text-xs font-medium text-ink-muted"
             )}
           >
             {itemConfig?.icon && !hideIcon ? (
               <itemConfig.icon />
             ) : (
               <div
-                className="h-2 w-2 shrink-0 rounded-[2px]"
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{
                   backgroundColor: item.color,
                 }}

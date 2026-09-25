@@ -1,4 +1,5 @@
 import React, { useId } from "react";
+import { FieldError, RequiredMark, fieldControlClasses, fieldLabelClass } from "../fieldStyles";
 
 interface TextInputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -25,6 +26,7 @@ interface TextInputProps extends Omit<
   onChange?: (event: any) => void;
 }
 
+/** Text / number / textarea field: label above, `.sl-input` box, error tied by aria-describedby. */
 const TextInput: React.FC<TextInputProps> = ({
   label,
   name,
@@ -79,42 +81,21 @@ const TextInput: React.FC<TextInputProps> = ({
     onChange?.(e as React.ChangeEvent<HTMLInputElement>);
   };
 
+  const describedBy = error ? errorId : rest["aria-describedby"];
+
   return (
     <div
-      className={`${bottom ? "mb-[18px]" : ""} group ${horizontal ? "flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3" : ""}`}
+      className={`${bottom ? "mb-[18px]" : ""} group min-w-0 ${horizontal ? "flex flex-col sm:flex-row sm:items-start sm:gap-3" : ""}`}
     >
       {label && (
-        <label
-          htmlFor={inputId}
-          className={`
-            flex items-center gap-[6px]
-            text-[12px] font-extrabold uppercase
-            tracking-[0.5px]
-            transition-colors duration-250
-            ${error ? "text-[color:var(--color-danger)]" : "text-ink"}
-            group-focus-within:text-primary
-            ${horizontal ? "shrink-0 sm:w-[140px] mb-0 sm:pt-[10px]" : "mb-2"}
-            ${labelClassName}
-          `}
-        >
-          {icon && (
-            <span
-              className={`
-                flex items-center text-sm
-                transition-colors duration-250
-                ${error ? "text-[color:var(--color-danger)]" : "text-accent"}
-                group-focus-within:text-primary
-              `}
-            >
-              {icon}
-            </span>
-          )}
+        <label htmlFor={inputId} className={fieldLabelClass(horizontal, labelClassName)}>
+          {icon && <span className="sl-label-icon">{icon}</span>}
           <span>{label}</span>
-          {required && <span className="text-[color:var(--color-danger)] ml-0.5">*</span>}
+          {required && <RequiredMark />}
         </label>
       )}
 
-      <div className={`flex flex-col ${horizontal ? "flex-1" : ""}`}>
+      <div className={`flex min-w-0 flex-col ${horizontal ? "flex-1" : ""}`}>
         <div className="relative">
           {as === "textarea" ? (
             <textarea
@@ -127,24 +108,14 @@ const TextInput: React.FC<TextInputProps> = ({
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               disabled={disabled}
+              aria-required={required || undefined}
               aria-invalid={Boolean(error)}
-              aria-describedby={error ? errorId : rest["aria-describedby"]}
+              aria-describedby={describedBy}
               rows={rows}
-              className={`
-                w-full min-h-10 px-4 py-2 text-sm font-semibold
-                border rounded-[5px] outline-none
-                transition-all duration-250
-                placeholder:text-ink-subtle/80 placeholder:font-normal
-                text-ink
-                ${
-                  error
-                    ? "border-[color:var(--color-danger)] bg-card-2 focus:border-[color:var(--color-danger)] focus:ring-4 focus:ring-[color:var(--color-danger)]/15"
-                    : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-                }
-                ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-bold opacity-85" : ""}
-                resize-y
-                ${inputClassName}
-              `}
+              className={fieldControlClasses({
+                invalid: Boolean(error),
+                className: `min-h-11 resize-y px-4 py-2.5 leading-relaxed ${inputClassName}`,
+              })}
             />
           ) : (
             <input
@@ -160,48 +131,30 @@ const TextInput: React.FC<TextInputProps> = ({
               min={isNumberType ? (rest.min ?? "0") : rest.min}
               step={step}
               disabled={disabled}
+              aria-required={required || undefined}
               aria-invalid={Boolean(error)}
-              aria-describedby={error ? errorId : rest["aria-describedby"]}
+              aria-describedby={describedBy}
               autoComplete="off"
-              className={`
-                w-full h-10 px-4
-                border rounded-[5px] outline-none
-                text-sm font-semibold leading-normal
+              className={fieldControlClasses({
+                invalid: Boolean(error),
+                className: `h-11 px-4 leading-normal
                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-                transition-all duration-250
-                placeholder:text-ink-subtle/80 placeholder:font-normal
-                text-ink
-                [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]
-                [&:-webkit-autofill:hover]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)]
-                [&:-webkit-autofill:focus]:shadow-[inset_0_0_0px_1000px_var(--color-card-2)]
-                ${
-                  error
-                    ? "border-[color:var(--color-danger)] bg-card-2 focus:border-[color:var(--color-danger)] focus:ring-4 focus:ring-[color:var(--color-danger)]/15"
-                    : "border-line-soft bg-card-2 hover:border-line-soft/80 focus:border-primary focus:ring-4 focus:ring-primary/15"
-                }
-                ${disabled ? "bg-card-2/60 cursor-not-allowed text-ink font-bold opacity-85" : ""}
+                [&:-webkit-autofill]:shadow-[inset_0_0_0px_1000px_var(--color-card)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)]
+                ${isNumberType ? "tabular-nums" : ""}
                 ${trailingIcon ? "pr-10" : ""}
-                ${inputClassName}
-              `}
+                ${inputClassName}`,
+              })}
             />
           )}
 
           {trailingIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-ink-subtle">
+            <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center text-ink-subtle">
               {trailingIcon}
             </div>
           )}
         </div>
 
-        {error && (
-          <div
-            id={errorId}
-            role="alert"
-            className="text-[color:var(--color-danger)] text-sm font-medium mt-1"
-          >
-            {error}
-          </div>
-        )}
+        {error && <FieldError id={errorId}>{error}</FieldError>}
       </div>
     </div>
   );
