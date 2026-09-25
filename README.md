@@ -61,6 +61,21 @@ JSON with an `x-request-id` that also appears in error responses. Backups: `make
 `make restore` (see `docs/runbooks/backup-restore.md`). For a production deployment, follow the
 Railway and Cloudflare runbook in `docs/runbooks/railway-cloudflare.md`.
 
+## Kubernetes demo on Debian 13 / Proxmox
+
+From a clone inside a dedicated Debian 13 VM, run the single installer:
+
+```bash
+sudo bash scripts/deploy-demo-k8s.sh --help
+```
+
+It builds and deploys PostgreSQL, the API, the worker, and the HTTPS web app on single-node
+K3s. The default public hostname is `shiftline.kaizeninfinities.com`; the demo owner is
+`Demo@shiftline.com`, with its password entered privately at installation. Follow the
+[Kubernetes demo guide](docs/runbooks/kubernetes-demo.md) for the installation command,
+VM firewall prerequisites, and the existing Nginx Proxy Manager / Cloudflare configuration.
+Run this inside the VM, not on the Proxmox hypervisor.
+
 ## Working model
 
 Every change is a branch and a pull request that passes CI. Work is organised in

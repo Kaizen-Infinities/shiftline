@@ -1,0 +1,2 @@
+# Deployment entrypoints must also work after a Windows clone.
+*.sh text eol=lf

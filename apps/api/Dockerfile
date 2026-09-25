@@ -36,16 +36,18 @@ RUN npm run build -w @shiftline/api
 
 FROM base AS runtime
 ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/package.json ./package.json
-COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
-COPY --from=build /app/packages/shared/dist ./packages/shared/dist
-COPY --from=build /app/apps/api/package.json ./apps/api/package.json
-COPY --from=build /app/apps/api/prisma ./apps/api/prisma
-COPY --from=build /app/apps/api/dist ./apps/api/dist
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+RUN useradd -r -u 10001 shiftline && chown shiftline /app
+# Set ownership while copying, avoiding a second full node_modules layer from chown -R.
+COPY --chown=10001:10001 --from=deps /app/node_modules ./node_modules
+COPY --chown=10001:10001 --from=deps /app/package.json ./package.json
+COPY --chown=10001:10001 --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --chown=10001:10001 --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --chown=10001:10001 --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --chown=10001:10001 --from=build /app/apps/api/prisma ./apps/api/prisma
+COPY --chown=10001:10001 --from=build /app/apps/api/dist ./apps/api/dist
+COPY --chown=10001:10001 --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY docker/api-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && useradd -r -u 10001 shiftline && chown -R shiftline /app
+RUN chmod +x /entrypoint.sh
 USER shiftline
 EXPOSE 5000
 ENTRYPOINT ["/entrypoint.sh"]
