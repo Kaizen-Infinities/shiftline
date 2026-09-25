@@ -15,29 +15,30 @@ import {
   Tooltip,
 } from "recharts";
 import {
-  FaBoxes,
-  FaExclamationTriangle,
-  FaCheckCircle,
-  FaChartBar,
-  FaChartPie,
-  FaChartLine,
-  FaListUl,
-  FaWarehouse,
-  FaLayerGroup,
-  FaShoppingBag,
-  FaRecycle,
-  FaSync,
-  FaCheckDouble,
-  FaChevronLeft,
-  FaChevronRight,
-  FaPause,
-  FaPlay,
-} from "react-icons/fa";
+  LuChartArea,
+  LuChartColumn,
+  LuChartPie,
+  LuChevronLeft,
+  LuChevronRight,
+  LuCircleCheck,
+  LuLayers,
+  LuList,
+  LuPackage,
+  LuPackageCheck,
+  LuPause,
+  LuPlay,
+  LuRecycle,
+  LuRefreshCw,
+  LuShoppingBag,
+  LuTriangleAlert,
+  LuWarehouse,
+} from "react-icons/lu";
 import { rawMaterialStockService } from "../../../services/rawMaterialStockService";
 import { rawMaterialService } from "../../../services/rawMaterialService";
 import { finishedGoodsStockService } from "../../../services/finishedGoodsStockService";
 import { productService } from "../../../services/productService";
 import { usePageSocketSync } from "../../../hooks/usePageSocketSync";
+import { DashTile, TileHeader, EmptyState, ChipToggle } from "./DashboardPrimitives";
 
 interface InventoryStockIntelligenceProps {
   rawMaterials?: any[];
@@ -48,15 +49,19 @@ interface InventoryStockIntelligenceProps {
 
 type InventoryTab = "raw" | "finished" | "wastage";
 
-const PALETTE = [
-  "#0ea5e9",
-  "#10b981",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ec4899",
-  "#f43f5e",
-  "#14b8a6",
-  "#6366f1",
+/* Each store keeps one identity colour from the validated chart palette:
+   the bars of a store are one measure, so they share it. The share view
+   folds everything past the top three into "Other". */
+const TAB_COLOR: Record<InventoryTab, string> = {
+  raw: "var(--chart-series-1)",
+  finished: "var(--chart-series-3)",
+  wastage: "var(--chart-series-2)",
+};
+const SHARE_COLORS = [
+  "var(--chart-series-1)",
+  "var(--chart-series-2)",
+  "var(--chart-series-3)",
+  "var(--chart-series-4)",
 ];
 const ITEMS_PER_PAGE = 7; // Optimal item count for clean, readable charts
 
@@ -146,6 +151,19 @@ const extractProductCategory = (p: any, name: string): string => {
   if (nm.includes("basin") || nm.includes("tub")) return "Basin / Tub";
   return "Moulded Product";
 };
+
+/** Chart tooltip in theme tokens: item name, then quantity and unit. */
+const StockTooltip = ({ active, payload }: any) =>
+  active && payload?.length ? (
+    <div className="rounded-[12px] border border-line-soft bg-card px-3 py-2 text-xs text-ink shadow-[var(--shadow-md)]">
+      <p className="max-w-[200px] truncate font-semibold">
+        {payload[0].payload.fullName || payload[0].payload.name}
+      </p>
+      <p className="text-ink-muted tabular-nums">
+        {Number(payload[0].value).toLocaleString("en-IN")} {payload[0].payload.uom || "units"}
+      </p>
+    </div>
+  ) : null;
 
 export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProps> = ({
   rawMaterials: initialRawMaterials = [],
@@ -320,11 +338,6 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
           Number(rm.onHandQty ?? rm.currentStock ?? rm.totalQuantity ?? rm.quantity ?? 0) || 0;
       }
 
-      if (totalStockQty === 0) {
-        const seedBaselines = [1850, 620, 340, 980, 2400, 480, 150, 780];
-        totalStockQty = seedBaselines[idx % seedBaselines.length];
-      }
-
       const minLevel = Number(
         rm.minimumStock || rm.reorderLevel || rm.minStock || (isWastage ? 100 : 600)
       );
@@ -390,11 +403,6 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
 
       if (totalFgQty === 0) {
         totalFgQty = Number(p.onHandQty ?? p.currentStock ?? p.stock ?? p.quantity ?? 0) || 0;
-      }
-
-      if (totalFgQty === 0) {
-        const seedFgBaselines = [999, 4500, 8200, 2100, 6400, 3900, 1800, 7500];
-        totalFgQty = seedFgBaselines[idx % seedFgBaselines.length];
       }
 
       const minLevel = Number(p.minimumQty || p.minStock || p.reorderLevel || 1500);
@@ -507,7 +515,7 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
     const startIdx = currentPage * ITEMS_PER_PAGE;
     const batch = currentTabItems.slice(startIdx, startIdx + ITEMS_PER_PAGE);
 
-    return batch.map((item, idx) => ({
+    return batch.map((item) => ({
       name: item.name.length > 13 ? item.name.substring(0, 12) + "…" : item.name,
       fullName: item.name,
       quantity: item.qty,
@@ -519,7 +527,6 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
       isLow: item.isLow,
       isCritical: item.isCritical,
       status: item.status,
-      color: PALETTE[(startIdx + idx) % PALETTE.length],
     }));
   }, [currentTabItems, currentPage]);
 
@@ -535,586 +542,407 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
         ? "Finished Goods"
         : "Wastage Store";
 
-  const distributionPieData = useMemo(() => {
+  const shareData = useMemo(() => {
+    const sorted = [...chartData].sort((a, b) => b.quantity - a.quantity);
+    const top = sorted.slice(0, 3).map((d, i) => ({ ...d, color: SHARE_COLORS[i] }));
+    const rest = sorted.slice(3);
+    if (rest.length === 0) return top;
     return [
-      { name: "Raw Materials", value: totalRawQty || 1, color: "#0ea5e9" },
-      { name: "Finished Goods", value: totalFgQty || 1, color: "#10b981" },
-      { name: "Wastage Store", value: totalWastageQty || 1, color: "#f59e0b" },
+      ...top,
+      {
+        ...rest[0],
+        name: "Other",
+        fullName: `Other (${rest.length})`,
+        quantity: rest.reduce((sum, d) => sum + d.quantity, 0),
+        color: SHARE_COLORS[3],
+      },
     ];
-  }, [totalRawQty, totalFgQty, totalWastageQty]);
+  }, [chartData]);
+
+  const tabColor = TAB_COLOR[activeTab];
+
+  const snapshot = [
+    {
+      key: "skus",
+      label: "Items tracked",
+      value: totalTrackedSKUs.toLocaleString("en-IN"),
+      unit: "SKUs",
+      note: "Stock ledger",
+      icon: LuPackageCheck,
+      to: "/stock",
+      title: "Open the stock ledger",
+    },
+    {
+      key: "raw",
+      label: "Raw materials",
+      value: totalRawQty.toLocaleString("en-IN"),
+      unit: "KG",
+      note: `${rawStockItems.length} materials`,
+      icon: LuLayers,
+      to: "/stock",
+      title: "Open raw material stock",
+    },
+    {
+      key: "fg",
+      label: "Finished goods",
+      value: totalFgQty.toLocaleString("en-IN"),
+      unit: "PCS",
+      note: `${finishedStockItems.length} products`,
+      icon: LuShoppingBag,
+      to: "/finished-stock",
+      title: "Open finished goods stock",
+    },
+    {
+      key: "wastage",
+      label: "Wastage store",
+      value: totalWastageQty.toLocaleString("en-IN"),
+      unit: "KG",
+      note: `${wastageStockItems.length} scrap items`,
+      icon: LuRecycle,
+      to: "/wastage-stock",
+      title: "Open wastage and scrap stock",
+    },
+  ];
 
   return (
-    <div className="bg-card border border-line-soft rounded-md overflow-hidden flex flex-col mb-4 sm:mb-6 transition-all">
-      {/* ── CARD HEADER ── */}
-      <div className="shrink-0 px-4 py-3.5 border-b border-line-soft flex flex-wrap items-center justify-between gap-3 bg-card-2/40">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-sm bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 shrink-0">
-            <FaWarehouse className="text-sm" />
-          </div>
-          <div>
-            <div className="text-[13px] font-extrabold uppercase tracking-wider text-ink flex items-center gap-2">
-              <span>Inventory & Stock Intelligence</span>
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-700 border border-teal-500/30 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                Live Feed
+    <DashTile labelledBy="dash-stock">
+      <TileHeader
+        id="dash-stock"
+        icon={LuWarehouse}
+        title="Inventory and stock"
+        subtitle={
+          <>
+            Live stock across raw materials, finished goods and wastage
+            {isLoading && (
+              <LuRefreshCw
+                aria-label="Refreshing"
+                className="ml-1.5 inline animate-spin align-[-2px] motion-reduce:animate-none"
+              />
+            )}
+          </>
+        }
+        actions={
+          <>
+            <ChipToggle
+              label="Stock store"
+              size="sm"
+              value={activeTab}
+              onChange={handleTabChange}
+              options={[
+                { value: "raw", label: "Raw material" },
+                { value: "finished", label: "Finished goods" },
+                { value: "wastage", label: "Wastage" },
+              ]}
+            />
+            <ChipToggle
+              label="Chart type"
+              size="sm"
+              value={chartType}
+              onChange={handleChartTypeChange}
+              options={[
+                { value: "bar", label: <LuChartColumn aria-hidden="true" />, title: "Columns" },
+                { value: "pie", label: <LuChartPie aria-hidden="true" />, title: "Share" },
+                { value: "area", label: <LuChartArea aria-hidden="true" />, title: "Area" },
+                { value: "list", label: <LuList aria-hidden="true" />, title: "Table" },
+              ]}
+            />
+          </>
+        }
+      />
+
+      {/* ── Snapshot tiles ── */}
+      <div className="grid grid-cols-1 gap-3 px-5 pb-4 min-[420px]:grid-cols-2 lg:grid-cols-4">
+        {snapshot.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => navigate(s.to)}
+            title={s.title}
+            className="flex min-w-0 items-center gap-3 rounded-[14px] bg-card-2 p-3.5 text-left transition-colors hover:bg-nav-active"
+          >
+            <span
+              aria-hidden="true"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-card text-accent"
+            >
+              <s.icon className="text-lg" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-xs font-medium text-ink-muted">{s.label}</span>
+              <span className="block truncate text-lg leading-tight font-bold text-ink tabular-nums">
+                {s.value} <span className="text-xs font-medium text-ink-subtle">{s.unit}</span>
               </span>
-              {isLoading && <FaSync className="animate-spin text-teal-500 text-[10px]" />}
-            </div>
-          </div>
-        </div>
-
-        {/* Action Controls: 3 Tabs & Multi-Chart Switcher */}
-        <div className="flex items-center gap-2">
-          {/* Filter Tabs (Persisted to LocalStorage) */}
-          <div className="flex items-center bg-card-2 p-1 rounded-sm border border-line-soft text-[11px] font-bold">
-            <button
-              type="button"
-              onClick={() => handleTabChange("raw")}
-              className={`px-3 py-1 rounded-sm transition-all cursor-pointer ${
-                activeTab === "raw"
-                  ? "bg-teal-600 text-white font-bold"
-                  : "text-ink-muted hover:text-ink hover:bg-card-2"
-              }`}
-            >
-              Raw Material
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange("finished")}
-              className={`px-3 py-1 rounded-sm transition-all cursor-pointer ${
-                activeTab === "finished"
-                  ? "bg-teal-600 text-white font-bold"
-                  : "text-ink-muted hover:text-ink hover:bg-card-2"
-              }`}
-            >
-              Finished Goods
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange("wastage")}
-              className={`px-3 py-1 rounded-sm transition-all cursor-pointer ${
-                activeTab === "wastage"
-                  ? "bg-amber-600 text-white font-bold"
-                  : "text-ink-muted hover:text-ink hover:bg-card-2"
-              }`}
-            >
-              Wastage Store
-            </button>
-          </div>
-
-          {/* 4 Graph Type Switch Buttons (Persisted to LocalStorage) */}
-          <div className="flex items-center bg-card-2 p-1 rounded-sm border border-line-soft gap-1">
-            <button
-              type="button"
-              onClick={() => handleChartTypeChange("bar")}
-              title="Column Chart"
-              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
-                chartType === "bar"
-                  ? "bg-teal-600 text-white font-bold"
-                  : "text-ink-muted hover:text-ink hover:bg-card-2"
-              }`}
-            >
-              <FaChartBar className="text-xs" />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleChartTypeChange("pie")}
-              title="Donut Distribution"
-              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
-                chartType === "pie"
-                  ? "bg-teal-600 text-white font-bold"
-                  : "text-ink-muted hover:text-ink hover:bg-card-2"
-              }`}
-            >
-              <FaChartPie className="text-xs" />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleChartTypeChange("area")}
-              title="Area Trend"
-              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
-                chartType === "area"
-                  ? "bg-teal-600 text-white font-bold"
-                  : "text-ink-muted hover:text-ink hover:bg-card-2"
-              }`}
-            >
-              <FaChartLine className="text-xs" />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleChartTypeChange("list")}
-              title="Matrix Table View"
-              className={`p-1.5 rounded-sm transition-all cursor-pointer ${
-                chartType === "list"
-                  ? "bg-teal-600 text-white font-bold"
-                  : "text-ink-muted hover:text-ink hover:bg-card-2"
-              }`}
-            >
-              <FaListUl className="text-xs" />
-            </button>
-          </div>
-        </div>
+              <span className="block truncate text-[11px] text-ink-subtle">{s.note} →</span>
+            </span>
+          </button>
+        ))}
       </div>
 
-      {/* ── TOP 4 ACTIONABLE INVENTORY SNAPSHOT METRIC CARDS (CLICKABLE) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3.5 border-b border-line-soft bg-card-2/40">
-        {/* 1. Tracked Inventory SKUs */}
+      {/* ── Chart (2/3) + reorder alerts (1/3) ── */}
+      <div className="grid grid-cols-1 border-t border-line-soft lg:grid-cols-3">
         <div
-          onClick={() => navigate("/stock")}
-          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-emerald-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title="Click to view Stock Ledger"
-        >
-          <div className="w-10 h-10 rounded-sm bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 shrink-0">
-            <FaCheckDouble className="text-base" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
-              Total SKUs
-            </div>
-            <div className="text-lg font-mono font-bold text-ink mt-0.5">
-              {totalTrackedSKUs}{" "}
-              <span className="text-[10px] text-ink-muted font-bold uppercase">Items</span>
-            </div>
-            <div className="text-[9.5px] text-emerald-600 font-semibold mt-0.5">
-              ● Stock Ledger →
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Raw Materials Stock (Physical Qty) -> Navigates to /stock */}
-        <div
-          onClick={() => navigate("/stock")}
-          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-sky-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title="Click to open Raw Material Stock Inventory"
-        >
-          <div className="w-10 h-10 rounded-sm bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-600 shrink-0">
-            <FaLayerGroup className="text-base" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
-              Raw Materials
-            </div>
-            <div className="text-lg font-mono font-bold text-sky-600 mt-0.5">
-              {totalRawQty.toLocaleString()}{" "}
-              <span className="text-[10px] text-ink-muted font-bold">KG</span>
-            </div>
-            <div className="text-[9.5px] text-sky-600 font-semibold mt-0.5">
-              {rawStockItems.length} materials →
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Finished Goods Stock (Physical Qty) -> Navigates to /finished-stock */}
-        <div
-          onClick={() => navigate("/finished-stock")}
-          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-teal-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title="Click to open Finished Goods Stock Inventory"
-        >
-          <div className="w-10 h-10 rounded-sm bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-600 shrink-0">
-            <FaShoppingBag className="text-base" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
-              Finished Goods
-            </div>
-            <div className="text-lg font-mono font-bold text-teal-600 mt-0.5">
-              {totalFgQty.toLocaleString()}{" "}
-              <span className="text-[10px] text-ink-muted font-bold">PCS</span>
-            </div>
-            <div className="text-[9.5px] text-teal-600 font-semibold mt-0.5">
-              {finishedStockItems.length} products →
-            </div>
-          </div>
-        </div>
-
-        {/* 4. Wastage Scrap Store -> Navigates to /wastage-stock */}
-        <div
-          onClick={() => navigate("/wastage-stock")}
-          className="flex items-center gap-3 p-3 rounded-md bg-card border border-line-soft hover:border-amber-500 hover:bg-card-2 transition-all cursor-pointer group"
-          title="Click to open Wastage & Scrap Stock Inventory"
-        >
-          <div className="w-10 h-10 rounded-sm bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 shrink-0">
-            <FaRecycle className="text-base" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[10.5px] uppercase font-extrabold text-ink-muted group-hover:text-ink tracking-wider transition-colors">
-              Wastage Store
-            </div>
-            <div className="text-lg font-mono font-bold text-amber-600 mt-0.5">
-              {totalWastageQty.toLocaleString()}{" "}
-              <span className="text-[10px] text-ink-muted font-bold">KG</span>
-            </div>
-            <div className="text-[9.5px] text-amber-600 font-semibold mt-0.5">
-              {wastageStockItems.length} scrap items →
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── MAIN CONTENT SPLIT: LEFT 2/3 (CHARTS + AUTO-ROTATING BATCHING) & RIGHT 1/3 (REORDER ALERTS) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-line-soft">
-        {/* LEFT 2/3: Dynamic Visual Charts with Auto-Batching Pagination */}
-        <div
-          className="lg:col-span-2 p-4 flex flex-col justify-between"
-          style={{ minHeight: "340px" }}
+          className="flex min-h-[340px] flex-col p-5 lg:col-span-2"
           onMouseEnter={() => setIsAutoRotating(false)}
           onMouseLeave={() => setIsAutoRotating(true)}
         >
-          {/* Batch Carousel Navigation Sub-header (when items > 7) */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mb-2 px-1 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-ink">
-                  Batch {currentPage + 1} of {totalPages}
-                </span>
-                <span className="text-[10px] text-ink-muted font-mono">
-                  ({currentPage * ITEMS_PER_PAGE + 1}–
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <span
+                aria-hidden="true"
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: tabColor }}
+              />
+              {currentTabTitle}
+              {totalPages > 1 && (
+                <span className="text-xs font-normal text-ink-subtle tabular-nums">
+                  {currentPage * ITEMS_PER_PAGE + 1}–
                   {Math.min((currentPage + 1) * ITEMS_PER_PAGE, currentTabItems.length)} of{" "}
-                  {currentTabItems.length} items)
+                  {currentTabItems.length}
                 </span>
-              </div>
+              )}
+            </span>
 
-              {/* Controls: Prev, Next, Play/Pause */}
-              <div className="flex items-center gap-1 bg-card-2 border border-line-soft px-1.5 py-0.5 rounded-sm">
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1 rounded-full border border-line-soft bg-card p-1 shadow-[var(--shadow-sm)]">
                 <button
                   type="button"
                   onClick={handlePrevPage}
-                  className="p-1 text-ink-muted hover:text-ink rounded cursor-pointer transition-colors"
-                  title="Previous batch"
+                  aria-label="Previous items"
+                  className="grid h-7 w-7 place-items-center rounded-full text-ink-muted hover:bg-card-2 hover:text-ink"
                 >
-                  <FaChevronLeft className="text-[9px]" />
+                  <LuChevronLeft aria-hidden="true" />
                 </button>
-
-                {/* Page Dot Indicators */}
-                <div className="flex items-center gap-1 px-1">
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setCurrentPage(i)}
-                      className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
-                        i === currentPage
-                          ? "bg-teal-500 w-3"
-                          : "bg-ink-muted/30 hover:bg-ink-muted/60"
-                      }`}
-                      title={`Batch ${i + 1}`}
-                    />
-                  ))}
-                </div>
-
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrentPage(i)}
+                    aria-label={`Items page ${i + 1}`}
+                    aria-current={i === currentPage ? "true" : undefined}
+                    className={`h-2 rounded-full transition-all ${
+                      i === currentPage ? "w-4 bg-accent" : "w-2 bg-line hover:bg-ink-subtle"
+                    }`}
+                  />
+                ))}
                 <button
                   type="button"
                   onClick={handleNextPage}
-                  className="p-1 text-ink-muted hover:text-ink rounded cursor-pointer transition-colors"
-                  title="Next batch"
+                  aria-label="Next items"
+                  className="grid h-7 w-7 place-items-center rounded-full text-ink-muted hover:bg-card-2 hover:text-ink"
                 >
-                  <FaChevronRight className="text-[9px]" />
+                  <LuChevronRight aria-hidden="true" />
                 </button>
-
-                <div className="w-[1px] h-3 bg-line-soft mx-0.5" />
-
                 <button
                   type="button"
                   onClick={() => setIsAutoRotating((prev) => !prev)}
-                  className={`p-1 rounded cursor-pointer transition-colors ${
-                    isAutoRotating ? "text-teal-600 font-bold" : "text-ink-muted hover:text-ink"
-                  }`}
-                  title={
-                    isAutoRotating
-                      ? "Auto-sliding active (Click to Pause)"
-                      : "Paused (Click to Auto-slide)"
-                  }
+                  aria-label={isAutoRotating ? "Pause auto-advance" : "Resume auto-advance"}
+                  aria-pressed={isAutoRotating}
+                  className="grid h-7 w-7 place-items-center rounded-full text-ink-muted hover:bg-card-2 hover:text-ink"
                 >
-                  {isAutoRotating ? (
-                    <FaPause className="text-[8px]" />
-                  ) : (
-                    <FaPlay className="text-[8px]" />
-                  )}
+                  {isAutoRotating ? <LuPause aria-hidden="true" /> : <LuPlay aria-hidden="true" />}
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {chartType === "bar" && (
-            <div className="w-full h-[260px]">
+          {chartData.length === 0 ? (
+            <EmptyState
+              icon={activeTab === "wastage" ? LuRecycle : LuPackage}
+              title={
+                activeTab === "wastage"
+                  ? "No scrap in the wastage store"
+                  : `No ${currentTabTitle.toLowerCase()} set up yet`
+              }
+              hint={
+                activeTab === "wastage"
+                  ? "Scrap and rejects land here when production logs wastage."
+                  : "Add items to the master and receive stock to see levels here."
+              }
+              action={
+                activeTab === "finished"
+                  ? { label: "Open finished stock", to: "/finished-stock" }
+                  : activeTab === "raw"
+                    ? { label: "Open stock ledger", to: "/stock" }
+                    : null
+              }
+            />
+          ) : chartType === "bar" ? (
+            <div className="h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 15, right: 15, left: -15, bottom: 25 }}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="rgba(150,150,150,0.18)"
-                  />
+                <BarChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 8 }}>
+                  <CartesianGrid vertical={false} stroke="var(--color-line-soft)" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 10, fill: "currentColor" }}
-                    angle={-25}
-                    textAnchor="end"
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
                   />
-                  <YAxis tick={{ fontSize: 10, fill: "currentColor" }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--color-card, #ffffff)",
-                      borderColor: "var(--color-line-soft, #cbd5e1)",
-                      borderRadius: "0.75rem",
-                      fontSize: "12px",
-                      color: "var(--color-ink, #0f172a)",
-                      boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)",
-                    }}
-                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
-                    formatter={(val: any, name: any, props: any) => [
-                      `${Number(val).toLocaleString()} ${props.payload.uom || "Units"}`,
-                      props.payload.fullName || props.payload.name || "Live Stock",
-                    ]}
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
                   />
-                  <Bar dataKey="quantity" fill="#0ea5e9" radius={[6, 6, 0, 0]}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
+                  <Tooltip cursor={{ fill: "var(--color-card-2)" }} content={<StockTooltip />} />
+                  <Bar dataKey="quantity" fill={tabColor} radius={[4, 4, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          )}
-
-          {chartType === "pie" && (
-            <div className="w-full h-[260px] grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-              {/* Left Donut Wheel */}
-              <div className="sm:col-span-6 h-[250px] relative flex items-center justify-center">
+          ) : chartType === "pie" ? (
+            <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2">
+              <div className="relative h-[230px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "var(--color-card, #ffffff)",
-                        borderColor: "var(--color-line-soft, #cbd5e1)",
-                        borderRadius: "0.75rem",
-                        fontSize: "12px",
-                        color: "var(--color-ink, #0f172a)",
-                        boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)",
-                      }}
-                      formatter={(val: any, name: any, props: any) => {
-                        const total = currentBatchTotal || 1;
-                        const pct = ((Number(val) / total) * 100).toFixed(1);
-                        return [
-                          `${Number(val).toLocaleString()} ${props.payload.uom || "Units"} (${pct}%)`,
-                          props.payload.fullName || props.payload.name || "Stock Item",
-                        ];
-                      }}
-                    />
+                    <Tooltip content={<StockTooltip />} />
                     <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={62}
-                      outerRadius={92}
-                      paddingAngle={4}
+                      data={shareData}
                       dataKey="quantity"
+                      innerRadius={62}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      stroke="var(--color-card)"
+                      strokeWidth={2}
                     >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-pie-${index}`} fill={entry.color} />
+                      {shareData.map((entry) => (
+                        <Cell key={entry.fullName} fill={entry.color} />
                       ))}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
-                {/* Central Donut Hub with Real Live Batch Total */}
-                <div className="absolute text-center pointer-events-none px-2">
-                  <div className="text-[9px] font-extrabold text-ink-muted uppercase tracking-wider">
-                    {currentTabTitle}
-                  </div>
-                  <div className="text-sm font-mono font-bold text-ink">
-                    {currentBatchTotal.toLocaleString()}{" "}
-                    <span className="text-[9px] text-ink-muted">{currentTabUom}</span>
-                  </div>
-                  <div className="text-[8.5px] text-teal-600 font-bold">
-                    Batch {currentPage + 1}/{totalPages}
-                  </div>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-[11px] text-ink-subtle">{currentTabTitle}</span>
+                  <span className="text-base font-bold text-ink tabular-nums">
+                    {currentBatchTotal.toLocaleString("en-IN")}{" "}
+                    <span className="text-xs font-medium text-ink-subtle">{currentTabUom}</span>
+                  </span>
                 </div>
               </div>
-
-              {/* Right Side Item Legend List with Badges */}
-              <div className="sm:col-span-6 max-h-[240px] overflow-y-auto pr-1 space-y-1.5">
-                {chartData.map((item, idx) => {
+              <ul className="flex flex-col gap-2">
+                {shareData.map((item) => {
                   const pct =
                     currentBatchTotal > 0
                       ? ((item.quantity / currentBatchTotal) * 100).toFixed(1)
                       : "0";
                   return (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-1.5 rounded-sm bg-card-2/60 border border-line-soft hover:bg-card-2 transition-colors text-xs"
+                    <li
+                      key={item.fullName}
+                      className="flex items-center justify-between gap-3 rounded-[12px] bg-card-2 px-3 py-2 text-sm"
                     >
-                      <div className="flex items-center gap-2 min-w-0 pr-2">
+                      <span className="flex min-w-0 items-center gap-2">
                         <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: item.color }}
                         />
-                        <span
-                          className="font-bold text-ink truncate text-[11px]"
-                          title={item.fullName}
-                        >
+                        <span className="truncate text-ink" title={item.fullName}>
                           {item.fullName}
                         </span>
-                      </div>
-                      <div className="text-right shrink-0 font-mono">
-                        <span className="text-[11px] font-bold text-ink">
-                          {item.quantity.toLocaleString()} {item.uom}
-                        </span>
-                        <span className="text-[9.5px] text-ink-muted ml-1.5 font-bold">
-                          ({pct}%)
-                        </span>
-                      </div>
-                    </div>
+                      </span>
+                      <span className="shrink-0 text-ink tabular-nums">
+                        {item.quantity.toLocaleString("en-IN")} {item.uom}
+                        <span className="ml-1.5 text-xs text-ink-subtle">{pct}%</span>
+                      </span>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             </div>
-          )}
-
-          {chartType === "area" && (
-            <div className="w-full h-[260px]">
+          ) : chartType === "area" ? (
+            <div className="h-[260px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 15, right: 15, left: -10, bottom: 25 }}>
+                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 8 }}>
                   <defs>
-                    <linearGradient id="colorStockVal" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor={
-                          activeTab === "raw"
-                            ? "#0ea5e9"
-                            : activeTab === "finished"
-                              ? "#10b981"
-                              : "#f59e0b"
-                        }
-                        stopOpacity={0.45}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor={
-                          activeTab === "raw"
-                            ? "#0ea5e9"
-                            : activeTab === "finished"
-                              ? "#10b981"
-                              : "#f59e0b"
-                        }
-                        stopOpacity={0.0}
-                      />
+                    <linearGradient id="dashStockArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={tabColor} stopOpacity={0.28} />
+                      <stop offset="100%" stopColor={tabColor} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="rgba(150,150,150,0.18)"
-                  />
+                  <CartesianGrid vertical={false} stroke="var(--color-line-soft)" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fontSize: 10, fill: "currentColor" }}
-                    angle={-25}
-                    textAnchor="end"
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
                   />
-                  <YAxis tick={{ fontSize: 10, fill: "currentColor" }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
+                  />
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--color-card, #ffffff)",
-                      borderColor: "var(--color-line-soft, #cbd5e1)",
-                      borderRadius: "0.75rem",
-                      fontSize: "12px",
-                      color: "var(--color-ink, #0f172a)",
-                      boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)",
-                    }}
-                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
-                    formatter={(val: any, name: any, props: any) => [
-                      `${Number(val).toLocaleString()} ${props.payload.uom || "Units"}`,
-                      props.payload.fullName || props.payload.name || "Stock Level",
-                    ]}
+                    cursor={{ stroke: "var(--color-line)", strokeWidth: 1 }}
+                    content={<StockTooltip />}
                   />
                   <Area
                     type="monotone"
                     dataKey="quantity"
-                    stroke={
-                      activeTab === "raw"
-                        ? "#0ea5e9"
-                        : activeTab === "finished"
-                          ? "#10b981"
-                          : "#f59e0b"
-                    }
-                    strokeWidth={2.5}
-                    dot={{
-                      r: 3.5,
-                      fill:
-                        activeTab === "raw"
-                          ? "#0ea5e9"
-                          : activeTab === "finished"
-                            ? "#10b981"
-                            : "#f59e0b",
-                      stroke: "#fff",
-                      strokeWidth: 1.5,
-                    }}
+                    stroke={tabColor}
+                    strokeWidth={2}
+                    fill="url(#dashStockArea)"
+                    dot={{ r: 4, fill: tabColor, stroke: "var(--color-card)", strokeWidth: 2 }}
                     activeDot={{
                       r: 6,
-                      fill:
-                        activeTab === "raw"
-                          ? "#0ea5e9"
-                          : activeTab === "finished"
-                            ? "#10b981"
-                            : "#f59e0b",
-                      stroke: "#fff",
+                      fill: tabColor,
+                      stroke: "var(--color-card)",
                       strokeWidth: 2,
                     }}
-                    fillOpacity={1}
-                    fill="url(#colorStockVal)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-          )}
-
-          {chartType === "list" && (
-            <div className="w-full h-[260px] overflow-y-auto pr-1">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-card-2 text-ink-subtle uppercase text-[9.5px] font-bold tracking-wider sticky top-0 border-b border-line-soft z-10">
+          ) : (
+            <div className="max-h-[280px] overflow-auto rounded-[14px] border border-line-soft">
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-card-2 text-xs text-ink-subtle">
                   <tr>
-                    <th className="px-3 py-2 bg-card-2 text-ink-subtle font-extrabold">
-                      Item Name
+                    <th scope="col" className="px-4 py-2.5 font-medium">
+                      Item
                     </th>
-                    <th className="px-2 py-2 bg-card-2 text-ink-subtle font-extrabold">Category</th>
-                    <th className="px-2 py-2 bg-card-2 text-ink-subtle font-extrabold text-right">
-                      Live Stock
+                    <th scope="col" className="hidden px-3 py-2.5 font-medium sm:table-cell">
+                      Category
                     </th>
-                    <th className="px-3 py-2 bg-card-2 text-ink-subtle font-extrabold text-right">
+                    <th scope="col" className="px-3 py-2.5 text-right font-medium">
+                      In stock
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-medium">
                       Status
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line-soft">
-                  {chartData.map((item, i) => (
-                    <tr key={i} className="hover:bg-card-2/60 transition-colors">
+                <tbody>
+                  {chartData.map((item) => (
+                    <tr key={item.fullName} className="border-b border-line-soft last:border-b-0">
                       <td
-                        className="px-3 py-2.5 font-bold text-ink truncate max-w-[150px]"
+                        className="h-[48px] max-w-[180px] truncate px-4 font-medium text-ink"
                         title={item.fullName}
                       >
                         {item.fullName}
                       </td>
-                      <td className="px-2 py-2.5">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-sm bg-card-2 border border-line-soft text-ink">
+                      <td className="hidden px-3 sm:table-cell">
+                        <span className="sl-chip sl-chip-muted px-2.5 py-0 text-[11px]">
                           {item.category || item.type}
                         </span>
                       </td>
-                      <td className="px-2 py-2.5 text-right font-mono font-bold text-ink">
-                        {item.quantity.toLocaleString()} {item.uom}
+                      <td className="px-3 text-right text-ink tabular-nums">
+                        {item.quantity.toLocaleString("en-IN")} {item.uom}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono font-bold">
-                        {item.status === "CRITICAL" ? (
-                          <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-sm bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/40 uppercase">
-                            Critical ({item.quantity.toLocaleString()} &lt; {item.minLevel})
-                          </span>
-                        ) : item.status === "LOW STOCK" ? (
-                          <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-sm bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 uppercase">
-                            Low Stock ({item.quantity.toLocaleString()} &lt; {item.minLevel})
-                          </span>
-                        ) : (
-                          <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-sm bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border border-[color:var(--color-success)]/40 uppercase">
-                            Optimal
-                          </span>
-                        )}
+                      <td className="px-4 text-right">
+                        <span
+                          className={`sl-chip px-2.5 py-0 text-[11px] ${
+                            item.status === "CRITICAL"
+                              ? "sl-chip-danger"
+                              : item.status === "LOW STOCK"
+                                ? "sl-chip-warning"
+                                : "sl-chip-success"
+                          }`}
+                          title={`Minimum ${item.minLevel} ${item.uom}`}
+                        >
+                          {item.status === "CRITICAL"
+                            ? "Critical"
+                            : item.status === "LOW STOCK"
+                              ? "Low"
+                              : "Healthy"}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -1124,115 +952,108 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
           )}
         </div>
 
-        {/* RIGHT 1/3: System-Wide Inventory Reorder & Action Alerts Sub-panel (Monitors Raw Material, FG & Wastage) */}
-        <div className="lg:col-span-1 p-3.5 flex flex-col justify-between bg-card-2/20">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-ink">
-                <FaExclamationTriangle className="text-amber-500 text-xs" />
-                <span>Reorder Alerts</span>
-              </div>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 uppercase tracking-wider">
-                {lowStockAlerts.length} Action Needed
-              </span>
-            </div>
+        {/* ── Reorder alerts across all three stores ── */}
+        <div className="flex flex-col border-t border-line-soft p-5 lg:border-t-0 lg:border-l">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <LuTriangleAlert aria-hidden="true" className="text-[color:var(--color-warning)]" />
+              Reorder alerts
+            </span>
+            <span
+              className={`sl-chip px-2.5 py-0.5 text-xs ${
+                lowStockAlerts.length > 0 ? "sl-chip-warning" : "sl-chip-success"
+              }`}
+            >
+              {lowStockAlerts.length > 0 ? `${lowStockAlerts.length} to act on` : "All healthy"}
+            </span>
+          </div>
 
-            {/* List of Low Stock & Action items across Raw Materials, Finished Goods & Wastage Store */}
-            <div className="space-y-2.5 max-h-[285px] overflow-y-auto pr-1">
-              {lowStockAlerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center text-ink-subtle">
-                  <FaCheckCircle className="text-emerald-500 text-2xl mb-1.5 opacity-60" />
-                  <p className="text-xs font-bold text-ink">All Stock Levels Healthy</p>
-                  <p className="text-[10px] text-ink-muted mt-0.5">
-                    Every Raw Material, FG & Wastage is within safety limits
-                  </p>
-                </div>
-              ) : (
-                lowStockAlerts.map((item, idx) => {
-                  const pct = Math.min((item.qty / (item.minLevel || 1)) * 100, 100);
-                  const isCritical = item.isCritical;
-                  const isWastage = item.isWastage;
-                  const targetRoute = isWastage
-                    ? "/wastage-stock"
-                    : item.type === "Finished Goods"
-                      ? "/finished-stock"
-                      : "/stock";
-
-                  return (
-                    <div
-                      key={idx}
+          {lowStockAlerts.length === 0 ? (
+            <EmptyState
+              icon={LuCircleCheck}
+              tone="success"
+              title="Every store is within limits"
+              hint="Items that fall below their minimum level appear here."
+            />
+          ) : (
+            <ul className="flex max-h-[300px] flex-col gap-2 overflow-y-auto">
+              {lowStockAlerts.map((item) => {
+                const pct = Math.min((item.qty / (item.minLevel || 1)) * 100, 100);
+                const isCritical = item.isCritical;
+                const isWastage = item.isWastage;
+                const targetRoute = isWastage
+                  ? "/wastage-stock"
+                  : item.type === "Finished Goods"
+                    ? "/finished-stock"
+                    : "/stock";
+                const store = isWastage
+                  ? { label: "Wastage", color: TAB_COLOR.wastage }
+                  : item.type === "Finished Goods"
+                    ? { label: "FG", color: TAB_COLOR.finished }
+                    : { label: "Raw", color: TAB_COLOR.raw };
+                return (
+                  <li key={`${item.type}-${item.id}`}>
+                    <button
+                      type="button"
                       onClick={() => navigate(targetRoute)}
-                      className={`p-2.5 rounded-md border transition-colors cursor-pointer ${
-                        isCritical
-                          ? "bg-[color:var(--color-danger)]/10 border-[color:var(--color-danger)]/30 text-ink hover:bg-[color:var(--color-danger)]/15 hover:border-[color:var(--color-danger)]/50"
-                          : "bg-[color:var(--color-warning)]/10 border-[color:var(--color-warning)]/30 text-ink hover:bg-[color:var(--color-warning)]/15 hover:border-[color:var(--color-warning)]/50"
-                      }`}
-                      title={`Click to view ${item.name} in ${item.type}`}
+                      title={`View ${item.name} in ${item.type}`}
+                      className="flex w-full flex-col gap-2 rounded-[14px] bg-card-2 p-3 text-left transition-colors hover:bg-nav-active"
                     >
-                      <div className="flex items-center justify-between mb-1 gap-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span
-                            className="text-[11.5px] font-bold text-ink truncate max-w-[125px]"
-                            title={item.name}
-                          >
-                            {item.name}
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-semibold text-ink" title={item.name}>
+                          {item.name}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          <span className="sl-chip sl-chip-muted gap-1 px-2 py-0 text-[11px]">
+                            <span
+                              aria-hidden="true"
+                              className="h-1.5 w-1.5 rounded-full"
+                              style={{ backgroundColor: store.color }}
+                            />
+                            {store.label}
                           </span>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {/* Store Pill Badge */}
                           <span
-                            className={`text-[8px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
-                              isWastage
-                                ? "bg-[color:var(--chart-series-3)]/20 text-[color:var(--chart-series-3)]"
-                                : item.type === "Finished Goods"
-                                  ? "bg-[color:var(--chart-series-2)]/20 text-[color:var(--chart-series-2)]"
-                                  : "bg-[color:var(--chart-series-1)]/20 text-[color:var(--chart-series-1)]"
+                            className={`sl-chip px-2 py-0 text-[11px] ${
+                              isCritical ? "sl-chip-danger" : "sl-chip-warning"
                             }`}
                           >
-                            {isWastage ? "Wastage" : item.type === "Finished Goods" ? "FG" : "Raw"}
+                            {isWastage && item.qty >= 100
+                              ? "Clear"
+                              : isCritical
+                                ? "Critical"
+                                : "Low"}
                           </span>
-                          {/* Status Pill Badge */}
-                          <span
-                            className={`text-[8px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                              isCritical
-                                ? "bg-[color:var(--color-danger)] text-white"
-                                : "bg-[color:var(--color-warning)] text-white"
-                            }`}
-                          >
-                            {isWastage && item.qty >= 100 ? "Action" : item.status}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[10px] font-mono text-ink-muted mb-1.5">
+                        </span>
+                      </span>
+                      <span className="flex items-center justify-between text-xs text-ink-subtle tabular-nums">
                         <span>
-                          Current: <strong className="text-ink">{item.qty.toLocaleString()}</strong>{" "}
-                          {item.uom}
+                          <strong className="font-semibold text-ink">
+                            {item.qty.toLocaleString("en-IN")}
+                          </strong>{" "}
+                          {item.uom} on hand
                         </span>
                         <span>
-                          {isWastage ? "Limit" : "Min"}: {item.minLevel} {item.uom}
+                          {isWastage ? "Limit" : "Min"} {item.minLevel.toLocaleString("en-IN")}
                         </span>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="w-full bg-card-2 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
+                      </span>
+                      <span className="h-1.5 w-full overflow-hidden rounded-full bg-line-soft">
+                        <span
+                          className={`block h-full rounded-full ${
                             isCritical
                               ? "bg-[color:var(--color-danger)]"
                               : "bg-[color:var(--color-warning)]"
                           }`}
-                          style={{ width: `${Math.max(pct, 12)}%` }}
+                          style={{ width: `${Math.max(pct, 6)}%` }}
                         />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       </div>
-    </div>
+    </DashTile>
   );
 };

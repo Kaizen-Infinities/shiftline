@@ -1127,3 +1127,15 @@ body {
   outline: 3px solid color-mix(in srgb, var(--color-primary) 55%, transparent);
   outline-offset: 2px;
 }
+
+/* UI v2 — dashboard */
+/* Field team map (modules/dashboard): the canvas sits on the tile's quiet
+   surface instead of Leaflet's grey, and dark mode darkens only the street
+   tiles so markers and labels keep their real colours. */
+.sl-dash-map.leaflet-container {
+  background: var(--color-card-2);
+  font-family: var(--font-body);
+}
+.sl-dash-map-dark .leaflet-tile-pane {
+  filter: brightness(0.82) invert(92%) hue-rotate(180deg) contrast(1.15);
+}

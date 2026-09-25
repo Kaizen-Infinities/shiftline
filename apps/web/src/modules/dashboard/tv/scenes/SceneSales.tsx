@@ -55,7 +55,7 @@ const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, tv }) 
           minHeight: 0,
         }}
       >
-        <Panel theme={theme} title="ORDER PIPELINE" padX={26} padY={20}>
+        <Panel theme={theme} title="Order pipeline" padX={26} padY={20}>
           <div style={{ flex: 1, minHeight: 0, display: "flex", gap: u(16) }}>
             {tv.pipeline.map((p) => {
               const isDelayed = !!p.delayed && p.count > 0;
@@ -67,7 +67,7 @@ const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, tv }) 
                     minWidth: 0,
                     background: isDelayed ? A.critTint : T.tile,
                     border: `${u(1)} solid ${isDelayed ? A.red : T.panelBorder}`,
-                    borderRadius: u(2),
+                    borderRadius: u(16),
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -78,7 +78,7 @@ const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, tv }) 
                   <div
                     style={{
                       fontSize: u(60),
-                      fontWeight: 800,
+                      fontWeight: 700,
                       lineHeight: 1,
                       color: isDelayed ? A.red : A.blue,
                     }}
@@ -102,7 +102,7 @@ const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, tv }) 
           </div>
         </Panel>
 
-        <Panel theme={theme} title="TOP PRODUCTS TODAY" padX={24} padY={18}>
+        <Panel theme={theme} title="Top products today" padX={24} padY={18}>
           {tv.topProducts.length === 0 ? (
             <TvEmpty theme={theme} label="No invoices raised today" />
           ) : (
@@ -144,7 +144,7 @@ const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, tv }) 
                     style={{
                       height: u(14),
                       background: T.track,
-                      borderRadius: u(1),
+                      borderRadius: u(999),
                       overflow: "hidden",
                     }}
                   >
@@ -166,14 +166,14 @@ const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, tv }) 
 
       <Panel
         theme={theme}
-        title="SALES TREND — 7 DAYS"
+        title="Sales trend · 7 days"
         padX={26}
         style={{ flex: `0 0 ${u(200)}` }}
         right={
           <div
             style={{
               fontSize: u(17),
-              fontWeight: 800,
+              fontWeight: 700,
               color: trendColor(tv.trends.sales.trend, A),
             }}
           >

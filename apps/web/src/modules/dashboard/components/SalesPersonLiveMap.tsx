@@ -1,7 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { FaMapMarkerAlt, FaCrosshairs, FaCompress, FaExpand, FaSyncAlt } from "react-icons/fa";
+import {
+  LuCrosshair,
+  LuMapPin,
+  LuMaximize2,
+  LuMinimize2,
+  LuMinus,
+  LuPlus,
+  LuRefreshCw,
+} from "react-icons/lu";
 import { useTheme } from "../../../providers/ThemeProvider";
 import { useSocket } from "../../../providers/SocketProvider";
 import apiClient from "../../../api/apiClient";
@@ -74,6 +82,13 @@ const agoLabel = (iso: string, now: number) => {
   if (s < 86400) return `${Math.round(s / 3600)} h ago`;
   return `${Math.round(s / 86400)} d ago`;
 };
+
+/** Names come from user records; never let one become markup inside a Leaflet icon. */
+const escapeHtml = (value: string) =>
+  value.replace(
+    /[&<>"']/g,
+    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] as string
+  );
 
 const colorFor = (agentUserId: string) => {
   let h = 0;
@@ -204,7 +219,8 @@ export const SalesPersonLiveMap: React.FC = () => {
       agents.map((a) => ({
         ...a,
         freshness: freshnessOf(a.recordedAt, now),
-        initials: initialsOf(a.agentName),
+        initials: escapeHtml(initialsOf(a.agentName)),
+        safeName: escapeHtml(a.agentName),
         color: colorFor(a.agentUserId),
       })),
     [agents, now]
@@ -250,14 +266,14 @@ export const SalesPersonLiveMap: React.FC = () => {
             </div>
             <div class="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-card -mt-[1px]"></div>
             <div class="mt-0.5 px-2 py-0.5 rounded-md bg-card/95 text-ink border border-line-soft backdrop-blur-md text-center whitespace-nowrap">
-              <p class="text-[9px] font-bold leading-none">${agent.agentName}</p>
+              <p class="text-[9px] font-bold leading-none">${agent.safeName}</p>
               <p class="text-[8px] font-medium opacity-80">${agoLabel(agent.recordedAt, now)}</p>
             </div>
           </div>`,
       });
       const marker = L.marker([agent.latitude, agent.longitude], { icon }).addTo(map);
       marker.bindTooltip(
-        `<div class="text-[11px]"><strong>${agent.agentName}</strong><br/>` +
+        `<div class="text-[11px]"><strong>${agent.safeName}</strong><br/>` +
           `Visits ${agent.today.completedVisits}/${agent.today.plannedVisits} · Orders ${agent.today.orders} · ` +
           `Collected ₹${agent.today.collectedAmount.toLocaleString("en-IN")}<br/>` +
           `<span class="opacity-70">${agoLabel(agent.recordedAt, now)}${
@@ -291,50 +307,54 @@ export const SalesPersonLiveMap: React.FC = () => {
   const recentCount = decorated.filter((a) => a.freshness === "recent").length;
   const selected = decorated.find((a) => a.agentUserId === selectedId);
 
+  const iconBtn =
+    "grid h-8 w-8 place-items-center rounded-full border border-line-soft bg-card text-ink-muted shadow-[var(--shadow-sm)] transition-colors hover:bg-card-2 hover:text-ink";
+
   return (
-    <div
-      className={`bg-card border border-line-soft rounded-lg flex flex-col overflow-hidden relative transition-all duration-300 ${
+    <section
+      aria-labelledby="dash-field-map"
+      className={`sl-tile relative flex flex-col overflow-hidden transition-all duration-300 ${
         isFullscreen ? "fixed inset-3 z-50" : "h-full min-h-0"
       }`}
     >
-      {/* ── CARD HEADER ────────────────────────────────────── */}
-      <div className="shrink-0 px-3.5 py-2.5 border-b border-line-soft bg-card-2/60 flex items-center justify-between gap-2 z-20">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="flex h-6 w-6 items-center justify-center rounded-sm border border-line text-ink-subtle shrink-0">
-            <FaMapMarkerAlt className="text-xs" />
-          </div>
-          <div className="text-[12px] uppercase tracking-wider font-extrabold text-ink truncate">
-            Field Team Map
-          </div>
-          <span className="inline-flex items-center gap-1 text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-card-2 text-ink-subtle border border-line-soft uppercase tracking-wider shrink-0">
-            {liveCount} Live · {decorated.length} Seen today
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <header className="z-20 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 pt-5 pb-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-chip text-accent"
+          >
+            <LuMapPin className="text-[18px]" />
           </span>
+          <div className="min-w-0">
+            <h2 id="dash-field-map" className="sl-h2 truncate text-[15px] leading-tight">
+              Field team map
+            </h2>
+            <p className="sl-muted mt-0.5 truncate text-xs">
+              {liveCount} live · {decorated.length} seen today
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => void load()}
-            title="Refresh positions"
-            className="p-1.5 rounded-lg bg-card-2 hover:bg-card text-ink-muted hover:text-ink border border-line-soft transition-colors cursor-pointer"
+        <div className="flex shrink-0 items-center gap-1.5">
+          <div
+            role="group"
+            aria-label="Map style"
+            className="inline-flex items-center gap-1 rounded-full border border-line-soft bg-card p-1 shadow-[var(--shadow-sm)]"
           >
-            <FaSyncAlt className={`text-xs ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <div className="flex items-center bg-card-2 p-0.5 rounded-lg border border-line-soft gap-0.5">
             {(
               [
-                { key: "theme_default", label: "Street Map" },
+                { key: "theme_default", label: "Street" },
                 { key: "satellite", label: "Satellite" },
               ] as { key: TileLayerType; label: string }[]
             ).map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
+                aria-pressed={tileLayerType === key}
                 onClick={() => setTileLayerType(key)}
-                className={`px-2 py-0.5 rounded-sm text-[9.5px] font-bold transition-all cursor-pointer ${
-                  tileLayerType === key
-                    ? "bg-accent text-white"
-                    : "text-ink-muted hover:text-ink hover:bg-card"
+                className={`sl-chip cursor-pointer px-2.5 py-1 text-xs ${
+                  tileLayerType === key ? "" : "bg-transparent text-ink-muted hover:bg-card-2"
                 }`}
               >
                 {label}
@@ -343,11 +363,24 @@ export const SalesPersonLiveMap: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={handleFitAll}
-            title="Show every agent"
-            className="p-1.5 rounded-lg bg-card-2 hover:bg-card text-ink-muted hover:text-ink border border-line-soft transition-colors cursor-pointer"
+            onClick={() => void load()}
+            aria-label="Refresh positions"
+            title="Refresh positions"
+            className={iconBtn}
           >
-            <FaCrosshairs className="text-xs" />
+            <LuRefreshCw
+              aria-hidden="true"
+              className={loading ? "animate-spin motion-reduce:animate-none" : ""}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={handleFitAll}
+            aria-label="Show every agent"
+            title="Show every agent"
+            className={iconBtn}
+          >
+            <LuCrosshair aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -355,36 +388,40 @@ export const SalesPersonLiveMap: React.FC = () => {
               setIsFullscreen(!isFullscreen);
               setTimeout(() => mapInstanceRef.current?.invalidateSize(), 300);
             }}
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Map"}
-            className="p-1.5 rounded-lg bg-card-2 hover:bg-card text-ink-muted hover:text-ink border border-line-soft transition-colors cursor-pointer"
+            aria-label={isFullscreen ? "Exit full screen" : "Full-screen map"}
+            title={isFullscreen ? "Exit full screen" : "Full-screen map"}
+            className={iconBtn}
           >
-            {isFullscreen ? <FaCompress className="text-xs" /> : <FaExpand className="text-xs" />}
+            {isFullscreen ? <LuMinimize2 aria-hidden="true" /> : <LuMaximize2 aria-hidden="true" />}
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* ── MAP CANVAS & OVERLAYS ────────────────────────────── */}
-      <div className="flex-1 min-h-0 w-full relative overflow-hidden flex">
+      {/* ── Map canvas and overlays ─────────────────────────────── */}
+      <div className="relative mx-3 mb-3 flex min-h-0 flex-1 overflow-hidden rounded-[14px]">
         <div
           ref={mapContainerRef}
-          className={`w-full h-full z-0 bg-page ${
-            mode === "dark" && tileLayerType === "theme_default" ? "map-tiles-dark" : ""
+          // Only the street tiles are darkened in dark mode (see style.css, "UI v2 — dashboard");
+          // markers and labels keep their real colours.
+          className={`sl-dash-map z-0 h-full w-full ${
+            mode === "dark" && tileLayerType === "theme_default" ? "sl-dash-map-dark" : ""
           }`}
-          style={
-            mode === "dark" && tileLayerType === "theme_default"
-              ? { filter: "brightness(0.82) invert(92%) hue-rotate(180deg) contrast(1.15)" }
-              : {}
-          }
         />
 
         {/* Empty / error state: never invent positions. */}
         {!loading && (error || decorated.length === 0) && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-            <div className="pointer-events-auto max-w-xs text-center bg-card/95 backdrop-blur-md border border-line-soft rounded-lg px-4 py-3">
-              <p className="text-[12px] font-bold text-ink">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-4">
+            <div className="sl-tile pointer-events-auto max-w-xs px-5 py-4 text-center">
+              <span
+                aria-hidden="true"
+                className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-2xl bg-chip text-accent"
+              >
+                <LuMapPin />
+              </span>
+              <p className="text-sm font-semibold text-ink">
                 {error ? "Positions unavailable" : "No field positions yet"}
               </p>
-              <p className="text-[10.5px] text-ink-muted mt-1">
+              <p className="sl-muted mt-1 text-xs leading-relaxed">
                 {error ??
                   "Agents appear here as soon as the Field app sends GPS. Positions are kept for 90 days by default."}
               </p>
@@ -393,23 +430,23 @@ export const SalesPersonLiveMap: React.FC = () => {
         )}
 
         {/* Agent chips */}
-        <div className="absolute top-2.5 left-2.5 z-10 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-120px)]">
+        <div className="absolute top-2.5 left-2.5 z-10 flex max-w-[calc(100%-64px)] flex-wrap items-center gap-1.5">
           {decorated.map((agent) => {
             const isSelected = agent.agentUserId === selectedId;
             return (
               <button
                 key={agent.agentUserId}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => handleSelect(agent)}
                 title={`${agent.agentName} · ${agoLabel(agent.recordedAt, now)}`}
-                className={`px-2.5 py-1 rounded-lg backdrop-blur-md text-[10px] font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-                  isSelected
-                    ? "bg-accent text-white border-accent"
-                    : "bg-card/90 text-ink border-line-soft hover:bg-card hover:border-accent/40"
+                className={`sl-chip cursor-pointer shadow-[var(--shadow-sm)] ${
+                  isSelected ? "" : "bg-card text-ink"
                 }`}
               >
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  aria-hidden="true"
+                  className={`h-2 w-2 rounded-full ${
                     agent.freshness === "live"
                       ? "bg-[color:var(--color-success)]"
                       : agent.freshness === "recent"
@@ -418,7 +455,7 @@ export const SalesPersonLiveMap: React.FC = () => {
                   }`}
                 />
                 <span>{agent.agentName}</span>
-                <span className="text-[9px] opacity-75 font-normal">
+                <span className="text-[11px] font-normal opacity-75">
                   {agent.today.completedVisits}/{agent.today.plannedVisits} visits
                 </span>
               </button>
@@ -427,42 +464,50 @@ export const SalesPersonLiveMap: React.FC = () => {
         </div>
 
         {/* Zoom */}
-        <div className="absolute top-2.5 right-2.5 z-10 flex flex-col gap-1">
+        <div className="absolute top-2.5 right-2.5 z-10 flex flex-col gap-1.5">
           <button
             type="button"
+            aria-label="Zoom in"
             onClick={() => mapInstanceRef.current?.zoomIn()}
-            className="w-7 h-7 rounded-lg bg-card/90 hover:bg-card text-ink border border-line-soft flex items-center justify-center text-sm font-bold backdrop-blur-md cursor-pointer transition-colors"
+            className={iconBtn}
           >
-            +
+            <LuPlus aria-hidden="true" />
           </button>
           <button
             type="button"
+            aria-label="Zoom out"
             onClick={() => mapInstanceRef.current?.zoomOut()}
-            className="w-7 h-7 rounded-lg bg-card/90 hover:bg-card text-ink border border-line-soft flex items-center justify-center text-sm font-bold backdrop-blur-md cursor-pointer transition-colors"
+            className={iconBtn}
           >
-            −
+            <LuMinus aria-hidden="true" />
           </button>
         </div>
 
         {/* Legend */}
-        <div className="absolute bottom-2.5 left-2.5 bg-card/90 backdrop-blur-md rounded-lg px-3 py-1.5 border border-line-soft flex items-center gap-3 text-[10px] text-ink z-10">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[color:var(--color-success)] animate-pulse" />
-            <span>{liveCount} Live (≤5 min)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[color:var(--color-warning)]" />
-            <span>{recentCount} Recent (≤30 min)</span>
-          </div>
+        <div className="absolute bottom-2.5 left-2.5 z-10 flex max-w-[calc(100%-20px)] flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-line-soft bg-card px-3.5 py-1.5 text-[11px] text-ink shadow-[var(--shadow-sm)]">
+          <span className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="h-2 w-2 rounded-full bg-[color:var(--color-success)]"
+            />
+            {liveCount} live (≤5 min)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="h-2 w-2 rounded-full bg-[color:var(--color-warning)]"
+            />
+            {recentCount} recent (≤30 min)
+          </span>
           {selected && (
-            <span className="text-[10px] text-accent font-semibold border-l border-line-soft pl-2.5">
-              📍 {selected.agentName}: {selected.today.orders} orders · ₹
+            <span className="border-l border-line-soft pl-3 font-semibold text-accent">
+              {selected.agentName}: {selected.today.orders} orders · ₹
               {selected.today.collectedAmount.toLocaleString("en-IN")} collected ·{" "}
               {agoLabel(selected.recordedAt, now)}
             </span>
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 };

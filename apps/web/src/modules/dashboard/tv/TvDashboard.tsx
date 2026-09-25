@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../../../providers/ThemeProvider";
 
 import "./tv.css";
 import { getTvTheme, u, type TvMode } from "./tvTheme";
@@ -23,11 +24,11 @@ import { inrCompact } from "./tvFormat";
    ══════════════════════════════════════════════════════════════════ */
 
 const SCENE_LABELS = [
-  "EXECUTIVE OVERVIEW",
-  "PRODUCTION",
-  "SALES & ORDERS",
-  "INVENTORY & FINANCE",
-  "FIELD SALES — GPS",
+  "Executive overview",
+  "Production",
+  "Sales and orders",
+  "Inventory and finance",
+  "Field sales — GPS",
 ];
 
 const ROTATE_SECONDS = 13;
@@ -51,6 +52,29 @@ const TvDashboard: React.FC = () => {
 
   const theme = getTvTheme(mode);
   const { T, A } = theme;
+
+  /* ── Theme ────────────────────────────────────────────────────────
+     The wall keeps its own light/dark choice. Its colours are the app's
+     tokens, so while mounted it sets the document theme to that choice,
+     and on the way out it hands the document back to the app's theme. */
+  const { mode: appMode } = useTheme();
+  const appModeRef = useRef(appMode);
+  useEffect(() => {
+    appModeRef.current = appMode;
+  }, [appMode]);
+  useEffect(() => {
+    const rootEl = document.documentElement;
+    rootEl.setAttribute("data-theme", mode);
+    rootEl.classList.toggle("dark", mode === "dark");
+  }, [mode]);
+  useEffect(
+    () => () => {
+      const rootEl = document.documentElement;
+      rootEl.setAttribute("data-theme", appModeRef.current);
+      rootEl.classList.toggle("dark", appModeRef.current === "dark");
+    },
+    []
+  );
   const { tv, accounts, loading, stale, lastUpdated } = useTvSummary();
   const { dateStr, timeStr } = useTvClock();
 
@@ -71,7 +95,8 @@ const TvDashboard: React.FC = () => {
     return clearTimer;
   }, [scene, rotating]);
 
-  const wrap = (i: number) => ((i % SCENE_LABELS.length) + SCENE_LABELS.length) % SCENE_LABELS.length;
+  const wrap = (i: number) =>
+    ((i % SCENE_LABELS.length) + SCENE_LABELS.length) % SCENE_LABELS.length;
 
   const goTo = useCallback((i: number) => setScene(wrap(i)), []);
 
@@ -130,86 +155,85 @@ const TvDashboard: React.FC = () => {
   const hasAlerts = alerts.length > 0;
   const banner = hasAlerts
     ? {
-        bg: theme.isDark ? "oklch(0.24 0.08 22)" : "oklch(0.95 0.06 24)",
+        bg: A.critTint,
         dot: A.red,
         color: A.red,
-        headline: `ATTENTION — ${alerts[0].text}`,
+        headline: `Attention — ${alerts[0].text}`,
         sub: `${alerts.length} item${alerts.length > 1 ? "s" : ""} flagged for management review`,
       }
     : {
         bg: A.okTint,
         dot: A.green,
         color: A.green,
-        headline: "ALL SYSTEMS ON TRACK",
+        headline: "All systems on track",
         sub: "No critical exceptions across production, sales, inventory or finance",
       };
 
   /* ── Ticker ───────────────────────────────────────────────────── */
   const ticker = tv
     ? [
-        `SALES ${tv.sales.todayLabel}`,
-        `PRODUCTION ${tv.production.achievement}%`,
-        `ORDERS ${tv.orders.total}${tv.orders.delayed ? ` (${tv.orders.delayed} DELAYED)` : ""}`,
-        `RECEIVABLE ${tv.finance.receivableLabel}`,
-        accounts ? `PAYABLE ${inrCompact(accounts.totalPayable)}` : null,
+        `Sales ${tv.sales.todayLabel}`,
+        `Production ${tv.production.achievement}%`,
+        `Orders ${tv.orders.total}${tv.orders.delayed ? ` (${tv.orders.delayed} delayed)` : ""}`,
+        `Receivable ${tv.finance.receivableLabel}`,
+        accounts ? `Payable ${inrCompact(accounts.totalPayable)}` : null,
         accounts
-          ? `CASH+BANK ${inrCompact(
+          ? `Cash + bank ${inrCompact(
               Number(accounts.totalCashInHand || 0) + Number(accounts.totalBankBalance || 0)
             )}`
           : null,
-        `INVENTORY ${tv.inventory.healthyPct}% HEALTHY`,
+        `Inventory ${tv.inventory.healthyPct}% healthy`,
       ]
         .filter(Boolean)
-        .join("  ·  ")
-    : "LOADING LIVE DATA…";
+        .join("   ·   ")
+    : "Loading live data…";
 
-  const pill = (active: boolean) => ({
-    padding: `${u(9)} ${u(12)}`,
+  const pill = (active: boolean): React.CSSProperties => ({
+    padding: `${u(8)} ${u(16)}`,
+    borderRadius: u(999),
     background: active ? A.accentBg : "transparent",
-    color: active ? A.accentText : T.textMute,
+    color: active ? A.accentText : T.textDim,
   });
 
-  const scenePad = `${u(20)} ${u(32)} ${u(16)}`;
+  const chrome: React.CSSProperties = {
+    background: T.panel,
+    border: `${u(1)} solid ${T.panelBorder}`,
+    boxShadow: T.panelShadow,
+    borderRadius: u(999),
+  };
+
+  const scenePad = `${u(18)} ${u(32)} ${u(16)}`;
 
   return (
-    <div
-      className="tv-root"
-      style={
-        {
-          background: T.bg,
-          color: T.text,
-          "--tv-scan": T.scan,
-        } as React.CSSProperties
-      }
-    >
-      <div className="tv-board tv-scan">
+    <div className="tv-root" style={{ background: T.bg, color: T.text } as React.CSSProperties}>
+      <div className="tv-board">
         {/* ── HEADER ─────────────────────────────────────────────── */}
         <div
           style={{
-            height: u(76),
-            flex: `0 0 ${u(76)}`,
+            flex: `0 0 ${u(92)}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: `0 ${u(32)}`,
-            borderBottom: `${u(1)} solid ${T.headerBorder}`,
+            padding: `${u(18)} ${u(32)} 0`,
             gap: u(16),
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: u(18), minWidth: 0 }}>
             <div
+              aria-hidden="true"
               style={{
-                width: u(40),
-                height: u(40),
+                width: u(56),
+                height: u(56),
                 flex: "0 0 auto",
-                borderRadius: u(2),
-                background: A.accentBg,
+                borderRadius: u(16),
+                background: "var(--color-brand)",
                 color: A.accentText,
+                boxShadow: `0 ${u(5)} 0 color-mix(in srgb, var(--color-brand) 65%, var(--color-black) 35%)`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontWeight: 800,
-                fontSize: u(19),
+                fontWeight: 700,
+                fontSize: u(26),
               }}
             >
               S
@@ -217,23 +241,26 @@ const TvDashboard: React.FC = () => {
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: u(21),
-                  fontWeight: 800,
-                  letterSpacing: u(0.3),
+                  fontSize: u(30),
+                  fontWeight: 400,
+                  letterSpacing: "-0.02em",
+                  color: T.textDim,
                   whiteSpace: "nowrap",
+                  lineHeight: 1.1,
                 }}
               >
-                SHIFTLINE{" "}
-                <span style={{ fontWeight: 500, color: T.textDim }}>— Management Dashboard</span>
+                Shiftline <strong style={{ fontWeight: 700, color: A.blue }}>Management</strong>
               </div>
               <div
                 style={{
-                  fontSize: u(14),
-                  color: T.textMute,
+                  display: "inline-flex",
+                  marginTop: u(6),
+                  fontSize: u(15),
                   fontWeight: 600,
-                  letterSpacing: u(1),
-                  textTransform: "uppercase",
-                  marginTop: u(2),
+                  color: T.badgeText,
+                  background: T.badgeBg,
+                  padding: `${u(3)} ${u(14)}`,
+                  borderRadius: u(999),
                 }}
               >
                 {SCENE_LABELS[scene]}
@@ -241,10 +268,10 @@ const TvDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: u(16), flex: "0 0 auto" }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: u(17), fontWeight: 700 }}>{dateStr}</div>
-              <div style={{ fontSize: u(14), color: T.textMute }}>{timeStr}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: u(14), flex: "0 0 auto" }}>
+            <div style={{ textAlign: "right", marginRight: u(6) }}>
+              <div style={{ fontSize: u(20), fontWeight: 700 }}>{dateStr}</div>
+              <div style={{ fontSize: u(16), color: T.textMute }}>{timeStr}</div>
             </div>
 
             {/* LIVE / STALE indicator */}
@@ -253,28 +280,23 @@ const TvDashboard: React.FC = () => {
                 lastUpdated ? `Last updated ${lastUpdated.toLocaleTimeString()}` : "Connecting…"
               }
               style={{
+                ...chrome,
                 display: "flex",
                 alignItems: "center",
                 gap: u(8),
-                background: T.badgeBg,
-                border: `${u(1)} solid ${T.badgeBorder}`,
-                padding: `${u(8)} ${u(14)}`,
-                borderRadius: u(1),
+                padding: `${u(9)} ${u(16)}`,
               }}
             >
               <div
                 className={stale ? undefined : "tv-live-dot"}
                 style={{
-                  width: u(8),
-                  height: u(8),
+                  width: u(10),
+                  height: u(10),
                   borderRadius: "50%",
-                  background: stale ? A.amber : A.red,
-                  boxShadow: `0 0 ${u(8)} ${stale ? A.amber : A.red}`,
+                  background: stale ? A.amber : A.green,
                 }}
               />
-              <span style={{ fontSize: u(13), fontWeight: 700, letterSpacing: u(1) }}>
-                {stale ? "STALE" : "LIVE"}
-              </span>
+              <span style={{ fontSize: u(15), fontWeight: 700 }}>{stale ? "Stale" : "Live"}</span>
             </div>
 
             {/* Theme toggle */}
@@ -282,21 +304,19 @@ const TvDashboard: React.FC = () => {
               onClick={toggleTheme}
               role="button"
               tabIndex={0}
+              aria-label={`Switch to ${theme.isDark ? "light" : "dark"} theme (T)`}
               onKeyDown={(e) => e.key === "Enter" && toggleTheme()}
               style={{
+                ...chrome,
                 display: "flex",
-                background: T.badgeBg,
-                border: `${u(1)} solid ${T.badgeBorder}`,
-                borderRadius: u(1),
-                overflow: "hidden",
+                padding: u(4),
                 cursor: "pointer",
-                fontSize: u(12),
-                fontWeight: 700,
-                letterSpacing: u(0.6),
+                fontSize: u(14),
+                fontWeight: 600,
               }}
             >
-              <div style={pill(theme.isDark)}>DARK</div>
-              <div style={pill(!theme.isDark)}>LIGHT</div>
+              <div style={pill(theme.isDark)}>Dark</div>
+              <div style={pill(!theme.isDark)}>Light</div>
             </div>
 
             {/* Exit — a full-screen route needs a visible way back. */}
@@ -305,69 +325,69 @@ const TvDashboard: React.FC = () => {
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && navigate("/dashboard")}
-              title="Switch to the regular dashboard (Esc)"
+              title="Back to the regular dashboard (Esc)"
               style={{
-                background: T.badgeBg,
-                border: `${u(1)} solid ${T.badgeBorder}`,
-                borderRadius: u(1),
+                ...chrome,
                 cursor: "pointer",
-                fontSize: u(12),
-                fontWeight: 700,
-                letterSpacing: u(0.6),
-                padding: `${u(9)} ${u(12)}`,
-                color: T.textMute,
+                fontSize: u(14),
+                fontWeight: 600,
+                padding: `${u(12)} ${u(18)}`,
+                color: T.text,
               }}
             >
-              DASHBOARD
+              Exit
             </div>
           </div>
         </div>
 
         {/* ── SUMMARY BANNER ─────────────────────────────────────── */}
-        <div
-          style={{
-            flex: `0 0 ${u(52)}`,
-            display: "flex",
-            alignItems: "center",
-            gap: u(14),
-            padding: `0 ${u(32)}`,
-            background: banner.bg,
-            borderBottom: `${u(1)} solid ${T.headerBorder}`,
-            overflow: "hidden",
-          }}
-        >
+        <div style={{ flex: "0 0 auto", padding: `${u(16)} ${u(32)} 0` }}>
           <div
+            role="status"
             style={{
-              width: u(10),
-              height: u(10),
-              borderRadius: "50%",
-              background: banner.dot,
-              flex: "0 0 auto",
-            }}
-          />
-          <div
-            style={{
-              fontSize: u(17),
-              fontWeight: 800,
-              letterSpacing: u(0.3),
-              color: banner.color,
-              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: u(14),
+              padding: `${u(12)} ${u(22)}`,
+              background: banner.bg,
+              borderRadius: u(999),
               overflow: "hidden",
-              textOverflow: "ellipsis",
-              flex: "0 1 auto",
             }}
           >
-            {banner.headline}
-          </div>
-          <div
-            style={{
-              fontSize: u(14),
-              color: T.textDim,
-              whiteSpace: "nowrap",
-              flex: "0 0 auto",
-            }}
-          >
-            {banner.sub}
+            <div
+              style={{
+                width: u(12),
+                height: u(12),
+                borderRadius: "50%",
+                background: banner.dot,
+                flex: "0 0 auto",
+              }}
+            />
+            <div
+              style={{
+                fontSize: u(19),
+                fontWeight: 700,
+                color: banner.color,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                flex: "0 1 auto",
+              }}
+            >
+              {banner.headline}
+            </div>
+            <div
+              style={{
+                fontSize: u(16),
+                color: T.textDim,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                flex: "0 1 auto",
+              }}
+            >
+              {banner.sub}
+            </div>
           </div>
         </div>
 
@@ -383,23 +403,21 @@ const TvDashboard: React.FC = () => {
                 gap: u(10),
               }}
             >
-              <div style={{ fontSize: u(28), fontWeight: 800, color: T.textMute }}>
-                {loading ? "LOADING LIVE DATA…" : "DATA UNAVAILABLE"}
+              <div style={{ fontSize: u(30), fontWeight: 700, color: T.textDim }}>
+                {loading ? "Loading live data…" : "Data unavailable"}
               </div>
               {!loading && (
-                <div style={{ fontSize: u(16), color: T.textMute }}>
+                <div style={{ fontSize: u(18), color: T.textMute }}>
                   Retrying automatically — check the API connection
                 </div>
               )}
             </div>
           ) : (
-            <div className="tv-scene" style={{ padding: scenePad, gap: u(14) }}>
+            <div className="tv-scene" style={{ padding: scenePad, gap: u(16) }}>
               {scene === 0 && <SceneOverview theme={theme} tv={tv} accounts={accounts} />}
               {scene === 1 && <SceneProduction theme={theme} tv={tv} />}
               {scene === 2 && <SceneSales theme={theme} tv={tv} />}
-              {scene === 3 && (
-                <SceneInventoryFinance theme={theme} tv={tv} accounts={accounts} />
-              )}
+              {scene === 3 && <SceneInventoryFinance theme={theme} tv={tv} accounts={accounts} />}
               {scene === 4 && <SceneFieldSales theme={theme} />}
             </div>
           )}
@@ -408,22 +426,21 @@ const TvDashboard: React.FC = () => {
         {/* ── FOOTER ─────────────────────────────────────────────── */}
         <div
           style={{
-            flex: `0 0 ${u(40)}`,
+            flex: `0 0 ${u(52)}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: `0 ${u(32)}`,
-            borderTop: `${u(1)} solid ${T.headerBorder}`,
+            padding: `0 ${u(32)} ${u(8)}`,
             gap: u(24),
           }}
         >
           <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
-            <div className="tv-ticker" style={{ fontSize: u(13), color: T.textMute }}>
-              {ticker} &nbsp;&nbsp;&nbsp; {ticker}
+            <div className="tv-ticker" style={{ fontSize: u(16), color: T.textDim }}>
+              {ticker} &nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp; {ticker}
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: u(10), flex: "0 0 auto" }}>
+          <div style={{ display: "flex", gap: u(8), flex: "0 0 auto" }}>
             {SCENE_LABELS.map((label, i) => (
               <div
                 key={label}
@@ -431,13 +448,15 @@ const TvDashboard: React.FC = () => {
                 role="button"
                 tabIndex={0}
                 aria-label={label}
+                aria-current={scene === i ? "true" : undefined}
                 onKeyDown={(e) => e.key === "Enter" && goTo(i)}
                 style={{
-                  width: u(34),
-                  height: u(6),
-                  borderRadius: u(1),
+                  width: scene === i ? u(40) : u(12),
+                  height: u(12),
+                  borderRadius: u(999),
                   background: scene === i ? A.accentBg : T.dotInactive,
                   cursor: "pointer",
+                  transition: "width 300ms ease",
                 }}
               />
             ))}
@@ -450,14 +469,14 @@ const TvDashboard: React.FC = () => {
             onKeyDown={(e) => e.key === "Enter" && setRotating((r) => !r)}
             title="Toggle auto-rotate (Space)"
             style={{
-              fontSize: u(12),
+              fontSize: u(14),
               color: T.textMute,
               flex: "0 0 auto",
               cursor: "pointer",
               whiteSpace: "nowrap",
             }}
           >
-            Auto-rotate {rotating ? `ON · ${ROTATE_SECONDS}s` : "OFF"}
+            Auto-rotate {rotating ? `on · ${ROTATE_SECONDS}s` : "off"}
           </div>
         </div>
       </div>

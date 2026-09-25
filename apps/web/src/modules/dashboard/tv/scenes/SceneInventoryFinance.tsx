@@ -86,7 +86,7 @@ const SceneInventoryFinance: React.FC<{
           minHeight: 0,
         }}
       >
-        <Panel theme={theme} title="INVENTORY — REORDER REQUIRED" padX={26} padY={18}>
+        <Panel theme={theme} title="Reorder required" padX={26} padY={18}>
           {tv.inventory.reorderItems.length === 0 ? (
             <TvEmpty
               theme={theme}
@@ -116,7 +116,7 @@ const SceneInventoryFinance: React.FC<{
                       alignItems: "center",
                       gap: u(12),
                       background: T.tile,
-                      borderRadius: u(2),
+                      borderRadius: u(16),
                       padding: `${u(14)} ${u(18)}`,
                     }}
                   >
@@ -144,12 +144,12 @@ const SceneInventoryFinance: React.FC<{
                       <span
                         style={{
                           fontSize: u(13),
-                          fontWeight: 800,
+                          fontWeight: 700,
                           letterSpacing: u(0.4),
                           color: isCrit ? A.red : A.amber,
                           background: isCrit ? A.critTint : A.lowTint,
                           padding: `${u(5)} ${u(12)}`,
-                          borderRadius: u(1),
+                          borderRadius: u(999),
                         }}
                       >
                         {r.status}
@@ -162,7 +162,7 @@ const SceneInventoryFinance: React.FC<{
           )}
         </Panel>
 
-        <Panel theme={theme} title="RECEIVABLES AGING" padX={26} padY={18}>
+        <Panel theme={theme} title="Receivables ageing" padX={26} padY={18}>
           {tv.finance.receivable <= 0 ? (
             <TvEmpty theme={theme} label="No outstanding receivables" />
           ) : (
@@ -188,13 +188,13 @@ const SceneInventoryFinance: React.FC<{
                     }}
                   >
                     <span>{ag.label}</span>
-                    <span style={{ color: toneColor(ag.tone), fontWeight: 800 }}>{ag.value}</span>
+                    <span style={{ color: toneColor(ag.tone), fontWeight: 700 }}>{ag.value}</span>
                   </div>
                   <div
                     style={{
                       height: u(18),
                       background: T.track,
-                      borderRadius: u(1),
+                      borderRadius: u(999),
                       overflow: "hidden",
                     }}
                   >
