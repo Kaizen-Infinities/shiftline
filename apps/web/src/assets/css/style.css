@@ -1768,3 +1768,305 @@ body {
   }
 }
 /* ── end UI v2 — components ── */
+
+/* UI v2 — shell */
+/* =====================================================================
+   App shell, navigation, command palette, hubs and sign-in scene
+   (docs/specs/UI-v2.md, "Shell and information architecture"). Tokens only.
+===================================================================== */
+@layer components {
+  /* Sub-links under the active area: smaller pill rows. */
+  .sl-subnav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    min-height: 2.25rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-ink-muted);
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
+  }
+  .sl-subnav-item:hover {
+    background: var(--color-nav-hover);
+    color: var(--color-ink);
+  }
+  .sl-subnav-item[aria-current="page"],
+  .sl-subnav-item[aria-current="true"] {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+    font-weight: 600;
+  }
+
+  /* Round icon button (top bar, menus). */
+  .sl-icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--color-card);
+    color: var(--color-ink-muted);
+    border: 1px solid var(--color-line-soft);
+    box-shadow: var(--shadow-sm);
+    transition:
+      background 0.12s ease,
+      color 0.12s ease;
+    cursor: pointer;
+  }
+  .sl-icon-btn:hover {
+    background: var(--color-nav-hover);
+    color: var(--color-ink);
+  }
+  .sl-icon-btn[aria-expanded="true"] {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+  }
+  .sl-icon-btn-plain {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  /* Keyboard key cap. */
+  .sl-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.375rem;
+    padding: 0 0.375rem;
+    border-radius: 6px;
+    background: var(--color-card-2);
+    border: 1px solid var(--color-line);
+    border-bottom-width: 2px;
+    color: var(--color-ink-subtle);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  /* Floating surfaces: menus, popovers, the palette. */
+  .sl-popover {
+    background: var(--color-card);
+    border: 1px solid var(--color-line-soft);
+    border-radius: 18px;
+    box-shadow: var(--shadow-md);
+  }
+  .sl-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-ink);
+    text-align: left;
+    cursor: pointer;
+  }
+  .sl-menu-item:hover,
+  .sl-menu-item:focus-visible {
+    background: var(--color-nav-hover);
+    outline: none;
+  }
+
+  /* Frosted scrim behind drawers and dialogs; follows the page colour in both themes. */
+  .sl-backdrop {
+    background: color-mix(in srgb, var(--color-page) 55%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* The search field in the top bar (a button that opens the palette). */
+  .sl-search-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    height: 2.75rem;
+    padding: 0 0.5rem 0 1rem;
+    border-radius: 999px;
+    background: var(--color-card);
+    border: 1px solid var(--color-line-soft);
+    box-shadow: var(--shadow-sm);
+    color: var(--color-ink-subtle);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.12s ease;
+  }
+  .sl-search-trigger:hover {
+    border-color: var(--color-line);
+    color: var(--color-ink-muted);
+  }
+
+  /* Pale-blue rounded square that holds an icon on hub tiles. */
+  .sl-icon-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: var(--color-chip);
+    color: var(--color-primary);
+  }
+
+  /* Mobile bottom tab bar. */
+  .sl-tabbar {
+    background: color-mix(in srgb, var(--color-card) 92%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--color-line-soft);
+  }
+  .sl-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    min-height: 3.5rem;
+    min-width: 2.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-ink-subtle);
+    border-radius: 14px;
+  }
+  .sl-tab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 1.875rem;
+    border-radius: 999px;
+    transition: background 0.12s ease;
+  }
+  .sl-tab[aria-current="page"] {
+    color: var(--color-ink);
+  }
+  .sl-tab[aria-current="page"] .sl-tab-icon {
+    background: var(--color-nav-active);
+    color: var(--color-nav-active-fg);
+  }
+
+  /* Rail tooltip (collapsed sidebar); inverted colours in both themes. */
+  .sl-tooltip {
+    padding: 0.35rem 0.7rem;
+    border-radius: 10px;
+    background: var(--color-ink);
+    color: var(--color-page);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* Thin, quiet scrollbars for the sidebar and palette. */
+  .sl-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+  }
+  .sl-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sl-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 999px;
+  }
+
+  /* Sign-in scene: a tilted stage for floating tiles, in the concept's isometric spirit. */
+  .sl-iso-stage {
+    transform: perspective(1800px) rotateX(22deg) rotateZ(-9deg);
+    transform-style: preserve-3d;
+  }
+  .sl-iso-lift {
+    box-shadow:
+      0 1px 0 var(--color-line-soft),
+      0 14px 30px color-mix(in srgb, var(--color-ink) 12%, transparent);
+  }
+}
+
+@keyframes sl-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sl-sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sl-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sl-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sl-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+.sl-anim-drawer {
+  animation: sl-drawer-in 0.22s ease-out;
+}
+.sl-anim-sheet {
+  animation: sl-sheet-in 0.22s ease-out;
+}
+.sl-anim-pop {
+  animation: sl-pop-in 0.16s ease-out;
+}
+.sl-anim-fade {
+  animation: sl-fade-in 0.16s ease-out;
+}
+.sl-float {
+  animation: sl-float 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-anim-drawer,
+  .sl-anim-sheet,
+  .sl-anim-pop,
+  .sl-anim-fade,
+  .sl-float {
+    animation: none;
+  }
+  .sl-subnav-item,
+  .sl-icon-btn,
+  .sl-search-trigger,
+  .sl-tab-icon {
+    transition: none;
+  }
+}

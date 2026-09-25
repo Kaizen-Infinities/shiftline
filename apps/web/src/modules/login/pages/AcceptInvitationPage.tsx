@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { useAppDispatch } from "../../../hooks/reduxHooks";
 import { setAccessToken, getCurrentUser } from "../../../features/auth/authSlice";
+import AuthLayout from "../../../components/layout/AuthLayout";
 
 interface InvitationPreview {
   email: string;
@@ -94,11 +95,18 @@ const AcceptInvitationPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-page px-4">
-      <div className="w-full max-w-md bg-card border border-line rounded-sm p-8">
-        <h1 className="text-2xl font-bold text-ink">Join {preview?.companyName ?? "Shiftline"}</h1>
+    <AuthLayout
+      headline={
+        <>
+          You're invited to <strong>{preview?.companyName ?? "Shiftline"}</strong>
+        </>
+      }
+      subline="Choose your own password; nobody else ever sees it. Your administrator already set up what you can open."
+    >
+      <div className="sl-tile w-full max-w-[440px] !rounded-[24px] p-7 sm:p-9">
+        <h1 className="sl-h1">Join {preview?.companyName ?? "Shiftline"}</h1>
         {preview && (
-          <p className="text-sm text-ink-muted mt-1">
+          <p className="sl-muted mt-1.5 text-sm">
             You were invited as <strong>{preview.roleName}</strong> using{" "}
             <strong>{preview.email}</strong>.
           </p>
@@ -107,7 +115,7 @@ const AcceptInvitationPage: React.FC = () => {
         {error && (
           <div
             role="alert"
-            className="mt-4 px-4 py-3 bg-card-2 text-[color:var(--color-danger)] text-sm rounded-sm border border-[color:var(--color-danger)]/40 font-medium"
+            className="sl-chip-danger mt-5 rounded-[14px] px-4 py-3 text-sm font-medium"
           >
             {error}
           </div>
@@ -115,7 +123,7 @@ const AcceptInvitationPage: React.FC = () => {
 
         {preview && (
           <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
+            <label className="block text-sm font-semibold text-ink-muted">
               Full name
               <input
                 name="fullName"
@@ -123,10 +131,10 @@ const AcceptInvitationPage: React.FC = () => {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 minLength={2}
-                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                className="sl-input mt-1.5 h-12 text-base font-normal normal-case tracking-normal"
               />
             </label>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
+            <label className="block text-sm font-semibold text-ink-muted">
               Username
               <input
                 name="username"
@@ -135,10 +143,10 @@ const AcceptInvitationPage: React.FC = () => {
                 required
                 minLength={3}
                 pattern="[a-z0-9._-]+"
-                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                className="sl-input mt-1.5 h-12 text-base font-normal normal-case tracking-normal"
               />
             </label>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
+            <label className="block text-sm font-semibold text-ink-muted">
               Password (10+ characters)
               <input
                 name="password"
@@ -147,10 +155,10 @@ const AcceptInvitationPage: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={10}
-                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                className="sl-input mt-1.5 h-12 text-base font-normal normal-case tracking-normal"
               />
             </label>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
+            <label className="block text-sm font-semibold text-ink-muted">
               Confirm password
               <input
                 name="confirm"
@@ -158,31 +166,27 @@ const AcceptInvitationPage: React.FC = () => {
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
-                className="mt-1 w-full h-10 rounded-sm border border-line bg-card px-3 text-sm font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                className="sl-input mt-1.5 h-12 text-base font-normal normal-case tracking-normal"
               />
             </label>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full min-h-10 rounded-sm bg-accent hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 text-sm transition-[filter] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-            >
+            <button type="submit" disabled={submitting} className="sl-cta sl-cta-lg !mt-7 w-full">
               {submitting ? "Creating your account…" : "Accept invitation"}
             </button>
           </form>
         )}
 
-        <p className="mt-6 text-center text-xs text-ink-muted">
+        <p className="mt-6 text-center text-sm text-ink-muted">
           Already have an account?{" "}
           <button
             type="button"
-            className="underline underline-offset-2 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            className="rounded-sm font-semibold text-accent hover:underline"
             onClick={() => navigate("/login")}
           >
             Sign in
           </button>
         </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

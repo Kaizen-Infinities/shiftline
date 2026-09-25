@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
+import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { loginUser } from "../../../features/auth/authSlice";
 import { companyService, type CompanyBranding } from "../../../services/companyService";
-import TextInput from "../../../components/form/TextInput/TextInput";
-import Button from "../../../components/ui/Button/Button";
+import AuthLayout from "../../../components/layout/AuthLayout";
 
 const LoginPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const ids = useId();
 
   const { isLoading: reduxLoading } = useAppSelector((state) => state.auth);
   const [company, setCompany] = useState<CompanyBranding | null>(null);
@@ -109,157 +109,144 @@ const LoginPage = () => {
     }
   };
 
+  const emailId = `${ids}-email`;
+  const passwordId = `${ids}-password`;
+  const companyName = company?.companyName || "Shiftline";
+
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-page">
-      {/* ── LEFT BRANDING PANEL ── */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] min-h-screen flex-col justify-center relative bg-card-2 border-r border-line overflow-hidden">
-        {/* A ledger-rule field: quiet horizontal hairlines, evenly spaced, no gradient or glow */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-60"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(0deg, var(--color-line) 0, var(--color-line) 1px, transparent 1px, transparent 64px)",
-          }}
-        />
+    <AuthLayout
+      logoUrl={company?.logoUrl}
+      logoAlt={companyName}
+      headline={
+        <>
+          Welcome to <strong>{company?.shortName || company?.companyName || "Shiftline"}</strong>
+        </>
+      }
+      subline="Production, inventory, sales, purchasing, accounts and statutory compliance, on one ledger."
+      footer={`© ${new Date().getFullYear()} ${companyName}. All rights reserved.`}
+    >
+      <div className="sl-tile w-full max-w-[420px] !rounded-[24px] p-7 sm:p-9">
+        <h2 className="sl-h1">Sign in</h2>
+        <p className="sl-muted mt-1.5 text-sm leading-relaxed">
+          Sign in to your account to continue managing operations.
+        </p>
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col h-full px-12 xl:px-16">
-          <div className="flex-1 flex flex-col justify-center">
-            <h1 className="text-4xl xl:text-5xl font-bold text-ink leading-[1.1] mb-5 tracking-tight">
-              Welcome to
-              <br />
-              Shiftline
-            </h1>
-
-            <p className="text-ink-muted text-base leading-relaxed max-w-[540px]">
-              Production, inventory, sales, purchasing, accounts and statutory compliance, on one
-              ledger.
-            </p>
+        {serverError && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="sl-chip-danger mt-6 rounded-[14px] px-4 py-3 text-sm font-medium"
+          >
+            {serverError}
           </div>
+        )}
 
-          {/* Copyright */}
-          <p className="text-ink-subtle text-xs pb-10">
-            © {new Date().getFullYear()} {company?.companyName || "Shiftline"}. All rights reserved.
-          </p>
-        </div>
-      </div>
-
-      {/* ── RIGHT LOGIN PANEL ── */}
-      <div className="flex-1 flex flex-col justify-center items-center min-h-screen bg-page px-6 sm:px-10 lg:px-12 xl:px-16">
-        {/* Mobile logo */}
-        <div className="lg:hidden mb-8 flex flex-col items-center">
-          <img
-            src={company?.logoUrl || "/favicon.svg"}
-            alt={company?.companyName || "Shiftline"}
-            className="h-12 object-contain"
-          />
-        </div>
-
-        <div className="w-full max-w-[400px] bg-card border border-line rounded-sm p-8">
-          {/* Heading */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold leading-tight mb-2 text-ink">Sign in</h2>
-            <p className="text-ink-muted text-sm leading-relaxed">
-              Sign in to your account to continue managing operations.
-            </p>
-          </div>
-
-          {/* General Server Error Message */}
-          {serverError && (
-            <div
-              role="alert"
-              aria-live="polite"
-              className="mb-5 px-4 py-3 bg-card-2 text-[color:var(--color-danger)] text-sm rounded-sm border border-[color:var(--color-danger)]/40 font-medium"
-            >
-              {serverError}
-            </div>
-          )}
-
-          {/* ── FORM ── */}
-          <form onSubmit={handleLogin} className="space-y-4" noValidate>
-            {/* Email Address */}
-            <TextInput
-              label="Email Address"
-              name="email"
-              type="email"
-              value={email}
-              placeholder="you@company.com"
-              required
-              icon={<FaEnvelope />}
-              disabled={loading}
-              autoComplete="username"
-              error={validationErrors.email}
-              inputClassName="login-input !bg-card !text-ink !border-line focus:!border-accent focus:!ring-accent/20 placeholder:!text-ink-subtle font-semibold"
-              labelClassName="!text-ink-muted font-bold"
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setValidationErrors((prev) => ({ ...prev, email: "" }));
-                setServerError("");
-              }}
-            />
-
-            {/* Password */}
-            <TextInput
-              label="Password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              placeholder="Enter your password"
-              required
-              icon={<FaLock />}
-              disabled={loading}
-              autoComplete="current-password"
-              error={validationErrors.password}
-              inputClassName="login-input !bg-card !text-ink !border-line focus:!border-accent focus:!ring-accent/20 placeholder:!text-ink-subtle font-semibold"
-              labelClassName="!text-ink-muted font-bold"
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setValidationErrors((prev) => ({ ...prev, password: "" }));
-                setServerError("");
-              }}
-              trailingIcon={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  disabled={loading}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  aria-pressed={showPassword}
-                  className="flex h-10 w-10 items-center justify-center rounded-sm text-ink-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/25 transition-colors"
-                  title={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
-                </button>
-              }
-            />
-
-            {/* Forgot password */}
-            {/* <div className="flex justify-end pt-1">
-                            <button
-                                type="button"
-                                onClick={() => navigate("/reset")}
-                                disabled={loading}
-                                className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors focus:outline-none"
-                            >
-                                Forgot password?{" "}
-                                <span className="underline underline-offset-2">Click here</span>
-                            </button>
-                        </div> */}
-
-            {/* Submit Button */}
-            <div className="pt-2">
-              <Button
-                text={loading ? "Signing In..." : "Login Now"}
-                type="submit"
-                size="lg"
-                variant="primary"
-                width="100%"
+        <form onSubmit={handleLogin} className="mt-7 space-y-5" noValidate>
+          <div>
+            <label htmlFor={emailId} className="mb-1.5 block text-sm font-semibold text-ink-muted">
+              Email address
+            </label>
+            <div className="relative">
+              <Mail
+                size={18}
+                aria-hidden
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-subtle"
+              />
+              <input
+                id={emailId}
+                name="email"
+                type="email"
+                value={email}
+                placeholder="you@company.com"
+                required
                 disabled={loading}
+                autoComplete="username"
+                aria-invalid={!!validationErrors.email}
+                aria-describedby={validationErrors.email ? `${emailId}-error` : undefined}
+                className="login-input sl-input h-12 !pl-11"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setValidationErrors((prev) => ({ ...prev, email: "" }));
+                  setServerError("");
+                }}
               />
             </div>
-          </form>
+            {validationErrors.email && (
+              <p
+                id={`${emailId}-error`}
+                className="mt-1.5 text-sm text-[color:var(--color-danger)]"
+              >
+                {validationErrors.email}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor={passwordId}
+              className="mb-1.5 block text-sm font-semibold text-ink-muted"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <LockKeyhole
+                size={18}
+                aria-hidden
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-subtle"
+              />
+              <input
+                id={passwordId}
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                placeholder="Enter your password"
+                required
+                disabled={loading}
+                autoComplete="current-password"
+                aria-invalid={!!validationErrors.password}
+                aria-describedby={validationErrors.password ? `${passwordId}-error` : undefined}
+                className="login-input sl-input h-12 !pl-11 !pr-12"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setValidationErrors((prev) => ({ ...prev, password: "" }));
+                  setServerError("");
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                disabled={loading}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                title={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-ink-subtle hover:bg-nav-hover hover:text-ink"
+              >
+                {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
+              </button>
+            </div>
+            {validationErrors.password && (
+              <p
+                id={`${passwordId}-error`}
+                className="mt-1.5 text-sm text-[color:var(--color-danger)]"
+              >
+                {validationErrors.password}
+              </p>
+            )}
+          </div>
+
+          <div className="pt-2">
+            <button type="submit" disabled={loading} className="sl-cta sl-cta-lg w-full">
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-7 flex flex-wrap items-center gap-2 border-t border-line-soft pt-5 text-xs text-ink-subtle">
+          <span className="sl-chip sl-chip-muted !text-xs">GST ready</span>
+          <span className="sl-chip sl-chip-muted !text-xs">Made for Indian factories</span>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

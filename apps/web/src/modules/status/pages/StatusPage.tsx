@@ -5,6 +5,7 @@ import {
   type ComponentState,
   type StatusReport,
 } from "../../../services/statusService";
+import { CenteredPage } from "../../../components/layout/AuthLayout";
 
 /**
  * Public status page (P1-05, PF6): the five components behind Shiftline and one word for the
@@ -75,32 +76,47 @@ const StatusPage: React.FC = () => {
 
   const overall = unreachable ? OVERALL.unreachable : report ? OVERALL[report.overall] : null;
   return (
-    <div className="min-h-screen bg-page px-4 py-10 text-ink">
-      <div className="mx-auto max-w-2xl space-y-6">
+    <CenteredPage wide>
+      <div className="w-full space-y-5">
         <div>
-          <h1 className="text-2xl font-semibold">System Status</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1">System Status</h1>
+          <p className="sl-muted mt-1 text-sm">
             Live state of the Shiftline platform. Refreshes every 30 seconds.
           </p>
         </div>
         {overall && (
-          <div className={`rounded-sm px-4 py-3 text-base font-semibold ${overall.cls}`}>
+          <div
+            role="status"
+            className={`rounded-[18px] px-5 py-4 text-base font-semibold ${overall.cls}`}
+          >
             {overall.text}
           </div>
         )}
-        {!overall && <p className="text-sm text-ink-muted">Checking…</p>}
+        {!overall && <div className="sl-skeleton h-14" aria-label="Checking…" />}
         {report && (
-          <ul className="divide-y divide-line-soft rounded-sm border border-line bg-card">
+          <ul className="sl-tile divide-y divide-line-soft overflow-hidden">
             {(Object.keys(LABEL) as (keyof StatusReport["components"])[]).map((key) => {
               const c = report.components[key];
               return (
-                <li key={key} className="flex items-center gap-3 px-4 py-3">
+                <li key={key} className="flex min-h-[3.25rem] items-center gap-3 px-5 py-3">
                   <span className={`h-2.5 w-2.5 rounded-full ${DOT[c.state]}`} aria-hidden />
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-ink">{LABEL[key]}</div>
-                    <div className="text-xs text-ink-muted">{c.detail}</div>
+                    <div className="text-sm font-semibold text-ink">{LABEL[key]}</div>
+                    <div className="text-xs text-ink-subtle">{c.detail}</div>
                   </div>
-                  <span className="text-xs font-semibold text-ink-muted">{WORD[c.state]}</span>
+                  <span
+                    className={`sl-chip ${
+                      c.state === "ok"
+                        ? "sl-chip-success"
+                        : c.state === "degraded"
+                          ? "sl-chip-warning"
+                          : c.state === "down"
+                            ? "sl-chip-danger"
+                            : "sl-chip-muted"
+                    }`}
+                  >
+                    {WORD[c.state]}
+                  </span>
                 </li>
               );
             })}
@@ -108,7 +124,7 @@ const StatusPage: React.FC = () => {
         )}
         {report && <p className="text-xs text-ink-subtle">Last checked {when(report.checkedAt)}</p>}
       </div>
-    </div>
+    </CenteredPage>
   );
 };
 

@@ -91,7 +91,7 @@ const BankStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {rows.map((r, idx) => (
           <div
             key={r.ledgerId ?? `new-${idx}`}
-            className="rounded-md border border-line-soft bg-card-2/60 p-4"
+            className="rounded-[18px] border border-line-soft bg-card-2 p-4 sm:p-5"
           >
             <div className="grid gap-3 md:grid-cols-6">
               <Field

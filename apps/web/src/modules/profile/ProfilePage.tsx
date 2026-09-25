@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import { useProfile } from "../../hooks/useProfile";
-import CommonLoader from "../../components/ui/Loader/CommonLoader";
 
 const formatDate = (date?: string | null) =>
   date
@@ -35,109 +34,109 @@ const ProfilePage: React.FC = () => {
   const { employee, loading } = useProfile();
 
   if (loading || !employee) {
-    return <CommonLoader text="Loading Profile..." />;
+    return (
+      <div
+        className="flex max-w-[1024px] flex-col gap-6 pt-2"
+        aria-busy="true"
+        aria-label="Loading profile"
+      >
+        <div className="flex items-center gap-5">
+          <span className="sl-skeleton h-20 w-20 !rounded-full" />
+          <span className="sl-skeleton h-9 w-72" />
+        </div>
+        <div className="sl-skeleton h-72 !rounded-[18px]" />
+      </div>
+    );
   }
 
-  return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row items-center gap-5 p-5 border-b border-line">
-          <div className="w-14 h-14 rounded-full border-[3px] border-accent/30 flex items-center justify-center bg-accent shrink-0">
-            <span className="text-lg font-black text-white">{getInitials(employee.fullName)}</span>
-          </div>
-          <div className="flex-1 min-w-0 text-center sm:text-left">
-            <h2 className="text-xl font-bold text-ink">{employee.fullName || "N/A"}</h2>
-            <p className="text-xs text-ink-muted">{employee.department?.name || "Employee"}</p>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-[color:var(--color-success)] bg-[color:var(--color-success)]/10 border border-[color:var(--color-success)]/20 px-3 py-1.5 rounded-full uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--color-success)] animate-pulse" />
-              {(employee.status || "ACTIVE").toUpperCase()}
-            </span>
-            <div className="flex items-center gap-2 bg-card-2 rounded-lg px-3 py-2 border border-line-soft">
-              <Shield className="text-ink-subtle" size={14} />
-              <span className="text-sm font-bold text-ink font-mono tracking-wider">
-                {employee.empCode || "USER"}
-              </span>
-            </div>
-          </div>
-        </div>
+  const rows: { icon: React.ReactNode; label: string; value: string; mono?: boolean }[] = [
+    {
+      icon: <BadgeCheck size={18} />,
+      label: "Employee Code",
+      value: employee.empCode || "N/A",
+      mono: true,
+    },
+    {
+      icon: <Briefcase size={18} />,
+      label: "Department",
+      value: employee.department?.name || "N/A",
+    },
+    {
+      icon: <CalendarDays size={18} />,
+      label: "Date of Joining",
+      value: formatDate(employee.dateOfJoining),
+    },
+    {
+      icon: <ShieldCheck size={18} />,
+      label: "System Role",
+      value: employee.designation?.name || "N/A",
+    },
+    { icon: <Phone size={18} />, label: "Mobile Number", value: employee.mobile || "N/A" },
+    { icon: <Mail size={18} />, label: "Email Address", value: employee.email || "N/A" },
+    {
+      icon: <CalendarDays size={18} />,
+      label: "Account Created",
+      value: formatDate(employee.createdAt),
+    },
+  ];
 
-        {/* Record Details */}
-        <div className="p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <RecordRow
-              icon={<BadgeCheck size={16} />}
-              color="text-ink-subtle bg-card-2 border-line"
-              label="Employee Code"
-              value={employee.empCode || "N/A"}
-              mono
-            />
-            <RecordRow
-              icon={<Briefcase size={16} />}
-              color="text-ink-subtle bg-card-2 border-line"
-              label="Department"
-              value={employee.department?.name || "N/A"}
-            />
-            <RecordRow
-              icon={<CalendarDays size={16} />}
-              color="text-ink-subtle bg-card-2 border-line"
-              label="Date of Joining"
-              value={formatDate(employee.dateOfJoining)}
-            />
-            <RecordRow
-              icon={<ShieldCheck size={16} />}
-              color="text-ink-subtle bg-card-2 border-line"
-              label="System Role"
-              value={employee.designation?.name || "N/A"}
-            />
-            <RecordRow
-              icon={<Phone size={16} />}
-              color="text-ink-subtle bg-card-2 border-line"
-              label="Mobile Number"
-              value={employee.mobile || "N/A"}
-            />
-            <RecordRow
-              icon={<Mail size={16} />}
-              color="text-ink-subtle bg-card-2 border-line"
-              label="Email Address"
-              value={employee.email || "N/A"}
-            />
-            <RecordRow
-              icon={<CalendarDays size={16} />}
-              color="text-ink-subtle bg-card-2 border-line"
-              label="Account Created"
-              value={formatDate(employee.createdAt)}
-            />
-          </div>
+  return (
+    <div className="flex max-w-[1024px] flex-col gap-6">
+      <section className="flex flex-col gap-5 pt-2 sm:flex-row sm:items-center">
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-brand text-2xl font-bold text-[color:var(--color-white)] shadow-[0_5px_0_color-mix(in_srgb,var(--color-brand)_65%,var(--color-black))]">
+          {getInitials(employee.fullName)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="sl-welcome">
+            Hello <strong>{employee.fullName || "N/A"}</strong>
+          </h1>
+          <p className="sl-muted mt-1">{employee.department?.name || "Employee"}</p>
         </div>
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="sl-chip sl-chip-success">
+            <span className="h-2 w-2 rounded-full bg-[color:var(--color-success)]" aria-hidden />
+            {(employee.status || "ACTIVE").charAt(0).toUpperCase() +
+              (employee.status || "ACTIVE").slice(1).toLowerCase()}
+          </span>
+          <span className="sl-chip">
+            <Shield size={14} aria-hidden />
+            <span className="font-mono tracking-wider">{employee.empCode || "USER"}</span>
+          </span>
+        </div>
+      </section>
+
+      <section className="sl-tile p-5 sm:p-6">
+        <h2 className="sl-h2 mb-4">Your details</h2>
+        <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {rows.map((r) => (
+            <RecordRow key={r.label} {...r} />
+          ))}
+        </dl>
+      </section>
     </div>
   );
 };
 
 const RecordRow: React.FC<{
   icon: React.ReactNode;
-  color: string;
   label: string;
   value: string;
   mono?: boolean;
-}> = ({ icon, color, label, value, mono }) => (
-  <div className="flex items-center gap-3 py-3">
-    <div
-      className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs shrink-0 ${color}`}
-    >
+}> = ({ icon, label, value, mono }) => (
+  <div className="flex items-center gap-3 rounded-[14px] bg-card-2 p-3">
+    <span className="sl-icon-tile !h-10 !w-10 !rounded-[12px]" aria-hidden>
       {icon}
+    </span>
+    <div className="min-w-0">
+      <dt className="text-xs font-medium text-ink-subtle">{label}</dt>
+      <dd
+        className={
+          "truncate text-sm font-semibold text-ink " + (mono ? "font-mono tracking-wider" : "")
+        }
+      >
+        {value}
+      </dd>
     </div>
-    <p className="w-[140px] shrink-0 text-[9px] sm:text-[10px] md:text-xs font-extrabold text-ink-subtle uppercase tracking-[2px]">
-      {label}
-    </p>
-    <p
-      className={`text-[11px] sm:text-xs md:text-sm font-semibold text-ink ${mono ? "font-mono tracking-wider" : ""}`}
-    >
-      {value}
-    </p>
   </div>
 );
 
