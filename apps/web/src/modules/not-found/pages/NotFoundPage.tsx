@@ -1,30 +1,14 @@
 import React from "react";
-import { FiAlertCircle } from "react-icons/fi";
-import BackButton from "../../../components/ui/BackButton/BackButton";
+import { Compass } from "lucide-react";
 
-const NotFoundPage: React.FC = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-page px-4">
-      <div className="w-full max-w-md flex flex-col items-center text-center bg-card border border-line rounded-sm p-10">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-sm border-2 border-accent text-accent">
-          <FiAlertCircle style={{ fontSize: "1.75rem" }} />
-        </div>
+import StatusMessage from "../../../components/layout/StatusMessage";
 
-        <div className="text-xs font-bold uppercase tracking-[0.2em] text-ink-subtle mb-2">
-          Error 404
-        </div>
-
-        <h1 className="text-2xl font-bold text-ink mb-3">Page not found</h1>
-
-        <p className="text-ink-muted mb-8 leading-relaxed">
-          The page you are looking for might have been removed, renamed, or is temporarily
-          unavailable.
-        </p>
-
-        <BackButton to="/dashboard" text="Go to Dashboard" />
-      </div>
-    </div>
-  );
-};
+const NotFoundPage: React.FC = () => (
+  <StatusMessage icon={<Compass size={30} aria-hidden />} code="Error 404" title="Page not found">
+    The page you are looking for might have been removed, renamed, or is temporarily unavailable.
+    Press <span className="sl-kbd">Ctrl</span> <span className="sl-kbd">K</span> in the app to
+    search for any screen.
+  </StatusMessage>
+);
 
 export default NotFoundPage;

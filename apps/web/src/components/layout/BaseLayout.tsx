@@ -1,99 +1,136 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { useAppSelector } from "../../hooks/reduxHooks";
-import Navbar from "../common/Navbar";
+import { useAppDispatch, useAppSelector } from "../../hooks/reduxHooks";
+import { getCurrentUser } from "../../features/auth/authSlice";
+import { useSocketSync } from "../../hooks/useSocketSync";
+import { useGlobalShortcuts } from "../../hooks/useGlobalShortcuts";
 import ImpersonationBanner from "../common/ImpersonationBanner";
-import Sidebar from "../common/sidebar/Sidebar";
-import HorizontalNav from "../common/sidebar/HorizontalNav";
-import Footer from "../common/Footer";
 import ShortcutPanel from "../ui/ShortcutPanel/ShortcutPanel";
 import Calculator from "../ui/Calculator/Calculator";
-import { useGlobalShortcuts } from "../../hooks/useGlobalShortcuts";
+import PrefetchProgressBar from "../../providers/PrefetchProgressBar";
+import CommandPaletteProvider from "../command-palette/CommandPaletteProvider";
+import { STORAGE_KEYS, readJSON, writeJSON } from "../../navigation/storage";
+import AppSidebar from "./AppSidebar";
+import TopBar from "./TopBar";
+import MobileTabBar from "./MobileTabBar";
 
+/** Legacy "open the header menu" shortcuts (Alt+T, Alt+A, Alt+D, Alt+P) now open area hubs. */
+const MENU_TO_HUB: Record<string, string> = {
+  Transactions: "/hub/sales",
+  Administration: "/hub/settings",
+  Display: "/hub/reports",
+  Payroll: "/hub/payroll",
+};
+
+/**
+ * The app shell (docs/specs/UI-v2.md): a left sidebar (collapsible to an icon rail) on desktop,
+ * a top bar with breadcrumb, search, theme, notifications and account, and on phones a drawer
+ * plus a bottom tab bar. The command palette (Ctrl/⌘+K) lives here too.
+ */
 const BaseLayout = () => {
-  const [showSidebar, setShowSidebar] = useState(false);
-  const drawerRef = useRef<HTMLDivElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAppSelector((state) => state.auth);
   const { data: company } = useAppSelector((state) => state.company);
 
-  // ── Shortcut panel: persistent in localStorage across all page navigation & reloads ──
-  const [panelOpen, setPanelOpen] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem("shortcut_panel_open");
-      if (saved !== null) return saved === "true";
-    } catch (_) {}
-    return false; // Keep the workspace wide until the user asks for the shortcut reference.
-  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => readJSON<boolean>(STORAGE_KEYS.sidebarCollapsed, false) === true
+  );
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  const handleTogglePanel = useCallback(() => {
-    setPanelOpen((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("shortcut_panel_open", String(next));
-      } catch (_) {}
-      return next;
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => {
+      writeJSON(STORAGE_KEYS.sidebarCollapsed, !prev);
+      return !prev;
     });
   }, []);
+  const toggleShortcuts = useCallback(() => setShortcutsOpen((o) => !o), []);
+  const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  const openCalculator = useCallback(() => setCalcOpen(true), []);
 
-  // ── Calculator ──────────────────────────────────────────────────
-  const [calcOpen, setCalcOpen] = useState(false);
-  const handleOpenCalculator = useCallback(() => setCalcOpen(true), []);
-
-  // ── Global keyboard shortcuts ───────────────────────────────────
-  const handleToggleSidebar = useCallback(() => {
-    if (window.innerWidth < 1024) {
-      setShowSidebar((prev) => !prev);
-    } else {
-      handleTogglePanel();
-    }
-  }, [handleTogglePanel]);
+  // F1: the drawer on phones, the shortcut sheet on desktop (as before).
+  const handleF1 = useCallback(() => {
+    if (window.innerWidth < 1024) setDrawerOpen((o) => !o);
+    else toggleShortcuts();
+  }, [toggleShortcuts]);
 
   const { activeKey } = useGlobalShortcuts({
-    onTogglePanel: handleTogglePanel,
-    onToggleSidebar: handleToggleSidebar,
-    onOpenCalculator: handleOpenCalculator,
+    onTogglePanel: toggleShortcuts,
+    onToggleSidebar: handleF1,
+    onOpenCalculator: openCalculator,
   });
 
-  // ── Company favicon ─────────────────────────────────────────────
   useEffect(() => {
-    if (company?.faviconUrl) {
-      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
-      if (!link) {
-        link = document.createElement("link");
-        link.rel = "icon";
-        document.head.appendChild(link);
-      }
-      link.href = company.faviconUrl;
+    const onMenu = (event: Event) => {
+      const title = (event as CustomEvent<{ menuTitle?: string }>).detail?.menuTitle;
+      const hub = title ? MENU_TO_HUB[title] : undefined;
+      if (hub) navigate(hub);
+    };
+    window.addEventListener("nav-open-menu", onMenu);
+    return () => window.removeEventListener("nav-open-menu", onMenu);
+  }, [navigate]);
+
+  // Live permission sync: when roles change anywhere, reload what this user may see.
+  useSocketSync("rolePermission", undefined, () => {
+    dispatch(getCurrentUser());
+  });
+  useSocketSync("role", undefined, () => {
+    dispatch(getCurrentUser());
+  });
+  useEffect(() => {
+    const onFocus = () => {
+      if (!user) dispatch(getCurrentUser());
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [dispatch, user]);
+
+  // Tenant favicon.
+  useEffect(() => {
+    if (!company?.faviconUrl) return;
+    let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
     }
+    link.href = company.faviconUrl;
   }, [company?.faviconUrl]);
 
   useEffect(() => {
-    setShowSidebar(false);
+    setDrawerOpen(false);
   }, [location.pathname, location.search]);
 
+  // Drawer: trap focus, close on Escape, lock page scroll, give focus back to the menu button.
   useEffect(() => {
-    if (!showSidebar) return;
-
-    const previousOverflow = document.body.style.overflow;
+    if (!drawerOpen) return;
     const drawer = drawerRef.current;
-    const focusable = drawer?.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    );
-    focusable?.[0]?.focus();
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const focusables = () =>
+      Array.from(
+        drawer?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+    focusables()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setShowSidebar(false);
+        event.stopPropagation();
+        setDrawerOpen(false);
         return;
       }
-      if (event.key !== "Tab" || !focusable?.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -102,96 +139,83 @@ const BaseLayout = () => {
         first.focus();
       }
     };
-
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", onKey);
+    const button = menuButtonRef.current;
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      menuButtonRef.current?.focus();
+      document.removeEventListener("keydown", onKey);
+      button?.focus();
     };
-  }, [showSidebar]);
+  }, [drawerOpen]);
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:rounded-sm focus:border focus:border-line focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-md"
-      >
-        Skip to main content
-      </a>
+    <CommandPaletteProvider onOpenShortcuts={openShortcuts} onOpenCalculator={openCalculator}>
+      <div className="flex h-screen overflow-hidden bg-page text-ink">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[200] focus:rounded-full focus:border focus:border-line focus:bg-card focus:px-5 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-md"
+        >
+          Skip to main content
+        </a>
 
-      {/* Mobile Sidebar Overlay */}
-      {showSidebar && (
-        <button
-          type="button"
-          aria-label="Close navigation"
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setShowSidebar(false)}
-        />
-      )}
+        {/* Desktop sidebar */}
+        <aside className="hidden shrink-0 lg:block" aria-label="Sidebar">
+          <AppSidebar collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+        </aside>
 
-      {/* Mobile Sidebar Drawer */}
-      <div
-        ref={drawerRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Main navigation"
-        aria-hidden={!showSidebar}
-        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
-          showSidebar ? "visible translate-x-0" : "invisible -translate-x-full pointer-events-none"
-        }`}
-      >
-        <Sidebar onNavigate={() => setShowSidebar(false)} />
-      </div>
+        {/* Mobile drawer: only rendered while open */}
+        {drawerOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div
+              className="sl-backdrop sl-anim-fade absolute inset-0"
+              onClick={() => setDrawerOpen(false)}
+              aria-hidden
+            />
+            <div
+              ref={drawerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Main navigation"
+              className="sl-anim-drawer absolute inset-y-0 left-0 shadow-[var(--shadow-md)]"
+            >
+              <AppSidebar variant="drawer" onClose={() => setDrawerOpen(false)} />
+            </div>
+          </div>
+        )}
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Top Navbar (Mobile only) */}
-        <div className="lg:hidden">
-          <Navbar
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+          <ImpersonationBanner />
+          <TopBar
+            onOpenMenu={() => setDrawerOpen(true)}
             menuButtonRef={menuButtonRef}
-            onMenuClick={() => setShowSidebar(true)}
-            user={user}
-            onProfileClick={() => navigate("/company/view")}
+            onOpenShortcuts={openShortcuts}
           />
-        </div>
+          <div className="flex justify-center empty:hidden">
+            <PrefetchProgressBar />
+          </div>
 
-        <ImpersonationBanner />
-
-        {/* Horizontal Navigation (Large screens) */}
-        <HorizontalNav />
-
-        {/* Content row: main + shortcut panel side by side */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Main Content */}
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex-1 w-full min-w-0 overflow-y-auto bg-page"
+            className="min-w-0 flex-1 overflow-y-auto focus:outline-none"
           >
-            <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 min-h-full flex flex-col">
+            <div className="mx-auto flex min-h-full w-full max-w-[1920px] flex-col px-4 pt-2 pb-24 sm:px-5 lg:px-8 lg:pb-10">
               <Outlet />
             </div>
           </main>
-
-          {/* Shortcut Panel — right side; a desktop power-user reference, not part of the
-              mobile shell (P1-UI-remake's 400px commitment: no shell chrome may squeeze
-              primary content below `lg`). */}
-          <div className="hidden lg:flex">
-            <ShortcutPanel
-              activeKey={activeKey}
-              isOpen={panelOpen}
-              onToggle={handleTogglePanel}
-              onOpenCalculator={handleOpenCalculator}
-            />
-          </div>
         </div>
 
-        <Footer />
-      </div>
+        <MobileTabBar />
 
-      {/* Floating Calculator (F10) */}
-      {calcOpen && <Calculator onClose={() => setCalcOpen(false)} />}
-    </div>
+        <ShortcutPanel
+          activeKey={activeKey}
+          isOpen={shortcutsOpen}
+          onToggle={toggleShortcuts}
+          onOpenCalculator={openCalculator}
+        />
+        {calcOpen && <Calculator onClose={() => setCalcOpen(false)} />}
+      </div>
+    </CommandPaletteProvider>
   );
 };
 

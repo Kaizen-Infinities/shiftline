@@ -17,9 +17,9 @@ const Section: React.FC<{
   onEdit: (s: OnboardingStepKey) => void;
   children: React.ReactNode;
 }> = ({ title, step, onEdit, children }) => (
-  <section className="rounded-md border border-line-soft bg-card-2/60 p-4 text-sm">
+  <section className="rounded-[18px] border border-line-soft bg-card-2 p-4 sm:p-5 text-sm">
     <div className="flex items-center justify-between">
-      <h3 className="text-xs font-bold uppercase tracking-wider text-ink-muted">{title}</h3>
+      <h3 className="sl-section-label !px-0">{title}</h3>
       <button
         type="button"
         className="text-xs text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
@@ -112,9 +112,7 @@ const ReviewStep: React.FC<Props> = ({ state, onEdit, onComplete }) => {
                     {b.name}
                     {b.bankName && <span className="text-ink-muted"> · {b.bankName}</span>}
                     {b.isDefault && (
-                      <span className="ml-1 rounded-sm border border-accent/40 px-1.5 text-[10px] font-bold text-accent">
-                        DEFAULT
-                      </span>
+                      <span className="sl-chip ml-1.5 !px-2 !py-0 !text-[10px]">DEFAULT</span>
                     )}
                   </span>
                   <span className="font-mono text-ink-muted">{b.ifsc ?? ""}</span>
@@ -134,7 +132,7 @@ const ReviewStep: React.FC<Props> = ({ state, onEdit, onComplete }) => {
         </Section>
       </div>
 
-      <div className="mt-6 rounded-md border border-line p-4">
+      <div className="mt-6 rounded-[18px] border border-line-soft bg-card-2 p-5">
         <h3 className="text-sm font-bold text-ink">
           Terms of service · version {state.tos.version}
         </h3>

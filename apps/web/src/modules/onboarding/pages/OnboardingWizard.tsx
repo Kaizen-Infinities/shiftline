@@ -5,6 +5,7 @@ import { usePermission } from "../../../hooks/usePermission";
 import { fetchCompany } from "../../../features/company/companySlice";
 import { logoutUser } from "../../../features/auth/authSlice";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import { BrandLockup } from "../../../components/brand/BrandMark";
 import { onboardingService } from "../../../services/onboardingService";
 import type { OnboardingState, OnboardingStepKey } from "../types";
 import { ErrorBox, SecondaryButton } from "../steps/fields";
@@ -78,8 +79,8 @@ const OnboardingWizard: React.FC = () => {
   if (error && !state) {
     return (
       <div className="min-h-screen bg-page px-4 py-16 text-ink">
-        <div className="mx-auto max-w-md rounded-sm border border-line bg-card p-8">
-          <h1 className="text-xl font-bold">Could not load onboarding</h1>
+        <div className="sl-tile mx-auto max-w-md !rounded-[24px] p-8">
+          <h1 className="sl-h2 !text-xl">Could not load onboarding</h1>
           <ErrorBox message={error} />
           <div className="mt-6 flex gap-2">
             <SecondaryButton onClick={() => window.location.reload()}>Retry</SecondaryButton>
@@ -97,8 +98,8 @@ const OnboardingWizard: React.FC = () => {
     const owners = state.users.filter((u) => u.roleCode === "OWNER");
     return (
       <div className="min-h-screen bg-page px-4 py-16 text-ink">
-        <div className="mx-auto max-w-md rounded-sm border border-line bg-card p-8">
-          <h1 className="text-xl font-bold">{state.company.companyName} is being set up</h1>
+        <div className="sl-tile mx-auto max-w-md !rounded-[24px] p-8">
+          <h1 className="sl-h2 !text-xl">{state.company.companyName} is being set up</h1>
           <p className="mt-2 text-sm text-ink-muted">
             {owners.length ? owners.map((o) => o.fullName).join(", ") : "Your administrator"} is
             completing the company setup. You will have access as soon as it is finished — no action
@@ -122,61 +123,61 @@ const OnboardingWizard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-page text-ink">
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-              Shiftline setup
-            </div>
-            <h1 className="text-lg font-bold">{state.company.companyName}</h1>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-ink-muted">
-            <span className="hidden sm:inline">{user?.fullName}</span>
-            <SecondaryButton onClick={signOut}>Sign out</SecondaryButton>
-          </div>
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 pt-6 sm:px-6">
+        <BrandLockup size={40} />
+        <div className="flex items-center gap-3 text-sm text-ink-muted">
+          <span className="hidden sm:inline">{user?.fullName}</span>
+          <SecondaryButton onClick={signOut}>Sign out</SecondaryButton>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-8 px-6 py-8 md:grid-cols-[260px_1fr]">
-        <aside>
-          <ol className="space-y-1">
+      <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6">
+        <p className="sl-welcome">
+          Let's set up <strong>{state.company.companyName}</strong>
+        </p>
+        <p className="sl-muted mt-2 text-sm">
+          Six short steps. Everything can be changed later from Settings.
+        </p>
+      </div>
+
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-[260px_1fr] md:gap-8">
+        <nav aria-label="Setup steps">
+          <div className="sl-section-label mb-2">Shiftline setup</div>
+          <ol className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible">
             {state.steps.map((s, idx) => {
               const reachable = idx <= currentIdx;
               const isActive = s.key === active;
               return (
-                <li key={s.key}>
+                <li key={s.key} className="shrink-0">
                   <button
                     type="button"
                     disabled={!reachable}
                     onClick={() => goto(s.key)}
-                    className={`flex w-full items-center gap-3 rounded-sm border px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                      isActive
-                        ? "border-accent bg-accent/10 text-ink font-semibold"
-                        : reachable
-                          ? "border-transparent text-ink hover:bg-card-2"
-                          : "border-transparent text-ink-muted/60"
+                    aria-current={isActive ? "step" : undefined}
+                    className={`sl-nav-item w-full text-left text-sm disabled:cursor-not-allowed ${
+                      isActive ? "is-active" : reachable ? "" : "opacity-55"
                     }`}
                   >
                     <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border text-xs font-bold ${
-                        s.done && !isActive
-                          ? "border-accent/50 text-accent"
-                          : isActive
-                            ? "border-accent bg-accent text-white"
-                            : "border-line text-ink-muted"
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        isActive
+                          ? "bg-primary text-[color:var(--color-white)]"
+                          : s.done
+                            ? "bg-[color:var(--color-cta)] text-[color:var(--color-cta-ink)]"
+                            : "bg-card-2 text-ink-subtle"
                       }`}
                     >
                       {s.done && !isActive ? "✓" : idx + 1}
                     </span>
-                    {s.label}
+                    <span className="whitespace-nowrap">{s.label}</span>
                   </button>
                 </li>
               );
             })}
           </ol>
-        </aside>
+        </nav>
 
-        <main className="rounded-sm border border-line bg-card p-6" data-step={active}>
+        <main className="sl-tile min-w-0 !rounded-[24px] p-5 sm:p-8" data-step={active}>
           {active === "company" && <CompanyStep state={state} onSaved={onSaved} />}
           {active === "gst" && <GstStep state={state} onSaved={onSaved} onBack={back} />}
           {active === "financial-year" && (

@@ -1,72 +1,83 @@
 import { useNavigate } from "react-router-dom";
-import { FaLock } from "react-icons/fa";
-import TextInput from "../../../components/form/TextInput/TextInput";
-import Button from "../../../components/ui/Button/Button";
+import { KeyRound } from "lucide-react";
+import AuthLayout from "../../../components/layout/AuthLayout";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-page px-4 sm:px-8">
-      <div className="w-full max-w-[400px] bg-card border border-line rounded-sm p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-sm border border-line bg-card-2">
-            <FaLock className="text-base text-accent" />
-          </div>
-          <h2 className="text-2xl font-bold leading-tight mb-2 text-ink">Reset password</h2>
-          <p className="text-ink-muted text-sm leading-relaxed">Enter your new password below.</p>
-        </div>
+    <AuthLayout
+      headline={
+        <>
+          A fresh <strong>start</strong>
+        </>
+      }
+      subline="Pick a new password you have not used on Shiftline before."
+    >
+      <div className="sl-tile w-full max-w-[420px] !rounded-[24px] p-7 sm:p-9">
+        <span className="sl-icon-tile mb-5">
+          <KeyRound size={20} aria-hidden />
+        </span>
+        <h2 className="sl-h1">Reset password</h2>
+        <p className="sl-muted mt-1.5 text-sm">Enter your new password below.</p>
 
-        {/* Form */}
-        <form className="space-y-4" onSubmit={(e) => e.preventDefault()} noValidate>
-          <TextInput
-            label="New Password"
-            name="password"
-            type="password"
-            value=""
-            placeholder="Enter new password"
-            required
-            inputClassName="!bg-card !text-ink !border-line focus:!border-accent focus:!ring-accent/20 placeholder:!text-ink-subtle font-semibold"
-            labelClassName="!text-ink-muted font-bold"
-            onChange={() => {}}
-          />
-
-          <TextInput
-            label="Confirm Password"
-            name="confirmPassword"
-            type="password"
-            value=""
-            placeholder="Confirm new password"
-            required
-            inputClassName="!bg-card !text-ink !border-line focus:!border-accent focus:!ring-accent/20 placeholder:!text-ink-subtle font-semibold"
-            labelClassName="!text-ink-muted font-bold"
-            onChange={() => {}}
-          />
-
-          <div className="pt-2">
-            <Button
-              text="Reset & sign in"
-              type="button"
-              size="lg"
-              variant="primary"
-              width="100%"
-              onClick={() => navigate("/login")}
+        <form className="mt-7 space-y-5" onSubmit={(e) => e.preventDefault()} noValidate>
+          <div>
+            <label
+              htmlFor="reset-password"
+              className="mb-1.5 block text-sm font-semibold text-ink-muted"
+            >
+              New Password
+            </label>
+            <input
+              id="reset-password"
+              name="password"
+              type="password"
+              placeholder="Enter new password"
+              required
+              autoComplete="new-password"
+              className="sl-input h-12"
             />
+          </div>
+          <div>
+            <label
+              htmlFor="reset-confirm"
+              className="mb-1.5 block text-sm font-semibold text-ink-muted"
+            >
+              Confirm Password
+            </label>
+            <input
+              id="reset-confirm"
+              name="confirmPassword"
+              type="password"
+              placeholder="Confirm new password"
+              required
+              autoComplete="new-password"
+              className="sl-input h-12"
+            />
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              className="sl-cta sl-cta-lg w-full"
+              onClick={() => navigate("/login")}
+            >
+              Reset &amp; sign in
+            </button>
           </div>
         </form>
 
-        <div className="text-center mt-6">
+        <div className="mt-6 text-center">
           <button
             type="button"
             onClick={() => navigate("/login")}
-            className="text-sm font-semibold text-ink-muted hover:text-ink transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-sm"
+            className="rounded-sm text-sm font-semibold text-accent hover:underline"
           >
-            Back to login
+            Back to sign in
           </button>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

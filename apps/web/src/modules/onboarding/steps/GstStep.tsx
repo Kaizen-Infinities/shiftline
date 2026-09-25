@@ -138,8 +138,10 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {REG_TYPES.map((r) => (
           <label
             key={r.value}
-            className={`cursor-pointer rounded-md border p-3 ${
-              registrationType === r.value ? "border-accent bg-accent/10" : "border-line bg-card-2"
+            className={`cursor-pointer rounded-[18px] border p-4 transition-colors ${
+              registrationType === r.value
+                ? "border-transparent bg-nav-active"
+                : "border-line-soft bg-card hover:bg-nav-hover"
             }`}
           >
             <input
@@ -187,9 +189,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
       )}
 
       <div className="mt-6 flex items-center justify-between">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-ink-muted">
-          Places of business
-        </h3>
+        <h3 className="sl-h2 !text-base">Places of business</h3>
         <SecondaryButton
           onClick={() => setPlaces((ps) => [...ps, emptyPlace(false, gstin.slice(0, 2))])}
         >
@@ -201,7 +201,7 @@ const GstStep: React.FC<Props> = ({ state, onSaved, onBack }) => {
         {places.map((p, idx) => (
           <div
             key={p.id ?? `new-${idx}`}
-            className="rounded-md border border-line-soft bg-card-2/60 p-4"
+            className="rounded-[18px] border border-line-soft bg-card-2 p-4 sm:p-5"
           >
             <div className="grid gap-3 md:grid-cols-6">
               <Field label="Code">

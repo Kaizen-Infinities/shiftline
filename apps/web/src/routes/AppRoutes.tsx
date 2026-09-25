@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import BaseLayout from "../components/layout/BaseLayout";
 import PageContainer from "../components/layout/PageContainer";
@@ -25,6 +25,7 @@ const GstMastersPage = lazy(() => import("../modules/gst/pages/GstMastersPage"))
 const NotificationsPage = lazy(() => import("../modules/notifications/pages/NotificationsPage"));
 const UpgradePage = lazy(() => import("../modules/upgrade/pages/UpgradePage"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
+const AreaHubPage = lazy(() => import("../modules/hub/pages/AreaHubPage"));
 
 // ===========================================================================
 // ADMINISTRATION & ORGANIZATION
@@ -413,6 +414,10 @@ const AppRoutes = () => {
             <Route path="/company/edit" element={<CompanySettings />} />
             <Route path="/settings" element={<Settings />} />
 
+            {/* Area hubs (UI v2): one page per navigation area, built from the nav config;
+                each tile shows only when the user holds that screen's permission. */}
+            <Route path="/hub/:area" element={<AreaHubPage />} />
+
             {/* Administration pages that ship their own `.inner-container` */}
             <Route element={<ProtectedRoute permission="users.view" />}>
               <Route path="/users" element={<UserList />} />
@@ -704,6 +709,11 @@ const AppRoutes = () => {
                 }
               >
                 <Route path="/purchase-returns" element={<PurchaseReturnPage />} />
+                {/* The legacy menu's "Add" link: returns are raised from a dialog on the list. */}
+                <Route
+                  path="/purchase-returns/create"
+                  element={<Navigate to="/purchase-returns" replace />}
+                />
               </Route>
 
               {/* ---------- Accounts & Financials ---------- */}
