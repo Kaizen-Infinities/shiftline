@@ -13,16 +13,17 @@ const PERIOD_OPTIONS: { value: DashPeriod; label: string }[] = [
   { value: "year", label: "Year" },
 ];
 
-/** "RIYA SHARMA" → "Riya"; "Riya Sharma" → "Riya"; empty → null. */
-const firstNameOf = (fullName?: string | null, username?: string | null): string | null => {
-  const raw = (fullName || username || "").trim();
+/** "RIYA SHARMA" → "Riya Sharma"; "DEMO Owner" → "Demo Owner"; empty → null. */
+const displayNameOf = (fullName?: string | null, username?: string | null): string | null => {
+  const raw = (fullName || username?.split("@")[0] || "").trim();
   if (!raw) return null;
-  const first = raw.split(/[\s@._-]+/)[0];
-  if (!first) return null;
   // Seeded and imported names are often all caps; greet people like people.
-  return first === first.toUpperCase() && first.length > 1
-    ? first.charAt(0) + first.slice(1).toLowerCase()
-    : first;
+  return raw
+    .split(/\s+/)
+    .map((w) =>
+      w === w.toUpperCase() && w.length > 1 ? w.charAt(0) + w.slice(1).toLowerCase() : w
+    )
+    .join(" ");
 };
 
 const initialsOf = (name: string) =>
@@ -46,7 +47,7 @@ export const WelcomeHeader: React.FC<{
   const user = useAppSelector((s) => s.auth.user);
   const company = useAppSelector((s) => s.company.data);
 
-  const firstName = firstNameOf(user?.fullName, user?.username);
+  const displayName = displayNameOf(user?.fullName, user?.username);
   const companyName = company?.shortName || company?.companyName || null;
 
   const today = useMemo(
@@ -77,7 +78,8 @@ export const WelcomeHeader: React.FC<{
         )}
         <div className="min-w-0">
           <h1 className="sl-welcome leading-tight">
-            Welcome <strong>{firstName ?? "back"}</strong>
+            Welcome back{displayName ? ", " : ""}
+            {displayName && <strong>{displayName}</strong>}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <span className="sl-chip sl-chip-muted">

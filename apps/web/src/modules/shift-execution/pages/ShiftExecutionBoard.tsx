@@ -1,17 +1,23 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  FaPlay,
-  FaStop,
-  FaCheck,
-  FaUnlock,
-  FaLock,
-  FaClipboardList,
-  FaClock,
-  FaPlus,
-  FaTrash,
-  FaCalculator,
-} from "react-icons/fa";
+  Check,
+  ClipboardList,
+  Clock,
+  Cog,
+  Factory,
+  Gauge,
+  Lock,
+  LogOut,
+  Play,
+  Plus,
+  Square,
+  Trash2,
+  Unlock,
+  User,
+} from "lucide-react";
 import { toast } from "react-toastify";
+import apiClient from "../../../api/apiClient";
+import { API_PATHS } from "@shiftline/shared";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   fetchProductionOrders,
@@ -27,7 +33,19 @@ import { fetchShifts } from "../../../features/shifts/shiftSlice";
 import { createShiftRecord } from "../../../features/product-shift-records/productShiftRecordSlice";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
+import StatusBadge from "../../../components/ui/StatusBadge/Badge";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SectionLabel,
+  Skeleton,
+  Tile,
+  cx,
+} from "../../../components/ui/v2";
+import { Figure, PageBody, formatQty } from "../../production/ui";
+import { formatDateTime } from "../../../utils/dateUtils";
 import CommonModal from "../../../components/ui/Modal/CommonModal";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 
@@ -61,7 +79,11 @@ const ShiftExecutionBoard: React.FC = () => {
   const [activeHourIndex, setActiveHourIndex] = useState(1);
   const [supervisorMode, setSupervisorMode] = useState(false);
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
-  const [passcode, setPasscode] = useState("");
+  // The supervisor signs in with their own account; the server checks it and their
+  // shift-execution.supervise permission. Nothing secret lives in this page.
+  const [supervisorEmail, setSupervisorEmail] = useState("");
+  const [supervisorPassword, setSupervisorPassword] = useState("");
+  const [verifyingSupervisor, setVerifyingSupervisor] = useState(false);
 
   // Downtime modal state
   const [showDowntimeModal, setShowDowntimeModal] = useState(false);
@@ -319,15 +341,29 @@ const ShiftExecutionBoard: React.FC = () => {
   };
 
   // Supervisor override authentication
-  const handleSupervisorVerify = (e: React.FormEvent) => {
+  const handleSupervisorVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === "1234") {
+    if (!supervisorEmail || !supervisorPassword || verifyingSupervisor) return;
+    setVerifyingSupervisor(true);
+    try {
+      const res = await apiClient.post(API_PATHS.shiftExecution.supervisorOverride, {
+        email: supervisorEmail,
+        password: supervisorPassword,
+      });
+      const name: string | undefined = res.data?.data?.supervisorName;
       setSupervisorMode(true);
       setShowSupervisorModal(false);
-      setPasscode("");
-      toast.success("Supervisor Mode activated! Editing unlocked.");
-    } else {
-      toast.error("Incorrect passcode. Editing remains locked.");
+      toast.success(
+        `Supervisor mode unlocked${name ? ` by ${name}` : ""}. Every hour is editable.`
+      );
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ??
+          "Supervisor mode stays locked. Check the details and try again."
+      );
+    } finally {
+      setSupervisorPassword("");
+      setVerifyingSupervisor(false);
     }
   };
 
@@ -415,42 +451,77 @@ const ShiftExecutionBoard: React.FC = () => {
     };
   }, [hourlyInputs, downtimeLogs, activeOrder]);
 
-  const statusButtonClass = (isCurrent: boolean, tone: "accent" | "danger") =>
-    `flex items-center justify-center gap-2 py-2.5 px-3 rounded-sm text-sm font-semibold border transition-colors ${
-      isCurrent
-        ? "border-line-soft bg-card-2 text-ink-subtle opacity-60 cursor-not-allowed"
-        : tone === "danger"
-          ? "border-[color:var(--color-danger)] text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)] hover:text-white"
-          : "border-accent text-accent hover:bg-accent hover:text-white"
-    }`;
+  const HOURS = [1, 2, 3, 4, 5, 6, 7, 8];
+  const DOWNTIME_REASONS = [
+    { label: "Breakdown (Mechanical/Electrical)", value: "Breakdown" },
+    { label: "Mold Change", value: "Mold Change" },
+    { label: "Material Shortage", value: "Material Shortage" },
+    { label: "Power Failure", value: "Power Failure" },
+    { label: "Quality Issue (Inspection delay)", value: "Quality Issue" },
+    { label: "Operator Absence", value: "Operator Absence" },
+  ];
+  const SHIFT_OPTIONS = [
+    { label: "Morning Shift", value: "MORNING" },
+    { label: "Evening Shift", value: "EVENING" },
+  ];
+
+  const machineName = machines.find((m) => m.machineId === selectedMachineId)?.machineName;
+  const shiftLabel = selectedShiftId === "MORNING" ? "Morning Shift" : "Evening Shift";
+  const target = Number(activeOrder?.targetQty) || 0;
+  const progressPct = target > 0 ? Math.min(100, (analytics.totalProduced / target) * 100) : 0;
+  const isRunning = activeOrder?.status === "IN_PRODUCTION";
+  const isFinished =
+    activeOrder?.status === "POST_PRODUCTION" || activeOrder?.status === "COMPLETED";
+  const numberInputClass =
+    "sl-input h-12 w-full text-center text-[18px] font-bold tabular-nums disabled:opacity-60";
+
+  const pickerTile = (selected: boolean) =>
+    cx(
+      "flex min-h-[56px] w-full items-center rounded-[14px] border px-4 py-3 text-left text-[15px] font-semibold transition-colors",
+      selected
+        ? "border-accent bg-nav-active text-nav-active-fg"
+        : "border-line bg-card text-ink hover:bg-card-2"
+    );
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 py-3">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 mb-4 pb-3 border-b border-line">
-        <h2 className="text-xl font-bold text-ink">Operator Shift Execution Console</h2>
-        {isConsoleActive && (
-          <button
-            onClick={() => {
-              setIsConsoleActive(false);
-              setActiveOrderId("");
-              setSupervisorMode(false);
-            }}
-            className="px-4 py-2 rounded-sm border border-[color:var(--color-danger)] text-[color:var(--color-danger)] text-sm font-semibold hover:bg-[color:var(--color-danger)] hover:text-white transition-colors cursor-pointer"
-          >
-            Close Console Session
-          </button>
-        )}
-      </div>
+    <PageBody className="mx-auto max-w-[1400px]">
+      <PageHeader
+        title="Shift Execution"
+        icon={<Factory size={22} />}
+        subtitle="Operator Shift Execution Console · start the run, log every hour, record stoppages."
+        meta={
+          isConsoleActive && activeOrder ? (
+            <StatusBadge status={activeOrder.status ?? ""} />
+          ) : undefined
+        }
+        actions={
+          isConsoleActive ? (
+            <ActionPill
+              variant="secondary"
+              size="lg"
+              icon={<LogOut size={18} />}
+              onClick={() => {
+                setIsConsoleActive(false);
+                setActiveOrderId("");
+                setSupervisorMode(false);
+              }}
+            >
+              Close Console Session
+            </ActionPill>
+          ) : undefined
+        }
+      />
 
-      {/* Setup Phase */}
       {!isConsoleActive ? (
-        <div className="flex justify-center py-6">
-          <div className="w-full max-w-lg bg-card rounded-sm border border-line p-6">
-            <h4 className="text-lg font-bold text-ink text-center mb-5">
-              Setup Shift Console Session
-            </h4>
+        /* ------------------------------------------------ setup */
+        <div className="mx-auto w-full max-w-2xl">
+          <Tile
+            padding="lg"
+            title="Setup Shift Console Session"
+            subtitle="Tap your machine and shift, enter your name, then open the board."
+          >
             <form
+              className="flex flex-col gap-6"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!selectedMachineId || !selectedShiftId || !operatorName) {
@@ -464,433 +535,425 @@ const ShiftExecutionBoard: React.FC = () => {
                 }
               }}
             >
-              <div className="space-y-4">
-                <SelectInput
-                  label="Machine"
-                  name="machineId"
-                  value={selectedMachineId}
-                  options={machines.map((m) => ({
-                    label: m.machineName,
-                    value: m.machineId,
-                  }))}
-                  required
-                  defaultOptionLabel="Select Machine"
-                  onChange={(e) => setSelectedMachineId(e.target.value)}
-                />
-                <SelectInput
-                  label="Shift"
-                  name="shiftId"
-                  value={selectedShiftId}
-                  options={[
-                    { label: "Morning Shift", value: "MORNING" },
-                    { label: "Evening Shift", value: "EVENING" },
-                  ]}
-                  required
-                  defaultOptionLabel="Select Shift"
-                  onChange={(e) => setSelectedShiftId(e.target.value)}
-                />
-                <TextInput
-                  label="Operator Name / ID"
-                  name="operatorName"
-                  value={operatorName}
-                  required
-                  placeholder="Enter your name"
-                  onChange={(e) => setOperatorName(e.target.value)}
-                />
-                <div className="pt-2">
-                  <CustomButton
-                    text="Initialize Operator Board"
-                    type="submit"
-                    size="lg"
-                    className="w-full"
-                  />
-                </div>
+              <div role="radiogroup" aria-label="Machine">
+                <span className="sl-label">
+                  Machine
+                  <span className="sl-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
+                {machines.length === 0 ? (
+                  <div className="grid grid-cols-2 gap-2" aria-hidden="true">
+                    <Skeleton height={56} />
+                    <Skeleton height={56} />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                    {machines.map((m) => (
+                      <button
+                        key={m.machineId}
+                        type="button"
+                        role="radio"
+                        aria-checked={selectedMachineId === m.machineId}
+                        onClick={() => setSelectedMachineId(m.machineId)}
+                        className={pickerTile(selectedMachineId === m.machineId)}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate">{m.machineName}</span>
+                          <span className="block font-mono text-[12px] font-medium opacity-70">
+                            {m.machineId}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </form>
-          </div>
-        </div>
-      ) : (
-        /* Active Console Session */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left Column: Active Order Details & Status Toggles */}
-          <div className="lg:col-span-4 flex flex-col gap-4">
-            <div className="bg-card rounded-sm border border-line p-4">
-              <h5 className="text-sm font-bold text-ink border-b border-line-soft pb-2 mb-3">
-                Console Session
-              </h5>
-              <div className="text-xs text-ink-muted space-y-1 mb-3">
-                <div>
-                  <span className="font-semibold text-ink">Operator:</span> {operatorName}
-                </div>
-                <div>
-                  <span className="font-semibold text-ink">Machine:</span>{" "}
-                  {machines.find((m) => m.machineId === selectedMachineId)?.machineName}
-                </div>
-                <div>
-                  <span className="font-semibold text-ink">Shift:</span>{" "}
-                  {selectedShiftId === "MORNING" ? "Morning Shift" : "Evening Shift"}
+
+              <div role="radiogroup" aria-label="Shift">
+                <span className="sl-label">
+                  Shift
+                  <span className="sl-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {SHIFT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selectedShiftId === opt.value}
+                      onClick={() => setSelectedShiftId(opt.value)}
+                      className={cx(pickerTile(selectedShiftId === opt.value), "justify-center")}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <SelectInput
-                label="Select Production Order"
-                name="activeOrderId"
-                value={activeOrderId}
-                options={availableOrders.map((po) => ({
-                  label: `${po.productionOrderId} (${po.productItem?.productName})`,
-                  value: po.productionOrderId || "",
-                }))}
-                onChange={(e) => setActiveOrderId(e.target.value)}
+              <TextInput
+                label="Operator Name / ID"
+                name="operatorName"
+                value={operatorName}
+                required
+                placeholder="Enter your name"
+                autoComplete="name"
+                inputClassName="h-14 text-[17px]"
+                onChange={(e) => setOperatorName(e.target.value)}
               />
 
-              {activeOrder ? (
-                <div className="mt-4">
-                  <div className="p-3 bg-card-2 rounded-md border border-line-soft mb-4">
-                    <h6 className="text-xs font-bold text-ink uppercase tracking-wide mb-2">
-                      Order Information
-                    </h6>
-                    <div className="text-xs text-ink-muted space-y-1">
-                      <div>
-                        <span className="font-semibold text-ink">Product:</span>{" "}
+              <ActionPill type="submit" size="xl" fullWidth icon={<Play size={20} />}>
+                Initialize Operator Board
+              </ActionPill>
+            </form>
+          </Tile>
+        </div>
+      ) : (
+        /* ------------------------------------------------ active console */
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <Chip size="lg" icon={<Cog size={16} />}>
+              {machineName || selectedMachineId}
+            </Chip>
+            <Chip size="lg" icon={<Clock size={16} />}>
+              {shiftLabel}
+            </Chip>
+            <Chip size="lg" icon={<User size={16} />}>
+              {operatorName}
+            </Chip>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+            {/* Left: order, big figures, controls, OEE */}
+            <div className="flex flex-col gap-5 lg:col-span-4">
+              <Tile title="Production order">
+                <SelectInput
+                  label="Select Production Order"
+                  name="activeOrderId"
+                  value={activeOrderId}
+                  options={availableOrders.map((po) => ({
+                    label: `${po.productionOrderId} (${po.productItem?.productName})`,
+                    value: po.productionOrderId || "",
+                  }))}
+                  onChange={(e) => setActiveOrderId(e.target.value)}
+                />
+
+                {activeOrder ? (
+                  <div className="mt-4 flex flex-col gap-4">
+                    <div>
+                      <p className="m-0 text-[17px] font-bold text-ink">
                         {activeOrder.productItem?.productName}
-                      </div>
-                      <div>
-                        <span className="font-semibold text-ink">Planned Target:</span>{" "}
-                        {activeOrder.targetQty} {activeOrder.uom}
-                      </div>
-                      <div>
-                        <span className="font-semibold text-ink">Expected Run Hours:</span> 8 Hrs
-                      </div>
-                      <div>
-                        <span className="font-semibold text-ink">Hourly Target:</span>{" "}
-                        {hourlyTarget} {activeOrder.uom}/Hr
-                      </div>
-                      <div>
-                        <span className="font-semibold text-ink">Setup Time:</span> N/A
+                      </p>
+                      <p className="sl-muted m-0 text-[13px]">
+                        8 run hours · {formatQty(hourlyTarget)} {activeOrder.uom}/hr target
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 rounded-[16px] bg-card-2 p-4">
+                      <Figure
+                        size="lg"
+                        label="Target"
+                        value={formatQty(activeOrder.targetQty)}
+                        hint={activeOrder.uom}
+                      />
+                      <Figure
+                        size="lg"
+                        label="Done"
+                        tone="accent"
+                        value={formatQty(analytics.totalProduced)}
+                        hint={`${progressPct.toFixed(0)}% of target`}
+                      />
+                      <div
+                        className="col-span-2 h-3 overflow-hidden rounded-full bg-card"
+                        role="progressbar"
+                        aria-label="Shift progress"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(progressPct)}
+                      >
+                        <div
+                          className="h-full rounded-full bg-cta transition-[width]"
+                          style={{ width: `${progressPct}%` }}
+                        />
                       </div>
                     </div>
-                  </div>
 
-                  <h6 className="text-xs font-bold text-ink uppercase tracking-wide mb-2">
-                    Shift Status Controls
-                  </h6>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => handleStatusChange("IN_PRODUCTION")}
-                      disabled={activeOrder.status === "IN_PRODUCTION"}
-                      className={statusButtonClass(
-                        activeOrder.status === "IN_PRODUCTION",
-                        "accent"
-                      )}
-                    >
-                      <FaPlay size={13} /> Start Shift / Resume
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange("POST_PRODUCTION")}
-                      disabled={
-                        activeOrder.status === "POST_PRODUCTION" ||
-                        activeOrder.status === "COMPLETED"
-                      }
-                      className={statusButtonClass(
-                        activeOrder.status === "POST_PRODUCTION" ||
-                          activeOrder.status === "COMPLETED",
-                        "accent"
-                      )}
-                    >
-                      <FaCheck size={13} /> Complete Shift / Finish
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange("CANCELLED")}
-                      disabled={activeOrder.status === "CANCELLED"}
-                      className={statusButtonClass(activeOrder.status === "CANCELLED", "danger")}
-                    >
-                      <FaStop size={13} /> Stop / Stoppage
-                    </button>
+                    <div className="flex flex-col gap-2.5">
+                      <SectionLabel className="!mb-0">Shift Status Controls</SectionLabel>
+                      <ActionPill
+                        variant={isRunning ? "secondary" : "cta"}
+                        size={isRunning ? "lg" : "xl"}
+                        fullWidth
+                        icon={<Play size={20} />}
+                        onClick={() => handleStatusChange("IN_PRODUCTION")}
+                        disabled={activeOrder.status === "IN_PRODUCTION"}
+                        className={isRunning ? "min-h-[56px]" : undefined}
+                      >
+                        {isRunning ? "Running" : "Start Shift / Resume"}
+                      </ActionPill>
+                      <ActionPill
+                        variant={isRunning ? "cta" : "secondary"}
+                        size={isRunning ? "xl" : "lg"}
+                        fullWidth
+                        icon={<Check size={20} />}
+                        onClick={() => handleStatusChange("POST_PRODUCTION")}
+                        disabled={isFinished}
+                        className={!isRunning ? "min-h-[56px]" : undefined}
+                      >
+                        Complete Shift / Finish
+                      </ActionPill>
+                      <ActionPill
+                        variant="danger"
+                        size="lg"
+                        fullWidth
+                        icon={<Square size={18} />}
+                        onClick={() => handleStatusChange("CANCELLED")}
+                        disabled={activeOrder.status === "CANCELLED"}
+                        className="min-h-[56px]"
+                      >
+                        Stop / Stoppage
+                      </ActionPill>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="mt-4 p-3 rounded-md border border-[color:var(--color-warning)] bg-card text-[color:var(--color-warning)] text-xs text-center">
-                  No active production order loaded for this machine shift slot. Please select or
-                  schedule one.
-                </div>
+                ) : (
+                  <div
+                    role="status"
+                    className="mt-4 rounded-[14px] bg-card-2 p-4 text-center text-[14px] font-medium text-[color:var(--color-warning)]"
+                  >
+                    No active production order loaded for this machine shift slot. Please select or
+                    schedule one.
+                  </div>
+                )}
+              </Tile>
+
+              {activeOrder && (
+                <Tile title="Real-time Shift OEE" icon={<Gauge size={18} />}>
+                  <div className="flex items-end justify-between gap-3">
+                    <Figure
+                      size="lg"
+                      label="Overall Shift OEE"
+                      value={`${analytics.oee}%`}
+                      tone="accent"
+                    />
+                    <Chip
+                      tone={analytics.totalDowntime > 0 ? "danger" : "success"}
+                      icon={<Clock size={14} />}
+                    >
+                      {analytics.totalDowntime} min down
+                    </Chip>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line-soft pt-4">
+                    <Figure label="Availability" value={`${analytics.availability}%`} />
+                    <Figure label="Performance" value={`${analytics.performance}%`} />
+                    <Figure label="Quality" value={`${analytics.quality}%`} />
+                  </div>
+                </Tile>
               )}
             </div>
 
-            {/* Shift OEE Gauge Panel */}
-            {activeOrder && (
-              <div className="bg-card rounded-sm border border-line p-4">
-                <h5 className="text-sm font-bold text-ink border-b border-line-soft pb-2 mb-3 flex items-center gap-2">
-                  <FaCalculator className="text-ink-subtle" size={13} />
-                  <span>Real-time Shift OEE</span>
-                </h5>
-                <div className="text-center py-3">
-                  <div className="text-3xl font-bold text-ink font-mono">{analytics.oee}%</div>
-                  <div className="text-[10px] uppercase tracking-wider text-ink-subtle font-bold mt-1">
-                    Overall Shift OEE
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 mt-2 pt-3 border-t border-line-soft text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-ink-subtle">Machine Availability:</span>
-                    <span className="font-bold text-ink">{analytics.availability}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-ink-subtle">Production Performance:</span>
-                    <span className="font-bold text-ink">{analytics.performance}%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-ink-subtle">Quality Index:</span>
-                    <span className="font-bold text-ink">{analytics.quality}%</span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-line-soft pt-2 mt-1">
-                    <span className="text-ink-subtle">Total Downtime Minutes:</span>
-                    <span className="px-2 py-0.5 rounded-sm border border-[color:var(--color-danger)] text-[color:var(--color-danger)] text-[11px] font-bold">
-                      {analytics.totalDowntime} Min
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column: Hourly Production Logs & Downtime Logs */}
-          <div className="lg:col-span-8">
-            {activeOrder ? (
-              <>
-                {/* Hourly Entry Panel */}
-                <div className="bg-card rounded-sm border border-line p-4 mb-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <h5 className="text-sm font-bold text-ink flex items-center gap-2">
-                      <FaClipboardList className="text-ink-subtle" size={13} />
-                      <span>Hourly Production Log</span>
-                    </h5>
-                    <div className="flex items-center gap-2">
-                      {supervisorMode ? (
-                        <button
+            {/* Right: hourly log and downtime */}
+            <div className="flex flex-col gap-5 lg:col-span-8">
+              {activeOrder ? (
+                <>
+                  <Tile
+                    title="Hourly Production Log"
+                    icon={<ClipboardList size={18} />}
+                    subtitle={
+                      supervisorMode
+                        ? "Supervisor mode: every hour is editable."
+                        : "Only the active hour is open. Save moves you to the next hour."
+                    }
+                    actions={
+                      supervisorMode ? (
+                        <ActionPill
+                          variant="secondary"
+                          size="sm"
+                          icon={<Unlock size={14} />}
                           onClick={() => setSupervisorMode(false)}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-[color:var(--color-success)] text-[color:var(--color-success)] text-xs font-bold cursor-pointer"
+                          className="text-[color:var(--color-success)]"
                         >
-                          <FaUnlock size={11} /> Supervisor Unlocked
-                        </button>
+                          Supervisor Unlocked
+                        </ActionPill>
                       ) : (
-                        <button
+                        <ActionPill
+                          variant="secondary"
+                          size="sm"
+                          icon={<Lock size={14} />}
                           onClick={() => setShowSupervisorModal(true)}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-line text-ink-muted text-xs font-semibold hover:bg-card-2 cursor-pointer"
                         >
-                          <FaLock size={11} /> Supervisor Override
-                        </button>
-                      )}
-
-                      <div className="flex items-center gap-1.5 text-xs text-ink-muted font-mono border border-line-soft rounded-sm px-2 py-1 bg-card-2">
-                        Active Hour:
-                        <select
-                          value={activeHourIndex}
-                          onChange={(e) => setActiveHourIndex(Number(e.target.value))}
-                          className="border-none bg-transparent font-bold text-ink cursor-pointer focus:outline-none"
-                        >
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map((h) => (
-                            <option key={h} value={h}>
-                              Hour {h}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto border border-line-soft rounded-sm">
-                    <table className="w-full text-sm text-center">
-                      <thead className="bg-card-2 border-b border-line-soft">
-                        <tr>
-                          <th
-                            className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider"
-                            style={{ width: "80px" }}
-                          >
-                            Hour
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            Target Qty
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            Actual Qty
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            Reject Qty
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            Scrap Qty
-                          </th>
-                          <th
-                            className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider"
-                            style={{ width: "90px" }}
-                          >
-                            Save
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line-soft">
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((hour) => {
-                          const isEditable = supervisorMode || hour === activeHourIndex;
-                          const input = hourlyInputs[hour] || {
-                            actual: "",
-                            reject: "",
-                            scrap: "",
-                          };
-
-                          return (
-                            <tr
-                              key={hour}
-                              className={hour === activeHourIndex ? "bg-accent/5" : ""}
-                            >
-                              <td className="px-3 py-2 font-bold font-mono text-ink">H-{hour}</td>
-                              <td className="px-3 py-2 font-mono text-ink-muted font-semibold">
-                                {hourlyTarget} {activeOrder.uom}
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <input
-                                  type="number"
-                                  className="w-full text-center font-mono bg-card border border-line-soft rounded-sm px-2 py-1.5 text-sm text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 disabled:opacity-50 disabled:bg-card-2"
-                                  placeholder="0"
-                                  value={input.actual}
-                                  disabled={!isEditable}
-                                  onChange={(e) =>
-                                    handleInputChange(hour, "actual", e.target.value)
-                                  }
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <input
-                                  type="number"
-                                  className="w-full text-center font-mono bg-card border border-line-soft rounded-sm px-2 py-1.5 text-sm text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 disabled:opacity-50 disabled:bg-card-2"
-                                  placeholder="0"
-                                  value={input.reject}
-                                  disabled={!isEditable}
-                                  onChange={(e) =>
-                                    handleInputChange(hour, "reject", e.target.value)
-                                  }
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <input
-                                  type="number"
-                                  className="w-full text-center font-mono bg-card border border-line-soft rounded-sm px-2 py-1.5 text-sm text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 disabled:opacity-50 disabled:bg-card-2"
-                                  placeholder="0"
-                                  value={input.scrap}
-                                  disabled={!isEditable}
-                                  onChange={(e) => handleInputChange(hour, "scrap", e.target.value)}
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <button
-                                  disabled={!isEditable}
-                                  onClick={() => handleSaveHourlyRow(hour)}
-                                  className={`px-3 py-1.5 rounded-sm text-xs font-bold border transition-colors ${
-                                    isEditable
-                                      ? "border-accent text-accent hover:bg-accent hover:text-white cursor-pointer"
-                                      : "border-line text-ink-subtle opacity-50 cursor-not-allowed"
-                                  }`}
-                                >
-                                  Save
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Downtime Logs Panel */}
-                <div className="bg-card rounded-sm border border-line p-4">
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <h5 className="text-sm font-bold text-[color:var(--color-danger)] flex items-center gap-2">
-                      <FaClock size={13} />
-                      <span>Machine Stoppage & Downtime Logs</span>
-                    </h5>
-                    <button
-                      onClick={() => setShowDowntimeModal(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-[color:var(--color-danger)] text-white text-xs font-semibold hover:brightness-110 cursor-pointer"
+                          Supervisor Override
+                        </ActionPill>
+                      )
+                    }
+                  >
+                    <div
+                      role="group"
+                      aria-label="Active Hour"
+                      className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 py-1 [scrollbar-width:none]"
                     >
-                      <FaPlus size={11} /> Log Stoppage
-                    </button>
-                  </div>
+                      {HOURS.map((h) => (
+                        <Chip
+                          key={h}
+                          size="lg"
+                          selected={activeHourIndex === h}
+                          onClick={() => setActiveHourIndex(h)}
+                          className="shrink-0 !min-h-[44px] tabular-nums"
+                          aria-label={`Hour ${h}`}
+                        >
+                          H{h}
+                          {hourlyInputs[h]?.actual ? <Check size={14} aria-hidden="true" /> : null}
+                        </Chip>
+                      ))}
+                    </div>
 
-                  <div className="overflow-x-auto border border-line-soft rounded-sm">
-                    <table className="w-full text-sm text-center">
-                      <thead className="bg-card-2 border-b border-line-soft">
-                        <tr>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider text-left">
-                            Downtime Reason
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            Start Time
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            End Time
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            Duration
-                          </th>
-                          <th className="px-3 py-2 text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line-soft">
-                        {downtimeLogs.length > 0 ? (
-                          downtimeLogs.map((log) => (
-                            <tr key={log.id}>
-                              <td className="px-3 py-2 font-bold text-left text-[color:var(--color-danger)]">
-                                {log.reason}
-                              </td>
-                              <td className="px-3 py-2 font-mono text-ink-subtle text-[12px]">
-                                {new Date(log.startTime).toLocaleString()}
-                              </td>
-                              <td className="px-3 py-2 font-mono text-ink-subtle text-[12px]">
-                                {new Date(log.endTime).toLocaleString()}
-                              </td>
-                              <td className="px-3 py-2 font-bold text-ink font-mono">
-                                {log.durationMinutes} Min
-                              </td>
-                              <td className="px-3 py-2">
-                                <button
-                                  onClick={() => handleDeleteDowntime(log.id)}
-                                  className="text-[color:var(--color-danger)] hover:opacity-70 cursor-pointer"
-                                  aria-label="Delete downtime log"
-                                >
-                                  <FaTrash size={12} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="px-3 py-6 text-ink-subtle text-sm">
-                              No machine stoppages logged for this shift. High efficiency!
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-card rounded-sm border border-line py-14 text-center">
-                <FaClipboardList className="text-ink-subtle mx-auto mb-3" size={40} />
-                <h5 className="text-sm font-bold text-ink mb-1">
-                  Awaiting active Production Order selection
-                </h5>
-                <p className="text-xs text-ink-subtle">
-                  Please select a Production Order in the side panel to view execution grids and
-                  logs.
-                </p>
-              </div>
-            )}
+                    <div className="hidden grid-cols-[72px_1fr_1fr_1fr_1fr_96px] gap-3 px-3 pb-2 md:grid">
+                      {["Hour", "Target Qty", "Actual Qty", "Reject Qty", "Scrap Qty", ""].map(
+                        (h) => (
+                          <span key={h} className="sl-th text-center">
+                            {h}
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <ol className="m-0 flex list-none flex-col gap-2 p-0">
+                      {HOURS.map((hour) => {
+                        const isEditable = supervisorMode || hour === activeHourIndex;
+                        const isActive = hour === activeHourIndex;
+                        const input = hourlyInputs[hour] || {
+                          actual: "",
+                          reject: "",
+                          scrap: "",
+                        };
+                        return (
+                          <li
+                            key={hour}
+                            className={cx(
+                              "grid grid-cols-3 items-center gap-3 rounded-[16px] p-3 md:grid-cols-[72px_1fr_1fr_1fr_1fr_96px]",
+                              isActive ? "bg-nav-active" : "bg-card-2",
+                              !isEditable && "opacity-80"
+                            )}
+                          >
+                            <div className="col-span-2 flex items-center gap-2 md:col-span-1 md:block md:text-center">
+                              <span className="text-[18px] font-bold text-ink tabular-nums">
+                                H-{hour}
+                              </span>
+                              {!isEditable && (
+                                <Lock
+                                  size={14}
+                                  className="text-ink-subtle md:mx-auto md:mt-0.5 md:block"
+                                  aria-label="Locked"
+                                />
+                              )}
+                            </div>
+                            <div className="text-right md:text-center">
+                              <span className="block text-[12px] font-medium text-ink-subtle md:hidden">
+                                Target
+                              </span>
+                              <span className="font-semibold text-ink-muted tabular-nums">
+                                {formatQty(hourlyTarget)} {activeOrder.uom}
+                              </span>
+                            </div>
+                            {(["actual", "reject", "scrap"] as const).map((field) => (
+                              <label key={field} className="min-w-0">
+                                <span className="block pb-1 text-[12px] font-medium text-ink-subtle md:sr-only">
+                                  {field === "actual"
+                                    ? "Actual Qty"
+                                    : field === "reject"
+                                      ? "Reject Qty"
+                                      : "Scrap Qty"}
+                                </span>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  aria-label={`Hour ${hour} ${field} quantity`}
+                                  className={numberInputClass}
+                                  placeholder="0"
+                                  value={input[field]}
+                                  disabled={!isEditable}
+                                  onChange={(e) => handleInputChange(hour, field, e.target.value)}
+                                />
+                              </label>
+                            ))}
+                            <ActionPill
+                              variant={isActive ? "cta" : "secondary"}
+                              size="lg"
+                              disabled={!isEditable}
+                              onClick={() => handleSaveHourlyRow(hour)}
+                              className="col-span-3 min-h-[48px] self-end md:col-span-1"
+                              aria-label={`Save hour ${hour}`}
+                            >
+                              Save
+                            </ActionPill>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </Tile>
+
+                  <Tile
+                    title="Machine Stoppage & Downtime Logs"
+                    icon={<Clock size={18} />}
+                    actions={
+                      <ActionPill
+                        variant="danger"
+                        size="md"
+                        icon={<Plus size={16} />}
+                        onClick={() => setShowDowntimeModal(true)}
+                      >
+                        Log Stoppage
+                      </ActionPill>
+                    }
+                  >
+                    {downtimeLogs.length > 0 ? (
+                      <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                        {downtimeLogs.map((log) => (
+                          <li
+                            key={log.id}
+                            className="flex flex-wrap items-center gap-3 rounded-[14px] bg-card-2 px-4 py-3"
+                          >
+                            <Chip tone="danger" dot>
+                              {log.reason}
+                            </Chip>
+                            <span className="sl-muted text-[13px] tabular-nums">
+                              {formatDateTime(log.startTime)} → {formatDateTime(log.endTime)}
+                            </span>
+                            <span className="ml-auto text-[17px] font-bold text-ink tabular-nums">
+                              {log.durationMinutes} min
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDowntime(log.id)}
+                              className="sl-icon-btn sl-icon-btn-md sl-icon-btn-hover-danger"
+                              aria-label="Delete downtime log"
+                            >
+                              <Trash2 size={16} aria-hidden="true" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={<Check size={22} />}
+                        title="No machine stoppages logged for this shift. High efficiency!"
+                      />
+                    )}
+                  </Tile>
+                </>
+              ) : (
+                <Tile>
+                  <EmptyState
+                    icon={<ClipboardList size={28} />}
+                    title="Awaiting active Production Order selection"
+                    description="Please select a Production Order in the side panel to view execution grids and logs."
+                  />
+                </Tile>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Supervisor Verification Modal */}
@@ -900,32 +963,48 @@ const ShiftExecutionBoard: React.FC = () => {
         title="Supervisor Authorization"
         maxWidth="sm"
         footer={
-          <div className="flex items-center justify-center gap-2.5 w-full">
-            <CustomButton
-              text="Cancel"
-              variant="secondary"
-              onClick={() => setShowSupervisorModal(false)}
-            />
-            <CustomButton
-              text="Unlock Console"
+          <div className="flex w-full items-center justify-end gap-2.5">
+            <ActionPill variant="secondary" onClick={() => setShowSupervisorModal(false)}>
+              Cancel
+            </ActionPill>
+            <ActionPill
+              icon={<Unlock size={16} />}
+              loading={verifyingSupervisor}
+              disabled={!supervisorEmail || !supervisorPassword}
               onClick={() =>
                 handleSupervisorVerify({ preventDefault: () => {} } as unknown as React.FormEvent)
               }
-            />
+            >
+              Unlock Console
+            </ActionPill>
           </div>
         }
       >
-        <form onSubmit={handleSupervisorVerify}>
+        <form onSubmit={handleSupervisorVerify} className="flex flex-col gap-4">
+          <p className="sl-muted text-sm">
+            A supervisor signs in with their own account to unlock every hour on this console.
+          </p>
           <TextInput
-            label="Enter Supervisor Passcode"
-            name="passcode"
-            type="password"
-            placeholder="Enter passcode (Hint: 1234)"
-            value={passcode}
+            label="Supervisor email"
+            name="supervisorEmail"
+            type="email"
+            autoComplete="off"
+            value={supervisorEmail}
             required
-            onChange={(e) => setPasscode(e.target.value)}
-            className="text-center font-mono"
+            onChange={(e) => setSupervisorEmail(e.target.value)}
+            inputClassName="h-12"
           />
+          <TextInput
+            label="Supervisor password"
+            name="supervisorPassword"
+            type="password"
+            autoComplete="off"
+            value={supervisorPassword}
+            required
+            onChange={(e) => setSupervisorPassword(e.target.value)}
+            inputClassName="h-12"
+          />
+          <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
         </form>
       </CommonModal>
 
@@ -936,41 +1015,46 @@ const ShiftExecutionBoard: React.FC = () => {
         title="Log Machine Downtime Stoppage"
         maxWidth="lg"
         footer={
-          <>
-            <CustomButton
-              text="Cancel"
-              variant="secondary"
-              onClick={() => setShowDowntimeModal(false)}
-            />
-            <CustomButton
-              text="Log Stoppage"
+          <div className="flex w-full items-center justify-end gap-2.5">
+            <ActionPill variant="secondary" onClick={() => setShowDowntimeModal(false)}>
+              Cancel
+            </ActionPill>
+            <ActionPill
               variant="danger"
+              icon={<Plus size={16} />}
               onClick={() =>
                 handleAddDowntime({ preventDefault: () => {} } as unknown as React.FormEvent)
               }
-            />
-          </>
+            >
+              Log Stoppage
+            </ActionPill>
+          </div>
         }
       >
-        <form onSubmit={handleAddDowntime}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <SelectInput
-                label="Downtime Reason"
-                name="downtimeReason"
-                value={downtimeReason}
-                options={[
-                  { label: "Breakdown (Mechanical/Electrical)", value: "Breakdown" },
-                  { label: "Mold Change", value: "Mold Change" },
-                  { label: "Material Shortage", value: "Material Shortage" },
-                  { label: "Power Failure", value: "Power Failure" },
-                  { label: "Quality Issue (Inspection delay)", value: "Quality Issue" },
-                  { label: "Operator Absence", value: "Operator Absence" },
-                ]}
-                required
-                onChange={(e) => setDowntimeReason(e.target.value)}
-              />
+        <form onSubmit={handleAddDowntime} className="flex flex-col gap-4">
+          <div role="radiogroup" aria-label="Downtime Reason">
+            <span className="sl-label">
+              Downtime Reason
+              <span className="sl-required" aria-hidden="true">
+                *
+              </span>
+            </span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {DOWNTIME_REASONS.map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={downtimeReason === r.value}
+                  onClick={() => setDowntimeReason(r.value)}
+                  className={pickerTile(downtimeReason === r.value)}
+                >
+                  {r.label}
+                </button>
+              ))}
             </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextInput
               label="Stoppage Start Time"
               name="downtimeStart"
@@ -990,7 +1074,7 @@ const ShiftExecutionBoard: React.FC = () => {
           </div>
         </form>
       </CommonModal>
-    </div>
+    </PageBody>
   );
 };
 

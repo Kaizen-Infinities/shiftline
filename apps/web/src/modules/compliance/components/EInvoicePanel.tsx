@@ -9,21 +9,27 @@ import {
   type EInvoiceDocType,
   type EInvoiceRow,
 } from "../../../services/eInvoiceService";
+import { Chip, type ChipTone } from "../../../components/ui/v2";
 
 /**
  * The IRN strip on a document (P1-11): whether e-invoicing applies, the button to raise the
  * IRN, the number and acknowledgement once it exists, and cancellation within the portal's
  * 24-hour window. Drops into the invoice, credit note and debit note screens.
  */
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const STATUS: Record<EInvoiceRow["status"], string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  GENERATED: "bg-emerald-100 text-emerald-800",
-  FAILED: "bg-rose-100 text-rose-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+const primary = "sl-btn-blue sl-pill-sm";
+const danger = "sl-btn-soft-danger sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const STATUS_TONE: Record<EInvoiceRow["status"], ChipTone> = {
+  PENDING: "warning",
+  GENERATED: "success",
+  FAILED: "danger",
+  CANCELLED: "muted",
+};
+const STATUS_LABEL: Record<EInvoiceRow["status"], string> = {
+  PENDING: "Pending",
+  GENERATED: "IRN generated",
+  FAILED: "Failed",
+  CANCELLED: "Cancelled",
 };
 const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -138,22 +144,21 @@ const EInvoicePanel: React.FC<EInvoicePanelProps> = ({
     (!row || row.status === "FAILED" || row.status === "PENDING");
 
   return (
-    <div
-      className="rounded-xl border border-line-soft bg-card p-3 space-y-2 no-print"
-      data-testid="e-invoice-panel"
-    >
+    <div className="sl-tile space-y-3 p-4 no-print" data-testid="e-invoice-panel">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-ink">E-invoice</span>
+        <span className="sl-h2 m-0 text-base">E-invoice</span>
         {row && (
-          <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[row.status]}`}>
-            {row.status}
-          </span>
+          <Chip tone={STATUS_TONE[row.status]} size="sm" dot>
+            {STATUS_LABEL[row.status]}
+          </Chip>
         )}
         {!row && applies && !applies.applies && (
           <span className="text-xs text-ink-muted">Not applicable: {applies.reason}</span>
         )}
         {!row && applies?.applies && applies.deadline && (
-          <span className="text-xs text-amber-700">IRN due by {applies.deadline}</span>
+          <Chip tone="warning" size="sm">
+            IRN due by {applies.deadline}
+          </Chip>
         )}
         <span className="flex-1" />
         {canGenerate && (
@@ -168,7 +173,7 @@ const EInvoicePanel: React.FC<EInvoicePanelProps> = ({
         )}
       </div>
       {row?.status === "GENERATED" && (
-        <dl className="grid gap-x-4 gap-y-0.5 text-xs text-ink-muted sm:grid-cols-[auto_1fr]">
+        <dl className="m-0 grid gap-x-4 gap-y-1 rounded-[12px] bg-card-2 p-3 text-xs text-ink-muted sm:grid-cols-[auto_1fr]">
           <dt>IRN</dt>
           <dd className="break-all font-mono text-ink">{row.irn}</dd>
           <dt>Ack</dt>
@@ -184,7 +189,9 @@ const EInvoicePanel: React.FC<EInvoicePanelProps> = ({
           )}
         </dl>
       )}
-      {row?.status === "FAILED" && <p className="text-xs text-rose-700">{row.error}</p>}
+      {row?.status === "FAILED" && (
+        <p className="m-0 text-xs text-[color:var(--color-danger)]">{row.error}</p>
+      )}
       {row?.status === "CANCELLED" && (
         <p className="text-xs text-ink-muted">
           Cancelled {when(row.cancelledAt)} · {row.cancelRemarks}. This number cannot get a new IRN.
@@ -193,7 +200,8 @@ const EInvoicePanel: React.FC<EInvoicePanelProps> = ({
       {cancelling && (
         <div className="flex flex-wrap items-center gap-2">
           <select
-            className="rounded-lg border border-line-soft bg-card-2 px-2 py-1.5 text-sm text-ink"
+            className="sl-input h-10 w-auto py-0 text-sm"
+            aria-label="Cancellation reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           >
@@ -204,7 +212,8 @@ const EInvoicePanel: React.FC<EInvoicePanelProps> = ({
             ))}
           </select>
           <input
-            className="min-w-[220px] flex-1 rounded-lg border border-line-soft bg-card-2 px-3 py-1.5 text-sm text-ink"
+            className="sl-input h-10 min-w-[220px] flex-1 py-0 text-sm"
+            aria-label="Remarks"
             placeholder="Remarks (kept on the portal)"
             value={remarks}
             maxLength={100}

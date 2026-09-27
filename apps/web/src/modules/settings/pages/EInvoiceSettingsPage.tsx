@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { FileCheck2 } from "lucide-react";
 
 import { eInvoiceService, type EInvoiceSettings } from "../../../services/eInvoiceService";
 
@@ -7,11 +9,10 @@ import { eInvoiceService, type EInvoiceSettings } from "../../../services/eInvoi
  * E-invoice settings (P1-11): whether it is on, from which date, the turnover band that decides
  * the 30-day window, and the GSP connection. Secrets are write-only.
  */
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-accent text-white hover:brightness-110`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const input = "w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink";
-const label = "block text-xs font-semibold uppercase tracking-wide text-ink-subtle mb-1";
+const primary = "sl-btn-blue sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const input = "sl-input h-11 py-0 text-sm";
+const label = "sl-label";
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   "Something went wrong";
@@ -99,19 +100,18 @@ const EInvoiceSettingsPage: React.FC = () => {
 
   if (!form || !settings) return <div className="p-6 text-sm text-ink-muted">Loading…</div>;
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-ink">E-invoicing</h2>
-        <p className="text-sm text-ink-muted">
-          B2B invoices, credit notes and debit notes are registered with the Invoice Registration
-          Portal through your GST Suvidha Provider. Until a GSP is connected, the built-in fixture
-          provider mimics the portal so the flow can be tried without filing anything.
-        </p>
-      </div>
-      <div className="grid gap-4 rounded-lg border border-line-soft bg-card p-4 md:grid-cols-2">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="E-invoicing"
+        icon={<FileCheck2 size={22} />}
+        subtitle="B2B invoices, credit notes and debit notes are registered with the Invoice Registration Portal through your GST Suvidha Provider. Until a GSP is connected, the built-in fixture provider mimics the portal so the flow can be tried without filing anything."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "E-invoicing" }]}
+      />
+      <div className="grid gap-4 sl-tile p-4 sm:p-5 md:grid-cols-2">
         <label className="flex items-center gap-2 text-sm text-ink md:col-span-2">
           <input
             type="checkbox"
+            className="sl-check"
             checked={form.enabled}
             onChange={(e) => set("enabled", e.target.checked)}
           />
@@ -209,7 +209,7 @@ const EInvoiceSettingsPage: React.FC = () => {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-          <button type="button" className={primary} disabled={busy} onClick={save}>
+          <button type="button" className="sl-cta sl-pill-md" disabled={busy} onClick={save}>
             Save
           </button>
           <button type="button" className={secondary} disabled={busy} onClick={verify}>

@@ -54,27 +54,29 @@ const HeadRows: React.FC<{ head: SIIIHead; index: string; detailed: boolean }> =
 }) => (
   <>
     <tr className="border-b border-line-soft">
-      <td className="px-3 py-1 text-xs text-ink">
-        <span className="mr-2 font-mono text-[10px] text-ink-subtle">{index}</span>
+      <td className="px-4 py-2 text-[13.5px] text-ink">
+        <span className="mr-2 tabular-nums text-[10px] text-ink-subtle">{index}</span>
         {head.head}
       </td>
-      <td className="px-3 py-1 text-right font-mono text-xs text-ink">{fmt(head.total)}</td>
+      <td className="px-4 py-2 text-right tabular-nums text-[13.5px] text-ink">
+        {fmt(head.total)}
+      </td>
     </tr>
     {detailed &&
       (head.groups ?? []).map((g) => (
         <React.Fragment key={g.code ?? g.name}>
           <tr className="bg-card-2/40">
-            <td className="px-3 py-0.5 pl-10 text-[11px] text-ink-muted">{g.name}</td>
-            <td className="px-3 py-0.5 text-right font-mono text-[11px] text-ink-muted">
+            <td className="px-3 py-0.5 pl-10 text-[13px] text-ink-muted">{g.name}</td>
+            <td className="px-3 py-0.5 text-right tabular-nums text-[13px] text-ink-muted">
               {fmt(g.total)}
             </td>
           </tr>
           {g.items.map((l) => (
             <tr key={l.code}>
-              <td className="px-3 py-0.5 pl-14 text-[11px] text-ink-subtle">
-                <span className="mr-1 font-mono">{l.code}</span> {l.name}
+              <td className="px-3 py-0.5 pl-14 text-[13px] text-ink-subtle">
+                <span className="mr-1 tabular-nums">{l.code}</span> {l.name}
               </td>
-              <td className="px-3 py-0.5 text-right font-mono text-[11px] text-ink-subtle">
+              <td className="px-3 py-0.5 text-right tabular-nums text-[13px] text-ink-subtle">
                 {fmt(amountOf(l))}
               </td>
             </tr>
@@ -85,10 +87,10 @@ const HeadRows: React.FC<{ head: SIIIHead; index: string; detailed: boolean }> =
       !head.groups &&
       (head.items ?? []).map((l) => (
         <tr key={l.code}>
-          <td className="px-3 py-0.5 pl-10 text-[11px] text-ink-subtle">
-            <span className="mr-1 font-mono">{l.code}</span> {l.name}
+          <td className="px-3 py-0.5 pl-10 text-[13px] text-ink-subtle">
+            <span className="mr-1 tabular-nums">{l.code}</span> {l.name}
           </td>
-          <td className="px-3 py-0.5 text-right font-mono text-[11px] text-ink-subtle">
+          <td className="px-3 py-0.5 text-right tabular-nums text-[13px] text-ink-subtle">
             {fmt(amountOf(l))}
           </td>
         </tr>
@@ -105,27 +107,27 @@ export const ScheduleIIIBalanceSheet: React.FC<{
 }> = ({ data, asOnDate, detailed }) => {
   const total = (s: SIIISection[]) => s.reduce((sum, x) => sum + x.total, 0);
   const side = (title: string, sections: SIIISection[], accent: string) => (
-    <div className="bg-card border border-line rounded-lg overflow-hidden">
-      <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between">
-        <h3 className={`text-xs font-bold uppercase tracking-wide ${accent}`}>{title}</h3>
-        <span className={`text-sm font-mono font-bold ${accent}`}>₹{fmt(total(sections))}</span>
+    <div className="sl-tile overflow-hidden">
+      <div className="px-4 py-3 border-b border-line-soft flex items-center justify-between">
+        <h3 className={`sl-h2 m-0 text-[15px] ${accent}`}>{title}</h3>
+        <span className={`text-sm tabular-nums font-bold ${accent}`}>₹{fmt(total(sections))}</span>
       </div>
       <table className="w-full text-left border-collapse">
-        <thead className="bg-head text-ink text-[10px] uppercase tracking-wide font-bold border-b border-line">
+        <thead className="bg-card-2 text-ink-muted text-[12px] font-semibold border-b border-line-soft">
           <tr>
-            <th className="px-3 py-1.5">Particulars</th>
-            <th className="px-3 py-1.5 text-right w-[150px]">As at {asOnDate}</th>
+            <th className="px-4 py-2.5">Particulars</th>
+            <th className="px-4 py-2.5 text-right w-[150px]">As at {asOnDate}</th>
           </tr>
         </thead>
         <tbody>
           {sections.map((sec, i) => (
             <React.Fragment key={sec.section}>
               <tr className="bg-card-2/60">
-                <td className="px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-ink">
-                  <span className="mr-2 font-mono text-ink-subtle">{roman[i] ?? i + 1}</span>
+                <td className="px-4 py-2 text-[13px] font-semibold text-ink">
+                  <span className="mr-2 tabular-nums text-ink-subtle">{roman[i] ?? i + 1}</span>
                   {sec.section}
                 </td>
-                <td className="px-3 py-1 text-right font-mono text-[11px] font-bold text-ink">
+                <td className="px-4 py-2 text-right tabular-nums text-[13px] font-bold text-ink">
                   {fmt(sec.total)}
                 </td>
               </tr>
@@ -135,8 +137,8 @@ export const ScheduleIIIBalanceSheet: React.FC<{
             </React.Fragment>
           ))}
           <tr className="bg-card-2 border-t-2 border-line font-bold">
-            <td className="px-3 py-1.5 text-xs uppercase tracking-wide text-ink">Total</td>
-            <td className="px-3 py-1.5 text-right font-mono text-sm text-ink">
+            <td className="px-4 py-2.5 text-[13.5px] font-bold text-ink">Total</td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-sm text-ink">
               ₹{fmt(total(sections))}
             </td>
           </tr>
@@ -146,8 +148,8 @@ export const ScheduleIIIBalanceSheet: React.FC<{
   );
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3" data-testid="schedule-iii-bs">
-      {side("Equity and Liabilities", data.equityAndLiabilities, "text-red-500")}
-      {side("Assets", data.assets, "text-blue-500")}
+      {side("Equity and Liabilities", data.equityAndLiabilities, "text-ink")}
+      {side("Assets", data.assets, "text-ink")}
     </div>
   );
 };
@@ -162,15 +164,12 @@ export const ScheduleIIIProfitLoss: React.FC<{
   const expenses = data.expenses.reduce((s, h) => s + h.total, 0);
   const profit = income - expenses;
   return (
-    <div
-      className="bg-card border border-line rounded-lg overflow-hidden"
-      data-testid="schedule-iii-pl"
-    >
+    <div className="sl-tile overflow-hidden" data-testid="schedule-iii-pl">
       <table className="w-full text-left border-collapse">
-        <thead className="bg-head text-ink text-[10px] uppercase tracking-wide font-bold border-b border-line">
+        <thead className="bg-card-2 text-ink-muted text-[12px] font-semibold border-b border-line-soft">
           <tr>
-            <th className="px-3 py-1.5">Particulars</th>
-            <th className="px-3 py-1.5 text-right w-[170px]">
+            <th className="px-4 py-2.5">Particulars</th>
+            <th className="px-4 py-2.5 text-right w-[170px]">
               {startDate} to {endDate}
             </th>
           </tr>
@@ -180,16 +179,16 @@ export const ScheduleIIIProfitLoss: React.FC<{
             <HeadRows key={h.head} head={h} index={roman[i] ?? String(i + 1)} detailed={detailed} />
           ))}
           <tr className="bg-card-2/60 font-semibold">
-            <td className="px-3 py-1 text-xs text-emerald-500">
-              <span className="mr-2 font-mono text-ink-subtle">III</span>Total income
+            <td className="px-4 py-2 text-[13.5px] text-ink">
+              <span className="mr-2 tabular-nums text-ink-subtle">III</span>Total income
             </td>
-            <td className="px-3 py-1 text-right font-mono text-xs text-emerald-500">
+            <td className="px-4 py-2 text-right tabular-nums text-[13.5px] text-ink">
               {fmt(income)}
             </td>
           </tr>
           <tr>
-            <td className="px-3 py-1 text-xs font-bold text-ink" colSpan={2}>
-              <span className="mr-2 font-mono text-ink-subtle">IV</span>Expenses
+            <td className="px-4 py-2 text-[13.5px] font-bold text-ink" colSpan={2}>
+              <span className="mr-2 tabular-nums text-ink-subtle">IV</span>Expenses
             </td>
           </tr>
           {data.expenses.map((h, i) => (
@@ -201,16 +200,18 @@ export const ScheduleIIIProfitLoss: React.FC<{
             />
           ))}
           <tr className="bg-card-2/60 font-semibold">
-            <td className="px-3 py-1 text-xs text-red-500">Total expenses</td>
-            <td className="px-3 py-1 text-right font-mono text-xs text-red-500">{fmt(expenses)}</td>
+            <td className="px-4 py-2 text-[13.5px] text-ink">Total expenses</td>
+            <td className="px-4 py-2 text-right tabular-nums text-[13.5px] text-ink">
+              {fmt(expenses)}
+            </td>
           </tr>
           <tr className="bg-card-2 border-t-2 border-line font-bold">
-            <td className="px-3 py-1.5 text-xs uppercase tracking-wide text-ink">
-              <span className="mr-2 font-mono text-ink-subtle">V</span>Profit / (loss) for the
+            <td className="px-4 py-2.5 text-[13.5px] font-bold text-ink">
+              <span className="mr-2 tabular-nums text-ink-subtle">V</span>Profit / (loss) for the
               period
             </td>
             <td
-              className={`px-3 py-1.5 text-right font-mono text-sm ${profit >= 0 ? "text-emerald-500" : "text-red-500"}`}
+              className={`px-4 py-2.5 text-right tabular-nums text-sm ${profit >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
             >
               ₹{fmt(profit)}
             </td>

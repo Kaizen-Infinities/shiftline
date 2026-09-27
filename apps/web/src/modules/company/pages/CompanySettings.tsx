@@ -17,6 +17,8 @@ import { fetchCompany, updateCompany } from "../../../features/company/companySl
 import type { UpdateCompanyDto } from "../../../features/company/types";
 import { validatePhoneEntries } from "../../../components/ui/PhoneInput/PhoneInput";
 import { GST_STATES } from "@shiftline/shared";
+import { Building2, Info, MapPin, Phone, Save } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Tile } from "../../../components/ui/v2";
 
 const CompanySettings: React.FC = () => {
   const location = useLocation();
@@ -350,281 +352,278 @@ const CompanySettings: React.FC = () => {
 
   // Normal Settings/Edit Screen Design
   return (
-    <div className="max-w-[1024px] xl:mr-auto">
-      <div className="bg-card rounded-sm border border-line overflow-hidden">
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="flex flex-col lg:flex-row">
-            {/* Left: All Input Fields — 70% */}
-            <div className="lg:w-[70%] px-6 py-6 space-y-6">
-              {/* General Info */}
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <FaInfoCircle className="text-primary text-lg" />
-                  <h6 className="text-sm font-bold text-ink m-0">General Info</h6>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextInput
-                    label="Legal Name"
-                    name="legalName"
-                    value={formData.legalName || ""}
-                    onChange={handleChange}
-                    placeholder="Enter Legal Name"
-                    required
-                    error={errors.legalName}
-                  />
-                  <TextInput
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={formData.email || ""}
-                    onChange={handleChange}
-                    placeholder="Enter Email"
-                    required
-                    error={errors.email}
-                  />
-                  <TextInput
-                    label="GSTIN"
-                    name="gstin"
-                    value={formData.gstin || ""}
-                    onChange={handleChange}
-                    placeholder="Enter GSTIN"
-                  />
-                </div>
+    <div className="mx-auto max-w-6xl p-4 md:p-6">
+      <PageHeader
+        title="Company settings"
+        icon={<Building2 size={22} />}
+        subtitle="The legal identity, places of business, contact and address that print on every document."
+        meta={
+          formData.gstin ? (
+            <Chip size="sm" className="font-mono">
+              GSTIN {formData.gstin}
+            </Chip>
+          ) : undefined
+        }
+      />
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="min-w-0 space-y-5">
+            <Tile title="General Info" icon={<Info size={18} />}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TextInput
+                  label="Legal Name"
+                  name="legalName"
+                  value={formData.legalName || ""}
+                  onChange={handleChange}
+                  placeholder="Enter Legal Name"
+                  required
+                  error={errors.legalName}
+                />
+                <TextInput
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={formData.email || ""}
+                  onChange={handleChange}
+                  placeholder="Enter Email"
+                  required
+                  error={errors.email}
+                />
+                <TextInput
+                  label="GSTIN"
+                  name="gstin"
+                  value={formData.gstin || ""}
+                  onChange={handleChange}
+                  placeholder="Enter GSTIN"
+                />
               </div>
+            </Tile>
 
-              {/* Places of business (P1-08): GST state per place, GSTIN for separately registered branches */}
-              {(formData.businessPlaces ?? []).length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <FaMapMarkerAlt className="text-primary text-lg" />
-                    <h6 className="text-sm font-bold text-ink m-0">Places of business</h6>
-                  </div>
-                  <p className="text-xs text-ink-subtle mb-3">
-                    Documents are numbered per place and taxed from its GST state. A branch
-                    registered on its own carries its GSTIN; the head office bills under the company
-                    GSTIN above.
-                  </p>
-                  <div className="overflow-x-auto rounded-lg border border-line-soft">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-card-2 text-[10px] uppercase tracking-wide text-ink-muted">
-                        <tr>
-                          <th className="px-3 py-2">Code</th>
-                          <th className="px-3 py-2">Name</th>
-                          <th className="px-3 py-2">Type</th>
-                          <th className="px-3 py-2">GST state</th>
-                          <th className="px-3 py-2">GSTIN</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line-soft">
-                        {(formData.businessPlaces ?? []).map((bp, idx) => {
-                          const updatePlace = (patch: Record<string, unknown>) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              businessPlaces: (prev.businessPlaces ?? []).map((p, i) =>
-                                i === idx ? { ...p, ...patch } : p
-                              ),
-                            }));
-                          return (
-                            <tr key={String(bp.id ?? idx)}>
-                              <td className="px-3 py-2 font-mono font-semibold text-ink">
-                                {bp.code}
-                              </td>
-                              <td className="px-3 py-2 text-ink">
-                                {bp.name}
-                                {bp.isHeadOffice && (
-                                  <span className="ml-2 rounded-full border border-line bg-card-2 px-2 py-0.5 text-[10px] font-semibold text-ink-muted">
-                                    Head office
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2 text-ink-muted">
-                                {String(bp.type ?? "")
-                                  .replace("_", " ")
-                                  .toLowerCase()}
-                              </td>
-                              <td className="px-3 py-2">
-                                <select
-                                  className="w-full rounded-lg border border-line-soft bg-card px-2 py-1 text-xs text-ink"
-                                  value={bp.gstPlaceCode ?? ""}
-                                  onChange={(e) => updatePlace({ gstPlaceCode: e.target.value })}
-                                  disabled={!canEdit}
-                                  aria-label={`${bp.code} GST state`}
-                                >
-                                  <option value="">Select</option>
-                                  {GST_STATES.map((st) => (
-                                    <option key={st.code} value={st.code}>
-                                      {st.code} · {st.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="px-3 py-2">
-                                <input
-                                  className="w-full rounded-lg border border-line-soft bg-card px-2 py-1 font-mono text-xs uppercase text-ink disabled:opacity-60"
-                                  value={bp.isHeadOffice ? formData.gstin || "" : (bp.gstin ?? "")}
-                                  onChange={(e) => {
-                                    const v = e.target.value
-                                      .toUpperCase()
-                                      .replace(/[^0-9A-Z]/g, "")
-                                      .slice(0, 15);
-                                    updatePlace({
-                                      gstin: v || null,
-                                      ...(v.length >= 2 ? { gstPlaceCode: v.slice(0, 2) } : {}),
-                                    });
-                                  }}
-                                  maxLength={15}
-                                  disabled={!canEdit || Boolean(bp.isHeadOffice)}
-                                  placeholder={
-                                    bp.isHeadOffice ? "Company GSTIN" : "Blank = head office GSTIN"
-                                  }
-                                  aria-label={`${bp.code} GSTIN`}
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+            {/* Places of business (P1-08): GST state per place, GSTIN for separately registered branches */}
+            {(formData.businessPlaces ?? []).length > 0 && (
+              <Tile
+                title="Places of business"
+                icon={<MapPin size={18} />}
+                subtitle="Documents are numbered per place and taxed from its GST state. A branch registered on its own carries its GSTIN; the head office bills under the company GSTIN above."
+              >
+                <div className="overflow-x-auto rounded-[14px] border border-line-soft">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-card-2">
+                      <tr>
+                        <th className="sl-th px-3 py-2.5">Code</th>
+                        <th className="sl-th px-3 py-2.5">Name</th>
+                        <th className="sl-th px-3 py-2.5">Type</th>
+                        <th className="sl-th px-3 py-2.5">GST state</th>
+                        <th className="sl-th px-3 py-2.5">GSTIN</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line-soft">
+                      {(formData.businessPlaces ?? []).map((bp, idx) => {
+                        const updatePlace = (patch: Record<string, unknown>) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            businessPlaces: (prev.businessPlaces ?? []).map((p, i) =>
+                              i === idx ? { ...p, ...patch } : p
+                            ),
+                          }));
+                        return (
+                          <tr key={String(bp.id ?? idx)}>
+                            <td className="px-3 py-2 font-mono font-semibold text-ink">
+                              {bp.code}
+                            </td>
+                            <td className="px-3 py-2 text-ink">
+                              {bp.name}
+                              {bp.isHeadOffice && (
+                                <Chip size="sm" className="ml-2">
+                                  Head office
+                                </Chip>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-ink-muted">
+                              {String(bp.type ?? "")
+                                .replace("_", " ")
+                                .toLowerCase()}
+                            </td>
+                            <td className="px-3 py-2">
+                              <select
+                                className="sl-input h-9 py-0 text-xs"
+                                value={bp.gstPlaceCode ?? ""}
+                                onChange={(e) => updatePlace({ gstPlaceCode: e.target.value })}
+                                disabled={!canEdit}
+                                aria-label={`${bp.code} GST state`}
+                              >
+                                <option value="">Select</option>
+                                {GST_STATES.map((st) => (
+                                  <option key={st.code} value={st.code}>
+                                    {st.code} · {st.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                className="sl-input h-9 py-0 font-mono text-xs uppercase disabled:opacity-60"
+                                value={bp.isHeadOffice ? formData.gstin || "" : (bp.gstin ?? "")}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                    .toUpperCase()
+                                    .replace(/[^0-9A-Z]/g, "")
+                                    .slice(0, 15);
+                                  updatePlace({
+                                    gstin: v || null,
+                                    ...(v.length >= 2 ? { gstPlaceCode: v.slice(0, 2) } : {}),
+                                  });
+                                }}
+                                maxLength={15}
+                                disabled={!canEdit || Boolean(bp.isHeadOffice)}
+                                placeholder={
+                                  bp.isHeadOffice ? "Company GSTIN" : "Blank = head office GSTIN"
+                                }
+                                aria-label={`${bp.code} GSTIN`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </Tile>
+            )}
 
-              {/* Contact Details */}
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <FaPhoneAlt className="text-primary text-lg" />
-                  <h6 className="text-sm font-bold text-ink m-0">Contact Details</h6>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextInput
-                    label="Website"
-                    name="website"
-                    value={formData.website || ""}
-                    onChange={handleChange}
-                    placeholder="http://www.example.com"
-                  />
-                  <IndiaPhoneInput
-                    multi
-                    label="Mobile Numbers"
-                    name="phones"
-                    value={phones}
-                    onChange={(e: any) => {
-                      setPhones(e.target.value);
-                      if (errors.mobile) {
-                        setErrors((prev: any) => ({ ...prev, mobile: undefined }));
-                      }
-                    }}
-                    maxNumbers={5}
-                    error={errors.mobile}
-                  />
-                </div>
+            <Tile title="Contact Details" icon={<Phone size={18} />}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TextInput
+                  label="Website"
+                  name="website"
+                  value={formData.website || ""}
+                  onChange={handleChange}
+                  placeholder="http://www.example.com"
+                />
+                <IndiaPhoneInput
+                  multi
+                  label="Mobile Numbers"
+                  name="phones"
+                  value={phones}
+                  onChange={(e: any) => {
+                    setPhones(e.target.value);
+                    if (errors.mobile) {
+                      setErrors((prev: any) => ({ ...prev, mobile: undefined }));
+                    }
+                  }}
+                  maxNumbers={5}
+                  error={errors.mobile}
+                />
               </div>
+            </Tile>
 
-              {/* Address Details */}
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <FaMapMarkerAlt className="text-primary text-lg" />
-                  <h6 className="text-sm font-bold text-ink m-0">Address Details</h6>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <TextInput
-                    label="Street Address"
-                    name="addressLine1"
-                    value={formData.addressLine1 || ""}
-                    onChange={handleChange}
-                    placeholder="Building, street, area"
-                    required
-                    error={errors.addressLine1}
-                  />
-                  <CityStateSelect
-                    countryLabel=""
-                    countryValue={formData.country || "India"}
-                    onCountryChange={handleCountryChange}
-                    countryError={errors.country}
-                    stateLabel=""
-                    stateValue={formData.state || ""}
-                    onStateChange={handleStateChange}
-                    stateError={errors.state}
-                    cityLabel="City"
-                    cityValue={formData.city || ""}
-                    onCityChange={handleCityChange}
-                    cityError={errors.city}
-                    required
-                    renderOnly="city"
-                  />
-                  <CityStateSelect
-                    countryLabel="Country"
-                    countryValue={formData.country || "India"}
-                    onCountryChange={handleCountryChange}
-                    countryError={errors.country}
-                    stateLabel="State"
-                    stateValue={formData.state || ""}
-                    onStateChange={handleStateChange}
-                    stateError={errors.state}
-                    cityLabel=""
-                    cityValue={formData.city || ""}
-                    onCityChange={handleCityChange}
-                    cityError={errors.city}
-                    required
-                    renderOnly="state-country"
-                  />
-                  <TextInput
-                    label="Zipcode"
-                    name="zipcode"
-                    value={formData.zipcode || ""}
-                    onChange={handleChange}
-                    placeholder="Zipcode"
-                    required
-                    error={errors.zipcode}
-                  />
-                </div>
+            <Tile title="Address Details" icon={<MapPin size={18} />}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <TextInput
+                  label="Street Address"
+                  name="addressLine1"
+                  value={formData.addressLine1 || ""}
+                  onChange={handleChange}
+                  placeholder="Building, street, area"
+                  required
+                  error={errors.addressLine1}
+                />
+                <CityStateSelect
+                  countryLabel=""
+                  countryValue={formData.country || "India"}
+                  onCountryChange={handleCountryChange}
+                  countryError={errors.country}
+                  stateLabel=""
+                  stateValue={formData.state || ""}
+                  onStateChange={handleStateChange}
+                  stateError={errors.state}
+                  cityLabel="City"
+                  cityValue={formData.city || ""}
+                  onCityChange={handleCityChange}
+                  cityError={errors.city}
+                  required
+                  renderOnly="city"
+                />
+                <CityStateSelect
+                  countryLabel="Country"
+                  countryValue={formData.country || "India"}
+                  onCountryChange={handleCountryChange}
+                  countryError={errors.country}
+                  stateLabel="State"
+                  stateValue={formData.state || ""}
+                  onStateChange={handleStateChange}
+                  stateError={errors.state}
+                  cityLabel=""
+                  cityValue={formData.city || ""}
+                  onCityChange={handleCityChange}
+                  cityError={errors.city}
+                  required
+                  renderOnly="state-country"
+                />
+                <TextInput
+                  label="Zipcode"
+                  name="zipcode"
+                  value={formData.zipcode || ""}
+                  onChange={handleChange}
+                  placeholder="Zipcode"
+                  required
+                  error={errors.zipcode}
+                />
               </div>
-            </div>
-
-            {/* Right: Image Uploads — 30% */}
-            <div className="lg:w-[30%] lg:border-l border-t lg:border-t-0 border-line/50 px-6 py-6 flex lg:flex-col items-center justify-evenly gap-6">
-              <ImageUpload
-                label="Company Logo"
-                name="logoFile"
-                hint="PNG or SVG · min 256×256px"
-                currentImageUrl={formData.logoUrl || undefined}
-                onChange={handleChange as any}
-              />
-              <ImageUpload
-                label="Favicon"
-                name="faviconFile"
-                hint="PNG · min 64×64px"
-                currentImageUrl={formData.faviconUrl || undefined}
-                onChange={handleChange as any}
-              />
-            </div>
+            </Tile>
           </div>
 
-          <div className="hidden">
-            <TextInput
-              label="Company Code"
-              name="companyCode"
-              value={formData.companyCode || ""}
-              onChange={handleChange}
-              placeholder="Auto Generated"
-              disabled
-              error={errors.companyCode}
-            />
+          <div className="space-y-5">
+            <Tile title="Branding" subtitle="Shown on documents and the sign-in page.">
+              <div className="flex flex-col items-center gap-6">
+                <ImageUpload
+                  label="Company Logo"
+                  name="logoFile"
+                  hint="PNG or SVG · min 256×256px"
+                  currentImageUrl={formData.logoUrl || undefined}
+                  onChange={handleChange as any}
+                />
+                <ImageUpload
+                  label="Favicon"
+                  name="faviconFile"
+                  hint="PNG · min 64×64px"
+                  currentImageUrl={formData.faviconUrl || undefined}
+                  onChange={handleChange as any}
+                />
+              </div>
+            </Tile>
           </div>
+        </div>
 
-          {/* Footer */}
-          {canEdit && (
-            <div className="flex justify-end px-6 py-4 border-t border-line">
-              <Button
-                text={isEditMode ? "Save Changes" : "Create Company"}
-                icon={FaSave}
-                type="submit"
-                disabled={loading}
-              />
-            </div>
-          )}
-        </form>
-      </div>
+        <div className="hidden">
+          <TextInput
+            label="Company Code"
+            name="companyCode"
+            value={formData.companyCode || ""}
+            onChange={handleChange}
+            placeholder="Auto Generated"
+            disabled
+            error={errors.companyCode}
+          />
+        </div>
+
+        {/* Footer */}
+        {canEdit && (
+          <div className="sl-tile sticky bottom-3 z-10 mt-5 flex items-center justify-end gap-2 px-4 py-3">
+            <ActionPill variant="secondary" onClick={() => navigate(-1)}>
+              Cancel
+            </ActionPill>
+            <ActionPill
+              type="submit"
+              icon={<Save size={17} />}
+              disabled={loading}
+              loading={loading}
+            >
+              {isEditMode ? "Save Changes" : "Create Company"}
+            </ActionPill>
+          </div>
+        )}
+      </form>
     </div>
   );
 };

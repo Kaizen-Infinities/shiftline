@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FEATURE_KEYS } from "@shiftline/shared";
+import { Building2, Eye } from "lucide-react";
 
 import { getCurrentUser, setAccessToken } from "../../../features/auth/authSlice";
 import { useAppDispatch } from "../../../hooks/reduxHooks";
@@ -14,6 +15,7 @@ import {
   type TenantDetail,
   type TenantUser,
 } from "../../../services/platformService";
+import { ActionPill, Chip, ChipTabs, PageHeader, SkeletonTile } from "../../../components/ui/v2";
 import {
   Badge,
   Section,
@@ -185,44 +187,66 @@ const TenantDetailPage: React.FC = () => {
     );
   };
 
-  if (!t) return <div className="p-6 text-sm text-ink-muted">Loading…</div>;
+  if (!t)
+    return (
+      <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+        <SkeletonTile lines={2} label="Loading…" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <SkeletonTile key={i} lines={1} />
+          ))}
+        </div>
+      </div>
+    );
   const c = t.company;
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link to="/platform/tenants" className="text-xs text-blue-700 hover:underline">
-            ← Tenants
-          </Link>
-          <h2 className="text-xl font-semibold text-ink">
-            {c.companyName} {!c.isActive && <Badge value="SUSPENDED" />}
-          </h2>
-          <p className="text-sm text-ink-muted">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title={c.companyName}
+        icon={<Building2 size={22} />}
+        back="/platform/tenants"
+        backLabel="Back to tenants"
+        breadcrumbs={[
+          { label: "Platform", to: "/platform" },
+          { label: "Tenants", to: "/platform/tenants" },
+          { label: c.companyName },
+        ]}
+        meta={
+          <>
+            {!c.isActive && <Badge value="SUSPENDED" />}
+            <Chip tone={c.isOnboarded ? "success" : "warning"} size="sm">
+              {c.isOnboarded ? "Onboarded" : "Onboarding pending"}
+            </Chip>
+          </>
+        }
+        subtitle={
+          <>
             {c.companyCode} · {c.slug} {c.gstin && `· GSTIN ${c.gstin}`} · created{" "}
             {when(c.createdAt)}
-            {c.isOnboarded ? " · onboarded" : " · onboarding pending"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={primary}
-            disabled={busy || !c.isActive}
-            onClick={() => impersonate()}
-          >
-            Act as owner
-          </button>
-          <button
-            type="button"
-            className={c.isActive ? danger : secondary}
+          </>
+        }
+        actions={
+          <ActionPill
+            variant="secondary"
+            className={c.isActive ? "sl-btn-soft-danger" : undefined}
             disabled={busy}
             onClick={toggleActive}
           >
             {c.isActive ? "Suspend tenant" : "Activate tenant"}
-          </button>
-        </div>
-      </div>
+          </ActionPill>
+        }
+        primaryAction={
+          <ActionPill
+            size="lg"
+            icon={<Eye size={18} />}
+            disabled={busy || !c.isActive}
+            onClick={() => impersonate()}
+          >
+            Act as owner
+          </ActionPill>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat
@@ -249,7 +273,7 @@ const TenantDetailPage: React.FC = () => {
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title="Subscription" right={<Badge value={t.subscription?.status ?? null} />}>
           <div className="grid grid-cols-2 gap-3">
-            <label className="text-xs font-medium text-ink-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-muted">
               Plan
               <select
                 className={`${input} block w-full`}
@@ -264,7 +288,7 @@ const TenantDetailPage: React.FC = () => {
                 ))}
               </select>
             </label>
-            <label className="text-xs font-medium text-ink-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-muted">
               Status
               <select
                 className={`${input} block w-full`}
@@ -279,7 +303,7 @@ const TenantDetailPage: React.FC = () => {
                 ))}
               </select>
             </label>
-            <label className="text-xs font-medium text-ink-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-muted">
               Seats (blank = plan default)
               <input
                 className={`${input} block w-full`}
@@ -288,7 +312,7 @@ const TenantDetailPage: React.FC = () => {
                 inputMode="numeric"
               />
             </label>
-            <label className="text-xs font-medium text-ink-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-muted">
               API calls / 15 min
               <input
                 className={`${input} block w-full`}
@@ -297,7 +321,7 @@ const TenantDetailPage: React.FC = () => {
                 inputMode="numeric"
               />
             </label>
-            <label className="text-xs font-medium text-ink-muted">
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink-muted">
               Negotiated monthly price ₹ (blank = plan price)
               <input
                 className={`${input} block w-full`}
@@ -307,8 +331,14 @@ const TenantDetailPage: React.FC = () => {
               />
             </label>
           </div>
-          <div className="mt-3 flex items-center justify-between text-xs text-ink-muted">
-            <span>Features: {t.entitlements.features.join(", ")}</span>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-line-soft pt-4">
+            <div className="flex flex-wrap gap-1.5" aria-label="Features">
+              {t.entitlements.features.map((f) => (
+                <Chip key={f} size="sm">
+                  {f}
+                </Chip>
+              ))}
+            </div>
             <button type="button" className={primary} disabled={busy} onClick={saveSubscription}>
               Save
             </button>
@@ -316,11 +346,17 @@ const TenantDetailPage: React.FC = () => {
         </Section>
 
         <Section title="Feature overrides">
-          <ul className="mb-3 space-y-1 text-sm">
+          <ul className="m-0 mb-4 list-none space-y-2 p-0 text-sm">
             {t.overrides.map((o) => (
-              <li key={o.id} className="flex items-center justify-between gap-2">
+              <li
+                key={o.id}
+                className="flex items-center justify-between gap-2 rounded-[12px] bg-card-2 px-3 py-2"
+              >
                 <span>
-                  <b>{o.feature}</b> {o.enabled ? "on" : "off"}
+                  <b>{o.feature}</b>{" "}
+                  <Chip tone={o.enabled ? "success" : "muted"} size="sm">
+                    {o.enabled ? "On" : "Off"}
+                  </Chip>
                   {o.reason && <span className="text-ink-subtle"> · {o.reason}</span>}
                   {o.expiresAt && (
                     <span className="text-ink-subtle"> · until {when(o.expiresAt)}</span>
@@ -381,26 +417,22 @@ const TenantDetailPage: React.FC = () => {
         </Section>
       </div>
 
-      <div className="flex gap-2 border-b border-line-soft">
-        {(["users", "devices", "audit", "impersonations"] as Tab[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setTab(k)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium capitalize ${
-              tab === k
-                ? "border-blue-600 text-blue-700"
-                : "border-transparent text-ink-muted hover:text-ink"
-            }`}
-          >
-            {k}
-          </button>
-        ))}
-      </div>
+      <ChipTabs<Tab>
+        ariaLabel="Tenant records"
+        value={tab}
+        onChange={setTab}
+        size="lg"
+        items={[
+          { key: "users", label: "Users" },
+          { key: "devices", label: "Devices" },
+          { key: "audit", label: "Audit" },
+          { key: "impersonations", label: "Impersonations" },
+        ]}
+      />
 
       {tab === "users" && (
-        <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
-          <table className="min-w-full divide-y divide-line-soft">
+        <div className="sl-tile overflow-x-auto">
+          <table className="min-w-full">
             <thead>
               <tr>
                 <th className={th}>User</th>
@@ -410,12 +442,12 @@ const TenantDetailPage: React.FC = () => {
                 <th className={th} />
               </tr>
             </thead>
-            <tbody className="divide-y divide-line-soft">
+            <tbody>
               {users.map((u) => (
-                <tr key={u.userId}>
+                <tr key={u.userId} className="border-t border-line-soft">
                   <td className={td}>
                     {u.fullName}{" "}
-                    <span className="text-xs text-ink-subtle">
+                    <span className="text-xs text-ink-muted">
                       {u.username} · {u.email}
                     </span>
                   </td>
@@ -442,8 +474,8 @@ const TenantDetailPage: React.FC = () => {
       )}
 
       {tab === "devices" && (
-        <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
-          <table className="min-w-full divide-y divide-line-soft">
+        <div className="sl-tile overflow-x-auto">
+          <table className="min-w-full">
             <thead>
               <tr>
                 <th className={th}>Device</th>
@@ -454,12 +486,12 @@ const TenantDetailPage: React.FC = () => {
                 <th className={th} />
               </tr>
             </thead>
-            <tbody className="divide-y divide-line-soft">
+            <tbody>
               {devices.map((d) => (
-                <tr key={d.id}>
+                <tr key={d.id} className="border-t border-line-soft">
                   <td className={td}>
                     {d.model ?? "Unknown"}{" "}
-                    <span className="text-xs text-ink-subtle">
+                    <span className="text-xs text-ink-muted">
                       {d.platform} · {d.deviceId}
                     </span>
                   </td>
@@ -496,11 +528,11 @@ const TenantDetailPage: React.FC = () => {
       )}
 
       {tab === "audit" && (
-        <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
-          <div className="border-b border-line-soft px-4 py-2 text-xs text-ink-muted">
+        <div className="sl-tile overflow-x-auto">
+          <div className="px-4 py-3 text-xs text-ink-muted">
             {audit?.total ?? 0} entries, newest first. Impersonated changes show the admin.
           </div>
-          <table className="min-w-full divide-y divide-line-soft">
+          <table className="min-w-full">
             <thead>
               <tr>
                 <th className={th}>When</th>
@@ -510,20 +542,20 @@ const TenantDetailPage: React.FC = () => {
                 <th className={th}>Changes</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line-soft">
+            <tbody>
               {(audit?.data ?? []).map((e) => (
-                <tr key={e.id}>
+                <tr key={e.id} className="border-t border-line-soft">
                   <td className={td}>{when(e.changedAt)}</td>
                   <td className={td}>
-                    {e.entityLabel} <span className="text-xs text-ink-subtle">{e.entityId}</span>
+                    {e.entityLabel} <span className="text-xs text-ink-muted">{e.entityId}</span>
                   </td>
                   <td className={td}>{e.action}</td>
                   <td className={td}>
                     {e.actor.name}
                     {e.impersonatedBy && (
-                      <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">
+                      <Chip tone="warning" size="sm" className="ml-1">
                         via {e.impersonatedBy}
-                      </span>
+                      </Chip>
                     )}
                   </td>
                   <td className={`${td} text-xs text-ink-muted`}>
@@ -541,8 +573,8 @@ const TenantDetailPage: React.FC = () => {
       )}
 
       {tab === "impersonations" && (
-        <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
-          <table className="min-w-full divide-y divide-line-soft">
+        <div className="sl-tile overflow-x-auto">
+          <table className="min-w-full">
             <thead>
               <tr>
                 <th className={th}>Admin</th>
@@ -552,9 +584,9 @@ const TenantDetailPage: React.FC = () => {
                 <th className={th}>Ended</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line-soft">
+            <tbody>
               {history.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} className="border-t border-line-soft">
                   <td className={td}>{r.admin.fullName ?? r.admin.username ?? r.adminId}</td>
                   <td className={td}>{r.user.fullName ?? r.user.username}</td>
                   <td className={`${td} text-ink-muted`}>{r.reason}</td>

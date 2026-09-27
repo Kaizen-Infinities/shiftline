@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useFormShortcuts } from "../../hooks/useFormShortcuts";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { FaSave, FaExclamationTriangle } from "react-icons/fa";
+import { FaExclamationTriangle } from "react-icons/fa";
+import { ListOrdered, Receipt, Save, UserRound } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Tile } from "../../components/ui/v2";
+import { FormFooter, KeyHint, formatINR } from "../sales/shared/tradeUi";
 import { toast } from "react-toastify";
 import { useSelector, useDispatch } from "react-redux";
 
 import TextInput from "../../components/form/TextInput/TextInput";
 import SelectInput from "../../components/form/SelectInput/SelectInput";
 import AutocompleteInput from "../../components/form/AutocompleteInput/AutocompleteInput";
-import CustomButton from "../../components/ui/Button/Button";
-import BackButton from "../../components/ui/BackButton/BackButton";
 import CommonLoader from "../../components/ui/Loader/CommonLoader";
 import BusyItemsTable, {
   DEFAULT_SUNDRY_OPTIONS,
@@ -1069,7 +1070,9 @@ const SalesInvoiceForm: React.FC = () => {
             <div className="flex items-center gap-3 text-[11px]">
               <span className="text-ink-subtle">{group}</span>
               <span className="text-ink-subtle">{grade}</span>
-              <span className={`font-semibold ${isDr ? "text-rose-500" : "text-emerald-500"}`}>
+              <span
+                className={`font-semibold ${isDr ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
+              >
                 {balLabel}
               </span>
             </div>
@@ -1116,8 +1119,8 @@ const SalesInvoiceForm: React.FC = () => {
           <span
             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
               liveStock > 0
-                ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                : "bg-rose-500/10 text-rose-600 border border-rose-500/20"
+                ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border border-[color:var(--color-success)]/20"
+                : "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/20"
             }`}
           >
             {liveStock} pcs
@@ -1169,7 +1172,7 @@ const SalesInvoiceForm: React.FC = () => {
               <div className="flex items-center justify-between w-full gap-2 text-[13px]">
                 <span className="text-ink font-medium truncate">{row.itemName || "—"}</span>
                 <span
-                  className={`text-[11px] font-semibold shrink-0 ${liveStock > 0 ? "text-emerald-500" : "text-rose-500"}`}
+                  className={`text-[11px] font-semibold shrink-0 ${liveStock > 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
                 >
                   {liveStock} pcs
                 </span>
@@ -1232,7 +1235,7 @@ const SalesInvoiceForm: React.FC = () => {
               placeholder="0"
             />
             {row.itemId && row.qty > (stockMap.get(row.itemId) || 0) && (
-              <div className="text-red-500 text-[10px] font-medium whitespace-nowrap">
+              <div className="text-[color:var(--color-danger)] text-[10px] font-medium whitespace-nowrap">
                 Avail: {Math.round((stockMap.get(row.itemId) || 0) * 100) / 100}
               </div>
             )}
@@ -1282,7 +1285,7 @@ const SalesInvoiceForm: React.FC = () => {
           if (row.amount <= 0) return <span className="text-[13px] text-ink-subtle">—</span>;
           return (
             <div className="text-right">
-              <span className="text-emerald-500 text-[13px] font-bold">
+              <span className="text-[color:var(--color-success)] text-[13px] font-bold">
                 ₹{row.total.toFixed(2)}
               </span>
               {row.taxAmount > 0 && (
@@ -1374,7 +1377,7 @@ const SalesInvoiceForm: React.FC = () => {
                         return newExcluded;
                       });
                     }}
-                    className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer"
+                    className="w-3.5 h-3.5 rounded accent-accent cursor-pointer"
                   />
                   <span
                     className={`text-xs ${isExcluded ? "line-through text-ink-subtle" : "text-ink font-medium"}`}
@@ -1476,7 +1479,7 @@ const SalesInvoiceForm: React.FC = () => {
               onChange={(e) => update({ amount: e.target.value.replace(/[^0-9.]/g, ""), rate: "" })}
               placeholder="0.00"
               className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right font-semibold"
-              style={{ color: isNeg ? "#ef4444" : "var(--color-ink)" }}
+              style={{ color: isNeg ? "var(--color-danger)" : "var(--color-ink)" }}
             />
           );
         },
@@ -1504,442 +1507,460 @@ const SalesInvoiceForm: React.FC = () => {
 
   const isStockNotEnough = lines.some((l) => l.itemId && l.qty > (stockMap.get(l.itemId) || 0));
 
+  const sundryNet = sundryRows.reduce((s, r) => {
+    const a = Number(r.amount) || 0;
+    const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
+    return s + (o?.sign === -1 ? -a : a);
+  }, 0);
+  const invoiceGrand = totals.grandTotal + sundryNet + tcsAmount;
+
   return (
-    <div className="w-full">
-      <div className="bg-card rounded-2xl shadow-sm border border-line max-w-[1600px] overflow-visible">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h2 className="text-lg font-bold text-ink flex items-start">
-            {isEditMode ? "Edit Sales Invoice" : "Create Sales Invoice"}
-            <span className="text-purple-400 text-sm ml-1 mt-0.5 leading-none">
-              *{previewInvoiceNo || "Auto"}
-            </span>
-            <span
-              className="ml-2 rounded-full border border-line-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-muted"
-              title="Decided by your GST registration and the customer's state"
+    <div className="mx-auto w-full max-w-[1600px]">
+      <PageHeader
+        title={isEditMode ? "Edit Sales Invoice" : "Create Sales Invoice"}
+        meta={
+          <>
+            <Chip
+              size="sm"
+              tone="muted"
+              className="tabular-nums"
+              title="Assigned from the document series on save"
             >
+              {previewInvoiceNo || "Auto"}
+            </Chip>
+            <Chip size="sm" title="Decided by your GST registration and the customer's state">
               {documentLabel} · {supplyType.replace("_", " ")}
-            </span>
-          </h2>
-          <BackButton text="Back to List" />
-        </div>
+            </Chip>
+          </>
+        }
+        subtitle="Pick the customer, then add lines; the GST split follows the place of supply."
+        back={() => navigate(-1)}
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Sales invoices", to: "/sales-invoices" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+      />
 
-        <form className="px-5 py-3 space-y-2" noValidate>
-          <div className="flex flex-col gap-2">
-            {/* ── Full-width Form ── */}
-            <div className="w-full space-y-2">
-              {/* Credit limit warning */}
-              {limitExceeded !== false && (
-                <div className="bg-red-500/10 border-l-4 border-red-500 p-2 rounded-md flex items-start gap-2">
-                  <FaExclamationTriangle className="text-red-500 mt-0.5 flex-shrink-0 text-xs" />
-                  <p className="text-red-500 text-xs">
-                    Credit exceeded by{" "}
-                    <span className="font-bold">
-                      ₹
-                      {(limitExceeded as any).exceededBy.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                  </p>
-                </div>
-              )}
+      <form className="space-y-4" noValidate>
+        {/* Credit limit warning */}
+        {limitExceeded !== false && (
+          <div
+            role="alert"
+            className="sl-tile flex items-start gap-3 border-l-4 !border-l-[color:var(--color-danger)] px-4 py-3"
+          >
+            <FaExclamationTriangle
+              className="mt-0.5 shrink-0 text-[color:var(--color-danger)]"
+              aria-hidden="true"
+            />
+            <p className="m-0 text-sm text-ink">
+              Credit limit exceeded by{" "}
+              <span className="font-bold tabular-nums">
+                {formatINR((limitExceeded as any).exceededBy)}
+              </span>
+            </p>
+          </div>
+        )}
 
-              {/* ── Row 1: Customer & Sales Order ── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                <AutocompleteInput
-                  horizontal
-                  label="Customer"
-                  name="customerId"
-                  required
-                  value={customerId}
-                  disabled={isLocked}
-                  error={errors.customerId}
-                  options={customerAutocompleteOptions}
-                  placeholder="Type to search customer..."
-                  onChange={(val) => {
-                    setCustomerId(val);
-                    if (val) loadCustomerOrders(val);
-                    if (selectedSalesOrderId) {
-                      const selOrder = salesOrders.find(
-                        (o) => String(o.id) === String(selectedSalesOrderId)
-                      );
-                      if (selOrder) {
-                        const orderCustId = String(
-                          selOrder.customerId || selOrder.customer?.id || ""
-                        );
-                        if (orderCustId !== val) {
-                          setSelectedSalesOrderId("");
-                          setLines([emptyLine()]);
-                        }
-                      }
+        <Tile title="Party & terms" icon={<UserRound size={18} />}>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <AutocompleteInput
+              label="Customer"
+              name="customerId"
+              required
+              value={customerId}
+              disabled={isLocked}
+              error={errors.customerId}
+              options={customerAutocompleteOptions}
+              placeholder="Type to search customer..."
+              onChange={(val) => {
+                setCustomerId(val);
+                if (val) loadCustomerOrders(val);
+                if (selectedSalesOrderId) {
+                  const selOrder = salesOrders.find(
+                    (o) => String(o.id) === String(selectedSalesOrderId)
+                  );
+                  if (selOrder) {
+                    const orderCustId = String(selOrder.customerId || selOrder.customer?.id || "");
+                    if (orderCustId !== val) {
+                      setSelectedSalesOrderId("");
+                      setLines([emptyLine()]);
                     }
-                  }}
-                />
-                <AutocompleteInput
-                  horizontal
-                  label="Sales Order"
-                  name="selectedSalesOrderId"
-                  value={selectedSalesOrderId}
-                  disabled={isEditMode || !customerId}
-                  options={salesOrderAutocompleteOptions}
-                  placeholder={customerId ? "Type to search order..." : "Select customer first"}
-                  onChange={(val) => handleSalesOrderChange(val)}
-                />
-              </div>
-
-              {/* ── Row 2: Invoice Date, Due Date, Transport, No. of Bundle ── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1">
-                <DatePickerCalendar
-                  label="Invoice Date"
-                  name="invoiceDate"
-                  value={invoiceDate}
-                  disabled={isLocked}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
-                  required
-                  error={errors.invoiceDate}
-                  horizontal
-                />
-                <DatePickerCalendar
-                  label="Due Date"
-                  name="dueDate"
-                  value={dueDate}
-                  disabled={isLocked}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  horizontal
-                />
-                <AutocompleteInput
-                  horizontal
-                  label="Transport"
-                  name="transport"
-                  value={
-                    selectedTransport
-                      ? String(
-                          customerTransports.findIndex(
-                            (t: any) => t.name === selectedTransport.name
-                          )
-                        )
-                      : ""
                   }
-                  options={customerTransports.map((t: any, idx: number) => ({
-                    value: String(idx),
-                    label: t.name || `Transport ${idx + 1}`,
-                    info: t.phone ? (
-                      <span className="text-[11px] text-ink-subtle">{t.phone}</span>
-                    ) : undefined,
-                  }))}
-                  placeholder={
-                    customerTransports.length > 0 ? "Select transport..." : "No transports"
-                  }
-                  disabled={isLocked || customerTransports.length === 0}
-                  onChange={(val) => {
-                    const idx = Number(val);
-                    setSelectedTransport(customerTransports[idx] || null);
-                  }}
-                />
-                <TextInput
-                  horizontal
-                  label="No. of Bundle"
-                  name="numberOfBundle"
-                  type="number"
-                  value={numberOfBundle}
-                  placeholder="Enter"
-                  disabled={isLocked}
-                  onChange={(e) => setNumberOfBundle(e.target.value)}
-                />
-              </div>
+                }
+              }}
+            />
+            <AutocompleteInput
+              label="Sales Order"
+              name="selectedSalesOrderId"
+              value={selectedSalesOrderId}
+              disabled={isEditMode || !customerId}
+              options={salesOrderAutocompleteOptions}
+              placeholder={customerId ? "Type to search order..." : "Select customer first"}
+              onChange={(val) => handleSalesOrderChange(val)}
+            />
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+            <DatePickerCalendar
+              label="Invoice Date"
+              name="invoiceDate"
+              value={invoiceDate}
+              disabled={isLocked}
+              onChange={(e) => setInvoiceDate(e.target.value)}
+              required
+              error={errors.invoiceDate}
+            />
+            <DatePickerCalendar
+              label="Due Date"
+              name="dueDate"
+              value={dueDate}
+              disabled={isLocked}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+            <AutocompleteInput
+              label="Transport"
+              name="transport"
+              value={
+                selectedTransport
+                  ? String(
+                      customerTransports.findIndex((t: any) => t.name === selectedTransport.name)
+                    )
+                  : ""
+              }
+              options={customerTransports.map((t: any, idx: number) => ({
+                value: String(idx),
+                label: t.name || `Transport ${idx + 1}`,
+                info: t.phone ? (
+                  <span className="text-[11px] text-ink-subtle">{t.phone}</span>
+                ) : undefined,
+              }))}
+              placeholder={customerTransports.length > 0 ? "Select transport..." : "No transports"}
+              disabled={isLocked || customerTransports.length === 0}
+              onChange={(val) => {
+                const idx = Number(val);
+                setSelectedTransport(customerTransports[idx] || null);
+              }}
+            />
+            <TextInput
+              label="No. of Bundle"
+              name="numberOfBundle"
+              type="number"
+              value={numberOfBundle}
+              placeholder="Enter"
+              disabled={isLocked}
+              onChange={(e) => setNumberOfBundle(e.target.value)}
+            />
+          </div>
 
-              {/* ── Addresses ── */}
-              {(billingAddress.line1 || billingAddress.city) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-2 border border-line-soft rounded-lg bg-card">
-                    <span className="text-[10px] font-bold text-ink uppercase tracking-wide">
-                      Billing Address
-                    </span>
-                    <p className="text-xs text-ink-subtle mt-1">
-                      {[
-                        billingAddress.line1,
-                        billingAddress.city,
-                        billingAddress.state,
-                        billingAddress.pincode,
-                      ]
+          {(billingAddress.line1 || billingAddress.city) && (
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="rounded-[14px] bg-card-2 p-3">
+                <span className="sl-section-label">Billing Address</span>
+                <p className="m-0 mt-1 text-[13px] text-ink-muted">
+                  {[
+                    billingAddress.line1,
+                    billingAddress.city,
+                    billingAddress.state,
+                    billingAddress.pincode,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              </div>
+              <div className="rounded-[14px] bg-card-2 p-3">
+                <span className="sl-section-label">Shipping Address</span>
+                {customerAddresses.length > 0 ? (
+                  <div className="space-y-1 mt-1">
+                    {customerAddresses.map((a: any, idx: number) => {
+                      const addr = a.address || a;
+                      const addrLabel = [addr.addressLine1, addr.city, addr.state, addr.pincode]
                         .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  </div>
-                  <div className="p-2 border border-line-soft rounded-lg bg-card">
-                    <span className="text-[10px] font-bold text-ink uppercase tracking-wide">
-                      Shipping Address
-                    </span>
-                    {customerAddresses.length > 0 ? (
-                      <div className="space-y-1 mt-1">
-                        {customerAddresses.map((a: any, idx: number) => {
-                          const addr = a.address || a;
-                          const addrLabel = [addr.addressLine1, addr.city, addr.state, addr.pincode]
-                            .filter(Boolean)
-                            .join(", ");
-                          return (
-                            <label
-                              key={idx}
-                              className={`flex items-start gap-1.5 cursor-pointer text-xs p-1.5 rounded ${selectedShippingIdx === idx ? "bg-primary/10 text-primary" : "text-ink-subtle hover:bg-card-2"}`}
-                            >
-                              <input
-                                type="radio"
-                                name="shippingAddr"
-                                checked={selectedShippingIdx === idx}
-                                onChange={() => setSelectedShippingIdx(idx)}
-                                className="mt-0.5 w-3 h-3 accent-blue-600"
-                              />
-                              <span>
-                                {a.label || `Address ${idx + 1}`}: {addrLabel}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-ink-subtle mt-1">Same as billing</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Line Items ── */}
-              {errors.lines && (
-                <div className="text-red-500 text-xs mb-2 bg-red-500/10 p-2 rounded-md border border-red-500/20">
-                  {errors.lines}
-                </div>
-              )}
-
-              {/* ── Invoice Items (65%) + Bill Sundry (35%) ── */}
-              <div className="flex gap-3">
-                <div className="w-[65%]">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-semibold text-ink">Invoice Items</span>
-                  </div>
-                  <BusyItemsTable
-                    columns={invoiceColumns}
-                    rows={lines}
-                    onAdd={() => setLines((prev) => [...prev, emptyLine()])}
-                    onRemove={(i) =>
-                      setLines((prev) => (prev.length > 1 ? prev.filter((_, j) => j !== i) : prev))
-                    }
-                    editable={!isEditMode && lines.length > 1}
-                    expandable={Boolean(selectedSalesOrderId)}
-                    canExpand={(row) => {
-                      const sp = salesProducts.find((s: any) => String(s.id) === row.itemId);
-                      const spComps = (sp?.components || []).filter(
-                        (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
-                      );
-                      return spComps.length > 0;
-                    }}
-                    expandedIndex={expandedLineIndex}
-                    onExpandToggle={(i) => {
-                      const lineId = lines[i]?.id;
-                      setExpandedLineId(expandedLineId === lineId ? null : lineId);
-                    }}
-                    renderExpandedRow={renderExpandedComponents}
-                    showTotals={[
-                      { colKey: "qty", value: lines.reduce((s, l) => s + l.qty, 0) },
-                      {
-                        colKey: "weight",
-                        value: lines.reduce((s, l) => s + (l.weight || 0), 0).toFixed(1),
-                      },
-                      { colKey: "total", value: `₹${totals.subTotal.toFixed(2)}` },
-                    ]}
-                    visibleRows={10}
-                  />
-                </div>
-                <div className="w-[35%]">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-semibold text-ink">Bill Sundry</span>
-                  </div>
-                  <BusyItemsTable
-                    columns={sundryColumns}
-                    rows={sundryRows}
-                    onChange={setSundryRows}
-                    emptyRow={sundryEmptyRow}
-                    editable={false}
-                    visibleRows={5}
-                    showTotals={[
-                      {
-                        colKey: "amount",
-                        value: (() => {
-                          const t = sundryRows.reduce((s, r) => {
-                            const a = Number(r.amount) || 0;
-                            const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
-                            return s + (o?.sign === -1 ? -a : a);
-                          }, 0);
-                          return t !== 0
-                            ? `${t > 0 ? "+" : "-"} ₹${Math.abs(t).toFixed(2)}`
-                            : "0.00";
-                        })(),
-                      },
-                    ]}
-                  />
-                  {/* ── TCS (P2-05/P2-12): scrap sales (206C(1)) or a buyer above the annual threshold ── */}
-                  <div className="mt-2 p-2 border border-line-soft rounded-md bg-card">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={collectTcs}
-                        disabled={isLocked}
-                        onChange={(e) => setCollectTcs(e.target.checked)}
-                        className="w-3.5 h-3.5 accent-blue-600"
-                      />
-                      Collect TCS
-                    </label>
-                    {collectTcs && (
-                      <div className="mt-2 space-y-1.5">
-                        <SelectInput
-                          hideLabel
-                          label=""
-                          name="tcsSectionCode"
-                          value={tcsSectionCode}
-                          disabled={isLocked}
-                          options={tcsSections.map((s) => ({
-                            label: `${s.code} — ${s.name}`,
-                            value: s.code,
-                          }))}
-                          defaultOptionLabel="Select Section"
-                          onChange={(e) => {
-                            setTcsSectionTouched(true);
-                            setTcsSectionCode(e.target.value);
-                          }}
-                        />
-                        {tcsSectionCode && (
-                          <div className="text-[11px] text-ink-subtle flex justify-between">
-                            <span>
-                              {tcsPreview?.belowThreshold
-                                ? tcsPreview.reason
-                                : `${tcsPreview?.rate ?? 0}% TCS`}
-                            </span>
-                            <span className="font-semibold text-rose-500">
-                              + ₹{tcsAmount.toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── Full Amount ── */}
-                  <div className="flex justify-end mt-2 px-2 py-2 border border-line rounded-md bg-card-2">
-                    <div className="text-right">
-                      <span className="text-base font-bold text-blue-600">
-                        ₹
-                        {(() => {
-                          const sundryTotal = sundryRows.reduce((s, r) => {
-                            const a = Number(r.amount) || 0;
-                            const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
-                            return s + (o?.sign === -1 ? -a : a);
-                          }, 0);
-                          return (totals.grandTotal + sundryTotal + tcsAmount).toFixed(2);
-                        })()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ── Customer Balance Summary ── */}
-                  {customerId &&
-                    (() => {
-                      const cust = customersRaw.find((c: any) => String(c.id) === customerId);
-                      if (!cust) return null;
-                      const openBal = Number(
-                        cust.balanceAmount ?? cust.netBalance ?? cust.openingBalance ?? 0
-                      );
-                      const bType = (cust.balanceType || cust.openingBalanceType || "")
-                        .toString()
-                        .toUpperCase();
-                      const isDr = bType.startsWith("D");
-                      const openLabel = isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "";
-                      const sundryTotal = sundryRows.reduce((s, r) => {
-                        const a = Number(r.amount) || 0;
-                        const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
-                        return s + (o?.sign === -1 ? -a : a);
-                      }, 0);
-                      const invoiceAmt = totals.grandTotal + sundryTotal + tcsAmount || 0;
-                      const closingRaw = isDr ? openBal + invoiceAmt : openBal - invoiceAmt;
-                      const closingAbs = Math.abs(closingRaw);
-                      const closingType =
-                        closingRaw > 0
-                          ? isDr
-                            ? "Dr"
-                            : "Cr"
-                          : closingRaw < 0
-                            ? isDr
-                              ? "Cr"
-                              : "Dr"
-                            : "";
-
+                        .join(", ");
                       return (
-                        <div className="mt-3 border border-line-soft rounded-lg overflow-hidden text-xs">
-                          <div className="flex justify-between px-3 py-2 border-b border-line-soft bg-card-2">
-                            <span className="font-semibold text-ink-muted">Opening Balance</span>
-                            <span
-                              className={`font-bold ${isDr ? "text-rose-500" : "text-emerald-500"}`}
-                            >
-                              ₹{openBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}{" "}
-                              {openLabel}
-                            </span>
-                          </div>
-                          <div className="flex justify-between px-3 py-2 border-b border-line-soft">
-                            <span className="font-semibold text-ink-muted">Invoice Amount</span>
-                            <span className="font-bold text-blue-500">
-                              ₹{invoiceAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          <div className="flex justify-between px-3 py-2 bg-card-2">
-                            <span className="font-bold text-ink">Closing Balance</span>
-                            <span
-                              className={`font-bold ${closingType === "Dr" ? "text-rose-500" : "text-emerald-500"}`}
-                            >
-                              ₹{closingAbs.toLocaleString("en-IN", { minimumFractionDigits: 2 })}{" "}
-                              {closingType}
-                            </span>
-                          </div>
-                        </div>
+                        <label
+                          key={idx}
+                          className={`flex cursor-pointer items-start gap-2 rounded-[10px] p-1.5 text-[13px] ${selectedShippingIdx === idx ? "bg-nav-active text-ink" : "text-ink-muted hover:bg-card"}`}
+                        >
+                          <input
+                            type="radio"
+                            name="shippingAddr"
+                            checked={selectedShippingIdx === idx}
+                            onChange={() => setSelectedShippingIdx(idx)}
+                            className="mt-0.5 accent-[color:var(--color-accent)]"
+                          />
+                          <span>
+                            {a.label || `Address ${idx + 1}`}: {addrLabel}
+                          </span>
+                        </label>
                       );
-                    })()}
-                </div>
-              </div>
-
-              {/* ── Notes ── */}
-              <div className="w-full md:w-1/2">
-                <TextInput
-                  as="textarea"
-                  label="Notes"
-                  name="notes"
-                  rows={2}
-                  value={notes}
-                  disabled={isLocked}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes..."
-                />
+                    })}
+                  </div>
+                ) : (
+                  <p className="m-0 mt-1 text-[13px] text-ink-muted">Same as billing</p>
+                )}
               </div>
             </div>
-            {/* end full-width column */}
-          </div>
-          {/* end flex column */}
-        </form>
+          )}
+        </Tile>
 
-        {/* ── Actions ── */}
-        <div className="flex justify-end gap-3 px-5 py-3 border-t border-line">
-          <CustomButton
-            text="Cancel"
-            type="button"
-            variant="secondary"
-            onClick={() => navigate(-1)}
-          />
-          <CustomButton
-            text={saving ? "Saving..." : isEditMode ? "Update Invoice" : "Confirm Invoice"}
-            icon={FaSave}
-            type="button"
-            disabled={saving || isStockNotEnough}
-            variant="primary"
-            onClick={(e) => handleSubmit(e, false)}
-          />
+        {errors.lines && (
+          <div role="alert" className="sl-field-error sl-tile m-0 px-4 py-3">
+            {errors.lines}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <Tile
+              title="Invoice Items"
+              subtitle="Tab moves across, Enter or ↓ moves down; past the last row a new line opens."
+              icon={<ListOrdered size={18} />}
+            >
+              <BusyItemsTable
+                columns={invoiceColumns}
+                rows={lines}
+                onAdd={() => setLines((prev) => [...prev, emptyLine()])}
+                onRemove={(i) =>
+                  setLines((prev) => (prev.length > 1 ? prev.filter((_, j) => j !== i) : prev))
+                }
+                editable={!isEditMode && lines.length > 1}
+                expandable={Boolean(selectedSalesOrderId)}
+                canExpand={(row) => {
+                  const sp = salesProducts.find((s: any) => String(s.id) === row.itemId);
+                  const spComps = (sp?.components || []).filter(
+                    (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+                  );
+                  return spComps.length > 0;
+                }}
+                expandedIndex={expandedLineIndex}
+                onExpandToggle={(i) => {
+                  const lineId = lines[i]?.id;
+                  setExpandedLineId(expandedLineId === lineId ? null : lineId);
+                }}
+                renderExpandedRow={renderExpandedComponents}
+                showTotals={[
+                  { colKey: "qty", value: lines.reduce((s, l) => s + l.qty, 0) },
+                  {
+                    colKey: "weight",
+                    value: lines.reduce((s, l) => s + (l.weight || 0), 0).toFixed(1),
+                  },
+                  { colKey: "total", value: `₹${totals.subTotal.toFixed(2)}` },
+                ]}
+                visibleRows={10}
+              />
+            </Tile>
+            <Tile padding="md">
+              <TextInput
+                as="textarea"
+                label="Notes"
+                name="notes"
+                rows={2}
+                value={notes}
+                disabled={isLocked}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Optional notes..."
+              />
+            </Tile>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <Tile
+              title="Bill Sundry"
+              subtitle="Freight, packing and discounts on the bill."
+              icon={<Receipt size={18} />}
+            >
+              <div className="space-y-3">
+                <BusyItemsTable
+                  columns={sundryColumns}
+                  rows={sundryRows}
+                  onChange={setSundryRows}
+                  emptyRow={sundryEmptyRow}
+                  editable={false}
+                  visibleRows={5}
+                  showTotals={[
+                    {
+                      colKey: "amount",
+                      value: (() => {
+                        const t = sundryRows.reduce((s, r) => {
+                          const a = Number(r.amount) || 0;
+                          const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
+                          return s + (o?.sign === -1 ? -a : a);
+                        }, 0);
+                        return t !== 0 ? `${t > 0 ? "+" : "-"} ₹${Math.abs(t).toFixed(2)}` : "0.00";
+                      })(),
+                    },
+                  ]}
+                />
+                {/* ── TCS (P2-05/P2-12): scrap sales (206C(1)) or a buyer above the annual threshold ── */}
+                <div className="rounded-[14px] bg-card-2 p-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
+                    <input
+                      type="checkbox"
+                      checked={collectTcs}
+                      disabled={isLocked}
+                      onChange={(e) => setCollectTcs(e.target.checked)}
+                      className="sl-check"
+                    />
+                    Collect TCS
+                  </label>
+                  {collectTcs && (
+                    <div className="mt-2 space-y-1.5">
+                      <SelectInput
+                        hideLabel
+                        label=""
+                        name="tcsSectionCode"
+                        value={tcsSectionCode}
+                        disabled={isLocked}
+                        options={tcsSections.map((s) => ({
+                          label: `${s.code} — ${s.name}`,
+                          value: s.code,
+                        }))}
+                        defaultOptionLabel="Select Section"
+                        onChange={(e) => {
+                          setTcsSectionTouched(true);
+                          setTcsSectionCode(e.target.value);
+                        }}
+                      />
+                      {tcsSectionCode && (
+                        <div className="text-[11px] text-ink-subtle flex justify-between">
+                          <span>
+                            {tcsPreview?.belowThreshold
+                              ? tcsPreview.reason
+                              : `${tcsPreview?.rate ?? 0}% TCS`}
+                          </span>
+                          <span className="font-semibold tabular-nums text-ink">
+                            + ₹{tcsAmount.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Tile>
+
+            <Tile className="xl:sticky xl:top-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13px] font-medium text-ink-subtle">Invoice total</span>
+                <span className="text-[28px] font-bold leading-tight tracking-tight tabular-nums text-ink">
+                  {formatINR(invoiceGrand)}
+                </span>
+              </div>
+              <dl className="mt-3 space-y-1.5 text-[13px]">
+                <div className="flex justify-between">
+                  <dt className="text-ink-muted">Taxable value</dt>
+                  <dd className="m-0 tabular-nums text-ink">
+                    {formatINR(totals.subTotal - totals.totalDiscount)}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-ink-muted">GST ({isInterState ? "IGST" : "CGST + SGST"})</dt>
+                  <dd className="m-0 tabular-nums text-ink">{formatINR(totals.taxTotal)}</dd>
+                </div>
+                {sundryNet !== 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-ink-muted">Bill sundry</dt>
+                    <dd className="m-0 tabular-nums text-ink">
+                      {sundryNet > 0 ? "+" : "−"} {formatINR(Math.abs(sundryNet))}
+                    </dd>
+                  </div>
+                )}
+                {tcsAmount > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-ink-muted">TCS</dt>
+                    <dd className="m-0 tabular-nums text-ink">+ {formatINR(tcsAmount)}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="mt-4">
+                {/* ── Customer Balance Summary ── */}
+                {customerId &&
+                  (() => {
+                    const cust = customersRaw.find((c: any) => String(c.id) === customerId);
+                    if (!cust) return null;
+                    const openBal = Number(
+                      cust.balanceAmount ?? cust.netBalance ?? cust.openingBalance ?? 0
+                    );
+                    const bType = (cust.balanceType || cust.openingBalanceType || "")
+                      .toString()
+                      .toUpperCase();
+                    const isDr = bType.startsWith("D");
+                    const openLabel = isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "";
+                    const sundryTotal = sundryRows.reduce((s, r) => {
+                      const a = Number(r.amount) || 0;
+                      const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
+                      return s + (o?.sign === -1 ? -a : a);
+                    }, 0);
+                    const invoiceAmt = totals.grandTotal + sundryTotal + tcsAmount || 0;
+                    const closingRaw = isDr ? openBal + invoiceAmt : openBal - invoiceAmt;
+                    const closingAbs = Math.abs(closingRaw);
+                    const closingType =
+                      closingRaw > 0
+                        ? isDr
+                          ? "Dr"
+                          : "Cr"
+                        : closingRaw < 0
+                          ? isDr
+                            ? "Cr"
+                            : "Dr"
+                          : "";
+
+                    return (
+                      <div className="overflow-hidden rounded-[14px] border border-line-soft text-[13px]">
+                        <div className="flex justify-between px-3 py-2 border-b border-line-soft bg-card-2">
+                          <span className="font-semibold text-ink-muted">Opening Balance</span>
+                          <span className="font-semibold tabular-nums text-ink">
+                            ₹{openBal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}{" "}
+                            {openLabel}
+                          </span>
+                        </div>
+                        <div className="flex justify-between px-3 py-2 border-b border-line-soft">
+                          <span className="font-semibold text-ink-muted">Invoice Amount</span>
+                          <span className="font-semibold tabular-nums text-ink">
+                            ₹{invoiceAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between px-3 py-2 bg-card-2">
+                          <span className="font-bold text-ink">Closing Balance</span>
+                          <span className="font-bold tabular-nums text-ink">
+                            ₹{closingAbs.toLocaleString("en-IN", { minimumFractionDigits: 2 })}{" "}
+                            {closingType}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+              </div>
+            </Tile>
+          </div>
         </div>
-      </div>
+
+        <FormFooter
+          start={
+            isStockNotEnough ? (
+              <span className="font-medium text-[color:var(--color-danger)]">
+                Some lines ask for more than the finished-goods stock.
+              </span>
+            ) : (
+              <KeyHint keys={["F2"]}>confirms the invoice</KeyHint>
+            )
+          }
+        >
+          <ActionPill variant="secondary" onClick={() => navigate(-1)}>
+            Cancel
+          </ActionPill>
+          <ActionPill
+            data-submit-btn
+            icon={<Save size={17} />}
+            loading={saving}
+            loadingText="Saving..."
+            disabled={isStockNotEnough}
+            onClick={(e) => handleSubmit(e, false)}
+          >
+            {isEditMode ? "Update Invoice" : "Confirm Invoice"}
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

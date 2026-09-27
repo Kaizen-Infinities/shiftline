@@ -7,23 +7,40 @@ import {
   type LeaveRequestStatus,
   type MyLeave,
 } from "../../../services/leaveService";
+import { Send, Umbrella } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SkeletonTile,
+  StatTile,
+  type ChipTone,
+} from "../../../components/ui/v2";
 import {
   Card,
+  PageShell,
+  TableWrap,
   day,
   field,
+  linkBtn,
   message,
-  primary,
-  secondary,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../../payroll/components/peopleUi";
 
 /** Self-service: the calling user's own leave balances and requests (P2-09). */
-const STATUS_STYLE: Record<LeaveRequestStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  REJECTED: "bg-rose-100 text-rose-700",
-  CANCELLED: "bg-slate-100 text-slate-700",
+const STATUS_TONE: Record<LeaveRequestStatus, ChipTone> = {
+  PENDING: "warning",
+  APPROVED: "success",
+  REJECTED: "danger",
+  CANCELLED: "muted",
+};
+const STATUS_LABEL: Record<LeaveRequestStatus, string> = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  CANCELLED: "Cancelled",
 };
 
 const emptyForm = {
@@ -95,181 +112,207 @@ const MyLeavePage: React.FC = () => {
   };
 
   if (loading && !data) {
-    return <div className="p-4 text-sm text-ink-muted">Loading…</div>;
+    return (
+      <PageShell className="space-y-5">
+        <PageHeader title="My Leave" subtitle="Loading…" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <StatTile key={i} label=" " value="" loading />
+          ))}
+        </div>
+        <SkeletonTile lines={4} />
+      </PageShell>
+    );
   }
 
   if (data && !data.linked) {
     return (
-      <div className="space-y-4 p-4">
-        <h1 className="text-xl font-semibold text-ink">My Leave</h1>
-        <Card title="No employee record">
-          <p className="text-sm text-ink-muted">
-            Your account is not linked to an employee record, so there is nothing to show here. Ask
-            an administrator to link your user to your employee record.
-          </p>
-        </Card>
-      </div>
+      <PageShell className="space-y-5">
+        <PageHeader title="My Leave" icon={<Umbrella size={20} />} />
+        <div className="sl-tile">
+          <EmptyState
+            icon={<Umbrella size={28} strokeWidth={1.75} />}
+            title="No employee record"
+            description="Your account is not linked to an employee record, so there is nothing to show here. Ask an administrator to link your user to your employee record."
+          />
+        </div>
+      </PageShell>
     );
   }
 
+  const balances = data?.balances ?? [];
+  const requests = data?.requests ?? [];
+  const pending = requests.filter((r) => r.status === "PENDING").length;
+
   return (
-    <div className="space-y-4 p-4">
-      <header>
-        <h1 className="text-xl font-semibold text-ink">My Leave</h1>
-        <p className="text-sm text-ink-muted">{data?.employee?.fullName}</p>
-      </header>
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="My Leave"
+        icon={<Umbrella size={20} />}
+        subtitle={data?.employee?.fullName}
+        meta={
+          pending > 0 ? (
+            <Chip tone="warning" size="sm">
+              {pending} pending
+            </Chip>
+          ) : undefined
+        }
+      />
 
-      <Card title="Balances">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-line-soft">
-                <th className={th}>Year</th>
-                <th className={th}>Type</th>
-                <th className={th}>Opening</th>
-                <th className={th}>Accrued</th>
-                <th className={th}>Taken</th>
-                <th className={th}>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.balances ?? []).length === 0 && (
-                <tr>
-                  <td className={td} colSpan={6}>
-                    No balances yet.
-                  </td>
-                </tr>
-              )}
-              {data?.balances.map((b) => (
-                <tr key={b.id} className="border-b border-line-soft/60">
-                  <td className={td}>{b.fyCode}</td>
-                  <td className={td}>
-                    {b.leaveType.code} — {b.leaveType.name}
-                  </td>
-                  <td className={td}>{b.opening}</td>
-                  <td className={td}>{b.accrued}</td>
-                  <td className={td}>{b.taken}</td>
-                  <td className={`${td} font-semibold`}>{b.closing}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <Card title="Apply for leave">
-        <form onSubmit={submit} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <select
-            className={field}
-            value={form.leaveTypeCode}
-            onChange={(e) => setForm((f) => ({ ...f, leaveTypeCode: e.target.value }))}
-            required
-          >
-            <option value="">Leave type</option>
-            {types.map((t) => (
-              <option key={t.id} value={t.code}>
-                {t.code} — {t.name}
-              </option>
-            ))}
-          </select>
-          <label className="text-xs text-ink-muted">
-            From
-            <input
-              type="date"
-              className={`${field} mt-1 w-full`}
-              value={form.fromDate}
-              onChange={(e) => setForm((f) => ({ ...f, fromDate: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="text-xs text-ink-muted">
-            To
-            <input
-              type="date"
-              className={`${field} mt-1 w-full`}
-              value={form.toDate}
-              onChange={(e) => setForm((f) => ({ ...f, toDate: e.target.value }))}
-              required
-            />
-          </label>
-          <div className="flex items-center gap-3 text-xs text-ink-muted sm:col-span-3">
-            <label className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={form.halfDayStart}
-                onChange={(e) => setForm((f) => ({ ...f, halfDayStart: e.target.checked }))}
-              />
-              Half day start
-            </label>
-            <label className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={form.halfDayEnd}
-                onChange={(e) => setForm((f) => ({ ...f, halfDayEnd: e.target.checked }))}
-              />
-              Half day end
-            </label>
+      <section aria-labelledby="balances-heading">
+        <h2 id="balances-heading" className="sl-section-label m-0 mb-2">
+          Balances
+        </h2>
+        {balances.length === 0 ? (
+          <div className="sl-tile">
+            <EmptyState compact title="No balances yet." />
           </div>
-          <input
-            className={`${field} sm:col-span-3`}
-            placeholder="Reason (optional)"
-            value={form.reason}
-            onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-          />
-          <button className={`${primary} sm:col-span-3`} disabled={busy} type="submit">
-            Submit request
-          </button>
-        </form>
-      </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {balances.map((b) => (
+              <StatTile
+                key={b.id}
+                label={`${b.leaveType.name} · ${b.fyCode}`}
+                value={
+                  <>
+                    {b.closing}
+                    <span className="ml-1 text-base font-semibold text-ink-subtle">days</span>
+                  </>
+                }
+                delta={b.leaveType.code}
+                deltaTone="default"
+                hint={`Opening ${b.opening} · accrued ${b.accrued} · taken ${b.taken}`}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-      <Card title="My requests">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-line-soft">
-                <th className={th}>Type</th>
-                <th className={th}>From</th>
-                <th className={th}>To</th>
-                <th className={th}>Days</th>
-                <th className={th}>Status</th>
-                <th className={th}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.requests ?? []).length === 0 && (
+      <div className="grid gap-5 lg:grid-cols-5">
+        <Card title="Apply for leave" className="lg:col-span-2">
+          <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="sl-label">Leave type</span>
+              <select
+                className={`${field} !w-full`}
+                value={form.leaveTypeCode}
+                onChange={(e) => setForm((f) => ({ ...f, leaveTypeCode: e.target.value }))}
+                required
+              >
+                <option value="">Leave type</option>
+                {types.map((t) => (
+                  <option key={t.id} value={t.code}>
+                    {t.code} — {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="sl-label">From</span>
+              <input
+                type="date"
+                className={`${field} !w-full`}
+                value={form.fromDate}
+                onChange={(e) => setForm((f) => ({ ...f, fromDate: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="sl-label">To</span>
+              <input
+                type="date"
+                className={`${field} !w-full`}
+                value={form.toDate}
+                onChange={(e) => setForm((f) => ({ ...f, toDate: e.target.value }))}
+                required
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-ink-muted sm:col-span-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="sl-check"
+                  checked={form.halfDayStart}
+                  onChange={(e) => setForm((f) => ({ ...f, halfDayStart: e.target.checked }))}
+                />
+                Half day start
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="sl-check"
+                  checked={form.halfDayEnd}
+                  onChange={(e) => setForm((f) => ({ ...f, halfDayEnd: e.target.checked }))}
+                />
+                Half day end
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="sl-label">Reason (optional)</span>
+              <input
+                className={`${field} !w-full`}
+                placeholder="Reason (optional)"
+                value={form.reason}
+                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+              />
+            </label>
+            <div className="sm:col-span-2">
+              <ActionPill type="submit" loading={busy} icon={<Send size={16} />} fullWidth>
+                Submit request
+              </ActionPill>
+            </div>
+          </form>
+        </Card>
+
+        <Card title="My requests" className="lg:col-span-3">
+          <TableWrap>
+            <table className="w-full border-collapse">
+              <thead>
                 <tr>
-                  <td className={td} colSpan={6}>
-                    No requests yet.
-                  </td>
+                  <th className={th}>Type</th>
+                  <th className={th}>From</th>
+                  <th className={th}>To</th>
+                  <th className={th}>Days</th>
+                  <th className={th}>Status</th>
+                  <th className={th}>Actions</th>
                 </tr>
-              )}
-              {data?.requests.map((r) => (
-                <tr key={r.id} className="border-b border-line-soft/60">
-                  <td className={td}>{r.leaveType.code}</td>
-                  <td className={td}>{day(r.fromDate)}</td>
-                  <td className={td}>{day(r.toDate)}</td>
-                  <td className={td}>{r.days}</td>
-                  <td className={td}>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}
-                    >
-                      {r.status}
-                    </span>
-                  </td>
-                  <td className={td}>
-                    {(r.status === "PENDING" || r.status === "APPROVED") && (
-                      <button className={secondary} disabled={busy} onClick={() => cancel(r.id)}>
-                        Cancel
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
+              </thead>
+              <tbody>
+                {requests.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>
+                      <EmptyState compact title="No requests yet." />
+                    </td>
+                  </tr>
+                )}
+                {requests.map((r) => (
+                  <tr key={r.id} className="sl-row-hover border-t border-line-soft">
+                    <td className={td}>
+                      <Chip size="sm">{r.leaveType.code}</Chip>
+                    </td>
+                    <td className={td}>{day(r.fromDate)}</td>
+                    <td className={td}>{day(r.toDate)}</td>
+                    <td className={`${td} tabular-nums`}>{r.days}</td>
+                    <td className={td}>
+                      <Chip size="sm" tone={STATUS_TONE[r.status]}>
+                        {STATUS_LABEL[r.status]}
+                      </Chip>
+                    </td>
+                    <td className={td}>
+                      {(r.status === "PENDING" || r.status === "APPROVED") && (
+                        <button className={linkBtn} disabled={busy} onClick={() => cancel(r.id)}>
+                          Cancel
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        </Card>
+      </div>
+    </PageShell>
   );
 };
 

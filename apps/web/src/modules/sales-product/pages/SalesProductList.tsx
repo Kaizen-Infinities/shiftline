@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
+import { Plus } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Toolbar } from "../../../components/ui/v2";
+import { PAGE_CLASS } from "../../sales/shared/tradeUi";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -10,10 +12,8 @@ import { useListCache } from "../../../hooks/useListCache";
 
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 
@@ -57,11 +57,6 @@ const SalesProductList: React.FC = () => {
         p.salesProductCode?.toLowerCase().includes(term)
     );
   }, [allSalesProducts, searchTerm]);
-
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  }, []);
 
   const totalPages = Math.ceil(salesProducts.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -128,30 +123,36 @@ const SalesProductList: React.FC = () => {
   const columns: DataTableColumn<any>[] = [
     {
       header: "#",
-      width: "60px",
-      align: "center",
-      render: (_, index) => startIndex + index + 1,
+      width: "56px",
+      render: (_, index) => (
+        <span className="tabular-nums text-ink-subtle">{startIndex + index + 1}</span>
+      ),
     },
     {
-      header: "SALES PRODUCT",
+      header: "Sales product",
       render: (item) => (
-        <div>
+        <div className="leading-tight">
           <div className="font-semibold text-ink">{item.salesProductName}</div>
-          <span className="text-xs text-ink-subtle">Code: {item.salesProductCode}</span>
+          <span className="text-[12px] text-ink-subtle">{item.salesProductCode}</span>
         </div>
       ),
     },
     {
-      header: "COMPONENTS",
-      render: (item) =>
-        (item.components || [])
-          .map((c: any) => {
-            const name = c.componentProduct?.productName;
-            if (!name) return null;
-            return `${name} (${c.quantity ?? 1})`;
-          })
-          .filter(Boolean)
-          .join(", ") || "-",
+      header: "Components",
+      render: (item) => {
+        const comps = (item.components || []).filter((c: any) => c.componentProduct?.productName);
+        if (!comps.length) return <span className="text-ink-subtle">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1.5 py-1">
+            {comps.map((c: any, i: number) => (
+              <Chip key={c.id ?? i} size="sm" tone="muted">
+                {c.componentProduct.productName}
+                <span className="tabular-nums text-ink-subtle">× {c.quantity ?? 1}</span>
+              </Chip>
+            ))}
+          </div>
+        );
+      },
     },
     // {
     //     header: "RATE (₹)",
@@ -159,15 +160,14 @@ const SalesProductList: React.FC = () => {
     //     render: (item) => item.rate != null ? Number(item.rate).toFixed(2) : "-",
     // },
     {
-      header: "STATUS",
-      align: "center",
+      header: "Status",
       render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} />,
     },
     {
-      header: "ACTIONS",
-      align: "left",
+      header: "Actions",
+      align: "right",
       render: (item) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-1.5">
           {can("sales_products.edit") && <EditButton onClick={() => handleOpenEdit(item)} />}
           {can("sales_products.delete") && <DeleteButton onClick={() => triggerDelete(item.id)} />}
         </div>
@@ -175,52 +175,60 @@ const SalesProductList: React.FC = () => {
     },
   ];
 
-  return (
-    <div>
-      <div className="max-w-[1200px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Sales Product</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="w-full md:w-64">
-              <SearchInput
-                value={searchTerm}
-                onChange={handleSearch}
-                placeholder="Search by sales product..."
-              />
-            </div>
-            {can("sales_products.export") && (
-              <ExportCSVButton
-                fetchData={fetchSalesProductsForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-            {can("sales_products.create") && (
-              <CustomButton text="Add Sales Product" icon={FaPlus} onClick={handleOpenAdd} />
-            )}
-          </div>
-        </div>
+  const createButton = can("sales_products.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={handleOpenAdd}>
+      Add Sales Product
+    </ActionPill>
+  ) : null;
 
-        <DataTable
-          columns={columns}
-          data={paginatedData}
-          rowKey={(row) => row.id}
-          loading={loading}
-          emptyMessage="No sales products found."
-          pagination={
-            totalPages > 1
-              ? {
-                  currentPage,
-                  totalPages,
-                  onPageChange: setCurrentPage,
-                }
-              : undefined
-          }
-        />
-      </div>
+  return (
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Sales Product"
+        subtitle="Sellable kits built from production items, e.g. a bucket with its lid"
+        primaryAction={createButton}
+        actions={
+          can("sales_products.export") ? (
+            <ExportCSVButton
+              fetchData={fetchSalesProductsForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : null
+        }
+      />
+
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search name or code"
+        searchLabel="Search sales products"
+      />
+
+      <DataTable
+        columns={columns}
+        data={paginatedData}
+        rowKey={(row) => row.id}
+        loading={loading}
+        ariaLabel="Sales products"
+        emptyMessage={
+          searchTerm ? `No sales products match "${searchTerm}".` : "No sales products yet."
+        }
+        emptyAction={searchTerm ? undefined : createButton}
+        pagination={
+          totalPages > 1
+            ? {
+                currentPage,
+                totalPages,
+                onPageChange: setCurrentPage,
+              }
+            : undefined
+        }
+      />
 
       <CommonConfirmModal
         show={showDeleteModal}

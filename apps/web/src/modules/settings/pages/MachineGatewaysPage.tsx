@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { Cpu } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import { machineService } from "../../../services/machineService";
@@ -19,13 +21,12 @@ import {
  * is connected. OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned; picking
  * one is allowed, but "Test connection" will honestly refuse until that adapter is.
  */
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
-const field = "rounded-lg border border-line-soft bg-card-2 px-3 py-1.5 text-sm text-ink";
-const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
-const td = "px-3 py-1.5 text-sm text-ink align-top";
+const primary = "sl-btn-blue sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const danger = "sl-btn-soft-danger sl-pill-sm";
+const field = "sl-input h-10 w-auto max-w-full py-0 text-sm";
+const th = "sl-th bg-card-2 px-3 py-2.5 text-left first:rounded-l-xl last:rounded-r-xl";
+const td = "px-3 py-2.5 text-sm text-ink align-top";
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   "Something went wrong";
@@ -227,18 +228,16 @@ const MachineGatewaysPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-ink">Machine gateways</h2>
-        <p className="text-sm text-ink-muted">
-          One gateway per machine connection. SIMULATOR is the only adapter that has met a real
-          device today; OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned and
-          will refuse to connect until they have.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="Machine gateways"
+        icon={<Cpu size={22} />}
+        subtitle="One gateway per machine connection. SIMULATOR is the only adapter that has met a real device today; OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned and will refuse to connect until they have."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Machine gateways" }]}
+      />
 
       {can("machine-telemetry.configure") && (
-        <div className="grid gap-2 rounded-xl border border-line-soft bg-card p-3 sm:grid-cols-3">
+        <div className="grid gap-2 sl-tile p-4 sm:p-5 sm:grid-cols-3">
           <input
             className={field}
             placeholder="Code"
@@ -303,7 +302,7 @@ const MachineGatewaysPage: React.FC = () => {
           <div className="flex gap-2">
             <button
               type="button"
-              className={primary}
+              className="sl-cta sl-pill-md"
               disabled={busy || (!editing && (!form.code || !form.machineId))}
               onClick={save}
             >
@@ -325,7 +324,7 @@ const MachineGatewaysPage: React.FC = () => {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
+      <div className="sl-tile overflow-x-auto p-2 sm:p-3">
         <table className="min-w-full divide-y divide-line-soft">
           <thead>
             <tr>
@@ -350,11 +349,14 @@ const MachineGatewaysPage: React.FC = () => {
                     {!r.isActive ? (
                       <span className="text-ink-muted">Inactive</span>
                     ) : r.consecutiveFailures > 0 ? (
-                      <span className="text-rose-700" title={r.lastError ?? undefined}>
+                      <span
+                        className="text-[color:var(--color-danger)]"
+                        title={r.lastError ?? undefined}
+                      >
                         {r.consecutiveFailures} failing
                       </span>
                     ) : (
-                      <span className="text-emerald-700">Healthy</span>
+                      <span className="text-[color:var(--color-success)]">Healthy</span>
                     )}
                   </td>
                   <td className={td}>{relativeAge(r.lastSeenAt)}</td>
@@ -362,7 +364,7 @@ const MachineGatewaysPage: React.FC = () => {
                     {can("machine-telemetry.ingest") && (
                       <button
                         type="button"
-                        className="mr-3 text-sm font-semibold text-blue-600 hover:underline"
+                        className="sl-btn sl-pill-sm mr-2"
                         disabled={testingInFlight.has(r.id)}
                         onClick={() => testConnection(r.id)}
                       >
@@ -372,7 +374,7 @@ const MachineGatewaysPage: React.FC = () => {
                     {can("machine-telemetry.view") && (
                       <button
                         type="button"
-                        className="mr-3 text-sm font-semibold text-blue-600 hover:underline"
+                        className="sl-btn sl-pill-sm mr-2"
                         onClick={() => openSignalMap(r.id)}
                       >
                         Signal map
@@ -381,7 +383,7 @@ const MachineGatewaysPage: React.FC = () => {
                     {can("machine-telemetry.configure") && (
                       <button
                         type="button"
-                        className="mr-3 text-sm font-semibold text-blue-600 hover:underline"
+                        className="sl-btn sl-pill-sm mr-2"
                         onClick={() => startEdit(r)}
                       >
                         Edit
@@ -398,7 +400,7 @@ const MachineGatewaysPage: React.FC = () => {
                   <tr>
                     <td colSpan={7} className="px-3 pb-2">
                       <span
-                        className={`rounded-md px-2 py-1 text-xs ${testing[r.id]!.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}
+                        className={`sl-chip sl-chip-sm ${testing[r.id]!.ok ? "sl-chip-success" : "sl-chip-danger"}`}
                       >
                         {testing[r.id]!.detail}
                       </span>
@@ -423,7 +425,7 @@ const MachineGatewaysPage: React.FC = () => {
                                   <td className="py-1">
                                     <button
                                       type="button"
-                                      className="text-xs font-semibold text-rose-700 hover:underline"
+                                      className="text-xs font-semibold text-[color:var(--color-danger)] hover:underline"
                                       onClick={() =>
                                         setSignalMapRows((rowsList) =>
                                           rowsList.map((x) =>

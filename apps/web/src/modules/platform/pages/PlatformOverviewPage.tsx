@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import { Building2, Eye, Smartphone, Users } from "lucide-react";
 
 import { platformService, type PlatformOverview } from "../../../services/platformService";
-import { Badge, Section, Stat, message, secondary, td, th, when } from "../platform.ui";
+import { PageHeader, SkeletonTile, StatTile, actionPillClass } from "../../../components/ui/v2";
+import { Badge, Section, message, secondary, td, th, when } from "../platform.ui";
 
 /** Platform console landing page (P1-02): the fleet at a glance and who is impersonating whom. */
 const PlatformOverviewPage: React.FC = () => {
@@ -36,36 +38,64 @@ const PlatformOverviewPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-ink">Platform Overview</h2>
-        <p className="text-sm text-ink-muted">
-          Every tenant on this Shiftline instance. Numbers refresh on each visit.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="Platform Overview"
+        icon={<Building2 size={22} />}
+        subtitle="Every tenant on this Shiftline instance. Numbers refresh on each visit."
+        actions={
+          <Link to="/platform/plans" className={actionPillClass({ variant: "secondary" })}>
+            Plans
+          </Link>
+        }
+        primaryAction={
+          <Link to="/platform/tenants" className={actionPillClass({ size: "lg" })}>
+            Manage tenants
+          </Link>
+        }
+      />
+      {!data && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonTile key={i} lines={2} />
+          ))}
+        </div>
+      )}
       {data && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Stat
+            <StatTile
               label="Tenants"
               value={data.tenants.total}
+              icon={<Building2 size={18} />}
+              to="/platform/tenants"
               hint={`${data.tenants.active} active · ${data.tenants.suspended} suspended · ${data.tenants.onboarded} onboarded`}
             />
-            <Stat label="Active users" value={data.activeUsers} />
-            <Stat label="Field devices" value={data.activeDevices} />
-            <Stat
+            <StatTile label="Active users" value={data.activeUsers} icon={<Users size={18} />} />
+            <StatTile
+              label="Field devices"
+              value={data.activeDevices}
+              icon={<Smartphone size={18} />}
+            />
+            <StatTile
               label="Live impersonations"
               value={data.activeImpersonations.length}
+              icon={<Eye size={18} />}
               hint="30-minute windows"
+              delta={data.activeImpersonations.length > 0 ? "Live" : undefined}
+              deltaTone="warning"
             />
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <Section title="Subscriptions by status">
-              <ul className="space-y-1 text-sm">
+              <ul className="m-0 list-none space-y-2 p-0 text-sm">
                 {Object.entries(data.subscriptionsByStatus).map(([status, n]) => (
-                  <li key={status} className="flex justify-between">
+                  <li
+                    key={status}
+                    className="flex items-center justify-between rounded-[12px] bg-card-2 px-3 py-2"
+                  >
                     <Badge value={status} />
-                    <span className="tabular-nums">{n}</span>
+                    <span className="font-semibold tabular-nums">{n}</span>
                   </li>
                 ))}
                 {Object.keys(data.subscriptionsByStatus).length === 0 && (
@@ -74,14 +104,17 @@ const PlatformOverviewPage: React.FC = () => {
               </ul>
             </Section>
             <Section title="Subscriptions by plan">
-              <ul className="space-y-1 text-sm">
+              <ul className="m-0 list-none space-y-2 p-0 text-sm">
                 {data.subscriptionsByPlan.map((r) => (
-                  <li key={r.plan.id} className="flex justify-between">
+                  <li
+                    key={r.plan.id}
+                    className="flex items-center justify-between rounded-[12px] bg-card-2 px-3 py-2"
+                  >
                     <span>
                       {r.plan.name ?? r.plan.code ?? r.plan.id}{" "}
                       <span className="text-ink-subtle">{r.plan.code}</span>
                     </span>
-                    <span className="tabular-nums">{r.count}</span>
+                    <span className="font-semibold tabular-nums">{r.count}</span>
                   </li>
                 ))}
                 {data.subscriptionsByPlan.length === 0 && (
@@ -93,16 +126,18 @@ const PlatformOverviewPage: React.FC = () => {
           <Section
             title="Active impersonations"
             right={
-              <Link to="/platform/tenants" className="text-xs text-blue-700 hover:underline">
+              <Link to="/platform/tenants" className={secondary}>
                 All tenants
               </Link>
             }
           >
             {data.activeImpersonations.length === 0 ? (
-              <p className="text-sm text-ink-muted">Nobody is acting as a tenant user right now.</p>
+              <p className="m-0 text-sm text-ink-muted">
+                Nobody is acting as a tenant user right now.
+              </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-line-soft">
+                <table className="min-w-full">
                   <thead>
                     <tr>
                       <th className={th}>Admin</th>
@@ -113,14 +148,14 @@ const PlatformOverviewPage: React.FC = () => {
                       <th className={th} />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-line-soft">
+                  <tbody>
                     {data.activeImpersonations.map((r) => (
-                      <tr key={r.id}>
+                      <tr key={r.id} className="border-t border-line-soft">
                         <td className={td}>{r.admin.fullName ?? r.admin.username ?? r.adminId}</td>
                         <td className={td}>
                           <Link
                             to={`/platform/tenants/${r.company.id}`}
-                            className="text-blue-700 hover:underline"
+                            className="font-semibold text-accent hover:underline"
                           >
                             {r.company.companyName ?? r.company.id}
                           </Link>

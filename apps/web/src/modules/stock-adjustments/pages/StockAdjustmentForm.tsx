@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { FaSave, FaPlus, FaMinus, FaInfoCircle, FaEraser } from "react-icons/fa";
+import { FaPlus, FaMinus } from "react-icons/fa";
 import { Search } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { z } from "zod";
-
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   createStockAdjustment,
@@ -20,14 +19,14 @@ import { fetchRawMaterialStocks } from "../../../features/raw-materials/rawMater
 import { fetchProducts } from "../../../features/product/productSlice";
 import { fetchStores } from "../../../features/stores/storeSlice";
 import { fetchFinishedGoodsStocks } from "../../../features/finished-goods-stock/finishedGoodsStockSlice";
-
-import CustomButton from "../../../components/ui/Button/Button";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
+import { Eraser, Info, Plus, Save } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 // ──────────────────────────────────────────
 // Constants
@@ -824,42 +823,37 @@ const StockAdjustmentForm: React.FC = () => {
 
   // ── Render ──────────────────────────────
   return (
-    <div className="w-full mx-auto">
-      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-sm border border-line overflow-visible">
-        {/* Page Header */}
-        <div className="px-5 py-3 border-b border-line">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-bold text-ink">
-              {isEditMode ? "Edit Stock Adjustment" : "New Stock Adjustment"}
-            </h2>
-            <BackButton text="Back" to="/inventory/stock-adjustments" />
-          </div>
-        </div>
+    <div className="w-full min-w-0">
+      <div className="w-full min-w-0">
+        <PageHeader
+          title={isEditMode ? "Edit Stock Adjustment" : "New Stock Adjustment"}
+          subtitle={
+            isPMI
+              ? "Issue reserved raw material to a production order"
+              : "Correct stock for count variances, damage, scrap and returns"
+          }
+          back="/inventory/stock-adjustments"
+          backLabel="Back to stock adjustments"
+          breadcrumbs={[
+            { label: "Inventory" },
+            { label: "Stock adjustments", to: "/inventory/stock-adjustments" },
+            { label: isEditMode ? "Edit" : "New" },
+          ]}
+        />
 
-        <form onSubmit={(e) => e.preventDefault()} className="px-5 py-4 space-y-4" noValidate>
+        <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-4" noValidate>
           {/* Section 1: Adjustment Information */}
-          <div className="mb-4">
-            <div className="mb-4">
-              <h3 className="text-sm font-bold text-ink-muted uppercase tracking-wider">
-                Adjustment Details
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Tile title="Adjustment details">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
               <div>
-                <label className="block mb-2 text-xs font-bold text-ink-muted uppercase tracking-wider">
-                  Date <span className="text-[color:var(--color-danger)]">*</span>
-                </label>
                 <DatePickerCalendar
+                  label="Date"
                   name="adjustmentDate"
                   value={formData.adjustmentDate}
                   onChange={(e) => setFormData({ ...formData, adjustmentDate: e.target.value })}
                   required
+                  error={errors.adjustmentDate}
                 />
-                {errors.adjustmentDate && (
-                  <p className="text-xs text-[color:var(--color-danger)] mt-1 font-medium">
-                    {errors.adjustmentDate}
-                  </p>
-                )}
               </div>
               <TextInput
                 label="Adjusted By"
@@ -871,14 +865,14 @@ const StockAdjustmentForm: React.FC = () => {
                 error={errors.reason}
               />
             </div>
-          </div>
+          </Tile>
 
           {/* Section 2: Production Order Selection (PMI Only) */}
           {isPMI && (
-            <div className="pt-2">
-              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">
-                Production Order Selection
-              </h6>
+            <Tile
+              title="Production order"
+              subtitle="Load the reserved raw materials of an approved order"
+            >
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start">
                 <div className="lg:col-span-2">
                   <SelectInput
@@ -900,19 +894,19 @@ const StockAdjustmentForm: React.FC = () => {
                 </div>
                 {selectedPO && (
                   <>
-                    <div className="px-3 py-2 bg-card-2 border border-line rounded-lg flex flex-col justify-center min-h-[66px]">
+                    <div className="flex min-h-[66px] flex-col justify-center rounded-[14px] bg-card-2 px-3 py-2">
                       <span className="text-xs text-ink-subtle mb-1">Product</span>
                       <span className="text-sm font-semibold text-ink truncate">
                         {selectedPO.productItem?.productName || "—"}
                       </span>
                     </div>
-                    <div className="px-3 py-2 bg-card-2 border border-line rounded-lg flex flex-col justify-center min-h-[66px]">
+                    <div className="flex min-h-[66px] flex-col justify-center rounded-[14px] bg-card-2 px-3 py-2">
                       <span className="text-xs text-ink-subtle mb-1">Planned Qty</span>
                       <span className="text-sm font-semibold text-ink">
                         {Number(selectedPO.targetQty).toLocaleString()} {selectedPO.uom}
                       </span>
                     </div>
-                    <div className="px-3 py-2 bg-card-2 border border-line rounded-lg flex flex-col justify-center min-h-[66px]">
+                    <div className="flex min-h-[66px] flex-col justify-center rounded-[14px] bg-card-2 px-3 py-2">
                       <span className="text-xs text-ink-subtle mb-1">Machine</span>
                       <span className="text-sm font-semibold text-ink truncate">
                         {selectedPO.Machine?.machineName || selectedPO.machineMachineId || "—"}
@@ -923,58 +917,55 @@ const StockAdjustmentForm: React.FC = () => {
               </div>
 
               {!formData.productionOrderId && (
-                <div className="mt-3 p-3 bg-card-2 border border-line text-ink-muted rounded-lg flex items-center gap-2 text-sm">
-                  <FaInfoCircle className="flex-shrink-0" />
+                <div className="mt-3 flex items-center gap-2 rounded-[14px] bg-nav-active p-3 text-sm text-ink-muted">
+                  <Info size={16} className="shrink-0 text-accent" aria-hidden="true" />
                   <span>
                     Select a Production Order to load its reserved raw materials for issue. Only
                     orders in <strong>Approved / RM Available</strong> status are shown.
                   </span>
                 </div>
               )}
-            </div>
+            </Tile>
           )}
 
           {/* Section 3: Raw Materials to Issue (PMI Only) */}
           {isPMI && selectedPO && pmiItems.length > 0 && (
-            <div className="pt-2 border-t border-line mt-4">
-              <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">
-                Raw Materials to Issue
-              </h6>
-              <div className="rounded-sm border border-line bg-card [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0 overflow-visible">
+            <Tile title="Raw materials to issue">
+              <div className="rounded-[14px] border border-line-soft bg-card [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0 overflow-visible">
                 <table className="min-w-full divide-y divide-line">
                   <thead className="bg-card-2">
                     <tr>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         RM CODE
                       </th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         MATERIAL NAME
                       </th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-right text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         REQUIRED QTY
                       </th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-right text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         RESERVED QTY
                       </th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-right text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         ALREADY ISSUED
                       </th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-right text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         REMAINING
                       </th>
-                      <th className="px-3 py-3 text-right text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-right text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         AVAILABLE STOCK
                       </th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line">
+                      <th className="px-3 py-3 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line">
                         UOM
                       </th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[200px]">
+                      <th className="px-3 py-3 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line min-w-[200px]">
                         STORE*
                       </th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[150px]">
+                      <th className="px-3 py-3 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line min-w-[150px]">
                         ISSUE QTY*
                       </th>
-                      <th className="px-3 py-3 text-left text-[11px] font-bold text-ink-muted uppercase tracking-widest border-b border-line min-w-[180px]">
+                      <th className="px-3 py-3 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide border-b border-line min-w-[180px]">
                         REMARKS
                       </th>
                     </tr>
@@ -1062,14 +1053,14 @@ const StockAdjustmentForm: React.FC = () => {
                   {errors.items}
                 </div>
               )}
-            </div>
+            </Tile>
           )}
 
           {/* Section 2: Adjustment Items (Regular Adjustment Only) */}
           {!isPMI && (
-            <div className="pt-2 mt-4">
+            <Tile>
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
-                <h3 className="text-base font-bold text-ink m-0">Items to Adjust</h3>
+                <h2 className="sl-h2 m-0">Items to Adjust</h2>
                 <div className="flex items-center gap-2.5">
                   <div className="[&_.mb-4]:!mb-0 [&_.mb-\[18px\]]:!mb-0">
                     <SelectInput
@@ -1088,16 +1079,18 @@ const StockAdjustmentForm: React.FC = () => {
                   </div>
 
                   <div className="relative select-add-products-container">
-                    <CustomButton
-                      text={`${formData.items.length} Selected`}
-                      icon={FaPlus}
+                    <ActionPill
+                      variant="secondary"
                       size="sm"
+                      icon={<Plus size={15} />}
+                      aria-expanded={isAddProductsOpen}
                       onClick={() => setIsAddProductsOpen(!isAddProductsOpen)}
-                      className="!bg-card-2 !text-ink hover:!bg-line !border !border-line"
-                    />
+                    >
+                      {`${formData.items.length} Selected`}
+                    </ActionPill>
 
                     {isAddProductsOpen && (
-                      <div className="absolute right-0 mt-2 w-80 sm:w-96 max-h-96 overflow-y-auto bg-card rounded-sm shadow-md border border-line-soft p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="sl-popover absolute right-0 z-50 mt-2 max-h-96 w-80 overflow-y-auto p-3 sm:w-96 animate-in fade-in slide-in-from-top-2 duration-150">
                         <div className="flex gap-2 mb-2">
                           <div className="relative flex-1">
                             <Search
@@ -1180,26 +1173,26 @@ const StockAdjustmentForm: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-sm border border-line overflow-hidden bg-card">
+              <div className="overflow-x-auto rounded-[14px] border border-line-soft bg-card">
                 <table className="min-w-full divide-y divide-line">
                   <thead className="bg-card-2 border-b border-line">
                     <tr>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+                      <th className="px-3 py-2.5 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide">
                         Product
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wider min-w-[130px]">
+                      <th className="px-3 py-2.5 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide min-w-[130px]">
                         Store
                       </th>
-                      <th className="px-3 py-2.5 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wider w-20">
+                      <th className="px-3 py-2.5 text-center text-[12px] font-semibold text-ink-muted uppercase tracking-wide w-20">
                         Current
                       </th>
-                      <th className="px-3 py-2.5 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wider min-w-[200px]">
+                      <th className="px-3 py-2.5 text-center text-[12px] font-semibold text-ink-muted uppercase tracking-wide min-w-[200px]">
                         Adjust
                       </th>
-                      <th className="px-3 py-2.5 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wider w-20">
+                      <th className="px-3 py-2.5 text-center text-[12px] font-semibold text-ink-muted uppercase tracking-wide w-20">
                         New Total
                       </th>
-                      <th className="px-3 py-2.5 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wider min-w-[160px]">
+                      <th className="px-3 py-2.5 text-left text-[12px] font-semibold text-ink-muted uppercase tracking-wide min-w-[160px]">
                         Reason <span className="text-[color:var(--color-danger)]">*</span>
                       </th>
                       <th className="px-3 py-2.5 w-10"></th>
@@ -1392,44 +1385,43 @@ const StockAdjustmentForm: React.FC = () => {
                   {errors.items}
                 </div>
               )}
-            </div>
+            </Tile>
           )}
 
           {/* Form Actions */}
-          <div className="flex items-center justify-between pt-4 mt-4 border-t border-line">
-            <div>
-              {!isPMI && formData.items.length > 0 && (
-                <CustomButton
-                  text="Clear All"
-                  icon={FaEraser}
+          <FormFooter
+            hint={
+              !isPMI && formData.items.length > 0 ? (
+                <ActionPill
                   variant="danger"
+                  size="sm"
+                  icon={<Eraser size={15} />}
                   onClick={handleClearAll}
-                  type="button"
-                />
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <CustomButton
-                text="Cancel"
-                icon={FaEraser}
-                onClick={() => navigate("/inventory/stock-adjustments")}
-                type="button"
-              />
-              <CustomButton
-                text={
-                  isSubmitting
-                    ? "Saving..."
-                    : isPMI
-                      ? "Save Material Issue"
-                      : `Confirm Adjustment (${formData.items.length})`
-                }
-                icon={FaSave}
-                type="submit"
-                onClick={handleSubmit}
-                disabled={isSubmitting || loading}
-              />
-            </div>
-          </div>
+                >
+                  Clear All
+                </ActionPill>
+              ) : (
+                "F2 saves"
+              )
+            }
+          >
+            <ActionPill
+              variant="secondary"
+              onClick={() => navigate("/inventory/stock-adjustments")}
+            >
+              Cancel
+            </ActionPill>
+            <ActionPill
+              type="submit"
+              icon={<Save size={17} />}
+              onClick={handleSubmit}
+              loading={isSubmitting}
+              loadingText="Saving..."
+              disabled={loading}
+            >
+              {isPMI ? "Save Material Issue" : `Confirm Adjustment (${formData.items.length})`}
+            </ActionPill>
+          </FormFooter>
         </form>
       </div>
     </div>

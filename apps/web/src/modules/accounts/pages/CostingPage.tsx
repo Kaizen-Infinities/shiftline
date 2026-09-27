@@ -24,7 +24,7 @@ import {
   primary,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/reportUi";
 
 /**
  * Valuation and costing (P1-19).
@@ -104,11 +104,11 @@ const CostingPage: React.FC = () => {
   }, [load]);
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full space-y-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Costing</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1 m-0 leading-tight">Costing</h1>
+          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
             What the stock is worth at weighted average, what each product cost to make, where the
             money went and whether that was the plan.
           </p>
@@ -205,7 +205,7 @@ const CostingPage: React.FC = () => {
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
+      <nav className="flex flex-wrap gap-2" role="tablist">
         {(
           [
             ["stock", "Closing stock"],
@@ -220,18 +220,20 @@ const CostingPage: React.FC = () => {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="sl-chip sl-chip-lg"
           >
             {label}
           </button>
         ))}
       </nav>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+          <div className="sl-skeleton h-3 w-1/2" />
+        </div>
+      )}
 
       {tab === "stock" && stock && (
         <>
@@ -241,7 +243,7 @@ const CostingPage: React.FC = () => {
               At weighted average across {stock.rows.length} item-and-store balances.
             </p>
             {stock.negatives > 0 && (
-              <p className="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-2 text-sm text-rose-900">
+              <p className="mt-2 rounded-lg border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-2 text-sm text-[color:var(--color-danger)]">
                 {stock.negatives} balance(s) are negative. An average over a negative quantity means
                 nothing — somebody has to go and look at the store.
               </p>
@@ -258,8 +260,8 @@ const CostingPage: React.FC = () => {
                 <p
                   className={`mt-2 rounded-lg border p-2 text-sm ${
                     wipStatus.upToDate
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                      : "border-amber-300 bg-amber-50 text-amber-900"
+                      ? "border-[color:var(--color-success)]/40 bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]"
+                      : "border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]"
                   }`}
                 >
                   {wipStatus.posted
@@ -358,7 +360,7 @@ const CostingPage: React.FC = () => {
                       </td>
                       <td className={td}>{r.storeId ?? "—"}</td>
                       <td
-                        className={`${td} text-right ${r.quantity < 0 ? "font-semibold text-rose-700" : ""}`}
+                        className={`${td} text-right ${r.quantity < 0 ? "font-semibold text-[color:var(--color-danger)]" : ""}`}
                       >
                         {r.quantity}
                       </td>
@@ -451,7 +453,7 @@ const CostingPage: React.FC = () => {
                     <td className={`${td} text-right`}>{Number(e.rate)}</td>
                     <td className={`${td} text-right`}>{money(e.value)}</td>
                     <td
-                      className={`${td} text-right ${e.wentNegative ? "font-semibold text-rose-700" : ""}`}
+                      className={`${td} text-right ${e.wentNegative ? "font-semibold text-[color:var(--color-danger)]" : ""}`}
                     >
                       {Number(e.balanceQuantity)}
                     </td>
@@ -474,7 +476,7 @@ const CostingPage: React.FC = () => {
       {tab === "centres" && pl && (
         <>
           {pl.unallocatedResult !== 0 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-3 text-sm text-[color:var(--color-warning)]">
               {money(Math.abs(pl.unallocatedResult))} is not tagged to any cost centre. It is shown
               as its own row rather than spread across the others — spreading it would make every
               centre wrong by an unknown amount.
@@ -502,7 +504,9 @@ const CostingPage: React.FC = () => {
                       <td className={`${td} text-right`}>{money(r.expense)}</td>
                       <td
                         className={`${td} text-right font-semibold ${
-                          r.result >= 0 ? "text-emerald-700" : "text-rose-700"
+                          r.result >= 0
+                            ? "text-[color:var(--color-success)]"
+                            : "text-[color:var(--color-danger)]"
                         }`}
                       >
                         {money(r.result)}
@@ -554,7 +558,9 @@ const CostingPage: React.FC = () => {
                     <td className={`${td} text-right`}>{money(r.actual)}</td>
                     <td
                       className={`${td} text-right font-semibold ${
-                        r.favourable ? "text-emerald-700" : "text-rose-700"
+                        r.favourable
+                          ? "text-[color:var(--color-success)]"
+                          : "text-[color:var(--color-danger)]"
                       }`}
                     >
                       {money(r.variance)}

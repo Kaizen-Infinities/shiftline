@@ -1,10 +1,34 @@
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaBookOpen, FaPlus, FaSync, FaFilter } from "react-icons/fa";
+import { Plus, RefreshCw, SlidersHorizontal, BookOpen } from "lucide-react";
 import { toast } from "react-toastify";
-import { voucherService, displayVoucherNo, type Voucher } from "../../../../services/voucherService";
+import {
+  voucherService,
+  displayVoucherNo,
+  type Voucher,
+} from "../../../../services/voucherService";
 import { useListCache } from "../../../../hooks/useListCache";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
+import {
+  ActionPill,
+  PageHeader,
+  StatTile,
+  EmptyState,
+  SkeletonRows,
+} from "../../../../components/ui/v2";
+import {
+  VoucherTypeNav,
+  RegisterOptionsCard,
+  OptionRow,
+  YesNo,
+  optionInputClass,
+  thClass,
+  tdClass,
+  fmtAmt,
+  fmtINR,
+  fmtINRCompact,
+  fmtDate,
+} from "../../components/accountsUi";
 
 // Busy-style filter — Journal defaults: Voucher Series = <<-ALL->>, all
 // display toggles = N (matches Busy's "List of Journal Vouchers" screen).
@@ -70,7 +94,13 @@ const JournalEntryPage: React.FC = () => {
     [applied.startDate, applied.endDate]
   );
 
-  const { data: vouchers, total, loading, refreshing, refresh } = useListCache<Voucher>({
+  const {
+    data: vouchers,
+    total,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<Voucher>({
     cacheKey,
     socketModule: "voucher",
     fetcher,
@@ -106,165 +136,194 @@ const JournalEntryPage: React.FC = () => {
     return { totalDebit: d, totalCredit: c };
   }, [vouchers]);
 
-  // ────── Busy-style pre-list filter dialog ──────
+  const openFilters = () => {
+    setPending(applied);
+    setPanelOpen(true);
+  };
+
+  const newButton = (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/accounts/journal-entry/add")}>
+      New Journal
+    </ActionPill>
+  );
+
+  // ────── Busy-style pre-list options (F2 = show, Esc = close) ──────
   if (panelOpen) {
     return (
-      <div className="p-3">
-        <div className="w-full lg:w-[420px]">
-          <div className="bg-card border border-line rounded-md overflow-hidden shadow-sm">
-            <div className="bg-purple-600/90 text-white text-[11px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
-              List of Journal Vouchers
-            </div>
-            <div className="p-4 space-y-2.5 text-[11px]">
-              <FilterRow label="Voucher Series">
-                <select
-                  value={pending.voucherSeries}
-                  onChange={(e) => setPending({ ...pending, voucherSeries: e.target.value })}
-                  className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-purple-500/40 focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="<<-ALL->>">{"<<-ALL->>"}</option>
-                  <option value="Main">Main</option>
-                </select>
-              </FilterRow>
-
-              <FilterRow label="Starting Date">
-                <DatePickerCalendar
-                  name="startDate"
-                  value={pending.startDate}
-                  onChange={(e) => setPending({ ...pending, startDate: e.target.value })}
-                />
-              </FilterRow>
-
-              <FilterRow label="Ending Date">
-                <DatePickerCalendar
-                  name="endDate"
-                  value={pending.endDate}
-                  onChange={(e) => setPending({ ...pending, endDate: e.target.value })}
-                />
-              </FilterRow>
-
-              <FilterRow label="Account shown by">
-                <select
-                  value={pending.accountShownBy}
-                  onChange={(e) =>
-                    setPending({ ...pending, accountShownBy: e.target.value as "Name" | "Alias" | "Code" })
-                  }
-                  className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-purple-500/40 focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="Name">Name</option>
-                  <option value="Alias">Alias</option>
-                  <option value="Code">Code</option>
-                </select>
-              </FilterRow>
-
-              <ToggleRow
-                label="Show Short Narration?"
-                value={pending.showNarration}
-                onChange={(v) => setPending({ ...pending, showNarration: v })}
-              />
-
-              <div className="pt-2 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApplied(pending);
-                    setPanelOpen(false);
-                  }}
-                  className="px-6 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold text-[11px] transition cursor-pointer"
-                >
-                  OK (F2)
-                </button>
-              </div>
-              <div className="text-center text-[10px] text-ink-subtle italic pt-1">
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Esc</kbd> to quit ·
-                {" "}<kbd className="px-1 border border-line rounded bg-card text-[10px]">F2</kbd> to submit
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="w-full">
+        <PageHeader
+          title="Journal Register"
+          subtitle="Adjustments between ledgers; every journal balances debit against credit"
+          icon={<BookOpen size={20} />}
+          primaryAction={newButton}
+        >
+          <VoucherTypeNav current="JOURNAL" />
+        </PageHeader>
+        <RegisterOptionsCard
+          onOk={() => {
+            setApplied(pending);
+            setPanelOpen(false);
+          }}
+        >
+          <OptionRow label="Voucher series" htmlFor="jv-series">
+            <select
+              id="jv-series"
+              value={pending.voucherSeries}
+              onChange={(e) => setPending({ ...pending, voucherSeries: e.target.value })}
+              className={optionInputClass}
+            >
+              <option value="<<-ALL->>">{"<<-ALL->>"}</option>
+              <option value="Main">Main</option>
+            </select>
+          </OptionRow>
+          <OptionRow label="Starting date">
+            <DatePickerCalendar
+              name="startDate"
+              value={pending.startDate}
+              onChange={(e) => setPending({ ...pending, startDate: e.target.value })}
+            />
+          </OptionRow>
+          <OptionRow label="Ending date">
+            <DatePickerCalendar
+              name="endDate"
+              value={pending.endDate}
+              onChange={(e) => setPending({ ...pending, endDate: e.target.value })}
+            />
+          </OptionRow>
+          <OptionRow label="Account shown by" htmlFor="jv-shown-by">
+            <select
+              id="jv-shown-by"
+              value={pending.accountShownBy}
+              onChange={(e) =>
+                setPending({
+                  ...pending,
+                  accountShownBy: e.target.value as "Name" | "Alias" | "Code",
+                })
+              }
+              className={optionInputClass}
+            >
+              <option value="Name">Name</option>
+              <option value="Alias">Alias</option>
+              <option value="Code">Code</option>
+            </select>
+          </OptionRow>
+          <YesNo
+            label="Show short narration?"
+            value={pending.showNarration}
+            onChange={(v) => setPending({ ...pending, showNarration: v })}
+          />
+        </RegisterOptionsCard>
       </div>
     );
   }
 
-  // ────── Journal Register (list) — Busy spreadsheet, one row per item ──────
-  return (
-    <div className="p-3 space-y-2 w-full max-w-7xl">
-      {/* Header bar */}
-      <div className="bg-card rounded-md border border-line px-3 py-1.5 flex flex-wrap items-center gap-2 shadow-sm">
-        <h1 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-          <FaBookOpen className="text-purple-500 text-sm" /> List of Journal Vouchers
-          {refreshing && <FaSync className="animate-spin text-purple-500 text-[10px]" />}
-        </h1>
-        <span className="text-[10px] text-ink-subtle italic">
-          Series: <b className="text-ink">{applied.voucherSeries}</b> · From{" "}
-          <b className="text-ink">{applied.startDate}</b> to <b className="text-ink">{applied.endDate}</b>
-        </span>
+  // ────── Journal Register (list) — one row per item, Busy convention ──────
+  const selectedIndex = selectedRow
+    ? flatRows.findIndex((r) => r.voucher.id === selectedRow) + 1
+    : 0;
+  const firstLoad = loading && vouchers.length === 0;
 
-        <div className="flex items-center gap-1.5 ml-auto">
-          <button
-            onClick={() => {
-              setPending(applied);
-              setPanelOpen(true);
-            }}
-            className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line cursor-pointer"
-            title="Change filters"
-          >
-            <FaFilter className="text-[10px]" /> Change Filters
-          </button>
-          <button
-            onClick={refresh}
-            className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line cursor-pointer"
-          >
-            <FaSync className={refreshing ? "animate-spin text-purple-500" : ""} /> Refresh
-          </button>
-          <button
-            onClick={() => navigate("/accounts/journal-entry/add")}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-semibold transition cursor-pointer"
-          >
-            <FaPlus className="text-[10px]" /> New Journal
-          </button>
-        </div>
+  return (
+    <div className="w-full">
+      <PageHeader
+        title="Journal Register"
+        subtitle={
+          <>
+            Series {applied.voucherSeries} · {fmtDate(applied.startDate)} to{" "}
+            {fmtDate(applied.endDate)}
+          </>
+        }
+        icon={<BookOpen size={20} />}
+        primaryAction={newButton}
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<SlidersHorizontal size={16} />}
+              onClick={openFilters}
+              title="Change filters"
+            >
+              Change filters
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+              onClick={refresh}
+            >
+              Refresh
+            </ActionPill>
+          </>
+        }
+      >
+        <VoucherTypeNav current="JOURNAL" />
+      </PageHeader>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile label="Vouchers" value={total} loading={firstLoad} />
+        <StatTile label="Entries" value={flatRows.length} loading={firstLoad} />
+        <StatTile
+          label="Total debit"
+          value={<span title={fmtINR(totalDebit)}>{fmtINRCompact(totalDebit)}</span>}
+          loading={firstLoad}
+        />
+        <StatTile
+          label="Total credit"
+          value={<span title={fmtINR(totalCredit)}>{fmtINRCompact(totalCredit)}</span>}
+          loading={firstLoad}
+        />
       </div>
 
-      {/* Spreadsheet-style table */}
-      <div
-        className="bg-card border border-line rounded-md overflow-hidden shadow-sm flex flex-col"
-        style={{ height: "calc(100vh - 240px)" }}
-      >
-        {/* Empty state as soon as we know there's no data — don't wait for
-           the loading flag to flip. Empty response is a valid, immediate
-           answer, not a "still loading" state. */}
+      <section className="sl-tile overflow-hidden" aria-label="Journal vouchers">
         {flatRows.length === 0 ? (
-          <div className="p-8 text-center text-xs text-ink-subtle">
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <FaSync className="animate-spin text-purple-500 text-[10px]" />
-                Loading journal vouchers…
-              </span>
-            ) : (
-              "No journal vouchers found in this date range."
-            )}
-          </div>
+          loading ? (
+            <SkeletonRows rows={6} columns={5} label="Loading journal vouchers" />
+          ) : (
+            <EmptyState
+              title="No journal vouchers in this period"
+              description="Widen the dates with Change filters, or post a new journal."
+              action={
+                <ActionPill
+                  variant="secondary"
+                  icon={<SlidersHorizontal size={16} />}
+                  onClick={openFilters}
+                >
+                  Change filters
+                </ActionPill>
+              }
+            />
+          )
         ) : (
-          <div className="overflow-auto flex-1">
-            <table className="w-full text-left text-[11px] text-ink-muted border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
-                  <th className="px-2 py-1.5 border-r border-line w-28">Date</th>
-                  <th className="px-2 py-1.5 border-r border-line w-24 text-center">Vch/Bill No</th>
-                  <th className="px-2 py-1.5 border-r border-line">Account</th>
-                  <th className="px-2 py-1.5 border-r border-line w-32 text-right">Debit</th>
-                  <th className="px-2 py-1.5 border-r border-line w-32 text-right">Credit</th>
-                  {applied.showNarration && <th className="px-2 py-1.5">Narration</th>}
+          <div className="max-h-[calc(100vh-320px)] min-h-[240px] overflow-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr>
+                  <th scope="col" className={thClass("left", "w-32")}>
+                    Date
+                  </th>
+                  <th scope="col" className={thClass("left", "w-28")}>
+                    Vch / bill no
+                  </th>
+                  <th scope="col" className={thClass()}>
+                    Account
+                  </th>
+                  <th scope="col" className={thClass("right", "w-36")}>
+                    Debit (₹)
+                  </th>
+                  <th scope="col" className={thClass("right", "w-36")}>
+                    Credit (₹)
+                  </th>
+                  {applied.showNarration && (
+                    <th scope="col" className={thClass()}>
+                      Narration
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {flatRows.map(({ voucher, item, itemIdx, isFirst }, rowIdx) => {
+                {flatRows.map(({ voucher, item, itemIdx, isFirst }) => {
                   const ledger = item.debitLedger || item.creditLedger;
                   const accountLabel =
-                    applied.accountShownBy === "Code"
-                      ? ledger?.code
-                      : ledger?.name;
+                    applied.accountShownBy === "Code" ? ledger?.code : ledger?.name;
                   const dr = Number(item.debitAmount || 0);
                   const cr = Number(item.creditAmount || 0);
                   const isSelected = selectedRow === voucher.id;
@@ -272,136 +331,65 @@ const JournalEntryPage: React.FC = () => {
                     <tr
                       key={`${voucher.id}-${itemIdx}`}
                       onClick={() => setSelectedRow(voucher.id)}
-                      className={`border-b border-line-soft cursor-pointer ${
-                        isSelected
-                          ? "bg-purple-600/20 text-ink"
-                          : rowIdx % 2 === 0
-                            ? "hover:bg-card-2/70"
-                            : "bg-card-2/20 hover:bg-card-2/70"
-                      }`}
+                      aria-selected={isSelected}
+                      className={`cursor-pointer ${
+                        isFirst ? "border-t border-line-soft first:border-t-0" : ""
+                      } ${isSelected ? "bg-nav-active" : "sl-row-hover"}`}
                     >
                       {/* Date + Vch No only appear on the first item of each voucher */}
-                      <td className="px-2 py-1 border-r border-line-soft font-mono text-[11px]">
-                        {isFirst ? new Date(voucher.date).toLocaleDateString("en-GB") : ""}
+                      <td
+                        className={tdClass("left", "whitespace-nowrap tabular-nums text-ink-muted")}
+                      >
+                        {isFirst ? fmtDate(voucher.date) : ""}
                       </td>
-                      <td className="px-2 py-1 border-r border-line-soft font-mono font-semibold text-purple-500 text-center">
+                      <td className={tdClass("left", "font-semibold tabular-nums text-accent")}>
                         {isFirst ? displayVoucherNo(voucher.voucherNo) : ""}
                       </td>
-                      <td className="px-2 py-1 border-r border-line-soft font-semibold text-ink uppercase">
-                        {accountLabel || "-"}
+                      <td className={tdClass("left", `font-medium ${cr > 0 ? "pl-10" : ""}`)}>
+                        {cr > 0 && <span className="mr-1 text-ink-subtle">To</span>}
+                        {accountLabel || "—"}
                       </td>
-                      <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold text-emerald-600">
-                        {dr > 0
-                          ? dr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : ""}
+                      <td className={tdClass("right", "font-semibold")}>
+                        {dr > 0 ? fmtAmt(dr) : ""}
                       </td>
-                      <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold text-red-500">
-                        {cr > 0
-                          ? cr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : ""}
+                      <td className={tdClass("right", "font-semibold")}>
+                        {cr > 0 ? fmtAmt(cr) : ""}
                       </td>
                       {applied.showNarration && (
-                        <td className="px-2 py-1 text-ink-subtle max-w-xs truncate">
-                          {item.narration || "-"}
+                        <td className={tdClass("left", "max-w-xs truncate text-ink-muted")}>
+                          {item.narration || "—"}
                         </td>
                       )}
                     </tr>
                   );
                 })}
-                {/* Busy-style empty filler rows — 25 per user preference */}
-                {Array.from({ length: Math.max(0, 25 - flatRows.length) }).map((_, i) => (
-                  <tr key={`empty-${i}`} className="border-b border-line-soft">
-                    <td className="px-2 py-1 border-r border-line-soft">&nbsp;</td>
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    {applied.showNarration && <td className="px-2 py-1"></td>}
-                  </tr>
-                ))}
               </tbody>
-              <tfoot className="sticky bottom-0 z-10 bg-card-2 border-t-2 border-line">
-                <tr>
-                  <td colSpan={3} className="px-2 py-1.5 text-right text-[10px] font-bold text-ink uppercase tracking-wide border-r border-line">
-                    Page Total ({vouchers.length} vouchers · {flatRows.length} entries)
+              <tfoot className="sticky bottom-0 z-[1]">
+                <tr className="border-t border-line bg-card-2">
+                  <td
+                    colSpan={3}
+                    className="px-4 py-3 text-right text-[13px] font-semibold text-ink-muted"
+                  >
+                    <span className="float-left font-medium text-ink-subtle">
+                      Row {selectedIndex} of {flatRows.length}
+                    </span>
+                    Total ({vouchers.length} vouchers · {flatRows.length} entries)
                   </td>
-                  <td className="px-2 py-1.5 text-right font-bold text-sm text-emerald-600 font-mono border-r border-line">
-                    {totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <td className="px-4 py-3 text-right text-[15px] font-bold tabular-nums text-ink">
+                    {fmtAmt(totalDebit)}
                   </td>
-                  <td className="px-2 py-1.5 text-right font-bold text-sm text-red-500 font-mono border-r border-line">
-                    {totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <td className="px-4 py-3 text-right text-[15px] font-bold tabular-nums text-ink">
+                    {fmtAmt(totalCredit)}
                   </td>
-                  {applied.showNarration && <td></td>}
+                  {applied.showNarration && <td />}
                 </tr>
               </tfoot>
             </table>
           </div>
         )}
-
-        {/* Busy-style status bar */}
-        <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle">
-          <div className="flex gap-4">
-            <span>
-              Entry No: <b className="text-ink">{vouchers.length > 0 ? 1 : 0} / {vouchers.length}</b>
-            </span>
-            <span>
-              Row No: <b className="text-ink">
-                {selectedRow
-                  ? flatRows.findIndex((r) => r.voucher.id === selectedRow) + 1
-                  : (flatRows.length > 0 ? 1 : 0)}
-                {" / "}{flatRows.length}
-              </b>
-            </span>
-          </div>
-          <div className="flex gap-3 uppercase tracking-wide">
-            <span>Total: <b className="text-ink">{total}</b></span>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
 };
-
-// ── Small presentational helpers for the filter panel ──
-const FilterRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="grid grid-cols-12 gap-3 items-center">
-    <label className="col-span-5 text-ink-subtle font-semibold">{label}</label>
-    <div className="col-span-7">{children}</div>
-  </div>
-);
-
-const ToggleRow: React.FC<{ label: string; value: boolean; onChange: (v: boolean) => void }> = ({
-  label,
-  value,
-  onChange,
-}) => (
-  <div className="grid grid-cols-12 gap-3 items-center">
-    <label className="col-span-5 text-ink-subtle font-semibold">{label}</label>
-    <div className="col-span-7 flex gap-2">
-      <button
-        type="button"
-        onClick={() => onChange(true)}
-        className={`px-3 py-0.5 rounded text-[11px] font-mono font-bold border cursor-pointer ${
-          value
-            ? "bg-purple-600 text-white border-purple-600"
-            : "bg-card text-ink-muted border-line hover:bg-card-2"
-        }`}
-      >
-        Y
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(false)}
-        className={`px-3 py-0.5 rounded text-[11px] font-mono font-bold border cursor-pointer ${
-          !value
-            ? "bg-card-2 text-ink border-line"
-            : "bg-card text-ink-muted border-line hover:bg-card-2"
-        }`}
-      >
-        N
-      </button>
-    </div>
-  </div>
-);
 
 export default JournalEntryPage;

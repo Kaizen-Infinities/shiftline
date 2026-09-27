@@ -1,16 +1,28 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
-  FaArrowLeft,
-  FaIndustry,
-  FaChartBar,
-  FaCheckCircle,
-  FaBoxOpen,
-  FaTruck,
-  FaArrowRight,
-  FaShare,
-  FaClipboardList,
-  FaCalendarAlt,
-} from "react-icons/fa";
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  PackageOpen,
+  Share2,
+  Truck,
+} from "lucide-react";
+import {
+  Chip,
+  EmptyState,
+  PageHeader,
+  Skeleton,
+  SkeletonRows,
+  SkeletonTile,
+  Tile,
+  cx,
+  type ChipTone,
+} from "../../../components/ui/v2";
+import { Figure, InfoItem, PageBody, ProgressBar, formatQty } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 
 import apiClient from "../../../api/apiClient";
@@ -23,8 +35,6 @@ import { useSocketSync } from "../../../hooks/useSocketSync";
 
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
-import CustomButton from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 
 const DailyPlanViewPage: React.FC = () => {
   const navigate = useNavigate();
@@ -217,13 +227,13 @@ const DailyPlanViewPage: React.FC = () => {
           const isCurrent = plan.dailyPlanId === viewPlan?.dailyPlanId;
           return (
             <span
-              className={`font-mono text-xs font-semibold ${isCurrent ? "text-indigo-700" : "text-ink-muted"}`}
+              className={`font-mono text-xs font-semibold ${isCurrent ? "text-accent" : "text-ink-muted"}`}
             >
               {plan.dailyPlanId}
               {isCurrent && (
-                <span className="ml-1.5 text-[9px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-bold uppercase">
+                <Chip size="sm" className="ml-1.5">
                   Current
-                </span>
+                </Chip>
               )}
             </span>
           );
@@ -233,13 +243,7 @@ const DailyPlanViewPage: React.FC = () => {
         header: "Date",
         render: (plan: any) => (
           <span className="text-xs text-ink-muted">
-            {plan.productionDate
-              ? new Date(plan.productionDate).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "—"}
+            {plan.productionDate ? formatDate(plan.productionDate) : "—"}
           </span>
         ),
       },
@@ -254,17 +258,15 @@ const DailyPlanViewPage: React.FC = () => {
       {
         header: "Shift",
         render: (plan: any) => (
-          <span className="text-[10px] bg-card-2 text-ink-muted border border-line px-2 py-0.5 rounded font-medium">
-            {plan.shift?.shiftName || plan.shiftId || "—"}
-          </span>
+          <Chip size="sm">{plan.shift?.shiftName || plan.shiftId || "—"}</Chip>
         ),
       },
       {
         header: "Planned",
         align: "center",
         render: (plan: any) => (
-          <span className="text-xs font-semibold text-ink-muted">
-            {Number(plan.plannedQty || 0).toLocaleString()}
+          <span className="text-xs font-semibold text-ink-muted tabular-nums">
+            {formatQty(plan.plannedQty || 0)}
           </span>
         ),
       },
@@ -285,9 +287,9 @@ const DailyPlanViewPage: React.FC = () => {
             : 0;
           return (
             <span
-              className={`text-xs font-bold ${producedQty >= Number(plan.plannedQty || 0) ? "text-emerald-600" : producedQty > 0 ? "text-amber-600" : "text-ink-subtle"}`}
+              className={`text-xs font-bold tabular-nums ${producedQty >= Number(plan.plannedQty || 0) ? "text-[color:var(--color-success)]" : producedQty > 0 ? "text-[color:var(--color-warning)]" : "text-ink-subtle"}`}
             >
-              {producedQty.toLocaleString()}
+              {formatQty(producedQty)}
             </span>
           );
         },
@@ -301,639 +303,568 @@ const DailyPlanViewPage: React.FC = () => {
     [viewPlan?.dailyPlanId]
   );
 
+  const crumbs = [
+    { label: "Daily planning", to: "/daily-machine-planning" },
+    { label: viewPlan?.dailyPlanId || "Plan" },
+  ];
+
   if (!viewPlan || !viewPlan.productionOrderId) {
     return (
-      <div className="p-6 h-full flex items-center justify-center text-ink-subtle">Loading...</div>
+      <PageBody>
+        <PageHeader title="Daily Plan" back={() => navigate(-1)} breadcrumbs={crumbs} />
+        <SkeletonTile lines={3} label="Loading..." />
+        <SkeletonTile lines={5} />
+      </PageBody>
     );
   }
 
+  const netProducedThisPlan = viewHourlyLogs.reduce(
+    (s: any, h: any) =>
+      s +
+      Math.max(0, Number(h.qtyProduced || 0) - Number(h.rejectQty || 0) - Number(h.scrapQty || 0)),
+    0
+  );
+  const rejectTotal = viewHourlyLogs.reduce((s: any, h: any) => s + Number(h.rejectQty || 0), 0);
+  const scrapTotal = viewHourlyLogs.reduce((s: any, h: any) => s + Number(h.scrapQty || 0), 0);
+  const downtimeTotal = viewHourlyLogs.reduce((s: any, h: any) => s + Number(h.downtime || 0), 0);
+
+  // Target vs actual
+  const capacity = Number(viewPlan.plannedQty || 0);
+  const totalProducedForPlan = Array.isArray(viewPlan.hourlyProductions)
+    ? viewPlan.hourlyProductions.reduce(
+        (s: number, h: any) =>
+          s +
+          Math.max(
+            0,
+            Number(h.qtyProduced || 0) - Number(h.rejectQty || 0) - Number(h.scrapQty || 0)
+          ),
+        0
+      )
+    : 0;
+  const pendingForPlan = Math.max(0, capacity - totalProducedForPlan);
+  const efficiency = capacity > 0 ? ((totalProducedForPlan / capacity) * 100).toFixed(0) : "0";
+  const shortfallPct = capacity > 0 ? ((capacity - totalProducedForPlan) / capacity) * 100 : 0;
+  const efficiencyBand: { label: string; tone: ChipTone } =
+    shortfallPct <= 0
+      ? { label: "Highest", tone: "success" }
+      : shortfallPct <= 15
+        ? { label: "Medium", tone: "muted" }
+        : { label: "Low", tone: "warning" };
+
   return (
-    <div className="p-4 md:p-6 bg-card">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-accent rounded-md flex items-center justify-center flex-shrink-0">
-            <FaIndustry className="text-white" size={16} />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-ink leading-tight">
-              Daily Plan — {viewPlan.dailyPlanId}
-            </h3>
-            <p className="text-xs text-ink-subtle mt-0.5">
-              {viewPlan.productionDate?.split("T")[0]} ·{" "}
-              {viewPlan.machine?.machineName || viewPlan.machineId} ·{" "}
-              {viewPlan.shift?.shiftName || viewPlan.shiftId}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* {(viewPlan.status === "PLANNED" || viewPlan.status === "IN_PROGRESS") && (
-            <CustomButton
-              text="Log Hourly Entry"
-              icon={FaClipboardList}
-              className="!bg-emerald-600 hover:!bg-emerald-700 !text-white shadow-sm"
-              onClick={() => handleLogHourly(viewPlan)}
-            />
-          )} */}
-          <BackButton />
-        </div>
-      </div>
+    <PageBody>
+      <PageHeader
+        title={`Daily Plan — ${viewPlan.dailyPlanId}`}
+        meta={<StatusBadge status={viewPlan.status} />}
+        subtitle={`${viewPlan.productionDate ? formatDate(viewPlan.productionDate) : "—"} · ${viewPlan.machine?.machineName || viewPlan.machineId} · ${viewPlan.shift?.shiftName || viewPlan.shiftId}`}
+        back={() => navigate(-1)}
+        breadcrumbs={crumbs}
+      />
 
-      <div className="flex-1 overflow-y-auto bg-card rounded-sm border border-line-soft p-6 space-y-6">
-        {/* ── Weekly Production Target Progress ── */}
-        {viewPlan.weeklyProgramId && (
-          <div className="rounded-md border border-line bg-card-2/40 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <FaChartBar className="text-ink-subtle" size={16} />
-              <h6 className="text-sm font-bold text-ink uppercase tracking-wider m-0">
-                Weekly Target Progress
-              </h6>
-              <span className="ml-auto text-xs text-ink-subtle font-mono bg-card px-3 py-1 rounded-md border border-line-soft">
-                {viewPlan.weeklyProgramId}
-              </span>
+      {/* ── Summary ── */}
+      <Tile>
+        <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+          <InfoItem label="Production Order" value={viewPlan.productionOrderId} mono />
+          <InfoItem
+            label="Product"
+            value={viewPlan.productionOrder?.productItem?.productName || "—"}
+          />
+          <InfoItem
+            label="Priority"
+            value={<StatusBadge status={viewPlan.priority || "MEDIUM"} />}
+          />
+          <InfoItem label="Planned Hours" value={`${viewPlan.plannedHours || "—"} hrs`} />
+        </div>
+        <div className="mt-5 grid grid-cols-3 gap-3 rounded-[16px] bg-card-2 p-4">
+          <Figure size="lg" label="Planned Qty" value={formatQty(viewPlan.plannedQty)} hint="pcs" />
+          <Figure
+            size="lg"
+            label="Produced"
+            tone="success"
+            value={formatQty(totalProducedForPlan)}
+            hint="pcs, net of reject & scrap"
+          />
+          <Figure
+            size="lg"
+            label="Pending"
+            tone={pendingForPlan > 0 ? "warning" : "default"}
+            value={formatQty(pendingForPlan)}
+            hint="pcs"
+          />
+        </div>
+        {viewPlan.remarks && (
+          <p className="m-0 mt-4 text-sm leading-relaxed text-ink-muted">
+            <span className="font-semibold text-ink">Remarks: </span>
+            {viewPlan.remarks}
+          </p>
+        )}
+      </Tile>
+
+      {/* ── Weekly Production Target Progress ── */}
+      {viewPlan.weeklyProgramId && (
+        <Tile
+          title="Weekly Target Progress"
+          icon={<BarChart3 size={18} />}
+          actions={
+            <Chip size="sm" tone="muted" className="font-mono">
+              {viewPlan.weeklyProgramId}
+            </Chip>
+          }
+        >
+          {loadingWeekly ? (
+            <div className="flex flex-col gap-2" role="status">
+              <span className="sr-only">Loading weekly data...</span>
+              <Skeleton height={12} width="50%" />
+              <Skeleton height={10} />
             </div>
-
-            {loadingWeekly ? (
-              <div className="flex items-center gap-2 text-sm text-ink-subtle">
-                <div className="w-4 h-4 border-2 border-line border-t-transparent rounded-full animate-spin" />
-                Loading weekly data...
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Production Order Target */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-semibold text-ink-muted">
-                      Production Order Target
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-ink-subtle">
-                        {weeklyOrderProducedQty.toLocaleString()} /{" "}
-                        {weeklyOrderTargetQty.toLocaleString()} pcs
-                      </span>
-                      <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-sm border ${weeklyOrderPct >= 100 ? "border-[color:var(--color-success)] text-[color:var(--color-success)]" : weeklyOrderPct >= 50 ? "border-line text-ink-muted" : "border-[color:var(--color-warning)] text-[color:var(--color-warning)]"}`}
-                      >
-                        {weeklyOrderPct}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-2.5 bg-card rounded-full overflow-hidden border border-line-soft">
-                    <div
-                      className={`h-full rounded-full transition-all ${weeklyOrderPct >= 100 ? "bg-[color:var(--color-success)]" : weeklyOrderPct >= 50 ? "bg-ink-subtle" : "bg-[color:var(--color-warning)]"}`}
-                      style={{ width: `${weeklyOrderPct}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-1.5">
-                    <span className="text-xs text-ink-subtle">
-                      Produced:{" "}
-                      <strong className="text-[color:var(--color-success)]">
-                        {weeklyOrderProducedQty.toLocaleString()}
-                      </strong>
-                    </span>
-                    <span className="text-xs text-ink-subtle">
-                      Remaining:{" "}
-                      <strong className="text-[color:var(--color-warning)]">
-                        {Math.max(
-                          0,
-                          weeklyOrderTargetQty - weeklyOrderProducedQty
-                        ).toLocaleString()}
-                      </strong>
-                    </span>
-                  </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              <div>
+                <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-ink">Production Order Target</span>
+                  <span className="flex items-center gap-2 text-sm text-ink-muted tabular-nums">
+                    {formatQty(weeklyOrderProducedQty)} / {formatQty(weeklyOrderTargetQty)} pcs
+                    <Chip
+                      size="sm"
+                      tone={
+                        weeklyOrderPct >= 100
+                          ? "success"
+                          : weeklyOrderPct >= 50
+                            ? "muted"
+                            : "warning"
+                      }
+                    >
+                      {weeklyOrderPct}%
+                    </Chip>
+                  </span>
                 </div>
+                <ProgressBar pct={weeklyOrderPct} low="warning" />
+                <div className="mt-1.5 flex justify-between text-xs text-ink-subtle">
+                  <span>
+                    Produced:{" "}
+                    <strong className="text-[color:var(--color-success)]">
+                      {formatQty(weeklyOrderProducedQty)}
+                    </strong>
+                  </span>
+                  <span>
+                    Remaining:{" "}
+                    <strong className="text-[color:var(--color-warning)]">
+                      {formatQty(Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty))}
+                    </strong>
+                  </span>
+                </div>
+              </div>
 
-                {/* Weekly Program Target (if available) */}
-                {weeklyTargetQty > 0 && (
-                  <div className="pt-3 border-t border-line-soft">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-semibold text-ink-muted">
-                        Weekly Program Target
+              {weeklyTargetQty > 0 && (
+                <div className="border-t border-line-soft pt-4">
+                  <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-ink">Weekly Program Target</span>
+                    <span className="flex items-center gap-2 text-sm text-ink-muted tabular-nums">
+                      {formatQty(weeklyOrderProducedQty)} / {formatQty(weeklyTargetQty)} pcs
+                      <Chip
+                        size="sm"
+                        tone={
+                          weeklyProgramPct >= 100
+                            ? "success"
+                            : weeklyProgramPct >= 50
+                              ? "muted"
+                              : "danger"
+                        }
+                      >
+                        {weeklyProgramPct}%
+                      </Chip>
+                    </span>
+                  </div>
+                  <ProgressBar pct={weeklyProgramPct} low="danger" />
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {weeklyOrderPct >= 100 ? (
+                  <Chip tone="success" icon={<CheckCircle2 size={14} />}>
+                    Weekly Target Complete!
+                  </Chip>
+                ) : (
+                  <Chip tone="warning" icon={<PackageOpen size={14} />}>
+                    {formatQty(Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty))} pcs
+                    remaining to complete
+                  </Chip>
+                )}
+                {viewPlan.productionOrder?.status === "COMPLETED" && (
+                  <Chip tone="info" icon={<Truck size={14} />}>
+                    Ready for Dispatch
+                  </Chip>
+                )}
+              </div>
+            </div>
+          )}
+        </Tile>
+      )}
+
+      {/* ── Post Production Steps ── */}
+      {viewPlan.productionOrder?.productItem?.productionSteps?.length > 0 && (
+        <Tile title="Post Production Steps">
+          <ol className="m-0 flex list-none flex-wrap items-center gap-2 p-0">
+            {viewPlan.productionOrder.productItem.productionSteps.map((step: any, idx: number) => {
+              const stepNum = idx + 1;
+              const currentStep = viewPlan.currentStepIndex || 1;
+              let isCompleted = false;
+              let isActive = false;
+
+              if (viewPlan.status === "COMPLETED" || viewPlan.status === "READY_FOR_DISPATCH") {
+                isCompleted = true;
+              } else if (viewPlan.status === "POST_PRODUCTION") {
+                isCompleted = stepNum < currentStep;
+                isActive = stepNum === currentStep;
+              } else if (
+                viewPlan.status === "STOPPED" ||
+                viewPlan.status === "CANCELLED" ||
+                viewPlan.status === "SHORT_CLOSED"
+              ) {
+                isCompleted = stepNum < currentStep;
+              }
+
+              return (
+                <li key={step.id || idx} className="flex items-center gap-2">
+                  <span
+                    className={cx(
+                      "flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold",
+                      isCompleted
+                        ? "bg-card-2 text-[color:var(--color-success)]"
+                        : isActive
+                          ? "bg-nav-active text-nav-active-fg"
+                          : "bg-card-2 text-ink-subtle"
+                    )}
+                    aria-current={isActive ? "step" : undefined}
+                  >
+                    <span
+                      className={cx(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold",
+                        isCompleted
+                          ? "bg-card text-[color:var(--color-success)]"
+                          : isActive
+                            ? "bg-accent text-[color:var(--color-on-primary)]"
+                            : "bg-card text-ink-subtle"
+                      )}
+                    >
+                      {isCompleted ? (
+                        <Check size={13} aria-label="Done" />
+                      ) : (
+                        step.stepOrder || stepNum
+                      )}
+                    </span>
+                    {step.stepKey}
+                  </span>
+                  {idx < viewPlan.productionOrder.productItem.productionSteps.length - 1 && (
+                    <ArrowRight size={14} className="text-ink-subtle" aria-hidden="true" />
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </Tile>
+      )}
+
+      {/* ── Hourly Production Logs ── */}
+      <Tile
+        padding="none"
+        divider
+        title="Hourly Production Entries"
+        icon={<ClipboardList size={18} />}
+      >
+        {loadingViewLogs ? (
+          <SkeletonRows rows={4} columns={6} label="Loading entries..." />
+        ) : viewHourlyLogs.length > 0 ? (
+          <>
+            <DataTable
+              ariaLabel="Hourly production entries"
+              className="!rounded-none !shadow-none"
+              columns={[
+                {
+                  header: "Hour",
+                  align: "center",
+                  render: (h: any) => (
+                    <Chip size="sm" className="tabular-nums">
+                      H{h.hourIndex}
+                    </Chip>
+                  ),
+                },
+                {
+                  header: "Produced",
+                  align: "right",
+                  render: (h: any) => (
+                    <span className="text-base font-bold text-ink tabular-nums">
+                      {formatQty(h.qtyProduced)}
+                    </span>
+                  ),
+                },
+                {
+                  header: "Reject",
+                  align: "right",
+                  render: (h: any) => (
+                    <span
+                      className={cx(
+                        "text-sm tabular-nums",
+                        h.rejectQty > 0
+                          ? "font-semibold text-[color:var(--color-danger)]"
+                          : "text-ink-subtle"
+                      )}
+                    >
+                      {h.rejectQty || 0}
+                    </span>
+                  ),
+                },
+                {
+                  header: "Scrap",
+                  align: "right",
+                  render: (h: any) => (
+                    <span
+                      className={cx(
+                        "text-sm tabular-nums",
+                        h.scrapQty > 0
+                          ? "font-semibold text-[color:var(--color-warning)]"
+                          : "text-ink-subtle"
+                      )}
+                    >
+                      {h.scrapQty || 0}
+                    </span>
+                  ),
+                },
+                {
+                  header: "Downtime",
+                  align: "right",
+                  render: (h: any) => (
+                    <span className="text-sm text-ink-muted tabular-nums">
+                      {h.downtime > 0 ? `${h.downtime} min` : "—"}
+                    </span>
+                  ),
+                },
+                {
+                  header: "Avail%",
+                  align: "right",
+                  render: (h: any) => (
+                    <span className="text-sm text-ink tabular-nums">
+                      {h.availabilityPct !== undefined ? `${h.availabilityPct}%` : "—"}
+                    </span>
+                  ),
+                },
+                {
+                  header: "Qual%",
+                  align: "right",
+                  render: (h: any) => (
+                    <span className="text-sm text-ink tabular-nums">
+                      {h.qualityPct !== undefined ? `${h.qualityPct}%` : "—"}
+                    </span>
+                  ),
+                },
+                {
+                  header: "OEE%",
+                  align: "right",
+                  render: (h: any) => (
+                    <span className="text-sm font-bold text-accent tabular-nums">
+                      {h.hourlyOEE !== undefined ? `${h.hourlyOEE}%` : "—"}
+                    </span>
+                  ),
+                },
+                {
+                  header: "Operator",
+                  render: (h: any) => (
+                    <span
+                      className="inline-block max-w-[150px] truncate text-sm font-medium text-ink-muted"
+                      title={h.operatorName || h.operatorId}
+                    >
+                      {h.operatorName || h.operatorId || "—"}
+                    </span>
+                  ),
+                },
+              ]}
+              data={viewHourlyLogs}
+              rowKey={(h: any) => h.hourlyProductionId}
+              minHeightClassName="min-h-0"
+            />
+            {/* Totals */}
+            <div className="border-t border-line-soft bg-card-2 p-4 sm:p-5">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <Figure
+                  label="Produced (net)"
+                  tone="success"
+                  value={formatQty(netProducedThisPlan)}
+                />
+                <Figure
+                  label="Reject"
+                  tone={rejectTotal > 0 ? "danger" : "default"}
+                  value={formatQty(rejectTotal)}
+                />
+                <Figure
+                  label="Scrap"
+                  tone={scrapTotal > 0 ? "warning" : "default"}
+                  value={formatQty(scrapTotal)}
+                />
+                <Figure label="Downtime" value={downtimeTotal > 0 ? `${downtimeTotal} min` : "—"} />
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-3 text-sm">
+                <div className="flex flex-wrap gap-5 font-semibold text-ink-muted">
+                  <span>
+                    Total Produced:{" "}
+                    <span className="text-[color:var(--color-success)] tabular-nums">
+                      {formatQty(weeklyOrderProducedQty)} pcs
+                    </span>
+                  </span>
+                  <span>
+                    Pending:{" "}
+                    <span className="text-[color:var(--color-warning)] tabular-nums">
+                      {formatQty(Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty))} pcs
+                    </span>
+                  </span>
+                </div>
+                {viewPlan.carryForwardTo && viewPlan.carryForwardTo.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="sl-section-label">Carried Forward To</span>
+                    <Chip icon={<Share2 size={13} />}>
+                      {viewPlan.carryForwardTo[0].dailyPlanId}
+                      <span className="font-normal opacity-80">
+                        (
+                        {viewPlan.carryForwardTo[0].productionDate
+                          ? formatDate(viewPlan.carryForwardTo[0].productionDate)
+                          : "—"}
+                        )
                       </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-ink-subtle">
-                          {weeklyOrderProducedQty.toLocaleString()} /{" "}
-                          {weeklyTargetQty.toLocaleString()} pcs
-                        </span>
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-sm border ${weeklyProgramPct >= 100 ? "border-[color:var(--color-success)] text-[color:var(--color-success)]" : weeklyProgramPct >= 50 ? "border-line text-ink-muted" : "border-[color:var(--color-danger)] text-[color:var(--color-danger)]"}`}
-                        >
-                          {weeklyProgramPct}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-2.5 bg-card rounded-full overflow-hidden border border-line-soft">
-                      <div
-                        className={`h-full rounded-full transition-all ${weeklyProgramPct >= 100 ? "bg-[color:var(--color-success)]" : weeklyProgramPct >= 50 ? "bg-ink-subtle" : "bg-[color:var(--color-danger)]"}`}
-                        style={{ width: `${weeklyProgramPct}%` }}
-                      />
-                    </div>
+                    </Chip>
                   </div>
                 )}
-
-                {/* Completion status chips */}
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {weeklyOrderPct >= 100 ? (
-                    <span className="inline-flex items-center gap-1.5 bg-card text-[color:var(--color-success)] text-xs font-bold px-3 py-1.5 rounded-sm border border-[color:var(--color-success)]">
-                      <FaCheckCircle size={10} /> Weekly Target Complete!
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 bg-card text-[color:var(--color-warning)] text-xs font-bold px-3 py-1.5 rounded-sm border border-[color:var(--color-warning)]">
-                      <FaBoxOpen size={10} />{" "}
-                      {Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty).toLocaleString()}{" "}
-                      pcs remaining to complete
-                    </span>
-                  )}
-                  {viewPlan.productionOrder?.status === "COMPLETED" && (
-                    <span className="inline-flex items-center gap-1.5 bg-card text-ink-muted text-xs font-bold px-3 py-1.5 rounded-sm border border-line">
-                      <FaTruck size={10} /> Ready for Dispatch
-                    </span>
-                  )}
-                </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Plan Details Grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="rounded-md border border-line p-5 bg-card-2/40">
-            <h6 className="text-xs font-bold text-ink-subtle uppercase tracking-wider mb-4">
-              Plan Details
-            </h6>
-            <dl className="space-y-3 text-sm">
-              {[
-                { label: "Production Order", value: viewPlan.productionOrderId },
-                {
-                  label: "Product",
-                  value: viewPlan.productionOrder?.productItem?.productName || "—",
-                },
-                { label: "Date", value: viewPlan.productionDate?.split("T")[0] },
-                { label: "Machine", value: viewPlan.machine?.machineName || viewPlan.machineId },
-                { label: "Shift", value: viewPlan.shift?.shiftName || viewPlan.shiftId },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex items-start gap-2">
-                  <dt className="text-ink-subtle font-medium w-40 flex-shrink-0">{label}:</dt>
-                  <dd className="text-ink font-semibold">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-          <div className="rounded-md border border-line p-5 bg-card-2/40">
-            <h6 className="text-xs font-bold text-ink-subtle uppercase tracking-wider mb-4">
-              Quantities & Status
-            </h6>
-            <dl className="space-y-3 text-sm">
-              <div className="flex items-start gap-2">
-                <dt className="text-ink-subtle font-medium w-40 flex-shrink-0">Planned Qty:</dt>
-                <dd className="text-ink font-semibold">{viewPlan.plannedQty} pcs</dd>
-              </div>
-              <div className="flex items-start gap-2">
-                <dt className="text-ink-subtle font-medium w-40 flex-shrink-0">Planned Hours:</dt>
-                <dd className="text-ink font-semibold">{viewPlan.plannedHours || "—"} hrs</dd>
-              </div>
-              <div className="flex items-center gap-2">
-                <dt className="text-ink-subtle font-medium w-40 flex-shrink-0">Priority:</dt>
-                <dd>
-                  <StatusBadge status={viewPlan.priority || "MEDIUM"} />
-                </dd>
-              </div>
-              <div className="flex items-center gap-2">
-                <dt className="text-ink-subtle font-medium w-40 flex-shrink-0">Status:</dt>
-                <dd>
-                  <StatusBadge status={viewPlan.status} />
-                </dd>
-              </div>
-              {viewPlan.remarks && (
-                <div className="flex items-start gap-2 mt-2">
-                  <dt className="text-ink-subtle font-medium w-40 flex-shrink-0">Remarks:</dt>
-                  <dd className="text-ink-muted text-sm leading-relaxed">{viewPlan.remarks}</dd>
-                </div>
-              )}
-            </dl>
-          </div>
-        </div>
-
-        {/* ── Post Production Steps ── */}
-        {viewPlan.productionOrder?.productItem?.productionSteps?.length > 0 && (
-          <div className="border border-line rounded-md overflow-hidden">
-            <div className="px-5 py-3 bg-card-2 border-b border-line">
-              <h6 className="text-xs font-bold text-ink-subtle uppercase tracking-wider m-0">
-                Post Production Steps
-              </h6>
             </div>
-            <div className="p-5 flex flex-wrap gap-3 items-center">
-              {viewPlan.productionOrder.productItem.productionSteps.map(
-                (step: any, idx: number) => {
-                  const stepNum = idx + 1;
-                  const currentStep = viewPlan.currentStepIndex || 1;
-                  let isCompleted = false;
-                  let isActive = false;
+          </>
+        ) : (
+          <EmptyState
+            compact
+            icon={<ClipboardList size={22} />}
+            title="No hourly entries recorded yet for this plan."
+          />
+        )}
+      </Tile>
 
-                  if (viewPlan.status === "COMPLETED" || viewPlan.status === "READY_FOR_DISPATCH") {
-                    isCompleted = true;
-                  } else if (viewPlan.status === "POST_PRODUCTION") {
-                    isCompleted = stepNum < currentStep;
-                    isActive = stepNum === currentStep;
-                  } else if (
-                    viewPlan.status === "STOPPED" ||
-                    viewPlan.status === "CANCELLED" ||
-                    viewPlan.status === "SHORT_CLOSED"
-                  ) {
-                    isCompleted = stepNum < currentStep;
-                  }
-
-                  const badgeColors = isCompleted
-                    ? "bg-card text-[color:var(--color-success)] border-[color:var(--color-success)]"
-                    : isActive
-                      ? "bg-card text-accent border-accent"
-                      : "bg-card-2 text-ink-subtle border-line";
-
-                  const dotColors = isCompleted
-                    ? "bg-[color:var(--color-success)] text-white"
-                    : isActive
-                      ? "bg-accent text-white"
-                      : "bg-line text-ink-subtle";
-
-                  return (
-                    <React.Fragment key={step.id || idx}>
-                      <span
-                        className={`px-3 py-1.5 font-semibold text-sm rounded-lg border flex items-center gap-2 ${badgeColors}`}
-                      >
-                        <span
-                          className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${dotColors}`}
-                        >
-                          {step.stepOrder || stepNum}
-                        </span>
-                        {step.stepKey}
-                      </span>
-                      {idx < viewPlan.productionOrder.productItem.productionSteps.length - 1 && (
-                        <FaArrowRight className="text-ink-subtle text-xs" />
+      {/* ── Daily Target vs Actual Comparison ── */}
+      {viewHourlyLogs.length > 0 && (
+        <Tile padding="none" divider title="Target vs Actual Comparison">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" aria-label="Target vs actual">
+              <thead>
+                <tr className="border-b border-line-soft bg-card-2">
+                  {[
+                    "Machine",
+                    "Product",
+                    "Capacity",
+                    "Produced",
+                    "Pending",
+                    "Efficiency",
+                    "Status",
+                  ].map((h, i) => (
+                    <th
+                      key={h}
+                      scope="col"
+                      className={cx(
+                        "sl-th px-5 py-3",
+                        i >= 2 && i <= 5 ? "text-right" : "text-left"
                       )}
-                    </React.Fragment>
-                  );
-                }
-              )}
-            </div>
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="px-5 py-4 font-medium text-ink">
+                    {viewPlan.machine?.machineName || viewPlan.machineId || "—"}
+                  </td>
+                  <td className="px-5 py-4 text-ink-muted">
+                    {viewPlan.productionOrder?.productItem?.productName || "—"}
+                  </td>
+                  <td className="px-5 py-4 text-right text-base font-bold text-ink tabular-nums">
+                    {formatQty(capacity)}
+                  </td>
+                  <td className="px-5 py-4 text-right text-base font-bold text-[color:var(--color-success)] tabular-nums">
+                    {formatQty(totalProducedForPlan)}
+                  </td>
+                  <td className="px-5 py-4 text-right text-base font-bold text-[color:var(--color-warning)] tabular-nums">
+                    {formatQty(pendingForPlan)}
+                  </td>
+                  <td className="px-5 py-4 text-right text-base font-bold text-accent tabular-nums">
+                    {efficiency}%
+                  </td>
+                  <td className="px-5 py-4">
+                    <Chip size="sm" dot tone={efficiencyBand.tone}>
+                      {efficiencyBand.label}
+                    </Chip>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        )}
+        </Tile>
+      )}
 
-        {/* ── Hourly Production Logs ── */}
-        <div>
-          <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-4">
-            Hourly Production Entries
-          </h6>
-          {loadingViewLogs ? (
-            <div className="flex items-center justify-center gap-2 py-10 border border-line rounded-md bg-card-2 text-ink-subtle text-sm">
-              <div className="w-5 h-5 border-2 border-indigo-300 border-t-transparent rounded-full animate-spin" />
-              Loading entries...
-            </div>
-          ) : viewHourlyLogs.length > 0 ? (
-            <div className="border border-line rounded-md overflow-hidden">
-              <DataTable
-                columns={[
-                  {
-                    header: "Hour",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="font-bold font-mono text-ink-muted text-sm">
-                        H{h.hourIndex}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Produced",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="font-bold text-[color:var(--color-success)] text-base">
-                        {h.qtyProduced}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Reject",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="text-[color:var(--color-danger)] text-sm">
-                        {h.rejectQty || 0}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Scrap",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="text-[color:var(--color-warning)] text-sm">
-                        {h.scrapQty || 0}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Downtime",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="text-ink-subtle text-sm">
-                        {h.downtime > 0 ? `${h.downtime} min` : "—"}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Avail%",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="font-semibold text-emerald-700 text-sm">
-                        {h.availabilityPct !== undefined ? `${h.availabilityPct}%` : "—"}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Qual%",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="font-semibold text-purple-700 text-sm">
-                        {h.qualityPct !== undefined ? `${h.qualityPct}%` : "—"}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "OEE%",
-                    align: "center",
-                    render: (h: any) => (
-                      <span className="font-extrabold text-indigo-700 text-sm">
-                        {h.hourlyOEE !== undefined ? `${h.hourlyOEE}%` : "—"}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "Operator",
-                    render: (h: any) => (
-                      <span
-                        className="text-ink-muted font-medium text-sm truncate max-w-[150px] inline-block"
-                        title={h.operatorName || h.operatorId}
-                      >
-                        {h.operatorName || h.operatorId || "—"}
-                      </span>
-                    ),
-                  },
-                ]}
-                data={viewHourlyLogs}
-                rowKey={(h: any) => h.hourlyProductionId}
-                minHeightClassName="min-h-0"
-              />
-              {/* Totals Footer */}
-              <div className="bg-card-2 p-5 border-t border-line space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-4 text-sm font-bold">
-                  <span className="text-ink-subtle text-xs uppercase tracking-wider">Totals:</span>
-                  <div className="flex flex-wrap gap-5 text-sm">
-                    <span className="text-[color:var(--color-success)]">
-                      ✓ Produced:{" "}
-                      {viewHourlyLogs.reduce(
-                        (s: any, h: any) =>
-                          s +
-                          Math.max(
-                            0,
-                            Number(h.qtyProduced || 0) -
-                              Number(h.rejectQty || 0) -
-                              Number(h.scrapQty || 0)
-                          ),
-                        0
-                      )}
-                    </span>
-                    <span className="text-[color:var(--color-danger)]">
-                      ✕ Reject:{" "}
-                      {viewHourlyLogs.reduce((s: any, h: any) => s + Number(h.rejectQty || 0), 0)}
-                    </span>
-                    <span className="text-[color:var(--color-warning)]">
-                      ⚠ Scrap:{" "}
-                      {viewHourlyLogs.reduce((s: any, h: any) => s + Number(h.scrapQty || 0), 0)}
-                    </span>
-                    <span className="text-ink-subtle">
-                      ↓ Downtime:{" "}
-                      {(() => {
-                        const t = viewHourlyLogs.reduce(
-                          (s: any, h: any) => s + Number(h.downtime || 0),
-                          0
-                        );
-                        return t > 0 ? `${t} min` : "—";
-                      })()}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-4 text-sm pt-3 border-t border-line border-dashed">
-                  <div className="flex gap-6 font-bold">
-                    <span className="text-ink-muted">
-                      Total Produced:{" "}
-                      <span className="text-[color:var(--color-success)] ml-2">
-                        {weeklyOrderProducedQty} pcs
-                      </span>
-                    </span>
-                    <span className="text-ink-muted">
-                      Pending:{" "}
-                      <span className="text-[color:var(--color-warning)] ml-2">
-                        {Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty)} pcs
-                      </span>
-                    </span>
-                  </div>
-                  {viewPlan.carryForwardTo && viewPlan.carryForwardTo.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-ink-subtle uppercase tracking-wider text-xs">
-                        Carried Forward To:
-                      </span>
-                      <span className="text-indigo-700 font-bold bg-indigo-50 px-3 py-1 rounded border border-indigo-100 flex items-center gap-1.5 text-sm">
-                        <FaShare className="text-xs" />
-                        {viewPlan.carryForwardTo[0].dailyPlanId}
-                        <span className="text-indigo-400 font-normal ml-1">
-                          ({viewPlan.carryForwardTo[0].productionDate?.split("T")[0]})
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 border border-line rounded-md bg-card-2 text-center">
-              <FaClipboardList className="text-ink-subtle mb-3" size={40} />
-              <span className="text-ink-subtle font-medium text-base">
-                No hourly entries recorded yet for this plan.
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* ── Daily Target vs Actual Comparison ── */}
-        {viewHourlyLogs.length > 0 && (
-          <div>
-            <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-4">
-              Target vs Actual Comparison
-            </h6>
-            <div className="border border-line rounded-md overflow-hidden bg-card">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-card-2 border-b border-line">
-                    <th className="px-5 py-3 text-left text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                      Machine
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                      Product
-                    </th>
-                    <th className="px-5 py-3 text-center text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                      Capacity
-                    </th>
-                    <th className="px-5 py-3 text-center text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                      Produced
-                    </th>
-                    <th className="px-5 py-3 text-center text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                      Pending
-                    </th>
-                    <th className="px-5 py-3 text-center text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                      Efficiency
-                    </th>
-                    <th className="px-5 py-3 text-center text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {(() => {
-                    const capacity = Number(viewPlan.plannedQty || 0);
-                    const totalProduced = Array.isArray(viewPlan.hourlyProductions)
-                      ? viewPlan.hourlyProductions.reduce(
-                          (s: number, h: any) =>
-                            s +
-                            Math.max(
-                              0,
-                              Number(h.qtyProduced || 0) -
-                                Number(h.rejectQty || 0) -
-                                Number(h.scrapQty || 0)
-                            ),
-                          0
-                        )
-                      : 0;
-                    const pending = Math.max(0, capacity - totalProduced);
-                    const efficiency =
-                      capacity > 0 ? ((totalProduced / capacity) * 100).toFixed(0) : "0";
-                    const shortfallPct =
-                      capacity > 0 ? ((capacity - totalProduced) / capacity) * 100 : 0;
-
-                    let statusText = "";
-                    let customColor = { bg: "", text: "" };
-
-                    if (shortfallPct <= 0) {
-                      statusText = "Highest";
-                      customColor = {
-                        bg: "color-mix(in srgb, var(--color-success) 15%, transparent)",
-                        text: "var(--color-success)",
-                      };
-                    } else if (shortfallPct <= 15) {
-                      statusText = "Medium";
-                      customColor = { bg: "var(--color-card-2)", text: "var(--color-ink-muted)" };
-                    } else {
-                      statusText = "Low";
-                      customColor = {
-                        bg: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
-                        text: "var(--color-warning)",
-                      };
-                    }
-
-                    return (
-                      <tr>
-                        <td className="px-5 py-4 text-ink-muted font-medium">
-                          {viewPlan.machine?.machineName || viewPlan.machineId || "—"}
-                        </td>
-                        <td className="px-5 py-4 text-ink-muted">
-                          {viewPlan.productionOrder?.productItem?.productName || "—"}
-                        </td>
-                        <td className="px-5 py-4 text-center text-ink-muted font-bold text-base">
-                          {capacity}
-                        </td>
-                        <td className="px-5 py-4 text-center text-emerald-600 font-bold text-base">
-                          {totalProduced}
-                        </td>
-                        <td className="px-5 py-4 text-center text-amber-600 font-bold text-base">
-                          {pending}
-                        </td>
-                        <td className="px-5 py-4 text-center text-indigo-600 font-bold text-base">
-                          {efficiency}%
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <StatusBadge
-                            status="CUSTOM"
-                            customText={statusText}
-                            customColor={customColor}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })()}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ── Production Order History ── */}
-        <div className="border border-line-soft rounded-sm overflow-hidden">
-          <div className="px-5 py-4 bg-card-2 border-b border-line flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FaClipboardList className="text-ink-subtle" size={16} />
-              <h3 className="font-bold text-ink m-0">Production Order History</h3>
-              <span className="text-xs text-ink-subtle font-mono bg-line/50 px-2 py-0.5 rounded border border-line">
-                {viewPlan.productionOrderId}
-              </span>
-            </div>
+      {/* ── Production Order History ── */}
+      <Tile
+        padding="none"
+        divider
+        title="Production Order History"
+        icon={<CalendarDays size={18} />}
+        actions={
+          <>
+            <Chip size="sm" tone="muted" className="font-mono">
+              {viewPlan.productionOrderId}
+            </Chip>
             {!loadingPOHistory && (
-              <span className="text-xs text-ink-subtle bg-line/50 px-3 py-1 rounded font-medium">
+              <Chip size="sm">
                 {poHistoryPlans.length} plan{poHistoryPlans.length !== 1 ? "s" : ""}
-              </span>
+              </Chip>
             )}
-          </div>
-
-          {loadingPOHistory ? (
-            <div className="flex items-center justify-center gap-2 py-8 bg-card-2 text-ink-subtle text-sm">
-              <div className="w-5 h-5 border-2 border-line border-t-transparent rounded-full animate-spin" />
-              Loading history...
-            </div>
-          ) : poHistoryPlans.length > 0 ? (
-            <div className="flex flex-col">
-              <DataTable
-                columns={poHistoryColumns}
-                data={poHistoryPlans}
-                rowKey={(row) => row.dailyPlanId}
-                emptyMessage="No records found."
-                minHeightClassName="min-h-0"
-                density="compact"
-                rowClassName={(row) =>
-                  row.dailyPlanId === viewPlan.dailyPlanId
-                    ? "bg-indigo-50/60 border-l-2 border-l-indigo-500"
-                    : ""
-                }
-              />
-              <div className="flex items-center justify-between bg-card-2 border-t border-line px-5 py-4">
-                <div className="text-sm font-bold text-ink-muted">Total</div>
-                <div className="flex gap-10 md:gap-20 items-center pr-20">
-                  <div className="text-center text-sm font-bold text-ink">
-                    Planned:{" "}
-                    {poHistoryPlans
-                      .reduce((s: number, p: any) => s + Number(p.plannedQty || 0), 0)
-                      .toLocaleString()}
-                  </div>
-                  <div className="text-center text-sm font-bold text-emerald-700">
-                    Produced: {weeklyOrderProducedQty.toLocaleString()}
-                  </div>
-                </div>
+          </>
+        }
+      >
+        {loadingPOHistory ? (
+          <SkeletonRows rows={3} columns={6} label="Loading history..." />
+        ) : poHistoryPlans.length > 0 ? (
+          <div className="flex flex-col">
+            <DataTable
+              ariaLabel="Daily plans of this production order"
+              className="!rounded-none !shadow-none"
+              columns={poHistoryColumns}
+              data={poHistoryPlans}
+              rowKey={(row) => row.dailyPlanId}
+              emptyMessage="No records found."
+              minHeightClassName="min-h-0"
+              density="compact"
+              rowClassName={(row) =>
+                row.dailyPlanId === viewPlan.dailyPlanId ? "bg-nav-active" : ""
+              }
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft bg-card-2 px-5 py-4">
+              <div className="text-sm font-bold text-ink-muted">Total</div>
+              <div className="flex flex-wrap items-center gap-6 text-sm font-bold tabular-nums">
+                <span className="text-ink">
+                  Planned:{" "}
+                  {formatQty(
+                    poHistoryPlans.reduce((s: number, p: any) => s + Number(p.plannedQty || 0), 0)
+                  )}
+                </span>
+                <span className="text-[color:var(--color-success)]">
+                  Produced: {formatQty(weeklyOrderProducedQty)}
+                </span>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-10 bg-card-2 text-center">
-              <FaCalendarAlt className="text-ink-subtle mb-3" size={32} />
-              <span className="text-ink-subtle font-medium text-sm">
-                No other daily plans found for this production order.
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+          </div>
+        ) : (
+          <EmptyState
+            compact
+            icon={<CalendarDays size={22} />}
+            title="No other daily plans found for this production order."
+          />
+        )}
+      </Tile>
+    </PageBody>
   );
 };
 

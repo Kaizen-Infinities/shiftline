@@ -1,16 +1,10 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  FaUniversity,
-  FaPlus,
-  FaArrowRight,
-  FaTimes,
-  FaSync,
-  FaMoneyBillWave,
-  FaPen,
-  FaTools,
-} from "react-icons/fa";
+import { FaUniversity, FaPlus, FaArrowRight, FaTimes, FaSync, FaPen } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { Banknote, Landmark, Plus, RefreshCw, Wrench } from "lucide-react";
+import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
+import { fmtINR } from "../../components/accountsUi";
 import apiClient from "../../../../api/apiClient";
 import { accountService } from "../../../../services/accountService";
 import { useListCache, invalidateCache, prefetchCache } from "../../../../hooks/useListCache";
@@ -171,121 +165,105 @@ const BankAccountsPage: React.FC = () => {
     }
   };
 
+  const runRepair = async () => {
+    if (repairRunning) return;
+    setRepairRunning(true);
+    try {
+      const res = await accountService.repairPartyOpeningVouchers();
+      toast.success(
+        res.removed > 0
+          ? `Repaired ${res.removed} legacy opening-balance voucher(s)`
+          : "No legacy opening-balance vouchers to repair"
+      );
+      invalidateCache(cacheKey);
+      refresh();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Repair failed");
+    } finally {
+      setRepairRunning(false);
+    }
+  };
+
   return (
-    <div className="p-3 space-y-3 min-h-screen">
-      {/* Compact merged header */}
-      <div className="bg-card rounded-lg border border-line">
-        <div className="px-3 py-2 border-b border-line flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-ink flex items-center gap-2">
-            {filterType === "cash" ? (
-              <FaMoneyBillWave className="text-ink-muted text-sm" />
-            ) : filterType === "bank" ? (
-              <FaUniversity className="text-ink-muted text-sm" />
-            ) : (
-              <FaUniversity className="text-ink-muted text-sm" />
-            )}
-            {filterType === "cash"
-              ? "Cash Accounts"
-              : filterType === "bank"
-                ? "Bank Accounts"
-                : "Bank & Cash Accounts"}
-            {refreshing && <FaSync className="animate-spin text-ink-muted text-[10px]" />}
-          </h2>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={async () => {
-                if (repairRunning) return;
-                setRepairRunning(true);
-                try {
-                  const res = await accountService.repairPartyOpeningVouchers();
-                  toast.success(
-                    res.removed > 0
-                      ? `Repaired ${res.removed} legacy opening-balance voucher(s)`
-                      : "No legacy opening-balance vouchers to repair"
-                  );
-                  invalidateCache(cacheKey);
-                  refresh();
-                } catch (err: any) {
-                  toast.error(err?.response?.data?.message || err?.message || "Repair failed");
-                } finally {
-                  setRepairRunning(false);
-                }
-              }}
+    <div className="w-full space-y-4">
+      <PageHeader
+        title={
+          filterType === "cash"
+            ? "Cash Accounts"
+            : filterType === "bank"
+              ? "Bank Accounts"
+              : "Bank & Cash Accounts"
+        }
+        subtitle="Every bank, overdraft and cash ledger with its current balance"
+        icon={<Landmark size={20} />}
+        primaryAction={
+          <ActionPill icon={<Plus size={18} />} onClick={() => setShowAddForm(true)}>
+            Add Account
+          </ActionPill>
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<Wrench size={16} className={repairRunning ? "animate-spin" : ""} />}
+              onClick={runRepair}
               disabled={repairRunning}
               title="One-time cleanup: removes legacy customer/supplier opening JVs that wrongly hit a bank ledger"
-              className="flex items-center gap-1 px-2 py-1 bg-[color:var(--color-warning)]/10 hover:bg-[color:var(--color-warning)]/20 text-[color:var(--color-warning)] rounded-sm text-xs font-semibold border border-[color:var(--color-warning)]/40 disabled:opacity-50"
             >
-              <FaTools className={repairRunning ? "animate-spin" : ""} /> Repair
-            </button>
-            <button
+              Repair
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
               onClick={refresh}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded-sm text-xs font-semibold border border-line"
             >
-              <FaSync className={refreshing ? "animate-spin" : ""} /> Refresh
-            </button>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-accent hover:brightness-110 text-white rounded-sm text-xs font-semibold transition cursor-pointer"
-            >
-              <FaPlus className="text-[10px]" /> Add Account
-            </button>
-          </div>
-        </div>
-
-        {/* Filter tabs + Total Balance */}
-        <div className="px-3 py-2 bg-card-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setSearchParams({})}
-              className={`px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wide border transition-colors ${
-                !filterType
-                  ? "bg-accent/10 text-accent border-accent"
-                  : "bg-card text-ink-muted border-line hover:border-accent/50"
-              }`}
-            >
+              Refresh
+            </ActionPill>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div role="group" aria-label="Account type" className="flex flex-wrap gap-2">
+            <Chip size="lg" selected={!filterType} onClick={() => setSearchParams({})}>
               All
-            </button>
-            <button
+            </Chip>
+            <Chip
+              size="lg"
+              icon={<Banknote size={15} />}
+              selected={filterType === "cash"}
               onClick={() => setSearchParams({ filter: "cash" })}
-              className={`px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
-                filterType === "cash"
-                  ? "bg-accent/10 text-accent border-accent"
-                  : "bg-card text-ink-muted border-line hover:border-accent/50"
-              }`}
             >
-              <FaMoneyBillWave className="text-[9px]" /> Cash
-            </button>
-            <button
+              Cash
+            </Chip>
+            <Chip
+              size="lg"
+              icon={<Landmark size={15} />}
+              selected={filterType === "bank"}
               onClick={() => setSearchParams({ filter: "bank" })}
-              className={`px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
-                filterType === "bank"
-                  ? "bg-accent/10 text-accent border-accent"
-                  : "bg-card text-ink-muted border-line hover:border-accent/50"
-              }`}
             >
-              <FaUniversity className="text-[9px]" /> Bank
-            </button>
+              Bank
+            </Chip>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+          <div className="text-right">
+            <div className="text-[12.5px] font-medium text-ink-subtle">
               {filterType === "cash"
-                ? "Cash Balance"
+                ? "Cash balance"
                 : filterType === "bank"
-                  ? "Bank Balance"
-                  : "Total Balance"}
-            </span>
-            <span
-              className={`text-lg font-mono font-bold ${filteredBalance < 0 ? "text-[color:var(--color-danger)]" : "text-ink"}`}
+                  ? "Bank balance"
+                  : "Total balance"}
+            </div>
+            <div
+              className={`text-2xl font-bold tabular-nums ${filteredBalance < 0 ? "text-[color:var(--color-danger)]" : "text-ink"}`}
             >
-              ₹{Math.abs(filteredBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
+              {fmtINR(Math.abs(filteredBalance))}
+            </div>
           </div>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Account Cards */}
       {filteredAccounts.length === 0 && !loading ? (
-        <div className="bg-card rounded-lg border border-line p-8 text-center text-xs text-ink-subtle">
+        <div className="sl-tile p-10 text-center text-sm text-ink-muted">
           {filterType === "cash"
             ? "No cash accounts found."
             : filterType === "bank"
@@ -294,17 +272,17 @@ const BankAccountsPage: React.FC = () => {
           Click "Add Account" to create one.
         </div>
       ) : filteredAccounts.length === 0 ? null : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {filteredAccounts.map((acc) => (
             <div
               key={acc.id}
               onClick={() => navigate(`/accounts/bank-accounts/${acc.id}`)}
-              className="bg-card rounded-lg border border-line p-3 hover:border-accent/50 transition-all cursor-pointer group"
+              className="sl-tile sl-tile-hover cursor-pointer p-4 sm:p-5 group"
             >
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-ink truncate">{acc.name}</h3>
-                  <p className="text-[10px] uppercase tracking-wide font-mono text-ink-subtle mt-0.5">
+                  <p className="text-[11.5px] uppercase tracking-wide tabular-nums text-ink-subtle mt-0.5">
                     {acc.code}
                   </p>
                 </div>
@@ -320,20 +298,20 @@ const BankAccountsPage: React.FC = () => {
                       title="Set opening balance (one-time only)"
                       className="p-1 rounded-sm border border-line text-ink-subtle hover:text-accent hover:border-accent/40 transition-colors"
                     >
-                      <FaPen className="text-[9px]" />
+                      <FaPen className="text-[12.5px]" />
                     </button>
                   )}
-                  <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase border border-line bg-card-2 text-ink-muted">
+                  <span className="px-1.5 py-0.5 rounded-sm text-[11.5px] font-bold uppercase border border-line bg-card-2 text-ink-muted">
                     {isCashAccount(acc.group, acc.name) ? "Cash" : "Bank"}
                   </span>
                 </div>
               </div>
               <div className="border-t border-line pt-2">
-                <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                   Current Balance
                 </p>
                 <p
-                  className={`text-base font-mono font-bold mt-0.5 ${
+                  className={`text-base tabular-nums font-bold mt-0.5 ${
                     acc.currentBalance >= 0
                       ? "text-[color:var(--color-success)]"
                       : "text-[color:var(--color-danger)]"
@@ -343,13 +321,13 @@ const BankAccountsPage: React.FC = () => {
                   {Math.abs(acc.currentBalance).toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
                   })}
-                  <span className="text-[10px] ml-1">
+                  <span className="text-[11.5px] ml-1">
                     {acc.currentBalance >= 0 ? "(Cr)" : "(Dr)"}
                   </span>
                 </p>
               </div>
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-line-soft">
-                <div className="text-[11px] text-ink-subtle">
+                <div className="text-[12.5px] text-ink-subtle">
                   <span className="text-[color:var(--color-success)] font-semibold">
                     ↑ ₹{acc.totalDebit.toLocaleString("en-IN")}
                   </span>
@@ -386,7 +364,7 @@ const BankAccountsPage: React.FC = () => {
             <form onSubmit={handleAddBank} className="p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Account Name <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <input
@@ -401,7 +379,7 @@ const BankAccountsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Account Code <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <input
@@ -409,13 +387,13 @@ const BankAccountsPage: React.FC = () => {
                     placeholder="e.g. TMB-001"
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
+                    className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Type
                   </label>
                   <select
@@ -429,14 +407,14 @@ const BankAccountsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Opening Balance (₹)
                   </label>
                   <div className="flex gap-1">
                     <select
                       value={newOpeningDC}
                       onChange={(e) => setNewOpeningDC(e.target.value as "D" | "C")}
-                      className={`px-2 py-2 border border-line bg-card-2 rounded-sm text-xs font-bold font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent ${newOpeningDC === "D" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
+                      className={`px-2 py-2 border border-line bg-card-2 rounded-sm text-xs font-bold tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent ${newOpeningDC === "D" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
                     >
                       <option value="D">Dr</option>
                       <option value="C">Cr</option>
@@ -448,10 +426,10 @@ const BankAccountsPage: React.FC = () => {
                       placeholder="0.00"
                       value={newOpeningBalance}
                       onChange={(e) => setNewOpeningBalance(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
+                      className="flex-1 px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
                     />
                   </div>
-                  <p className="mt-1 text-[9px] text-ink-subtle">
+                  <p className="mt-1 text-[12.5px] text-ink-subtle">
                     <span className="text-[color:var(--color-danger)] font-bold">Dr</span> = Minus
                     (↓) &nbsp;·&nbsp;
                     <span className="text-[color:var(--color-success)] font-bold">Cr</span> = Add
@@ -460,7 +438,7 @@ const BankAccountsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="text-[10px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
+              <div className="text-[11.5px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
                 💡 <b>Tip:</b> Enter the actual bank balance shown in your bank statement/passbook.
                 A JV will auto-post: <b>Debit</b> {newName || "this account"} ₹
                 {parseFloat(newOpeningBalance) || 0}
@@ -476,22 +454,18 @@ const BankAccountsPage: React.FC = () => {
                     setShowAddForm(false);
                     resetForm();
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded-sm border border-line"
+                  className="sl-btn sl-pill-sm"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-accent hover:brightness-110 rounded-sm disabled:opacity-50 flex items-center gap-1.5"
-                >
+                <button type="submit" disabled={submitting} className="sl-cta sl-pill-sm">
                   {submitting ? (
                     <>
-                      <FaSync className="animate-spin text-[10px]" /> Creating...
+                      <FaSync className="animate-spin text-[11.5px]" /> Creating...
                     </>
                   ) : (
                     <>
-                      <FaPlus className="text-[10px]" /> Create Account
+                      <FaPlus className="text-[11.5px]" /> Create Account
                     </>
                   )}
                 </button>
@@ -550,7 +524,7 @@ const BankAccountsPage: React.FC = () => {
               className="p-4 space-y-3"
             >
               <div>
-                <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                   Actual Opening Balance (₹)
                 </label>
                 <input
@@ -560,12 +534,12 @@ const BankAccountsPage: React.FC = () => {
                   placeholder="e.g. 150000.00"
                   value={editOpeningBalance}
                   onChange={(e) => setEditOpeningBalance(e.target.value)}
-                  className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
+                  className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
                   autoFocus
                 />
               </div>
 
-              <div className="text-[10px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
+              <div className="text-[11.5px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
                 💡 A JV will auto-post: <b>Debit</b> {editingBank.name} ₹
                 {parseFloat(editOpeningBalance) || 0}
                 {" · "}
@@ -580,18 +554,14 @@ const BankAccountsPage: React.FC = () => {
                     setEditingBank(null);
                     setEditOpeningBalance("");
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded-sm border border-line"
+                  className="sl-btn sl-pill-sm"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={editSubmitting}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-accent hover:brightness-110 rounded-sm disabled:opacity-50 flex items-center gap-1.5"
-                >
+                <button type="submit" disabled={editSubmitting} className="sl-cta sl-pill-sm">
                   {editSubmitting ? (
                     <>
-                      <FaSync className="animate-spin text-[10px]" /> Saving...
+                      <FaSync className="animate-spin text-[11.5px]" /> Saving...
                     </>
                   ) : (
                     "Save Opening Balance"

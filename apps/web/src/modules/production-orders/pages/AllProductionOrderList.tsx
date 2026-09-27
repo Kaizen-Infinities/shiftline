@@ -6,7 +6,10 @@ import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import DataTable from "../../../components/ui/table/DataTable";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
+import { History } from "lucide-react";
+import { ActionPill, PageHeader, SearchField, Toolbar } from "../../../components/ui/v2";
+import { PageBody, RowActions, formatQty } from "../../production/ui";
+import { formatDate as formatDisplayDate } from "../../../utils/dateUtils";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { useNavigate } from "react-router-dom";
 
@@ -74,11 +77,6 @@ const AllProductionOrderList: React.FC = () => {
 
   usePageShortcuts({ onRefresh: () => fetchOrders() });
 
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
   const groupedData = useMemo(() => {
     if (!data || data.length === 0) return [];
 
@@ -115,7 +113,9 @@ const AllProductionOrderList: React.FC = () => {
 
   const handleOpenView = useCallback(
     (item: any) => {
-      navigate(`/production-orders/history/${item.productionOrderId}`, { state: { order: item } });
+      navigate(`/production-orders/history/view/${item.productionOrderId}`, {
+        state: { order: item },
+      });
     },
     [navigate]
   );
@@ -171,55 +171,68 @@ const AllProductionOrderList: React.FC = () => {
     };
   }, []);
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "N/A";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
-  };
+  const formatDate = (dateStr: string) => (dateStr ? formatDisplayDate(dateStr) : "N/A");
 
   const totalPages = Math.max(1, Math.ceil(groupedData.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedGroups = groupedData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  const STATUS_OPTIONS = [
+    { label: "All Statuses", value: "" },
+    { label: "Draft", value: "DRAFT" },
+    { label: "Created", value: "CREATED" },
+    { label: "Waiting For Material", value: "WAITING_FOR_MATERIAL" },
+    { label: "Ready For Planning", value: "READY_FOR_PLANNING" },
+    { label: "Weekly Scheduled", value: "WEEKLY_SCHEDULED" },
+    { label: "Daily Planned", value: "DAILY_PLANNED" },
+    { label: "In Progress", value: "IN_PROGRESS" },
+    { label: "In Production", value: "IN_PRODUCTION" },
+    { label: "Post Production", value: "POST_PRODUCTION" },
+    { label: "Ready For Dispatch", value: "READY_FOR_DISPATCH" },
+    { label: "Partially Dispatched", value: "PARTIAL_COMPLETED" },
+    { label: "Completed With Shortfall", value: "COMPLETED_WITH_SHORTFALL" },
+    { label: "Closed", value: "CLOSED" },
+    { label: "Completed", value: "DISPATCHED" },
+    { label: "Cancelled", value: "CANCELLED" },
+  ];
+  const QUICK_STATUSES = ["", "IN_PRODUCTION", "READY_FOR_DISPATCH", "DISPATCHED", "CANCELLED"];
+
   const columns = [
     {
-      header: "#",
-      width: "50px",
-      render: (_: any, index: number) => (
-        <span className="text-ink-subtle">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</span>
-      ),
-    },
-    {
-      header: "PO NO",
-      width: "minmax(130px, 1fr)",
+      header: "PO no",
       render: (item: any) => (
-        <span className="font-semibold text-ink">{item.productionOrderId}</span>
+        <button
+          type="button"
+          onClick={() => handleOpenView(item)}
+          className="font-mono text-[13px] font-semibold text-accent underline-offset-4 hover:underline"
+        >
+          {item.productionOrderId}
+        </button>
       ),
     },
     {
-      header: "TOTAL PRODUCTS",
-      width: "120px",
-      render: (item: any) => <span className="text-ink-muted">{item.totalProducts ?? 1}</span>,
-    },
-    {
-      header: "TOTAL QTY",
-      width: "110px",
+      header: "Products",
+      width: "minmax(180px, 1fr)",
       render: (item: any) => (
-        <span className="text-ink-muted">{item.totalProductionQuantity ?? item.targetQty}</span>
+        <div className="py-1">
+          <span className="line-clamp-1 text-ink">{item.productNames || "—"}</span>
+          <span className="sl-muted text-[12px]">
+            {item.totalProducts ?? 1} product{(item.totalProducts ?? 1) === 1 ? "" : "s"}
+          </span>
+        </div>
       ),
     },
-    // {
-    //     header: "COLOR",
-    //     render: (item: any) => item.colorType ? (
-    //         <StatusBadge
-    //             status={item.colorType === 'mc' ? 'MULTI COLOR' : 'SINGLE COLOR'}
-    //             customColor={item.colorType === 'mc' ? { bg: '#e0e7ff', text: '#3730a3' } : { bg: '#fef3c7', text: '#92400e' }}
-    //         />
-    //     ) : <span className="text-ink-subtle">-</span>
-    // },
     {
-      header: "STATUS",
-      width: "190px",
+      header: "Total qty",
+      align: "right" as const,
+      render: (item: any) => (
+        <span className="font-semibold text-ink tabular-nums">
+          {formatQty(item.totalProductionQuantity ?? item.targetQty)}
+        </span>
+      ),
+    },
+    {
+      header: "Status",
       render: (item: any) => {
         const s = item.status || "CREATED";
         if (s === "DISPATCHED") {
@@ -229,31 +242,62 @@ const AllProductionOrderList: React.FC = () => {
       },
     },
     {
-      header: "CREATED DATE",
-      width: "130px",
-      render: (item: any) => <span className="text-ink-muted">{formatDate(item.createdAt)}</span>,
+      header: "Created",
+      render: (item: any) => (
+        <span className="text-ink-muted tabular-nums">{formatDate(item.createdAt)}</span>
+      ),
     },
     {
-      header: "ACTIONS",
-      width: "80px",
+      header: "Actions",
+      align: "right" as const,
       render: (item: any) => (
-        <div className="flex items-center gap-2">
+        <RowActions>
           <ViewButton onClick={() => handleOpenView(item)} />
-        </div>
+        </RowActions>
       ),
     },
   ];
 
+  const isFiltered = Boolean(searchTerm || statusFilter);
+
   return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Production Order History</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div style={{ minWidth: "180px" }}>
+    <PageBody>
+      <PageHeader
+        title="Production Order History"
+        icon={<History size={22} />}
+        subtitle={`Every production order, grouped by order number · ${groupedData.length} order${groupedData.length === 1 ? "" : "s"}`}
+        breadcrumbs={[
+          { label: "Production orders", to: "/production-orders" },
+          { label: "History" },
+        ]}
+        actions={
+          can("production_orders.export") ? (
+            <ExportCSVButton
+              fetchData={fetchOrdersForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : undefined
+        }
+      />
+
+      <div>
+        <Toolbar
+          filters={QUICK_STATUSES.map((v) => ({
+            key: v || "ALL",
+            label: v ? STATUS_OPTIONS.find((o) => o.value === v)?.label : "All",
+          }))}
+          filterValue={
+            QUICK_STATUSES.includes(statusFilter) ? statusFilter || "ALL" : ("__other" as string)
+          }
+          onFilterChange={(key) => {
+            setStatusFilter(key === "ALL" ? "" : key);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Order status"
+          right={
+            <div className="w-[220px]">
               <SelectInput
                 label=""
                 hideLabel
@@ -263,49 +307,45 @@ const AllProductionOrderList: React.FC = () => {
                   setStatusFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                options={[
-                  { label: "All Statuses", value: "" },
-                  { label: "Draft", value: "DRAFT" },
-                  { label: "Created", value: "CREATED" },
-                  { label: "Waiting For Material", value: "WAITING_FOR_MATERIAL" },
-                  { label: "Ready For Planning", value: "READY_FOR_PLANNING" },
-                  { label: "Weekly Scheduled", value: "WEEKLY_SCHEDULED" },
-                  { label: "Daily Planned", value: "DAILY_PLANNED" },
-                  { label: "In Progress", value: "IN_PROGRESS" },
-                  { label: "In Production", value: "IN_PRODUCTION" },
-                  { label: "Post Production", value: "POST_PRODUCTION" },
-                  { label: "Ready For Dispatch", value: "READY_FOR_DISPATCH" },
-                  { label: "Partially Dispatched", value: "PARTIAL_COMPLETED" },
-                  { label: "Completed With Shortfall", value: "COMPLETED_WITH_SHORTFALL" },
-                  { label: "Closed", value: "CLOSED" },
-                  { label: "Completed", value: "DISPATCHED" },
-                  { label: "Cancelled", value: "CANCELLED" },
-                ]}
+                options={STATUS_OPTIONS}
               />
             </div>
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search orders..."
-            />
-            {can("production_orders.export") && (
-              <ExportCSVButton
-                fetchData={fetchOrdersForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-          </div>
-        </div>
+          }
+        >
+          <SearchField
+            data-search-input
+            value={searchTerm}
+            onValueChange={(v) => {
+              setSearchTerm(v);
+              setCurrentPage(1);
+            }}
+            placeholder="Search orders..."
+            label="Search production orders"
+          />
+        </Toolbar>
 
-        {/* Table */}
         <DataTable
+          ariaLabel="Production order history"
           columns={columns}
           data={paginatedGroups}
           rowKey={(item) => item.productionOrderId}
           loading={loading}
-          emptyMessage="No production orders found."
+          emptyMessage={
+            isFiltered ? "No production orders match these filters." : "No production orders found."
+          }
+          emptyAction={
+            isFiltered ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("");
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : undefined
+          }
           pagination={{
             currentPage,
             totalPages,
@@ -313,7 +353,7 @@ const AllProductionOrderList: React.FC = () => {
           }}
         />
       </div>
-    </div>
+    </PageBody>
   );
 };
 

@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { z } from "zod";
-import { FaSave, FaEraser } from "react-icons/fa";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useDispatch } from "react-redux";
-
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
-
 import { createCategory, updateCategory } from "../../../features/categories/categorySlice";
 import { categoryService } from "../../../services/categoryService";
 import type { AppDispatch } from "../../../app/store";
 import type { CategoryType } from "../../../features/categories/types";
+import { Eraser, Save } from "lucide-react";
+import { ActionPill, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 const categorySchema = z.object({
   type: z.enum(["PRODUCT", "RAW_MATERIAL", "WASTAGE"], {
@@ -213,27 +211,36 @@ const CategoryForm: React.FC = () => {
     }
   };
 
+  const header = (
+    <PageHeader
+      title={isEditMode ? "Edit Category" : "Create Category"}
+      subtitle="Categories group products, raw materials and wastage items"
+      back="/categories"
+      backLabel="Back to categories"
+      breadcrumbs={[
+        { label: "Inventory" },
+        { label: "Categories", to: "/categories" },
+        { label: isEditMode ? "Edit" : "New" },
+      ]}
+    />
+  );
+
   if (isFetchingData) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+      <div className="w-full min-w-0">
+        {header}
+        <SkeletonTile lines={4} />
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h2 className="text-xl font-bold text-ink">
-            {isEditMode ? "Edit Category" : "Create Category"}
-          </h2>
-          <BackButton text="Back to List" to="/categories" />
-        </div>
+    <div className="w-full min-w-0 max-w-[960px]">
+      {header}
 
-        <form onSubmit={handleSubmit} className="p-5 lg:p-6 space-y-4" noValidate>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 xl:gap-x-10 gap-y-3 md:gap-y-4 lg:gap-y-5">
+      <form onSubmit={handleSubmit} noValidate>
+        <Tile title="Category" subtitle="Pick the type first; the code is generated from it">
+          <div className="grid grid-cols-1 gap-x-5 gap-y-3 md:grid-cols-2">
             {/* Type — pick first so code auto-generates */}
             <SelectInput
               label="Category Type"
@@ -242,7 +249,6 @@ const CategoryForm: React.FC = () => {
               defaultOptionLabel="Select Category Type"
               options={TYPE_OPTIONS}
               required
-              horizontal
               onChange={handleSelectChange}
               error={errors.type}
               disabled={isEditMode}
@@ -255,78 +261,68 @@ const CategoryForm: React.FC = () => {
               value={isFetchingCode ? "Generating..." : formData.code}
               placeholder="Auto-generated"
               required
-              horizontal
               onChange={() => {}}
               disabled
             />
 
-            {/* Name */}
             <TextInput
               label="Category Name"
               name="name"
               value={formData.name}
               placeholder="e.g. Plastics, Containers..."
               required
-              horizontal
               onChange={handleChange}
               error={errors.name}
             />
 
-            {/* Status */}
             <SelectInput
               label="Active Status"
               name="isActive"
               value={formData.isActive ? "true" : "false"}
               defaultOptionLabel="Select Status"
               options={STATUS_OPTIONS}
-              horizontal
               onChange={handleSelectChange}
             />
 
-            {/* Description - Spans 2 columns to align cleanly with grid */}
-            <div className="md:col-span-2 lg:col-span-2">
+            <div className="md:col-span-2">
               <TextInput
                 label="Description"
                 name="description"
                 value={formData.description}
                 placeholder="Short description of this category (optional)"
-                horizontal
                 onChange={handleChange}
                 error={errors.description}
                 as="textarea"
-                rows={2}
+                rows={3}
               />
             </div>
           </div>
-        </form>
+        </Tile>
 
-        <div className="flex justify-end gap-3 px-5 py-4 border-t border-line">
+        <FormFooter hint="F2 saves">
+          <ActionPill variant="secondary" onClick={() => navigate("/categories")}>
+            Cancel
+          </ActionPill>
           {!isEditMode && (
-            <CustomButton
-              text="Clear"
-              icon={FaEraser}
+            <ActionPill
               variant="secondary"
+              icon={<Eraser size={16} />}
               onClick={handleClear}
               disabled={isSubmitting}
-            />
+            >
+              Clear
+            </ActionPill>
           )}
-          <CustomButton
-            text={
-              isSubmitting
-                ? isEditMode
-                  ? "Updating..."
-                  : "Saving..."
-                : isEditMode
-                  ? "Update Category"
-                  : "Save Category"
-            }
-            icon={FaSave}
+          <ActionPill
             type="submit"
-            disabled={isSubmitting}
-            onClick={handleSubmit}
-          />
-        </div>
-      </div>
+            icon={<Save size={17} />}
+            loading={isSubmitting}
+            loadingText={isEditMode ? "Updating..." : "Saving..."}
+          >
+            {isEditMode ? "Update Category" : "Save Category"}
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

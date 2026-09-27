@@ -3,25 +3,27 @@ import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { Form } from "../../../components/ui/TailwindPrimitives";
 
 import {
-  FaSave,
-  FaEraser,
-  FaInfoCircle,
-  FaCheckCircle,
-  FaCalendarAlt,
-  FaCogs,
-  FaClock,
-  FaUsers,
-  FaTrophy,
-  FaCrown,
-  FaPlus,
-} from "react-icons/fa";
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  Cog,
+  Crown,
+  Eraser,
+  Info,
+  Plus,
+  Save,
+  Trophy,
+  Users,
+} from "lucide-react";
+import { ActionPill, Chip, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import { Figure, InfoItem, PageBody, StickyFormFooter, formatQty } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import CommonModal from "../../../components/ui/Modal/CommonModal";
 
@@ -757,42 +759,56 @@ const HourlyWorkReportCreate: React.FC = () => {
     ? Math.max(0, Number(activePlan.plannedQty || 0) - shiftProducedQty)
     : 0;
 
-  return (
-    <div className="max-w-[1024px] xl:mr-auto">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-card rounded-sm border border-line-soft overflow-hidden"
-      >
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 px-5 py-3 border-b border-line-soft">
-          <div>
-            <h2 className="text-base font-bold text-ink m-0">Hourly Production Entry</h2>
-          </div>
-          <div className="flex justify-end">
-            <BackButton to="/daily-machine-planning" text="Back to Planning" />
-          </div>
-        </div>
+  const planLimit = activePlan?.plannedHours ? Number(activePlan.plannedHours) : 0;
+  const filledHourIndices = existingLogs.map((log) => Number(log.hourIndex));
+  const maxFilledHour = filledHourIndices.length > 0 ? Math.max(...filledHourIndices) : 0;
+  const isNewLogBlocked = planLimit > 0 && maxFilledHour + 1 > planLimit && !editingLogId;
+  const machineLabel =
+    machines.find((m: any) => m.machineId === machineId)?.machineName || machineId || "—";
+  const shiftLabel = shifts.find((s: any) => s.shiftCode === shiftId)?.shiftName || shiftId || "—";
+  const bigNumberClass = "h-14 text-center text-[20px] font-bold tabular-nums";
 
+  return (
+    <PageBody className="max-w-[1180px]">
+      <PageHeader
+        title="Hourly Production Entry"
+        subtitle={
+          activePlan
+            ? `${activePlan.productionOrderId} · ${activePlan.productName}`
+            : "Pick the daily plan, then log what the machine made this hour."
+        }
+        back="/daily-machine-planning"
+        backLabel="Back to Planning"
+        breadcrumbs={[
+          { label: "Daily planning", to: "/daily-machine-planning" },
+          { label: editingLogId ? "Edit hourly entry" : "Log hour" },
+        ]}
+      />
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {planError && (
-          <div className="mx-5 mt-3 p-3 rounded-sm bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/30 flex items-center gap-3">
-            <div className="text-[color:var(--color-danger)] font-bold text-lg">⚠️</div>
+          <div
+            role="alert"
+            className="sl-tile flex items-start gap-3 p-4"
+            style={{ boxShadow: "inset 4px 0 0 var(--color-danger)" }}
+          >
+            <AlertTriangle
+              size={20}
+              className="mt-0.5 shrink-0 text-[color:var(--color-danger)]"
+              aria-hidden="true"
+            />
             <div>
-              <p className="font-bold text-[color:var(--color-danger)] text-sm">
+              <p className="m-0 text-sm font-bold text-[color:var(--color-danger)]">
                 Plan Verification Failed
               </p>
-              <p className="text-[color:var(--color-danger)] text-xs font-semibold">{planError}</p>
+              <p className="m-0 text-sm text-ink-muted">{planError}</p>
             </div>
           </div>
         )}
-        <div className="flex flex-col md:flex-row gap-4 px-5 py-4">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           {/* Left Side: Plan Details */}
-          <div className="w-full md:w-5/12 lg:w-4/12 flex flex-col gap-3 sticky top-6 self-start">
+          <Tile title="Plan Details" className="self-start lg:sticky lg:top-4 lg:col-span-4">
             <div>
-              <h6 className="font-bold text-xs text-ink-muted m-0 uppercase tracking-wider">
-                Plan Details
-              </h6>
-            </div>
-            <div>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 {/* Daily Production Plan dropdown when not prefilled */}
                 {!isPreFilled ? (
                   <div>
@@ -820,320 +836,286 @@ const HourlyWorkReportCreate: React.FC = () => {
                   </div>
                 )}
 
-                <div>
-                  <TextInput
-                    label="Machine"
-                    name="machineId"
-                    value={
-                      machines.find((m: any) => m.machineId === machineId)?.machineName ||
-                      machineId ||
-                      "—"
-                    }
-                    disabled
-                  />
-                </div>
-                <div>
-                  <TextInput
+                <dl className="m-0 grid grid-cols-2 gap-4 rounded-[14px] bg-card-2 p-4 lg:grid-cols-1">
+                  <InfoItem label="Machine" value={machineLabel} />
+                  <InfoItem
                     label="Production Date"
-                    name="productionDate"
-                    value={productionDate || "—"}
-                    disabled
+                    value={productionDate ? formatDate(productionDate) : "—"}
                   />
-                </div>
-                <div>
-                  <TextInput
-                    label="Shift"
-                    name="shiftId"
-                    value={
-                      shifts.find((s: any) => s.shiftCode === shiftId)?.shiftName || shiftId || "—"
-                    }
-                    disabled
-                  />
-                </div>
+                  <InfoItem label="Shift" value={shiftLabel} />
+                </dl>
               </div>
             </div>
-          </div>
+          </Tile>
 
           {/* Right Side: Active Plan + Hourly Entry Log */}
-          <div className="w-full md:w-7/12 lg:w-8/12 flex flex-col gap-3">
-            {/* Active Plan Card — horizontal layout at top */}
+          <div className="flex flex-col gap-5 lg:col-span-8">
+            {/* Active plan: the big figures */}
             {loadingPlan ? (
-              <div className="text-center py-3">
-                <div className="animate-spin rounded-full border-2 border-accent border-t-transparent h-4 w-4 mr-2 inline-block align-middle"></div>
-                <span className="text-ink-subtle text-xs font-semibold">
-                  Loading active plan...
-                </span>
-              </div>
+              <SkeletonTile lines={2} label="Loading active plan..." />
             ) : activePlan ? (
-              <div className="p-4 rounded-sm bg-[color:var(--color-info)]/10 border border-[color:var(--color-info)]/30 flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-2 font-bold text-xs tracking-wider text-[color:var(--color-info)]">
-                    <FaCheckCircle />
-                    <span>ACTIVE PLAN LOADED</span>
-                  </div>
-                  <strong className="text-base text-ink font-bold block leading-tight">
-                    {activePlan.productionOrderId}
-                  </strong>
-                  <span className="text-sm text-ink font-bold block truncate">
-                    {activePlan.productName}
-                  </span>
-                  {activePlan.productCode && (
-                    <span className="text-ink-subtle text-xs font-mono">
-                      ({activePlan.productCode})
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center shrink-0">
-                  <div className="bg-card-2 px-3 py-2 rounded-sm border border-line-soft">
-                    <span className="text-ink-subtle block text-[10px] tracking-wider font-extrabold">
-                      TARGET
-                    </span>
-                    <strong className="text-sm text-ink font-bold">{activePlan.plannedQty}</strong>
-                  </div>
-                  <div className="bg-[color:var(--color-success)]/10 px-3 py-2 rounded-sm border border-[color:var(--color-success)]/30">
-                    <span className="text-[color:var(--color-success)] block text-[10px] tracking-wider font-extrabold">
-                      PRODUCED
-                    </span>
-                    <strong className="text-sm text-[color:var(--color-success)] font-bold">
-                      {shiftProducedQty}
-                    </strong>
-                  </div>
-                  <div className="bg-[color:var(--color-warning)]/10 px-3 py-2 rounded-sm border border-[color:var(--color-warning)]/30">
-                    <span className="text-[color:var(--color-warning)] block text-[10px] tracking-wider font-extrabold">
-                      REMAINING
-                    </span>
-                    <strong className="text-sm text-[color:var(--color-warning)] font-bold">
-                      {remainingQtyForShift}
-                    </strong>
+              <Tile>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Chip size="sm" tone="success" icon={<CheckCircle2 size={13} />}>
+                      Active plan loaded
+                    </Chip>
+                    <p className="m-0 mt-2 text-[17px] font-bold leading-tight text-ink">
+                      {activePlan.productName}
+                    </p>
+                    <p className="sl-muted m-0 font-mono text-[13px]">
+                      {activePlan.productionOrderId}
+                      {activePlan.productCode ? ` · ${activePlan.productCode}` : ""}
+                    </p>
                   </div>
                 </div>
-              </div>
+                <div className="mt-4 grid grid-cols-3 gap-3 rounded-[16px] bg-card-2 p-4">
+                  <Figure size="lg" label="Target" value={formatQty(activePlan.plannedQty)} />
+                  <Figure
+                    size="lg"
+                    label="Produced"
+                    tone="success"
+                    value={formatQty(shiftProducedQty)}
+                  />
+                  <Figure
+                    size="lg"
+                    label="Remaining"
+                    tone="warning"
+                    value={formatQty(remainingQtyForShift)}
+                  />
+                </div>
+              </Tile>
             ) : (
-              <div className="bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] px-4 py-2.5 rounded-sm flex items-center gap-3 border border-[color:var(--color-warning)]/30">
-                <FaInfoCircle className="text-[color:var(--color-warning)] shrink-0" />
-                <p className="mb-0 text-xs text-[color:var(--color-warning)]/90 font-medium">
-                  No active plan. Select a valid Daily Production Plan to begin.
-                </p>
+              <div
+                role="status"
+                className="sl-tile flex items-center gap-3 p-4 text-sm font-medium text-[color:var(--color-warning)]"
+              >
+                <Info size={18} className="shrink-0" aria-hidden="true" />
+                No active plan. Select a valid Daily Production Plan to begin.
               </div>
             )}
 
-            <h6 className="font-bold text-xs text-ink-muted mb-0 uppercase tracking-wider">
-              Hourly Entry Log
-            </h6>
+            <Tile title="Hourly Entry Log" subtitle="Good pieces, rejects and scrap for this hour.">
+              <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+                <div className="flex flex-col">
+                  <SelectInput
+                    label="Hour index of Shift"
+                    name="hourIndex"
+                    value={hourIndex}
+                    options={hourOptions}
+                    required
+                    error={formErrors.hourIndex}
+                    onChange={(e) => {
+                      setHourIndex(e.target.value);
+                      setFormErrors((prev) => ({ ...prev, hourIndex: "" }));
+                    }}
+                  />
+                  {(() => {
+                    const limit = activePlan?.plannedHours ? Number(activePlan.plannedHours) : 0;
+                    const filledIndices = existingLogs.map((log) => Number(log.hourIndex));
+                    const maxFilled = filledIndices.length > 0 ? Math.max(...filledIndices) : 0;
+                    const nextRequiredHour = maxFilled + 1;
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-              <div className="flex flex-col">
-                <SelectInput
-                  label="Hour index of Shift"
-                  name="hourIndex"
-                  value={hourIndex}
-                  options={hourOptions}
-                  required
-                  error={formErrors.hourIndex}
-                  onChange={(e) => {
-                    setHourIndex(e.target.value);
-                    setFormErrors((prev) => ({ ...prev, hourIndex: "" }));
-                  }}
-                />
-                {(() => {
-                  const limit = activePlan?.plannedHours ? Number(activePlan.plannedHours) : 0;
-                  const filledIndices = existingLogs.map((log) => Number(log.hourIndex));
-                  const maxFilled = filledIndices.length > 0 ? Math.max(...filledIndices) : 0;
-                  const nextRequiredHour = maxFilled + 1;
-
-                  if (
-                    limit > 0 &&
-                    nextRequiredHour > limit &&
-                    limit < hourOptions.length &&
-                    !editingLogId
-                  ) {
-                    return (
-                      <div className="mt-2 text-xs text-[color:var(--color-warning)] bg-[color:var(--color-warning)]/10 p-2 rounded-sm border border-[color:var(--color-warning)]/30">
-                        <strong>Plan Completed:</strong> {limit} hours planned and logged. Remaining
-                        shift hours can be allocated to a new plan.
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-              <div>
-                <SelectInput
-                  label="Operator"
-                  name="operatorId"
-                  value={operatorId}
-                  required
-                  error={
-                    formErrors.operatorId ||
-                    (planError && planError.includes("operator") ? planError : undefined)
-                  }
-                  disabled={loadingPlan || availableOperators.length === 0}
-                  defaultOptionLabel={loadingPlan ? "Loading operator..." : "— Select Operator —"}
-                  options={availableOperators.map((op) => ({
-                    value: op.id.toString(),
-                    label: op.fullName,
-                  }))}
-                  onChange={(e: any) => {
-                    userSelectedOperator.current = true;
-                    setOperatorId(e.target.value);
-                    setFormErrors((prev) => ({ ...prev, operatorId: "" }));
-                  }}
-                />
-              </div>
-              <div>
-                <TextInput
-                  label="Produced Qty"
-                  name="qtyProduced"
-                  value={qtyProduced}
-                  type="number"
-                  step="1"
-                  required
-                  placeholder="Enter produced amount"
-                  error={formErrors.qtyProduced}
-                  onChange={(e) => {
-                    setQtyProduced(e.target.value);
-                    setFormErrors((prev) => ({ ...prev, qtyProduced: "" }));
-                  }}
-                />
-              </div>
-              <div>
-                <TextInput
-                  label="Reject Qty"
-                  name="rejectQty"
-                  value={rejectQty}
-                  type="number"
-                  step="1"
-                  placeholder="Enter reject amount"
-                  error={formErrors.rejectQty}
-                  onChange={(e) => {
-                    setRejectQty(e.target.value);
-                    setFormErrors((prev) => ({ ...prev, rejectQty: "" }));
-                  }}
-                />
-              </div>
-              <div>
-                <TextInput
-                  label="Scrap Qty"
-                  name="scrapQty"
-                  value={scrapQty}
-                  type="number"
-                  step="1"
-                  placeholder="Enter scrap amount"
-                  error={formErrors.scrapQty}
-                  onChange={(e) => {
-                    setScrapQty(e.target.value);
-                    setFormErrors((prev) => ({ ...prev, scrapQty: "" }));
-                  }}
-                />
-              </div>
-              <div>
-                <QuantityInput
-                  label="Downtime"
-                  name="downtime"
-                  value={downtime}
-                  baseUoms="mins,hrs"
-                  error={formErrors.downtime}
-                  onChange={(e) => {
-                    setDowntime(e.target.value);
-                    setFormErrors((prev) => ({ ...prev, downtime: "" }));
-                  }}
-                />
-              </div>
-              {Number(downtime) > 0 && (
+                    if (
+                      limit > 0 &&
+                      nextRequiredHour > limit &&
+                      limit < hourOptions.length &&
+                      !editingLogId
+                    ) {
+                      return (
+                        <div className="mt-2 rounded-[12px] bg-card-2 p-3 text-[13px] text-[color:var(--color-warning)]">
+                          <strong>Plan Completed:</strong> {limit} hours planned and logged.
+                          Remaining shift hours can be allocated to a new plan.
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
                 <div>
                   <SelectInput
-                    label="Downtime Reason"
-                    name="downtimeReason"
-                    value={downtimeReason}
-                    error={formErrors.downtimeReason}
-                    onChange={(e) => {
-                      setDowntimeReason(e.target.value);
-                      setFormErrors((prev) => ({ ...prev, downtimeReason: "" }));
+                    label="Operator"
+                    name="operatorId"
+                    value={operatorId}
+                    required
+                    error={
+                      formErrors.operatorId ||
+                      (planError && planError.includes("operator") ? planError : undefined)
+                    }
+                    disabled={loadingPlan || availableOperators.length === 0}
+                    defaultOptionLabel={loadingPlan ? "Loading operator..." : "— Select Operator —"}
+                    options={availableOperators.map((op) => ({
+                      value: op.id.toString(),
+                      label: op.fullName,
+                    }))}
+                    onChange={(e: any) => {
+                      userSelectedOperator.current = true;
+                      setOperatorId(e.target.value);
+                      setFormErrors((prev) => ({ ...prev, operatorId: "" }));
                     }}
-                    options={[
-                      { label: "Machine Breakdown", value: "Machine Breakdown" },
-                      { label: "Power Failure", value: "Power Failure" },
-                      { label: "Material Shortage", value: "Material Shortage" },
-                      { label: "Tool/Mould Change", value: "Tool/Mould Change" },
-                      { label: "Operator Unavailable", value: "Operator Unavailable" },
-                      { label: "Quality Issue", value: "Quality Issue" },
-                      { label: "Preventative Maintenance", value: "Preventative Maintenance" },
-                      { label: "Others", value: "Others" },
-                    ]}
                   />
                 </div>
-              )}
-              {Number(rejectQty) > 0 && (
-                <div>
-                  <SelectInput
-                    label="Reject Reason"
-                    name="rejectReason"
-                    value={rejectReason}
-                    error={formErrors.rejectReason}
-                    onChange={(e) => {
-                      setRejectReason(e.target.value);
-                      setFormErrors((prev) => ({ ...prev, rejectReason: "" }));
-                    }}
-                    options={[
-                      { value: "Quality Issue", label: "Quality Issue" },
-                      { value: "Machine Defect", label: "Machine Defect" },
-                      { value: "Material Defect", label: "Material Defect" },
-                      { value: "Operator Error", label: "Operator Error" },
-                      { value: "Others", label: "Others" },
-                    ]}
-                  />
-                </div>
-              )}
-              {Number(scrapQty) > 0 && (
-                <div>
-                  <SelectInput
-                    label="Scrap Reason"
-                    name="scrapReason"
-                    value={scrapReason}
-                    error={formErrors.scrapReason}
-                    onChange={(e) => {
-                      setScrapReason(e.target.value);
-                      setFormErrors((prev) => ({ ...prev, scrapReason: "" }));
-                    }}
-                    options={[
-                      { value: "Startup Scrap", label: "Startup Scrap" },
-                      { value: "Process Setting", label: "Process Setting" },
-                      { value: "Material Purging", label: "Material Purging" },
-                      { value: "Others", label: "Others" },
-                    ]}
-                  />
-                </div>
-              )}
-              {(downtimeReason === "Others" ||
-                rejectReason === "Others" ||
-                scrapReason === "Others") && (
                 <div>
                   <TextInput
-                    label="Remarks (Reason for Others)"
-                    name="remarks"
-                    value={remarks}
+                    label="Produced Qty"
+                    name="qtyProduced"
+                    value={qtyProduced}
+                    type="number"
+                    inputMode="numeric"
+                    inputClassName={bigNumberClass}
+                    step="1"
                     required
-                    placeholder="Enter specific reason"
-                    error={formErrors.remarks}
+                    placeholder="Enter produced amount"
+                    error={formErrors.qtyProduced}
                     onChange={(e) => {
-                      setRemarks(e.target.value);
-                      setFormErrors((prev) => ({ ...prev, remarks: "" }));
+                      setQtyProduced(e.target.value);
+                      setFormErrors((prev) => ({ ...prev, qtyProduced: "" }));
                     }}
                   />
                 </div>
-              )}
-            </div>
+                <div>
+                  <TextInput
+                    label="Reject Qty"
+                    name="rejectQty"
+                    value={rejectQty}
+                    type="number"
+                    inputMode="numeric"
+                    inputClassName={bigNumberClass}
+                    step="1"
+                    placeholder="Enter reject amount"
+                    error={formErrors.rejectQty}
+                    onChange={(e) => {
+                      setRejectQty(e.target.value);
+                      setFormErrors((prev) => ({ ...prev, rejectQty: "" }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <TextInput
+                    label="Scrap Qty"
+                    name="scrapQty"
+                    value={scrapQty}
+                    type="number"
+                    inputMode="numeric"
+                    inputClassName={bigNumberClass}
+                    step="1"
+                    placeholder="Enter scrap amount"
+                    error={formErrors.scrapQty}
+                    onChange={(e) => {
+                      setScrapQty(e.target.value);
+                      setFormErrors((prev) => ({ ...prev, scrapQty: "" }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <QuantityInput
+                    label="Downtime"
+                    name="downtime"
+                    value={downtime}
+                    baseUoms="mins,hrs"
+                    error={formErrors.downtime}
+                    onChange={(e) => {
+                      setDowntime(e.target.value);
+                      setFormErrors((prev) => ({ ...prev, downtime: "" }));
+                    }}
+                  />
+                </div>
+                {Number(downtime) > 0 && (
+                  <div>
+                    <SelectInput
+                      label="Downtime Reason"
+                      name="downtimeReason"
+                      value={downtimeReason}
+                      error={formErrors.downtimeReason}
+                      onChange={(e) => {
+                        setDowntimeReason(e.target.value);
+                        setFormErrors((prev) => ({ ...prev, downtimeReason: "" }));
+                      }}
+                      options={[
+                        { label: "Machine Breakdown", value: "Machine Breakdown" },
+                        { label: "Power Failure", value: "Power Failure" },
+                        { label: "Material Shortage", value: "Material Shortage" },
+                        { label: "Tool/Mould Change", value: "Tool/Mould Change" },
+                        { label: "Operator Unavailable", value: "Operator Unavailable" },
+                        { label: "Quality Issue", value: "Quality Issue" },
+                        { label: "Preventative Maintenance", value: "Preventative Maintenance" },
+                        { label: "Others", value: "Others" },
+                      ]}
+                    />
+                  </div>
+                )}
+                {Number(rejectQty) > 0 && (
+                  <div>
+                    <SelectInput
+                      label="Reject Reason"
+                      name="rejectReason"
+                      value={rejectReason}
+                      error={formErrors.rejectReason}
+                      onChange={(e) => {
+                        setRejectReason(e.target.value);
+                        setFormErrors((prev) => ({ ...prev, rejectReason: "" }));
+                      }}
+                      options={[
+                        { value: "Quality Issue", label: "Quality Issue" },
+                        { value: "Machine Defect", label: "Machine Defect" },
+                        { value: "Material Defect", label: "Material Defect" },
+                        { value: "Operator Error", label: "Operator Error" },
+                        { value: "Others", label: "Others" },
+                      ]}
+                    />
+                  </div>
+                )}
+                {Number(scrapQty) > 0 && (
+                  <div>
+                    <SelectInput
+                      label="Scrap Reason"
+                      name="scrapReason"
+                      value={scrapReason}
+                      error={formErrors.scrapReason}
+                      onChange={(e) => {
+                        setScrapReason(e.target.value);
+                        setFormErrors((prev) => ({ ...prev, scrapReason: "" }));
+                      }}
+                      options={[
+                        { value: "Startup Scrap", label: "Startup Scrap" },
+                        { value: "Process Setting", label: "Process Setting" },
+                        { value: "Material Purging", label: "Material Purging" },
+                        { value: "Others", label: "Others" },
+                      ]}
+                    />
+                  </div>
+                )}
+                {(downtimeReason === "Others" ||
+                  rejectReason === "Others" ||
+                  scrapReason === "Others") && (
+                  <div>
+                    <TextInput
+                      label="Remarks (Reason for Others)"
+                      name="remarks"
+                      value={remarks}
+                      required
+                      placeholder="Enter specific reason"
+                      error={formErrors.remarks}
+                      onChange={(e) => {
+                        setRemarks(e.target.value);
+                        setFormErrors((prev) => ({ ...prev, remarks: "" }));
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </Tile>
           </div>
         </div>
 
         {/* Stop Section — full width */}
         {hourOptions.length > 0 && dailyPlanId && (
-          <div className="px-5 pt-4 pb-4 border-t border-line-soft">
+          <Tile>
             <Form.Check
               type="switch"
               id="stop-plan-early-switch"
               label={
-                <span className="font-semibold text-[color:var(--color-danger)] ml-3 text-sm">
+                <span className="ml-3 text-[15px] font-semibold text-[color:var(--color-danger)]">
                   {Number(hourIndex) === hourOptions.length
                     ? "Permanently Stop this Production Order"
                     : "Stop Production Plan after this hour"}
@@ -1152,7 +1134,7 @@ const HourlyWorkReportCreate: React.FC = () => {
               }}
             />
             {stopPlanEarly && (
-              <div className="mt-3 p-4 rounded-sm border border-line-soft/50 w-full flex flex-col gap-3">
+              <div className="mt-4 flex w-full flex-col gap-4 rounded-[16px] bg-card-2 p-4">
                 <div className="w-full">
                   <TextInput
                     label="Reason for Stopping"
@@ -1172,15 +1154,18 @@ const HourlyWorkReportCreate: React.FC = () => {
                 {/* Non-final hour: let user choose between Complete Stop and Carry Forward */}
                 {Number(hourIndex) < hourOptions.length && (
                   <div className="w-full">
-                    <label className="block text-xs font-bold text-ink-muted uppercase mb-2">
-                      Stop Action Type *
-                    </label>
+                    <span className="sl-label">
+                      Stop Action Type
+                      <span className="sl-required" aria-hidden="true">
+                        *
+                      </span>
+                    </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
                       <div
-                        className={`cursor-pointer border rounded-sm p-3 flex flex-col transition-all ${
+                        className={`flex min-h-[64px] cursor-pointer flex-col rounded-[14px] border bg-card p-3 transition-colors ${
                           stopOption === "FORCE_COMPLETE"
-                            ? "border-[color:var(--color-danger)] bg-[color:var(--color-danger)]/10 ring-2 ring-[color:var(--color-danger)]/20"
-                            : "border-line-soft hover:border-line hover:bg-card-2"
+                            ? "border-[color:var(--color-danger)] ring-2 ring-[color:var(--color-danger)]/20"
+                            : "border-line hover:bg-card-2"
                         }`}
                         onClick={() => setStopOption("FORCE_COMPLETE")}
                       >
@@ -1190,20 +1175,20 @@ const HourlyWorkReportCreate: React.FC = () => {
                             name="stopOption"
                             checked={stopOption === "FORCE_COMPLETE"}
                             onChange={() => setStopOption("FORCE_COMPLETE")}
-                            className="text-[color:var(--color-danger)] focus:ring-[color:var(--color-danger)]"
+                            className="sl-check"
                           />
                           Completed Stop
                         </div>
-                        <span className="text-[11px] text-ink-subtle mt-1 pl-5">
+                        <span className="mt-1 pl-6 text-[12px] text-ink-subtle">
                           Stop production without carrying forward any quantity.
                         </span>
                       </div>
 
                       <div
-                        className={`cursor-pointer border rounded-sm p-3 flex flex-col transition-all ${
+                        className={`flex min-h-[64px] cursor-pointer flex-col rounded-[14px] border bg-card p-3 transition-colors ${
                           stopOption === "CARRY_FORWARD"
-                            ? "border-[color:var(--color-warning)] bg-[color:var(--color-warning)]/10 ring-2 ring-[color:var(--color-warning)]/20"
-                            : "border-line-soft hover:border-line hover:bg-card-2"
+                            ? "border-[color:var(--color-warning)] ring-2 ring-[color:var(--color-warning)]/20"
+                            : "border-line hover:bg-card-2"
                         }`}
                         onClick={() => setStopOption("CARRY_FORWARD")}
                       >
@@ -1213,11 +1198,11 @@ const HourlyWorkReportCreate: React.FC = () => {
                             name="stopOption"
                             checked={stopOption === "CARRY_FORWARD"}
                             onChange={() => setStopOption("CARRY_FORWARD")}
-                            className="text-[color:var(--color-warning)] focus:ring-[color:var(--color-warning)]"
+                            className="sl-check"
                           />
                           Stop & Carry Forward
                         </div>
-                        <span className="text-[11px] text-ink-subtle mt-1 pl-5">
+                        <span className="mt-1 pl-6 text-[12px] text-ink-subtle">
                           Carry forward the remaining{" "}
                           <strong>
                             {Math.max(0, remainingQtyForShift - (Number(qtyProduced) || 0))} pcs
@@ -1231,7 +1216,7 @@ const HourlyWorkReportCreate: React.FC = () => {
 
                 {/* Final hour: always Complete Stop — just show info */}
                 {Number(hourIndex) === hourOptions.length && (
-                  <div className="bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/30 rounded-lg p-3 text-xs text-[color:var(--color-danger)] leading-relaxed">
+                  <div className="rounded-[12px] bg-card p-3 text-[13px] leading-relaxed text-[color:var(--color-danger)]">
                     <strong>Complete Stop:</strong> The Production Order will be permanently locked.
                     No new daily plans can be created for this PO. All produced quantity will
                     proceed to post-production and dispatch.
@@ -1239,19 +1224,17 @@ const HourlyWorkReportCreate: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
+          </Tile>
         )}
 
         {hourOptions.length > 0 && (Number(hourIndex) === hourOptions.length || stopPlanEarly) && (
-          <div className="px-5 pt-4 pb-4 border-t border-line-soft">
+          <Tile>
             {/* Info Banner */}
-            <div className="bg-[color:var(--color-warning)]/10 border border-[color:var(--color-warning)]/25 px-3 py-2 flex items-center gap-2 rounded-lg mb-3">
-              <span className="text-xs font-bold text-[color:var(--color-warning)] shrink-0">
-                {stopPlanEarly
-                  ? "🛑 Log Wastage (Optional)"
-                  : "Final Hour — Log Wastage (Required)"}
-              </span>
-              <span className="text-xs text-[color:var(--color-warning)]/80 font-medium">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Chip tone="warning" size="sm">
+                {stopPlanEarly ? "Log Wastage (Optional)" : "Final Hour — Log Wastage (Required)"}
+              </Chip>
+              <span className="text-[13px] font-medium text-ink-muted">
                 {stopPlanEarly
                   ? "Add rows below only if wastage occurred."
                   : "At least one wastage entry is required."}
@@ -1260,28 +1243,27 @@ const HourlyWorkReportCreate: React.FC = () => {
 
             {/* Wastage error (when final hour + no rows) */}
             {formErrors.logWastage && (
-              <p className="mb-4 text-xs font-semibold text-[color:var(--color-danger)] bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/30 rounded-lg px-3 py-2">
-                ⚠️ {formErrors.logWastage}
+              <p role="alert" className="sl-field-error m-0 mb-3">
+                {formErrors.logWastage}
               </p>
             )}
 
             {/* Wastage Table — always shown (no checkbox) */}
-            <div className="mt-4 p-5 border border-line-soft rounded-sm bg-card-2">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-ink text-[15px] m-0 leading-tight">
+            <div className="mt-2">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="sl-h2 m-0 leading-tight">
                   Wastage Products
                   {!stopPlanEarly && (
                     <span className="text-[color:var(--color-danger)] ml-1">*</span>
                   )}
                   {stopPlanEarly && (
-                    <span className="ml-2 text-xs text-ink-subtle font-normal">(optional)</span>
+                    <span className="ml-2 text-xs font-normal text-ink-subtle">(optional)</span>
                   )}
-                </h4>
-                <CustomButton
+                </h2>
+                <ActionPill
                   size="sm"
                   variant="secondary"
-                  icon={FaPlus}
-                  text=" Add Wastage Product"
+                  icon={<Plus size={15} />}
                   onClick={() => {
                     setFormErrors((prev) => ({ ...prev, logWastage: "" }));
                     setWastages([
@@ -1298,37 +1280,47 @@ const HourlyWorkReportCreate: React.FC = () => {
                       },
                     ]);
                   }}
-                />
+                >
+                  Add Wastage Product
+                </ActionPill>
               </div>
 
               {wastages.length === 0 ? (
-                <div className="text-center py-8 text-ink-subtle font-semibold text-sm border-2 border-dashed border-line-soft bg-card/40 rounded-sm">
+                <div className="rounded-[14px] bg-card-2 py-8 text-center text-sm font-medium text-ink-subtle">
                   {stopPlanEarly
                     ? "No wastage products added. Click '+ Add Wastage Product' if needed."
                     : "No wastage products added yet. Click '+ Add Wastage Product' to add one."}
                 </div>
               ) : (
-                <div className="bg-card border border-line-soft rounded-sm overflow-visible mt-3">
+                <div className="mt-3 overflow-visible rounded-[14px] border border-line-soft">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead>
-                        <tr className="border-b border-line-soft text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                          <th className="px-4 py-3 bg-card-2 min-w-[160px]">
-                            Store <span className="text-[color:var(--color-danger)]">*</span>
+                        <tr className="border-b border-line-soft">
+                          <th className="sl-th bg-card-2 px-4 py-3 min-w-[160px]">
+                            Store{" "}
+                            <span className="sl-required" aria-hidden="true">
+                              *
+                            </span>
                           </th>
-                          <th className="px-4 py-3 bg-card-2 min-w-[220px]">
+                          <th className="sl-th bg-card-2 px-4 py-3 min-w-[220px]">
                             Wastage Product{" "}
-                            <span className="text-[color:var(--color-danger)]">*</span>
+                            <span className="sl-required" aria-hidden="true">
+                              *
+                            </span>
                           </th>
-                          <th className="px-4 py-3 bg-card-2 min-w-[180px]">
-                            Quantity <span className="text-[color:var(--color-danger)]">*</span>
+                          <th className="sl-th bg-card-2 px-4 py-3 min-w-[180px]">
+                            Quantity{" "}
+                            <span className="sl-required" aria-hidden="true">
+                              *
+                            </span>
                           </th>
-                          <th className="px-4 py-3 bg-card-2 text-center w-[80px]">Action</th>
+                          <th className="sl-th bg-card-2 px-4 py-3 text-center w-[80px]">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-line-soft">
                         {wastages.map((w, index) => (
-                          <tr key={index} className="hover:bg-card-2/60 transition-colors">
+                          <tr key={index}>
                             <td className="px-4 py-3 align-top min-w-[160px]">
                               <SelectInput
                                 label=""
@@ -1463,28 +1455,19 @@ const HourlyWorkReportCreate: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </Tile>
         )}
 
         {/* Returned Raw Materials */}
         {(isFinalHour || stopPlanEarly) && (
-          <div className="mx-5 mb-4 p-4 border border-line-soft rounded-sm bg-card-2">
-            <div className="flex justify-between items-center mb-3">
-              <div className="flex items-center gap-2">
-                <div>
-                  <h4 className="font-bold text-ink text-[15px] m-0 leading-tight">
-                    Returned Raw Materials
-                  </h4>
-                  <p className="text-xs text-ink-subtle m-0 font-medium">
-                    Log remaining raw materials returned to the warehouse.
-                  </p>
-                </div>
-              </div>
-              <CustomButton
+          <Tile
+            title="Returned Raw Materials"
+            subtitle="Log remaining raw materials returned to the warehouse."
+            actions={
+              <ActionPill
                 size="sm"
                 variant="secondary"
-                icon={FaPlus}
-                text=" Add Raw Material"
+                icon={<Plus size={15} />}
                 onClick={() => {
                   setRawMaterialsUsed([
                     ...rawMaterialsUsed,
@@ -1500,29 +1483,40 @@ const HourlyWorkReportCreate: React.FC = () => {
                     },
                   ]);
                 }}
-              />
-            </div>
-
-            <div className="bg-card border border-line-soft rounded-sm overflow-hidden mt-3">
+              >
+                Add Raw Material
+              </ActionPill>
+            }
+          >
+            <div className="overflow-hidden rounded-[14px] border border-line-soft">
               {rawMaterialsUsed.length === 0 ? (
-                <div className="p-6 text-center text-ink-subtle font-semibold text-sm border-2 border-dashed border-line-soft bg-card/40 rounded-sm">
+                <div className="bg-card-2 p-6 text-center text-sm font-medium text-ink-subtle">
                   No raw materials logged. Click '+ Add Raw Material' to add one.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead>
-                      <tr className="border-b border-line-soft text-xs font-bold text-ink-subtle uppercase tracking-wider">
-                        <th className="px-4 py-3 bg-card-2 min-w-[160px]">
-                          Store <span className="text-[color:var(--color-danger)]">*</span>
+                      <tr className="border-b border-line-soft">
+                        <th className="sl-th bg-card-2 px-4 py-3 min-w-[160px]">
+                          Store{" "}
+                          <span className="sl-required" aria-hidden="true">
+                            *
+                          </span>
                         </th>
-                        <th className="px-4 py-3 bg-card-2 min-w-[220px]">
-                          Raw Material <span className="text-[color:var(--color-danger)]">*</span>
+                        <th className="sl-th bg-card-2 px-4 py-3 min-w-[220px]">
+                          Raw Material{" "}
+                          <span className="sl-required" aria-hidden="true">
+                            *
+                          </span>
                         </th>
-                        <th className="px-4 py-3 bg-card-2 min-w-[180px]">
-                          Quantity <span className="text-[color:var(--color-danger)]">*</span>
+                        <th className="sl-th bg-card-2 px-4 py-3 min-w-[180px]">
+                          Quantity{" "}
+                          <span className="sl-required" aria-hidden="true">
+                            *
+                          </span>
                         </th>
-                        <th className="px-4 py-3 bg-card-2 text-center w-[80px]">Action</th>
+                        <th className="sl-th bg-card-2 px-4 py-3 text-center w-[80px]">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line-soft">
@@ -1655,43 +1649,30 @@ const HourlyWorkReportCreate: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </Tile>
         )}
 
         {/* Action Buttons */}
-        <div className="flex justify-end items-center gap-3 px-5 py-3 border-t border-line-soft">
-          <CustomButton
-            text="Reset Fields"
-            icon={FaEraser}
+        <StickyFormFooter hint="F2 saves">
+          <ActionPill
             variant="secondary"
+            icon={<Eraser size={16} />}
             onClick={handleClear}
             disabled={isSubmitting}
-          />
-          {(() => {
-            const limit = activePlan?.plannedHours ? Number(activePlan.plannedHours) : 0;
-            const filledIndices = existingLogs.map((log) => Number(log.hourIndex));
-            const maxFilled = filledIndices.length > 0 ? Math.max(...filledIndices) : 0;
-            const nextRequiredHour = maxFilled + 1;
-            const isNewLogBlocked = limit > 0 && nextRequiredHour > limit && !editingLogId;
-
-            return (
-              <CustomButton
-                text={
-                  isSubmitting
-                    ? editingLogId
-                      ? "Updating..."
-                      : "Saving..."
-                    : editingLogId
-                      ? "Update Entry"
-                      : "Save Entry"
-                }
-                icon={isSubmitting ? undefined : FaSave}
-                type="submit"
-                disabled={isSubmitting || !activePlan || isNewLogBlocked}
-              />
-            );
-          })()}
-        </div>
+          >
+            Reset Fields
+          </ActionPill>
+          <ActionPill
+            type="submit"
+            size="lg"
+            icon={<Save size={18} />}
+            loading={isSubmitting}
+            loadingText={editingLogId ? "Updating..." : "Saving..."}
+            disabled={!activePlan || isNewLogBlocked}
+          >
+            {editingLogId ? "Update Entry" : "Save Entry"}
+          </ActionPill>
+        </StickyFormFooter>
       </form>
 
       {/* ─────── New High Reached Modal ─────── */}
@@ -1702,25 +1683,26 @@ const HourlyWorkReportCreate: React.FC = () => {
           navigate("/daily-machine-planning");
         }}
         title={
-          <div className="flex items-center gap-2 text-ink font-bold">
-            <FaTrophy className="text-xl text-ink-muted animate-pulse" />
+          <div className="flex items-center gap-2 font-bold text-ink">
+            <Trophy size={20} className="text-accent" aria-hidden="true" />
             <span>New Production High Reached!</span>
           </div>
         }
         footer={
-          <CustomButton
-            text="Awesome!"
+          <ActionPill
             onClick={() => {
               setShowNewHighModal(false);
               navigate("/daily-machine-planning");
             }}
-          />
+          >
+            Awesome!
+          </ActionPill>
         }
       >
         <div className="text-center py-4">
           <div className="flex justify-center mb-5">
-            <div className="p-4 bg-card-2 rounded-full text-ink-muted animate-bounce">
-              <FaCrown size={44} />
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-chip text-accent motion-safe:animate-bounce">
+              <Crown size={40} aria-hidden="true" />
             </div>
           </div>
           <h3 className="text-2xl font-bold text-ink mb-2">Congratulations!</h3>
@@ -1730,18 +1712,18 @@ const HourlyWorkReportCreate: React.FC = () => {
               : "First production capacity record set for this product on this machine!"}
           </p>
 
-          <div className="inline-block bg-card-2 border border-line rounded-sm p-6 mb-6 min-w-[240px]">
+          <div className="mb-6 inline-block min-w-[240px] rounded-[18px] bg-card-2 p-6">
             <div className="text-xs uppercase tracking-wider text-ink-subtle font-semibold mb-1">
               New Capacity High
             </div>
-            <div className="text-4xl font-extrabold text-ink flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 text-4xl font-extrabold text-ink tabular-nums">
               <span>{newHighDetails?.newCapacity}</span>
               <span className="text-lg font-normal text-ink-muted">
                 {activePlan?.uom || "units"}
               </span>
             </div>
             {newHighDetails?.previousCapacity > 0 && (
-              <div className="text-xs text-ink-subtle mt-2 bg-card py-1 px-3 rounded-full border border-line-soft inline-block">
+              <div className="mt-2 inline-block rounded-full bg-card px-3 py-1 text-xs text-ink-subtle">
                 Previous High:{" "}
                 <span className="font-semibold text-ink">
                   {newHighDetails.previousCapacity} {activePlan?.uom || "units"}
@@ -1750,16 +1732,20 @@ const HourlyWorkReportCreate: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-left max-w-md mx-auto bg-card-2 p-5 rounded-sm border border-line-soft text-sm">
+          <div className="mx-auto grid max-w-md grid-cols-2 gap-4 rounded-[16px] bg-card-2 p-5 text-left text-sm">
             <div className="flex items-start gap-2.5">
-              <FaCalendarAlt className="text-ink-muted mt-0.5 text-base flex-shrink-0" />
+              <CalendarDays
+                size={16}
+                className="mt-0.5 shrink-0 text-ink-muted"
+                aria-hidden="true"
+              />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Date</span>
                 <strong className="text-ink font-semibold">{newHighDetails?.date}</strong>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <FaCogs className="text-ink-muted mt-0.5 text-base flex-shrink-0" />
+              <Cog size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Machine</span>
                 <strong
@@ -1771,14 +1757,14 @@ const HourlyWorkReportCreate: React.FC = () => {
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <FaClock className="text-ink-muted mt-0.5 text-base flex-shrink-0" />
+              <Clock size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Shift</span>
                 <strong className="text-ink font-semibold">{newHighDetails?.shiftName}</strong>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <FaUsers className="text-ink-muted mt-0.5 text-base flex-shrink-0" />
+              <Users size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Operators</span>
                 <strong
@@ -1792,7 +1778,7 @@ const HourlyWorkReportCreate: React.FC = () => {
           </div>
         </div>
       </CommonModal>
-    </div>
+    </PageBody>
   );
 };
 

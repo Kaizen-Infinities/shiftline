@@ -11,19 +11,23 @@ import {
 } from "../../../services/jobWorkService";
 import EwayBillPanel from "../../compliance/components/EwayBillPanel";
 import Itc04Tables from "../../compliance/components/Itc04Tables";
+import { day, message, money } from "../../compliance/components/gstUi";
+import { AlertTriangle, FileText, PackageCheck, Truck, Undo2, X } from "lucide-react";
 import {
-  Card,
-  danger,
-  day,
-  field,
-  message,
-  money,
-  primary,
-  secondary,
-  success,
-  td,
-  th,
-} from "../../compliance/components/gstUi";
+  ActionPill,
+  Chip,
+  ChipTabs,
+  EmptyState,
+  PageHeader,
+  SkeletonRows,
+  Tile,
+  type ChipTone,
+} from "../../../components/ui/v2";
+import { PageBody, formatQty } from "../ui";
+
+const th = "sl-th px-3 py-3 text-left";
+const td = "px-3 py-3 text-sm text-ink align-top";
+const numInput = "sl-input h-11 w-28 text-right tabular-nums";
 
 /**
  * Job work (P1-14).
@@ -33,11 +37,11 @@ import {
  * supply made on the day they left, with interest — so overdue comes first and stays visible.
  */
 type Tab = "challans" | "workers" | "itc04";
-const STATUS_STYLE: Record<ChallanRow["status"], string> = {
-  OPEN: "bg-amber-100 text-amber-800",
-  PART_RETURNED: "bg-sky-100 text-sky-800",
-  CLOSED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+const STATUS_TONE: Record<ChallanRow["status"], ChipTone> = {
+  OPEN: "warning",
+  PART_RETURNED: "info",
+  CLOSED: "success",
+  CANCELLED: "muted",
 };
 const halfYearOptions = () => {
   const now = new Date();
@@ -88,241 +92,303 @@ const JobWorkPage: React.FC = () => {
   const overdue = rows.filter((r) => r.overdue);
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Job Work</h1>
-          <p className="text-sm text-ink-muted">
-            Goods sent out without a sale. They have to come back within a year — three for capital
-            goods — or the credit taken on them goes back with interest.
-          </p>
-        </div>
-        {tab === "itc04" && (
-          <select
-            className={field}
-            value={halfYear}
-            onChange={(e) => setHalfYear(e.target.value)}
-            aria-label="Half year"
-          >
-            {halfYearOptions().map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        )}
-      </header>
-
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
-        {(
-          [
-            ["challans", "Challans"],
-            ["workers", "Job workers"],
-            ["itc04", "ITC-04"],
-          ] as [Tab, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+    <PageBody>
+      <PageHeader
+        title="Job Work"
+        icon={<Truck size={22} />}
+        subtitle="Goods sent out without a sale. They have to come back within a year — three for capital goods — or the credit taken on them goes back with interest."
+        actions={
+          tab === "itc04" ? (
+            <select
+              className="sl-input h-11 w-auto pr-9"
+              value={halfYear}
+              onChange={(e) => setHalfYear(e.target.value)}
+              aria-label="Half year"
+            >
+              {halfYearOptions().map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          ) : undefined
+        }
+      >
+        <ChipTabs
+          items={[
+            { key: "challans" as Tab, label: "Challans" },
+            { key: "workers" as Tab, label: "Job workers" },
+            { key: "itc04" as Tab, label: "ITC-04" },
+          ]}
+          value={tab}
+          onChange={(k) => setTab(k as Tab)}
+          ariaLabel="Job work sections"
+          size="lg"
+        />
+      </PageHeader>
 
       {tab === "challans" && (
         <>
           {overdue.length > 0 && !overdueOnly && (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm">
-              <strong className="text-rose-900">
+            <div
+              role="alert"
+              className="sl-tile flex flex-wrap items-center gap-3 p-4 text-sm"
+              style={{ boxShadow: "inset 4px 0 0 var(--color-danger)" }}
+            >
+              <AlertTriangle
+                size={18}
+                className="shrink-0 text-[color:var(--color-danger)]"
+                aria-hidden="true"
+              />
+              <strong className="text-[color:var(--color-danger)]">
                 {overdue.length} challan{overdue.length === 1 ? "" : "s"} past the return deadline.
-              </strong>{" "}
-              <button
-                className="font-semibold text-rose-800 underline"
-                onClick={() => setOverdueOnly(true)}
-              >
+              </strong>
+              <ActionPill variant="secondary" size="sm" onClick={() => setOverdueOnly(true)}>
                 Show only those
-              </button>
+              </ActionPill>
             </div>
           )}
-          <Card
+          <Tile
+            padding="none"
+            divider
             title={overdueOnly ? "Overdue challans" : "Challans"}
             actions={
-              <button className={secondary} onClick={() => setOverdueOnly((v) => !v)}>
-                {overdueOnly ? "Show all" : "Overdue only"}
-              </button>
+              <div role="group" aria-label="Challan filter" className="flex gap-2">
+                <Chip size="lg" selected={!overdueOnly} onClick={() => setOverdueOnly(false)}>
+                  All
+                </Chip>
+                <Chip
+                  size="lg"
+                  selected={overdueOnly}
+                  onClick={() => setOverdueOnly(true)}
+                  count={overdue.length || undefined}
+                >
+                  Overdue only
+                </Chip>
+              </div>
             }
           >
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr>
-                    <th className={th}>Challan</th>
-                    <th className={th}>Sent to</th>
-                    <th className={th}>Date</th>
-                    <th className={th}>Back by</th>
-                    <th className={`${th} text-right`}>Still out</th>
-                    <th className={`${th} text-right`}>Value</th>
-                    <th className={th}>Status</th>
-                    <th className={th} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <React.Fragment key={r.id}>
-                      <tr className="border-t border-line-soft">
-                        <td className={td}>
-                          {r.challanNo}
-                          <div className="text-xs text-ink-muted">
-                            {r.kind.replace(/_/g, " ").toLowerCase()}
-                          </div>
-                        </td>
-                        <td className={td}>{r.jobWorker?.name ?? r.purpose ?? "—"}</td>
-                        <td className={td}>{day(r.challanDate)}</td>
-                        <td className={td}>
-                          {r.returnDueDate ? day(r.returnDueDate) : "—"}
-                          {r.daysToReturn !== null && r.pendingQuantity > 0 && (
-                            <div
-                              className={`text-xs ${r.overdue ? "font-semibold text-rose-700" : "text-ink-muted"}`}
-                            >
-                              {r.overdue
-                                ? `${-r.daysToReturn} days late`
-                                : `${r.daysToReturn} days left`}
+            {loading ? (
+              <SkeletonRows rows={4} columns={6} />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full" aria-label="Job work challans">
+                  <thead className="bg-card-2">
+                    <tr>
+                      <th scope="col" className={th}>
+                        Challan
+                      </th>
+                      <th scope="col" className={th}>
+                        Sent to
+                      </th>
+                      <th scope="col" className={th}>
+                        Date
+                      </th>
+                      <th scope="col" className={th}>
+                        Back by
+                      </th>
+                      <th scope="col" className={`${th} !text-right`}>
+                        Still out
+                      </th>
+                      <th scope="col" className={`${th} !text-right`}>
+                        Value
+                      </th>
+                      <th scope="col" className={th}>
+                        Status
+                      </th>
+                      <th scope="col" className={th}>
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <React.Fragment key={r.id}>
+                        <tr className="border-t border-line-soft">
+                          <td className={td}>
+                            <span className="font-mono text-[13px] font-semibold text-accent">
+                              {r.challanNo}
+                            </span>
+                            <div className="text-xs text-ink-muted">
+                              {r.kind.replace(/_/g, " ").toLowerCase()}
                             </div>
-                          )}
-                        </td>
-                        <td className={`${td} text-right`}>{r.pendingQuantity}</td>
-                        <td className={`${td} text-right`}>{money(r.totalValue)}</td>
-                        <td className={td}>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}
-                          >
-                            {r.status.replace(/_/g, " ").toLowerCase()}
-                          </span>
-                          {r.cancelledAt && r.cancelReason && (
-                            <div className="text-xs text-ink-muted">{r.cancelReason}</div>
-                          )}
-                        </td>
-                        <td className={`${td} text-right`}>
-                          <a
-                            className="mr-2 text-sm font-semibold text-blue-700 hover:underline"
-                            href={`/api${jobWorkService.pdfUrl(r.id)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Challan
-                          </a>
-                          {can("job-work.create") &&
-                            r.kind === "JOB_WORK_OUT" &&
-                            r.status !== "CANCELLED" &&
-                            r.pendingQuantity > 0 && (
-                              <button
-                                className={`${secondary} mr-2`}
-                                onClick={() => setReceiving(r)}
-                              >
-                                Receive
-                              </button>
+                          </td>
+                          <td className={td}>{r.jobWorker?.name ?? r.purpose ?? "—"}</td>
+                          <td className={`${td} tabular-nums`}>{day(r.challanDate)}</td>
+                          <td className={`${td} tabular-nums`}>
+                            {r.returnDueDate ? day(r.returnDueDate) : "—"}
+                            {r.daysToReturn !== null && r.pendingQuantity > 0 && (
+                              <div className="mt-1">
+                                <Chip size="sm" tone={r.overdue ? "danger" : "muted"}>
+                                  {r.overdue
+                                    ? `${-r.daysToReturn} days late`
+                                    : `${r.daysToReturn} days left`}
+                                </Chip>
+                              </div>
                             )}
-                          {can("job-work.create") &&
-                            r.kind === "JOB_WORK_OUT" &&
-                            r.status !== "CANCELLED" &&
-                            r.pendingQuantity > 0 && (
-                              <button
-                                className={`${secondary} mr-2`}
-                                onClick={() => setReturning(r)}
-                              >
-                                Return
-                              </button>
+                          </td>
+                          <td className={`${td} text-right font-semibold tabular-nums`}>
+                            {formatQty(r.pendingQuantity)}
+                          </td>
+                          <td className={`${td} text-right tabular-nums`}>{money(r.totalValue)}</td>
+                          <td className={td}>
+                            <Chip size="sm" dot tone={STATUS_TONE[r.status]}>
+                              {r.status.replace(/_/g, " ").toLowerCase()}
+                            </Chip>
+                            {r.cancelledAt && r.cancelReason && (
+                              <div className="mt-1 text-xs text-ink-muted">{r.cancelReason}</div>
                             )}
-                          {can("job-work.manage") && r.status !== "CANCELLED" && (
-                            <button
-                              className={`${secondary} mr-2`}
-                              onClick={() => setEwayFor(ewayFor === r.id ? null : r.id)}
-                            >
-                              E-way bill
-                            </button>
-                          )}
-                          {can("job-work.cancel") && r.status !== "CANCELLED" && (
-                            <button className={danger} onClick={() => setCancelling(r)}>
-                              Cancel
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                      {ewayFor === r.id && (
-                        <tr className="border-t border-line-soft bg-card-2">
-                          <td className={td} colSpan={8}>
-                            <EwayBillPanel
-                              docType="JWC"
-                              docRef={r.id}
-                              documentCancelled={!!r.cancelledAt}
-                            />
+                          </td>
+                          <td className={`${td} text-right`}>
+                            <div className="flex flex-wrap justify-end gap-1.5">
+                              <a
+                                className="sl-btn sl-pill-sm"
+                                href={`/api${jobWorkService.pdfUrl(r.id)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <FileText size={14} aria-hidden="true" />
+                                Challan
+                              </a>
+                              {can("job-work.create") &&
+                                r.kind === "JOB_WORK_OUT" &&
+                                r.status !== "CANCELLED" &&
+                                r.pendingQuantity > 0 && (
+                                  <ActionPill
+                                    variant="secondary"
+                                    size="sm"
+                                    icon={<PackageCheck size={14} />}
+                                    onClick={() => setReceiving(r)}
+                                  >
+                                    Receive
+                                  </ActionPill>
+                                )}
+                              {can("job-work.create") &&
+                                r.kind === "JOB_WORK_OUT" &&
+                                r.status !== "CANCELLED" &&
+                                r.pendingQuantity > 0 && (
+                                  <ActionPill
+                                    variant="secondary"
+                                    size="sm"
+                                    icon={<Undo2 size={14} />}
+                                    onClick={() => setReturning(r)}
+                                  >
+                                    Return
+                                  </ActionPill>
+                                )}
+                              {can("job-work.manage") && r.status !== "CANCELLED" && (
+                                <ActionPill
+                                  variant="secondary"
+                                  size="sm"
+                                  icon={<Truck size={14} />}
+                                  aria-expanded={ewayFor === r.id}
+                                  onClick={() => setEwayFor(ewayFor === r.id ? null : r.id)}
+                                >
+                                  E-way bill
+                                </ActionPill>
+                              )}
+                              {can("job-work.cancel") && r.status !== "CANCELLED" && (
+                                <ActionPill
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={<X size={14} />}
+                                  className="text-[color:var(--color-danger)]"
+                                  onClick={() => setCancelling(r)}
+                                >
+                                  Cancel
+                                </ActionPill>
+                              )}
+                            </div>
                           </td>
                         </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                  {rows.length === 0 && !loading && (
-                    <tr>
-                      <td className={`${td} text-ink-muted`} colSpan={8}>
-                        Nothing out.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                        {ewayFor === r.id && (
+                          <tr className="border-t border-line-soft bg-card-2">
+                            <td className={td} colSpan={8}>
+                              <EwayBillPanel
+                                docType="JWC"
+                                docRef={r.id}
+                                documentCancelled={!!r.cancelledAt}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+                {rows.length === 0 && (
+                  <EmptyState
+                    compact
+                    icon={<PackageCheck size={22} />}
+                    title="Nothing out."
+                    description={
+                      overdueOnly
+                        ? "No challan is past its return deadline."
+                        : "Challans raised for goods sent to job workers show up here."
+                    }
+                  />
+                )}
+              </div>
+            )}
+          </Tile>
         </>
       )}
 
       {tab === "workers" && (
-        <Card title="Job workers">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr>
-                  <th className={th}>Code</th>
-                  <th className={th}>Name</th>
-                  <th className={th}>GSTIN</th>
-                  <th className={th}>Process</th>
-                  <th className={th}>Active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workers.map((w) => (
-                  <tr key={w.id} className="border-t border-line-soft">
-                    <td className={td}>{w.code}</td>
-                    <td className={td}>{w.name}</td>
-                    <td className={td}>
-                      {w.gstin ?? <span className="text-ink-muted">Unregistered</span>}
-                    </td>
-                    <td className={td}>{w.processType ?? "—"}</td>
-                    <td className={td}>{w.isActive ? "Yes" : "No"}</td>
-                  </tr>
-                ))}
-                {workers.length === 0 && !loading && (
+        <Tile padding="none" divider title="Job workers">
+          {loading ? (
+            <SkeletonRows rows={4} columns={5} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full" aria-label="Job workers">
+                <thead className="bg-card-2">
                   <tr>
-                    <td className={`${td} text-ink-muted`} colSpan={5}>
-                      No job workers yet.
-                    </td>
+                    <th scope="col" className={th}>
+                      Code
+                    </th>
+                    <th scope="col" className={th}>
+                      Name
+                    </th>
+                    <th scope="col" className={th}>
+                      GSTIN
+                    </th>
+                    <th scope="col" className={th}>
+                      Process
+                    </th>
+                    <th scope="col" className={th}>
+                      Active
+                    </th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                </thead>
+                <tbody>
+                  {workers.map((w) => (
+                    <tr key={w.id} className="border-t border-line-soft">
+                      <td className={`${td} font-mono text-[13px]`}>{w.code}</td>
+                      <td className={`${td} font-semibold`}>{w.name}</td>
+                      <td className={`${td} font-mono text-[13px]`}>
+                        {w.gstin ?? (
+                          <Chip size="sm" tone="muted">
+                            Unregistered
+                          </Chip>
+                        )}
+                      </td>
+                      <td className={td}>{w.processType ?? "—"}</td>
+                      <td className={td}>
+                        <Chip size="sm" dot tone={w.isActive ? "success" : "muted"}>
+                          {w.isActive ? "Yes" : "No"}
+                        </Chip>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {workers.length === 0 && <EmptyState compact title="No job workers yet." />}
+            </div>
+          )}
+        </Tile>
       )}
 
+      {tab === "itc04" && loading && <SkeletonRows rows={4} columns={4} />}
       {tab === "itc04" && itc && (
         <Itc04Tables
           itc={itc}
@@ -412,7 +478,7 @@ const JobWorkPage: React.FC = () => {
           }
         }}
       />
-    </div>
+    </PageBody>
   );
 };
 
@@ -430,14 +496,14 @@ const ReceiveDialog: React.FC<{
     Object.fromEntries(challan.items.map((i) => [i.id, { returned: "", consumed: "", scrap: "" }]))
   );
   return (
-    <Card title={`Receive against ${challan.challanNo}`}>
-      <p className="mb-2 text-sm text-ink-muted">
-        A line is settled when what came back, what the process used up and what was scrapped add up
-        to what was sent.
-      </p>
+    <Tile
+      className="ring-2 ring-chip"
+      title={`Receive against ${challan.challanNo}`}
+      subtitle="A line is settled when what came back, what the process used up and what was scrapped add up to what was sent."
+    >
       <div className="overflow-x-auto">
         <table className="min-w-full">
-          <thead>
+          <thead className="bg-card-2">
             <tr>
               <th className={th}>Goods</th>
               <th className={`${th} text-right`}>Still out</th>
@@ -450,12 +516,14 @@ const ReceiveDialog: React.FC<{
             {challan.items.map((i) => (
               <tr key={i.id} className="border-t border-line-soft">
                 <td className={td}>{i.description ?? i.rawMaterialId}</td>
-                <td className={`${td} text-right font-semibold`}>{i.balance}</td>
+                <td className={`${td} text-right font-semibold tabular-nums`}>{i.balance}</td>
                 {(["returned", "consumed", "scrap"] as const).map((k) => (
                   <td className={td} key={k}>
                     <input
                       type="number"
-                      className={`${field} w-24`}
+                      inputMode="decimal"
+                      aria-label={`${k} — ${i.description ?? i.rawMaterialId}`}
+                      className={numInput}
                       value={draft[i.id]?.[k] ?? ""}
                       onChange={(e) =>
                         setDraft({ ...draft, [i.id]: { ...draft[i.id], [k]: e.target.value } })
@@ -468,10 +536,12 @@ const ReceiveDialog: React.FC<{
           </tbody>
         </table>
       </div>
-      <div className="mt-3 flex gap-2">
-        <button
-          className={success}
-          disabled={busy}
+      <div className="mt-4 flex flex-wrap justify-end gap-2.5">
+        <ActionPill variant="secondary" onClick={onCancel}>
+          Cancel
+        </ActionPill>
+        <ActionPill
+          loading={busy}
           onClick={() =>
             onDone(
               challan.items
@@ -486,12 +556,9 @@ const ReceiveDialog: React.FC<{
           }
         >
           Record
-        </button>
-        <button className={primary.replace("bg-blue-600", "bg-slate-500")} onClick={onCancel}>
-          Cancel
-        </button>
+        </ActionPill>
       </div>
-    </Card>
+    </Tile>
   );
 };
 
@@ -519,22 +586,26 @@ const ReturnChallanDialog: React.FC<{
     Object.fromEntries(challan.items.map((i) => [i.id, { returned: "", scrap: "" }]))
   );
   return (
-    <Card title={`Return against ${challan.challanNo}`}>
-      <p className="mb-2 text-sm text-ink-muted">
-        Records the receipt on the parent challan in the same step as raising this one.
-      </p>
-      <label className="mb-2 block text-sm">
-        Challan date
+    <Tile
+      className="ring-2 ring-chip"
+      title={`Return against ${challan.challanNo}`}
+      subtitle="Records the receipt on the parent challan in the same step as raising this one."
+    >
+      <div className="mb-3 max-w-[220px]">
+        <label htmlFor="jw-return-date" className="sl-label">
+          Challan date
+        </label>
         <input
+          id="jw-return-date"
           type="date"
-          className={`${field} ml-2`}
+          className="sl-input h-11"
           value={challanDate}
           onChange={(e) => setChallanDate(e.target.value)}
         />
-      </label>
+      </div>
       <div className="overflow-x-auto">
         <table className="min-w-full">
-          <thead>
+          <thead className="bg-card-2">
             <tr>
               <th className={th}>Goods</th>
               <th className={`${th} text-right`}>Still out</th>
@@ -546,13 +617,15 @@ const ReturnChallanDialog: React.FC<{
             {challan.items.map((i) => (
               <tr key={i.id} className="border-t border-line-soft">
                 <td className={td}>{i.description ?? i.rawMaterialId}</td>
-                <td className={`${td} text-right font-semibold`}>{i.balance}</td>
+                <td className={`${td} text-right font-semibold tabular-nums`}>{i.balance}</td>
                 {(["returned", "scrap"] as const).map((k) => (
                   <td className={td} key={k}>
                     <input
                       type="number"
+                      inputMode="decimal"
+                      aria-label={`${k} — ${i.description ?? i.rawMaterialId}`}
                       max={i.balance}
-                      className={`${field} w-24`}
+                      className={numInput}
                       value={draft[i.id]?.[k] ?? ""}
                       onChange={(e) =>
                         setDraft({ ...draft, [i.id]: { ...draft[i.id], [k]: e.target.value } })
@@ -565,10 +638,12 @@ const ReturnChallanDialog: React.FC<{
           </tbody>
         </table>
       </div>
-      <div className="mt-3 flex gap-2">
-        <button
-          className={success}
-          disabled={busy}
+      <div className="mt-4 flex flex-wrap justify-end gap-2.5">
+        <ActionPill variant="secondary" onClick={onCancel}>
+          Cancel
+        </ActionPill>
+        <ActionPill
+          loading={busy}
           onClick={() =>
             onDone(
               challanDate,
@@ -585,12 +660,9 @@ const ReturnChallanDialog: React.FC<{
           }
         >
           Raise return challan
-        </button>
-        <button className={primary.replace("bg-blue-600", "bg-slate-500")} onClick={onCancel}>
-          Cancel
-        </button>
+        </ActionPill>
       </div>
-    </Card>
+    </Tile>
   );
 };
 

@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FaSave, FaEraser } from "react-icons/fa";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { z } from "zod";
-
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import UOMSelect from "../../../components/form/SelectInput/UOMSelect";
-
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   createRawMaterial,
@@ -21,6 +16,9 @@ import { rawMaterialService } from "../../../services/rawMaterialService";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import { convertToPrimaryUom } from "../../../utils/uomConversion";
 import { categoryService } from "../../../services/categoryService";
+import { Eraser, Save } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 const initialFormState = {
   rawMaterialId: "",
@@ -229,139 +227,139 @@ const WastageStoreForm: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-[1024px] xl:mr-auto h-full flex flex-col">
-      <div className="bg-card rounded-sm border border-line-soft flex flex-col flex-1 h-full">
-        <div className="px-6 py-4 border-b border-line-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold text-ink">
-            {isEditMode ? "Edit Wastage Product" : "Create Wastage Product"}
-          </h2>
-          <BackButton text="Back to List" to="/wastage-store" />
-        </div>
+    <div className="w-full min-w-0 max-w-[1100px]">
+      <PageHeader
+        title={isEditMode ? "Edit Wastage Product" : "Create Wastage Product"}
+        subtitle="Scrap or reject material that is stored and sold or reprocessed"
+        back="/wastage-store"
+        backLabel="Back to wastage products"
+        breadcrumbs={[
+          { label: "Inventory" },
+          { label: "Wastage products", to: "/wastage-store" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+      />
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1" noValidate>
-          <div className="px-6 py-4 flex-1 overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Row 1: Wastage ID | Material Name | Category */}
-              <TextInput
-                label="Wastage ID"
-                name="rawMaterialId"
-                value={formData.rawMaterialId}
-                readOnly
-                disabled
-              />
-              <TextInput
-                label="Material Name"
-                name="materialName"
-                value={formData.materialName}
-                onChange={handleChange}
-                error={errors.materialName}
-                required
-              />
-              <SelectInput
-                label="Category"
-                name="categoryId"
-                value={formData.categoryId}
-                onChange={handleChange}
-                options={categoryOptions}
-                defaultOptionLabel="Select Category"
-              />
+      <form onSubmit={handleSubmit} noValidate>
+        <Tile title="Wastage product" subtitle="Identity, store, unit and opening balance">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+            {/* Row 1: Wastage ID | Material Name | Category */}
+            <TextInput
+              label="Wastage ID"
+              name="rawMaterialId"
+              value={formData.rawMaterialId}
+              readOnly
+              disabled
+            />
+            <TextInput
+              label="Material Name"
+              name="materialName"
+              value={formData.materialName}
+              onChange={handleChange}
+              error={errors.materialName}
+              required
+            />
+            <SelectInput
+              label="Category"
+              name="categoryId"
+              value={formData.categoryId}
+              onChange={handleChange}
+              options={categoryOptions}
+              defaultOptionLabel="Select Category"
+            />
 
-              {/* Row 2: Store (narrow) | Base UOM (wide) */}
-              <SelectInput
-                label="Store"
-                name="storeId"
-                value={formData.storeId}
-                onChange={handleChange}
-                options={(stores || []).map((s: any) => ({
-                  value: String(s.storeId),
-                  label: s.storeName,
-                }))}
-                defaultOptionLabel="Select Store"
-                error={errors.storeId}
+            {/* Row 2: Store (narrow) | Base UOM (wide) */}
+            <SelectInput
+              label="Store"
+              name="storeId"
+              value={formData.storeId}
+              onChange={handleChange}
+              options={(stores || []).map((s: any) => ({
+                value: String(s.storeId),
+                label: s.storeName,
+              }))}
+              defaultOptionLabel="Select Store"
+              error={errors.storeId}
+              required
+              disabled={isEditMode}
+            />
+            <div className="md:col-span-2">
+              <UOMSelect
+                name="baseUom"
+                label="Base UOM"
+                value={formData.baseUom}
                 required
+                isMulti
+                category={["length", "mass", "each", "volume"]}
+                allowedCodes={["kg", "g", "mt", "l", "ml", "m", "cm", "mm", "dz", "ea"]}
+                onChange={(value) => {
+                  setFormData((prev) => ({ ...prev, baseUom: value }));
+                  if (errors.baseUom) {
+                    setErrors((prev) => ({ ...prev, baseUom: "" }));
+                  }
+                }}
+                error={errors.baseUom}
                 disabled={isEditMode}
-              />
-              <div className="md:col-span-2">
-                <UOMSelect
-                  name="baseUom"
-                  label="Base UOM"
-                  value={formData.baseUom}
-                  required
-                  isMulti
-                  category={["length", "mass", "each", "volume"]}
-                  allowedCodes={["kg", "g", "mt", "l", "ml", "m", "cm", "mm", "dz", "ea"]}
-                  onChange={(value) => {
-                    setFormData((prev) => ({ ...prev, baseUom: value }));
-                    if (errors.baseUom) {
-                      setErrors((prev) => ({ ...prev, baseUom: "" }));
-                    }
-                  }}
-                  error={errors.baseUom}
-                  disabled={isEditMode}
-                />
-              </div>
-
-              {/* Row 3: Opening Stock | Status | Narration */}
-              <QuantityInput
-                label="Opening Stock"
-                name="onHandQty"
-                value={formData.onHandQty}
-                baseUoms={formData.baseUom}
-                uom={openingStockUom || undefined}
-                onUomChange={setOpeningStockUom}
-                onChange={handleChange}
-                error={errors.onHandQty}
-                required
-                disabled={isEditMode}
-              />
-              <SelectInput
-                label="Status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                options={[
-                  { value: "Active", label: "Active" },
-                  { value: "Inactive", label: "Inactive" },
-                ]}
-              />
-              <TextInput
-                label="Narration"
-                name="narration"
-                value={formData.narration}
-                onChange={handleChange}
-                error={errors.narration}
               />
             </div>
-          </div>
 
-          <div className="px-6 py-4 flex justify-end gap-3 border-t border-line-soft bg-card-2">
-            {!isEditMode && (
-              <CustomButton
-                type="button"
-                text="Clear"
-                icon={FaEraser}
-                variant="secondary"
-                onClick={handleClear}
-                disabled={isSubmitting}
-              />
-            )}
-            <CustomButton
-              type="submit"
-              text={
-                isSubmitting
-                  ? isEditMode
-                    ? "Updating..."
-                    : "Saving..."
-                  : isEditMode
-                    ? "Update Product"
-                    : "Save Product"
-              }
-              icon={FaSave}
-              disabled={isSubmitting}
+            {/* Row 3: Opening Stock | Status | Narration */}
+            <QuantityInput
+              label="Opening Stock"
+              name="onHandQty"
+              value={formData.onHandQty}
+              baseUoms={formData.baseUom}
+              uom={openingStockUom || undefined}
+              onUomChange={setOpeningStockUom}
+              onChange={handleChange}
+              error={errors.onHandQty}
+              required
+              disabled={isEditMode}
+            />
+            <SelectInput
+              label="Status"
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              options={[
+                { value: "Active", label: "Active" },
+                { value: "Inactive", label: "Inactive" },
+              ]}
+            />
+            <TextInput
+              label="Narration"
+              name="narration"
+              value={formData.narration}
+              onChange={handleChange}
+              error={errors.narration}
             />
           </div>
-        </form>
-      </div>
+        </Tile>
+
+        <FormFooter>
+          <ActionPill variant="secondary" onClick={() => navigate("/wastage-store")}>
+            Cancel
+          </ActionPill>
+          {!isEditMode && (
+            <ActionPill
+              variant="secondary"
+              icon={<Eraser size={16} />}
+              onClick={handleClear}
+              disabled={isSubmitting}
+            >
+              Clear
+            </ActionPill>
+          )}
+          <ActionPill
+            type="submit"
+            icon={<Save size={17} />}
+            loading={isSubmitting}
+            loadingText={isEditMode ? "Updating..." : "Saving..."}
+          >
+            {isEditMode ? "Update Product" : "Save Product"}
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

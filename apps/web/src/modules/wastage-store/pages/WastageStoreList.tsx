@@ -1,27 +1,24 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-
 import type { RawMaterial } from "../../../features/raw-materials/types";
 import { usePermission } from "../../../hooks/usePermission";
 import { useListCache } from "../../../hooks/useListCache";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
 import { storeService } from "../../../services/storeService";
-
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { rawMaterialService } from "../../../services/rawMaterialService";
 import { formatStockQty, parseBaseUom } from "../../../utils/uomConversion";
+import { Plus, Recycle } from "lucide-react";
+import { ActionPill, PageHeader, Toolbar } from "../../../components/ui/v2";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -100,20 +97,6 @@ const WastageStoreList: React.FC = () => {
     [stores]
   );
 
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
-  const handleStoreFilter = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStoreFilter(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
-  const handleActiveFilter = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setActiveFilter(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
   const handleOpenView = useCallback((item: RawMaterial) => {
     setSelectedItem(item);
     setShowViewModal(true);
@@ -176,38 +159,57 @@ const WastageStoreList: React.FC = () => {
     };
   }, []);
 
+  const hasFilters = Boolean(searchTerm || storeFilter || activeFilter);
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStoreFilter("");
+    setActiveFilter("");
+    setCurrentPage(1);
+  };
+
   const columns: DataTableColumn<RawMaterial>[] = [
     {
       header: "#",
-      width: "60px",
+      width: "56px",
       align: "center",
       render: (_, index) => (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
     },
     {
-      header: "NAME",
+      header: "Wastage product",
       render: (item) => (
-        <div>
-          <div className="font-semibold text-ink">{item.materialName}</div>
-          <span className="text-xs text-ink-subtle">ID: {item.rawMaterialId}</span>
+        <div className="flex min-w-0 flex-col">
+          <button
+            type="button"
+            onClick={() => handleOpenView(item)}
+            className="w-fit text-left font-semibold text-accent hover:underline underline-offset-4"
+          >
+            {item.materialName}
+          </button>
+          <span className="font-mono text-xs text-ink-subtle">{item.rawMaterialId}</span>
         </div>
       ),
     },
-    { header: "CATEGORY", render: (item) => item.category?.name || "-" },
-    { header: "STORE", render: (item) => item.store?.storeName || item.storeId || "-" },
+    { header: "Category", render: (item) => item.category?.name || "—" },
+    { header: "Store", render: (item) => item.store?.storeName || item.storeId || "—" },
     {
-      header: "PHYSICAL STOCK",
-      render: (item) => formatStockQty(item.onHandQty, item.baseUom),
+      header: "Physical stock",
+      align: "right",
+      render: (item) => (
+        <span className="font-semibold tabular-nums text-ink">
+          {formatStockQty(item.onHandQty, item.baseUom)}
+        </span>
+      ),
     },
     {
-      header: "STATUS",
+      header: "Status",
       align: "center",
       render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} />,
     },
     {
-      header: "ACTIONS",
-      align: "center",
+      header: "Actions",
+      align: "right",
       render: (item) => (
-        <div className="flex items-center gap-2">
+        <div className="table-action-group w-full justify-end">
           <ViewButton onClick={() => handleOpenView(item)} />
           {can("wastage-store.edit") && <EditButton onClick={() => handleOpenEdit(item)} />}
           {can("wastage-store.delete") && (
@@ -218,71 +220,90 @@ const WastageStoreList: React.FC = () => {
     },
   ];
 
-  return (
-    <div>
-      <div className="max-w-[1250px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Wastage Products</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="w-40">
-              <SelectInput
-                label="Store Filter"
-                hideLabel
-                name="storeFilter"
-                value={storeFilter}
-                options={storeOptions}
-                onChange={handleStoreFilter}
-              />
-            </div>
-            <div className="w-36">
-              <SelectInput
-                label="Status Filter"
-                hideLabel
-                name="activeFilter"
-                value={activeFilter}
-                options={[
-                  { label: "All Status", value: "" },
-                  { label: "Active", value: "true" },
-                  { label: "Inactive", value: "false" },
-                ]}
-                onChange={handleActiveFilter}
-              />
-            </div>
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search products..."
-            />
-            {can("wastage-store.export") && (
-              <ExportCSVButton
-                fetchData={fetchWastageForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-            {can("wastage-store.create") && (
-              <CustomButton text="Add Wastage Product" icon={FaPlus} onClick={handleOpenAdd} />
-            )}
-          </div>
-        </div>
+  const createCta = can("wastage-store.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={handleOpenAdd}>
+      New Wastage Product
+    </ActionPill>
+  ) : null;
 
-        {/* Data Table */}
-        <DataTable
-          columns={columns}
-          data={paginatedData}
-          rowKey={(row) => row.rawMaterialId}
-          loading={loading}
-          emptyMessage="No wastage products found."
-          pagination={
-            totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
-          }
-        />
-        <div className="px-4 pb-2 text-xs text-ink-subtle text-right">Total: {total} record(s)</div>
-      </div>
+  return (
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Wastage Products"
+        subtitle={`${allWastageItems.length} items · scrap, regrind and rejects kept in wastage stores`}
+        icon={<Recycle size={22} />}
+        actions={
+          can("wastage-store.export") ? (
+            <ExportCSVButton
+              fetchData={fetchWastageForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : null
+        }
+        primaryAction={createCta}
+      />
+
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(value) => {
+          setSearchTerm(value);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search products..."
+        searchLabel="Search wastage products"
+        filters={[
+          { key: "", label: "All" },
+          { key: "true", label: "Active" },
+          { key: "false", label: "Inactive" },
+        ]}
+        filterValue={activeFilter}
+        onFilterChange={(key) => {
+          setActiveFilter(key);
+          setCurrentPage(1);
+        }}
+        filtersLabel="Status"
+        right={
+          <div className="w-full sm:w-52">
+            <SelectInput
+              label="Store Filter"
+              hideLabel
+              name="storeFilter"
+              value={storeFilter}
+              options={storeOptions}
+              onChange={(e) => {
+                setStoreFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        }
+      />
+
+      <DataTable
+        columns={columns}
+        data={paginatedData}
+        rowKey={(row) => row.rawMaterialId}
+        loading={loading}
+        ariaLabel="Wastage products"
+        emptyMessage={
+          hasFilters ? "No wastage products match these filters." : "No wastage products found."
+        }
+        emptyAction={
+          hasFilters ? (
+            <ActionPill variant="secondary" onClick={clearFilters}>
+              Clear filters
+            </ActionPill>
+          ) : (
+            createCta
+          )
+        }
+        pagination={
+          totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
+        }
+      />
+      <p className="sl-muted m-0 mt-2 text-right text-xs">Total: {total} record(s)</p>
 
       {/* View Modal */}
       <CommonViewModal

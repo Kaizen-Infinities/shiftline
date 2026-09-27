@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { FaBoxes, FaEdit, FaInfoCircle, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   fetchStockAdjustmentById,
@@ -10,10 +8,18 @@ import {
   clearCurrent,
 } from "../../../features/stock-adjustments/stockAdjustmentSlice";
 import { usePermission } from "../../../hooks/usePermission";
-import CustomButton from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import { formatDate } from "../../../utils/dateUtils";
+import { Boxes, CheckCircle2, Info, Pencil, XCircle } from "lucide-react";
+import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
+import {
+  ActionPill,
+  Chip,
+  PageHeader,
+  SectionLabel,
+  SkeletonTile,
+  Tile,
+} from "../../../components/ui/v2";
 
 const ADJUSTMENT_TYPE_LABELS: Record<string, string> = {
   PRODUCTION_MATERIAL_ISSUE: "Production Material Issue",
@@ -63,11 +69,21 @@ const getItemUom = (item: any): string => {
 };
 
 const InfoField = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div>
-    <p className="text-[11px] uppercase tracking-wider text-ink-subtle font-bold mb-1">{label}</p>
-    <div className="text-sm font-extrabold text-ink">{value || "—"}</div>
+  <div className="min-w-0">
+    <p className="m-0 mb-1 text-[13px] font-medium text-ink-subtle">{label}</p>
+    <div className="text-sm font-semibold text-ink">{value || "—"}</div>
   </div>
 );
+
+const fmt3 = (n: unknown) =>
+  Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+const Remark: React.FC<{ text?: string }> = ({ text }) =>
+  text ? (
+    <span className="block max-w-xs text-xs leading-normal text-ink-muted">{text}</span>
+  ) : (
+    <span className="text-xs text-ink-subtle">—</span>
+  );
 
 const StockAdjustmentView: React.FC = () => {
   const { id } = useParams();
@@ -107,8 +123,16 @@ const StockAdjustmentView: React.FC = () => {
 
   if (loading || !currentAdjustment) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-accent" />
+      <div className="w-full min-w-0">
+        <PageHeader
+          title="Stock Adjustment Details"
+          back="/inventory/stock-adjustments"
+          backLabel="Back to stock adjustments"
+        />
+        <div className="flex flex-col gap-4">
+          <SkeletonTile lines={3} />
+          <SkeletonTile lines={5} />
+        </div>
       </div>
     );
   }
@@ -117,146 +141,257 @@ const StockAdjustmentView: React.FC = () => {
   const po = currentAdjustment.productionOrder;
   const isApproved = currentAdjustment.status === "APPROVED";
   const isRejected = currentAdjustment.status === "REJECTED";
+  const isDraft = currentAdjustment.status === "DRAFT";
+  const items: any[] = currentAdjustment.items || [];
+
+  const pmiColumns: DataTableColumn<any>[] = [
+    {
+      header: "Material",
+      render: (item) => (
+        <div className="min-w-0">
+          <div className="font-semibold text-ink">
+            {item.rawMaterial?.materialName || item.rawMaterialId}
+          </div>
+          <div className="font-mono text-xs text-ink-subtle">{item.rawMaterialId}</div>
+        </div>
+      ),
+    },
+    { header: "Store", render: (item) => item.store?.storeName || item.storeId || "—" },
+    {
+      header: "Stock before",
+      align: "right",
+      render: (item) => (
+        <span className="tabular-nums text-ink-muted">
+          {fmt3(item.currentQty)} {getItemUom(item)}
+        </span>
+      ),
+    },
+    {
+      header: "Stock after",
+      align: "right",
+      render: (item) => (
+        <span className="tabular-nums text-ink-muted">
+          {fmt3(item.adjustedQty)} {getItemUom(item)}
+        </span>
+      ),
+    },
+    {
+      header: "Issued qty",
+      align: "right",
+      render: (item) => (
+        <span className="font-semibold tabular-nums text-[color:var(--color-danger)]">
+          {fmt3(Math.abs(Number(item.difference)))} {getItemUom(item)}
+        </span>
+      ),
+    },
+    { header: "Remarks", render: (item) => <Remark text={item.remarks} /> },
+  ];
+
+  const itemColumns: DataTableColumn<any>[] = [
+    {
+      header: "Item type",
+      render: (item) => {
+        const isWastage = item.itemType === "WASTAGE" || item.rawMaterial?.itemType === "WASTAGE";
+        const isRM = (item.itemType === "RAW_MATERIAL" || !!item.rawMaterial) && !isWastage;
+        return (
+          <Chip size="sm" tone={isWastage ? "warning" : isRM ? "success" : "default"}>
+            {isWastage ? "Wastage Product" : isRM ? "Raw Material" : "Finished Goods"}
+          </Chip>
+        );
+      },
+    },
+    {
+      header: "Item details",
+      render: (item) => {
+        const itemName =
+          item.rawMaterial?.materialName ||
+          item.product?.productName ||
+          item.rawMaterialId ||
+          item.productItemId ||
+          "—";
+        const itemCode = item.rawMaterial?.rawMaterialId || item.product?.productCode || "";
+        return (
+          <div className="min-w-0">
+            <div className="font-semibold text-ink">{itemName}</div>
+            {itemCode && <div className="font-mono text-xs text-ink-subtle">{itemCode}</div>}
+          </div>
+        );
+      },
+    },
+    { header: "Store", render: (item) => item.store?.storeName || "—" },
+    {
+      header: "Current qty",
+      align: "right",
+      render: (item) => (
+        <span className="tabular-nums text-ink-muted">
+          {fmt3(item.currentQty)} {getItemUom(item)}
+        </span>
+      ),
+    },
+    {
+      header: "Adjusted qty",
+      align: "right",
+      render: (item) => (
+        <span className="tabular-nums text-ink">
+          {fmt3(item.adjustedQty)} {getItemUom(item)}
+        </span>
+      ),
+    },
+    {
+      header: "Difference",
+      align: "right",
+      render: (item) => {
+        const diff = Number(item.difference);
+        return (
+          <Chip
+            size="sm"
+            tone={diff > 0 ? "success" : diff < 0 ? "danger" : "muted"}
+            className="tabular-nums"
+          >
+            {diff > 0 ? "+" : ""}
+            {fmt3(diff)} {getItemUom(item)}
+          </Chip>
+        );
+      },
+    },
+    { header: "Remarks", render: (item) => <Remark text={item.remarks} /> },
+  ];
+
+  const typeLabel =
+    ADJUSTMENT_TYPE_LABELS[currentAdjustment.adjustmentType] || currentAdjustment.adjustmentType;
 
   return (
-    <div className="p-4 md:p-6 min-h-screen bg-card rounded-sm border border-line-soft">
-      <div className="w-full mx-auto">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-2xl font-extrabold text-ink tracking-tight">
-              Stock Adjustment Details
-            </h2>
-            <p className="text-ink-subtle text-sm font-semibold mt-0.5">
-              {currentAdjustment.adjustmentNumber} &middot;{" "}
-              {ADJUSTMENT_TYPE_LABELS[currentAdjustment.adjustmentType] ||
-                currentAdjustment.adjustmentType}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {currentAdjustment.status === "DRAFT" && can("stock-adjustments.edit") && (
-              <>
-                <CustomButton
-                  text={isApproving ? "Processing..." : "Approve (MD Approval)"}
-                  icon={FaCheckCircle}
-                  variant="primary"
-                  onClick={() => handleApprove("APPROVED")}
-                  disabled={isApproving}
-                />
-                <CustomButton
-                  text="Reject"
-                  icon={FaTimesCircle}
-                  variant="danger"
-                  onClick={() => handleApprove("REJECTED")}
-                  disabled={isApproving}
-                />
-              </>
-            )}
-            {currentAdjustment.status === "DRAFT" && can("stock-adjustments.edit") && (
-              <CustomButton
-                text="Edit"
-                icon={FaEdit}
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Stock Adjustment Details"
+        subtitle={`${currentAdjustment.adjustmentNumber} · ${typeLabel}`}
+        back="/inventory/stock-adjustments"
+        backLabel="Back to stock adjustments"
+        breadcrumbs={[
+          { label: "Inventory" },
+          { label: "Stock adjustments", to: "/inventory/stock-adjustments" },
+          { label: currentAdjustment.adjustmentNumber },
+        ]}
+        meta={<StatusBadge status={currentAdjustment.status} />}
+        actions={
+          isDraft && can("stock-adjustments.edit") ? (
+            <>
+              <ActionPill
                 variant="secondary"
+                icon={<Pencil size={16} />}
                 onClick={() =>
                   navigate(`/inventory/stock-adjustments/edit/${currentAdjustment.id}`)
                 }
-              />
+              >
+                Edit
+              </ActionPill>
+              <ActionPill
+                variant="danger"
+                icon={<XCircle size={16} />}
+                onClick={() => handleApprove("REJECTED")}
+                disabled={isApproving}
+              >
+                Reject
+              </ActionPill>
+            </>
+          ) : null
+        }
+        primaryAction={
+          isDraft && can("stock-adjustments.edit") ? (
+            <ActionPill
+              icon={<CheckCircle2 size={17} />}
+              onClick={() => handleApprove("APPROVED")}
+              loading={isApproving}
+              loadingText="Processing..."
+            >
+              Approve (MD Approval)
+            </ActionPill>
+          ) : undefined
+        }
+      />
+
+      {isApproved && isPMI && (
+        <Tile className="mb-4 flex items-start gap-3">
+          <CheckCircle2
+            className="mt-0.5 shrink-0 text-[color:var(--color-success)]"
+            size={20}
+            aria-hidden="true"
+          />
+          <div>
+            <p className="m-0 text-sm font-semibold text-ink">Material Issue Approved</p>
+            <p className="m-0 mt-0.5 text-sm text-ink-muted">
+              Production Order <strong>{currentAdjustment.productionOrderId}</strong> is now
+              eligible to start production. Raw material stock has been deducted.
+            </p>
+          </div>
+        </Tile>
+      )}
+      {isDraft && isPMI && (
+        <Tile className="mb-4 flex items-start gap-3">
+          <Info
+            className="mt-0.5 shrink-0 text-[color:var(--color-warning)]"
+            size={20}
+            aria-hidden="true"
+          />
+          <div>
+            <p className="m-0 text-sm font-semibold text-ink">Draft — Pending Approval</p>
+            <p className="m-0 mt-0.5 text-sm text-ink-muted">
+              This Material Issue is in <strong>Draft</strong> status. Approve it to deduct stock
+              and allow Production Start.
+            </p>
+          </div>
+        </Tile>
+      )}
+      {isRejected && (
+        <Tile className="mb-4 flex items-start gap-3">
+          <XCircle
+            className="mt-0.5 shrink-0 text-[color:var(--color-danger)]"
+            size={20}
+            aria-hidden="true"
+          />
+          <div>
+            <p className="m-0 text-sm font-semibold text-ink">Adjustment Rejected</p>
+            {currentAdjustment.approvedBy && (
+              <p className="m-0 mt-0.5 text-sm text-ink-muted">
+                Rejected by <strong>{currentAdjustment.approvedBy}</strong> on{" "}
+                {formatDate(currentAdjustment.approvedAt)}.
+              </p>
             )}
-            <BackButton text="Back" to="/inventory/stock-adjustments" />
           </div>
-        </div>
-        {isApproved && isPMI && (
-          <div className="mb-5 rounded-sm bg-[color:var(--color-success)]/10 border border-[color:var(--color-success)]/30 p-4 flex items-start gap-3">
-            <FaCheckCircle
-              className="text-[color:var(--color-success)] mt-0.5 shrink-0"
-              size={18}
-            />
-            <div>
-              <p className="font-bold text-[color:var(--color-success)] text-sm">
-                Material Issue Approved
-              </p>
-              <p className="text-[color:var(--color-success)]/90 text-xs mt-0.5 font-medium">
-                Production Order <strong>{currentAdjustment.productionOrderId}</strong> is now
-                eligible to start production. Raw material stock has been deducted.
-              </p>
-            </div>
-          </div>
-        )}
-        {currentAdjustment.status === "DRAFT" && isPMI && (
-          <div className="mb-5 rounded-sm bg-[color:var(--color-warning)]/10 border border-[color:var(--color-warning)]/30 p-4 flex items-start gap-3">
-            <FaInfoCircle className="text-[color:var(--color-warning)] mt-0.5 shrink-0" size={18} />
-            <div>
-              <p className="font-bold text-[color:var(--color-warning)] text-sm">
-                Draft — Pending Approval
-              </p>
-              <p className="text-[color:var(--color-warning)]/90 text-xs mt-0.5 font-medium">
-                This Material Issue is in <strong>Draft</strong> status. Approve it to deduct stock
-                and allow Production Start.
-              </p>
-            </div>
-          </div>
-        )}
-        {isRejected && (
-          <div className="mb-5 rounded-sm bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/30 p-4 flex items-start gap-3">
-            <FaTimesCircle className="text-[color:var(--color-danger)] mt-0.5 shrink-0" size={18} />
-            <div>
-              <p className="font-bold text-[color:var(--color-danger)] text-sm">
-                Adjustment Rejected
-              </p>
-              {currentAdjustment.approvedBy && (
-                <p className="text-[color:var(--color-danger)]/90 text-xs mt-0.5 font-medium">
-                  Rejected by <strong>{currentAdjustment.approvedBy}</strong> on{" "}
-                  {formatDate(currentAdjustment.approvedAt)}.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-        <div className="rounded-sm border border-line-soft mb-5 overflow-hidden bg-card-2">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-line-soft bg-card-2">
-            <h3 className="font-extrabold text-ink text-base">Adjustment Information</h3>
-          </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
+        </Tile>
+      )}
+
+      <div className="flex flex-col gap-4">
+        <Tile title="Adjustment information">
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
             <InfoField
               label="Adjustment No."
-              value={
-                <span className="font-mono text-ink text-sm font-extrabold">
-                  {currentAdjustment.adjustmentNumber}
-                </span>
-              }
+              value={<span className="font-mono">{currentAdjustment.adjustmentNumber}</span>}
             />
             <InfoField label="Date" value={formatDate(currentAdjustment.adjustmentDate)} />
-            <InfoField
-              label="Type"
-              value={
-                <StatusBadge
-                  status={currentAdjustment.adjustmentType}
-                  customText={
-                    ADJUSTMENT_TYPE_LABELS[currentAdjustment.adjustmentType] ||
-                    currentAdjustment.adjustmentType
-                  }
-                />
-              }
-            />
+            <InfoField label="Type" value={<Chip size="sm">{typeLabel}</Chip>} />
             <InfoField label="Status" value={<StatusBadge status={currentAdjustment.status} />} />
             <InfoField
               label="Created By"
               value={currentAdjustment.createdByUser?.fullName || currentAdjustment.createdBy}
             />
             {currentAdjustment.reason && (
-              <div className="col-span-2 sm:col-span-3 lg:col-span-6">
+              <div className="col-span-2 sm:col-span-3 lg:col-span-5">
                 <InfoField label="Adjusted By" value={currentAdjustment.reason} />
               </div>
             )}
           </div>
           {!isPMI && (currentAdjustment.sourceDocument || currentAdjustment.sourceDocId) && (
-            <div className="px-5 pb-5 pt-2 grid grid-cols-2 sm:grid-cols-4 gap-5 border-t border-line-soft">
+            <div className="mt-5 grid grid-cols-2 gap-5 border-t border-line-soft pt-4 sm:grid-cols-4">
               <InfoField label="Source Document" value={currentAdjustment.sourceDocument} />
               <InfoField label="Source Doc Reference" value={currentAdjustment.sourceDocId} />
               <InfoField
                 label="Auto Generated"
                 value={
                   currentAdjustment.autoGenerated ? (
-                    <StatusBadge status="ACTIVE" customText="Auto-generated" />
+                    <Chip size="sm" tone="info">
+                      Auto-generated
+                    </Chip>
                   ) : (
                     "No"
                   )
@@ -264,33 +399,22 @@ const StockAdjustmentView: React.FC = () => {
               />
             </div>
           )}
-        </div>
+        </Tile>
+
         {isPMI && po && (
-          <div className="rounded-sm border border-line-soft mb-5 overflow-hidden bg-card-2">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-line-soft bg-card-2">
-              <div className="h-8 w-8 rounded-lg bg-card border border-line flex items-center justify-center">
-                <FaBoxes className="text-ink-muted" size={15} />
-              </div>
-              <h3 className="font-extrabold text-ink text-base">Production Order Information</h3>
-            </div>
-            <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
+          <Tile title="Production order information" icon={<Boxes size={18} />}>
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6">
               <InfoField
                 label="PO Number"
-                value={
-                  <span className="font-mono text-ink text-sm font-extrabold">
-                    {po.productionOrderId}
-                  </span>
-                }
+                value={<span className="font-mono">{po.productionOrderId}</span>}
               />
               <InfoField
                 label="Product"
                 value={
                   <div>
-                    <div className="font-extrabold text-ink text-sm">
-                      {po.productItem?.productName || "—"}
-                    </div>
+                    <div>{po.productItem?.productName || "—"}</div>
                     {po.productItem?.productCode && (
-                      <div className="text-xs text-ink-subtle font-mono mt-0.5 font-semibold">
+                      <div className="font-mono text-xs font-normal text-ink-subtle">
                         {po.productItem.productCode}
                       </div>
                     )}
@@ -300,207 +424,37 @@ const StockAdjustmentView: React.FC = () => {
               <InfoField
                 label="Planned Qty"
                 value={
-                  po.targetQty ? `${Number(po.targetQty).toLocaleString()} ${po.uom || ""}` : "—"
+                  po.targetQty
+                    ? `${Number(po.targetQty).toLocaleString("en-IN")} ${po.uom || ""}`
+                    : "—"
                 }
               />
               <InfoField label="Due Date" value={formatDate(po.dueDate)} />
               <InfoField label="Machine" value={po.Machine?.machineName || po.machineMachineId} />
               <InfoField label="PO Status" value={<StatusBadge status={po.status} />} />
             </div>
-          </div>
+          </Tile>
         )}
-        <div className="rounded-sm border border-line-soft mb-5 overflow-hidden bg-card-2">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-line-soft bg-card-2">
-            <h3 className="font-extrabold text-ink text-base">
-              {isPMI ? "Issued Materials" : "Adjustment Items"}
-            </h3>
-            <span className="ml-auto text-xs font-bold text-ink-subtle bg-card border border-line-soft px-3 py-1 rounded-full">
-              {currentAdjustment.items?.length || 0} item
-              {currentAdjustment.items?.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            {isPMI ? (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-card-2 border-b border-line-soft">
-                    {[
-                      "RM Code",
-                      "Material Name",
-                      "Store",
-                      "Stock Before",
-                      "Stock After",
-                      "Issued Qty",
-                      "Remarks",
-                    ].map((h, i) => (
-                      <th
-                        key={h}
-                        className={`text-[11px] uppercase tracking-wider text-ink-subtle font-extrabold px-4 py-3 ${i >= 3 && i <= 5 ? "text-right" : "text-left"}`}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-soft">
-                  {currentAdjustment.items?.map((item: any, idx: number) => {
-                    const itemUom = getItemUom(item);
 
-                    return (
-                      <tr key={item.id || idx} className="hover:bg-card/60 transition-colors">
-                        <td className="px-4 py-3">
-                          <code className="text-xs bg-card text-ink border border-line-soft px-2 py-0.5 rounded font-mono font-bold">
-                            {item.rawMaterialId}
-                          </code>
-                        </td>
-                        <td className="px-4 py-3 font-extrabold text-ink">
-                          {item.rawMaterial?.materialName || item.rawMaterialId}
-                        </td>
-                        <td className="px-4 py-3 text-ink font-medium">
-                          {item.store?.storeName || item.storeId}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs text-ink font-semibold">
-                          {Number(item.currentQty).toFixed(3)} {itemUom}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs text-ink font-semibold">
-                          {Number(item.adjustedQty).toFixed(3)} {itemUom}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="font-extrabold text-[color:var(--color-danger)] font-mono text-xs">
-                            {Math.abs(Number(item.difference)).toFixed(3)} {itemUom}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {item.remarks ? (
-                            <div className="bg-card border-l-2 border-line text-ink text-xs px-2.5 py-1 rounded-r-md font-semibold inline-block max-w-xs leading-normal">
-                              {item.remarks}
-                            </div>
-                          ) : (
-                            <span className="text-ink-subtle text-xs">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {(!currentAdjustment.items || currentAdjustment.items.length === 0) && (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="text-center py-10 text-ink-subtle text-sm font-semibold"
-                      >
-                        No items found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-card-2 border-b border-line-soft">
-                    {[
-                      "Item Type",
-                      "Item Details",
-                      "Store",
-                      "Current Qty",
-                      "Adjusted Qty",
-                      "Difference",
-                      "Remarks",
-                    ].map((h, i) => (
-                      <th
-                        key={h}
-                        className={`text-[11px] uppercase tracking-wider text-ink-subtle font-extrabold px-4 py-3 ${i >= 3 && i <= 5 ? "text-right" : "text-left"}`}
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line-soft">
-                  {currentAdjustment.items?.map((item: any, idx: number) => {
-                    const diff = Number(item.difference);
-                    const itemUom = getItemUom(item);
-
-                    const isWastage =
-                      item.itemType === "WASTAGE" || item.rawMaterial?.itemType === "WASTAGE";
-                    const isRM =
-                      (item.itemType === "RAW_MATERIAL" || !!item.rawMaterial) && !isWastage;
-                    const typeLabel = isWastage
-                      ? "Wastage Product"
-                      : isRM
-                        ? "Raw Material"
-                        : "Finished Goods";
-
-                    const itemName =
-                      item.rawMaterial?.materialName ||
-                      item.product?.productName ||
-                      item.rawMaterialId ||
-                      item.productItemId ||
-                      "—";
-                    const itemCode =
-                      item.rawMaterial?.rawMaterialId || item.product?.productCode || "";
-
-                    return (
-                      <tr key={item.id || idx} className="hover:bg-card/60 transition-colors">
-                        <td className="px-4 py-3">
-                          <StatusBadge
-                            status={
-                              isWastage ? "WASTAGE" : isRM ? "RAW_MATERIAL" : "FINISHED_GOODS"
-                            }
-                            customText={typeLabel}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="font-extrabold text-ink">{itemName}</div>
-                          {itemCode && (
-                            <div className="text-xs text-ink-subtle font-mono mt-0.5 font-semibold">
-                              {itemCode}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-ink font-medium">
-                          {item.store?.storeName || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs text-ink font-semibold">
-                          {Number(item.currentQty).toFixed(3)} {itemUom}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs text-ink font-semibold">
-                          {Number(item.adjustedQty).toFixed(3)} {itemUom}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span
-                            className={`font-extrabold font-mono text-xs ${diff > 0 ? "text-[color:var(--color-success)]" : diff < 0 ? "text-[color:var(--color-danger)]" : "text-ink-subtle"}`}
-                          >
-                            {diff > 0 ? `+${diff.toFixed(3)}` : diff.toFixed(3)} {itemUom}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {item.remarks ? (
-                            <div className="bg-card border-l-2 border-line text-ink text-xs px-2.5 py-1 rounded-r-md font-semibold inline-block max-w-xs leading-normal">
-                              {item.remarks}
-                            </div>
-                          ) : (
-                            <span className="text-ink-subtle text-xs">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {(!currentAdjustment.items || currentAdjustment.items.length === 0) && (
-                    <tr>
-                      <td
-                        colSpan={9}
-                        className="text-center py-10 text-ink-subtle text-sm font-semibold"
-                      >
-                        No items found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>{" "}
+        <section aria-label={isPMI ? "Issued Materials" : "Adjustment Items"}>
+          <SectionLabel
+            action={
+              <Chip size="sm" tone="muted">
+                {items.length} item{items.length !== 1 ? "s" : ""}
+              </Chip>
+            }
+          >
+            {isPMI ? "Issued Materials" : "Adjustment Items"}
+          </SectionLabel>
+          <DataTable
+            data={items}
+            rowKey={(item: any) => item.id || `${item.rawMaterialId}-${item.productItemId}`}
+            columns={isPMI ? pmiColumns : itemColumns}
+            density="compact"
+            ariaLabel={isPMI ? "Issued materials" : "Adjustment items"}
+            emptyMessage="No items found"
+          />
+        </section>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { FileSpreadsheet } from "lucide-react";
 import {
   importsService,
   type ImportReport,
@@ -95,14 +97,13 @@ const ImportsPage: React.FC = () => {
   const rows = report?.rows.filter((r) => filter === "all" || r.status === filter) ?? [];
 
   return (
-    <div className="p-4 text-ink" data-testid="imports-page">
-      <div className="mb-4">
-        <h1 className="text-xl font-bold">Data imports</h1>
-        <p className="text-sm text-ink-muted">
-          Bring masters and opening figures in from a spreadsheet. Every file is checked first;
-          nothing is written until the report is clean and you press Import.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 text-ink md:p-6" data-testid="imports-page">
+      <PageHeader
+        title="Data imports"
+        icon={<FileSpreadsheet size={22} />}
+        subtitle="Bring masters and opening figures in from a spreadsheet. Every file is checked first; nothing is written until the report is clean and you press Import."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Data imports" }]}
+      />
 
       {!types ? (
         <p className="text-sm text-ink-muted">Loading…</p>
@@ -130,7 +131,7 @@ const ImportsPage: React.FC = () => {
 
           {selected && (
             <main className="space-y-6">
-              <section className="rounded-sm border border-line-soft bg-card p-5">
+              <section className="sl-tile p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-bold">{selected.label}</h2>
@@ -139,11 +140,7 @@ const ImportsPage: React.FC = () => {
                       "customer_code".
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={downloadTemplate}
-                    className="rounded-lg border border-line-soft bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-card"
-                  >
+                  <button type="button" onClick={downloadTemplate} className="sl-btn sl-pill-sm">
                     Download template
                   </button>
                 </div>
@@ -174,7 +171,7 @@ const ImportsPage: React.FC = () => {
                 </div>
               </section>
 
-              <section className="rounded-sm border border-line-soft bg-card p-5">
+              <section className="sl-tile p-4 sm:p-5">
                 <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
                   CSV file
                   <input
@@ -210,7 +207,7 @@ const ImportsPage: React.FC = () => {
                           onClick={() => setFilter(key)}
                           className={`rounded-full px-3 py-1 font-semibold ${
                             filter === key
-                              ? "bg-accent text-white"
+                              ? "bg-accent text-[color:var(--color-on-primary)]"
                               : (badge[key] ?? "bg-card-2 text-ink")
                           }`}
                         >
@@ -286,7 +283,7 @@ const ImportsPage: React.FC = () => {
                           type="button"
                           onClick={commit}
                           disabled={busy !== null || report.errors > 0 || report.ok === 0}
-                          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+                          className="sl-cta sl-pill-md"
                         >
                           {busy === "commit" ? "Importing…" : `Import ${report.ok} row(s)`}
                         </button>

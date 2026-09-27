@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { ChipTabs, PageHeader } from "../../../components/ui/v2";
+import { MessageSquare } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -106,31 +108,28 @@ const SmsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <div>
-        <h1 className="text-lg font-semibold text-ink">SMS and OTP</h1>
-        <p className="text-sm text-ink-soft">
-          Templates registered on DLT, what has been sent, and the account it goes out through.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="SMS and OTP"
+        icon={<MessageSquare size={22} />}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "SMS and OTP" }]}
+        subtitle="Templates registered on DLT, what has been sent, and the account it goes out through."
+      />
 
-      <div className="flex gap-2">
-        {(["templates", "messages", "settings"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={t === tab ? primary : secondary}
-          >
-            {t === "templates" ? "Templates" : t === "messages" ? "Sent" : "Account"}
-          </button>
-        ))}
-      </div>
+      <ChipTabs
+        ariaLabel="SMS"
+        value={tab}
+        onChange={setTab}
+        items={(["templates", "messages", "settings"] as const).map((t) => ({
+          key: t,
+          label: t === "templates" ? "Templates" : t === "messages" ? "Sent" : "Account",
+        }))}
+      />
 
       {tab === "templates" && (
         <Card title="Templates">
           {loading ? (
-            <p className="text-sm text-ink-soft">Loading…</p>
+            <p className="text-sm text-ink-muted">Loading…</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full">
@@ -148,7 +147,7 @@ const SmsPage: React.FC = () => {
                     <tr key={t.id} className="border-t border-line-soft align-top">
                       <td className={td}>
                         <div className="font-medium">{t.code}</div>
-                        <div className="text-xs text-ink-soft">{t.name}</div>
+                        <div className="text-xs text-ink-muted">{t.name}</div>
                       </td>
                       <td className={`${td} max-w-md`}>{t.body}</td>
                       <td className={td}>{t.variables.join(", ") || "—"}</td>
@@ -189,9 +188,9 @@ const SmsPage: React.FC = () => {
       {tab === "messages" && (
         <Card title="Sent">
           {loading ? (
-            <p className="text-sm text-ink-soft">Loading…</p>
+            <p className="text-sm text-ink-muted">Loading…</p>
           ) : messages.length === 0 ? (
-            <p className="text-sm text-ink-soft">Nothing has been sent yet.</p>
+            <p className="text-sm text-ink-muted">Nothing has been sent yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full">
@@ -235,7 +234,7 @@ const SmsPage: React.FC = () => {
       {tab === "settings" && settings && (
         <Card title="Account">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Provider
               <select
                 className={`${field} ml-2`}
@@ -246,7 +245,7 @@ const SmsPage: React.FC = () => {
                 <option value="MSG91">MSG91</option>
               </select>
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               <input
                 type="checkbox"
                 className="mr-2"
@@ -255,7 +254,7 @@ const SmsPage: React.FC = () => {
               />
               Send messages
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Sender id
               <input
                 className={`${field} ml-2 w-28`}
@@ -266,7 +265,7 @@ const SmsPage: React.FC = () => {
                 }
               />
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Principal entity id
               <input
                 className={`${field} ml-2 w-56`}
@@ -274,7 +273,7 @@ const SmsPage: React.FC = () => {
                 onChange={(e) => setSettings({ ...settings, principalEntityId: e.target.value })}
               />
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Auth key
               <input
                 className={`${field} ml-2 w-56`}
@@ -284,7 +283,7 @@ const SmsPage: React.FC = () => {
                 onChange={(e) => setAuthKey(e.target.value)}
               />
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Messages a day
               <input
                 className={`${field} ml-2 w-28`}
@@ -295,7 +294,7 @@ const SmsPage: React.FC = () => {
               />
             </label>
           </div>
-          <p className="mt-3 text-sm text-ink-soft">
+          <p className="mt-3 text-sm text-ink-muted">
             {settings.sentToday} of {settings.dailyCap} sent today.
           </p>
           {can("sms.settings") && (

@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useFormShortcuts } from "../../../../hooks/useFormShortcuts";
+import { PackageCheck, Plus, Trash2 } from "lucide-react";
+import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
+import { FormFooter, KeyHint, formatINR } from "../../../sales/shared/tradeUi";
 import { Container, Row, Col } from "../../../../components/ui/TailwindPrimitives";
 import {
   FaPlus,
@@ -86,6 +90,7 @@ const emptyItem = (): GRNItem => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 const InvoiceDetailPage: React.FC = () => {
   const navigate = useNavigate();
+  useFormShortcuts({});
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const dispatch = useAppDispatch();
@@ -1268,37 +1273,33 @@ const InvoiceDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-[1200px] mr-auto grn-form-compact">
-      <style>{`
-                .grn-form-compact label { margin-bottom: 2px !important; font-size: 11px !important; }
-                .grn-form-compact input, .grn-form-compact select,
-                .grn-form-compact button[role="combobox"],
-                .grn-form-compact .react-datepicker-wrapper input,
-                .grn-form-compact input[type="date"] { height: 32px !important; min-height: 32px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
-                .grn-form-compact .group > div.flex.relative { height: 32px !important; }
-                .grn-form-compact .group > div.flex.relative input { font-size: 12px !important; }
-                .grn-form-compact .group > div.flex.relative select { height: 32px !important; font-size: 11px !important; }
-                .grn-form-compact .group > div.flex.relative span { font-size: 11px !important; }
-                .grn-form-compact .group { margin-bottom: 0 !important; }
-                .grn-form-compact textarea { font-size: 12px !important; }
-            `}</style>
-      <div className="bg-card rounded-xl border border-line-soft shadow-xs overflow-visible">
-        {/* Header */}
-        <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
-          <h2 className="text-base font-bold text-ink">
-            {isEditMode ? "Edit GRN / Invoice" : "Create GRN / Invoice"}
-          </h2>
-          <BackButton text="Back to List" />
-        </div>
-
+    <div className="mx-auto w-full max-w-[1400px]">
+      <PageHeader
+        title={isEditMode ? "Edit GRN / Invoice" : "Create GRN / Invoice"}
+        meta={
+          form.grnNumber ? (
+            <Chip size="sm" tone="muted" className="tabular-nums">
+              {form.grnNumber}
+            </Chip>
+          ) : null
+        }
+        subtitle="Book the supplier's bill against the goods received. Saving posts the purchase and adds the stock."
+        back={() => navigate(-1)}
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Bills & invoices", to: "/invoice" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+      />
+      <div>
         <form onSubmit={handleSubmit} noValidate>
-          <div className="px-5 py-3 space-y-3">
+          <div className="space-y-4">
             {/* ── Section 1: GRN Details ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">GRN Details</h3>
+            <div className="sl-tile p-4 sm:p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="sl-h2 m-0">GRN Details</h2>
               </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
+              <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
                 <SelectInput
                   label="PO (Optional)"
                   name="poId"
@@ -1355,7 +1356,7 @@ const InvoiceDetailPage: React.FC = () => {
                   searchable
                   error={errors.storeId}
                 />
-                <label className="flex items-center gap-2 self-end pb-2 text-[11px] font-semibold text-ink-muted">
+                <label className="flex items-center gap-2 self-end pb-3 text-sm font-medium text-ink">
                   <input
                     type="checkbox"
                     checked={form.reverseCharge}
@@ -1399,7 +1400,7 @@ const InvoiceDetailPage: React.FC = () => {
                     />
                     <div className="self-end pb-2 text-[11px] font-semibold text-ink-muted">
                       Foreign Total:{" "}
-                      <span className="text-ink font-extrabold">
+                      <span className="font-bold tabular-nums text-ink">
                         {form.currencyCode}{" "}
                         {foreignTotal !== null
                           ? foreignTotal.toLocaleString("en-IN", {
@@ -1415,11 +1416,9 @@ const InvoiceDetailPage: React.FC = () => {
             </div>
 
             {/* ── Section 2: Billing Address ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Billing Address
-                </h3>
+            <div className="sl-tile p-4 sm:p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="sl-h2 m-0">Billing Address</h2>
               </div>
               <AddressForm
                 addressValue={form.billingAddressLine1}
@@ -1450,11 +1449,9 @@ const InvoiceDetailPage: React.FC = () => {
             </div>
 
             {/* ── Section 3: Shipping Address ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Shipping Address
-                </h3>
+            <div className="sl-tile p-4 sm:p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="sl-h2 m-0">Shipping Address</h2>
               </div>
               <AddressForm
                 addressValue={form.shippingAddressLine1}
@@ -1482,13 +1479,11 @@ const InvoiceDetailPage: React.FC = () => {
             </div>
 
             {/* ── Section 4: Receipt Details ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Receipt Details
-                </h3>
+            <div className="sl-tile p-4 sm:p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="sl-h2 m-0">Receipt Details</h2>
               </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
+              <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
                 <DatePickerCalendar
                   label="Receive Date"
                   name="receiveDate"
@@ -1538,44 +1533,31 @@ const InvoiceDetailPage: React.FC = () => {
             </div>
 
             {/* ── Section 5: Order Items ── */}
-            <div>
-              <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">Order Items</h3>
+            <div className="sl-tile p-4 sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="sl-h2 m-0">Order Items</h2>
                 {!isEditMode && (
-                  <CustomButton
-                    text="Add Item"
-                    icon={FaPlus}
-                    type="button"
-                    onClick={addItem}
+                  <ActionPill
                     size="sm"
-                  />
+                    variant="secondary"
+                    icon={<Plus size={15} />}
+                    onClick={addItem}
+                  >
+                    Add Item
+                  </ActionPill>
                 )}
               </div>
-              <div className="rounded-lg border border-line-soft bg-card-2 overflow-visible [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0">
+              <div className="overflow-x-auto rounded-[14px] border border-line-soft [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0">
                 <table className="min-w-full divide-y divide-line-soft">
-                  <thead className="bg-card-2 border-b border-line-soft">
+                  <thead className="bg-card-2">
                     <tr>
-                      <th className="px-2 py-1.5 text-center text-[10px] font-extrabold text-ink-subtle uppercase w-8">
-                        #
-                      </th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">
-                        Product
-                      </th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase w-24">
-                        HSN
-                      </th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase min-w-[160px]">
-                        Qty & UOM
-                      </th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">
-                        Unit Price (₹)
-                      </th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">
-                        Tax %
-                      </th>
-                      <th className="px-2 py-1.5 text-right text-[10px] font-extrabold text-ink-subtle uppercase">
-                        Net (₹)
-                      </th>
+                      <th className="sl-th px-2 py-2.5 text-center w-8">#</th>
+                      <th className="sl-th px-2 py-2.5 text-left">Product</th>
+                      <th className="sl-th px-2 py-2.5 text-left w-24">HSN</th>
+                      <th className="sl-th px-2 py-2.5 text-left min-w-[160px]">Qty & UOM</th>
+                      <th className="sl-th px-2 py-2.5 text-left">Unit Price (₹)</th>
+                      <th className="sl-th px-2 py-2.5 text-left">Tax %</th>
+                      <th className="sl-th px-2 py-2.5 text-right">Net (₹)</th>
                       <th className="px-2 py-1.5 w-10"></th>
                     </tr>
                   </thead>
@@ -1598,13 +1580,13 @@ const InvoiceDetailPage: React.FC = () => {
                         item.productId ||
                         "—";
                       return (
-                        <tr key={idx} className="hover:bg-card-2/50 transition-colors">
-                          <td className="px-2 py-1 text-[11px] font-bold text-ink-subtle text-center">
+                        <tr key={idx} className="align-top">
+                          <td className="px-3 py-3 text-center text-[13px] tabular-nums text-ink-subtle">
                             {idx + 1}
                           </td>
-                          <td className="px-2 py-1">
+                          <td className="px-3 py-2">
                             {isPOSelected || isEditMode ? (
-                              <span className="font-semibold text-ink text-[11px]">
+                              <span className="inline-block py-2 text-sm font-semibold text-ink">
                                 {materialName}
                               </span>
                             ) : (
@@ -1681,7 +1663,7 @@ const InvoiceDetailPage: React.FC = () => {
                               />
                             )}
                           </td>
-                          <td className="px-2 py-1">
+                          <td className="px-3 py-2">
                             <TextInput
                               label=""
                               name={`items[${idx}].hsnCode`}
@@ -1697,7 +1679,7 @@ const InvoiceDetailPage: React.FC = () => {
                               disabled={isEditMode}
                             />
                           </td>
-                          <td className="px-2 py-1">
+                          <td className="px-3 py-2">
                             <QuantityInput
                               label=""
                               name={`items[${idx}].qty`}
@@ -1710,7 +1692,7 @@ const InvoiceDetailPage: React.FC = () => {
                               onChange={(e) => updateItem(idx, "qty", Number(e.target.value))}
                             />
                           </td>
-                          <td className="px-2 py-1">
+                          <td className="px-3 py-2">
                             <TextInput
                               label=""
                               name={`items[${idx}].unitPrice`}
@@ -1724,7 +1706,7 @@ const InvoiceDetailPage: React.FC = () => {
                               disabled={isEditMode}
                             />
                           </td>
-                          <td className="px-2 py-1">
+                          <td className="px-3 py-2">
                             <TextInput
                               name={`items[${idx}].tax`}
                               type="number"
@@ -1737,17 +1719,18 @@ const InvoiceDetailPage: React.FC = () => {
                               disabled={isEditMode}
                             />
                           </td>
-                          <td className="px-2 py-1 text-right text-[11px] font-extrabold text-ink">
-                            ₹{item.netAmount.toFixed(2)}
+                          <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums text-ink">
+                            {formatINR(item.netAmount)}
                           </td>
-                          <td className="px-2 py-1 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             {!isEditMode && (
                               <button
                                 type="button"
-                                className="text-rose-400 hover:text-rose-600 p-1 rounded transition-colors"
+                                aria-label="Remove"
+                                className="sl-icon-btn sl-icon-btn-hover-danger"
                                 onClick={() => removeItem(idx)}
                               >
-                                <FaTrash size={11} />
+                                <Trash2 size={15} aria-hidden="true" />
                               </button>
                             )}
                           </td>
@@ -1756,7 +1739,7 @@ const InvoiceDetailPage: React.FC = () => {
                     })}
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="text-center text-ink-subtle py-4 text-[11px]">
+                        <td colSpan={8} className="py-8 text-center text-sm text-ink-subtle">
                           No items added
                         </td>
                       </tr>
@@ -1768,14 +1751,12 @@ const InvoiceDetailPage: React.FC = () => {
 
             {/* ── Section 5.5: TDS ── */}
             {canViewTds && (
-              <div>
-                <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                  <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                    TDS Deduction
-                  </h3>
+              <div className="sl-tile p-4 sm:p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <h2 className="sl-h2 m-0">TDS Deduction</h2>
                 </div>
-                <div className="rounded-lg border border-line-soft bg-card-2 px-3 py-2.5">
-                  <label className="flex items-center gap-2 text-[11px] font-semibold text-ink-muted mb-2">
+                <div>
+                  <label className="mb-3 flex items-center gap-2 text-sm font-medium text-ink">
                     <input
                       type="checkbox"
                       checked={form.deductTds}
@@ -1785,7 +1766,7 @@ const InvoiceDetailPage: React.FC = () => {
                     Deduct TDS on this bill
                   </label>
                   {form.deductTds && (
-                    <div className="grid grid-cols-4 gap-x-4 gap-y-1.5 items-end">
+                    <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2 xl:grid-cols-4 items-end">
                       <SelectInput
                         label="Section"
                         name="tdsSectionCode"
@@ -1804,21 +1785,25 @@ const InvoiceDetailPage: React.FC = () => {
                         disabled={isEditMode}
                         error={errors.tdsSectionCode}
                       />
-                      <div className="col-span-3 text-[11px] font-semibold text-ink-muted">
+                      <div className="text-[13px] text-ink-muted md:col-span-1 xl:col-span-3">
                         {tdsPreviewLoading ? (
                           <span>Calculating…</span>
                         ) : tdsPreview ? (
                           tdsPreview.belowThreshold ? (
-                            <span className="text-amber-600">{tdsPreview.reason}</span>
+                            <span className="text-[color:var(--color-warning)]">
+                              {tdsPreview.reason}
+                            </span>
                           ) : (
                             <div className="flex flex-wrap gap-x-5 gap-y-1">
                               <span>
                                 Rate:{" "}
-                                <span className="text-ink font-extrabold">{tdsPreview.rate}%</span>
+                                <span className="font-bold tabular-nums text-ink">
+                                  {tdsPreview.rate}%
+                                </span>
                               </span>
                               <span>
                                 TDS Amount:{" "}
-                                <span className="text-ink font-extrabold">
+                                <span className="font-bold tabular-nums text-ink">
                                   ₹
                                   {tdsAmount.toLocaleString("en-IN", {
                                     minimumFractionDigits: 2,
@@ -1828,7 +1813,7 @@ const InvoiceDetailPage: React.FC = () => {
                               </span>
                               <span>
                                 Net Payable:{" "}
-                                <span className="text-primary font-extrabold">
+                                <span className="font-bold tabular-nums text-ink">
                                   ₹
                                   {netPayable.toLocaleString("en-IN", {
                                     minimumFractionDigits: 2,
@@ -1854,20 +1839,22 @@ const InvoiceDetailPage: React.FC = () => {
             )}
 
             {/* ── Section 5.7: Payments ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">Payments</h3>
+            <div className="sl-tile p-4 sm:p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="sl-h2 m-0">Payments</h2>
               </div>
-              <div className="rounded-lg border border-line-soft bg-card-2 px-3 py-2.5 space-y-2">
+              <div className="space-y-3">
                 {payments.length > 0 && (
-                  <table className="min-w-full divide-y divide-line-soft text-[11px]">
+                  <table className="min-w-full divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line-soft text-[13px]">
                     <thead>
-                      <tr className="text-ink-subtle uppercase text-[10px]">
-                        <th className="text-left px-2 py-1">Date</th>
-                        <th className="text-left px-2 py-1">Instrument</th>
-                        <th className="text-left px-2 py-1">Details</th>
-                        <th className="text-right px-2 py-1">Amount (₹)</th>
-                        <th className="px-2 py-1 w-8"></th>
+                      <tr className="bg-card-2">
+                        <th className="sl-th px-3 py-2 text-left">Date</th>
+                        <th className="sl-th px-3 py-2 text-left">Instrument</th>
+                        <th className="sl-th px-3 py-2 text-left">Details</th>
+                        <th className="sl-th px-3 py-2 text-right">Amount (₹)</th>
+                        <th className="sl-th w-10 px-3 py-2">
+                          <span className="sr-only">Remove</span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line-soft">
@@ -1883,20 +1870,20 @@ const InvoiceDetailPage: React.FC = () => {
                           new Date(p.chequeDate).getTime() > new Date(p.paymentDate).getTime();
                         return (
                           <tr key={p.id}>
-                            <td className="px-2 py-1">
+                            <td className="px-3 py-2">
                               {p.paymentDate
                                 ? new Date(p.paymentDate).toLocaleDateString("en-IN")
                                 : "—"}
                             </td>
-                            <td className="px-2 py-1">
+                            <td className="px-3 py-2">
                               {p.paymentMethod}
                               {postDated && (
-                                <span className="ml-1.5 px-1 py-0.5 rounded bg-amber-100 text-amber-700 text-[9px] font-bold uppercase">
+                                <Chip size="sm" tone="warning" className="ml-1.5">
                                   Post-dated
-                                </span>
+                                </Chip>
                               )}
                             </td>
-                            <td className="px-2 py-1 text-ink-subtle">
+                            <td className="px-3 py-2 text-ink-subtle">
                               {isCheque
                                 ? [
                                     p.chequeNo ? `Cheque #${p.chequeNo}` : null,
@@ -1909,20 +1896,21 @@ const InvoiceDetailPage: React.FC = () => {
                                     .join(" · ")
                                 : p.referenceNumber || "—"}
                             </td>
-                            <td className="px-2 py-1 text-right font-bold">
+                            <td className="px-3 py-2 text-right font-semibold tabular-nums">
                               {Number(p.amount).toLocaleString("en-IN", {
                                 minimumFractionDigits: 2,
                                 maximumFractionDigits: 2,
                               })}
                             </td>
-                            <td className="px-2 py-1 text-center">
+                            <td className="px-2 py-1.5 text-center">
                               {!p.isPersisted && (
                                 <button
                                   type="button"
-                                  className="text-rose-400 hover:text-rose-600"
+                                  aria-label="Remove"
+                                  className="sl-icon-btn sl-icon-btn-hover-danger"
                                   onClick={() => handleRemovePayment(p.id)}
                                 >
-                                  <FaTrash size={10} />
+                                  <Trash2 size={15} aria-hidden="true" />
                                 </button>
                               )}
                             </td>
@@ -1934,7 +1922,7 @@ const InvoiceDetailPage: React.FC = () => {
                 )}
 
                 {(!isEditMode || balanceDue > 0) && (
-                  <div className="grid grid-cols-5 gap-x-3 gap-y-1.5 items-end pt-2 border-t border-line-soft">
+                  <div className="grid grid-cols-1 items-end gap-x-4 gap-y-4 border-t border-line-soft pt-4 md:grid-cols-3 xl:grid-cols-5">
                     <TextInput
                       label="Amount (₹)"
                       name="paymentAmount"
@@ -2026,21 +2014,21 @@ const InvoiceDetailPage: React.FC = () => {
                           error={paymentErrors.chequeParty}
                         />
                         {isPostDatedCheque && (
-                          <div className="col-span-5 text-[10px] font-semibold text-amber-600">
+                          <div className="md:col-span-3 xl:col-span-5 text-[10px] font-semibold text-[color:var(--color-warning)]">
                             Post-dated: this cheque will post only when it is marked cleared in the
                             cheque register.
                           </div>
                         )}
                       </>
                     )}
-                    <div className={isChequeInstrument ? "col-span-5" : ""}>
-                      <CustomButton
-                        text="Add Payment"
-                        icon={FaPlus}
-                        type="button"
-                        size="sm"
+                    <div className={isChequeInstrument ? "md:col-span-3 xl:col-span-5" : ""}>
+                      <ActionPill
+                        variant="blue"
+                        icon={<Plus size={16} />}
                         onClick={handleAddPayment}
-                      />
+                      >
+                        Add Payment
+                      </ActionPill>
                     </div>
                   </div>
                 )}
@@ -2048,8 +2036,8 @@ const InvoiceDetailPage: React.FC = () => {
             </div>
 
             {/* ── Section 6: Remarks + Summary ── */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="sl-tile p-4 sm:p-5">
                 <TextArea
                   label="Remarks (Optional)"
                   name="remarks"
@@ -2060,17 +2048,23 @@ const InvoiceDetailPage: React.FC = () => {
                   disabled={isEditMode}
                 />
               </div>
-              <div className="bg-card-2 rounded-lg border border-line-soft px-3 py-2.5 shadow-xs">
-                <h6 className="mb-1.5 font-extrabold text-primary text-xs">Order Summary</h6>
-                <div className="flex justify-between mb-1 text-ink-subtle text-[11px] font-semibold">
-                  <span>Subtotal:</span>
-                  <span className="text-ink font-extrabold">₹{subtotal.toFixed(2)}</span>
+              <div className="sl-tile space-y-2 p-4 text-[13px] sm:p-5">
+                <div className="mb-3 flex items-baseline justify-between gap-3">
+                  <span className="font-medium text-ink-subtle">Net amount</span>
+                  <span className="text-[26px] font-bold leading-tight tracking-tight tabular-nums text-ink">
+                    {formatINR(grandTotal)}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center mb-1 text-[11px] text-ink-muted">
+                <div className="flex justify-between text-ink-muted">
+                  <span>Subtotal</span>
+                  <span className="tabular-nums text-ink">{formatINR(subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between text-ink-muted">
                   <span>Discount</span>
                   <div className="flex items-center gap-1">
                     <select
-                      className="border border-line-soft rounded px-1 py-0.5 text-[11px] outline-none w-12 bg-card text-ink"
+                      aria-label="Discount type"
+                      className="sl-input h-9 w-16 px-2 text-[13px]"
                       value={form.discountType}
                       onChange={(e) =>
                         setForm((p) => ({ ...p, discountType: e.target.value as any }))
@@ -2088,12 +2082,13 @@ const InvoiceDetailPage: React.FC = () => {
                       onChange={(e) =>
                         setForm((p) => ({ ...p, discountValue: Number(e.target.value) }))
                       }
-                      className="border border-line-soft rounded px-1 py-0.5 text-[11px] outline-none w-16 text-right bg-card text-ink"
+                      aria-label="Discount"
+                      className="sl-input h-9 w-24 px-2 text-right text-[13px] tabular-nums"
                       disabled={isEditMode}
                     />
                   </div>
                 </div>
-                <div className="flex justify-between items-center mb-1 text-[11px] text-ink-muted">
+                <div className="flex items-center justify-between text-ink-muted">
                   <span>Rounding</span>
                   <div className="flex items-center gap-1">
                     <div className="flex">
@@ -2101,7 +2096,9 @@ const InvoiceDetailPage: React.FC = () => {
                         type="button"
                         onClick={() => setRoundingSign("+")}
                         disabled={isEditMode}
-                        className={`px-1.5 py-0.5 border border-line-soft rounded-l text-[10px] font-semibold ${roundingSign === "+" ? "bg-blue-600 text-white border-blue-600" : "bg-card text-ink-muted"}`}
+                        aria-label="Round up"
+                        aria-pressed={roundingSign === "+"}
+                        className="sl-chip sl-chip-sm rounded-r-none"
                       >
                         +
                       </button>
@@ -2109,7 +2106,9 @@ const InvoiceDetailPage: React.FC = () => {
                         type="button"
                         onClick={() => setRoundingSign("-")}
                         disabled={isEditMode}
-                        className={`px-1.5 py-0.5 border border-line-soft border-l-0 rounded-r text-[10px] font-semibold ${roundingSign === "-" ? "bg-red-500 text-white border-red-500" : "bg-card text-ink-muted"}`}
+                        aria-label="Round down"
+                        aria-pressed={roundingSign === "-"}
+                        className="sl-chip sl-chip-sm rounded-l-none"
                       >
                         -
                       </button>
@@ -2122,7 +2121,8 @@ const InvoiceDetailPage: React.FC = () => {
                       onChange={(e) =>
                         setForm((p) => ({ ...p, roundingAdjust: Math.abs(Number(e.target.value)) }))
                       }
-                      className="border border-line-soft rounded px-1 py-0.5 text-[11px] outline-none w-16 text-right bg-card text-ink"
+                      aria-label="Rounding amount"
+                      className="sl-input h-9 w-24 px-2 text-right text-[13px] tabular-nums"
                       placeholder="0.00"
                       disabled={isEditMode}
                     />
@@ -2130,68 +2130,64 @@ const InvoiceDetailPage: React.FC = () => {
                 </div>
                 {isInterState ? (
                   gstRateBreakdown.length === 0 ? (
-                    <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
+                    <div className="flex justify-between text-ink-muted">
                       <span>Total IGST:</span>
-                      <span>+₹{totalIgst.toFixed(2)}</span>
+                      <span className="tabular-nums text-ink">{formatINR(totalIgst)}</span>
                     </div>
                   ) : (
                     gstRateBreakdown.map((group) => (
                       <div
                         key={`igst-${group.gstRate}`}
-                        className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]"
+                        className="flex justify-between text-ink-muted"
                       >
                         <span>IGST {group.gstRate}%:</span>
-                        <span>+₹{group.igstAmount.toFixed(2)}</span>
+                        <span className="tabular-nums text-ink">{formatINR(group.igstAmount)}</span>
                       </div>
                     ))
                   )
                 ) : gstRateBreakdown.length === 0 ? (
                   <>
-                    <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
+                    <div className="flex justify-between text-ink-muted">
                       <span>Total CGST:</span>
-                      <span>+₹{totalCgst.toFixed(2)}</span>
+                      <span className="tabular-nums text-ink">{formatINR(totalCgst)}</span>
                     </div>
-                    <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
+                    <div className="flex justify-between text-ink-muted">
                       <span>Total SGST:</span>
-                      <span>+₹{totalSgst.toFixed(2)}</span>
+                      <span className="tabular-nums text-ink">{formatINR(totalSgst)}</span>
                     </div>
                   </>
                 ) : (
                   gstRateBreakdown.map((group) => (
                     <React.Fragment key={`gst-${group.gstRate}`}>
-                      <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
+                      <div className="flex justify-between text-ink-muted">
                         <span>CGST {group.cgstRate}%:</span>
-                        <span>+₹{group.cgstAmount.toFixed(2)}</span>
+                        <span className="tabular-nums text-ink">{formatINR(group.cgstAmount)}</span>
                       </div>
-                      <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
+                      <div className="flex justify-between text-ink-muted">
                         <span>SGST {group.sgstRate}%:</span>
-                        <span>+₹{group.sgstAmount.toFixed(2)}</span>
+                        <span className="tabular-nums text-ink">{formatINR(group.sgstAmount)}</span>
                       </div>
                     </React.Fragment>
                   ))
                 )}
-                <hr className="my-1.5 border-line-soft" />
-                <div className="flex justify-between text-xs font-extrabold text-ink">
-                  <span>Net Amount:</span>
-                  <span className="text-primary font-black">₹{grandTotal.toFixed(2)}</span>
-                </div>
+                <hr className="my-2 border-line-soft" />
                 {form.currencyCode !== "INR" && foreignTotal !== null && (
-                  <div className="flex justify-between mt-1 text-[11px] font-semibold text-ink-muted">
+                  <div className="flex justify-between text-ink-muted">
                     <span>Foreign Total:</span>
-                    <span className="text-ink font-extrabold">
+                    <span className="font-bold tabular-nums text-ink">
                       {form.currencyCode} {foreignTotal.toFixed(2)}
                     </span>
                   </div>
                 )}
                 {form.deductTds && tdsPreview && !tdsPreview.belowThreshold && (
                   <>
-                    <div className="flex justify-between mt-1 text-[11px] font-semibold text-rose-500">
+                    <div className="flex justify-between text-ink-muted">
                       <span>Less: TDS ({form.tdsSectionCode}):</span>
-                      <span>-₹{tdsAmount.toFixed(2)}</span>
+                      <span className="tabular-nums text-ink">− {formatINR(tdsAmount)}</span>
                     </div>
-                    <div className="flex justify-between mt-1 text-[11px] font-extrabold text-ink">
+                    <div className="flex justify-between font-semibold text-ink">
                       <span>Net Payable:</span>
-                      <span className="text-primary font-black">₹{netPayable.toFixed(2)}</span>
+                      <span className="tabular-nums">{formatINR(netPayable)}</span>
                     </div>
                   </>
                 )}
@@ -2199,20 +2195,19 @@ const InvoiceDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-3 px-5 py-2.5 border-t border-line-soft bg-card-2">
-            <CustomButton
-              text="Cancel"
-              type="button"
-              onClick={() => navigate("/invoice")}
-              variant="secondary"
-            />
-            <CustomButton
-              text={saving ? "Saving…" : isEditMode ? "Update Bill" : "Create Bill & Update Stock"}
+          <FormFooter start={<KeyHint keys={["F2"]}>saves the bill</KeyHint>}>
+            <ActionPill variant="secondary" onClick={() => navigate("/invoice")}>
+              Cancel
+            </ActionPill>
+            <ActionPill
               type="submit"
-              disabled={saving}
-            />
-          </div>
+              icon={<PackageCheck size={17} />}
+              loading={saving}
+              loadingText="Saving…"
+            >
+              {isEditMode ? "Update Bill" : "Create Bill & Update Stock"}
+            </ActionPill>
+          </FormFooter>
         </form>
       </div>
     </div>

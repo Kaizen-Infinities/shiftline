@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FaBuilding,
-  FaSync,
-  FaChevronRight,
-  FaMoneyBillWave,
-  FaExclamationTriangle,
-  FaCheckCircle,
-} from "react-icons/fa";
+import { FaSync, FaChevronRight } from "react-icons/fa";
+import { Landmark, Plus, RefreshCw } from "lucide-react";
+import { ActionPill, PageHeader, StatTile } from "../../../../components/ui/v2";
+import { fmtINR, fmtINRCompact } from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
@@ -296,15 +292,77 @@ export const AmountPayablePage: React.FC = () => {
     };
   }, [filteredSuppliers, asOnDate]);
 
+  const netBal = Number(totals.totalNetBalance || 0);
   return (
-    <div className="p-3 flex gap-3 w-full items-start font-sans text-ink">
-      <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
-        {/* Single-row header — filters + actions */}
-        <div className="bg-card rounded-md border border-line shadow-sm px-3 py-2 flex flex-wrap items-end gap-2">
-          <div className="w-[120px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              As On
-            </label>
+    <div className="w-full text-ink">
+      <PageHeader
+        title="Amount Payable"
+        subtitle="What you owe suppliers, with ageing and the MSME clock"
+        icon={<Landmark size={20} />}
+        primaryAction={
+          <ActionPill
+            icon={<Plus size={18} />}
+            onClick={() => navigate("/accounts/payment-voucher/add")}
+          >
+            Record Payment
+          </ActionPill>
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+              onClick={refresh}
+              title="Refresh"
+            >
+              Refresh
+            </ActionPill>
+            {(can("payable.export") || can("accounts.export")) && (
+              <ExportCSVButton
+                data={csvData}
+                columns={csvColumns}
+                filename={csvFilename}
+                text="Export"
+              />
+            )}
+          </>
+        }
+      />
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile
+          label="Total payable"
+          value={
+            Math.abs(netBal) < 0.005 ? (
+              "₹0"
+            ) : (
+              <span title={fmtINR(Math.abs(netBal))}>
+                {fmtINRCompact(Math.abs(netBal))}{" "}
+                <span className="text-base font-semibold text-ink-subtle">
+                  {netBal >= 0 ? "Cr" : "Dr"}
+                </span>
+              </span>
+            )
+          }
+        />
+        <StatTile label="Suppliers" value={filteredSuppliers.length} />
+        <StatTile
+          label="Overdue"
+          value={totals.overdueCount}
+          delta={totals.overdueCount > 0 ? "Needs follow-up" : undefined}
+          deltaTone="warning"
+        />
+        <StatTile
+          label="Total credit"
+          value={
+            <span title={fmtINR(totals.totalCredit)}>{fmtINRCompact(totals.totalCredit)}</span>
+          }
+        />
+      </div>
+      <div className="w-full space-y-4">
+        {/* Filter bar */}
+        <div className="sl-tile flex flex-wrap items-end gap-3 p-4 sm:p-5">
+          <div className="w-full sm:w-[170px]">
+            <label className="sl-label">As On</label>
             <DatePickerCalendar
               name="draftAsOnDate"
               value={draftAsOnDate}
@@ -312,10 +370,8 @@ export const AmountPayablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              Range
-            </label>
+          <div className="w-full sm:w-[170px]">
+            <label className="sl-label">Range</label>
             <SelectInput
               name="dateRangePreset"
               value={dateRangePreset}
@@ -326,10 +382,8 @@ export const AmountPayablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              From
-            </label>
+          <div className="w-full sm:w-[170px]">
+            <label className="sl-label">From</label>
             <DatePickerCalendar
               name="draftStartDate"
               value={draftStartDate}
@@ -340,10 +394,8 @@ export const AmountPayablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              To
-            </label>
+          <div className="w-full sm:w-[170px]">
+            <label className="sl-label">To</label>
             <DatePickerCalendar
               name="draftEndDate"
               value={draftEndDate}
@@ -355,12 +407,10 @@ export const AmountPayablePage: React.FC = () => {
           </div>
 
           <div className="w-[180px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              Search
-            </label>
+            <label className="sl-label">Search</label>
             <input
               type="text"
-              className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-orange-500/40 focus:border-orange-500 focus:outline-none"
+              className="sl-input h-11 w-full text-sm"
               value={draftSearch}
               onChange={(e) => setDraftSearch(e.target.value)}
               placeholder="Code / Name..."
@@ -368,9 +418,7 @@ export const AmountPayablePage: React.FC = () => {
           </div>
 
           <div className="w-[150px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              Supplier
-            </label>
+            <label className="sl-label">Supplier</label>
             <SelectInput
               name="draftSupplierId"
               value={draftSupplierId}
@@ -385,16 +433,10 @@ export const AmountPayablePage: React.FC = () => {
             />
           </div>
 
-          <button
-            onClick={handleClearFilters}
-            className="px-2.5 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card rounded border border-line"
-          >
+          <button onClick={handleClearFilters} className="sl-btn sl-pill-sm">
             Clear
           </button>
-          <button
-            onClick={handleApplyFilters}
-            className="px-3 py-1.5 text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded"
-          >
+          <button onClick={handleApplyFilters} className="sl-btn-blue sl-pill-sm">
             Apply
           </button>
 
@@ -402,26 +444,12 @@ export const AmountPayablePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setView(view === "ageing" ? "balances" : "ageing")}
-              className={`px-2 py-1.5 rounded text-xs font-semibold border border-line ${view === "ageing" ? "bg-blue-600 text-white border-blue-600" : "bg-card-2 hover:bg-line text-ink-muted"}`}
+              className="sl-chip sl-chip-lg"
+              aria-pressed={view === "ageing"}
               title="Unpaid documents by days past due"
             >
-              {view === "ageing" ? "Balances" : "Ageing"}
+              Ageing
             </button>
-            <button
-              onClick={refresh}
-              className="flex items-center gap-1 px-2 py-1.5 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
-              title="Refresh"
-            >
-              <FaSync className={refreshing ? "animate-spin text-orange-600" : ""} /> Refresh
-            </button>
-            {(can("payable.export") || can("accounts.export")) && (
-              <ExportCSVButton
-                data={csvData}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
           </div>
         </div>
 
@@ -436,22 +464,22 @@ export const AmountPayablePage: React.FC = () => {
         )}
         {/* Table card — Busy density */}
         <div
-          className="bg-card border border-line rounded-md overflow-hidden shadow-sm flex flex-col"
-          style={{ height: "calc(100vh - 240px)" }}
+          className="sl-tile overflow-hidden flex flex-col"
+          style={{ maxHeight: "calc(100vh - 240px)" }}
           hidden={view === "ageing"}
         >
           {/* Table toolbar row */}
-          <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between gap-2 shrink-0">
-            <h2 className="text-xs font-semibold text-ink">Supplier Payables</h2>
+          <div className="px-4 py-3 border-b border-line-soft flex items-center justify-between gap-2 shrink-0">
+            <h2 className="sl-h2 m-0 text-[15px] flex items-center gap-2">Supplier Payables</h2>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
-                <label className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+                <label className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-subtle">
                   Sort:
                 </label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-2 py-1 border border-line rounded text-[11px] bg-card text-ink focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                  className="sl-input h-9 !w-auto text-[13px] cursor-pointer"
                 >
                   <option value="activity">Recent Activity</option>
                   <option value="balance">Highest Balance</option>
@@ -460,18 +488,15 @@ export const AmountPayablePage: React.FC = () => {
                 </select>
               </div>
               <div className="relative">
-                <button
-                  onClick={() => setColsMenuOpen((o) => !o)}
-                  className="px-2 py-1 border border-line rounded text-[11px] bg-card text-ink hover:bg-card-2 cursor-pointer"
-                >
+                <button onClick={() => setColsMenuOpen((o) => !o)} className="sl-btn sl-pill-sm">
                   Columns ▾
                 </button>
                 {colsMenuOpen && (
-                  <div className="absolute right-0 mt-1 z-20 w-52 bg-card border border-line rounded-md shadow-lg p-2 space-y-1">
+                  <div className="absolute right-0 mt-1 z-20 w-52 sl-tile shadow-lg p-2 space-y-1">
                     {ALL_COLUMNS.map((c) => (
                       <label
                         key={c.id}
-                        className={`flex items-center gap-2 px-1.5 py-1 rounded text-[11px] ${c.alwaysOn ? "opacity-60 cursor-not-allowed" : "hover:bg-card-2 cursor-pointer"}`}
+                        className={`flex items-center gap-2 px-1.5 py-1 rounded text-[12.5px] ${c.alwaysOn ? "opacity-60 cursor-not-allowed" : "hover:bg-card-2 cursor-pointer"}`}
                       >
                         <input
                           type="checkbox"
@@ -490,7 +515,7 @@ export const AmountPayablePage: React.FC = () => {
                     <div className="pt-1 mt-1 border-t border-line-soft flex justify-end">
                       <button
                         onClick={() => setColsMenuOpen(false)}
-                        className="text-[10px] text-ink-subtle hover:text-ink px-2 py-0.5"
+                        className="text-[11.5px] text-ink-subtle hover:text-ink px-2 py-0.5"
                       >
                         Close
                       </button>
@@ -498,17 +523,17 @@ export const AmountPayablePage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <span className="text-[11px] text-ink-subtle font-mono">
+              <span className="text-[12.5px] text-ink-subtle tabular-nums">
                 Total: {filteredSuppliers.length}
               </span>
             </div>
           </div>
 
           {filteredSuppliers.length === 0 ? (
-            <div className="p-8 text-center text-xs text-ink-subtle flex-1">
+            <div className="p-10 text-center text-sm text-ink-muted flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <FaSync className="animate-spin text-orange-600 text-[10px]" />
+                  <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
                   Loading supplier payables…
                 </span>
               ) : (
@@ -517,39 +542,23 @@ export const AmountPayablePage: React.FC = () => {
             </div>
           ) : (
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left text-[11px] text-ink-muted border-collapse">
+              <table className="w-full text-left text-[12.5px] text-ink-muted border-collapse">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
-                    {isVisible("index") && (
-                      <th className="px-2 py-1.5 border-r border-line w-10 text-center">#</th>
-                    )}
-                    {isVisible("code") && (
-                      <th className="px-2 py-1.5 border-r border-line w-24">Code</th>
-                    )}
-                    {isVisible("supplier") && (
-                      <th className="px-2 py-1.5 border-r border-line">Supplier</th>
-                    )}
+                  <tr className="bg-card-2 text-ink-muted font-semibold text-[12px] border-b border-line-soft">
+                    {isVisible("index") && <th className="px-3 py-2.5 w-10 text-center">#</th>}
+                    {isVisible("code") && <th className="px-3 py-2.5 w-24">Code</th>}
+                    {isVisible("supplier") && <th className="px-3 py-2.5">Supplier</th>}
                     {isVisible("invoiced") && (
-                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Invoiced</th>
+                      <th className="px-3 py-2.5 w-28 text-right">Invoiced</th>
                     )}
-                    {isVisible("paid") && (
-                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Paid</th>
-                    )}
-                    {isVisible("debit") && (
-                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Debit</th>
-                    )}
-                    {isVisible("credit") && (
-                      <th className="px-2 py-1.5 border-r border-line w-28 text-right">Credit</th>
-                    )}
+                    {isVisible("paid") && <th className="px-3 py-2.5 w-28 text-right">Paid</th>}
+                    {isVisible("debit") && <th className="px-3 py-2.5 w-28 text-right">Debit</th>}
+                    {isVisible("credit") && <th className="px-3 py-2.5 w-28 text-right">Credit</th>}
                     {isVisible("netBalance") && (
-                      <th className="px-2 py-1.5 border-r border-line w-32 text-right">
-                        Net Balance
-                      </th>
+                      <th className="px-3 py-2.5 w-32 text-right">Net Balance</th>
                     )}
                     {isVisible("dueDays") && (
-                      <th className="px-2 py-1.5 border-r border-line w-20 text-center">
-                        Due Days
-                      </th>
+                      <th className="px-3 py-2.5 w-20 text-center">Due Days</th>
                     )}
                     {isVisible("action") && (
                       <th className="px-2 py-1.5 w-20 text-center">Action</th>
@@ -570,36 +579,36 @@ export const AmountPayablePage: React.FC = () => {
                         onClick={() => setSelectedRow(item.supplierId)}
                         className={`border-b border-line-soft cursor-pointer ${
                           isSelected
-                            ? "bg-orange-500/20 text-ink"
+                            ? "bg-[color:var(--color-warning)]/10 text-ink"
                             : rowIdx % 2 === 0
                               ? "hover:bg-card-2/70"
                               : "bg-card-2/20 hover:bg-card-2/70"
                         }`}
                       >
                         {isVisible("index") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-center font-mono text-[11px] text-ink-subtle">
+                          <td className="px-3 py-2 text-center tabular-nums text-[12.5px] text-ink-subtle">
                             {rowIdx + 1}
                           </td>
                         )}
                         {isVisible("code") && (
-                          <td className="px-2 py-1 border-r border-line-soft font-mono font-semibold text-orange-500">
+                          <td className="px-3 py-2 tabular-nums font-semibold text-[color:var(--color-warning)]">
                             {item.supplierCode || "-"}
                           </td>
                         )}
                         {isVisible("supplier") && (
-                          <td className="px-2 py-1 border-r border-line-soft">
+                          <td className="px-3 py-2">
                             <div className="font-bold text-ink uppercase truncate">
                               {item.legalName}
                             </div>
                             {item.gstin && (
-                              <div className="text-[10px] text-ink-subtle font-mono">
+                              <div className="text-[11.5px] text-ink-subtle tabular-nums">
                                 GST: {item.gstin}
                               </div>
                             )}
                           </td>
                         )}
                         {isVisible("invoiced") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
+                          <td className="px-3 py-2 text-right tabular-nums">
                             ₹
                             {(item.totalBilled || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -608,7 +617,7 @@ export const AmountPayablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("paid") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
+                          <td className="px-3 py-2 text-right tabular-nums">
                             ₹
                             {(item.totalPaid || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -617,7 +626,7 @@ export const AmountPayablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("debit") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
+                          <td className="px-3 py-2 text-right tabular-nums">
                             ₹
                             {(item.debit || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -626,7 +635,7 @@ export const AmountPayablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("credit") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold text-amber-700">
+                          <td className="px-3 py-2 text-right tabular-nums font-semibold text-[color:var(--color-warning)]">
                             ₹
                             {(item.credit || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -635,23 +644,25 @@ export const AmountPayablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("netBalance") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-bold whitespace-nowrap">
+                          <td className="px-3 py-2 text-right tabular-nums font-bold whitespace-nowrap">
                             {Math.abs(bal) < 0.005 ? (
                               <span className="text-ink">₹0.00</span>
                             ) : bal > 0 ? (
                               <span className="text-ink">
-                                ₹{balAbs} <span className="text-[10px] text-ink-subtle">Cr</span>
+                                ₹{balAbs} <span className="text-[11.5px] text-ink-subtle">Cr</span>
                               </span>
                             ) : (
-                              <span className="text-emerald-500">
+                              <span className="text-[color:var(--color-success)]">
                                 ₹{balAbs}{" "}
-                                <span className="text-[10px] text-emerald-500/70">Dr</span>
+                                <span className="text-[11.5px] text-[color:var(--color-success)]">
+                                  Dr
+                                </span>
                               </span>
                             )}
                           </td>
                         )}
                         {isVisible("dueDays") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-center font-mono text-[11px] text-ink-muted">
+                          <td className="px-3 py-2 text-center tabular-nums text-[12.5px] text-ink-muted">
                             {item.dueDays !== null && item.dueDays !== undefined
                               ? `${item.dueDays} d`
                               : "—"}
@@ -664,7 +675,7 @@ export const AmountPayablePage: React.FC = () => {
                                 e.stopPropagation();
                                 navigate(`/accounts/payable/${item.supplierId}`);
                               }}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-semibold rounded text-[11px] border border-orange-200"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-[color:var(--color-warning)]/10 hover:bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] font-semibold rounded text-[12.5px] border border-[color:var(--color-warning)]/40"
                             >
                               View <FaChevronRight size={8} />
                             </button>
@@ -677,33 +688,15 @@ export const AmountPayablePage: React.FC = () => {
                   {Array.from({ length: Math.max(0, 25 - filteredSuppliers.length) }).map(
                     (_, i) => (
                       <tr key={`empty-${i}`} className="border-b border-line-soft">
-                        {isVisible("index") && (
-                          <td className="px-2 py-1 border-r border-line-soft">&nbsp;</td>
-                        )}
-                        {isVisible("code") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
-                        {isVisible("supplier") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
-                        {isVisible("invoiced") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
-                        {isVisible("paid") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
-                        {isVisible("debit") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
-                        {isVisible("credit") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
-                        {isVisible("netBalance") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
-                        {isVisible("dueDays") && (
-                          <td className="px-2 py-1 border-r border-line-soft"></td>
-                        )}
+                        {isVisible("index") && <td className="px-3 py-2">&nbsp;</td>}
+                        {isVisible("code") && <td className="px-3 py-2"></td>}
+                        {isVisible("supplier") && <td className="px-3 py-2"></td>}
+                        {isVisible("invoiced") && <td className="px-3 py-2"></td>}
+                        {isVisible("paid") && <td className="px-3 py-2"></td>}
+                        {isVisible("debit") && <td className="px-3 py-2"></td>}
+                        {isVisible("credit") && <td className="px-3 py-2"></td>}
+                        {isVisible("netBalance") && <td className="px-3 py-2"></td>}
+                        {isVisible("dueDays") && <td className="px-3 py-2"></td>}
                         {isVisible("action") && <td className="px-2 py-1"></td>}
                       </tr>
                     )
@@ -718,12 +711,12 @@ export const AmountPayablePage: React.FC = () => {
                         (isVisible("code") ? 1 : 0) +
                         (isVisible("supplier") ? 1 : 0)
                       }
-                      className="px-2 py-1.5 text-right text-[10px] font-bold text-ink uppercase tracking-wide border-r border-line"
+                      className="px-2 py-1.5 text-right text-[11.5px] font-bold text-ink uppercase tracking-wide border-r border-line"
                     >
                       Grand Total ({filteredSuppliers.length})
                     </td>
                     {isVisible("invoiced") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-ink border-r border-line">
                         ₹
                         {totals.totalBilled.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -732,7 +725,7 @@ export const AmountPayablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("paid") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-ink border-r border-line">
                         ₹
                         {totals.totalPaid.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -741,7 +734,7 @@ export const AmountPayablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("debit") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-ink border-r border-line">
                         ₹
                         {totals.totalDebit.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -750,7 +743,7 @@ export const AmountPayablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("credit") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-amber-700 border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-[color:var(--color-warning)] border-r border-line">
                         ₹
                         {totals.totalCredit.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -759,13 +752,13 @@ export const AmountPayablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("netBalance") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-orange-600 border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-[color:var(--color-warning)] border-r border-line">
                         ₹
                         {Math.abs(totals.totalNetBalance).toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
-                        <span className="text-[10px] ml-1">
+                        <span className="text-[11.5px] ml-1">
                           {totals.totalNetBalance >= 0 ? "Cr" : "Dr"}
                         </span>
                       </td>
@@ -779,7 +772,7 @@ export const AmountPayablePage: React.FC = () => {
           )}
 
           {/* Busy-style status bar */}
-          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle shrink-0">
+          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[11.5px] tabular-nums text-ink-subtle shrink-0">
             <div className="flex gap-4">
               <span>
                 Entry No:{" "}
@@ -805,83 +798,12 @@ export const AmountPayablePage: React.FC = () => {
                 Suppliers: <b className="text-ink">{filteredSuppliers.length}</b>
               </span>
               <span>
-                Overdue: <b className="text-amber-600">{totals.overdueCount}</b>
+                Overdue: <b className="text-[color:var(--color-warning)]">{totals.overdueCount}</b>
               </span>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Right sidebar — 4 summary stats. Amounts render on their own row so
-         crores-scale values never squeeze the label or overflow the card. */}
-      <aside className="w-[240px] shrink-0 bg-card border border-line rounded-md shadow-sm overflow-hidden">
-        <div className="px-3 py-1.5 bg-card-2 border-b border-line text-[11px] font-bold uppercase tracking-wide text-ink flex items-center gap-1.5">
-          <FaBuilding className="text-orange-600 text-xs" /> Summary
-        </div>
-        <div className="divide-y divide-line-soft">
-          <div className="px-3 py-2 bg-orange-500/5">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaMoneyBillWave className="text-orange-600 text-[10px]" />
-              <span className="text-[11px] font-semibold text-ink-muted">Total Payable</span>
-            </div>
-            {(() => {
-              const bal = Number(totals.totalNetBalance || 0);
-              const abs = Math.abs(bal).toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-              if (Math.abs(bal) < 0.005) {
-                return (
-                  <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
-                    ₹0.00
-                  </div>
-                );
-              }
-              return (
-                <div
-                  className={`text-sm font-mono font-bold break-all leading-tight ${bal >= 0 ? "text-orange-600" : "text-emerald-500"}`}
-                >
-                  ₹{abs} <span className="text-[9px] font-sans">{bal >= 0 ? "Cr" : "Dr"}</span>
-                </div>
-              );
-            })()}
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaBuilding className="text-indigo-600 text-[10px]" />
-              <span className="text-[11px] font-semibold text-ink-muted">Suppliers</span>
-            </div>
-            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
-              {filteredSuppliers.length}
-            </div>
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaExclamationTriangle className="text-amber-600 text-[10px]" />
-              <span className="text-[11px] font-semibold text-ink-muted">Overdue</span>
-            </div>
-            <div className="text-sm font-mono font-bold text-amber-600 break-all leading-tight">
-              {totals.overdueCount}
-            </div>
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaCheckCircle className="text-emerald-600 text-[10px]" />
-              <span className="text-[11px] font-semibold text-ink-muted">Total Credit</span>
-            </div>
-            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
-              ₹
-              {totals.totalCredit.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-          </div>
-        </div>
-      </aside>
     </div>
   );
 };

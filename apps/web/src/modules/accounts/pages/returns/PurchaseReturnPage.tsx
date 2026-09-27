@@ -57,7 +57,9 @@ export const PurchaseReturnPage: React.FC = () => {
   const [appliedFilters, setAppliedFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [draftFilters, setDraftFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
-  const activeFilterCount = [appliedFilters.supplierId, appliedFilters.status].filter(Boolean).length;
+  const activeFilterCount = [appliedFilters.supplierId, appliedFilters.status].filter(
+    Boolean
+  ).length;
   const hasActiveFilters = activeFilterCount > 0;
 
   const handleFilterOpen = () => setDraftFilters(appliedFilters);
@@ -110,7 +112,12 @@ export const PurchaseReturnPage: React.FC = () => {
     }
   }, []);
 
-  const { data: returns, loading, refreshing, refresh } = useListCache<PurchaseReturn>({
+  const {
+    data: returns,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<PurchaseReturn>({
     cacheKey,
     socketModule: "purchaseReturn",
     fetcher,
@@ -131,7 +138,10 @@ export const PurchaseReturnPage: React.FC = () => {
 
     const fetchGrns = async () => {
       try {
-        const res = await grnInvoiceService.fetchAll({ supplierId: Number(supplierId), limit: 100 });
+        const res = await grnInvoiceService.fetchAll({
+          supplierId: Number(supplierId),
+          limit: 100,
+        });
         const list = Array.isArray(res) ? res : res?.grnInvoices || res?.data || [];
         setSupplierInvoices(list);
       } catch (err) {
@@ -165,7 +175,10 @@ export const PurchaseReturnPage: React.FC = () => {
         previousReturns.forEach((ret) => {
           (ret.items || []).forEach((ritem: any) => {
             const rmId = String(ritem.rawMaterialId);
-            alreadyReturnedMap.set(rmId, (alreadyReturnedMap.get(rmId) || 0) + Number(ritem.quantity));
+            alreadyReturnedMap.set(
+              rmId,
+              (alreadyReturnedMap.get(rmId) || 0) + Number(ritem.quantity)
+            );
           });
         });
 
@@ -230,7 +243,8 @@ export const PurchaseReturnPage: React.FC = () => {
     setReturnRows((prev) => {
       const updated = [...prev];
       updated[index].rawMaterialId = rmId;
-      updated[index].materialName = matchedMat?.materialName || matchedMat?.name || `Material #${rmId}`;
+      updated[index].materialName =
+        matchedMat?.materialName || matchedMat?.name || `Material #${rmId}`;
       updated[index].uom = matchedMat?.baseUom ? matchedMat.baseUom.split(",")[0].trim() : "";
       updated[index].unitPrice = Number(matchedMat?.unitPrice || updated[index].unitPrice || 0);
       return updated;
@@ -311,7 +325,9 @@ export const PurchaseReturnPage: React.FC = () => {
       resetForm();
       refresh();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || "Failed to create Purchase Return");
+      toast.error(
+        err?.response?.data?.message || err?.message || "Failed to create Purchase Return"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -381,14 +397,13 @@ export const PurchaseReturnPage: React.FC = () => {
       { header: "Debit Note", accessor: (item: any) => item.debitNoteNo || "" },
       {
         header: "Kind",
-        accessor: (item: any) => (item.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return"),
+        accessor: (item: any) =>
+          item.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return",
       },
       {
         header: "Return Date",
         accessor: (item: any) =>
-          item.returnDate
-            ? new Date(item.returnDate).toLocaleDateString("en-IN")
-            : "",
+          item.returnDate ? new Date(item.returnDate).toLocaleDateString("en-IN") : "",
       },
       {
         header: "Supplier",
@@ -424,7 +439,7 @@ export const PurchaseReturnPage: React.FC = () => {
       render: (item) => (
         <button
           onClick={() => setSelectedViewReturn(item)}
-          className="font-mono font-semibold text-indigo-500 hover:underline cursor-pointer"
+          className="tabular-nums font-semibold text-accent hover:underline cursor-pointer"
         >
           {item.returnNo}
         </button>
@@ -433,7 +448,7 @@ export const PurchaseReturnPage: React.FC = () => {
     {
       header: "DATE",
       render: (item) => (
-        <span className="font-mono text-xs">
+        <span className="tabular-nums text-xs">
           {item.returnDate ? new Date(item.returnDate).toLocaleDateString("en-IN") : "—"}
         </span>
       ),
@@ -454,7 +469,7 @@ export const PurchaseReturnPage: React.FC = () => {
     {
       header: "GRAND TOTAL (₹)",
       render: (item) => (
-        <span className="font-mono font-semibold text-indigo-500 whitespace-nowrap">
+        <span className="tabular-nums font-semibold text-accent whitespace-nowrap">
           ₹{Number(item.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -479,13 +494,15 @@ export const PurchaseReturnPage: React.FC = () => {
 
   return (
     <div>
-      <div className="max-w-[1400px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-
+      <div className="w-full">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <h2 className="text-2xl font-bold text-ink flex items-center gap-2">
-            Purchase Returns
-          </h2>
+        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="sl-h1 m-0 leading-tight">Purchase Returns</h1>
+            <p className="sl-muted m-0 mt-1 text-sm">
+              Goods you send back to suppliers; each return raises a debit note.
+            </p>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
             <SearchInput
@@ -503,9 +520,7 @@ export const PurchaseReturnPage: React.FC = () => {
             >
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Supplier
-                  </label>
+                  <label className="sl-label">Supplier</label>
                   <SelectInput
                     name="filterSupplier"
                     value={draftFilters.supplierId}
@@ -513,16 +528,12 @@ export const PurchaseReturnPage: React.FC = () => {
                     defaultOptionLabel="All Suppliers"
                     searchable={true}
                     noMargin
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, supplierId: e.target.value }))
-                    }
+                    onChange={(e) => setDraftFilters((p) => ({ ...p, supplierId: e.target.value }))}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Status
-                  </label>
+                  <label className="sl-label">Status</label>
                   <SelectInput
                     name="filterStatus"
                     value={draftFilters.status}
@@ -533,9 +544,7 @@ export const PurchaseReturnPage: React.FC = () => {
                     defaultOptionLabel="All Statuses"
                     searchable={false}
                     noMargin
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, status: e.target.value }))
-                    }
+                    onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
                   />
                 </div>
               </div>
@@ -563,24 +572,24 @@ export const PurchaseReturnPage: React.FC = () => {
 
         {/* Active filter chips */}
         {hasActiveFilters && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-line flex-wrap">
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
             <span className="text-xs text-ink-subtle">Active filters:</span>
 
             {appliedFilters.supplierId && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-medium">
+              <span className="sl-chip">
                 Supplier: {activeSupplierName || appliedFilters.supplierId}
                 <FaTimes
-                  className="cursor-pointer hover:text-indigo-200 ml-0.5"
+                  className="cursor-pointer hover:text-ink ml-0.5"
                   onClick={() => handleRemoveFilter("supplierId")}
                 />
               </span>
             )}
 
             {appliedFilters.status && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-medium">
+              <span className="sl-chip">
                 Status: {appliedFilters.status}
                 <FaTimes
-                  className="cursor-pointer hover:text-indigo-200 ml-0.5"
+                  className="cursor-pointer hover:text-ink ml-0.5"
                   onClick={() => handleRemoveFilter("status")}
                 />
               </span>
@@ -600,72 +609,143 @@ export const PurchaseReturnPage: React.FC = () => {
 
       {/* ── Purchase Return Modal ── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-          <div className="bg-card border border-line-soft rounded-xl shadow-2xl w-[720px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden po-return-compact" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="bg-card border border-line-soft rounded-xl shadow-2xl w-[720px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden po-return-compact"
+            onClick={(e) => e.stopPropagation()}
+          >
             <style>{`
               .po-return-compact input, .po-return-compact select { height: 30px !important; min-height: 30px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
               .po-return-compact textarea { font-size: 12px !important; }
             `}</style>
 
             {/* Header */}
-            <div className="px-4 py-2.5 bg-primary text-white flex items-center justify-between shrink-0">
-              <h2 className="text-sm font-bold flex items-center gap-2"><FaBoxes className="text-sm" /> New Purchase Return (Debit Note)</h2>
-              <button onClick={() => setShowModal(false)} className="text-white/80 hover:text-white"><FaTimes className="text-sm" /></button>
+            <div className="px-4 py-2.5 bg-card text-ink border-b border-line-soft flex items-center justify-between shrink-0">
+              <h2 className="text-sm font-bold flex items-center gap-2">
+                <FaBoxes className="text-sm" /> New Purchase Return (Debit Note)
+              </h2>
+              <button onClick={() => setShowModal(false)} className="text-ink-muted hover:text-ink">
+                <FaTimes className="text-sm" />
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0" noValidate>
               <div className="p-4 space-y-3 overflow-y-auto flex-1">
-
                 {/* ── Return Details ── */}
                 <div className="grid grid-cols-3 gap-x-3 gap-y-2">
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Supplier <span className="text-red-500">*</span></label>
-                    <select value={supplierId} required onChange={(e) => setSupplierId(e.target.value)} className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary">
+                    <label className="sl-label">
+                      Supplier <span className="text-[color:var(--color-danger)]">*</span>
+                    </label>
+                    <select
+                      value={supplierId}
+                      required
+                      onChange={(e) => setSupplierId(e.target.value)}
+                      className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary"
+                    >
                       <option value="">Select Supplier</option>
-                      {suppliers.map((s) => (<option key={s.id} value={String(s.id)}>{s.supplierCode} - {s.legalName}</option>))}
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={String(s.id)}>
+                          {s.supplierCode} - {s.legalName}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Store / Warehouse <span className="text-red-500">*</span></label>
-                    <select value={selectedStoreId} required onChange={(e) => setSelectedStoreId(e.target.value)} className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary">
+                    <label className="sl-label">
+                      Store / Warehouse <span className="text-[color:var(--color-danger)]">*</span>
+                    </label>
+                    <select
+                      value={selectedStoreId}
+                      required
+                      onChange={(e) => setSelectedStoreId(e.target.value)}
+                      className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary"
+                    >
                       <option value="">Select Store</option>
-                      {stores.map((st) => (<option key={String(st.storeId || st.id)} value={String(st.storeId || st.id)}>{st.storeCode ? `${st.storeCode} - ` : ""}{st.storeName || st.name}</option>))}
+                      {stores.map((st) => (
+                        <option
+                          key={String(st.storeId || st.id)}
+                          value={String(st.storeId || st.id)}
+                        >
+                          {st.storeCode ? `${st.storeCode} - ` : ""}
+                          {st.storeName || st.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Kind <span className="text-red-500">*</span></label>
-                    <select value={kind} required onChange={(e) => setKind(e.target.value as "GOODS_RETURN" | "PRICE_ADJUSTMENT")} className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary" aria-label="Return kind">
+                    <label className="sl-label">
+                      Kind <span className="text-[color:var(--color-danger)]">*</span>
+                    </label>
+                    <select
+                      value={kind}
+                      required
+                      onChange={(e) =>
+                        setKind(e.target.value as "GOODS_RETURN" | "PRICE_ADJUSTMENT")
+                      }
+                      className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary"
+                      aria-label="Return kind"
+                    >
                       <option value="GOODS_RETURN">Goods return (stock moves out)</option>
                       <option value="PRICE_ADJUSTMENT">Price adjustment (debit note only)</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Refund Mode <span className="text-red-500">*</span></label>
-                    <select value={refundMode} required onChange={(e) => setRefundMode(e.target.value as any)} className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary">
+                    <label className="sl-label">
+                      Refund Mode <span className="text-[color:var(--color-danger)]">*</span>
+                    </label>
+                    <select
+                      value={refundMode}
+                      required
+                      onChange={(e) => setRefundMode(e.target.value as any)}
+                      className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary"
+                    >
                       <option value="CREDIT_NOTE">Debit Note</option>
                       <option value="CASH">Cash Refund</option>
                       <option value="BANK">Bank Refund</option>
                     </select>
                   </div>
                   <div className="col-span-3">
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Reason for Return <span className="text-red-500">*</span></label>
-                    <input type="text" value={reason} required placeholder="e.g. Damaged material / Substandard quality" onChange={(e) => setReason(e.target.value)} className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary" />
+                    <label className="sl-label">
+                      Reason for Return <span className="text-[color:var(--color-danger)]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={reason}
+                      required
+                      placeholder="e.g. Damaged material / Substandard quality"
+                      onChange={(e) => setReason(e.target.value)}
+                      className="w-full px-2 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary"
+                    />
                   </div>
                 </div>
 
                 {/* ── Return Items ── */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-semibold text-ink uppercase tracking-wide">Return Raw Materials</label>
-                    <button type="button" onClick={handleAddManualRow} className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 cursor-pointer"><FaPlus className="w-2.5 h-2.5" /> Add Row</button>
+                    <label className="text-[11.5px] font-semibold text-ink uppercase tracking-wide">
+                      Return Raw Materials
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleAddManualRow}
+                      className="flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:text-primary/80 cursor-pointer"
+                    >
+                      <FaPlus className="w-2.5 h-2.5" /> Add Row
+                    </button>
                   </div>
 
                   {returnRows.length === 0 ? (
-                    <div className="p-3 border border-dashed border-line rounded text-center text-[11px] text-ink-subtle">Click Add Row to select raw materials.</div>
+                    <div className="p-3 border border-dashed border-line rounded text-center text-[12.5px] text-ink-subtle">
+                      Click Add Row to select raw materials.
+                    </div>
                   ) : (
                     <div className="border border-line rounded overflow-hidden">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-card-2 text-ink-subtle uppercase text-[10px] tracking-wide font-bold border-b border-line">
+                        <thead className="bg-card-2 text-ink-subtle uppercase text-[11.5px] tracking-wide font-bold border-b border-line">
                           <tr>
                             <th className="px-2 py-1.5 w-8 text-center">#</th>
                             <th className="px-2 py-1.5">Raw Material</th>
@@ -679,38 +759,104 @@ export const PurchaseReturnPage: React.FC = () => {
                         <tbody className="divide-y divide-line-soft">
                           {returnRows.map((row, idx) => {
                             const lineTot = row.quantity * row.unitPrice;
-                            const matchedMat = materials.find((m: any) => String(m.rawMaterialId || m.id) === row.rawMaterialId);
-                            const uomList = (matchedMat?.baseUom || row.uom || "").split(",").map((u: string) => u.trim()).filter(Boolean);
+                            const matchedMat = materials.find(
+                              (m: any) => String(m.rawMaterialId || m.id) === row.rawMaterialId
+                            );
+                            const uomList = (matchedMat?.baseUom || row.uom || "")
+                              .split(",")
+                              .map((u: string) => u.trim())
+                              .filter(Boolean);
                             return (
                               <tr key={idx} className="hover:bg-card-2/50 transition-colors">
-                                <td className="px-2 py-1 text-center text-[11px] font-bold text-ink-subtle">{idx + 1}</td>
+                                <td className="px-2 py-1 text-center text-[12.5px] font-bold text-ink-subtle">
+                                  {idx + 1}
+                                </td>
                                 <td className="px-2 py-1">
                                   {row.isGrnLinked ? (
-                                    <div className="font-semibold text-ink text-[11px]">{row.materialName}</div>
+                                    <div className="font-semibold text-ink text-[12.5px]">
+                                      {row.materialName}
+                                    </div>
                                   ) : (
-                                    <select value={row.rawMaterialId} onChange={(e) => handleRowMaterialChange(idx, e.target.value)} className="w-full px-1 border border-line rounded text-[11px] bg-card text-ink focus:outline-none focus:border-primary">
-                                      {materials.map((m) => { const rmId = String(m.rawMaterialId || m.id); return (<option key={rmId} value={rmId}>{m.materialName || m.name || rmId}</option>); })}
+                                    <select
+                                      value={row.rawMaterialId}
+                                      onChange={(e) => handleRowMaterialChange(idx, e.target.value)}
+                                      className="w-full px-1 border border-line rounded text-[12.5px] bg-card text-ink focus:outline-none focus:border-primary"
+                                    >
+                                      {materials.map((m) => {
+                                        const rmId = String(m.rawMaterialId || m.id);
+                                        return (
+                                          <option key={rmId} value={rmId}>
+                                            {m.materialName || m.name || rmId}
+                                          </option>
+                                        );
+                                      })}
                                     </select>
                                   )}
                                 </td>
                                 <td className="px-2 py-1">
                                   {uomList.length > 1 ? (
-                                    <select value={row.uom} onChange={(e) => setReturnRows((prev) => { const u = [...prev]; u[idx] = { ...u[idx], uom: e.target.value }; return u; })} className="w-full px-1 border border-line rounded text-[11px] font-mono bg-card text-ink focus:outline-none focus:border-primary">
-                                      {uomList.map((u: string) => (<option key={u} value={u}>{u}</option>))}
+                                    <select
+                                      value={row.uom}
+                                      onChange={(e) =>
+                                        setReturnRows((prev) => {
+                                          const u = [...prev];
+                                          u[idx] = { ...u[idx], uom: e.target.value };
+                                          return u;
+                                        })
+                                      }
+                                      className="w-full px-1 border border-line rounded text-[12.5px] tabular-nums bg-card text-ink focus:outline-none focus:border-primary"
+                                    >
+                                      {uomList.map((u: string) => (
+                                        <option key={u} value={u}>
+                                          {u}
+                                        </option>
+                                      ))}
                                     </select>
                                   ) : (
-                                    <span className="block text-center text-[11px] font-mono text-ink-muted">{row.uom || "—"}</span>
+                                    <span className="block text-center text-[12.5px] tabular-nums text-ink-muted">
+                                      {row.uom || "—"}
+                                    </span>
                                   )}
                                 </td>
                                 <td className="px-2 py-1">
-                                  <input type="number" min="0" max={row.maxReturnable} step="0.01" value={row.quantity || ""} placeholder="0" disabled={row.maxReturnable <= 0} onChange={(e) => handleRowQuantityChange(idx, parseFloat(e.target.value) || 0)} className="w-full px-1 border border-line rounded text-center font-mono font-semibold text-primary bg-card focus:outline-none focus:border-primary disabled:opacity-60" />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={row.maxReturnable}
+                                    step="0.01"
+                                    value={row.quantity || ""}
+                                    placeholder="0"
+                                    disabled={row.maxReturnable <= 0}
+                                    onChange={(e) =>
+                                      handleRowQuantityChange(idx, parseFloat(e.target.value) || 0)
+                                    }
+                                    className="w-full px-1 border border-line rounded text-center tabular-nums font-semibold text-primary bg-card focus:outline-none focus:border-primary disabled:opacity-60"
+                                  />
                                 </td>
                                 <td className="px-2 py-1">
-                                  <input type="number" min="0" step="0.01" value={row.unitPrice || ""} disabled={row.isGrnLinked} onChange={(e) => handleRowPriceChange(idx, parseFloat(e.target.value) || 0)} className="w-full px-1 border border-line rounded text-right font-mono bg-card text-ink focus:outline-none focus:border-primary disabled:opacity-60" />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={row.unitPrice || ""}
+                                    disabled={row.isGrnLinked}
+                                    onChange={(e) =>
+                                      handleRowPriceChange(idx, parseFloat(e.target.value) || 0)
+                                    }
+                                    className="w-full px-1 border border-line rounded text-right tabular-nums bg-card text-ink focus:outline-none focus:border-primary disabled:opacity-60"
+                                  />
                                 </td>
-                                <td className="px-2 py-1 text-right font-mono font-semibold text-ink text-[11px]">₹{lineTot.toFixed(2)}</td>
+                                <td className="px-2 py-1 text-right tabular-nums font-semibold text-ink text-[12.5px]">
+                                  ₹{lineTot.toFixed(2)}
+                                </td>
                                 <td className="px-2 py-1 text-center">
-                                  <button type="button" onClick={() => handleRemoveRow(idx)} className="p-0.5 text-rose-500 hover:text-rose-600 rounded transition cursor-pointer"><FaTrash className="w-2.5 h-2.5" /></button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveRow(idx)}
+                                    className="p-0.5 text-[color:var(--color-danger)] hover:text-[color:var(--color-danger)] rounded transition cursor-pointer"
+                                  >
+                                    <FaTrash className="w-2.5 h-2.5" />
+                                  </button>
                                 </td>
                               </tr>
                             );
@@ -718,8 +864,15 @@ export const PurchaseReturnPage: React.FC = () => {
                         </tbody>
                         <tfoot className="border-t-2 border-line bg-card-2">
                           <tr>
-                            <td colSpan={5} className="px-2 py-1.5 text-right text-[10px] font-bold text-ink uppercase tracking-wide">Grand Total:</td>
-                            <td className="px-2 py-1.5 text-right font-bold text-sm text-primary font-mono">₹{grandTotal.toFixed(2)}</td>
+                            <td
+                              colSpan={5}
+                              className="px-2 py-1.5 text-right text-[11.5px] font-bold text-ink uppercase tracking-wide"
+                            >
+                              Grand Total:
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-sm text-primary tabular-nums">
+                              ₹{grandTotal.toFixed(2)}
+                            </td>
                             <td></td>
                           </tr>
                         </tfoot>
@@ -730,15 +883,30 @@ export const PurchaseReturnPage: React.FC = () => {
 
                 {/* ── Narration ── */}
                 <div>
-                  <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">Narration / Internal Notes</label>
-                  <textarea value={narration} rows={2} placeholder="Additional accounting notes..." onChange={(e) => setNarration(e.target.value)} className="w-full px-2 py-1.5 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary" />
+                  <label className="sl-label">Narration / Internal Notes</label>
+                  <textarea
+                    value={narration}
+                    rows={2}
+                    placeholder="Additional accounting notes..."
+                    onChange={(e) => setNarration(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-line bg-card-2 rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary"
+                  />
                 </div>
               </div>
 
               {/* Footer */}
               <div className="flex items-center justify-end gap-2 px-4 py-2 border-t border-line shrink-0">
-                <button type="button" onClick={resetForm} disabled={submitting} className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded border border-line">Clear</button>
-                <button type="submit" disabled={submitting} className="px-4 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded disabled:opacity-50">{submitting ? "Processing..." : "Submit Return"}</button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={submitting}
+                  className="sl-btn sl-pill-sm"
+                >
+                  Clear
+                </button>
+                <button type="submit" disabled={submitting} className="sl-cta sl-pill-sm">
+                  {submitting ? "Processing..." : "Submit Return"}
+                </button>
               </div>
             </form>
           </div>
@@ -752,7 +920,11 @@ export const PurchaseReturnPage: React.FC = () => {
         modalTitle="Purchase Return Details"
         avatarText={selectedViewReturn?.returnNo ? "PR" : ""}
         headerTitle={selectedViewReturn?.returnNo || ""}
-        headerSubtitle={selectedViewReturn?.supplier?.legalName || (selectedViewReturn?.supplier as any)?.displayName || ""}
+        headerSubtitle={
+          selectedViewReturn?.supplier?.legalName ||
+          (selectedViewReturn?.supplier as any)?.displayName ||
+          ""
+        }
         statusNode={<StatusBadge status={selectedViewReturn?.status || "COMPLETED"} />}
         sections={[
           {
@@ -765,13 +937,18 @@ export const PurchaseReturnPage: React.FC = () => {
               },
               {
                 label: "Supplier",
-                value: selectedViewReturn?.supplier?.legalName || (selectedViewReturn?.supplier as any)?.displayName || "—",
+                value:
+                  selectedViewReturn?.supplier?.legalName ||
+                  (selectedViewReturn?.supplier as any)?.displayName ||
+                  "—",
               },
               {
                 label: "GRN Invoice",
                 value: selectedViewReturn?.grnInvoice?.invoiceNo
                   ? selectedViewReturn.grnInvoice.invoiceNo
-                  : (selectedViewReturn?.grnInvoiceId ? `GRN #${selectedViewReturn.grnInvoiceId}` : "Direct Return"),
+                  : selectedViewReturn?.grnInvoiceId
+                    ? `GRN #${selectedViewReturn.grnInvoiceId}`
+                    : "Direct Return",
               },
               {
                 label: "Debit Note",
@@ -780,7 +957,9 @@ export const PurchaseReturnPage: React.FC = () => {
               {
                 label: "Kind",
                 value:
-                  selectedViewReturn?.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return",
+                  selectedViewReturn?.kind === "PRICE_ADJUSTMENT"
+                    ? "Price adjustment"
+                    : "Goods return",
               },
               {
                 label: "GST",
@@ -801,12 +980,12 @@ export const PurchaseReturnPage: React.FC = () => {
           selectedViewReturn && (
             <div className="space-y-3">
               <div>
-                <h4 className="font-semibold text-ink mb-1.5 text-[10px] uppercase tracking-wide">
+                <h4 className="font-semibold text-ink mb-1.5 text-[11.5px] uppercase tracking-wide">
                   Returned Raw Materials
                 </h4>
                 <div className="border border-line rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-head text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                    <thead className="bg-card-2 text-ink-muted font-semibold text-[12px] border-b border-line-soft">
                       <tr>
                         <th className="px-3 py-1.5">Material ID</th>
                         <th className="px-3 py-1.5">Material Name</th>
@@ -819,20 +998,26 @@ export const PurchaseReturnPage: React.FC = () => {
                       {selectedViewReturn.items && selectedViewReturn.items.length > 0 ? (
                         selectedViewReturn.items.map((item, i) => (
                           <tr key={item.id || i} className="hover:bg-card-2 transition-colors">
-                            <td className="px-3 py-1.5 font-mono text-indigo-400 font-medium">
+                            <td className="px-3 py-1.5 tabular-nums text-accent font-medium">
                               {item.rawMaterialId}
                             </td>
                             <td className="px-3 py-1.5 font-medium text-ink">
-                              {item.rawMaterial?.materialName || item.rawMaterial?.name || item.rawMaterialId}
+                              {item.rawMaterial?.materialName ||
+                                item.rawMaterial?.name ||
+                                item.rawMaterialId}
                             </td>
-                            <td className="px-3 py-1.5 text-center font-mono font-semibold text-ink">
+                            <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-ink">
                               {item.quantity}
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono text-ink">
+                            <td className="px-3 py-1.5 text-right tabular-nums text-ink">
                               ₹{Number(item.unitPrice).toFixed(2)}
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
-                              ₹{(Number(item.lineTotal) || Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}
+                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink">
+                              ₹
+                              {(
+                                Number(item.lineTotal) ||
+                                Number(item.quantity) * Number(item.unitPrice)
+                              ).toFixed(2)}
                             </td>
                           </tr>
                         ))
@@ -850,7 +1035,7 @@ export const PurchaseReturnPage: React.FC = () => {
 
               {selectedViewReturn.narration && (
                 <div className="bg-card-2 p-2 rounded border border-line text-xs">
-                  <span className="font-semibold text-ink block mb-0.5 text-[10px] uppercase tracking-wide">
+                  <span className="font-semibold text-ink block mb-0.5 text-[11.5px] uppercase tracking-wide">
                     Narration / Notes
                   </span>
                   <p className="text-ink-muted leading-relaxed">{selectedViewReturn.narration}</p>

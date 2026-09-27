@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaSearch, FaPlus } from "react-icons/fa";
+import { Plus } from "lucide-react";
+import { ActionPill, PageHeader, SearchField, Toolbar } from "../../../components/ui/v2";
+import StatusBadge from "../../../components/ui/StatusBadge/Badge";
+import { PAGE_CLASS, formatINR } from "../../sales/shared/tradeUi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import PricingButton from "../../../components/ui/PricingButton/PricingButton";
 import SupplierViewModal from "../components/SupplierViewModal";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
@@ -67,25 +69,33 @@ const SupplierList: React.FC = () => {
 
   usePageShortcuts({ onRefresh: () => refresh(), onDelete: () => setShowDeleteModal(true) });
 
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (allSuppliers || []).forEach((s: any) => {
+      const k = String(s.status || "");
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    return counts;
+  }, [allSuppliers]);
+
   const suppliers = useMemo(() => {
-    if (!searchTerm) return allSuppliers;
+    const byStatus = statusFilter
+      ? allSuppliers.filter((s: any) => String(s.status || "") === statusFilter)
+      : allSuppliers;
+    if (!searchTerm) return byStatus;
     const term = searchTerm.toLowerCase();
-    return allSuppliers.filter(
+    return byStatus.filter(
       (s: any) =>
         s.supplierCode?.toLowerCase().includes(term) ||
         s.legalName?.toLowerCase().includes(term) ||
         s.displayName?.toLowerCase().includes(term)
     );
-  }, [allSuppliers, searchTerm]);
+  }, [allSuppliers, searchTerm, statusFilter]);
 
   const totalPages = Math.ceil(suppliers.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedSuppliers = suppliers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
 
   const handleOpenView = useCallback((sup: any) => {
     setSelectedSupplier(sup);
@@ -161,127 +171,181 @@ const SupplierList: React.FC = () => {
     };
   }, []);
 
+  const createButton = canCreateSupplier ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/suppliers/create")}>
+      Add Supplier
+    </ActionPill>
+  ) : null;
+  const filtered = Boolean(searchTerm) || Boolean(statusFilter);
+
   return (
-    <div>
-      <div className="">
-        <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-          {/* Page Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-            <div>
-              <h2 className="text-2xl font-bold text-ink">Supplier Master</h2>
-            </div>
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="relative w-full md:w-64">
-                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" />
-                <input
-                  type="text"
-                  data-search-input
-                  className="w-full pl-10 pr-4 py-2 bg-card border border-line rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                  placeholder="Search Supplier..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                />
-              </div>
-              {canExportSupplier && (
-                <ExportCSVButton
-                  fetchData={fetchSuppliersForExport}
-                  columns={csvColumns}
-                  filename={csvFilename}
-                  text="Export"
-                />
-              )}
-              {/* BUG-SUP-009 fix: only show Add Supplier button to users with create permission */}
-              {canCreateSupplier && (
-                <CustomButton
-                  text="Add Supplier"
-                  icon={FaPlus}
-                  onClick={() => navigate("/suppliers/create")}
-                />
-              )}
-            </div>
-          </div>
+    <div className={PAGE_CLASS}>
+      <div>
+        <PageHeader
+          title="Supplier Master"
+          subtitle={`${(allSuppliers?.length || 0).toLocaleString("en-IN")} supplier${allSuppliers?.length === 1 ? "" : "s"} · vendors you buy raw material and services from`}
+          primaryAction={createButton}
+          actions={
+            canExportSupplier ? (
+              <ExportCSVButton
+                fetchData={fetchSuppliersForExport}
+                columns={csvColumns}
+                filename={csvFilename}
+                text="Export"
+              />
+            ) : null
+          }
+        />
 
-          {/* View Table */}
-          <div className="p-0">
-            <DataTable
-              data={paginatedSuppliers}
-              rowKey={(supplier) => supplier.id}
-              loading={loading}
-              emptyMessage="No suppliers found."
-              pagination={
-                totalPages > 1
-                  ? {
-                      currentPage,
-                      totalPages,
-                      onPageChange: setCurrentPage,
-                    }
-                  : undefined
-              }
-              columns={[
-                {
-                  header: "#",
-                  width: "60px",
-                  render: (_item, index) => startIndex + index + 1,
-                  align: "center",
-                },
-                // { header: "CODE", accessor: "supplierCode" },
-                { header: "NAME", accessor: "legalName" },
-                {
-                  header: "MOBILE",
-                  render: (supplier) =>
-                    Array.isArray(supplier.mobile) && supplier.mobile.length > 0
-                      ? supplier.mobile[0].number
-                      : typeof supplier.mobile === "string"
-                        ? supplier.mobile
-                        : "N/A",
-                },
-                { header: "EMAIL", render: (supplier) => supplier.email || "N/A" },
-                { header: "GSTIN", render: (supplier) => supplier.gstin || "-" },
-                {
-                  header: "BALANCE",
-                  align: "right",
-                  render: (supplier) => {
-                    const bal = Number(supplier.openingBalance || 0);
-                    const type = supplier.openingBalanceType || "CREDIT";
-                    const suffix = type === "CREDIT" ? "Cr" : "Dr";
-                    const color = bal > 0 ? "text-ink font-bold" : "text-ink-subtle";
-                    return (
-                      <span className={`font-mono ${color}`}>
-                        ₹{bal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}{" "}
-                        {bal > 0 ? suffix : ""}
-                      </span>
-                    );
-                  },
-                },
+        <Toolbar
+          filters={[
+            { key: "", label: "All", count: allSuppliers?.length || 0 },
+            ...Object.keys(statusCounts)
+              .filter(Boolean)
+              .sort()
+              .map((k) => ({ key: k, label: k, count: statusCounts[k] })),
+          ]}
+          filterValue={statusFilter}
+          onFilterChange={(k) => {
+            setStatusFilter(k);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Supplier status"
+        >
+          <SearchField
+            data-search-input
+            value={searchTerm}
+            onValueChange={(v) => {
+              setSearchTerm(v);
+              setCurrentPage(1);
+            }}
+            placeholder="Search code or name"
+            label="Search suppliers"
+            className="sm:order-first"
+          />
+        </Toolbar>
 
-                // { header: "ON TIME", render: (supplier) => supplier.onTimePct !== null ? `${supplier.onTimePct} %` : "N/A" },
-                {
-                  header: "STATUS",
-                  render: (supplier) => (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
-                      {supplier.status}
+        <DataTable
+          data={paginatedSuppliers}
+          rowKey={(supplier) => supplier.id}
+          loading={loading}
+          ariaLabel="Suppliers"
+          emptyMessage={filtered ? "No suppliers match these filters." : "No suppliers yet."}
+          emptyAction={
+            filtered ? (
+              <button
+                type="button"
+                className="sl-btn sl-pill-md"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("");
+                }}
+              >
+                Clear filters
+              </button>
+            ) : (
+              createButton
+            )
+          }
+          pagination={
+            totalPages > 1
+              ? {
+                  currentPage,
+                  totalPages,
+                  onPageChange: setCurrentPage,
+                }
+              : undefined
+          }
+          columns={[
+            {
+              header: "#",
+              width: "56px",
+              render: (_item, index) => (
+                <span className="tabular-nums text-ink-subtle">{startIndex + index + 1}</span>
+              ),
+            },
+            {
+              header: "Name",
+              render: (supplier) => (
+                <button
+                  type="button"
+                  onClick={() => handleOpenView(supplier)}
+                  className="min-w-0 text-left leading-tight"
+                >
+                  <span className="block font-semibold text-accent hover:underline underline-offset-4">
+                    {supplier.legalName}
+                  </span>
+                  {supplier.supplierCode && (
+                    <span className="mt-0.5 block text-[12px] text-ink-subtle">
+                      {supplier.supplierCode}
                     </span>
-                  ),
-                  align: "center",
-                },
-                {
-                  header: "ACTIONS",
-                  render: (supplier) => (
-                    <div className="flex items-center gap-2">
-                      <ViewButton onClick={() => handleOpenView(supplier)} />
-                      {/* BUG-SUP-009 fix: only show Edit / Delete actions to authorized users */}
-                      {canEditSupplier && <EditButton onClick={() => handleEdit(supplier)} />}
-                      {canDeleteSupplier && (
-                        <DeleteButton onClick={() => triggerDelete(String(supplier.id))} />
-                      )}
-                    </div>
-                  ),
-                  align: "center",
-                },
-              ]}
-            />
-          </div>
-        </div>
+                  )}
+                </button>
+              ),
+            },
+            {
+              header: "Mobile",
+              render: (supplier) => (
+                <span className="tabular-nums text-ink-muted">
+                  {Array.isArray(supplier.mobile) && supplier.mobile.length > 0
+                    ? supplier.mobile[0].number
+                    : typeof supplier.mobile === "string"
+                      ? supplier.mobile
+                      : "—"}
+                </span>
+              ),
+            },
+            {
+              header: "Email",
+              render: (supplier) => <span className="text-ink-muted">{supplier.email || "—"}</span>,
+            },
+            {
+              header: "GSTIN",
+              render: (supplier) => (
+                <span className="tabular-nums text-ink-muted">{supplier.gstin || "—"}</span>
+              ),
+            },
+            {
+              header: "Opening balance",
+              align: "right",
+              render: (supplier) => {
+                const bal = Number(supplier.openingBalance || 0);
+                const type = supplier.openingBalanceType || "CREDIT";
+                const suffix = type === "CREDIT" ? "Cr" : "Dr";
+                return (
+                  <span
+                    className={`tabular-nums ${bal > 0 ? "font-semibold text-ink" : "text-ink-subtle"}`}
+                  >
+                    {formatINR(bal)} {bal > 0 ? suffix : ""}
+                  </span>
+                );
+              },
+            },
+            {
+              header: "Status",
+              render: (supplier) => (
+                <StatusBadge
+                  status={String(supplier.status || "").toUpperCase()}
+                  customText={supplier.status}
+                />
+              ),
+            },
+            {
+              header: "Actions",
+              render: (supplier) => (
+                <div className="flex items-center justify-end gap-1.5">
+                  <ViewButton onClick={() => handleOpenView(supplier)} />
+                  {/* BUG-SUP-009 fix: only show Edit / Delete actions to authorized users */}
+                  {canEditSupplier && <EditButton onClick={() => handleEdit(supplier)} />}
+                  {canDeleteSupplier && (
+                    <DeleteButton onClick={() => triggerDelete(String(supplier.id))} />
+                  )}
+                </div>
+              ),
+              align: "right",
+            },
+          ]}
+        />
 
         <SupplierViewModal
           show={showViewModal}

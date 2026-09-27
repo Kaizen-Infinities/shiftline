@@ -4,12 +4,13 @@ import { reportsService } from "../../../services/reportsService";
 import { storeService } from "../../../services/storeService";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
-import Button from "../../../components/ui/Button/Button";
 import ColumnToggle from "../../../components/ui/ColumnToggle/ColumnToggle";
 import DataTable from "../../../components/ui/table/DataTable";
 import type { DataTableColumn } from "../../../components/ui/table/DataTable";
 import { useListCache } from "../../../hooks/useListCache";
 import { usePermission } from "../../../hooks/usePermission";
+import { Boxes, Play } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
 
 const InventoryReportsCenter: React.FC = () => {
   const { can } = usePermission();
@@ -227,123 +228,115 @@ const InventoryReportsCenter: React.FC = () => {
   const finalColumns = tableColumns.filter((c) => visibleColumns.includes(c.header as string));
 
   return (
-    <div className="w-full">
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Inventory Reports"
+        subtitle={
+          asOfDate
+            ? `Data as of: ${new Date(asOfDate).toLocaleDateString("en-IN")}`
+            : "Opening and closing stock of every item, by snapshot date"
+        }
+        icon={<Boxes size={22} />}
+        actions={
+          can("inventory-reports.export") && (
+            <ExportCSVButton
+              data={csvData}
+              columns={csvColumns.filter((c) =>
+                visibleColumns.map((v) => v.toLowerCase()).includes(c.header.toLowerCase())
+              )}
+              filename={csvFilename}
+              text="Export CSV"
+            />
+          )
+        }
+      />
+
+      <Tile className="mb-4" title="Filters" subtitle="Set the filters, then run the report">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-ink">Inventory Reports</h2>
-            {asOfDate && (
-              <p className="text-sm text-ink-subtle mt-1">
-                Data as of: {new Date(asOfDate).toLocaleDateString()}
-              </p>
-            )}
+            <label className="sl-label">Snapshot Date</label>
+            <DatePickerCalendar
+              name="draftDate"
+              value={draftDate}
+              onChange={(e) => setDraftDate(e.target.value)}
+            />
           </div>
-
-          <div className="flex flex-wrap items-center gap-3 relative w-full lg:w-auto">
-            {can("inventory-reports.export") && (
-              <ExportCSVButton
-                data={csvData}
-                columns={csvColumns.filter((c) =>
-                  visibleColumns.map((v) => v.toLowerCase()).includes(c.header.toLowerCase())
-                )}
-                filename={csvFilename}
-                text="Export CSV"
-              />
-            )}
+          <div>
+            <label className="sl-label">Category</label>
+            <SelectInput
+              name="draftCategory"
+              value={draftCategory}
+              options={[
+                { label: "Raw Materials", value: "RAW_MATERIAL" },
+                { label: "Finished Products", value: "FINISHED_PRODUCT" },
+              ]}
+              defaultOptionLabel="All Categories"
+              hideLabel={true}
+              onChange={(e) => setDraftCategory(e.target.value)}
+            />
           </div>
-        </div>
-
-        <div className="p-6 border-b border-line bg-card-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
-                Snapshot Date
-              </label>
-              <DatePickerCalendar
-                name="draftDate"
-                value={draftDate}
-                onChange={(e) => setDraftDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
-                Category
-              </label>
-              <SelectInput
-                name="draftCategory"
-                value={draftCategory}
-                options={[
-                  { label: "Raw Materials", value: "RAW_MATERIAL" },
-                  { label: "Finished Products", value: "FINISHED_PRODUCT" },
-                ]}
-                defaultOptionLabel="All Categories"
-                hideLabel={true}
-                onChange={(e) => setDraftCategory(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
-                Store
-              </label>
-              <SelectInput
-                name="draftStoreId"
-                value={draftStoreId}
-                options={stores.map((s) => ({
-                  label: s.storeName,
-                  value: (s.storeId || s.id || "").toString(),
-                }))}
-                defaultOptionLabel="All Stores"
-                hideLabel={true}
-                onChange={(e) => setDraftStoreId(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">
-                Search Item
-              </label>
-              <input
-                type="text"
-                className="w-full border border-line rounded-md px-3 py-2 text-sm text-ink bg-card focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                value={draftSearch}
-                onChange={(e) => setDraftSearch(e.target.value)}
-                placeholder="Search code or name..."
-              />
-            </div>
+          <div>
+            <label className="sl-label">Store</label>
+            <SelectInput
+              name="draftStoreId"
+              value={draftStoreId}
+              options={stores.map((s) => ({
+                label: s.storeName,
+                value: (s.storeId || s.id || "").toString(),
+              }))}
+              defaultOptionLabel="All Stores"
+              hideLabel={true}
+              onChange={(e) => setDraftStoreId(e.target.value)}
+            />
           </div>
-
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-line">
-            <div>
-              <ColumnToggle
-                columns={tableColumns}
-                visibleColumns={visibleColumns}
-                setVisibleColumns={setVisibleColumns}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button text="Clear All" variant="secondary" size="sm" onClick={handleClearFilters} />
-              <Button
-                text="Apply Filters"
-                variant="primary"
-                size="sm"
-                onClick={handleApplyFilters}
-              />
-            </div>
+          <div>
+            <label className="sl-label">Search Item</label>
+            <input
+              type="text"
+              className="sl-input h-11 w-full px-4"
+              value={draftSearch}
+              onChange={(e) => setDraftSearch(e.target.value)}
+              placeholder="Search code or name..."
+            />
           </div>
         </div>
 
-        <DataTable
-          columns={finalColumns}
-          data={backendReports}
-          rowKey={(row) => row.id || row.itemId || Math.random().toString()}
-          loading={loadingBackend}
-          pagination={{
-            currentPage: page,
-            totalPages: totalPages,
-            onPageChange: setPage,
-          }}
-          emptyMessage="No inventory data found for the selected filters."
-        />
-      </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-4">
+          <div>
+            <ColumnToggle
+              columns={tableColumns}
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <ActionPill variant="secondary" size="sm" onClick={handleClearFilters}>
+              Clear All
+            </ActionPill>
+            <ActionPill
+              variant="blue"
+              size="sm"
+              icon={<Play size={14} />}
+              onClick={handleApplyFilters}
+            >
+              Run report
+            </ActionPill>
+          </div>
+        </div>
+      </Tile>
+
+      <DataTable
+        columns={finalColumns}
+        data={backendReports}
+        rowKey={(row) => row.id || row.itemId || Math.random().toString()}
+        loading={loadingBackend}
+        pagination={{
+          currentPage: page,
+          totalPages: totalPages,
+          onPageChange: setPage,
+        }}
+        emptyMessage="No inventory data found for the selected filters."
+      />
     </div>
   );
 };

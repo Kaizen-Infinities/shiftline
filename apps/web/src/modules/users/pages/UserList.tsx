@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Search } from "lucide-react";
+import { ActionPill, PageHeader, SearchField } from "../../../components/ui/v2";
+import { Plus, UserCog } from "lucide-react";
 import { FaSave } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
@@ -142,7 +143,7 @@ const UserList: React.FC = () => {
       width: "60px",
       align: "center",
       render: (_, index) => (
-        <span className="text-ink-subtle font-mono text-xs">
+        <span className="text-ink-subtle tabular-nums text-xs">
           {String(startIndex + index + 1).padStart(2, "0")}
         </span>
       ),
@@ -167,40 +168,36 @@ const UserList: React.FC = () => {
 
   return (
     <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">User Management</h2>
-          </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
-                size={15}
-              />
-              <input
-                type="text"
-                className="w-full pl-10 pr-4 py-2 bg-card-2 border border-line-soft rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={handleSearch}
-                data-search-input
-              />
-            </div>
-            {can("users.export") && (
-              <ExportCSVButton
-                fetchData={fetchUsersForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-          </div>
-        </div>
+      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+        <PageHeader
+          title="User Management"
+          icon={<UserCog size={20} />}
+          subtitle="Everyone who can sign in to this company."
+          actions={
+            <>
+              {can("users.export") && (
+                <ExportCSVButton
+                  fetchData={fetchUsersForExport}
+                  columns={csvColumns}
+                  filename={csvFilename}
+                  text="Export"
+                />
+              )}
+            </>
+          }
+          primaryAction={undefined}
+        />
+        <SearchField
+          value={searchTerm}
+          onValueChange={(v) =>
+            handleSearch({ target: { value: v } } as React.ChangeEvent<HTMLInputElement>)
+          }
+          placeholder="Search users..."
+          data-search-input
+        />
 
         {/* Users Table */}
-        <div className="p-0">
+        <div>
           <DataTable
             columns={columns}
             data={paginatedUsers}
@@ -286,7 +283,7 @@ const UserList: React.FC = () => {
                     {
                       label: "User ID",
                       value: (
-                        <span className="text-ink-subtle font-mono text-xs">
+                        <span className="text-ink-subtle tabular-nums text-xs">
                           {selectedUser.userId}
                         </span>
                       ),

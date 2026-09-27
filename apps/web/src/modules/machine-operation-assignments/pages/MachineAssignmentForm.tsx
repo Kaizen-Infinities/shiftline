@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { FaSave, FaEraser, FaPlus, FaTimes } from "react-icons/fa";
+import { Eraser, Plus, Save, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
-import CustomButton from "../../../components/ui/Button/Button";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
-import BackButton from "../../../components/ui/BackButton/BackButton";
+import { ActionPill, Chip, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import { PageBody, StickyFormFooter } from "../../production/ui";
 import { machineOperationAssignmentService } from "../../../services/machineOperationAssignmentService";
 import { machineService } from "../../../services/machineService";
 import { shiftService } from "../../../services/shiftService";
@@ -74,14 +74,15 @@ export const MachineAssignmentForm: React.FC = () => {
         machineOperationAssignmentService.getRoles().catch(() => ({ data: [] })),
         shiftService.fetchAll().catch(() => []),
       ]);
-      const machineList = Array.isArray(mRes) ? mRes : (mRes.machines || mRes.data || []);
+      const machineList = Array.isArray(mRes) ? mRes : mRes.machines || mRes.data || [];
       setMachines(machineList.filter((m: any) => m.isActive !== false));
-      const roleList = (rRes.data || []).filter((r: any) =>
-        !r.name?.toLowerCase().includes("super admin") &&
-        !r.name?.toLowerCase().includes("superadmin") &&
-        !r.code?.toLowerCase().includes("super_admin") &&
-        !r.code?.toLowerCase().includes("superadmin") &&
-        r.code?.toLowerCase() !== "role_admin"
+      const roleList = (rRes.data || []).filter(
+        (r: any) =>
+          !r.name?.toLowerCase().includes("super admin") &&
+          !r.name?.toLowerCase().includes("superadmin") &&
+          !r.code?.toLowerCase().includes("super_admin") &&
+          !r.code?.toLowerCase().includes("superadmin") &&
+          r.code?.toLowerCase() !== "role_admin"
       );
       setRoles(roleList);
       const shiftList = Array.isArray(sRes) ? sRes : (sRes as any).data || [];
@@ -94,11 +95,14 @@ export const MachineAssignmentForm: React.FC = () => {
 
   const refreshEmployees = useCallback(() => {
     const roleIds = new Set<string>();
-    formData.operators.forEach(op => { if (op.roleId) roleIds.add(op.roleId); });
-    roleIds.forEach(roleId => {
-      machineOperationAssignmentService.getEmployeesByRole(Number(roleId))
-        .then(res => setEmployeesByRole(prev => ({ ...prev, [roleId]: res.data || [] })))
-        .catch(err => console.error(err));
+    formData.operators.forEach((op) => {
+      if (op.roleId) roleIds.add(op.roleId);
+    });
+    roleIds.forEach((roleId) => {
+      machineOperationAssignmentService
+        .getEmployeesByRole(Number(roleId))
+        .then((res) => setEmployeesByRole((prev) => ({ ...prev, [roleId]: res.data || [] })))
+        .catch((err) => console.error(err));
     });
   }, [formData.operators]);
 
@@ -107,10 +111,15 @@ export const MachineAssignmentForm: React.FC = () => {
   useSocketSync("shift", undefined, fetchRefData);
   useSocketSync("employee", undefined, refreshEmployees);
 
-  useEffect(() => { fetchRefData(); }, [fetchRefData]);
+  useEffect(() => {
+    fetchRefData();
+  }, [fetchRefData]);
 
   useEffect(() => {
-    if (!id) { setFormData(initialFormState); return; }
+    if (!id) {
+      setFormData(initialFormState);
+      return;
+    }
     const fetchAssignment = async () => {
       setInitialLoading(true);
       try {
@@ -120,12 +129,16 @@ export const MachineAssignmentForm: React.FC = () => {
           setFormData({
             machineId: data.machineId || "",
             shiftId: data.shiftId || "",
-            weekStartDate: data.weekStartDate ? data.weekStartDate.split("T")[0] : currentWeek.start,
+            weekStartDate: data.weekStartDate
+              ? data.weekStartDate.split("T")[0]
+              : currentWeek.start,
             weekEndDate: data.weekEndDate ? data.weekEndDate.split("T")[0] : currentWeek.end,
-            operators: data.operators ? data.operators.map((o: any) => ({
-              roleId: String(o.roleId),
-              employeeId: String(o.employeeId),
-            })) : [],
+            operators: data.operators
+              ? data.operators.map((o: any) => ({
+                  roleId: String(o.roleId),
+                  employeeId: String(o.employeeId),
+                }))
+              : [],
             remarks: data.remarks || "",
             isActive: data.isActive !== false,
           });
@@ -160,7 +173,7 @@ export const MachineAssignmentForm: React.FC = () => {
         machineId: formData.machineId,
         weekStartDate: formData.weekStartDate,
         isActive: true,
-        limit: 100
+        limit: 100,
       });
       const existingShifts = res.data.map((a: any) => String(a.shiftId));
       if (isEdit && formData.shiftId) {
@@ -184,23 +197,23 @@ export const MachineAssignmentForm: React.FC = () => {
   };
 
   const handleAddOperator = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operators: [...prev.operators, { roleId: "", employeeId: "" }]
+      operators: [...prev.operators, { roleId: "", employeeId: "" }],
     }));
   };
 
   const handleRemoveOperator = (index: number) => {
     if (formData.operators.length <= 1) return;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operators: prev.operators.filter((_, i) => i !== index)
+      operators: prev.operators.filter((_, i) => i !== index),
     }));
   };
 
   const handleOperatorChange = (index: number, field: "roleId" | "employeeId", value: string) => {
     if (field === "roleId" && value) fetchEmployeesForRole(value);
-    setFormData(prev => {
+    setFormData((prev) => {
       const newOps = [...prev.operators];
       newOps[index] = { ...newOps[index], [field]: value };
       if (field === "roleId") newOps[index].employeeId = "";
@@ -257,7 +270,7 @@ export const MachineAssignmentForm: React.FC = () => {
         shiftId: formData.shiftId,
         weekStartDate: formData.weekStartDate,
         weekEndDate: formData.weekEndDate,
-        operators: formData.operators.map(o => ({
+        operators: formData.operators.map((o) => ({
           roleId: Number(o.roleId),
           employeeId: String(o.employeeId),
         })),
@@ -280,204 +293,227 @@ export const MachineAssignmentForm: React.FC = () => {
     }
   };
 
+  const title = isEdit ? "Edit Machine Assignment" : "Assign Machine Operation";
+  const crumbs = [
+    { label: "Machines", to: "/machines" },
+    { label: "Assignments", to: "/machines/assignments" },
+    { label: isEdit ? "Edit" : "New" },
+  ];
+
   if (initialLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-ink-subtle font-medium">Loading details...</div>
-      </div>
+      <PageBody>
+        <PageHeader
+          title={title}
+          back="/machines/assignments"
+          backLabel="Back to List"
+          breadcrumbs={crumbs}
+        />
+        <SkeletonTile lines={3} />
+        <SkeletonTile lines={4} />
+      </PageBody>
     );
   }
 
-  const selectedEmpIds = new Set(formData.operators.map(op => op.employeeId).filter(Boolean));
+  const selectedEmpIds = new Set(formData.operators.map((op) => op.employeeId).filter(Boolean));
 
   return (
-    <div className="w-full max-w-[1024px] xl:mr-auto">
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="w-full bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-            <h2 className="text-xl font-bold text-ink">
-              {isEdit ? "Edit Machine Assignment" : "Assign Machine Operation"}
-            </h2>
-            <BackButton text="Back to List" to="/machines/assignments" />
+    <PageBody className="max-w-[1100px]">
+      <PageHeader
+        title={title}
+        subtitle="Pick the week, machine and shift, then the operators who run it."
+        back="/machines/assignments"
+        backLabel="Back to List"
+        breadcrumbs={crumbs}
+      />
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+        <Tile
+          title="Week, machine & shift"
+          subtitle="Any date you pick snaps to its Monday–Sunday week."
+        >
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <DatePickerCalendar
+              label="Week Start Date"
+              name="weekStartDate"
+              required
+              value={formData.weekStartDate}
+              onChange={(e: any) => {
+                const range = getWeekRangeForDate(e.target.value);
+                if (range) {
+                  setFormData({ ...formData, weekStartDate: range.start, weekEndDate: range.end });
+                } else {
+                  setFormData({ ...formData, weekStartDate: e.target.value });
+                }
+              }}
+              error={errors.weekStartDate}
+            />
+            <DatePickerCalendar
+              label="Week End Date"
+              name="weekEndDate"
+              required
+              value={formData.weekEndDate}
+              onChange={(e: any) => {
+                const range = getWeekRangeForDate(e.target.value);
+                if (range) {
+                  setFormData({ ...formData, weekStartDate: range.start, weekEndDate: range.end });
+                } else {
+                  setFormData({ ...formData, weekEndDate: e.target.value });
+                }
+              }}
+              error={errors.weekEndDate}
+            />
+            <SelectInput
+              label="Machine"
+              name="machineId"
+              required
+              value={formData.machineId}
+              onChange={(e) => handleMachineSelect(e.target.value)}
+              error={errors.machineId}
+              options={[
+                { label: "-- Select Machine --", value: "" },
+                ...machines.map((m) => ({
+                  label: `${m.machineName} (${m.machineId})`,
+                  value: m.machineId,
+                })),
+              ]}
+            />
+            <SelectInput
+              label="Shift"
+              name="shiftId"
+              required
+              value={formData.shiftId}
+              onChange={(e) => setFormData({ ...formData, shiftId: e.target.value })}
+              error={errors.shiftId}
+              options={[
+                { label: "-- Select Shift --", value: "" },
+                ...shifts.map((s) => ({
+                  label: `${s.shiftName} (${s.startTime} - ${s.endTime})`,
+                  value: s.shiftCode,
+                  disabled: assignedShifts.includes(s.shiftCode),
+                })),
+              ]}
+            />
           </div>
+          {assignedShifts.length > 0 && (
+            <p className="sl-muted m-0 mt-3 text-[13px]">
+              Shifts already assigned on this machine for the week are greyed out.
+            </p>
+          )}
+        </Tile>
 
-          <div className="p-5 lg:p-6 space-y-6">
-
-            {/* Section 1: Week, Machine & Shift */}
-            <div className="space-y-4">
-              <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">Week, Machine & Shift Selection</h6>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <DatePickerCalendar
-                  label="Week Start Date"
-                  name="weekStartDate"
-                  required
-                  value={formData.weekStartDate}
-                  onChange={(e: any) => {
-                    const range = getWeekRangeForDate(e.target.value);
-                    if (range) {
-                      setFormData({ ...formData, weekStartDate: range.start, weekEndDate: range.end });
-                    } else {
-                      setFormData({ ...formData, weekStartDate: e.target.value });
-                    }
-                  }}
-                  error={errors.weekStartDate}
-                />
-                <DatePickerCalendar
-                  label="Week End Date"
-                  name="weekEndDate"
-                  required
-                  value={formData.weekEndDate}
-                  onChange={(e: any) => {
-                    const range = getWeekRangeForDate(e.target.value);
-                    if (range) {
-                      setFormData({ ...formData, weekStartDate: range.start, weekEndDate: range.end });
-                    } else {
-                      setFormData({ ...formData, weekEndDate: e.target.value });
-                    }
-                  }}
-                  error={errors.weekEndDate}
-                />
-                <SelectInput
-                  label="Machine"
-                  name="machineId"
-                  required
-                  value={formData.machineId}
-                  onChange={(e) => handleMachineSelect(e.target.value)}
-                  error={errors.machineId}
-                  options={[
-                    { label: "-- Select Machine --", value: "" },
-                    ...machines.map((m) => ({
-                      label: `${m.machineName} (${m.machineId})`,
-                      value: m.machineId,
-                    })),
-                  ]}
-                />
-                <SelectInput
-                  label="Shift"
-                  name="shiftId"
-                  required
-                  value={formData.shiftId}
-                  onChange={(e) => setFormData({ ...formData, shiftId: e.target.value })}
-                  error={errors.shiftId}
-                  options={[
-                    { label: "-- Select Shift --", value: "" },
-                    ...shifts.map((s) => ({
-                      label: `${s.shiftName} (${s.startTime} - ${s.endTime})`,
-                      value: s.shiftCode,
-                      disabled: assignedShifts.includes(s.shiftCode)
-                    })),
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="border-t border-line" />
-
-            {/* Section 2: Operators */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">Machine Operator Assignment</h6>
-                <CustomButton
-                  type="button"
-                  onClick={handleAddOperator}
-                  variant="primary"
-                  text="Add Operator"
-                  icon={FaPlus}
-                />
-              </div>
-              {errors.operators && <p className="text-red-500 text-xs font-medium">{errors.operators}</p>}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {formData.operators.map((operator, index) => (
-                  <div key={index} className="bg-card-2 p-4 rounded-xl border border-line-soft space-y-4 relative">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-ink">Operator {index + 1}</span>
-                      {formData.operators.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOperator(index)}
-                          className="text-red-400 hover:text-red-300 p-1 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors"
-                          title="Remove Operator"
-                        >
-                          <FaTimes size={13} />
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <SelectInput
-                        label="Select Role First"
-                        name={`operatorRole_${index}`}
-                        value={operator.roleId}
-                        onChange={(e) => handleOperatorChange(index, "roleId", e.target.value)}
-                        error={errors[`operatorRole_${index}`]}
-                        options={[
-                          { label: "-- Select Role --", value: "" },
-                          ...roles.map((r) => ({
-                            label: r.name,
-                            value: String(r.id),
-                          })),
-                        ]}
-                        required
-                      />
-                      <SelectInput
-                        label="Select Operator"
-                        name={`operatorEmp_${index}`}
-                        required
-                        value={operator.employeeId}
-                        onChange={(e) => handleOperatorChange(index, "employeeId", e.target.value)}
-                        error={errors[`operatorEmp_${index}`]}
-                        disabled={!operator.roleId}
-                        options={[
-                          { label: "-- Select Operator --", value: "" },
-                          ...(employeesByRole[operator.roleId] || []).map((e: any) => {
-                            const roleName = e.user?.role?.name || e.role?.name;
-                            return {
-                              label: `${e.fullName} (${e.empCode})${roleName ? ` - ${roleName}` : ""}`,
-                              value: String(e.id),
-                              disabled: selectedEmpIds.has(String(e.id)) && operator.employeeId !== String(e.id)
-                            };
-                          }),
-                        ]}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t border-line" />
-
-            {/* Section 3: Remarks */}
-            <div className="space-y-4">
-              <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">Remarks</h6>
-              <TextInput
-                label="Remarks / Notes (Optional)"
-                name="remarks"
-                placeholder="e.g. Weekly operator shift rotation"
-                value={formData.remarks}
-                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="px-5 py-4 border-t border-line flex justify-end gap-3">
-            <CustomButton
-              text="Clear"
-              icon={FaEraser}
+        <Tile
+          title="Operators"
+          subtitle={`${formData.operators.length} operator${formData.operators.length === 1 ? "" : "s"} on this machine and shift.`}
+          actions={
+            <ActionPill
               variant="secondary"
-              onClick={handleClear}
-              disabled={loading}
-            />
-            <CustomButton
-              text={loading ? "Saving..." : isEdit ? "Update Assignment" : "Save Assignment"}
-              icon={FaSave}
-              type="submit"
-              disabled={loading}
-            />
+              size="sm"
+              icon={<Plus size={15} />}
+              onClick={handleAddOperator}
+            >
+              Add Operator
+            </ActionPill>
+          }
+        >
+          {errors.operators && (
+            <p role="alert" className="sl-field-error m-0 mb-3">
+              {errors.operators}
+            </p>
+          )}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {formData.operators.map((operator, index) => (
+              <div key={index} className="rounded-[16px] bg-card-2 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <Chip size="sm">Operator {index + 1}</Chip>
+                  {formData.operators.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveOperator(index)}
+                      className="sl-icon-btn sl-icon-btn-hover-danger"
+                      title="Remove Operator"
+                      aria-label={`Remove operator ${index + 1}`}
+                    >
+                      <X size={15} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <SelectInput
+                    label="Select Role First"
+                    name={`operatorRole_${index}`}
+                    value={operator.roleId}
+                    onChange={(e) => handleOperatorChange(index, "roleId", e.target.value)}
+                    error={errors[`operatorRole_${index}`]}
+                    options={[
+                      { label: "-- Select Role --", value: "" },
+                      ...roles.map((r) => ({
+                        label: r.name,
+                        value: String(r.id),
+                      })),
+                    ]}
+                    required
+                  />
+                  <SelectInput
+                    label="Select Operator"
+                    name={`operatorEmp_${index}`}
+                    required
+                    value={operator.employeeId}
+                    onChange={(e) => handleOperatorChange(index, "employeeId", e.target.value)}
+                    error={errors[`operatorEmp_${index}`]}
+                    disabled={!operator.roleId}
+                    options={[
+                      { label: "-- Select Operator --", value: "" },
+                      ...(employeesByRole[operator.roleId] || []).map((e: any) => {
+                        const roleName = e.user?.role?.name || e.role?.name;
+                        return {
+                          label: `${e.fullName} (${e.empCode})${roleName ? ` - ${roleName}` : ""}`,
+                          value: String(e.id),
+                          disabled:
+                            selectedEmpIds.has(String(e.id)) &&
+                            operator.employeeId !== String(e.id),
+                        };
+                      }),
+                    ]}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        </Tile>
+
+        <Tile title="Remarks">
+          <TextInput
+            label="Remarks / Notes (Optional)"
+            name="remarks"
+            placeholder="e.g. Weekly operator shift rotation"
+            value={formData.remarks}
+            onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+          />
+        </Tile>
+
+        <StickyFormFooter hint="F2 saves">
+          <ActionPill variant="secondary" onClick={() => navigate("/machines/assignments")}>
+            Cancel
+          </ActionPill>
+          <ActionPill
+            variant="secondary"
+            icon={<Eraser size={16} />}
+            onClick={handleClear}
+            disabled={loading}
+          >
+            Clear
+          </ActionPill>
+          <ActionPill
+            type="submit"
+            icon={<Save size={17} />}
+            loading={loading}
+            loadingText="Saving..."
+          >
+            {isEdit ? "Update Assignment" : "Save Assignment"}
+          </ActionPill>
+        </StickyFormFooter>
       </form>
-    </div>
+    </PageBody>
   );
 };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 
+import { Chip } from "../../../components/ui/v2";
 import { usePermission } from "../../../hooks/usePermission";
 import { machineTelemetryReadService } from "../../../services/machineTelemetryService";
 import type { MachineGatewayRow } from "../../../services/machineTelemetryService";
@@ -30,9 +31,12 @@ const MachineTelemetryHealthStrip: React.FC<{ machineId: string }> = ({ machineI
   if (gateways === null) return null;
   if (gateways.length === 0) {
     return (
-      <p className="mt-3 text-xs text-ink-muted">
+      <p className="sl-muted m-0 mt-3 text-[13px]">
         No telemetry gateway configured for this machine yet.{" "}
-        <a href="/settings/machine-gateways" className="text-blue-600 hover:underline">
+        <a
+          href="/settings/machine-gateways"
+          className="font-semibold text-accent underline-offset-4 hover:underline"
+        >
           Set one up
         </a>
         .
@@ -41,24 +45,24 @@ const MachineTelemetryHealthStrip: React.FC<{ machineId: string }> = ({ machineI
   }
 
   return (
-    <div className="mt-3 rounded-lg border border-line-soft bg-card-2 p-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Telemetry</p>
-      <ul className="space-y-1">
+    <div className="mt-3 rounded-[14px] bg-card-2 p-3.5">
+      <p className="sl-section-label m-0 mb-2">Telemetry</p>
+      <ul className="m-0 list-none space-y-1.5 p-0">
         {gateways.map((g) => (
           <li key={g.id} className="flex items-center gap-2 text-sm text-ink">
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${
-                !g.isActive
-                  ? "bg-ink-muted"
-                  : g.consecutiveFailures > 0
-                    ? "bg-rose-500"
-                    : "bg-emerald-500"
-              }`}
-            />
+            <Chip
+              size="sm"
+              dot
+              tone={!g.isActive ? "muted" : g.consecutiveFailures > 0 ? "danger" : "success"}
+            >
+              {!g.isActive ? "Inactive" : g.consecutiveFailures > 0 ? "Failing" : "Healthy"}
+            </Chip>
             <span className="font-mono text-xs">{g.code}</span>
             <span className="text-ink-muted">({g.adapterKind})</span>
             {g.consecutiveFailures > 0 && (
-              <span className="text-rose-700">{g.consecutiveFailures} failing polls</span>
+              <span className="text-[color:var(--color-danger)]">
+                {g.consecutiveFailures} failing polls
+              </span>
             )}
           </li>
         ))}

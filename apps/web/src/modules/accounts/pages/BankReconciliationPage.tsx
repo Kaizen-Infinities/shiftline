@@ -23,7 +23,7 @@ import {
   success,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/reportUi";
 
 /**
  * Bank reconciliation and cheques (P1-20).
@@ -35,11 +35,11 @@ import {
 type Tab = "lines" | "brs" | "cheques" | "import";
 const FORMATS: StatementFormat[] = ["HDFC", "ICICI", "SBI", "AXIS", "KOTAK", "GENERIC"];
 const CHEQUE_STYLE: Record<ChequeRow["status"], string> = {
-  IN_HAND: "bg-amber-100 text-amber-800",
-  DEPOSITED: "bg-sky-100 text-sky-800",
-  CLEARED: "bg-emerald-100 text-emerald-800",
-  BOUNCED: "bg-rose-100 text-rose-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+  IN_HAND: "sl-chip-warning",
+  DEPOSITED: "",
+  CLEARED: "sl-chip-success",
+  BOUNCED: "sl-chip-danger",
+  CANCELLED: "sl-chip-muted",
 };
 
 interface BankAccountOption {
@@ -114,11 +114,11 @@ const BankReconciliationPage: React.FC = () => {
   const unmatched = lines.filter((l) => l.status === "UNMATCHED");
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full space-y-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Bank Reconciliation</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1 m-0 leading-tight">Bank Reconciliation</h1>
+          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
             The statement against the cash book, and the cheques that have not turned into money
             yet.
           </p>
@@ -157,7 +157,7 @@ const BankReconciliationPage: React.FC = () => {
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
+      <nav className="flex flex-wrap gap-2" role="tablist">
         {(
           [
             ["lines", "Statement lines"],
@@ -171,18 +171,20 @@ const BankReconciliationPage: React.FC = () => {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="sl-chip sl-chip-lg"
           >
             {label}
           </button>
         ))}
       </nav>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+          <div className="sl-skeleton h-3 w-1/2" />
+        </div>
+      )}
 
       {tab === "lines" && (
         <Card title={`Statement lines · ${unmatched.length} still to deal with`}>
@@ -213,18 +215,18 @@ const BankReconciliationPage: React.FC = () => {
                     </td>
                     <td className={td}>
                       {l.status === "MATCHED" ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                        <span className="rounded-full bg-[color:var(--color-success)]/10 px-2 py-0.5 text-xs font-semibold text-[color:var(--color-success)]">
                           matched
                           {l.matchConfidence !== null && l.matchConfidence < 100
                             ? ` · ${l.matchConfidence}%`
                             : ""}
                         </span>
                       ) : l.status === "IGNORED" ? (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                        <span className="rounded-full bg-card-2 px-2 py-0.5 text-xs font-semibold text-ink-muted">
                           set aside
                         </span>
                       ) : (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        <span className="rounded-full bg-[color:var(--color-warning)]/10 px-2 py-0.5 text-xs font-semibold text-[color:var(--color-warning)]">
                           unmatched
                         </span>
                       )}
@@ -306,7 +308,7 @@ const BankReconciliationPage: React.FC = () => {
               Reconciled balance {money(brs.reconciledBalance)}
             </p>
             {brs.difference !== null && Math.abs(brs.difference) >= 0.01 && (
-              <p className="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-2 text-sm text-rose-900">
+              <p className="mt-2 rounded-lg border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-2 text-sm text-[color:var(--color-danger)]">
                 {money(Math.abs(brs.difference))} is still unexplained. That difference is the whole
                 reason for doing this — it is shown rather than absorbed.
               </p>
@@ -347,13 +349,13 @@ const BankReconciliationPage: React.FC = () => {
                     <td className={td}>{c.kind.toLowerCase()}</td>
                     <td className={`${td} text-right font-semibold`}>{money(c.amount)}</td>
                     <td className={td}>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${CHEQUE_STYLE[c.status]}`}
-                      >
+                      <span className={`sl-chip sl-chip-sm ${CHEQUE_STYLE[c.status]}`}>
                         {c.status.replace(/_/g, " ").toLowerCase()}
                       </span>
                       {c.bounceReason && (
-                        <div className="text-xs text-rose-700">{c.bounceReason}</div>
+                        <div className="text-xs text-[color:var(--color-danger)]">
+                          {c.bounceReason}
+                        </div>
                       )}
                     </td>
                     <td className={`${td} text-right`}>
@@ -546,7 +548,7 @@ const ImportCard: React.FC<{
         </label>
       </div>
       <textarea
-        className={`${field} mt-3 h-48 w-full font-mono text-xs`}
+        className={`${field} mt-3 h-48 w-full tabular-nums text-xs`}
         value={csv}
         onChange={(e) => setCsv(e.target.value)}
         placeholder="Date,Narration,Chq./Ref.No.,Value Dt,Withdrawal Amt.,Deposit Amt.,Closing Balance"
@@ -574,8 +576,8 @@ const MatchDialog: React.FC<{
   onPick: (voucherId: number) => void;
   onIgnore: (note: string) => void;
 }> = ({ line, options, busy, onCancel, onPick, onIgnore }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-    <div className="w-full max-w-2xl rounded-xl border border-line-soft bg-card p-4">
+  <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="w-full max-w-2xl sl-tile p-4">
       <h2 className="text-lg font-semibold text-ink">
         {day(line.txnDate)} · {line.description}
       </h2>

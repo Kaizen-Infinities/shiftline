@@ -1,9 +1,9 @@
+import { Eraser, KeyRound, MessageCircle, Save, Send, Settings2 } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Tile } from "../../components/ui/v2";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { FaWhatsapp, FaSave, FaEraser } from "react-icons/fa";
 import { toast } from "react-toastify";
 import apiClient from "../../api/apiClient";
 import TextInput from "../../components/form/TextInput/TextInput";
-import CustomButton from "../../components/ui/Button/Button";
 import IndiaPhoneInput from "../../components/ui/PhoneInput/PhoneInput";
 import CommonLoader from "../../components/ui/Loader/CommonLoader";
 import { usePermission } from "../../hooks/usePermission";
@@ -188,135 +188,130 @@ const WhatsappCreatePage: React.FC = () => {
   if (loading) return <CommonLoader text="Loading ..." fullScreen={false} />;
 
   return (
-    <div className="max-w-[1024px] xl:mr-auto">
+    <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="WhatsApp Business Configuration"
+        icon={<MessageCircle size={22} />}
+        subtitle="The WhatsApp Business account invoices, payslips and reminders are shared through."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "WhatsApp" }]}
+        meta={
+          isEditing ? (
+            <Chip tone="success" size="sm" dot>
+              Connected
+            </Chip>
+          ) : (
+            <Chip tone="muted" size="sm" dot>
+              Not set up
+            </Chip>
+          )
+        }
+      />
       <form onSubmit={handleSubmit} noValidate>
-        <div className="bg-card rounded-sm border border-line overflow-hidden">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-            <h2 className="text-xl font-bold text-ink">WhatsApp Business Configuration</h2>
-          </div>
+        <div className="space-y-5">
+          {/* Section: API Setup Credentials */}
+          <Tile title="API Setup Credentials" icon={<Settings2 size={18} />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <TextInput
+                label="Phone Number ID"
+                name="phoneNumberId"
+                value={formData.phoneNumberId}
+                placeholder="e.g. 109876543212345"
+                required
+                onChange={handleChange as any}
+                error={errors.phoneNumberId}
+              />
+              <TextInput
+                label="WABA ID"
+                name="wabaId"
+                value={formData.wabaId}
+                placeholder="e.g. 987654321098765"
+                required
+                onChange={handleChange as any}
+                error={errors.wabaId}
+              />
+              <IndiaPhoneInput
+                label="Business Phone"
+                name="businessPhone"
+                value={formData.businessPhone}
+                placeholder="e.g. 919876543210"
+                required
+                onChange={handleChange as any}
+                error={errors.businessPhone}
+              />
+            </div>
+          </Tile>
 
-          <div className="p-5 lg:p-6 space-y-6">
-            {/* Section: API Setup Credentials */}
-            <div>
-              <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-4">
-                API Setup Credentials
-              </h6>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-                <TextInput
-                  label="Phone Number ID"
-                  name="phoneNumberId"
-                  value={formData.phoneNumberId}
-                  placeholder="e.g. 109876543212345"
-                  required
-                  horizontal
-                  onChange={handleChange as any}
-                  error={errors.phoneNumberId}
-                />
-                <TextInput
-                  label="WABA ID"
-                  name="wabaId"
-                  value={formData.wabaId}
-                  placeholder="e.g. 987654321098765"
-                  required
-                  horizontal
-                  onChange={handleChange as any}
-                  error={errors.wabaId}
-                />
+          {/* Section: Security & Credentials */}
+          <Tile title="Security & Credentials" icon={<KeyRound size={18} />}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <TextInput
+                label="Access Token"
+                name="accessToken"
+                value={formData.accessToken}
+                placeholder="Paste your Access Token..."
+                required
+                onChange={handleChange as any}
+                onFocus={handleTokenFocus}
+                error={errors.accessToken}
+              />
+              <TextInput
+                label="Webhook Token"
+                name="webhookVerifyToken"
+                value={formData.webhookVerifyToken}
+                placeholder="e.g. my_secret_token_123"
+                onChange={handleChange as any}
+                error={errors.webhookVerifyToken}
+              />
+            </div>
+          </Tile>
+
+          {/* Section: Test Message (only when config exists) */}
+          {isEditing && (
+            <Tile title="Send a Test Message" icon={<Send size={18} />}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <IndiaPhoneInput
-                  label="Business Phone"
-                  name="businessPhone"
-                  value={formData.businessPhone}
+                  label="Recipient Phone"
+                  name="testPhone"
+                  value={testPhone}
                   placeholder="e.g. 919876543210"
-                  required
-                  horizontal
-                  onChange={handleChange as any}
-                  error={errors.businessPhone}
-                />
-              </div>
-            </div>
-
-            {/* Section: Security & Credentials */}
-            <div>
-              <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-4">
-                Security & Credentials
-              </h6>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5  ">
-                <TextInput
-                  label="Access Token"
-                  name="accessToken"
-                  value={formData.accessToken}
-                  placeholder="Paste your Access Token..."
-                  required
-                  horizontal
-                  onChange={handleChange as any}
-                  onFocus={handleTokenFocus}
-                  error={errors.accessToken}
+                  onChange={(e) => setTestPhone(e.target.value)}
                 />
                 <TextInput
-                  label="Webhook Token"
-                  name="webhookVerifyToken"
-                  value={formData.webhookVerifyToken}
-                  placeholder="e.g. my_secret_token_123"
-                  horizontal
-                  onChange={handleChange as any}
-                  error={errors.webhookVerifyToken}
+                  label="Test Message"
+                  name="testMessage"
+                  value={testMessage}
+                  placeholder="Enter your test message..."
+                  onChange={(e) => setTestMessage(e.target.value)}
                 />
               </div>
-            </div>
-
-            {/* Section: Test Message (only when config exists) */}
-            {isEditing && (
-              <div>
-                <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-4">
-                  Send a Test Message
-                </h6>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-                  <IndiaPhoneInput
-                    label="Recipient Phone"
-                    name="testPhone"
-                    value={testPhone}
-                    placeholder="e.g. 919876543210"
-                    horizontal
-                    onChange={(e) => setTestPhone(e.target.value)}
-                  />
-                  <TextInput
-                    label="Test Message"
-                    name="testMessage"
-                    value={testMessage}
-                    placeholder="Enter your test message..."
-                    horizontal
-                    onChange={(e) => setTestMessage(e.target.value)}
-                  />
-                </div>
-                <div className="mt-4 flex justify-end">
-                  <CustomButton
-                    text={sending ? "Sending..." : "Send Test Message"}
-                    icon={FaWhatsapp}
-                    onClick={handleSendTestMessage}
-                    disabled={sending || !testPhone.trim() || !testMessage.trim()}
-                  />
-                </div>
+              <div className="mt-4 flex justify-end">
+                <ActionPill
+                  variant="secondary"
+                  icon={<Send size={16} />}
+                  onClick={handleSendTestMessage}
+                  loading={sending}
+                  disabled={sending || !testPhone.trim() || !testMessage.trim()}
+                >
+                  {sending ? "Sending..." : "Send Test Message"}
+                </ActionPill>
               </div>
-            )}
-          </div>
+            </Tile>
+          )}
 
           {/* Footer */}
           {canEditWhatsapp && (
-            <div className="px-5 py-4 border-t border-line flex justify-end gap-3">
-              <CustomButton
-                text="Clear"
-                icon={FaEraser}
-                variant="secondary"
-                onClick={handleClear}
-                type="button"
-              />
-              <CustomButton
-                text={saving ? "Saving..." : "Save Configuration"}
-                icon={FaSave}
+            <div className="sl-tile sticky bottom-3 z-10 flex justify-end gap-2 px-4 py-3">
+              <ActionPill variant="secondary" icon={<Eraser size={16} />} onClick={handleClear}>
+                Clear
+              </ActionPill>
+              <ActionPill
                 type="submit"
+                icon={<Save size={17} />}
+                loading={saving}
                 disabled={saving}
-              />
+              >
+                {saving ? "Saving..." : "Save Configuration"}
+              </ActionPill>
             </div>
           )}
         </div>

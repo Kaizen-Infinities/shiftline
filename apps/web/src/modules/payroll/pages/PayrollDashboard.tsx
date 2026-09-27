@@ -1,66 +1,98 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppSelector } from '../../../hooks/reduxHooks';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Users, IndianRupee, Clock, CheckCircle2,
-  CalendarDays, FileText, Settings, BarChart3, ChevronRight,
-  PlayCircle, AlertCircle, Building2, Loader2, ClipboardList, Trash2, Wallet,
-  Calendar, RotateCcw,
-} from 'lucide-react';
-import CommonLoader from '../../../components/ui/Loader/CommonLoader';
-import { toast } from 'react-toastify';
-import { StatusBadge } from '../../../components/ui/StatusBadge/Badge';
-import CustomButton from '../../../components/ui/custombutton/CustomButton';
-import Button from '../../../components/ui/Button/Button';
-import ViewButton from '../../../components/ui/viewbutton/ViewButton';
-import EditButton from '../../../components/ui/EditButton/EditButton';
-import DeleteButton from '../../../components/ui/DeleteButton/DeleteButton';
-import CommonConfirmModal from '../../../components/ui/CommonConfirmModal/CommonConfirmModal';
-import DataTable from '../../../components/ui/table/DataTable';
-import { payrollService } from '../../../services/payrollService';
-import type { ApiPayrollRun, ApiEmployeePayroll } from '../../../services/payrollService';
-import { usePermission } from '../../../hooks/usePermission';
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  ClipboardList,
+  FileText,
+  Gavel,
+  Landmark,
+  PlayCircle,
+  Receipt,
+  RotateCcw,
+  Settings,
+  Umbrella,
+  Users,
+  Wallet,
+  IndianRupee,
+  Hourglass,
+} from "lucide-react";
+import { toast } from "react-toastify";
+import { useAppSelector } from "../../../hooks/reduxHooks";
+import { StatusBadge } from "../../../components/ui/StatusBadge/Badge";
+import ViewButton from "../../../components/ui/viewbutton/ViewButton";
+import EditButton from "../../../components/ui/EditButton/EditButton";
+import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
+import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
+import DataTable from "../../../components/ui/table/DataTable";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SectionLabel,
+  SkeletonRows,
+  SkeletonTile,
+  StatTile,
+  Tile,
+  chipClass,
+  cx,
+} from "../../../components/ui/v2";
+import { payrollService } from "../../../services/payrollService";
+import type { ApiPayrollRun, ApiEmployeePayroll } from "../../../services/payrollService";
+import { usePermission } from "../../../hooks/usePermission";
+import {
+  Notice,
+  PageShell,
+  errorMessage,
+  formatINR,
+  formatINRCompact,
+  periodLabel,
+} from "../components/peopleUi";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmt   = (n: number) => Number(n).toLocaleString('en-IN');
-const fmtRs = (n: number) => `₹${fmt(Math.round(Number(n)))}`;
-
-// ─── Component ────────────────────────────────────────────────────────────────
 const getCurrentMonth = () => {
   const now = new Date();
   const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
   return `${yyyy}-${mm}`;
 };
+
+/** Statutory schemes shown as chips on the "Statutory dues" tile (the concept's TDS · PF · PT). */
+const STATUTORY_CHIPS = ["TDS", "PF", "ESI", "PT", "LWF"] as const;
 
 const PayrollDashboard: React.FC = () => {
   const company = useAppSelector((state) => state.company.data);
   const navigate = useNavigate();
   const { can } = usePermission();
-  const canCreateRun      = can("payroll-run.create");
-  const canEditRun        = can("payroll-run.edit");
-  const canDeleteRun      = can("payroll-run.delete");
-  const canViewRun        = can("payroll-run.view");
+  const canCreateRun = can("payroll-run.create");
+  const canEditRun = can("payroll-run.edit");
+  const canDeleteRun = can("payroll-run.delete");
+  const canViewRun = can("payroll-run.view");
+  const canStatutory = can("payroll.view");
 
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth);
-  const [runs,          setRuns]          = useState<ApiPayrollRun[]>([]);
-  const [employees,     setEmployees]     = useState<ApiEmployeePayroll[]>([]);
-  const [loading,       setLoading]       = useState(true);
-  const [runsLoading,   setRunsLoading]   = useState(false);
-  const [error,         setError]         = useState('');
-  const [deleteRunId,   setDeleteRunId]   = useState<number | null>(null);
-  const [isDeleting,    setIsDeleting]    = useState(false);
+  const [runs, setRuns] = useState<ApiPayrollRun[]>([]);
+  const [employees, setEmployees] = useState<ApiEmployeePayroll[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [runsLoading, setRunsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [deleteRunId, setDeleteRunId] = useState<number | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const handleConfirmDelete = async () => {
     if (!deleteRunId) return;
     setIsDeleting(true);
     try {
       await payrollService.deleteRun(deleteRunId);
-      toast.success('Draft payroll run deleted successfully');
-      setRuns(prev => prev.filter(r => r.id !== deleteRunId));
+      toast.success("Draft payroll run deleted successfully");
+      setRuns((prev) => prev.filter((r) => r.id !== deleteRunId));
       setDeleteRunId(null);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message ?? 'Failed to delete payroll run');
+    } catch (e: unknown) {
+      toast.error(errorMessage(e, "Failed to delete payroll run"));
     } finally {
       setIsDeleting(false);
     }
@@ -70,358 +102,548 @@ const PayrollDashboard: React.FC = () => {
     const load = async () => {
       try {
         setRunsLoading(true);
+        setError("");
         const [runsData, empData] = await Promise.all([
           payrollService.listRuns({ period: selectedMonth || undefined, limit: 50 }),
           payrollService.listEmployees(),
         ]);
         setRuns(runsData.runs);
         setEmployees(empData);
-      } catch (e: any) {
-        setError(e?.response?.data?.message ?? 'Failed to load payroll data');
+      } catch (e: unknown) {
+        setError(errorMessage(e, "Failed to load payroll data"));
       } finally {
         setLoading(false);
         setRunsLoading(false);
       }
     };
     load();
-  }, [selectedMonth]);
+  }, [selectedMonth, reloadKey]);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const totalEmployees = employees.length;
-  const empWithPayroll = employees.filter(e => e.payrollConfig);
-  const lockedRuns     = runs.filter(r => r.status === 'LOCKED');
-  const pendingRun     = runs.find(r => r.status === 'DRAFT');
-  const lastRunNet     = lockedRuns.reduce((sum, r) => sum + Number(r.totalNetSalary || 0), 0);
-  const lockedPeriods  = lockedRuns.map(r => r.period).join(', ');
+  const empWithPayroll = employees.filter((e) => e.payrollConfig);
+  const lockedRuns = runs.filter((r) => r.status === "LOCKED");
+  const approvedRuns = runs.filter((r) => r.status === "APPROVED");
+  const pendingRun = runs.find((r) => r.status === "DRAFT");
+  const lastRunNet = lockedRuns.reduce((sum, r) => sum + Number(r.totalNetSalary || 0), 0);
+  const lockedPeriods = lockedRuns.map((r) => r.period).join(", ");
 
   const categoryCounts = {
-    FIXED_MONTHLY: employees.filter(e => e.payrollConfig?.salaryType === 'FIXED_MONTHLY').length,
-    PF_MONTHLY:    employees.filter(e => e.payrollConfig?.salaryType === 'PF_MONTHLY').length,
-    CASH_MONTHLY:  employees.filter(e => e.payrollConfig?.salaryType === 'CASH_MONTHLY').length,
-    DAILY_WEEKLY:  employees.filter(e => e.payrollConfig?.salaryType === 'DAILY_WEEKLY' || e.payrollConfig?.salaryType === 'WEEKLY' || e.salaryType === 'daily' || e.salaryType === 'weekly').length,
+    FIXED_MONTHLY: employees.filter((e) => e.payrollConfig?.salaryType === "FIXED_MONTHLY").length,
+    PF_MONTHLY: employees.filter((e) => e.payrollConfig?.salaryType === "PF_MONTHLY").length,
+    CASH_MONTHLY: employees.filter((e) => e.payrollConfig?.salaryType === "CASH_MONTHLY").length,
+    DAILY_WEEKLY: employees.filter(
+      (e) =>
+        e.payrollConfig?.salaryType === "DAILY_WEEKLY" ||
+        e.payrollConfig?.salaryType === "WEEKLY" ||
+        e.salaryType === "daily" ||
+        e.salaryType === "weekly"
+    ).length,
   };
 
-  const latestRun     = runs[0];
-  const currentPeriod = latestRun?.period ?? '—';
+  const latestRun = runs[0];
+  const focusPeriod = selectedMonth || latestRun?.period || getCurrentMonth();
+
+  // The latest run's statutory totals, for the "Statutory dues" tile.
+  const duesRun = runs.find((r) => r.status !== "DRAFT") ?? latestRun;
+  const pfDue = duesRun
+    ? Number(duesRun.totalPfEmployee || 0) + Number(duesRun.totalPfEmployer || 0)
+    : 0;
+  const esiDue = duesRun
+    ? Number(duesRun.totalEsiEmployee || 0) + Number(duesRun.totalEsiEmployer || 0)
+    : 0;
 
   const timelineSteps = [
-    { label: 'Attendance Capture',  sub: 'Completed',   done: !!latestRun,                                                              active: false                          },
-    { label: 'Payroll Run',         sub: latestRun ? 'Computed' : 'Pending',                                                            done: !!latestRun,                     active: !latestRun },
-    { label: 'Preview & Review',    sub: latestRun?.status === 'DRAFT' ? 'Pending' : 'Done',                                            done: latestRun?.status !== 'DRAFT',   active: latestRun?.status === 'DRAFT' },
-    { label: 'Approval',            sub: latestRun?.status === 'APPROVED' || latestRun?.status === 'LOCKED' ? 'Approved' : 'Pending',   done: latestRun?.status === 'APPROVED' || latestRun?.status === 'LOCKED', active: latestRun?.status === 'DRAFT' },
-    { label: 'Lock & Disburse',     sub: latestRun?.status === 'LOCKED' ? 'Locked' : 'Pending',                                         done: latestRun?.status === 'LOCKED',  active: latestRun?.status === 'APPROVED' },
+    { label: "Attendance", done: !!latestRun, active: false },
+    { label: "Compute", done: !!latestRun, active: !latestRun },
+    {
+      label: "Review",
+      done: !!latestRun && latestRun.status !== "DRAFT",
+      active: latestRun?.status === "DRAFT",
+    },
+    {
+      label: "Approve",
+      done: latestRun?.status === "APPROVED" || latestRun?.status === "LOCKED",
+      active: false,
+    },
+    {
+      label: "Lock & disburse",
+      done: latestRun?.status === "LOCKED",
+      active: latestRun?.status === "APPROVED",
+    },
   ];
+
+  const categories = [
+    { label: "Fixed monthly (Admin)", count: categoryCounts.FIXED_MONTHLY, series: 1 },
+    { label: "PF workers (Monthly)", count: categoryCounts.PF_MONTHLY, series: 4 },
+    { label: "Cash workers (Monthly)", count: categoryCounts.CASH_MONTHLY, series: 3 },
+    { label: "Daily wage (Weekly)", count: categoryCounts.DAILY_WEEKLY, series: 2 },
+  ];
+  const categoryMax = Math.max(1, ...categories.map((c) => c.count));
+
+  const shortcuts = [
+    {
+      label: "Attendance",
+      path: "/payroll/attendance",
+      icon: ClipboardList,
+      show: can("payroll-attendance.view"),
+    },
+    { label: "Monthly report", path: "/payroll/monthly-report", icon: FileText, show: canViewRun },
+    {
+      label: "Weekly report",
+      path: "/payroll/weekly-report",
+      icon: CalendarRange,
+      show: canViewRun,
+    },
+    {
+      label: "Salary advance",
+      path: "/payroll/advance",
+      icon: Wallet,
+      show: can("payroll-advance.view"),
+    },
+    { label: "Statutory", path: "/payroll/statutory", icon: Landmark, show: canStatutory },
+    { label: "Leave", path: "/hr/leave", icon: Umbrella, show: can("leave.view") },
+    { label: "Registers", path: "/hr/registers", icon: BookOpen, show: can("registers.view") },
+    { label: "Fines", path: "/hr/fines", icon: Gavel, show: can("fines.view") },
+    {
+      label: "Settings",
+      path: "/payroll/settings",
+      icon: Settings,
+      show: can("payroll-settings.view"),
+    },
+  ].filter((s) => s.show);
 
   // ── Run table columns ──────────────────────────────────────────────────────
   const runColumns = [
     {
-      header: 'Period',
-      render: (r: ApiPayrollRun) => <span className="font-medium text-text-primary">{r.period}</span>,
+      header: "Period",
+      render: (r: ApiPayrollRun) => (
+        <div className="min-w-0">
+          <span className="block font-semibold text-ink">{periodLabel(r.period)}</span>
+          <span className="block text-[12px] text-ink-subtle">{r.runCode}</span>
+        </div>
+      ),
     },
     {
-      header: 'Type',
+      header: "Type",
       render: (r: ApiPayrollRun) => <StatusBadge status={r.type} />,
     },
     {
-      header: 'Employees',
-      align: 'right' as const,
-      render: (r: ApiPayrollRun) => <span className="text-text-secondary">{r.totalEmployees}</span>,
+      header: "Employees",
+      align: "right" as const,
+      render: (r: ApiPayrollRun) => (
+        <span className="tabular-nums text-ink-muted">{r.totalEmployees}</span>
+      ),
     },
     {
-      header: 'Net Salary',
-      align: 'right' as const,
+      header: "Gross",
+      align: "right" as const,
+      render: (r: ApiPayrollRun) => (
+        <span className="tabular-nums text-ink-muted">
+          {Number(r.totalGross || 0) > 0 ? formatINR(r.totalGross, { decimals: 0 }) : "—"}
+        </span>
+      ),
+    },
+    {
+      header: "Net Salary",
+      align: "right" as const,
       render: (r: ApiPayrollRun) => {
         const netSal = Number(r.totalNetSalary || 0);
         return (
-          <span className="font-mono font-semibold text-ink">
-            {netSal > 0 ? fmtRs(netSal) : '—'}
+          <span className="font-semibold tabular-nums text-ink">
+            {netSal > 0 ? formatINR(netSal, { decimals: 0 }) : "—"}
           </span>
         );
       },
     },
     {
-      header: 'Status',
+      header: "Status",
       render: (r: ApiPayrollRun) => <StatusBadge status={r.status} />,
     },
     {
-      header: 'Action',
-      align: 'right' as const,
+      header: "Action",
+      align: "right" as const,
       render: (r: ApiPayrollRun) => (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1.5">
           {canViewRun && (
             <ViewButton
-              onClick={() => navigate(r.type === 'WEEKLY' ? '/payroll/weekly-report' : '/payroll/monthly-report')}
+              onClick={() =>
+                navigate(r.type === "WEEKLY" ? "/payroll/weekly-report" : "/payroll/monthly-report")
+              }
             />
           )}
-
-          {canEditRun && (r.status === 'DRAFT' || r.status === 'APPROVED') && (
-            <EditButton
-              onClick={() => navigate(`/payroll/run?runId=${r.id}`)}
-            />
+          {canEditRun && (r.status === "DRAFT" || r.status === "APPROVED") && (
+            <EditButton onClick={() => navigate(`/payroll/run?runId=${r.id}`)} />
           )}
-
-          {canDeleteRun && r.status === 'DRAFT' && (
-            <DeleteButton
-              onClick={() => setDeleteRunId(r.id)}
-            />
+          {canDeleteRun && r.status === "DRAFT" && (
+            <DeleteButton onClick={() => setDeleteRunId(r.id)} />
           )}
         </div>
       ),
     },
   ];
 
-  if (loading) return <CommonLoader text="Loading payroll data…" />;
-
-  if (error) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-page flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <AlertCircle size={40} className="text-red-400 mx-auto" />
-          <p className="text-sm text-text-secondary">{error}</p>
-          <CustomButton text="Retry" onClick={() => window.location.reload()} variant="primary" size="sm" />
+      <PageShell className="space-y-5">
+        <PageHeader title="Payroll" subtitle="Loading payroll data…" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SkeletonTile lines={4} height={220} className="lg:col-span-2" />
+          <SkeletonTile lines={4} height={220} />
         </div>
-      </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <StatTile key={i} label=" " value="" loading />
+          ))}
+        </div>
+        <div className="sl-tile overflow-hidden">
+          <SkeletonRows rows={5} columns={6} label="Loading payroll runs" />
+        </div>
+      </PageShell>
     );
   }
 
+  const runPayrollCta = canCreateRun ? (
+    <ActionPill
+      size="xl"
+      icon={<PlayCircle size={20} />}
+      onClick={() => navigate("/payroll/run?type=monthly")}
+    >
+      Run Payroll
+    </ActionPill>
+  ) : null;
+
   return (
-    <div className="min-h-screen bg-page p-6 space-y-6">
+    <PageShell className="space-y-6">
+      <PageHeader
+        title="Payroll"
+        subtitle={
+          <>
+            {company?.companyName || "Company"} · salaries, statutory dues and payslips for{" "}
+            {periodLabel(focusPeriod)}
+          </>
+        }
+        icon={<IndianRupee size={20} />}
+        actions={
+          canCreateRun ? (
+            <ActionPill
+              variant="secondary"
+              icon={<CalendarDays size={17} />}
+              onClick={() => navigate("/payroll/run?type=weekly")}
+            >
+              Weekly run
+            </ActionPill>
+          ) : null
+        }
+      />
 
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-ink tracking-tight">Payroll Overview</h1>
-          <p className="text-xs text-ink-muted mt-1 flex items-center gap-1.5">
-            <span>{company?.companyName || 'Company'}</span>
-            <span>•</span>
-            <span>Payroll Dashboard</span>
-            {currentPeriod !== '—' && (
-              <>
-                <span>•</span>
-                <span className="font-bold text-ink bg-card-2 border border-line-soft px-2 py-0.5 rounded-md">{currentPeriod}</span>
-              </>
-            )}
-          </p>
-        </div>
-
-        <div className="flex gap-2.5">
-          {canCreateRun && (
-            <Button
-              text="Generate Weekly"
-              icon={CalendarDays as any}
+      {error && (
+        <Notice
+          tone="danger"
+          title="Payroll data could not be loaded"
+          action={
+            <ActionPill
               variant="secondary"
               size="sm"
-              onClick={() => navigate('/payroll/run?type=weekly')}
-            />
-          )}
-          {canCreateRun && (
-            <Button
-              text="Generate Monthly"
-              icon={PlayCircle as any}
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/payroll/run?type=monthly')}
-            />
-          )}
-        </div>
+              icon={<RotateCcw size={15} />}
+              onClick={() => setReloadKey((k) => k + 1)}
+            >
+              Retry
+            </ActionPill>
+          }
+        >
+          {error}
+        </Notice>
+      )}
+
+      {/* ── Hero: Run Payroll + Statutory dues ── */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Tile padding="lg" className="lg:col-span-3">
+          <div className="flex h-full flex-col gap-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Chip size="lg" icon={<CalendarDays size={15} />}>
+                {periodLabel(focusPeriod)}
+              </Chip>
+              {latestRun ? (
+                <StatusBadge status={latestRun.status} />
+              ) : (
+                <Chip tone="muted">Not started</Chip>
+              )}
+              {pendingRun && <Chip tone="warning">Draft awaiting approval</Chip>}
+            </div>
+
+            <div>
+              <p className="sl-section-label m-0">Net pay this period</p>
+              <p className="m-0 mt-1 text-[40px] font-bold leading-none tracking-tight tabular-nums text-ink sm:text-[48px]">
+                {latestRun && Number(latestRun.totalNetSalary || 0) > 0
+                  ? formatINR(latestRun.totalNetSalary, { decimals: 0 })
+                  : "₹0"}
+              </p>
+              <p className="sl-muted m-0 mt-2 text-sm">
+                {latestRun
+                  ? `${latestRun.totalEmployees} employees · gross ${formatINR(latestRun.totalGross, { decimals: 0 })}`
+                  : `${empWithPayroll.length} of ${totalEmployees} employees are set up for payroll`}
+              </p>
+            </div>
+
+            {/* Pipeline of the latest run */}
+            <ol
+              className="m-0 flex list-none flex-wrap items-center gap-2 p-0"
+              aria-label="Payroll steps"
+            >
+              {timelineSteps.map((step, i) => (
+                <li key={step.label} className="flex items-center gap-2">
+                  <span
+                    className={cx(
+                      chipClass({
+                        tone: step.done ? "success" : step.active ? "default" : "muted",
+                        size: "sm",
+                      })
+                    )}
+                    aria-current={step.active ? "step" : undefined}
+                  >
+                    {step.done ? (
+                      <CheckCircle2 size={13} aria-hidden="true" />
+                    ) : (
+                      <span className="tabular-nums">{i + 1}</span>
+                    )}
+                    {step.label}
+                  </span>
+                  {i < timelineSteps.length - 1 && (
+                    <ArrowRight size={13} aria-hidden="true" className="text-ink-subtle" />
+                  )}
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-auto flex flex-wrap items-center gap-3">
+              {runPayrollCta}
+              {pendingRun && canEditRun && (
+                <ActionPill
+                  variant="secondary"
+                  size="lg"
+                  onClick={() => navigate(`/payroll/run?runId=${pendingRun.id}`)}
+                >
+                  Continue draft
+                </ActionPill>
+              )}
+            </div>
+          </div>
+        </Tile>
+
+        <Tile padding="lg" className="lg:col-span-2">
+          <div className="flex h-full flex-col gap-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="sl-h2 m-0">Statutory dues</h2>
+                <p className="sl-muted m-0 mt-0.5 text-sm">
+                  {duesRun ? periodLabel(duesRun.period) : "After your first run"}
+                </p>
+              </div>
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-chip text-accent"
+                aria-hidden="true"
+              >
+                <Receipt size={20} />
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2" aria-label="Statutory schemes">
+              {STATUTORY_CHIPS.map((c) => (
+                <Chip key={c} size="lg">
+                  {c}
+                </Chip>
+              ))}
+            </div>
+            <dl className="m-0 grid grid-cols-2 gap-3">
+              <div className="rounded-[14px] bg-card-2 px-4 py-3">
+                <dt className="text-[12px] font-medium text-ink-subtle">Provident fund</dt>
+                <dd className="m-0 mt-1 text-lg font-bold tabular-nums text-ink">
+                  {formatINRCompact(pfDue)}
+                </dd>
+              </div>
+              <div className="rounded-[14px] bg-card-2 px-4 py-3">
+                <dt className="text-[12px] font-medium text-ink-subtle">State insurance</dt>
+                <dd className="m-0 mt-1 text-lg font-bold tabular-nums text-ink">
+                  {formatINRCompact(esiDue)}
+                </dd>
+              </div>
+            </dl>
+            {canStatutory && (
+              <ActionPill
+                variant="secondary"
+                className="mt-auto self-start"
+                iconRight={<ArrowRight size={16} />}
+                onClick={() => navigate("/payroll/statutory")}
+              >
+                Generate challans
+              </ActionPill>
+            )}
+          </div>
+        </Tile>
       </div>
 
-      {/* ── Top KPI Summary Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Employees */}
-        <div className="bg-card rounded-2xl border border-line-soft p-5 shadow-xs hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-ink-subtle uppercase tracking-wider">Total Employees</p>
-              <h3 className="text-3xl font-extrabold text-ink mt-2 tracking-tight">{totalEmployees}</h3>
-            </div>
-            <div className="h-12 w-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <Users size={22} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted font-medium">
-            <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
-            <span>{empWithPayroll.length} configured for payroll</span>
-          </div>
-        </div>
-
-        {/* Last Pay Run */}
-        <div className="bg-card rounded-2xl border border-line-soft p-5 shadow-xs hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-ink-subtle uppercase tracking-wider">Last Pay Run</p>
-              <h3 className="text-3xl font-extrabold text-ink mt-2 tracking-tight">
-                {lastRunNet > 0 ? fmtRs(lastRunNet) : '—'}
-              </h3>
-            </div>
-            <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <IndianRupee size={22} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted font-medium">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-            <span>{lockedPeriods ? lockedPeriods : 'No locked run yet'}</span>
-          </div>
-        </div>
-
-        {/* Pending Approval */}
-        <div className="bg-card rounded-2xl border border-line-soft p-5 shadow-xs hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-ink-subtle uppercase tracking-wider">Pending Approval</p>
-              <h3 className="text-3xl font-extrabold text-amber-500 mt-2 tracking-tight">
-                {pendingRun ? 1 : 0}
-              </h3>
-            </div>
-            <div className="h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <AlertCircle size={22} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted font-medium">
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
-            <span>{pendingRun ? `${pendingRun.period} ${pendingRun.type} (Draft)` : 'No pending runs'}</span>
-          </div>
-        </div>
-
-        {/* Total Runs */}
-        <div className="bg-card rounded-2xl border border-line-soft p-5 shadow-xs hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-ink-subtle uppercase tracking-wider">Total Runs</p>
-              <h3 className="text-3xl font-extrabold text-ink mt-2 tracking-tight">{runs.length}</h3>
-            </div>
-            <div className="h-12 w-12 rounded-2xl bg-violet-500/10 text-violet-500 flex items-center justify-center">
-              <CheckCircle2 size={22} />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted font-medium">
-            <span className="inline-block w-2 h-2 rounded-full bg-violet-500" />
-            <span>{runs.filter(r => r.status === 'LOCKED').length} locked · {runs.filter(r => r.status === 'APPROVED').length} approved</span>
-          </div>
-        </div>
+      {/* ── KPI tiles ── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Employees"
+          value={totalEmployees}
+          icon={<Users size={19} />}
+          hint={`${empWithPayroll.length} configured for payroll`}
+        />
+        <StatTile
+          label="Last locked run"
+          value={lastRunNet > 0 ? formatINRCompact(lastRunNet) : "—"}
+          icon={<IndianRupee size={19} />}
+          hint={lockedPeriods ? lockedPeriods : "No locked run yet"}
+        />
+        <StatTile
+          label="Pending approval"
+          value={pendingRun ? 1 : 0}
+          icon={<Hourglass size={19} />}
+          delta={pendingRun ? "Draft" : undefined}
+          deltaTone="warning"
+          hint={pendingRun ? `${pendingRun.period} ${pendingRun.type}` : "No pending runs"}
+        />
+        <StatTile
+          label="Runs"
+          value={runs.length}
+          icon={<CheckCircle2 size={19} />}
+          hint={`${lockedRuns.length} locked · ${approvedRuns.length} approved`}
+        />
       </div>
 
-      {/* ── Category Breakdown Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: 'Fixed Monthly (Admin)',  count: categoryCounts.FIXED_MONTHLY, color: 'bg-blue-500',    light: 'bg-blue-500/10 border-blue-500/30',    text: 'text-blue-500'    },
-          { label: 'PF Workers (Monthly)',   count: categoryCounts.PF_MONTHLY,    color: 'bg-violet-500',  light: 'bg-violet-500/10 border-violet-500/30',text: 'text-violet-500'  },
-          { label: 'Cash Workers (Monthly)', count: categoryCounts.CASH_MONTHLY,  color: 'bg-emerald-500', light: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-500' },
-          { label: 'Daily Wage (Weekly)',    count: categoryCounts.DAILY_WEEKLY,  color: 'bg-amber-500',   light: 'bg-amber-500/10 border-amber-500/30',  text: 'text-amber-500'   },
-        ].map(cat => (
-          <div key={cat.label} className={`rounded-2xl border p-4 shadow-xs hover:shadow-md transition-all ${cat.light}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${cat.color}`} />
-              <span className="text-xs font-bold text-ink">{cat.label}</span>
-            </div>
-            <p className={`text-2xl font-extrabold ${cat.text}`}>
-              {cat.count} <span className="text-xs font-semibold text-ink-muted opacity-80">employees</span>
-            </p>
-          </div>
-        ))}
-      </div>
+      {/* ── Workforce mix + shortcuts ── */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Tile
+          title="Workforce by pay type"
+          subtitle="How salaries are worked out"
+          className="lg:col-span-3"
+        >
+          <ul className="m-0 list-none space-y-3.5 p-0">
+            {categories.map((cat) => (
+              <li
+                key={cat.label}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5"
+              >
+                <span className="text-sm font-medium text-ink">{cat.label}</span>
+                <span className="text-sm font-semibold tabular-nums text-ink">
+                  {cat.count} <span className="font-normal text-ink-subtle">employees</span>
+                </span>
+                <span
+                  className="col-span-2 h-2 overflow-hidden rounded-full bg-card-2"
+                  aria-hidden="true"
+                >
+                  <span
+                    className="block h-full rounded-full"
+                    style={{
+                      width: `${Math.max(cat.count ? 4 : 0, (cat.count / categoryMax) * 100)}%`,
+                      background: `var(--chart-series-${cat.series})`,
+                    }}
+                  />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Tile>
 
-      {/* ── Module Navigation Tabs ── */}
-      <div className="bg-card-2 border border-line-soft p-1.5 rounded-2xl inline-flex flex-wrap items-center gap-1.5 w-full">
-        {[
-          // { label: 'Overview',         path: '/payroll/dashboard',        icon: BarChart3,     active: true,  show: true },
-          { label: 'Attendance',       path: '/payroll/attendance',       icon: ClipboardList, active: false, show: can("payroll-attendance.view") },
-          // { label: 'Generate Weekly',  path: '/payroll/run?type=weekly',  icon: CalendarDays,  active: false, show: canCreateRun },
-          // { label: 'Generate Monthly', path: '/payroll/run?type=monthly', icon: PlayCircle,    active: false, show: canCreateRun },
-          { label: 'Weekly Report',    path: '/payroll/weekly-report',    icon: FileText,      active: false, show: canViewRun },
-          { label: 'Monthly Report',   path: '/payroll/monthly-report',   icon: FileText,      active: false, show: canViewRun },
-          { label: 'Salary Advance',   path: '/payroll/advance',          icon: Wallet,        active: false, show: can("payroll-advance.view") },
-          { label: 'Settings',         path: '/payroll/settings',         icon: Settings,      active: false, show: can("payroll-settings.view") },
-        ].filter(t => t.show).map(tab => (
-          <button
-            key={tab.label}
-            onClick={() => navigate(tab.path)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
-              tab.active
-                ? 'bg-card text-ink shadow-xs border border-line-soft'
-                : 'text-ink-muted hover:text-ink hover:bg-card/50'
-            }`}
-          >
-            <tab.icon size={15} className={tab.active ? 'text-primary' : 'text-ink-subtle'} />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── Recent Payroll Runs Table (Full Width 100%) ── */}
-      <div className="bg-card rounded-2xl border border-line-soft shadow-xs overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-line-soft gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-bold text-ink">Recent Payroll Runs</h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-card-2 text-ink-muted border border-line-soft">
-              {runs.length}
-            </span>
-            {runsLoading && <Loader2 size={16} className="animate-spin text-primary ml-2" />}
-          </div>
-
-          {/* Month Filter controls */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-card-2 border border-line-soft rounded-xl px-3 py-1.5">
-              <Calendar size={14} className="text-ink-subtle" />
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-xs font-bold text-ink outline-none cursor-pointer"
-              />
-            </div>
-
-            {selectedMonth !== getCurrentMonth() && (
+        <div className="lg:col-span-2">
+          <SectionLabel>Go to</SectionLabel>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+            {shortcuts.map((s) => (
               <button
+                key={s.label}
                 type="button"
+                onClick={() => navigate(s.path)}
+                className="sl-tile sl-tile-hover flex min-h-[76px] flex-col items-start justify-between gap-2 p-3.5 text-left text-sm font-semibold text-ink"
+              >
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-chip text-accent"
+                  aria-hidden="true"
+                >
+                  <s.icon size={16} />
+                </span>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Payroll runs ── */}
+      <section aria-labelledby="payroll-runs-heading" className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <h2 id="payroll-runs-heading" className="sl-h2 m-0">
+              Payroll runs
+            </h2>
+            <Chip size="sm" tone="muted">
+              {runs.length}
+            </Chip>
+            {runsLoading && <span className="sl-spinner" aria-label="Loading" />}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="payroll-month">
+              Month
+            </label>
+            <input
+              id="payroll-month"
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="sl-input h-10 w-auto text-sm"
+            />
+            {selectedMonth !== getCurrentMonth() && (
+              <Chip
+                icon={<RotateCcw size={13} />}
                 onClick={() => setSelectedMonth(getCurrentMonth())}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 title="Reset to current month"
               >
-                <RotateCcw size={12} />
-                <span>Current Month</span>
-              </button>
+                Current month
+              </Chip>
             )}
-
-            {selectedMonth !== '' && (
-              <button
-                type="button"
-                onClick={() => setSelectedMonth('')}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 transition-colors"
-                title="Show all payroll runs"
-              >
-                All Months
-              </button>
-            )}
+            <Chip
+              selected={selectedMonth === ""}
+              onClick={() => setSelectedMonth("")}
+              title="Show all payroll runs"
+            >
+              All months
+            </Chip>
           </div>
         </div>
 
         {runs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 text-slate-400">
-            <Clock size={36} className="mb-2 opacity-30" />
-            <p className="text-sm font-medium">No payroll runs yet.</p>
-            {canCreateRun && (
-              <button
-                onClick={() => navigate('/payroll/run')}
-                className="mt-3 text-xs text-primary font-bold hover:underline"
-              >
-                Start your first run →
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="w-full overflow-x-auto">
-            <DataTable
-              columns={runColumns}
-              data={runs.slice(0, 10)}
-              rowKey={r => r.id}
-              density="compact"
+          <div className="sl-tile">
+            <EmptyState
+              icon={<Receipt size={28} strokeWidth={1.75} />}
+              title={
+                selectedMonth
+                  ? `No payroll runs for ${periodLabel(selectedMonth)}`
+                  : "No payroll runs yet"
+              }
+              description="A run works out attendance, earnings and deductions for everyone in one go."
+              action={
+                canCreateRun ? (
+                  <ActionPill
+                    variant="secondary"
+                    onClick={() => navigate("/payroll/run")}
+                    iconRight={<ArrowRight size={16} />}
+                  >
+                    Start your first run
+                  </ActionPill>
+                ) : null
+              }
             />
           </div>
+        ) : (
+          <DataTable
+            columns={runColumns}
+            data={runs.slice(0, 10)}
+            rowKey={(r) => r.id}
+            ariaLabel="Payroll runs"
+          />
         )}
-      </div>
+      </section>
 
-      {/* Delete Confirmation Modal */}
       <CommonConfirmModal
         isOpen={deleteRunId !== null}
         onClose={() => setDeleteRunId(null)}
@@ -432,8 +654,7 @@ const PayrollDashboard: React.FC = () => {
         confirmVariant="danger"
         isLoading={isDeleting}
       />
-
-    </div>
+    </PageShell>
   );
 };
 

@@ -19,7 +19,7 @@ import {
   secondary,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/reportUi";
 
 /**
  * MSME dues and section 43B(h) (P1-07).
@@ -79,11 +79,11 @@ const MsmePage: React.FC = () => {
   const soon = bills.filter((b) => !b.overdue && b.daysLeft <= 15);
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full space-y-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">MSME Dues</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1 m-0 leading-tight">MSME Dues</h1>
+          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
             Micro and small suppliers have to be paid within 15 days, or 45 where there is a written
             agreement. Past that, section 43B(h) moves the deduction to the year the money actually
             leaves.
@@ -119,7 +119,7 @@ const MsmePage: React.FC = () => {
         )}
       </header>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
+      <nav className="flex flex-wrap gap-2" role="tablist">
         {(
           [
             ["clock", "The clock"],
@@ -132,23 +132,25 @@ const MsmePage: React.FC = () => {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="sl-chip sl-chip-lg"
           >
             {label}
           </button>
         ))}
       </nav>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+          <div className="sl-skeleton h-3 w-1/2" />
+        </div>
+      )}
 
       {tab === "clock" && (
         <>
           {overdue.length > 0 && (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+            <div className="rounded-lg border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-3 text-sm text-[color:var(--color-danger)]">
               <strong>
                 {overdue.length} bill{overdue.length === 1 ? "" : "s"} past the section 15 date,
                 worth {money(overdue.reduce((s, b) => s + b.outstanding, 0))}.
@@ -157,7 +159,7 @@ const MsmePage: React.FC = () => {
             </div>
           )}
           {soon.length > 0 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-3 text-sm text-[color:var(--color-warning)]">
               {soon.length} more fall due within a fortnight.
             </div>
           )}
@@ -188,10 +190,8 @@ const MsmePage: React.FC = () => {
                       <td className={td}>{b.invoiceNo}</td>
                       <td className={td}>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                            b.source === "EXPENSE"
-                              ? "bg-sky-100 text-sky-800"
-                              : "bg-slate-100 text-slate-700"
+                          className={`sl-chip sl-chip-sm ${
+                            b.source === "EXPENSE" ? "" : "sl-chip-muted"
                           }`}
                         >
                           {b.source === "EXPENSE" ? "Expense" : "GRN"}
@@ -205,7 +205,7 @@ const MsmePage: React.FC = () => {
                       <td className={`${td} text-right font-semibold`}>{money(b.outstanding)}</td>
                       <td className={td}>
                         {b.overdue ? (
-                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-800">
+                          <span className="rounded-full bg-[color:var(--color-danger)]/10 px-2 py-0.5 text-xs font-semibold text-[color:var(--color-danger)]">
                             {-b.daysLeft} days late
                           </span>
                         ) : (
@@ -232,7 +232,7 @@ const MsmePage: React.FC = () => {
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <Card title={`Disallowed as at ${report.fyEnd}`}>
-              <p className="text-2xl font-semibold text-rose-700">
+              <p className="text-2xl font-semibold text-[color:var(--color-danger)]">
                 {money(report.disallowed.total)}
               </p>
               <p className="mt-1 text-xs text-ink-muted">
@@ -241,7 +241,7 @@ const MsmePage: React.FC = () => {
               </p>
             </Card>
             <Card title="Coming back this year">
-              <p className="text-2xl font-semibold text-emerald-700">
+              <p className="text-2xl font-semibold text-[color:var(--color-success)]">
                 {money(report.allowedOnPayment.total)}
               </p>
               <p className="mt-1 text-xs text-ink-muted">

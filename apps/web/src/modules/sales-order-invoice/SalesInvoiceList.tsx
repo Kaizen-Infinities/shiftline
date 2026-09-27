@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { usePageShortcuts } from "../../hooks/usePageShortcuts";
-import { FaPlus, FaTrash, FaEye, FaWhatsapp } from "react-icons/fa";
+import { FaWhatsapp } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -9,17 +9,17 @@ import CommonConfirmModal from "../../components/ui/CommonConfirmModal/CommonCon
 import CancelReasonModal from "../../components/ui/CancelReasonModal/CancelReasonModal";
 import HistoryLink from "../../components/ui/HistoryLink/HistoryLink";
 import { salesInvoiceService } from "../../services/salesInvoiceService";
-import CustomButton from "../../components/ui/Button/Button";
 import ViewButton from "../../components/ui/viewbutton/ViewButton";
 import DeleteButton from "../../components/ui/DeleteButton/DeleteButton";
 import StatusBadge from "../../components/ui/StatusBadge/Badge";
 import EditButton from "../../components/ui/EditButton/EditButton";
 import DataTable, { type DataTableColumn } from "../../components/ui/table/DataTable";
-import SearchInput from "../../components/ui/SearchInput/SearchInput";
 import ExportCSVButton from "../../components/ui/ExportCSVButton/ExportCSVButton";
 import EmailButton from "../../components/ui/EmailButton/EmailButton";
 import WhatsappButton from "../../components/ui/WhatsappButton/WhatsappButton";
-import { Mail } from "lucide-react";
+import { Mail, Plus } from "lucide-react";
+import { ActionPill, PageHeader, Toolbar } from "../../components/ui/v2";
+import { PAGE_CLASS, formatDateIN, formatINR } from "../sales/shared/tradeUi";
 import { useAppSelector } from "../../hooks/reduxHooks";
 import { useListCache, markStaleByPrefix } from "../../hooks/useListCache";
 import { usePermission } from "../../hooks/usePermission";
@@ -109,11 +109,6 @@ const SalesInvoiceList: React.FC = () => {
     fetcher,
     enabled: can("sales-invoices.view"),
   });
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
 
   const handleDeleteConfirm = async (reason: string) => {
     if (itemToDelete === null) return;
@@ -277,60 +272,69 @@ const SalesInvoiceList: React.FC = () => {
   const columns: DataTableColumn<any>[] = [
     {
       header: "#",
-      width: "60px",
-      render: (_item, index) => (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
-    },
-    {
-      header: "INVOICE NO",
-      render: (item) => <span className="font-semibold text-ink">{item.invoiceNo}</span>,
-    },
-    {
-      header: "INVOICE DATE",
-      render: (item) => <span className="text-ink-muted">{formatDate(item.invoiceDate)}</span>,
-    },
-    // {
-    //     header: "DUE DATE",
-    //     render: (item) => <span className="text-ink-muted">{formatDate(item.dueDate)}</span>,
-    // },
-    {
-      header: "CUSTOMER",
-      render: (item) => (
-        <span className="font-medium text-ink-muted">
-          {item.customer?.displayName || item.customer?.firmName || "N/A"}
+      width: "56px",
+      render: (_item, index) => (
+        <span className="tabular-nums text-ink-subtle">
+          {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
         </span>
       ),
     },
     {
-      header: "SUB TOTAL",
+      header: "Invoice no",
       render: (item) => (
-        <span className="font-semibold text-ink-muted">{formatCurrency(item.subTotal)}</span>
+        <button
+          type="button"
+          onClick={() => handleOpenView(item)}
+          className="font-semibold text-accent hover:underline underline-offset-4"
+        >
+          {item.invoiceNo}
+        </button>
       ),
     },
     {
-      header: "TAX AMOUNT",
+      header: "Date",
       render: (item) => (
-        <span className="font-medium text-ink-subtle">{formatCurrency(item.taxTotal)}</span>
+        <span className="tabular-nums text-ink-muted">{formatDateIN(item.invoiceDate)}</span>
       ),
     },
     {
-      header: "NET AMOUNT",
+      header: "Customer",
       render: (item) => (
-        <span className="font-bold text-emerald-600">{formatCurrency(item.grandTotal)}</span>
+        <div className="min-w-0 leading-tight">
+          <div className="font-medium text-ink">
+            {item.customer?.displayName || item.customer?.firmName || "N/A"}
+          </div>
+          {item.customer?.gstin && (
+            <div className="mt-0.5 text-[12px] tabular-nums text-ink-subtle">
+              {item.customer.gstin}
+            </div>
+          )}
+        </div>
       ),
     },
-    // {
-    //     header: "PENDING PAYMENT",
-    //     render: (item) => {
-    //         const pending = calculateSalesPendingAmount(item);
-    //         return (
-    //             <span className={`font-semibold ${pending > 0 ? "text-amber-600" : "text-ink-subtle"}`}>
-    //                 {formatCurrency(pending)}
-    //             </span>
-    //         );
-    //     },
-    // },
     {
-      header: "STATUS",
+      header: "Taxable",
+      align: "right",
+      render: (item) => (
+        <span className="tabular-nums text-ink-muted">{formatINR(item.subTotal)}</span>
+      ),
+    },
+    {
+      header: "Tax",
+      align: "right",
+      render: (item) => (
+        <span className="tabular-nums text-ink-subtle">{formatINR(item.taxTotal)}</span>
+      ),
+    },
+    {
+      header: "Net amount",
+      align: "right",
+      render: (item) => (
+        <span className="font-semibold tabular-nums text-ink">{formatINR(item.grandTotal)}</span>
+      ),
+    },
+    {
+      header: "Status",
       render: (item) => (
         <StatusBadge
           status={
@@ -340,10 +344,9 @@ const SalesInvoiceList: React.FC = () => {
       ),
     },
     {
-      header: "ACTIONS",
-      width: "250px", // was 160px — too tight for 5 icons + gaps
+      header: "Actions",
       render: (item) => (
-        <div className="flex justify-start items-center gap-1.5 whitespace-nowrap">
+        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
           {canSendWhatsappEmail && <EmailButton onClick={() => handleOpenEmailModal(item)} />}
           {canSendWhatsappEmail && <WhatsappButton onClick={() => handleOpenWhatsappModal(item)} />}
           <ViewButton onClick={() => handleOpenView(item)} />
@@ -361,57 +364,65 @@ const SalesInvoiceList: React.FC = () => {
           <HistoryLink entity="sales_invoices" entityId={item.id} />
         </div>
       ),
-      align: "left",
+      align: "right",
     },
   ];
 
+  const canCreate = can("sales-invoices.create");
+  const createButton = canCreate ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/sales-invoices/create")}>
+      New Invoice
+    </ActionPill>
+  ) : null;
+
   return (
-    <div>
-      <div className="max-w-[1700px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Sales Invoice List</h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 relative w-full lg:w-auto">
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search invoices..."
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Sales Invoice List"
+        subtitle={
+          loading && !total
+            ? "Tax invoices raised to customers"
+            : `${total.toLocaleString("en-IN")} invoice${total === 1 ? "" : "s"} · cancel reverses the ledger entries`
+        }
+        primaryAction={createButton}
+        actions={
+          can("sales-invoices.export") ? (
+            <ExportCSVButton
+              fetchData={fetchSalesInvoicesForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
             />
-            {can("sales-invoices.export") && (
-              <ExportCSVButton
-                fetchData={fetchSalesInvoicesForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-            {can("sales-invoices.create") && (
-              <CustomButton
-                text="Create Invoice"
-                icon={FaPlus}
-                onClick={() => navigate("/sales-invoices/create")}
-              />
-            )}
-          </div>
-        </div>
+          ) : null
+        }
+      />
 
-        {/* Table */}
-        <DataTable
-          columns={columns}
-          data={data}
-          rowKey={(item) => item.id}
-          loading={loading}
-          emptyMessage="No invoices found."
-          pagination={{
-            currentPage,
-            totalPages,
-            onPageChange: setCurrentPage,
-          }}
-        />
-      </div>
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search number or customer"
+        searchLabel="Search invoices"
+      />
+
+      <DataTable
+        columns={columns}
+        data={data}
+        rowKey={(item) => item.id}
+        loading={loading}
+        ariaLabel="Sales invoices"
+        emptyMessage={
+          debouncedSearch ? `No invoices match "${debouncedSearch}".` : "No invoices yet."
+        }
+        emptyAction={debouncedSearch ? undefined : createButton}
+        pagination={{
+          currentPage,
+          totalPages,
+          onPageChange: setCurrentPage,
+        }}
+      />
 
       {/* View Modal */}
       <CommonViewModal
@@ -548,7 +559,7 @@ const SalesInvoiceList: React.FC = () => {
                 if (phones.length > 1) {
                   return (
                     <select
-                      className="w-full px-3 py-2 border border-line rounded-lg text-sm bg-card"
+                      className="sl-input h-11 w-full text-sm"
                       value={recipientPhone}
                       onChange={(e) => setRecipientPhone(e.target.value)}
                     >
@@ -563,7 +574,7 @@ const SalesInvoiceList: React.FC = () => {
                 return (
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-line rounded-lg text-sm"
+                    className="sl-input h-11 w-full text-sm"
                     value={recipientPhone}
                     onChange={(e) => setRecipientPhone(e.target.value)}
                   />

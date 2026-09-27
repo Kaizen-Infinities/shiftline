@@ -1,19 +1,31 @@
 // src/pages/sales/QuotationForm/QuotationForm.tsx
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ListOrdered,
+  Receipt,
+  UserRound,
+} from "lucide-react";
+import { ActionPill, Chip, PageHeader, Tile } from "../../../components/ui/v2";
+import { FormFooter, KeyHint, formatINR } from "../shared/tradeUi";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import BusyItemsTable, { DEFAULT_SUNDRY_OPTIONS } from "../../../components/form/OrderItemsTable/BusyItemsTable";
-import type { BusyColumn, SundryRow } from "../../../components/form/OrderItemsTable/BusyItemsTable";
+import BusyItemsTable, {
+  DEFAULT_SUNDRY_OPTIONS,
+} from "../../../components/form/OrderItemsTable/BusyItemsTable";
+import type {
+  BusyColumn,
+  SundryRow,
+} from "../../../components/form/OrderItemsTable/BusyItemsTable";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import { useCustomers } from "../../../hooks/useCustomers";
 import { useProducts } from "../../../hooks/useProducts";
@@ -22,64 +34,63 @@ import { useEmployees } from "../../../hooks/useEmployees";
 import { salesOrderService, type SalesOrder } from "../../../services/salesOrderService";
 import { customerService } from "../../../services/customerService";
 import {
-    ORDER_SOURCE_NEEDS_EMPLOYEE,
-    ORDER_SOURCE_NEEDS_REFERRAL,
-    ORDER_SOURCE_NEEDS_DEALER,
+  ORDER_SOURCE_NEEDS_EMPLOYEE,
+  ORDER_SOURCE_NEEDS_REFERRAL,
+  ORDER_SOURCE_NEEDS_DEALER,
 } from "../../../constants/selectOption";
 import { useAppSelector } from "../../../hooks/reduxHooks";
 import { usePermission } from "../../../hooks/usePermission";
 import AutocompleteInput from "../../../components/form/AutocompleteInput/AutocompleteInput";
 import type { AutocompleteOption } from "../../../components/form/AutocompleteInput/AutocompleteInput";
 
-
 // ─── Zod Schema ─────────────────────────────────────────────────────────────
 
 const componentSchema = z.object({
-    componentProductId: z.string(),
-    productName: z.string(),
-    perUnit: z.number(),
-    included: z.boolean(),
-    quantity: z.string(),
+  componentProductId: z.string(),
+  productName: z.string(),
+  perUnit: z.number(),
+  included: z.boolean(),
+  quantity: z.string(),
 });
 
 type ComponentItem = z.infer<typeof componentSchema>;
 
 const orderItemSchema = z.object({
-    salesProductId: z.string().min(1, "Sales product is required"),
-    orderQuantity: z.string().min(1, "Required"),
-    unitPrice: z.string().optional(),
-    gstRate: z.string().optional(),
-    components: z.array(componentSchema),
+  salesProductId: z.string().min(1, "Sales product is required"),
+  orderQuantity: z.string().min(1, "Required"),
+  unitPrice: z.string().optional(),
+  gstRate: z.string().optional(),
+  components: z.array(componentSchema),
 });
 
 const quotationSchema = z.object({
-    id: z.number().optional(),
-    quotationNo: z.string().min(1, "Quotation No is required"),
-    quotationDate: z.string().min(1, "Quotation Date is required"),
-    validUntil: z.string().optional(),
-    customerId: z.string().min(1, "Customer is required"),
-    mobile: z.string().optional().nullable(),
-    orderSource: z.string().optional().nullable(),
-    sourceEmployeeId: z.string().optional().nullable(),
-    referredByCustomerId: z.string().optional().nullable(),
-    referredByName: z.string().optional().nullable(),
-    paymentTermId: z.string().optional(),
-    billingAddressLine1: z.string().optional(),
-    billingCity: z.string().optional(),
-    billingState: z.string().optional(),
-    billingPincode: z.string().optional(),
-    sameAsBilling: z.boolean(),
-    shippingAddressLine1: z.string().optional(),
-    shippingCity: z.string().optional(),
-    shippingState: z.string().optional(),
-    shippingPincode: z.string().optional(),
-    items: z.array(orderItemSchema).min(1, "At least one sales product is required"),
-    isInterState: z.boolean(),
-    remarks: z.string().optional(),
-    internalNotes: z.string().optional(),
-    // ── Order-level discount (the ONLY discount input in this form) ──
-    orderDiscountType: z.enum(['PERCENT', 'FLAT']),
-    orderDiscountValue: z.string(),
+  id: z.number().optional(),
+  quotationNo: z.string().min(1, "Quotation No is required"),
+  quotationDate: z.string().min(1, "Quotation Date is required"),
+  validUntil: z.string().optional(),
+  customerId: z.string().min(1, "Customer is required"),
+  mobile: z.string().optional().nullable(),
+  orderSource: z.string().optional().nullable(),
+  sourceEmployeeId: z.string().optional().nullable(),
+  referredByCustomerId: z.string().optional().nullable(),
+  referredByName: z.string().optional().nullable(),
+  paymentTermId: z.string().optional(),
+  billingAddressLine1: z.string().optional(),
+  billingCity: z.string().optional(),
+  billingState: z.string().optional(),
+  billingPincode: z.string().optional(),
+  sameAsBilling: z.boolean(),
+  shippingAddressLine1: z.string().optional(),
+  shippingCity: z.string().optional(),
+  shippingState: z.string().optional(),
+  shippingPincode: z.string().optional(),
+  items: z.array(orderItemSchema).min(1, "At least one sales product is required"),
+  isInterState: z.boolean(),
+  remarks: z.string().optional(),
+  internalNotes: z.string().optional(),
+  // ── Order-level discount (the ONLY discount input in this form) ──
+  orderDiscountType: z.enum(["PERCENT", "FLAT"]),
+  orderDiscountValue: z.string(),
 });
 
 type QuotationFormValues = z.infer<typeof quotationSchema>;
@@ -88,1360 +99,1562 @@ type QuotationFormValues = z.infer<typeof quotationSchema>;
 const today = new Date().toISOString().split("T")[0];
 
 const defaultValues: QuotationFormValues = {
-    id: undefined,
-    quotationNo: "",
-    quotationDate: today,
-    validUntil: undefined,
-    customerId: "",
-    mobile: "",
-    orderSource: "",
-    sourceEmployeeId: null,
-    referredByCustomerId: null,
-    referredByName: null,
-    paymentTermId: "",
-    billingAddressLine1: "",
-    billingCity: "",
-    billingState: "",
-    billingPincode: "",
-    sameAsBilling: false,
-    isInterState: false,
-    shippingAddressLine1: "",
-    shippingCity: "",
-    shippingState: "",
-    shippingPincode: "",
-    items: [{ salesProductId: "", orderQuantity: "1", unitPrice: "", gstRate: "", components: [] }],
-    remarks: "",
-    internalNotes: "",
-    orderDiscountType: "PERCENT",
-    orderDiscountValue: "",
+  id: undefined,
+  quotationNo: "",
+  quotationDate: today,
+  validUntil: undefined,
+  customerId: "",
+  mobile: "",
+  orderSource: "",
+  sourceEmployeeId: null,
+  referredByCustomerId: null,
+  referredByName: null,
+  paymentTermId: "",
+  billingAddressLine1: "",
+  billingCity: "",
+  billingState: "",
+  billingPincode: "",
+  sameAsBilling: false,
+  isInterState: false,
+  shippingAddressLine1: "",
+  shippingCity: "",
+  shippingState: "",
+  shippingPincode: "",
+  items: [{ salesProductId: "", orderQuantity: "1", unitPrice: "", gstRate: "", components: [] }],
+  remarks: "",
+  internalNotes: "",
+  orderDiscountType: "PERCENT",
+  orderDiscountValue: "",
 };
 
 // ─── Build components from a SalesProduct ──
 function buildComponents(sp: any, orderQty: number): ComponentItem[] {
-    const comps = (sp?.components || []).filter(
-        (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
-    );
-    if (comps.length === 0) return [];
-    return comps.map((c: any) => ({
-        componentProductId: String(c.componentProductId),
-        productName: c.componentProduct?.productName || c.componentProduct?.productCode || String(c.componentProductId),
-        perUnit: Number(c.quantity || 1),
-        included: true,
-        quantity: String(Number(c.quantity || 1) * orderQty),
-    }));
+  const comps = (sp?.components || []).filter(
+    (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+  );
+  if (comps.length === 0) return [];
+  return comps.map((c: any) => ({
+    componentProductId: String(c.componentProductId),
+    productName:
+      c.componentProduct?.productName ||
+      c.componentProduct?.productCode ||
+      String(c.componentProductId),
+    perUnit: Number(c.quantity || 1),
+    included: true,
+    quantity: String(Number(c.quantity || 1) * orderQty),
+  }));
 }
 
 // ─── Compute unit price for a sales product from its component prices ──
 function computeSalesProductUnitPrice(sp: any, products: any[]): number {
-    const comps = (sp?.components || []).filter(
-        (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
-    );
-    if (comps.length === 0) return 0;
-    return comps.reduce((sum: number, c: any) => {
-        const prod = products.find((p: any) => String(p.id) === String(c.componentProductId));
-        const rate = prod ? (Number(prod.rate) || Number(prod.b2b) || Number(prod.mrp) || 0) : 0;
-        return sum + rate * Number(c.quantity || 1);
-    }, 0);
+  const comps = (sp?.components || []).filter(
+    (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+  );
+  if (comps.length === 0) return 0;
+  return comps.reduce((sum: number, c: any) => {
+    const prod = products.find((p: any) => String(p.id) === String(c.componentProductId));
+    const rate = prod ? Number(prod.rate) || Number(prod.b2b) || Number(prod.mrp) || 0 : 0;
+    return sum + rate * Number(c.quantity || 1);
+  }, 0);
 }
 
 /** Compute live available stock for a SalesProduct based on its component products */
 function computeSalesProductLiveStock(sp: any): number {
-    if (!sp) return 0;
-    const comps = (sp.components || []).filter((c: any) => c?.componentProduct);
-    if (comps.length === 0) {
-        return (sp.stocks || []).reduce((sum: number, s: any) => sum + Number(s.onHandQty || 0), 0);
-    }
-    const possibleQuantities = comps.map((c: any) => {
-        const prodStocks = c.componentProduct?.finishedGoodsStocks || [];
-        const totalCompStock = prodStocks.reduce((sum: number, s: any) => sum + Number(s.onHandQty || 0), 0);
-        const perUnit = Number(c.quantity || 1);
-        return perUnit > 0 ? Math.floor(totalCompStock / perUnit) : 0;
-    });
-    return Math.max(0, Math.min(...possibleQuantities));
+  if (!sp) return 0;
+  const comps = (sp.components || []).filter((c: any) => c?.componentProduct);
+  if (comps.length === 0) {
+    return (sp.stocks || []).reduce((sum: number, s: any) => sum + Number(s.onHandQty || 0), 0);
+  }
+  const possibleQuantities = comps.map((c: any) => {
+    const prodStocks = c.componentProduct?.finishedGoodsStocks || [];
+    const totalCompStock = prodStocks.reduce(
+      (sum: number, s: any) => sum + Number(s.onHandQty || 0),
+      0
+    );
+    const perUnit = Number(c.quantity || 1);
+    return perUnit > 0 ? Math.floor(totalCompStock / perUnit) : 0;
+  });
+  return Math.max(0, Math.min(...possibleQuantities));
 }
 
 /** Get total on-hand stock for a component product across all stores */
 function getComponentProductStock(componentProduct: any): number {
-    const prodStocks = componentProduct?.finishedGoodsStocks || [];
-    return prodStocks.reduce((sum: number, s: any) => sum + Number(s.onHandQty || 0), 0);
+  const prodStocks = componentProduct?.finishedGoodsStocks || [];
+  return prodStocks.reduce((sum: number, s: any) => sum + Number(s.onHandQty || 0), 0);
 }
 
 // ─── Reconstruct quotation form items from saved order items ──
 function reconstructQuotationItems(orderItems: any[], salesProds: any[], prods: any[]) {
-    if (!Array.isArray(orderItems) || orderItems.length === 0) {
-        return [{ salesProductId: "", orderQuantity: "1", unitPrice: "", gstRate: "", components: [] }];
+  if (!Array.isArray(orderItems) || orderItems.length === 0) {
+    return [{ salesProductId: "", orderQuantity: "1", unitPrice: "", gstRate: "", components: [] }];
+  }
+
+  const result: Array<{
+    salesProductId: string;
+    orderQuantity: string;
+    unitPrice: string;
+    gstRate: string;
+    components: ComponentItem[];
+  }> = [];
+  const processedIds = new Set<any>();
+
+  // Group by salesProductId
+  const grouped = new Map<string, any[]>();
+  orderItems.forEach((oi) => {
+    const spId = oi.salesProductId ? String(oi.salesProductId) : null;
+    if (spId) {
+      if (!grouped.has(spId)) grouped.set(spId, []);
+      grouped.get(spId)!.push(oi);
     }
+  });
 
-    const result: Array<{ salesProductId: string; orderQuantity: string; unitPrice: string; gstRate: string; components: ComponentItem[] }> = [];
-    const processedIds = new Set<any>();
+  grouped.forEach((items, spIdStr) => {
+    const sp = salesProds.find((s) => String(s.id) === spIdStr);
+    if (!sp) return;
+    items.forEach((oi) => processedIds.add(oi.id || oi.productId));
 
-    // Group by salesProductId
-    const grouped = new Map<string, any[]>();
-    orderItems.forEach(oi => {
-        const spId = oi.salesProductId ? String(oi.salesProductId) : null;
-        if (spId) {
-            if (!grouped.has(spId)) grouped.set(spId, []);
-            grouped.get(spId)!.push(oi);
-        }
+    const spComps = (sp?.components || []).filter(
+      (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+    );
+    const firstMatch = items[0];
+    const matchingComp = spComps.find(
+      (c: any) => String(c.componentProductId) === String(firstMatch.productId)
+    );
+    const perUnit = Number(matchingComp?.quantity || 1);
+    const calcOrderQty = Math.max(1, Math.round(Number(firstMatch.quantity || 1) / perUnit));
+
+    // Get GST rate from first item
+    const cgst = Number(firstMatch.cgstRate ?? 0);
+    const sgst = Number(firstMatch.sgstRate ?? 0);
+    const igst = Number(firstMatch.igstRate ?? 0);
+    const gstRate = igst > 0 ? igst : cgst + sgst;
+
+    // Calculate total unit price from component prices
+    const totalPrice = items.reduce((sum: number, oi: any) => {
+      return sum + Number(oi.quotationUnitPrice ?? oi.unitPrice ?? 0) * Number(oi.quantity || 0);
+    }, 0);
+    const unitPricePerOrder = calcOrderQty > 0 ? totalPrice / calcOrderQty : 0;
+
+    const components: ComponentItem[] = spComps.map((c: any) => {
+      const oi = items.find((item) => String(item.productId) === String(c.componentProductId));
+      return {
+        componentProductId: String(c.componentProductId),
+        productName:
+          c.componentProduct?.productName ||
+          c.componentProduct?.productCode ||
+          String(c.componentProductId),
+        perUnit: Number(c.quantity || 1),
+        included: Boolean(oi),
+        quantity: oi ? String(oi.quantity) : String(Number(c.quantity || 1) * calcOrderQty),
+      };
     });
 
-    grouped.forEach((items, spIdStr) => {
-        const sp = salesProds.find(s => String(s.id) === spIdStr);
-        if (!sp) return;
-        items.forEach(oi => processedIds.add(oi.id || oi.productId));
+    result.push({
+      salesProductId: spIdStr,
+      orderQuantity: String(calcOrderQty),
+      unitPrice: unitPricePerOrder > 0 ? String(Math.round(unitPricePerOrder * 100) / 100) : "",
+      gstRate: gstRate > 0 ? String(gstRate) : "",
+      components,
+    });
+  });
 
-        const spComps = (sp?.components || []).filter(
-            (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+  // Fallback for items without salesProductId
+  const remaining = orderItems.filter((oi) => !processedIds.has(oi.id || oi.productId));
+  if (remaining.length > 0) {
+    salesProds.forEach((sp) => {
+      const spComps = (sp?.components || []).filter(
+        (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
+      );
+      const matching = remaining.filter(
+        (oi) =>
+          !processedIds.has(oi.id || oi.productId) &&
+          spComps.some((c: any) => String(c.componentProductId) === String(oi.productId))
+      );
+      if (matching.length > 0) {
+        matching.forEach((oi) => processedIds.add(oi.id || oi.productId));
+        const first = matching[0];
+        const comp = spComps.find(
+          (c: any) => String(c.componentProductId) === String(first.productId)
         );
-        const firstMatch = items[0];
-        const matchingComp = spComps.find((c: any) => String(c.componentProductId) === String(firstMatch.productId));
-        const perUnit = Number(matchingComp?.quantity || 1);
-        const calcOrderQty = Math.max(1, Math.round(Number(firstMatch.quantity || 1) / perUnit));
-
-        // Get GST rate from first item
-        const cgst = Number(firstMatch.cgstRate ?? 0);
-        const sgst = Number(firstMatch.sgstRate ?? 0);
-        const igst = Number(firstMatch.igstRate ?? 0);
+        const perUnit = Number(comp?.quantity || 1);
+        const qty = Math.max(1, Math.round(Number(first.quantity || 1) / perUnit));
+        const cgst = Number(first.cgstRate ?? 0);
+        const sgst = Number(first.sgstRate ?? 0);
+        const igst = Number(first.igstRate ?? 0);
         const gstRate = igst > 0 ? igst : cgst + sgst;
 
-        // Calculate total unit price from component prices
-        const totalPrice = items.reduce((sum: number, oi: any) => {
-            return sum + (Number(oi.quotationUnitPrice ?? oi.unitPrice ?? 0) * Number(oi.quantity || 0));
-        }, 0);
-        const unitPricePerOrder = calcOrderQty > 0 ? totalPrice / calcOrderQty : 0;
-
-        const components: ComponentItem[] = spComps.map((c: any) => {
-            const oi = items.find(item => String(item.productId) === String(c.componentProductId));
-            return {
-                componentProductId: String(c.componentProductId),
-                productName: c.componentProduct?.productName || c.componentProduct?.productCode || String(c.componentProductId),
-                perUnit: Number(c.quantity || 1),
-                included: Boolean(oi),
-                quantity: oi ? String(oi.quantity) : String(Number(c.quantity || 1) * calcOrderQty),
-            };
-        });
-
         result.push({
-            salesProductId: spIdStr,
-            orderQuantity: String(calcOrderQty),
-            unitPrice: unitPricePerOrder > 0 ? String(Math.round(unitPricePerOrder * 100) / 100) : "",
-            gstRate: gstRate > 0 ? String(gstRate) : "",
-            components,
+          salesProductId: String(sp.id),
+          orderQuantity: String(qty),
+          unitPrice: "",
+          gstRate: gstRate > 0 ? String(gstRate) : "",
+          components: spComps.map((c: any) => {
+            const oi = matching.find(
+              (item) => String(item.productId) === String(c.componentProductId)
+            );
+            return {
+              componentProductId: String(c.componentProductId),
+              productName: c.componentProduct?.productName || String(c.componentProductId),
+              perUnit: Number(c.quantity || 1),
+              included: Boolean(oi),
+              quantity: oi ? String(oi.quantity) : String(Number(c.quantity || 1) * qty),
+            };
+          }),
         });
+      }
     });
+  }
 
-    // Fallback for items without salesProductId
-    const remaining = orderItems.filter(oi => !processedIds.has(oi.id || oi.productId));
-    if (remaining.length > 0) {
-        salesProds.forEach(sp => {
-            const spComps = (sp?.components || []).filter(
-                (c: any) => c.componentProduct?.productType === "SALES_PRODUCTION"
-            );
-            const matching = remaining.filter(oi =>
-                !processedIds.has(oi.id || oi.productId) &&
-                spComps.some((c: any) => String(c.componentProductId) === String(oi.productId))
-            );
-            if (matching.length > 0) {
-                matching.forEach(oi => processedIds.add(oi.id || oi.productId));
-                const first = matching[0];
-                const comp = spComps.find((c: any) => String(c.componentProductId) === String(first.productId));
-                const perUnit = Number(comp?.quantity || 1);
-                const qty = Math.max(1, Math.round(Number(first.quantity || 1) / perUnit));
-                const cgst = Number(first.cgstRate ?? 0);
-                const sgst = Number(first.sgstRate ?? 0);
-                const igst = Number(first.igstRate ?? 0);
-                const gstRate = igst > 0 ? igst : cgst + sgst;
-
-                result.push({
-                    salesProductId: String(sp.id),
-                    orderQuantity: String(qty),
-                    unitPrice: "",
-                    gstRate: gstRate > 0 ? String(gstRate) : "",
-                    components: spComps.map((c: any) => {
-                        const oi = matching.find(item => String(item.productId) === String(c.componentProductId));
-                        return {
-                            componentProductId: String(c.componentProductId),
-                            productName: c.componentProduct?.productName || String(c.componentProductId),
-                            perUnit: Number(c.quantity || 1),
-                            included: Boolean(oi),
-                            quantity: oi ? String(oi.quantity) : String(Number(c.quantity || 1) * qty),
-                        };
-                    }),
-                });
-            }
-        });
-    }
-
-    return result.length > 0 ? result : [{ salesProductId: "", orderQuantity: "1", unitPrice: "", gstRate: "", components: [] }];
+  return result.length > 0
+    ? result
+    : [{ salesProductId: "", orderQuantity: "1", unitPrice: "", gstRate: "", components: [] }];
 }
 
 // ─── CtrlText: bridges Controller field → TextInput ──
 type CtrlTextProps = {
-    label: string;
-    placeholder?: string;
-    required?: boolean;
-    bottom?: boolean;
-    type?: string;
-    disabled?: boolean;
-    error?: string;
-    field: {
-        name: string;
-        value: any;
-        onChange: React.ChangeEventHandler<HTMLInputElement>;
-        onBlur: React.FocusEventHandler<HTMLInputElement>;
-    };
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  bottom?: boolean;
+  type?: string;
+  disabled?: boolean;
+  error?: string;
+  field: {
+    name: string;
+    value: any;
+    onChange: React.ChangeEventHandler<HTMLInputElement>;
+    onBlur: React.FocusEventHandler<HTMLInputElement>;
+  };
 };
 
-const CtrlText: React.FC<CtrlTextProps> = ({ field, label, placeholder, required, type, disabled, error, bottom }) => (
-    <TextInput
-        label={label}
-        name={field.name}
-        value={field.value ?? ""}
-        onChange={field.onChange}
-        onBlur={field.onBlur}
-        placeholder={placeholder}
-        required={required}
-        type={type}
-        disabled={disabled}
-        error={error}
-        bottom={bottom}
-    />
+const CtrlText: React.FC<CtrlTextProps> = ({
+  field,
+  label,
+  placeholder,
+  required,
+  type,
+  disabled,
+  error,
+  bottom,
+}) => (
+  <TextInput
+    label={label}
+    name={field.name}
+    value={field.value ?? ""}
+    onChange={field.onChange}
+    onBlur={field.onBlur}
+    placeholder={placeholder}
+    required={required}
+    type={type}
+    disabled={disabled}
+    error={error}
+    bottom={bottom}
+  />
 );
 
 // ─── Component ─────────────────────────────────────────────────────────────
 const QuotationForm: React.FC = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { id: idParam } = useParams<{ id: string }>();
-    const { can } = usePermission();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id: idParam } = useParams<{ id: string }>();
+  const { can } = usePermission();
 
-    // ─── State ──────────────────────────────────────────────────
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [expandedItemIndex, setExpandedItemIndex] = useState<number | null>(null);
-    const [loadingOrder, setLoadingOrder] = useState(false);
-    const [isEditMode, setIsEditMode] = useState(false);
-    const [quotationId, setQuotationId] = useState<number | null>(null);
-    const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  // ─── State ──────────────────────────────────────────────────
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedItemIndex, setExpandedItemIndex] = useState<number | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [quotationId, setQuotationId] = useState<number | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
 
-    const [customerOrders, setCustomerOrders] = useState<SalesOrder[]>([]);
-    const [loadingCustomerOrders, setLoadingCustomerOrders] = useState(false);
-    const [selectedPrevOrderId, setSelectedPrevOrderId] = useState<number | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<SalesOrder[]>([]);
+  const [loadingCustomerOrders, setLoadingCustomerOrders] = useState(false);
+  const [selectedPrevOrderId, setSelectedPrevOrderId] = useState<number | null>(null);
 
-    // Used by populateFormFromOrder / load order flow (values set but not displayed)
-    const [, setDispatchType] = useState<string | null>(null);
-    const [, setOrderType] = useState<string | null>(null);
-    const [, setSalesPersonId] = useState<string | null>(null);
-    const [, setTransportName] = useState<string | null>(null);
-    const [, setMobile] = useState<string | null>(null);
-    const [, setDraftOrders] = useState<SalesOrder[]>([]);
-    const [, setLoadingDraftOrders] = useState(false);
-    const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
+  // Used by populateFormFromOrder / load order flow (values set but not displayed)
+  const [, setDispatchType] = useState<string | null>(null);
+  const [, setOrderType] = useState<string | null>(null);
+  const [, setSalesPersonId] = useState<string | null>(null);
+  const [, setTransportName] = useState<string | null>(null);
+  const [, setMobile] = useState<string | null>(null);
+  const [, setDraftOrders] = useState<SalesOrder[]>([]);
+  const [, setLoadingDraftOrders] = useState(false);
+  const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
 
-    const [sundryRows, setSundryRows] = useState<SundryRow[]>([]);
-    const [salesProducts, setSalesProducts] = useState<any[]>([]);
-    const [salesProductsLoading, setSalesProductsLoading] = useState(false);
-    const {
-        control,
-        handleSubmit,
-        watch,
-        setValue,
-        reset,
-        formState: { errors },
-        getValues,
-    } = useForm<QuotationFormValues>({
-        resolver: zodResolver(quotationSchema),
-        defaultValues,
-    });
+  const [sundryRows, setSundryRows] = useState<SundryRow[]>([]);
+  const [salesProducts, setSalesProducts] = useState<any[]>([]);
+  const [salesProductsLoading, setSalesProductsLoading] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+    getValues,
+  } = useForm<QuotationFormValues>({
+    resolver: zodResolver(quotationSchema),
+    defaultValues,
+  });
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: "items",
-    });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "items",
+  });
 
-    useFormShortcuts({});
+  useFormShortcuts({});
 
-    const { loadCustomers, customers, loading: customersLoading } = useCustomers();
-    const { loadProducts, products, loading: productsLoading } = useProducts();
-    const { employees, loadEmployees } = useEmployees();
+  const { loadCustomers, customers, loading: customersLoading } = useCustomers();
+  const { loadProducts, products, loading: productsLoading } = useProducts();
+  const { employees, loadEmployees } = useEmployees();
 
-    // Always-current ref so async callbacks (loadOrder, handleDraftOrderSelect)
-    // read the latest products even if they captured a stale closure.
-    const productsRef = useRef(products);
-    useEffect(() => { productsRef.current = products; }, [products]);
+  // Always-current ref so async callbacks (loadOrder, handleDraftOrderSelect)
+  // read the latest products even if they captured a stale closure.
+  const productsRef = useRef(products);
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
 
-    // Refs for isEditMode and quotationId — prevents stale-closure bugs in onSubmit
-    // (same pattern as productsRef above).
-    const isEditModeRef = useRef(isEditMode);
-    const quotationIdRef = useRef<number | null>(quotationId);
-    useEffect(() => { isEditModeRef.current = isEditMode; }, [isEditMode]);
-    useEffect(() => { quotationIdRef.current = quotationId; }, [quotationId]);
+  // Refs for isEditMode and quotationId — prevents stale-closure bugs in onSubmit
+  // (same pattern as productsRef above).
+  const isEditModeRef = useRef(isEditMode);
+  const quotationIdRef = useRef<number | null>(quotationId);
+  useEffect(() => {
+    isEditModeRef.current = isEditMode;
+  }, [isEditMode]);
+  useEffect(() => {
+    quotationIdRef.current = quotationId;
+  }, [quotationId]);
 
-    // ── Watch values ──
-    const items = watch("items");
-    const watchedItems = useWatch({ control, name: "items" });
-    const customerId = watch("customerId");
-    const orderDiscountType = watch("orderDiscountType");
-    const orderDiscountValue = watch("orderDiscountValue");
-    const isInterState = watch("isInterState");
-    const billingState = watch("billingState");
-    const company = useAppSelector((state: any) => state.company.data);
-    const companyState = company?.state;
+  // ── Watch values ──
+  const items = watch("items");
+  const watchedItems = useWatch({ control, name: "items" });
+  const customerId = watch("customerId");
+  const orderDiscountType = watch("orderDiscountType");
+  const orderDiscountValue = watch("orderDiscountValue");
+  const isInterState = watch("isInterState");
+  const billingState = watch("billingState");
+  const company = useAppSelector((state: any) => state.company.data);
+  const companyState = company?.state;
 
-    const salesProductOptions = useMemo(() => [
-        { value: "", label: salesProductsLoading ? "Loading..." : "" },
-        ...salesProducts.map((sp: any) => {
-            const liveStock = computeSalesProductLiveStock(sp);
-            const name = sp.salesProductName || sp.salesProductCode || String(sp.id);
-            const badge = (
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${liveStock > 0
-                    ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-                    : "bg-rose-500/10 text-rose-600 border border-rose-500/20"
-                    }`}>
-                    {liveStock} pcs
-                </span>
-            );
-            return {
-                value: String(sp.id),
-                selectedLabel: name,
-                badge,
-                label: (
-                    <div className="flex items-center justify-between w-full gap-2">
-                        <span className="truncate">{name}</span>
-                        {badge}
-                    </div>
-                ),
-            };
-        }),
-    ], [salesProducts, salesProductsLoading]);
+  const salesProductOptions = useMemo(
+    () => [
+      { value: "", label: salesProductsLoading ? "Loading..." : "" },
+      ...salesProducts.map((sp: any) => {
+        const liveStock = computeSalesProductLiveStock(sp);
+        const name = sp.salesProductName || sp.salesProductCode || String(sp.id);
+        const badge = (
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${
+              liveStock > 0
+                ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border border-[color:var(--color-success)]/20"
+                : "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/20"
+            }`}
+          >
+            {liveStock} pcs
+          </span>
+        );
+        return {
+          value: String(sp.id),
+          selectedLabel: name,
+          badge,
+          label: (
+            <div className="flex items-center justify-between w-full gap-2">
+              <span className="truncate">{name}</span>
+              {badge}
+            </div>
+          ),
+        };
+      }),
+    ],
+    [salesProducts, salesProductsLoading]
+  );
 
-    const customerAutocompleteOptions = useMemo(() =>
-        customers.map((c: any) => {
-            const name = c.displayName || c.firmName || String(c.id);
-            const group = c.customerType?.name || "—";
-            const grade = c.customerGrade?.name || "—";
-            const bal = Number(c.balanceAmount ?? c.netBalance ?? c.openingBalance ?? 0);
-            const bType = (c.balanceType || c.openingBalanceType || "").toString().toUpperCase();
-            const isDr = bType.startsWith("D");
-            const balLabel = `₹${bal.toLocaleString("en-IN")} ${isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "—"}`;
-
-            return {
-                value: String(c.id),
-                label: name,
-                selectedLabel: `${name} · ${group} · ${grade} · ${balLabel}`,
-                info: (
-                    <div className="flex items-center gap-3 text-[11px]">
-                        <span className="text-ink-subtle">{group}</span>
-                        <span className="text-ink-subtle">{grade}</span>
-                        <span className={`font-semibold ${isDr ? "text-rose-500" : "text-emerald-500"}`}>{balLabel}</span>
-                    </div>
-                ),
-            };
-        }),
-        [customers]
-    );
-
-    const prevOrderAutocompleteOptions = useMemo(() =>
-        customerOrders.map((o: any) => {
-            const dateStr = o.orderDate
-                ? new Date(o.orderDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-                : null;
-            const itemCount = Array.isArray(o.items) ? o.items.length : null;
-            const itemsStr = itemCount != null ? `(${itemCount} ${itemCount === 1 ? "Item" : "Items"})` : "";
-            const formattedDate = dateStr ? ` · ${dateStr}` : "";
-            return {
-                value: String(o.id),
-                label: `${o.orderNo}${formattedDate}${itemsStr}`,
-            };
-        }),
-        [customerOrders]
-    );
-
-    const extractBillingAddress = (custOrOrder: any) => {
-        if (!custOrOrder) return { line1: "", city: "", state: "", pincode: "" };
-
-        const cust = custOrOrder.customer || custOrOrder;
-        const isValid = (val?: any) => val && typeof val === "string" && val.trim() !== "" && val.trim() !== "-";
-
-        let line1 = custOrOrder.billingAddressLine1 || cust?.billingAddressLine1 || "";
-        let city = custOrOrder.billingCity || cust?.billingCity || "";
-        let state = custOrOrder.billingState || cust?.billingState || "";
-        let pincode = custOrOrder.billingPincode || cust?.billingPincode || "";
-
-        if (!isValid(line1) && Array.isArray(cust?.addresses) && cust.addresses.length > 0) {
-            const billingObj = cust.addresses.find((a: any) => a.addressType === "BILLING" || a.type === "BILLING") || cust.addresses[0];
-            const addr = billingObj?.address || billingObj;
-            if (addr) {
-                if (!isValid(line1)) line1 = addr.addressLine1 || addr.addressLine || addr.street || "";
-                if (!isValid(city)) city = addr.city || "";
-                if (!isValid(state)) state = addr.state || "";
-                if (!isValid(pincode)) pincode = addr.pincode || addr.zipCode || "";
-            }
-        }
+  const customerAutocompleteOptions = useMemo(
+    () =>
+      customers.map((c: any) => {
+        const name = c.displayName || c.firmName || String(c.id);
+        const group = c.customerType?.name || "—";
+        const grade = c.customerGrade?.name || "—";
+        const bal = Number(c.balanceAmount ?? c.netBalance ?? c.openingBalance ?? 0);
+        const bType = (c.balanceType || c.openingBalanceType || "").toString().toUpperCase();
+        const isDr = bType.startsWith("D");
+        const balLabel = `₹${bal.toLocaleString("en-IN")} ${isDr ? "Dr" : bType.startsWith("C") ? "Cr" : "—"}`;
 
         return {
-            line1: isValid(line1) ? String(line1) : "",
-            city: isValid(city) ? String(city) : "",
-            state: isValid(state) ? String(state) : "",
-            pincode: isValid(pincode) ? String(pincode) : "",
-        };
-    };
-
-    // ─── Helper: populate form from an order ──────────────────
-    const populateFormFromOrder = (order: SalesOrder) => {
-        const billing = extractBillingAddress(order);
-        const shipping = {
-            addressLine1: order.shippingAddressLine1 || "",
-            city: order.shippingCity || "",
-            state: order.shippingState || "",
-            pincode: order.shippingPincode || "",
-        };
-
-        const items = reconstructQuotationItems(order.items || [], salesProducts, productsRef.current);
-
-        reset({
-            id: order.id,
-            quotationNo: order.orderNo,
-            quotationDate: order.orderDate?.split("T")[0] || today,
-            validUntil: (order as any).expectedCompletionDate?.split("T")[0] || "",
-            customerId: String(order.customerId || ""),
-            mobile: order.mobile || "",
-            orderSource: (order as any).orderSource || "",
-            sourceEmployeeId: (order as any).sourceEmployeeId ? String((order as any).sourceEmployeeId) : null,
-            referredByCustomerId: (order as any).referredByCustomerId ? String((order as any).referredByCustomerId) : null,
-            referredByName: (order as any).referredByName || "",
-            paymentTermId: (order as any).paymentTermId?.toString() || "",
-            billingAddressLine1: billing.line1,
-            billingCity: billing.city,
-            billingState: billing.state,
-            billingPincode: billing.pincode,
-            sameAsBilling: (order as any).sameAsBilling || false,
-            isInterState: (order as any).isInterState ?? false,
-            shippingAddressLine1: shipping?.addressLine1 || "",
-            shippingCity: shipping?.city || "",
-            shippingState: shipping?.state || "",
-            shippingPincode: shipping?.pincode || "",
-            remarks: order.remarks || "",
-            internalNotes: order.internalNotes || "",
-            items: items,
-            // 👇 pull the previously-saved order-level discount back in on edit
-            orderDiscountType: (order as any).orderDiscountType || "PERCENT",
-            orderDiscountValue: (order as any).orderDiscountValue != null
-                ? String((order as any).orderDiscountValue)
-                : "",
-        });
-
-        // Load bill sundry from order
-        if (Array.isArray((order as any).billSundry) && (order as any).billSundry.length > 0) {
-            setSundryRows((order as any).billSundry);
-        } else {
-            setSundryRows([]);
-        }
-
-        setRejectionReason((order as any).mdRejectionReason || null);
-        setIsEditMode(true);
-        setQuotationId(order.id);
-
-        setDispatchType((order as any).dispatchType || null);
-        setOrderType((order as any).orderType || null);
-        setSalesPersonId((order as any).salesPersonId != null ? String((order as any).salesPersonId) : null);
-        setTransportName((order as any).transportName || null);
-        setMobile(order.mobile || null);
-    };
-
-    // ── Load order ──
-    useEffect(() => {
-        const state = location.state as any;
-        // Edit target: prefer the URL param (survives refresh), fall back to nav state
-        const editId = idParam ? Number(idParam) : (state?.id ? Number(state.id) : null);
-        const reuseId = !idParam && state?.reuseOrderId ? Number(state.reuseOrderId) : null;
-
-        if (reuseId) {
-            setIsEditMode(false);
-            setQuotationId(null);
-            setRejectionReason(null);
-            setDispatchType(null);
-            setOrderType(null);
-            setSalesPersonId(null);
-            setMobile(null);
-            setSelectedDraftId(null);
-
-            const loadReuseOrder = async () => {
-                setLoadingOrder(true);
-                try {
-                    const order = await salesOrderService.fetchById(reuseId);
-                    populateFormFromOrder(order);
-                    // Reset to create mode with the same SO number
-                    setIsEditMode(false);
-                    setQuotationId(null);
-                    setValue("quotationNo", order.orderNo);
-                    setValue("quotationDate", new Date().toISOString().split("T")[0]);
-                    setSelectedPrevOrderId(reuseId);
-                    toast.info(`Quotation details loaded from ${order.orderNo}`);
-                } catch (error) {
-                    toast.error("Failed to load quotation for reuse");
-                } finally {
-                    setLoadingOrder(false);
-                }
-            };
-            loadReuseOrder();
-            return;
-        }
-
-        if (!editId) {
-            setIsEditMode(false);
-            setQuotationId(null);
-            setRejectionReason(null);
-            setDispatchType(null);
-            setOrderType(null);
-            setSalesPersonId(null);
-            setMobile(null);
-            reset(defaultValues);
-            setSelectedDraftId(null);
-            return;
-        }
-
-        const loadOrder = async () => {
-            setLoadingOrder(true);
-            try {
-                // Always fetch the FULL order from the API — the list-row state
-                // lacks item pricing / customer addresses needed by the form.
-                const order = await salesOrderService.fetchById(editId);
-                populateFormFromOrder(order);
-            } catch (error) {
-                toast.error("Failed to load quotation");
-                navigate("/quatation-order");
-            } finally {
-                setLoadingOrder(false);
-            }
-        };
-
-        loadOrder();
-    }, [location, idParam, reset, navigate]);
-
-    // ─── Load draft orders (only in create mode) ──────────────
-    useEffect(() => {
-        if (isEditMode) return;
-
-        const loadDraftOrders = async () => {
-            setLoadingDraftOrders(true);
-            try {
-                const res = await salesOrderService.fetchAll({
-                    status: 'CONFIRMED',
-                    pageSize: 100,
-                });
-                setDraftOrders(res.data || []);
-            } catch (error) {
-                toast.error("Failed to load draft orders");
-            } finally {
-                setLoadingDraftOrders(false);
-            }
-        };
-        loadDraftOrders();
-    }, [isEditMode]);
-
-    // ─── Load Customers, Products, SalesProducts & Employees ──────────────
-    useEffect(() => {
-        loadCustomers({ limit: 1000 });
-        loadProducts();
-        if (can("employees.view")) loadEmployees({ limit: 500 });
-        setSalesProductsLoading(true);
-        salesProductService.fetchAll()
-            .then((data: any) => setSalesProducts(Array.isArray(data) ? data.filter((sp: any) => sp.isActive !== false) : []))
-            .catch(() => setSalesProducts([]))
-            .finally(() => setSalesProductsLoading(false));
-    }, [loadCustomers, loadProducts, loadEmployees, can]);
-
-    // ─── Clear source sub-fields when orderSource changes ───
-    const orderSource = watch("orderSource");
-    useEffect(() => {
-        if (!ORDER_SOURCE_NEEDS_EMPLOYEE.includes(orderSource ?? "")) {
-            setValue("sourceEmployeeId", null);
-        }
-        if (!ORDER_SOURCE_NEEDS_REFERRAL.includes(orderSource ?? "")) {
-            setValue("referredByCustomerId", null);
-        }
-        if (!ORDER_SOURCE_NEEDS_REFERRAL.includes(orderSource ?? "") && !ORDER_SOURCE_NEEDS_DEALER.includes(orderSource ?? "")) {
-            setValue("referredByName", null);
-        }
-    }, [orderSource, setValue]);
-
-    // Auto-fill mobile from selected customer if empty
-    useEffect(() => {
-        if (customerId) {
-            const cust = customers.find(c => String(c.id) === customerId);
-            if (cust) {
-                const mob = Array.isArray(cust.mobile) && cust.mobile.length > 0
-                    ? cust.mobile[0].number
-                    : typeof cust.mobile === "string" ? cust.mobile : "";
-                if (mob && !getValues("mobile")) {
-                    setValue("mobile", mob);
-                }
-            }
-        }
-    }, [customerId, customers, getValues, setValue]);
-
-    // ─── Fetch customer's previous orders on customer change (create mode only) ──
-    useEffect(() => {
-        if (!customerId || isEditMode) {
-            setCustomerOrders([]);
-            setSelectedPrevOrderId(null);
-            return;
-        }
-        const fetchPrevOrders = async () => {
-            setLoadingCustomerOrders(true);
-            try {
-                // getSourceOrders always queries the GST SalesOrder table and
-                // returns only CONFIRMED orders — so already-quoted orders
-                // (QUOTATION_IN_PROGRESS, etc.) are never shown here.
-                const orders = await salesOrderService.getSourceOrders(customerId);
-                setCustomerOrders(orders);
-            } catch (_) {
-                setCustomerOrders([]);
-            } finally {
-                setLoadingCustomerOrders(false);
-            }
-        };
-        fetchPrevOrders();
-    }, [customerId, isEditMode]);
-
-    const computedIsInterState = useMemo(() => {
-        if (!companyState || !billingState) return false;
-        return companyState.toLowerCase().trim() !== billingState.toLowerCase().trim();
-    }, [companyState, billingState]);
-
-    useEffect(() => {
-        setValue("isInterState", computedIsInterState, { shouldValidate: true });
-    }, [computedIsInterState, setValue]);
-
-    // ─── Auto-fill billing from selected customer (create mode) ──
-    useEffect(() => {
-        if (isEditMode || !customerId) return;
-
-        let isMounted = true;
-        const applyAddress = (target: any) => {
-            const addr = extractBillingAddress(target);
-            if (addr.line1) setValue("billingAddressLine1", addr.line1, { shouldValidate: true });
-            if (addr.city) setValue("billingCity", addr.city, { shouldValidate: true });
-            if (addr.state) setValue("billingState", addr.state, { shouldValidate: true });
-            if (addr.pincode) setValue("billingPincode", addr.pincode, { shouldValidate: true });
-        };
-
-        const localCustomer = customers.find((c: any) => String(c.id) === customerId);
-        if (localCustomer) {
-            applyAddress(localCustomer);
-        }
-
-        customerService.fetchById(customerId)
-            .then((fullCust) => {
-                if (isMounted && fullCust) {
-                    applyAddress(fullCust);
-                }
-            })
-            .catch(() => { });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [customerId, customers, isEditMode, setValue]);
-
-    // ─── Calculation: per-item base ──
-    const calculateItemBase = (item: any) => {
-        const orderQty = Number(item.orderQuantity) || 0;
-        const unitPrice = Number(item.unitPrice) || 0;
-        const gstRate = Number(item.gstRate) || 0;
-        const subtotal = orderQty * unitPrice;
-        return { subtotal, unitPrice, gstRate };
-    };
-
-    const calculateItemDisplay = (item: any) => {
-        const base = calculateItemBase(item);
-        const gstAmount = (base.subtotal * base.gstRate) / 100;
-        const totalWithGst = base.subtotal + gstAmount;
-        return { ...base, gstAmount, totalWithGst };
-    };
-
-    const calculateOrderTotals = () => {
-        const bases = (items || [])
-            .filter((item: any) => item.salesProductId && item.orderQuantity)
-            .map((item: any) => calculateItemBase(item));
-
-        const subtotal = bases.reduce((sum, b) => sum + b.subtotal, 0);
-
-        const discountValueNum = Number(orderDiscountValue) || 0;
-        const rawDiscount = orderDiscountType === "PERCENT"
-            ? (subtotal * discountValueNum) / 100
-            : discountValueNum;
-        const totalDiscount = Math.min(rawDiscount, subtotal);
-
-        let totalGst = 0;
-        if (subtotal > 0) {
-            for (const b of bases) {
-                const share = b.subtotal / subtotal;
-                const itemDiscount = totalDiscount * share;
-                const taxableValue = b.subtotal - itemDiscount;
-                totalGst += (taxableValue * b.gstRate) / 100;
-            }
-        }
-
-        const netAmount = subtotal - totalDiscount + totalGst;
-        return { subtotal, totalDiscount, totalGst, netAmount };
-    };
-
-    const totals = calculateOrderTotals();
-
-    // ─── Handle draft order selection ──────────────────────────
-    const handleDraftOrderSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const id = e.target.value ? Number(e.target.value) : null;
-        setSelectedDraftId(id);
-        if (!id) {
-            setIsEditMode(false);
-            setQuotationId(null);
-            setRejectionReason(null);
-            setDispatchType(null);
-            setOrderType(null);
-            setSalesPersonId(null);
-            setTransportName(null);
-            setMobile(null);
-            reset(defaultValues);
-            return;
-        }
-
-        try {
-            const order = await salesOrderService.fetchById(id);
-            populateFormFromOrder(order);
-        } catch (error) {
-            toast.error("Failed to load draft order");
-        }
-    };
-
-    // ─── Load items from a previous order ────────────────────────────────────────
-    const handleLoadFromPrevOrder = async (orderId: number | null) => {
-        setSelectedPrevOrderId(orderId);
-        if (!orderId) return;
-        try {
-            const order = await salesOrderService.fetchById(orderId);
-
-            // Populate Billing Address from loaded order / customer
-            const billing = extractBillingAddress(order);
-            if (billing.line1) setValue("billingAddressLine1", billing.line1, { shouldValidate: true });
-            if (billing.city) setValue("billingCity", billing.city, { shouldValidate: true });
-            if (billing.state) setValue("billingState", billing.state, { shouldValidate: true });
-            if (billing.pincode) setValue("billingPincode", billing.pincode, { shouldValidate: true });
-
-            if ((order as any).orderSource) setValue("orderSource", (order as any).orderSource);
-            if ((order as any).sourceEmployeeId) setValue("sourceEmployeeId", String((order as any).sourceEmployeeId));
-            if ((order as any).referredByCustomerId) setValue("referredByCustomerId", String((order as any).referredByCustomerId));
-            if ((order as any).referredByName) setValue("referredByName", (order as any).referredByName);
-            if (order.mobile) setValue("mobile", order.mobile);
-
-            if (!order.items || order.items.length === 0) {
-                toast.info("Selected order has no items.");
-                return;
-            }
-            setValue("quotationNo", order.orderNo);
-            const newItems = reconstructQuotationItems(order.items || [], salesProducts, products);
-            setValue("items", newItems);
-
-            // ── Carry over order-level discount from the selected order ──
-            if ((order as any).orderDiscountType) {
-                setValue("orderDiscountType", (order as any).orderDiscountType);
-            }
-            if ((order as any).orderDiscountValue != null) {
-                setValue("orderDiscountValue", String((order as any).orderDiscountValue));
-            }
-
-            toast.success(`Loaded ${newItems.length} item(s) from order ${order.orderNo}`);
-        } catch (err: any) {
-            toast.error(err?.response?.data?.message || "Failed to load order items");
-        }
-    };
-
-    // ─── Submit Handler ────────────────────────────────────────
-    const [isConfirming, setIsConfirming] = useState(false);
-
-    const onSubmit = async (data: QuotationFormValues, confirm: boolean = false) => {
-        if (confirm) setIsConfirming(true);
-        else setIsSubmitting(true);
-
-        try {
-
-            // Expand sales products into component-level items
-            const transformedItems: any[] = [];
-            data.items.forEach(item => {
-                const totalRate = Number(item.gstRate) || 0;
-                const spId = item.salesProductId ? Number(item.salesProductId) : null;
-                const orderQty = Number(item.orderQuantity) || 1;
-                const unitPricePerOrder = Number(item.unitPrice) || 0;
-
-                const includedComps = (item.components || []).filter(c => c.included && Number(c.quantity) > 0);
-                const sp = salesProducts.find(s => String(s.id) === item.salesProductId);
-                const spComps = (sp?.components || []).filter((comp: any) => comp.componentProduct?.productType === "SALES_PRODUCTION");
-
-                // Calculate total rate across INCLUDED components only for proportional distribution
-                const includedCompDefs = includedComps.map(c => {
-                    const def = spComps.find((comp: any) => String(comp.componentProductId) === c.componentProductId);
-                    const rate = Number(def?.componentProduct?.rate ?? 0);
-                    const perUnit = Number(def?.quantity || 1);
-                    return { c, def, rate, perUnit, rateWeight: rate * perUnit };
-                });
-                const totalWeight = includedCompDefs.reduce((sum, d) => sum + d.rateWeight, 0);
-
-                includedCompDefs.forEach(({ c, def, perUnit, rateWeight }) => {
-                    // Distribute unit price proportionally across included components
-                    const share = totalWeight > 0 ? rateWeight / totalWeight : 1 / includedCompDefs.length;
-                    const compUnitPrice = unitPricePerOrder > 0 ? (unitPricePerOrder * share) / perUnit : undefined;
-
-                    transformedItems.push({
-                        productId: Number(c.componentProductId),
-                        salesProductId: spId,
-                        quantity: Number(c.quantity),
-                        quotationUnitPrice: compUnitPrice && compUnitPrice > 0 ? Math.round(compUnitPrice * 100) / 100 : undefined,
-                        cgstRate: data.isInterState ? 0 : totalRate / 2,
-                        sgstRate: data.isInterState ? 0 : totalRate / 2,
-                        igstRate: data.isInterState ? totalRate : 0,
-                    });
-                });
-            });
-
-            // Use URL param first (survives refresh), fall back to refs
-            // (set by handleDraftOrderSelect / populateFormFromOrder).
-            const currentIsEditMode = Boolean(idParam) || isEditModeRef.current;
-            const currentQuotationId = idParam ? Number(idParam) : quotationIdRef.current;
-
-            const payload: any = {
-                orderNo: data.quotationNo,
-                orderDate: new Date(data.quotationDate).toISOString(),
-                sourceSalesOrderId: selectedPrevOrderId || undefined,
-                expectedCompletionDate: data.validUntil ? new Date(data.validUntil).toISOString() : undefined,
-                customerId: data.customerId,
-                mobile: data.mobile || null,
-                orderSource: data.orderSource || null,
-                sourceEmployeeId: (ORDER_SOURCE_NEEDS_EMPLOYEE.includes(data.orderSource ?? "") && data.sourceEmployeeId)
-                    ? String(data.sourceEmployeeId)
-                    : null,
-                referredByCustomerId: (ORDER_SOURCE_NEEDS_REFERRAL.includes(data.orderSource ?? "") && data.referredByCustomerId)
-                    ? String(data.referredByCustomerId)
-                    : null,
-                referredByName: (ORDER_SOURCE_NEEDS_REFERRAL.includes(data.orderSource ?? "") || ORDER_SOURCE_NEEDS_DEALER.includes(data.orderSource ?? ""))
-                    ? (data.referredByName?.trim() || null)
-                    : null,
-                paymentTermId: data.paymentTermId ? Number(data.paymentTermId) : null,
-                billingAddressLine1: data.billingAddressLine1 ?? "",
-                billingCity: data.billingCity ?? "",
-                billingState: data.billingState ?? "",
-                billingPincode: data.billingPincode ?? "",
-                sameAsBilling: data.sameAsBilling,
-                shippingAddressLine1: data.sameAsBilling ? (data.billingAddressLine1 ?? "") : (data.shippingAddressLine1 ?? ""),
-                shippingCity: data.sameAsBilling ? (data.billingCity ?? "") : (data.shippingCity ?? ""),
-                shippingState: data.sameAsBilling ? (data.billingState ?? "") : (data.shippingState ?? ""),
-                shippingPincode: data.sameAsBilling ? (data.billingPincode ?? "") : (data.shippingPincode ?? ""),
-                isInterState: data.isInterState,
-                remarks: data.remarks,
-                internalNotes: data.internalNotes,
-                narration: null,
-                items: transformedItems,
-                orderDiscountType: data.orderDiscountType,
-                orderDiscountValue: data.orderDiscountValue,
-                billSundry: sundryRows.length > 0 ? sundryRows : null,
-                status: confirm ? "QUOTED" : "DRAFT",
-            };
-
-            let response;
-
-            const existingSalesOrderId = currentIsEditMode
-                ? currentQuotationId
-                : selectedPrevOrderId;
-
-            if (existingSalesOrderId) {
-                response = await salesOrderService.update(existingSalesOrderId, payload);
-            } else {
-                response = await salesOrderService.create(payload);
-            }
-
-            const orderId = existingSalesOrderId || response.id;
-
-            if (confirm) {
-                toast.success("Quotation confirmed successfully!");
-                navigate("/quatation-order");
-            } else {
-                toast.success(currentIsEditMode ? "Quotation updated as draft!" : "Quotation saved as draft!");
-                navigate("/quatation-order");
-            }
-        } catch (error: any) {
-            toast.error(error?.response?.data?.message || "Failed to save quotation");
-        } finally {
-            setIsSubmitting(false);
-            setIsConfirming(false);
-        }
-    };
-
-    // ─── Autocomplete options for Excel-style cell ─────────────────
-    const autocompleteOptions: AutocompleteOption[] = useMemo(() =>
-        salesProducts.map(sp => {
-            const stock = computeSalesProductLiveStock(sp);
-            return {
-                value: String(sp.id),
-                label: sp.salesProductName || sp.salesProductCode || String(sp.id),
-                info: (
-                    <span className={`text-[11px] font-semibold ${stock > 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                        {stock} pcs
-                    </span>
-                ),
-            };
-        }),
-        [salesProducts]
-    );
-
-    // ─── Quotation item columns for BusyItemsTable ─────────────
-    const quotationColumns: BusyColumn<any>[] = useMemo(() => [
-        {
-            key: "salesProductId",
-            header: "Sales Product",
-            width: "1fr",
-            render: (_row: any, index: number) => {
-                const itemValue = watchedItems?.[index];
-                const hasOrder = !!selectedPrevOrderId || isEditMode;
-
-                if (hasOrder && itemValue?.salesProductId) {
-                    const sp = salesProducts.find((s: any) => String(s.id) === itemValue?.salesProductId);
-                    const spName = sp?.salesProductName || "—";
-                    const stock = sp ? computeSalesProductLiveStock(sp) : 0;
-                    return (
-                        <div className="flex items-center justify-between w-full gap-2 text-[13px]">
-                            <span className="text-ink font-medium truncate">{spName}</span>
-                            <span className={`text-[11px] font-semibold shrink-0 ${stock > 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                {stock} pcs
-                            </span>
-                        </div>
-                    );
-                }
-
-                const allItems = watchedItems || [];
-                const selectedInOtherRows = new Set(
-                    allItems.filter((_: any, i: number) => i !== index).map((item: any) => String(item?.salesProductId)).filter(Boolean)
-                );
-                const opts = autocompleteOptions.map(o => ({
-                    ...o,
-                    disabled: selectedInOtherRows.has(o.value),
-                }));
-
-                return (
-                    <AutocompleteInput
-                        inline
-                        name={`items.${index}.salesProductId`}
-                        value={itemValue?.salesProductId || ""}
-                        options={opts}
-                        placeholder="Type to search..."
-                        error={(errors.items as any)?.[index]?.salesProductId?.message}
-                        onChange={(spId) => {
-                            const sp = salesProducts.find((s: any) => String(s.id) === spId);
-                            setValue(`items.${index}.salesProductId`, spId);
-                            setValue(`items.${index}.orderQuantity`, "1");
-                            setValue(`items.${index}.components`, sp ? buildComponents(sp, 1) : []);
-                            const autoPrice = sp ? computeSalesProductUnitPrice(sp, products) : 0;
-                            setValue(`items.${index}.unitPrice`, autoPrice > 0 ? String(autoPrice) : "");
-                            setValue(`items.${index}.gstRate`, "");
-                        }}
-                    />
-                );
-            },
-        },
-        {
-            key: "orderQuantity",
-            header: "Qty",
-            width: "80px",
-            align: "center" as const,
-            render: (_row: any, index: number) => {
-                const itemValue = watchedItems?.[index];
-                const components: ComponentItem[] = itemValue?.components || [];
-                return (
-                    <input
-                        type="text"
-                        inputMode="numeric"
-                        value={itemValue?.orderQuantity ?? ""}
-                        onChange={(e) => {
-                            const qty = e.target.value;
-                            setValue(`items.${index}.orderQuantity`, qty);
-                            const numQty = Math.max(1, Number(qty) || 1);
-                            const updated = components.map(c => ({
-                                ...c,
-                                quantity: String(c.perUnit * numQty),
-                            }));
-                            setValue(`items.${index}.components`, updated);
-                        }}
-                        className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0 h-full"
-                        placeholder="0"
-                    />
-                );
-            },
-        },
-        {
-            key: "unitPrice",
-            header: "Unit Price",
-            width: "100px",
-            align: "right" as const,
-            render: (_row: any, index: number) => {
-                const itemValue = watchedItems?.[index];
-                return (
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        value={itemValue?.unitPrice ?? ""}
-                        onChange={(e) => setValue(`items.${index}.unitPrice`, e.target.value)}
-                        className="w-full bg-transparent text-[13px] text-ink text-right outline-none border-none p-0 h-full"
-                        placeholder="0"
-                    />
-                );
-            },
-        },
-        {
-            key: "total",
-            header: "Total",
-            width: "110px",
-            align: "right" as const,
-            render: (_row: any, index: number) => {
-                const itemValue = watchedItems?.[index];
-                if (!itemValue) return null;
-                const rowCalc = calculateItemDisplay(itemValue);
-                if (rowCalc.subtotal <= 0) return <span className="text-[13px] text-ink-subtle">—</span>;
-                return (
-                    <div className="text-right">
-                        <span className="text-emerald-500 text-[13px] font-bold">₹{rowCalc.totalWithGst.toFixed(2)}</span>
-                    </div>
-                );
-            },
-        },
-    ], [watchedItems, autocompleteOptions, salesProducts, products, errors.items, isEditMode, selectedPrevOrderId, setValue]);
-
-    // ─── Bill Sundry columns for BusyItemsTable ───────────────
-    const sundryColumns: BusyColumn<SundryRow>[] = useMemo(() => {
-        const usedTypes = new Set(sundryRows.map(r => r.type));
-        return [
-            {
-                key: "type",
-                header: "Bill Sundry",
-                width: "1fr",
-                render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => (
-                    <select
-                        value={row.type}
-                        onChange={e => update({ type: e.target.value })}
-                        style={{ width: "100%", background: "transparent", border: "none", outline: "none", fontSize: 13, color: "var(--color-ink)", cursor: "pointer" }}
-                    >
-                        {DEFAULT_SUNDRY_OPTIONS.map(o => (
-                            <option key={o.value} value={o.value} disabled={o.value !== row.type && usedTypes.has(o.value)}>
-                                {o.label}
-                            </option>
-                        ))}
-                    </select>
-                ),
-            },
-            {
-                key: "rate",
-                header: "@",
-                width: "100px",
-                align: "right" as const,
-                render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => {
-                    const hasRate = row.type.startsWith("BILL_TAX") || row.type.startsWith("DISCOUNT");
-                    if (!hasRate) return null;
-                    return (
-                        <div className="flex items-center gap-0.5 w-full justify-end">
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                value={row.rate}
-                                onChange={e => {
-                                    const rate = e.target.value.replace(/[^0-9.]/g, "");
-                                    const rateNum = Number(rate) || 0;
-                                    const calcAmount = (totals.subtotal * rateNum / 100).toFixed(2);
-                                    update({ rate, amount: rateNum > 0 ? calcAmount : "" });
-                                }}
-                                placeholder="0.000"
-                                className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right"
-                            />
-                            <span className="text-[11px] text-ink-subtle">%</span>
-                        </div>
-                    );
-                },
-            },
-            {
-                key: "amount",
-                header: "Amount (₹)",
-                width: "120px",
-                align: "right" as const,
-                render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => {
-                    const isNeg = DEFAULT_SUNDRY_OPTIONS.find(o => o.value === row.type)?.sign === -1;
-                    return (
-                        <input
-                            type="text"
-                            inputMode="decimal"
-                            value={row.amount}
-                            onChange={e => update({ amount: e.target.value.replace(/[^0-9.]/g, ""), rate: "" })}
-                            placeholder="0.00"
-                            className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right font-semibold"
-                            style={{ color: isNeg ? "#ef4444" : "var(--color-ink)" }}
-                        />
-                    );
-                },
-            },
-        ];
-    }, [sundryRows, totals.subtotal]);
-
-    const sundryEmptyRow: SundryRow = useMemo(() => {
-        const usedTypes = new Set(sundryRows.map(r => r.type));
-        const next = DEFAULT_SUNDRY_OPTIONS.find(o => !usedTypes.has(o.value))?.value ?? DEFAULT_SUNDRY_OPTIONS[0]?.value ?? "";
-        return { id: `${Date.now()}-${Math.random()}`, type: next, rate: "", amount: "" };
-    }, [sundryRows]);
-
-    // ─── Expanded Components for BusyItemsTable ──────────────
-    const renderExpandedComponents = useCallback((_row: any, index: number) => {
-        const itemValue = watchedItems?.[index];
-        const components: ComponentItem[] = itemValue?.components || [];
-        const sp = salesProducts.find((s: any) => String(s.id) === itemValue?.salesProductId);
-
-        if (components.length === 0) return null;
-
-        return (
-            <div className="px-4 py-2">
-                <div className="ml-6 rounded-md border border-line-soft overflow-hidden">
-                    <div className="grid grid-cols-[auto_1fr_auto_80px_80px] gap-2 px-3 py-1.5 bg-card-2 border-b border-line-soft">
-                        <div className="w-4" />
-                        <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">Component Product</span>
-                        <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">Per Unit</span>
-                        <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">Live Stock</span>
-                        <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">Qty</span>
-                    </div>
-                    {components.map((comp, compIdx) => {
-                        const spComp = sp?.components?.find((c: any) => String(c.componentProductId) === String(comp.componentProductId));
-                        const compStock = spComp ? getComponentProductStock(spComp.componentProduct) : null;
-                        return (
-                            <div
-                                key={comp.componentProductId}
-                                className={`grid grid-cols-[auto_1fr_auto_80px_80px] gap-2 items-center px-3 py-1.5 border-b border-line-soft last:border-b-0 ${comp.included ? "bg-card" : "bg-card-2 opacity-60"}`}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={comp.included}
-                                    onChange={() => {
-                                        const updated = components.map((c, i) =>
-                                            i === compIdx ? { ...c, included: !c.included } : c
-                                        );
-                                        setValue(`items.${index}.components`, updated);
-                                    }}
-                                    className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer"
-                                />
-                                <span className={`text-xs ${comp.included ? "text-ink font-medium" : "line-through text-ink-subtle"}`}>
-                                    {comp.productName}
-                                </span>
-                                <span className="text-[11px] text-ink-subtle text-center w-12">x{comp.perUnit}</span>
-                                <span className="text-xs font-semibold text-center text-ink-subtle">
-                                    {compStock != null ? `${compStock} pcs` : "—"}
-                                </span>
-                                <span className="text-xs text-ink font-medium text-center">
-                                    {comp.included ? comp.quantity : "0"}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
+          value: String(c.id),
+          label: name,
+          selectedLabel: `${name} · ${group} · ${grade} · ${balLabel}`,
+          info: (
+            <div className="flex items-center gap-3 text-[11px]">
+              <span className="text-ink-subtle">{group}</span>
+              <span className="text-ink-subtle">{grade}</span>
+              <span
+                className={`font-semibold ${isDr ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
+              >
+                {balLabel}
+              </span>
             </div>
-        );
-    }, [watchedItems, salesProducts, setValue]);
+          ),
+        };
+      }),
+    [customers]
+  );
 
-    // ─── Render ──────────────────────────────────────────────────
-    const isLoading = customersLoading || productsLoading || salesProductsLoading || loadingOrder;
-    const billing = {
-        addressLine1: watch("billingAddressLine1"),
-        city: watch("billingCity"),
-        state: watch("billingState"),
-        pincode: watch("billingPincode"),
-    };
-    const shipping = {
-        addressLine1: watch("shippingAddressLine1"),
-        city: watch("shippingCity"),
-        state: watch("shippingState"),
-        pincode: watch("shippingPincode"),
-    };
+  const prevOrderAutocompleteOptions = useMemo(
+    () =>
+      customerOrders.map((o: any) => {
+        const dateStr = o.orderDate
+          ? new Date(o.orderDate).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : null;
+        const itemCount = Array.isArray(o.items) ? o.items.length : null;
+        const itemsStr =
+          itemCount != null ? `(${itemCount} ${itemCount === 1 ? "Item" : "Items"})` : "";
+        const formattedDate = dateStr ? ` · ${dateStr}` : "";
+        return {
+          value: String(o.id),
+          label: `${o.orderNo}${formattedDate}${itemsStr}`,
+        };
+      }),
+    [customerOrders]
+  );
 
+  const extractBillingAddress = (custOrOrder: any) => {
+    if (!custOrOrder) return { line1: "", city: "", state: "", pincode: "" };
 
+    const cust = custOrOrder.customer || custOrOrder;
+    const isValid = (val?: any) =>
+      val && typeof val === "string" && val.trim() !== "" && val.trim() !== "-";
 
-    if (isLoading) {
-        return <CommonLoader text="Loading quotation..." fullScreen={false} />;
+    let line1 = custOrOrder.billingAddressLine1 || cust?.billingAddressLine1 || "";
+    let city = custOrOrder.billingCity || cust?.billingCity || "";
+    let state = custOrOrder.billingState || cust?.billingState || "";
+    let pincode = custOrOrder.billingPincode || cust?.billingPincode || "";
+
+    if (!isValid(line1) && Array.isArray(cust?.addresses) && cust.addresses.length > 0) {
+      const billingObj =
+        cust.addresses.find((a: any) => a.addressType === "BILLING" || a.type === "BILLING") ||
+        cust.addresses[0];
+      const addr = billingObj?.address || billingObj;
+      if (addr) {
+        if (!isValid(line1)) line1 = addr.addressLine1 || addr.addressLine || addr.street || "";
+        if (!isValid(city)) city = addr.city || "";
+        if (!isValid(state)) state = addr.state || "";
+        if (!isValid(pincode)) pincode = addr.pincode || addr.zipCode || "";
+      }
     }
 
-    return (
-        <div className="w-full xl:mr-auto">
-            <div className="bg-card rounded-2xl shadow-sm border border-line overflow-visible">
+    return {
+      line1: isValid(line1) ? String(line1) : "",
+      city: isValid(city) ? String(city) : "",
+      state: isValid(state) ? String(state) : "",
+      pincode: isValid(pincode) ? String(pincode) : "",
+    };
+  };
 
-                {/* Page Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3 border-b border-line">
-                    <h2 className="text-lg font-bold text-ink flex items-start">
-                        {isEditMode ? "Edit Quotation" : "Create Quotation"}
-                        <span className="text-purple-400 text-sm ml-1 mt-0.5 leading-none">*{watch("quotationNo")}</span>
-                    </h2>
-                    <BackButton text="Back to List" />
-                </div>
+  // ─── Helper: populate form from an order ──────────────────
+  const populateFormFromOrder = (order: SalesOrder) => {
+    const billing = extractBillingAddress(order);
+    const shipping = {
+      addressLine1: order.shippingAddressLine1 || "",
+      city: order.shippingCity || "",
+      state: order.shippingState || "",
+      pincode: order.shippingPincode || "",
+    };
 
-                <form className="px-5 py-2 space-y-2" onSubmit={handleSubmit((data) => onSubmit(data, false))} noValidate>
-                    <div className="flex flex-col lg:flex-row gap-2">
-                        {/* ── Left: Form ── */}
-                        <div className="w-full space-y-2">
-                            {/* ── Rejection banner (edit mode only) ── */}
-                            {isEditMode && rejectionReason && (
-                                <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 flex items-start gap-2">
-                                    <FaExclamationTriangle className="text-red-500 mt-0.5 text-sm" />
-                                    <div>
-                                        <div className="text-red-800 font-semibold text-xs uppercase tracking-wide">Rejection Reason</div>
-                                        <p className="text-red-700 text-sm m-0">{rejectionReason}</p>
-                                    </div>
-                                </div>
-                            )}
+    const items = reconstructQuotationItems(order.items || [], salesProducts, productsRef.current);
 
-                            {/* ── Order Info ── */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
-                                <Controller
-                                    name="quotationDate"
-                                    control={control}
-                                    render={({ field: f }) => (
-                                        <AutocompleteInput label="Quotation Date" name={f.name} value={f.value} options={[]} required onChange={() => { }} placeholder={f.value} disabled error={errors.quotationDate?.message} />
-                                    )}
-                                />
-                                <Controller
-                                    name="customerId"
-                                    control={control}
-                                    render={({ field: f }) => (
-                                        <AutocompleteInput
-                                            label="Customer"
-                                            name={f.name}
-                                            value={f.value ?? ""}
-                                            options={customerAutocompleteOptions}
-                                            onChange={(val) => f.onChange({ target: { name: f.name, value: val } })}
-                                            required
-                                            disabled={isEditMode}
-                                            error={errors.customerId?.message}
-                                            placeholder="Type to search customer..."
-                                        />
-                                    )}
-                                />
-                                {!isEditMode && (
-                                    <AutocompleteInput
-                                        label="Select Sales Order"
-                                        name="selectedPrevOrderId"
-                                        value={selectedPrevOrderId ? String(selectedPrevOrderId) : ""}
-                                        options={prevOrderAutocompleteOptions}
-                                        onChange={(val) => handleLoadFromPrevOrder(val ? Number(val) : null)}
-                                        placeholder={loadingCustomerOrders ? "Loading..." : customerOrders.length > 0 ? "Type to search order..." : "No pending sales orders"}
-                                        disabled={!customerId || customerOrders.length === 0}
-                                    />
-                                )}
-                            </div>
+    reset({
+      id: order.id,
+      quotationNo: order.orderNo,
+      quotationDate: order.orderDate?.split("T")[0] || today,
+      validUntil: (order as any).expectedCompletionDate?.split("T")[0] || "",
+      customerId: String(order.customerId || ""),
+      mobile: order.mobile || "",
+      orderSource: (order as any).orderSource || "",
+      sourceEmployeeId: (order as any).sourceEmployeeId
+        ? String((order as any).sourceEmployeeId)
+        : null,
+      referredByCustomerId: (order as any).referredByCustomerId
+        ? String((order as any).referredByCustomerId)
+        : null,
+      referredByName: (order as any).referredByName || "",
+      paymentTermId: (order as any).paymentTermId?.toString() || "",
+      billingAddressLine1: billing.line1,
+      billingCity: billing.city,
+      billingState: billing.state,
+      billingPincode: billing.pincode,
+      sameAsBilling: (order as any).sameAsBilling || false,
+      isInterState: (order as any).isInterState ?? false,
+      shippingAddressLine1: shipping?.addressLine1 || "",
+      shippingCity: shipping?.city || "",
+      shippingState: shipping?.state || "",
+      shippingPincode: shipping?.pincode || "",
+      remarks: order.remarks || "",
+      internalNotes: order.internalNotes || "",
+      items: items,
+      // 👇 pull the previously-saved order-level discount back in on edit
+      orderDiscountType: (order as any).orderDiscountType || "PERCENT",
+      orderDiscountValue:
+        (order as any).orderDiscountValue != null ? String((order as any).orderDiscountValue) : "",
+    });
 
-                            {/* ── Billing Address (info display) ── */}
-                            {(watch("billingAddressLine1") || watch("billingCity") || watch("billingState")) && (
-                                <div className="text-xs text-ink-subtle">
-                                    <span className="font-semibold text-ink text-[11px] uppercase tracking-wide mr-2">Billing:</span>
-                                    {[watch("billingAddressLine1"), watch("billingCity"), watch("billingState"), watch("billingPincode")].filter(Boolean).join(", ")}
-                                </div>
-                            )}
+    // Load bill sundry from order
+    if (Array.isArray((order as any).billSundry) && (order as any).billSundry.length > 0) {
+      setSundryRows((order as any).billSundry);
+    } else {
+      setSundryRows([]);
+    }
 
-                            {errors.items?.root && (
-                                <div className="text-red-500 text-sm mb-2">{errors.items.root.message}</div>
-                            )}
+    setRejectionReason((order as any).mdRejectionReason || null);
+    setIsEditMode(true);
+    setQuotationId(order.id);
 
-                            {/* ── Quotation Items (65%) + Bill Sundry (35%) ── */}
-                            <div className="flex gap-3">
-                                <div className="w-[65%]">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-semibold text-ink">Quotation Items</span>
-                                    </div>
-                                    <BusyItemsTable
-                                        columns={quotationColumns}
-                                        rows={fields}
-                                        onAdd={() => append({ salesProductId: "", orderQuantity: "", unitPrice: "", gstRate: "", components: [] })}
-                                        onRemove={(i) => remove(i)}
-                                        editable={fields.length > 1}
-                                        expandable
-                                        canExpand={(_row, i) => Boolean(watchedItems?.[i]?.salesProductId)}
-                                        expandedIndex={expandedItemIndex}
-                                        onExpandToggle={(i) => setExpandedItemIndex(expandedItemIndex === i ? null : i)}
-                                        renderExpandedRow={renderExpandedComponents}
-                                        showTotals={[
-                                            { colKey: "orderQuantity", value: (watchedItems || []).reduce((s: number, it: any) => s + (Number(it?.orderQuantity) || 0), 0) },
-                                            { colKey: "total", value: `₹${totals.subtotal.toFixed(2)}` },
-                                        ]}
-                                        visibleRows={10}
-                                    />
-                                </div>
-                                <div className="w-[35%]">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-semibold text-ink">Bill Sundry</span>
-                                    </div>
-                                    <BusyItemsTable
-                                        columns={sundryColumns}
-                                        rows={sundryRows}
-                                        onChange={setSundryRows}
-                                        emptyRow={sundryEmptyRow}
-                                        editable={false}
-                                        visibleRows={5}
-                                        showTotals={[
-                                            {
-                                                colKey: "amount",
-                                                value: (() => {
-                                                    const t = sundryRows.reduce((s, r) => {
-                                                        const a = Number(r.amount) || 0;
-                                                        const o = DEFAULT_SUNDRY_OPTIONS.find(x => x.value === r.type);
-                                                        return s + (o?.sign === -1 ? -a : a);
-                                                    }, 0);
-                                                    return t !== 0 ? `${t > 0 ? "+" : "-"} ₹${Math.abs(t).toFixed(2)}` : "0.00";
-                                                })(),
-                                            },
-                                        ]}
-                                    />
-                                    {/* ── Full Amount ── */}
-                                    <div className="flex justify-end mt-2 px-2 py-2 border border-line rounded-md bg-card-2">
-                                        <div className="text-right">
-                                            <span className="text-base font-bold text-blue-600">
-                                                ₹{(() => {
-                                                    const sundryTotal = sundryRows.reduce((s, r) => {
-                                                        const a = Number(r.amount) || 0;
-                                                        const o = DEFAULT_SUNDRY_OPTIONS.find(x => x.value === r.type);
-                                                        return s + (o?.sign === -1 ? -a : a);
-                                                    }, 0);
-                                                    return (totals.subtotal + sundryTotal).toFixed(2);
-                                                })()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                        </div>{/* end left column */}
-
-                    </div>{/* end flex row */}
-
-                </form>
-
-                {/* ── Form Actions ── */}
-                <div className="flex justify-end gap-3 px-5 py-3 border-t border-line">
-                    <CustomButton
-                        text={isSubmitting ? "Saving..." : (isEditMode ? "Update Draft" : "Save as Draft")}
-                        variant="secondary"
-                        type="button"
-                        onClick={handleSubmit((data) => onSubmit(data, false))}
-                        disabled={isSubmitting || isConfirming}
-                    />
-                    <CustomButton
-                        text={isConfirming ? "Confirming..." : "Confirm Order"}
-                        variant="primary"
-                        type="button"
-                        onClick={handleSubmit((data) => onSubmit(data, true))}
-                        disabled={isSubmitting || isConfirming}
-                    />
-                </div>
-
-            </div>
-        </div>
+    setDispatchType((order as any).dispatchType || null);
+    setOrderType((order as any).orderType || null);
+    setSalesPersonId(
+      (order as any).salesPersonId != null ? String((order as any).salesPersonId) : null
     );
+    setTransportName((order as any).transportName || null);
+    setMobile(order.mobile || null);
+  };
+
+  // ── Load order ──
+  useEffect(() => {
+    const state = location.state as any;
+    // Edit target: prefer the URL param (survives refresh), fall back to nav state
+    const editId = idParam ? Number(idParam) : state?.id ? Number(state.id) : null;
+    const reuseId = !idParam && state?.reuseOrderId ? Number(state.reuseOrderId) : null;
+
+    if (reuseId) {
+      setIsEditMode(false);
+      setQuotationId(null);
+      setRejectionReason(null);
+      setDispatchType(null);
+      setOrderType(null);
+      setSalesPersonId(null);
+      setMobile(null);
+      setSelectedDraftId(null);
+
+      const loadReuseOrder = async () => {
+        setLoadingOrder(true);
+        try {
+          const order = await salesOrderService.fetchById(reuseId);
+          populateFormFromOrder(order);
+          // Reset to create mode with the same SO number
+          setIsEditMode(false);
+          setQuotationId(null);
+          setValue("quotationNo", order.orderNo);
+          setValue("quotationDate", new Date().toISOString().split("T")[0]);
+          setSelectedPrevOrderId(reuseId);
+          toast.info(`Quotation details loaded from ${order.orderNo}`);
+        } catch (error) {
+          toast.error("Failed to load quotation for reuse");
+        } finally {
+          setLoadingOrder(false);
+        }
+      };
+      loadReuseOrder();
+      return;
+    }
+
+    if (!editId) {
+      setIsEditMode(false);
+      setQuotationId(null);
+      setRejectionReason(null);
+      setDispatchType(null);
+      setOrderType(null);
+      setSalesPersonId(null);
+      setMobile(null);
+      reset(defaultValues);
+      setSelectedDraftId(null);
+      return;
+    }
+
+    const loadOrder = async () => {
+      setLoadingOrder(true);
+      try {
+        // Always fetch the FULL order from the API — the list-row state
+        // lacks item pricing / customer addresses needed by the form.
+        const order = await salesOrderService.fetchById(editId);
+        populateFormFromOrder(order);
+      } catch (error) {
+        toast.error("Failed to load quotation");
+        navigate("/quatation-order");
+      } finally {
+        setLoadingOrder(false);
+      }
+    };
+
+    loadOrder();
+  }, [location, idParam, reset, navigate]);
+
+  // ─── Load draft orders (only in create mode) ──────────────
+  useEffect(() => {
+    if (isEditMode) return;
+
+    const loadDraftOrders = async () => {
+      setLoadingDraftOrders(true);
+      try {
+        const res = await salesOrderService.fetchAll({
+          status: "CONFIRMED",
+          pageSize: 100,
+        });
+        setDraftOrders(res.data || []);
+      } catch (error) {
+        toast.error("Failed to load draft orders");
+      } finally {
+        setLoadingDraftOrders(false);
+      }
+    };
+    loadDraftOrders();
+  }, [isEditMode]);
+
+  // ─── Load Customers, Products, SalesProducts & Employees ──────────────
+  useEffect(() => {
+    loadCustomers({ limit: 1000 });
+    loadProducts();
+    if (can("employees.view")) loadEmployees({ limit: 500 });
+    setSalesProductsLoading(true);
+    salesProductService
+      .fetchAll()
+      .then((data: any) =>
+        setSalesProducts(Array.isArray(data) ? data.filter((sp: any) => sp.isActive !== false) : [])
+      )
+      .catch(() => setSalesProducts([]))
+      .finally(() => setSalesProductsLoading(false));
+  }, [loadCustomers, loadProducts, loadEmployees, can]);
+
+  // ─── Clear source sub-fields when orderSource changes ───
+  const orderSource = watch("orderSource");
+  useEffect(() => {
+    if (!ORDER_SOURCE_NEEDS_EMPLOYEE.includes(orderSource ?? "")) {
+      setValue("sourceEmployeeId", null);
+    }
+    if (!ORDER_SOURCE_NEEDS_REFERRAL.includes(orderSource ?? "")) {
+      setValue("referredByCustomerId", null);
+    }
+    if (
+      !ORDER_SOURCE_NEEDS_REFERRAL.includes(orderSource ?? "") &&
+      !ORDER_SOURCE_NEEDS_DEALER.includes(orderSource ?? "")
+    ) {
+      setValue("referredByName", null);
+    }
+  }, [orderSource, setValue]);
+
+  // Auto-fill mobile from selected customer if empty
+  useEffect(() => {
+    if (customerId) {
+      const cust = customers.find((c) => String(c.id) === customerId);
+      if (cust) {
+        const mob =
+          Array.isArray(cust.mobile) && cust.mobile.length > 0
+            ? cust.mobile[0].number
+            : typeof cust.mobile === "string"
+              ? cust.mobile
+              : "";
+        if (mob && !getValues("mobile")) {
+          setValue("mobile", mob);
+        }
+      }
+    }
+  }, [customerId, customers, getValues, setValue]);
+
+  // ─── Fetch customer's previous orders on customer change (create mode only) ──
+  useEffect(() => {
+    if (!customerId || isEditMode) {
+      setCustomerOrders([]);
+      setSelectedPrevOrderId(null);
+      return;
+    }
+    const fetchPrevOrders = async () => {
+      setLoadingCustomerOrders(true);
+      try {
+        // getSourceOrders always queries the GST SalesOrder table and
+        // returns only CONFIRMED orders — so already-quoted orders
+        // (QUOTATION_IN_PROGRESS, etc.) are never shown here.
+        const orders = await salesOrderService.getSourceOrders(customerId);
+        setCustomerOrders(orders);
+      } catch (_) {
+        setCustomerOrders([]);
+      } finally {
+        setLoadingCustomerOrders(false);
+      }
+    };
+    fetchPrevOrders();
+  }, [customerId, isEditMode]);
+
+  const computedIsInterState = useMemo(() => {
+    if (!companyState || !billingState) return false;
+    return companyState.toLowerCase().trim() !== billingState.toLowerCase().trim();
+  }, [companyState, billingState]);
+
+  useEffect(() => {
+    setValue("isInterState", computedIsInterState, { shouldValidate: true });
+  }, [computedIsInterState, setValue]);
+
+  // ─── Auto-fill billing from selected customer (create mode) ──
+  useEffect(() => {
+    if (isEditMode || !customerId) return;
+
+    let isMounted = true;
+    const applyAddress = (target: any) => {
+      const addr = extractBillingAddress(target);
+      if (addr.line1) setValue("billingAddressLine1", addr.line1, { shouldValidate: true });
+      if (addr.city) setValue("billingCity", addr.city, { shouldValidate: true });
+      if (addr.state) setValue("billingState", addr.state, { shouldValidate: true });
+      if (addr.pincode) setValue("billingPincode", addr.pincode, { shouldValidate: true });
+    };
+
+    const localCustomer = customers.find((c: any) => String(c.id) === customerId);
+    if (localCustomer) {
+      applyAddress(localCustomer);
+    }
+
+    customerService
+      .fetchById(customerId)
+      .then((fullCust) => {
+        if (isMounted && fullCust) {
+          applyAddress(fullCust);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [customerId, customers, isEditMode, setValue]);
+
+  // ─── Calculation: per-item base ──
+  const calculateItemBase = (item: any) => {
+    const orderQty = Number(item.orderQuantity) || 0;
+    const unitPrice = Number(item.unitPrice) || 0;
+    const gstRate = Number(item.gstRate) || 0;
+    const subtotal = orderQty * unitPrice;
+    return { subtotal, unitPrice, gstRate };
+  };
+
+  const calculateItemDisplay = (item: any) => {
+    const base = calculateItemBase(item);
+    const gstAmount = (base.subtotal * base.gstRate) / 100;
+    const totalWithGst = base.subtotal + gstAmount;
+    return { ...base, gstAmount, totalWithGst };
+  };
+
+  const calculateOrderTotals = () => {
+    const bases = (items || [])
+      .filter((item: any) => item.salesProductId && item.orderQuantity)
+      .map((item: any) => calculateItemBase(item));
+
+    const subtotal = bases.reduce((sum, b) => sum + b.subtotal, 0);
+
+    const discountValueNum = Number(orderDiscountValue) || 0;
+    const rawDiscount =
+      orderDiscountType === "PERCENT" ? (subtotal * discountValueNum) / 100 : discountValueNum;
+    const totalDiscount = Math.min(rawDiscount, subtotal);
+
+    let totalGst = 0;
+    if (subtotal > 0) {
+      for (const b of bases) {
+        const share = b.subtotal / subtotal;
+        const itemDiscount = totalDiscount * share;
+        const taxableValue = b.subtotal - itemDiscount;
+        totalGst += (taxableValue * b.gstRate) / 100;
+      }
+    }
+
+    const netAmount = subtotal - totalDiscount + totalGst;
+    return { subtotal, totalDiscount, totalGst, netAmount };
+  };
+
+  const totals = calculateOrderTotals();
+
+  // ─── Handle draft order selection ──────────────────────────
+  const handleDraftOrderSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value ? Number(e.target.value) : null;
+    setSelectedDraftId(id);
+    if (!id) {
+      setIsEditMode(false);
+      setQuotationId(null);
+      setRejectionReason(null);
+      setDispatchType(null);
+      setOrderType(null);
+      setSalesPersonId(null);
+      setTransportName(null);
+      setMobile(null);
+      reset(defaultValues);
+      return;
+    }
+
+    try {
+      const order = await salesOrderService.fetchById(id);
+      populateFormFromOrder(order);
+    } catch (error) {
+      toast.error("Failed to load draft order");
+    }
+  };
+
+  // ─── Load items from a previous order ────────────────────────────────────────
+  const handleLoadFromPrevOrder = async (orderId: number | null) => {
+    setSelectedPrevOrderId(orderId);
+    if (!orderId) return;
+    try {
+      const order = await salesOrderService.fetchById(orderId);
+
+      // Populate Billing Address from loaded order / customer
+      const billing = extractBillingAddress(order);
+      if (billing.line1) setValue("billingAddressLine1", billing.line1, { shouldValidate: true });
+      if (billing.city) setValue("billingCity", billing.city, { shouldValidate: true });
+      if (billing.state) setValue("billingState", billing.state, { shouldValidate: true });
+      if (billing.pincode) setValue("billingPincode", billing.pincode, { shouldValidate: true });
+
+      if ((order as any).orderSource) setValue("orderSource", (order as any).orderSource);
+      if ((order as any).sourceEmployeeId)
+        setValue("sourceEmployeeId", String((order as any).sourceEmployeeId));
+      if ((order as any).referredByCustomerId)
+        setValue("referredByCustomerId", String((order as any).referredByCustomerId));
+      if ((order as any).referredByName) setValue("referredByName", (order as any).referredByName);
+      if (order.mobile) setValue("mobile", order.mobile);
+
+      if (!order.items || order.items.length === 0) {
+        toast.info("Selected order has no items.");
+        return;
+      }
+      setValue("quotationNo", order.orderNo);
+      const newItems = reconstructQuotationItems(order.items || [], salesProducts, products);
+      setValue("items", newItems);
+
+      // ── Carry over order-level discount from the selected order ──
+      if ((order as any).orderDiscountType) {
+        setValue("orderDiscountType", (order as any).orderDiscountType);
+      }
+      if ((order as any).orderDiscountValue != null) {
+        setValue("orderDiscountValue", String((order as any).orderDiscountValue));
+      }
+
+      toast.success(`Loaded ${newItems.length} item(s) from order ${order.orderNo}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to load order items");
+    }
+  };
+
+  // ─── Submit Handler ────────────────────────────────────────
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const onSubmit = async (data: QuotationFormValues, confirm: boolean = false) => {
+    if (confirm) setIsConfirming(true);
+    else setIsSubmitting(true);
+
+    try {
+      // Expand sales products into component-level items
+      const transformedItems: any[] = [];
+      data.items.forEach((item) => {
+        const totalRate = Number(item.gstRate) || 0;
+        const spId = item.salesProductId ? Number(item.salesProductId) : null;
+        const orderQty = Number(item.orderQuantity) || 1;
+        const unitPricePerOrder = Number(item.unitPrice) || 0;
+
+        const includedComps = (item.components || []).filter(
+          (c) => c.included && Number(c.quantity) > 0
+        );
+        const sp = salesProducts.find((s) => String(s.id) === item.salesProductId);
+        const spComps = (sp?.components || []).filter(
+          (comp: any) => comp.componentProduct?.productType === "SALES_PRODUCTION"
+        );
+
+        // Calculate total rate across INCLUDED components only for proportional distribution
+        const includedCompDefs = includedComps.map((c) => {
+          const def = spComps.find(
+            (comp: any) => String(comp.componentProductId) === c.componentProductId
+          );
+          const rate = Number(def?.componentProduct?.rate ?? 0);
+          const perUnit = Number(def?.quantity || 1);
+          return { c, def, rate, perUnit, rateWeight: rate * perUnit };
+        });
+        const totalWeight = includedCompDefs.reduce((sum, d) => sum + d.rateWeight, 0);
+
+        includedCompDefs.forEach(({ c, def, perUnit, rateWeight }) => {
+          // Distribute unit price proportionally across included components
+          const share = totalWeight > 0 ? rateWeight / totalWeight : 1 / includedCompDefs.length;
+          const compUnitPrice =
+            unitPricePerOrder > 0 ? (unitPricePerOrder * share) / perUnit : undefined;
+
+          transformedItems.push({
+            productId: Number(c.componentProductId),
+            salesProductId: spId,
+            quantity: Number(c.quantity),
+            quotationUnitPrice:
+              compUnitPrice && compUnitPrice > 0
+                ? Math.round(compUnitPrice * 100) / 100
+                : undefined,
+            cgstRate: data.isInterState ? 0 : totalRate / 2,
+            sgstRate: data.isInterState ? 0 : totalRate / 2,
+            igstRate: data.isInterState ? totalRate : 0,
+          });
+        });
+      });
+
+      // Use URL param first (survives refresh), fall back to refs
+      // (set by handleDraftOrderSelect / populateFormFromOrder).
+      const currentIsEditMode = Boolean(idParam) || isEditModeRef.current;
+      const currentQuotationId = idParam ? Number(idParam) : quotationIdRef.current;
+
+      const payload: any = {
+        orderNo: data.quotationNo,
+        orderDate: new Date(data.quotationDate).toISOString(),
+        sourceSalesOrderId: selectedPrevOrderId || undefined,
+        expectedCompletionDate: data.validUntil
+          ? new Date(data.validUntil).toISOString()
+          : undefined,
+        customerId: data.customerId,
+        mobile: data.mobile || null,
+        orderSource: data.orderSource || null,
+        sourceEmployeeId:
+          ORDER_SOURCE_NEEDS_EMPLOYEE.includes(data.orderSource ?? "") && data.sourceEmployeeId
+            ? String(data.sourceEmployeeId)
+            : null,
+        referredByCustomerId:
+          ORDER_SOURCE_NEEDS_REFERRAL.includes(data.orderSource ?? "") && data.referredByCustomerId
+            ? String(data.referredByCustomerId)
+            : null,
+        referredByName:
+          ORDER_SOURCE_NEEDS_REFERRAL.includes(data.orderSource ?? "") ||
+          ORDER_SOURCE_NEEDS_DEALER.includes(data.orderSource ?? "")
+            ? data.referredByName?.trim() || null
+            : null,
+        paymentTermId: data.paymentTermId ? Number(data.paymentTermId) : null,
+        billingAddressLine1: data.billingAddressLine1 ?? "",
+        billingCity: data.billingCity ?? "",
+        billingState: data.billingState ?? "",
+        billingPincode: data.billingPincode ?? "",
+        sameAsBilling: data.sameAsBilling,
+        shippingAddressLine1: data.sameAsBilling
+          ? (data.billingAddressLine1 ?? "")
+          : (data.shippingAddressLine1 ?? ""),
+        shippingCity: data.sameAsBilling ? (data.billingCity ?? "") : (data.shippingCity ?? ""),
+        shippingState: data.sameAsBilling ? (data.billingState ?? "") : (data.shippingState ?? ""),
+        shippingPincode: data.sameAsBilling
+          ? (data.billingPincode ?? "")
+          : (data.shippingPincode ?? ""),
+        isInterState: data.isInterState,
+        remarks: data.remarks,
+        internalNotes: data.internalNotes,
+        narration: null,
+        items: transformedItems,
+        orderDiscountType: data.orderDiscountType,
+        orderDiscountValue: data.orderDiscountValue,
+        billSundry: sundryRows.length > 0 ? sundryRows : null,
+        status: confirm ? "QUOTED" : "DRAFT",
+      };
+
+      let response;
+
+      const existingSalesOrderId = currentIsEditMode ? currentQuotationId : selectedPrevOrderId;
+
+      if (existingSalesOrderId) {
+        response = await salesOrderService.update(existingSalesOrderId, payload);
+      } else {
+        response = await salesOrderService.create(payload);
+      }
+
+      const orderId = existingSalesOrderId || response.id;
+
+      if (confirm) {
+        toast.success("Quotation confirmed successfully!");
+        navigate("/quatation-order");
+      } else {
+        toast.success(
+          currentIsEditMode ? "Quotation updated as draft!" : "Quotation saved as draft!"
+        );
+        navigate("/quatation-order");
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to save quotation");
+    } finally {
+      setIsSubmitting(false);
+      setIsConfirming(false);
+    }
+  };
+
+  // ─── Autocomplete options for Excel-style cell ─────────────────
+  const autocompleteOptions: AutocompleteOption[] = useMemo(
+    () =>
+      salesProducts.map((sp) => {
+        const stock = computeSalesProductLiveStock(sp);
+        return {
+          value: String(sp.id),
+          label: sp.salesProductName || sp.salesProductCode || String(sp.id),
+          info: (
+            <span
+              className={`text-[11px] font-semibold ${stock > 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
+            >
+              {stock} pcs
+            </span>
+          ),
+        };
+      }),
+    [salesProducts]
+  );
+
+  // ─── Quotation item columns for BusyItemsTable ─────────────
+  const quotationColumns: BusyColumn<any>[] = useMemo(
+    () => [
+      {
+        key: "salesProductId",
+        header: "Sales Product",
+        width: "1fr",
+        render: (_row: any, index: number) => {
+          const itemValue = watchedItems?.[index];
+          const hasOrder = !!selectedPrevOrderId || isEditMode;
+
+          if (hasOrder && itemValue?.salesProductId) {
+            const sp = salesProducts.find((s: any) => String(s.id) === itemValue?.salesProductId);
+            const spName = sp?.salesProductName || "—";
+            const stock = sp ? computeSalesProductLiveStock(sp) : 0;
+            return (
+              <div className="flex items-center justify-between w-full gap-2 text-[13px]">
+                <span className="text-ink font-medium truncate">{spName}</span>
+                <span
+                  className={`text-[11px] font-semibold shrink-0 ${stock > 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
+                >
+                  {stock} pcs
+                </span>
+              </div>
+            );
+          }
+
+          const allItems = watchedItems || [];
+          const selectedInOtherRows = new Set(
+            allItems
+              .filter((_: any, i: number) => i !== index)
+              .map((item: any) => String(item?.salesProductId))
+              .filter(Boolean)
+          );
+          const opts = autocompleteOptions.map((o) => ({
+            ...o,
+            disabled: selectedInOtherRows.has(o.value),
+          }));
+
+          return (
+            <AutocompleteInput
+              inline
+              name={`items.${index}.salesProductId`}
+              value={itemValue?.salesProductId || ""}
+              options={opts}
+              placeholder="Type to search..."
+              error={(errors.items as any)?.[index]?.salesProductId?.message}
+              onChange={(spId) => {
+                const sp = salesProducts.find((s: any) => String(s.id) === spId);
+                setValue(`items.${index}.salesProductId`, spId);
+                setValue(`items.${index}.orderQuantity`, "1");
+                setValue(`items.${index}.components`, sp ? buildComponents(sp, 1) : []);
+                const autoPrice = sp ? computeSalesProductUnitPrice(sp, products) : 0;
+                setValue(`items.${index}.unitPrice`, autoPrice > 0 ? String(autoPrice) : "");
+                setValue(`items.${index}.gstRate`, "");
+              }}
+            />
+          );
+        },
+      },
+      {
+        key: "orderQuantity",
+        header: "Qty",
+        width: "80px",
+        align: "center" as const,
+        render: (_row: any, index: number) => {
+          const itemValue = watchedItems?.[index];
+          const components: ComponentItem[] = itemValue?.components || [];
+          return (
+            <input
+              type="text"
+              inputMode="numeric"
+              value={itemValue?.orderQuantity ?? ""}
+              onChange={(e) => {
+                const qty = e.target.value;
+                setValue(`items.${index}.orderQuantity`, qty);
+                const numQty = Math.max(1, Number(qty) || 1);
+                const updated = components.map((c) => ({
+                  ...c,
+                  quantity: String(c.perUnit * numQty),
+                }));
+                setValue(`items.${index}.components`, updated);
+              }}
+              className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0 h-full"
+              placeholder="0"
+            />
+          );
+        },
+      },
+      {
+        key: "unitPrice",
+        header: "Unit Price",
+        width: "100px",
+        align: "right" as const,
+        render: (_row: any, index: number) => {
+          const itemValue = watchedItems?.[index];
+          return (
+            <input
+              type="text"
+              inputMode="decimal"
+              value={itemValue?.unitPrice ?? ""}
+              onChange={(e) => setValue(`items.${index}.unitPrice`, e.target.value)}
+              className="w-full bg-transparent text-[13px] text-ink text-right outline-none border-none p-0 h-full"
+              placeholder="0"
+            />
+          );
+        },
+      },
+      {
+        key: "total",
+        header: "Total",
+        width: "110px",
+        align: "right" as const,
+        render: (_row: any, index: number) => {
+          const itemValue = watchedItems?.[index];
+          if (!itemValue) return null;
+          const rowCalc = calculateItemDisplay(itemValue);
+          if (rowCalc.subtotal <= 0) return <span className="text-[13px] text-ink-subtle">—</span>;
+          return (
+            <div className="text-right">
+              <span className="text-[color:var(--color-success)] text-[13px] font-bold">
+                ₹{rowCalc.totalWithGst.toFixed(2)}
+              </span>
+            </div>
+          );
+        },
+      },
+    ],
+    [
+      watchedItems,
+      autocompleteOptions,
+      salesProducts,
+      products,
+      errors.items,
+      isEditMode,
+      selectedPrevOrderId,
+      setValue,
+    ]
+  );
+
+  // ─── Bill Sundry columns for BusyItemsTable ───────────────
+  const sundryColumns: BusyColumn<SundryRow>[] = useMemo(() => {
+    const usedTypes = new Set(sundryRows.map((r) => r.type));
+    return [
+      {
+        key: "type",
+        header: "Bill Sundry",
+        width: "1fr",
+        render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => (
+          <select
+            value={row.type}
+            onChange={(e) => update({ type: e.target.value })}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              fontSize: 13,
+              color: "var(--color-ink)",
+              cursor: "pointer",
+            }}
+          >
+            {DEFAULT_SUNDRY_OPTIONS.map((o) => (
+              <option
+                key={o.value}
+                value={o.value}
+                disabled={o.value !== row.type && usedTypes.has(o.value)}
+              >
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ),
+      },
+      {
+        key: "rate",
+        header: "@",
+        width: "100px",
+        align: "right" as const,
+        render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => {
+          const hasRate = row.type.startsWith("BILL_TAX") || row.type.startsWith("DISCOUNT");
+          if (!hasRate) return null;
+          return (
+            <div className="flex items-center gap-0.5 w-full justify-end">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={row.rate}
+                onChange={(e) => {
+                  const rate = e.target.value.replace(/[^0-9.]/g, "");
+                  const rateNum = Number(rate) || 0;
+                  const calcAmount = ((totals.subtotal * rateNum) / 100).toFixed(2);
+                  update({ rate, amount: rateNum > 0 ? calcAmount : "" });
+                }}
+                placeholder="0.000"
+                className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right"
+              />
+              <span className="text-[11px] text-ink-subtle">%</span>
+            </div>
+          );
+        },
+      },
+      {
+        key: "amount",
+        header: "Amount (₹)",
+        width: "120px",
+        align: "right" as const,
+        render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => {
+          const isNeg = DEFAULT_SUNDRY_OPTIONS.find((o) => o.value === row.type)?.sign === -1;
+          return (
+            <input
+              type="text"
+              inputMode="decimal"
+              value={row.amount}
+              onChange={(e) => update({ amount: e.target.value.replace(/[^0-9.]/g, ""), rate: "" })}
+              placeholder="0.00"
+              className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right font-semibold"
+              style={{ color: isNeg ? "var(--color-danger)" : "var(--color-ink)" }}
+            />
+          );
+        },
+      },
+    ];
+  }, [sundryRows, totals.subtotal]);
+
+  const sundryEmptyRow: SundryRow = useMemo(() => {
+    const usedTypes = new Set(sundryRows.map((r) => r.type));
+    const next =
+      DEFAULT_SUNDRY_OPTIONS.find((o) => !usedTypes.has(o.value))?.value ??
+      DEFAULT_SUNDRY_OPTIONS[0]?.value ??
+      "";
+    return { id: `${Date.now()}-${Math.random()}`, type: next, rate: "", amount: "" };
+  }, [sundryRows]);
+
+  // ─── Expanded Components for BusyItemsTable ──────────────
+  const renderExpandedComponents = useCallback(
+    (_row: any, index: number) => {
+      const itemValue = watchedItems?.[index];
+      const components: ComponentItem[] = itemValue?.components || [];
+      const sp = salesProducts.find((s: any) => String(s.id) === itemValue?.salesProductId);
+
+      if (components.length === 0) return null;
+
+      return (
+        <div className="px-4 py-2">
+          <div className="ml-6 rounded-md border border-line-soft overflow-hidden">
+            <div className="grid grid-cols-[auto_1fr_auto_80px_80px] gap-2 px-3 py-1.5 bg-card-2 border-b border-line-soft">
+              <div className="w-4" />
+              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                Component Product
+              </span>
+              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">
+                Per Unit
+              </span>
+              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">
+                Live Stock
+              </span>
+              <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">
+                Qty
+              </span>
+            </div>
+            {components.map((comp, compIdx) => {
+              const spComp = sp?.components?.find(
+                (c: any) => String(c.componentProductId) === String(comp.componentProductId)
+              );
+              const compStock = spComp ? getComponentProductStock(spComp.componentProduct) : null;
+              return (
+                <div
+                  key={comp.componentProductId}
+                  className={`grid grid-cols-[auto_1fr_auto_80px_80px] gap-2 items-center px-3 py-1.5 border-b border-line-soft last:border-b-0 ${comp.included ? "bg-card" : "bg-card-2 opacity-60"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={comp.included}
+                    onChange={() => {
+                      const updated = components.map((c, i) =>
+                        i === compIdx ? { ...c, included: !c.included } : c
+                      );
+                      setValue(`items.${index}.components`, updated);
+                    }}
+                    className="w-3.5 h-3.5 rounded accent-accent cursor-pointer"
+                  />
+                  <span
+                    className={`text-xs ${comp.included ? "text-ink font-medium" : "line-through text-ink-subtle"}`}
+                  >
+                    {comp.productName}
+                  </span>
+                  <span className="text-[11px] text-ink-subtle text-center w-12">
+                    x{comp.perUnit}
+                  </span>
+                  <span className="text-xs font-semibold text-center text-ink-subtle">
+                    {compStock != null ? `${compStock} pcs` : "—"}
+                  </span>
+                  <span className="text-xs text-ink font-medium text-center">
+                    {comp.included ? comp.quantity : "0"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    },
+    [watchedItems, salesProducts, setValue]
+  );
+
+  // ─── Render ──────────────────────────────────────────────────
+  const isLoading = customersLoading || productsLoading || salesProductsLoading || loadingOrder;
+  const billing = {
+    addressLine1: watch("billingAddressLine1"),
+    city: watch("billingCity"),
+    state: watch("billingState"),
+    pincode: watch("billingPincode"),
+  };
+  const shipping = {
+    addressLine1: watch("shippingAddressLine1"),
+    city: watch("shippingCity"),
+    state: watch("shippingState"),
+    pincode: watch("shippingPincode"),
+  };
+
+  if (isLoading) {
+    return <CommonLoader text="Loading quotation..." fullScreen={false} />;
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-[1600px]">
+      <PageHeader
+        title={isEditMode ? "Edit Quotation" : "Create Quotation"}
+        meta={
+          watch("quotationNo") ? (
+            <Chip size="sm" tone="muted" className="tabular-nums">
+              {watch("quotationNo")}
+            </Chip>
+          ) : null
+        }
+        subtitle="Price the sales products for a customer. Save a draft to share it; confirm it to turn it into an order."
+        back={() => navigate(-1)}
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Quotations", to: "/quatation-order" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+      />
+
+      <form
+        className="space-y-4"
+        onSubmit={handleSubmit((data) => onSubmit(data, false))}
+        noValidate
+      >
+        {/* ── Rejection banner (edit mode only) ── */}
+        {isEditMode && rejectionReason && (
+          <div
+            role="alert"
+            className="sl-tile flex items-start gap-3 border-l-4 !border-l-[color:var(--color-danger)] px-4 py-3"
+          >
+            <FaExclamationTriangle
+              className="mt-0.5 shrink-0 text-[color:var(--color-danger)]"
+              aria-hidden="true"
+            />
+            <div>
+              <div className="sl-section-label">Rejection Reason</div>
+              <p className="m-0 text-sm text-ink">{rejectionReason}</p>
+            </div>
+          </div>
+        )}
+
+        <Tile title="Customer & date" icon={<UserRound size={18} />}>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+            <Controller
+              name="quotationDate"
+              control={control}
+              render={({ field: f }) => (
+                <AutocompleteInput
+                  label="Quotation Date"
+                  name={f.name}
+                  value={f.value}
+                  options={[]}
+                  required
+                  onChange={() => {}}
+                  placeholder={f.value}
+                  disabled
+                  error={errors.quotationDate?.message}
+                />
+              )}
+            />
+            <Controller
+              name="customerId"
+              control={control}
+              render={({ field: f }) => (
+                <AutocompleteInput
+                  label="Customer"
+                  name={f.name}
+                  value={f.value ?? ""}
+                  options={customerAutocompleteOptions}
+                  onChange={(val) => f.onChange({ target: { name: f.name, value: val } })}
+                  required
+                  disabled={isEditMode}
+                  error={errors.customerId?.message}
+                  placeholder="Type to search customer..."
+                />
+              )}
+            />
+            {!isEditMode && (
+              <AutocompleteInput
+                label="Select Sales Order"
+                name="selectedPrevOrderId"
+                value={selectedPrevOrderId ? String(selectedPrevOrderId) : ""}
+                options={prevOrderAutocompleteOptions}
+                onChange={(val) => handleLoadFromPrevOrder(val ? Number(val) : null)}
+                placeholder={
+                  loadingCustomerOrders
+                    ? "Loading..."
+                    : customerOrders.length > 0
+                      ? "Type to search order..."
+                      : "No pending sales orders"
+                }
+                disabled={!customerId || customerOrders.length === 0}
+              />
+            )}
+          </div>
+          {(watch("billingAddressLine1") || watch("billingCity") || watch("billingState")) && (
+            <div className="mt-4 rounded-[14px] bg-card-2 p-3 text-[13px] text-ink-muted">
+              <span className="sl-section-label mr-2">Billing</span>
+              {[
+                watch("billingAddressLine1"),
+                watch("billingCity"),
+                watch("billingState"),
+                watch("billingPincode"),
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </div>
+          )}
+        </Tile>
+
+        {errors.items?.root && (
+          <div role="alert" className="sl-field-error sl-tile m-0 px-4 py-3">
+            {errors.items.root.message}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <Tile
+            title="Quotation Items"
+            subtitle="Tab moves across, Enter or ↓ moves down; past the last row a new line opens."
+            icon={<ListOrdered size={18} />}
+            className="min-w-0"
+          >
+            <BusyItemsTable
+              columns={quotationColumns}
+              rows={fields}
+              onAdd={() =>
+                append({
+                  salesProductId: "",
+                  orderQuantity: "",
+                  unitPrice: "",
+                  gstRate: "",
+                  components: [],
+                })
+              }
+              onRemove={(i) => remove(i)}
+              editable={fields.length > 1}
+              expandable
+              canExpand={(_row, i) => Boolean(watchedItems?.[i]?.salesProductId)}
+              expandedIndex={expandedItemIndex}
+              onExpandToggle={(i) => setExpandedItemIndex(expandedItemIndex === i ? null : i)}
+              renderExpandedRow={renderExpandedComponents}
+              showTotals={[
+                {
+                  colKey: "orderQuantity",
+                  value: (watchedItems || []).reduce(
+                    (s: number, it: any) => s + (Number(it?.orderQuantity) || 0),
+                    0
+                  ),
+                },
+                { colKey: "total", value: `₹${totals.subtotal.toFixed(2)}` },
+              ]}
+              visibleRows={10}
+            />
+          </Tile>
+          <div className="flex flex-col gap-4">
+            <Tile title="Bill Sundry" icon={<Receipt size={18} />}>
+              <BusyItemsTable
+                columns={sundryColumns}
+                rows={sundryRows}
+                onChange={setSundryRows}
+                emptyRow={sundryEmptyRow}
+                editable={false}
+                visibleRows={5}
+                showTotals={[
+                  {
+                    colKey: "amount",
+                    value: (() => {
+                      const t = sundryRows.reduce((s, r) => {
+                        const a = Number(r.amount) || 0;
+                        const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
+                        return s + (o?.sign === -1 ? -a : a);
+                      }, 0);
+                      return t !== 0 ? `${t > 0 ? "+" : "-"} ₹${Math.abs(t).toFixed(2)}` : "0.00";
+                    })(),
+                  },
+                ]}
+              />
+            </Tile>
+            <Tile className="xl:sticky xl:top-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13px] font-medium text-ink-subtle">Quotation total</span>
+                <span className="text-[28px] font-bold leading-tight tracking-tight tabular-nums text-ink">
+                  {formatINR(
+                    totals.subtotal +
+                      sundryRows.reduce((s, r) => {
+                        const a = Number(r.amount) || 0;
+                        const o = DEFAULT_SUNDRY_OPTIONS.find((x) => x.value === r.type);
+                        return s + (o?.sign === -1 ? -a : a);
+                      }, 0)
+                  )}
+                </span>
+              </div>
+              <p className="m-0 mt-1 text-[12px] text-ink-subtle">Items plus bill sundry.</p>
+            </Tile>
+          </div>
+        </div>
+
+        <FormFooter start={<KeyHint keys={["F2"]}>saves a draft</KeyHint>}>
+          <ActionPill
+            variant="secondary"
+            onClick={() => navigate(-1)}
+            disabled={isSubmitting || isConfirming}
+          >
+            Cancel
+          </ActionPill>
+          <ActionPill
+            data-submit-btn
+            variant="secondary"
+            loading={isSubmitting}
+            loadingText="Saving..."
+            disabled={isConfirming}
+            onClick={handleSubmit((data) => onSubmit(data, false))}
+          >
+            {isEditMode ? "Update Draft" : "Save as Draft"}
+          </ActionPill>
+          <ActionPill
+            icon={<CheckCircle2 size={17} />}
+            loading={isConfirming}
+            loadingText="Confirming..."
+            disabled={isSubmitting}
+            onClick={handleSubmit((data) => onSubmit(data, true))}
+          >
+            Confirm Order
+          </ActionPill>
+        </FormFooter>
+      </form>
+    </div>
+  );
 };
 
 export default QuotationForm;

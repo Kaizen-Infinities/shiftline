@@ -650,6 +650,7 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "GET /api/sales-products/:id",
   "PUT /api/sales-products/:id",
   "GET /api/sales-products/next-id",
+  "POST /api/shift-execution/supervisor-override",
   "GET /api/shifts",
   "POST /api/shifts",
   "DELETE /api/shifts/:id",

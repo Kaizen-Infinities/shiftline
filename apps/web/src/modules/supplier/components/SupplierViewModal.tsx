@@ -16,30 +16,24 @@ const SupplierViewModal: React.FC<SupplierViewModalProps> = ({ show, onHide, sup
     if (!Array.isArray(supplier.addresses) || supplier.addresses.length === 0) return null;
 
     return (
-      <div className="bg-card rounded-sm border border-line overflow-hidden mt-6">
-        <div className="px-5 py-3 bg-card-2 border-b border-line">
-          <h6 className="text-sm font-semibold text-ink uppercase tracking-wider">
-            Additional Delivery / Plant Addresses
-          </h6>
+      <div className="sl-tile mt-6 overflow-hidden">
+        <div className="border-b border-line-soft px-5 py-3">
+          <h6 className="sl-h2 m-0">Additional Delivery / Plant Addresses</h6>
         </div>
         <div className="p-5 space-y-5">
           {supplier.addresses.map((addr: any, idx: number) => (
-            <div key={idx} className={idx > 0 ? "pt-5 border-t border-line" : ""}>
+            <div key={idx} className={idx > 0 ? "border-t border-line-soft pt-5" : ""}>
               <div className="flex items-center gap-2 mb-3">
                 <h6 className="text-sm font-bold text-ink">
                   {addr.label || `Address #${idx + 1}`}
                 </h6>
                 {addr.isDefault && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-card-2 text-ink-muted border border-line rounded-sm uppercase tracking-wider">
-                    Default
-                  </span>
+                  <span className="sl-chip sl-chip-sm sl-chip-muted">Default</span>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-subtle uppercase tracking-wide">
-                    Address
-                  </span>
+                  <span className="text-[13px] font-medium text-ink-subtle">Address</span>
                   <span className="text-sm font-medium text-ink break-words">
                     {addr.address?.addressLine1 || "N/A"}
                     {addr.address?.addressLine2 ? `, ${addr.address.addressLine2}` : ""}
@@ -49,9 +43,7 @@ const SupplierViewModal: React.FC<SupplierViewModalProps> = ({ show, onHide, sup
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-ink-subtle uppercase tracking-wide">
-                    State Code
-                  </span>
+                  <span className="text-[13px] font-medium text-ink-subtle">State Code</span>
                   <span className="text-sm font-medium text-ink">{addr.stateCode || "N/A"}</span>
                 </div>
               </div>

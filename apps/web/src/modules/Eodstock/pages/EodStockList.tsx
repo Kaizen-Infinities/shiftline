@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { FaInfoCircle, FaHistory, FaLock, FaBroadcastTower } from "react-icons/fa";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
 import DataTable from "../../../components/ui/table/DataTable";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
@@ -15,6 +13,8 @@ import { fetchEodStock } from "../../../features/eod-stock/eodStockSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import { usePermission } from "../../../hooks/usePermission";
 import type { EodCategory, EodStockItem } from "../../../services/eodStockService";
+import { CalendarClock, Info, Lock, Radio } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Toolbar, type ChipTone } from "../../../components/ui/v2";
 
 const ITEMS_PER_PAGE = 20;
 const LIVE_POLL_INTERVAL_MS = 30_000;
@@ -35,7 +35,7 @@ const formatUom = (uom: string | null): string => {
 const formatQty = (qty: number | null, uom: string | null): string => {
   if (qty === null || qty === undefined) return "—";
   const u = formatUom(uom);
-  return u ? `${qty.toLocaleString()} ${u}` : qty.toLocaleString();
+  return u ? `${qty.toLocaleString("en-IN")} ${u}` : qty.toLocaleString("en-IN");
 };
 
 const CATEGORY_LABELS: Record<EodCategory, string> = {
@@ -44,10 +44,44 @@ const CATEGORY_LABELS: Record<EodCategory, string> = {
   WASTAGE: "Wastage",
 };
 
+const CATEGORY_TONES: Record<EodCategory, ChipTone> = {
+  RAW_MATERIAL: "success",
+  FINISHED_PRODUCT: "default",
+  WASTAGE: "warning",
+};
+
 const CategoryBadge: React.FC<{ category: EodCategory }> = ({ category }) => (
-  <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold whitespace-nowrap">
+  <Chip size="sm" tone={CATEGORY_TONES[category] ?? "muted"} className="whitespace-nowrap">
     {CATEGORY_LABELS[category] ?? category}
-  </span>
+  </Chip>
+);
+
+type NoticeTone = "info" | "success" | "warning" | "muted";
+const NOTICE_TONE: Record<NoticeTone, string> = {
+  info: "text-[color:var(--color-info)]",
+  success: "text-[color:var(--color-success)]",
+  warning: "text-[color:var(--color-warning)]",
+  muted: "text-ink-subtle",
+};
+
+/** One-line status notice in a tile above the table. */
+const Notice: React.FC<{ tone: NoticeTone; icon: React.ReactNode; children: React.ReactNode }> = ({
+  tone,
+  icon,
+  children,
+}) => (
+  <div
+    role="status"
+    className="sl-tile mb-4 flex items-center gap-3 px-4 py-3 text-sm text-ink-muted"
+  >
+    <span
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chip ${NOTICE_TONE[tone]}`}
+      aria-hidden="true"
+    >
+      {icon}
+    </span>
+    <span className="min-w-0">{children}</span>
+  </div>
 );
 
 const EodStockList: React.FC = () => {
@@ -223,116 +257,106 @@ const EodStockList: React.FC = () => {
   const renderBanner = () => {
     if (isTodaySelected && isLive) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-[color:var(--color-info)]/10 border-b border-[color:var(--color-info)]/30 text-sm text-[color:var(--color-info)]">
-          <FaBroadcastTower size={13} className="flex-shrink-0 text-[color:var(--color-info)]" />
-          <span>
-            <span className="font-semibold">Live view</span> — START QTY = day opening balance · EOD
-            QTY = current live stock
-            <span className="ml-2 text-[color:var(--color-info)] text-xs">
-              (auto-refreshes every 30 s)
-            </span>
-          </span>
-        </div>
+        <Notice tone="info" icon={<Radio size={15} />}>
+          <span className="font-semibold text-ink">Live view</span> — Start qty = day opening
+          balance · Current qty = current live stock{" "}
+          <span className="text-xs text-ink-subtle">(auto-refreshes every 30 s)</span>
+        </Notice>
       );
     }
     if (isTodaySelected && isLocked) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-[color:var(--color-success)]/10 border-b border-[color:var(--color-success)]/30 text-sm text-[color:var(--color-success)]">
-          <FaLock size={12} className="flex-shrink-0 text-[color:var(--color-success)]" />
-          <span>
-            Today's stock locked as of{" "}
-            <span className="font-semibold">{formatDateTime(lastLockedAt!)}</span>
-          </span>
-        </div>
+        <Notice tone="success" icon={<Lock size={14} />}>
+          Today's stock locked as of{" "}
+          <span className="font-semibold text-ink">{formatDateTime(lastLockedAt!)}</span>
+        </Notice>
       );
     }
     if (!isTodaySelected && isLocked) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-card-2 border-b border-line text-sm text-ink-muted">
-          <FaLock size={12} className="flex-shrink-0 text-ink-subtle" />
-          <span>
-            Stock locked as of{" "}
-            <span className="font-semibold text-ink">{formatDateTime(lastLockedAt!)}</span>
-          </span>
-        </div>
+        <Notice tone="muted" icon={<Lock size={14} />}>
+          Stock locked as of{" "}
+          <span className="font-semibold text-ink">{formatDateTime(lastLockedAt!)}</span>
+        </Notice>
       );
     }
     if (!isTodaySelected && !isLocked && data.length === 0 && !loading) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-[color:var(--color-warning)]/10 border-b border-[color:var(--color-warning)]/30 text-sm text-[color:var(--color-warning)]">
-          <FaInfoCircle size={13} className="flex-shrink-0 text-[color:var(--color-warning)]" />
-          <span>
-            No EOD snapshot recorded for{" "}
-            <span className="font-semibold">{formatDate(selectedDate)}</span>.
-          </span>
-        </div>
+        <Notice tone="warning" icon={<Info size={15} />}>
+          No EOD snapshot recorded for{" "}
+          <span className="font-semibold text-ink">{formatDate(selectedDate)}</span>.
+        </Notice>
       );
     }
     if (isFuture) {
       return (
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-card-2 border-b border-line text-sm text-ink-subtle">
-          <FaInfoCircle size={13} className="flex-shrink-0" />
-          <span>Future date — no EOD data available yet.</span>
-        </div>
+        <Notice tone="muted" icon={<Info size={15} />}>
+          Future date — no EOD data available yet.
+        </Notice>
       );
     }
     return (
-      <div className="flex items-center gap-2 px-5 py-2.5 bg-card-2 border-b border-line text-sm text-ink-muted">
-        <FaInfoCircle size={14} className="text-[color:var(--color-info)] flex-shrink-0" />
-        <span>
-          Showing stock for{" "}
-          <span className="font-semibold text-ink">
-            {asOf ? formatDate(asOf) : formatDate(selectedDate)}
-          </span>
+      <Notice tone="info" icon={<Info size={15} />}>
+        Showing stock for{" "}
+        <span className="font-semibold text-ink">
+          {asOf ? formatDate(asOf) : formatDate(selectedDate)}
         </span>
-      </div>
+      </Notice>
     );
   };
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* ── Header ───────────────────────────────────────────────────────────── */}
-        <div className="border-b border-line px-5 py-4">
-          {/* Row 1: title + action buttons */}
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-xl font-bold text-ink tracking-tight">EOD Stock</h2>
-            </div>
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="EOD Stock"
+        subtitle="Opening and end-of-day balance of every item, per store and day"
+        icon={<CalendarClock size={22} />}
+        meta={
+          isTodaySelected && isLive ? (
+            <Chip size="sm" tone="success" dot>
+              Live
+            </Chip>
+          ) : isLocked ? (
+            <Chip size="sm" tone="muted" icon={<Lock size={11} />}>
+              Locked
+            </Chip>
+          ) : undefined
+        }
+        actions={
+          can("eod-stock.export") || can("inventory.export") ? (
+            <ExportCSVButton
+              data={data}
+              columns={csvColumns}
+              filename={`eod-stock-${selectedDate}.csv`}
+              text="Export"
+            />
+          ) : null
+        }
+      />
 
-            <div className="flex items-center gap-2">
-              {(can("eod-stock.export") || can("inventory.export")) && (
-                <ExportCSVButton
-                  data={data}
-                  columns={csvColumns}
-                  filename={`eod-stock-${selectedDate}.csv`}
-                  text="Export"
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Row 2: filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="w-44">
-              <SelectInput
-                value={categoryFilter}
-                defaultOptionLabel="All Categories"
-                options={[
-                  { label: "Raw Material", value: "RAW_MATERIAL" },
-                  { label: "Finished Product", value: "FINISHED_PRODUCT" },
-                  { label: "Wastage", value: "WASTAGE" },
-                ]}
-                hideLabel
-                noMargin
-                onChange={(e) => {
-                  setCategoryFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
-
-            <div className="w-48">
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(value) => {
+          setSearchTerm(value);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search item code or name…"
+        searchLabel="Search items"
+        filters={[
+          { key: "", label: "All" },
+          { key: "RAW_MATERIAL", label: "Raw Material" },
+          { key: "FINISHED_PRODUCT", label: "Finished Product" },
+          { key: "WASTAGE", label: "Wastage" },
+        ]}
+        filterValue={categoryFilter}
+        onFilterChange={(key) => {
+          setCategoryFilter(key);
+          setCurrentPage(1);
+        }}
+        filtersLabel="Category"
+        right={
+          <>
+            <div className="w-full sm:w-48">
               <SelectInput
                 value={storeIdFilter}
                 defaultOptionLabel="All Stores"
@@ -345,20 +369,7 @@ const EodStockList: React.FC = () => {
                 }}
               />
             </div>
-
-            <div className="w-56">
-              <SearchInput
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                placeholder="Search item code or name…"
-                fullWidthOnMobileOnly={false}
-              />
-            </div>
-
-            <div className="w-40">
+            <div className="w-full sm:w-44">
               <DatePickerCalendar
                 value={selectedDate}
                 maxDate={todayStr}
@@ -369,84 +380,83 @@ const EodStockList: React.FC = () => {
                 }}
               />
             </div>
-          </div>
-        </div>
+            {!isTodaySelected && (
+              <ActionPill
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSelectedDate(todayStr);
+                  setCurrentPage(1);
+                }}
+              >
+                Today
+              </ActionPill>
+            )}
+          </>
+        }
+      />
 
-        {/* ── Info banner ──────────────────────────────────────────────────────── */}
-        {renderBanner()}
+      {renderBanner()}
 
-        {/* ── Table ────────────────────────────────────────────────────────────── */}
-        <div className="overflow-x-auto">
-          <DataTable
-            data={data}
-            loading={loading}
-            rowKey={(item) => item.id}
-            emptyMessage={
-              <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-                <FaHistory size={32} className="text-ink-subtle mb-3" />
-                <p className="text-ink-subtle font-medium text-sm">{emptyMessage}</p>
+      <DataTable
+        data={data}
+        loading={loading}
+        rowKey={(item) => item.id}
+        density="compact"
+        ariaLabel="EOD stock"
+        emptyMessage={emptyMessage}
+        columns={[
+          {
+            header: "Item",
+            render: (item) => (
+              <div className="flex min-w-0 flex-col">
+                <span className="font-semibold text-ink">{item.itemName}</span>
+                <span className="font-mono text-xs text-ink-subtle">{item.itemCode}</span>
               </div>
-            }
-            rowClassName={(_, i) => (i % 2 === 0 ? "bg-card" : "bg-card-2/40")}
-            columns={[
-              {
-                header: "ITEM CODE",
-                render: (item) => (
-                  <span className="font-semibold text-ink tracking-tight text-sm">
-                    {item.itemCode}
+            ),
+          },
+          {
+            header: "Category",
+            render: (item) => <CategoryBadge category={item.category} />,
+          },
+          {
+            header: "Store",
+            render: (item) => <span className="text-ink-muted">{getStoreName(item.storeId)}</span>,
+          },
+          {
+            header: "Start qty",
+            align: "right",
+            render: (item) => (
+              <span className="tabular-nums text-ink-muted">
+                {formatQty(item.startQty, item.uom)}
+              </span>
+            ),
+          },
+          {
+            header: isTodaySelected && isLive ? "Current qty" : "EOD qty",
+            align: "right",
+            render: (item) => (
+              <span className="flex items-center justify-end gap-1.5 font-semibold tabular-nums text-ink">
+                {formatQty(item.eodQty, item.uom)}
+                {item.recordedAt !== null && (
+                  <span title={`Locked at ${formatDateTime(item.recordedAt)}`}>
+                    <Lock size={11} className="text-ink-subtle" aria-label="Locked" />
                   </span>
-                ),
-              },
-              {
-                header: "ITEM NAME",
-                render: (item) => (
-                  <span className="font-medium text-ink text-sm">{item.itemName}</span>
-                ),
-              },
-              {
-                header: "CATEGORY",
-                render: (item) => <CategoryBadge category={item.category} />,
-              },
-              {
-                header: "STORE",
-                render: (item) => (
-                  <span className="text-ink font-normal text-sm">{getStoreName(item.storeId)}</span>
-                ),
-              },
-              {
-                header: "START QTY",
-                align: "right",
-                render: (item) => (
-                  <span className="text-ink font-mono font-medium text-sm">
-                    {formatQty(item.startQty, item.uom)}
-                  </span>
-                ),
-              },
-              {
-                header: isTodaySelected && isLive ? "CURRENT QTY" : "EOD QTY",
-                align: "right",
-                render: (item) => (
-                  <span className="font-bold font-mono text-sm text-ink flex items-center justify-end gap-1.5">
-                    {formatQty(item.eodQty, item.uom)}
-                    {item.recordedAt !== null && (
-                      <FaLock
-                        size={9}
-                        className="text-ink-subtle"
-                        title={`Locked at ${formatDateTime(item.recordedAt)}`}
-                      />
-                    )}
-                  </span>
-                ),
-              },
-            ]}
-            pagination={{
-              currentPage,
-              totalPages,
-              onPageChange: (p) => setCurrentPage(p),
-            }}
-          />
-        </div>
-      </div>
+                )}
+              </span>
+            ),
+          },
+        ]}
+        pagination={
+          totalPages > 1
+            ? {
+                currentPage,
+                totalPages,
+                onPageChange: (p) => setCurrentPage(p),
+              }
+            : undefined
+        }
+      />
     </div>
   );
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Modal } from "../../components/ui/TailwindPrimitives";
-import { FaPlus, FaFilePdf } from "react-icons/fa";
+import { FaFilePdf } from "react-icons/fa";
+import { Plus, Receipt } from "lucide-react";
+import { ActionPill, PageHeader } from "../../components/ui/v2";
 import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../hooks/usePageShortcuts";
 
@@ -9,7 +11,6 @@ import SearchInput from "../../components/ui/SearchInput/SearchInput";
 import ViewButton from "../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../components/ui/Button/Button";
 import CancelReasonModal from "../../components/ui/CancelReasonModal/CancelReasonModal";
 import HistoryLink from "../../components/ui/HistoryLink/HistoryLink";
 import { usePermission } from "../../hooks/usePermission";
@@ -221,38 +222,37 @@ const ExpensesList: React.FC = () => {
   }
 
   return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Expense Management</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 relative w-full lg:w-auto">
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search expenses..."
-            />
-            <select
-              className="border border-line rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
-              value={filterCategory}
-              onChange={(e) => {
-                setFilterCategory(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">All Categories</option>
-              {categories.map((cat, idx) => (
-                <option key={idx} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            <CustomButton text="Add Expense" icon={FaPlus} onClick={() => setViewMode("create")} />
-          </div>
-        </div>
-
+    <div className="w-full">
+      <PageHeader
+        title="Expense Management"
+        subtitle="Business expenses and staff claims, posted to the books when approved"
+        icon={<Receipt size={20} />}
+        primaryAction={
+          <ActionPill icon={<Plus size={18} />} onClick={() => setViewMode("create")}>
+            Add Expense
+          </ActionPill>
+        }
+      />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <SearchInput value={searchTerm} onChange={handleSearch} placeholder="Search expenses..." />
+        <select
+          aria-label="Category"
+          className="sl-input h-11 w-full text-sm sm:w-56"
+          value={filterCategory}
+          onChange={(e) => {
+            setFilterCategory(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All Categories</option>
+          {categories.map((cat, idx) => (
+            <option key={idx} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="w-full">
         {/* Table */}
         <DataTable
           data={paginatedExpenses}
@@ -284,7 +284,7 @@ const ExpensesList: React.FC = () => {
             {
               header: "AMOUNT",
               render: (item) => (
-                <span className="font-semibold text-blue-600">
+                <span className="font-semibold text-accent">
                   ₹{parseFloat(item.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               ),
@@ -300,17 +300,17 @@ const ExpensesList: React.FC = () => {
                 const s = String(item.status || "Draft");
                 const cls =
                   s === "Approved"
-                    ? "bg-emerald-100 text-emerald-800"
+                    ? "sl-chip-success"
                     : s === "Pending"
-                      ? "bg-amber-100 text-amber-800"
+                      ? "sl-chip-warning"
                       : s === "Rejected"
-                        ? "bg-rose-100 text-rose-800"
+                        ? "sl-chip-danger"
                         : s === "Cancelled"
-                          ? "bg-slate-200 text-slate-700 line-through"
-                          : "bg-card-2 text-ink-muted";
+                          ? "bg-card-2 text-ink-muted line-through"
+                          : "sl-chip-muted";
                 return (
                   <span
-                    className={`rounded px-2 py-0.5 text-xs font-semibold ${cls}`}
+                    className={`sl-chip sl-chip-sm ${cls}`}
                     title={item.rejectReason || undefined}
                   >
                     {s === "Pending" ? "Pending approval" : s}
@@ -332,7 +332,7 @@ const ExpensesList: React.FC = () => {
                     {(s === "Draft" || s === "Rejected") && can("expenses.edit") && (
                       <button
                         type="button"
-                        className="rounded border border-line px-2 py-1 text-[11px] font-semibold text-ink hover:bg-card-2"
+                        className="rounded border border-line px-2 py-1 text-[12.5px] font-semibold text-ink hover:bg-card-2"
                         onClick={() => transition(item.id, "submit", "Sent for approval")}
                       >
                         Submit
@@ -342,14 +342,14 @@ const ExpensesList: React.FC = () => {
                       <>
                         <button
                           type="button"
-                          className="rounded border border-emerald-300 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
+                          className="rounded border border-[color:var(--color-success)]/40 px-2 py-1 text-[12.5px] font-semibold text-[color:var(--color-success)] hover:bg-[color:var(--color-success)]/10"
                           onClick={() => transition(item.id, "approve", "Approved and posted")}
                         >
                           Approve
                         </button>
                         <button
                           type="button"
-                          className="rounded border border-rose-300 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50"
+                          className="rounded border border-[color:var(--color-danger)]/40 px-2 py-1 text-[12.5px] font-semibold text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10"
                           onClick={() => setRejecting(item.id)}
                         >
                           Reject
@@ -359,7 +359,7 @@ const ExpensesList: React.FC = () => {
                     {s === "Approved" && can("assets.create") && (
                       <button
                         type="button"
-                        className="rounded border border-line px-2 py-1 text-[11px] font-semibold text-ink hover:bg-card-2"
+                        className="rounded border border-line px-2 py-1 text-[12.5px] font-semibold text-ink hover:bg-card-2"
                         onClick={() => setCapitalising(item)}
                         title="Put this expense on the fixed-asset register instead of the P&L"
                       >
@@ -597,19 +597,19 @@ const CapitaliseExpenseDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl border border-line-soft bg-card p-4">
-        <h2 className="text-lg font-semibold text-ink">Capitalise as an asset</h2>
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="sl-dialog w-full max-w-md p-6">
+        <h2 className="sl-dialog-title">Capitalise as an asset</h2>
         <p className="mt-1 text-sm text-ink-muted">
           {expense.expense} — ₹
           {parseFloat(expense.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}. The
           cost moves off the expense ledger and onto the asset ledger.
         </p>
         <div className="mt-3 grid grid-cols-1 gap-3">
-          <label className="text-sm text-ink-muted">
+          <label className="sl-label !mb-0 flex-col items-start gap-0">
             Asset class
             <select
-              className="mt-1 w-full rounded border border-line px-2 py-1.5 text-sm"
+              className="sl-input mt-1.5 h-11 w-full text-sm"
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
             >
@@ -620,35 +620,31 @@ const CapitaliseExpenseDialog: React.FC<{
               ))}
             </select>
           </label>
-          <label className="text-sm text-ink-muted">
+          <label className="sl-label !mb-0 flex-col items-start gap-0">
             Asset code
             <input
-              className="mt-1 w-full rounded border border-line px-2 py-1.5 text-sm"
+              className="sl-input mt-1.5 h-11 w-full text-sm"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="FA-0001"
             />
           </label>
-          <label className="text-sm text-ink-muted">
+          <label className="sl-label !mb-0 flex-col items-start gap-0">
             Asset name
             <input
-              className="mt-1 w-full rounded border border-line px-2 py-1.5 text-sm"
+              className="sl-input mt-1.5 h-11 w-full text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </label>
         </div>
-        {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+        {error && <p className="mt-2 text-sm text-[color:var(--color-danger)]">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
-          <button
-            className="rounded border border-line px-3 py-1.5 text-sm font-semibold text-ink"
-            onClick={onCancel}
-            disabled={busy}
-          >
+          <button className="sl-btn sl-pill-sm" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
           <button
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+            className="sl-cta sl-pill-sm"
             disabled={busy || !classId || !code.trim() || !name.trim()}
             onClick={submit}
           >

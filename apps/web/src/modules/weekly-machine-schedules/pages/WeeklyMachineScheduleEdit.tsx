@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { FaSave, FaEraser, FaArrowLeft } from "react-icons/fa";
+import { Save } from "lucide-react";
+import { ActionPill, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import { Figure, InfoItem, PageBody, StickyFormFooter, formatQty } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import TextInput from "../../../components/form/TextInput/TextInput";
-import CustomButton from "../../../components/ui/Button/Button";
 
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
@@ -15,7 +17,6 @@ import { fetchMachines } from "../../../features/machines/machineSlice";
 import { fetchShifts } from "../../../features/shifts/shiftSlice";
 import { weeklyProgramService } from "../../../services/weeklyProgramService";
 import { productionOrderService } from "../../../services/productionOrderService";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import { usePermission } from "../../../hooks/usePermission";
 
 const normalizePriority = (pri?: string): "LOW" | "MEDIUM" | "HIGH" | "URGENT" => {
@@ -306,116 +307,105 @@ const WeeklyMachineScheduleEdit: React.FC = () => {
   const otherAllocated = getOtherAllocatedQty();
   const remainingToPlan = currentPo ? Math.max(0, Number(currentPo.targetQty) - otherAllocated) : 0;
 
+  const uom = currentPo?.uom?.toLowerCase() === "ea" ? "pcs" : currentPo?.uom;
+  const header = (
+    <PageHeader
+      title="Edit Weekly Assignment"
+      subtitle="Update the planned quantity and machine for this week"
+      back="/weekly-machine-schedules"
+      backLabel="Back to List"
+      breadcrumbs={[
+        { label: "Weekly schedules", to: "/weekly-machine-schedules" },
+        { label: "Edit assignment" },
+      ]}
+    />
+  );
+
+  if (loadingPo || !currentPo) {
+    return (
+      <PageBody className="max-w-[1100px]">
+        {header}
+        <SkeletonTile lines={4} label="Loading assignment details..." />
+        <SkeletonTile lines={2} />
+      </PageBody>
+    );
+  }
+
   return (
-    <div className="w-full bg-card rounded-sm border border-line" style={{ maxWidth: 1200 }}>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 border-b border-line">
-        <div>
-          <h2 className="text-xl font-bold text-ink">Edit Weekly Assignment</h2>
-          <p className="text-xs text-ink-subtle mt-0.5">
-            Update the planned quantity and machine for this week
-          </p>
-        </div>
-        <BackButton text="Back to List" to="/weekly-machine-schedules" />
-      </div>
-
-      {loadingPo || !currentPo ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full border-b-2 border-accent h-8 w-8 mx-auto"></div>
-          <p className="mt-3 text-ink-subtle text-sm font-medium">Loading assignment details...</p>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 border-b border-line bg-card-2/40">
-            <h5 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-4">
-              Assignment Context
-            </h5>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <TextInput
-                label="Production Order ID"
-                name="productionOrderId"
-                value={targetPoId}
-                disabled
-              />
-              <TextInput
-                label="Product Name"
-                name="productName"
-                value={currentPo.productItem?.productName || "Unknown Product"}
-                disabled
-              />
-              <TextInput
-                label="Week Start Date"
-                name="weekStartDate"
-                value={weekStartDate}
-                disabled
-              />
-              <TextInput label="Week End Date" name="weekEndDate" value={weekEndDate} disabled />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <TextInput
-                label="Order Target Qty"
-                name="targetQty"
-                value={`${currentPo.targetQty} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
-                disabled
-              />
-              <TextInput
-                label="Other Weeks Allocated"
-                name="otherAllocated"
-                value={`${otherAllocated} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
-                disabled
-              />
-              <TextInput
-                label="Remaining To Plan"
-                name="remainingToPlan"
-                value={`${remainingToPlan} ${currentPo.uom?.toLowerCase() === "ea" ? "pcs" : currentPo.uom}`}
-                disabled
-              />
-            </div>
-          </div>
-
-          <div className="p-6 border-b border-line">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <TextInput
-                label="Planned Qty This Week"
-                name="plannedQty"
-                type="number"
-                required
-                value={plannedQty}
-                onChange={(e) => setPlannedQty(e.target.value)}
-                min={1}
-                max={remainingToPlan}
-              />
-              <TextInput
-                label="Assigned Machine"
-                name="assignedMachine"
-                value={
-                  machines.find((m: any) => m.machineId === selectedMachineId)?.machineName ||
-                  selectedMachineId
-                }
-                disabled
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end items-center gap-3 p-5 bg-card-2/40">
-            <CustomButton
-              text="Cancel"
-              variant="secondary"
-              icon={FaEraser}
-              onClick={() => navigate("/weekly-machine-schedules")}
-              disabled={isSubmitting}
+    <PageBody className="max-w-[1100px]">
+      {header}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <Tile title="Assignment Context">
+          <dl className="m-0 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <InfoItem label="Production Order ID" value={targetPoId} mono />
+            <InfoItem
+              label="Product Name"
+              value={currentPo.productItem?.productName || "Unknown Product"}
             />
-            {can("weekly_programs.edit") && (
-              <CustomButton
-                text={isSubmitting ? "Saving..." : "Update Assignment"}
-                icon={FaSave}
-                type="submit"
-                disabled={isSubmitting}
-              />
-            )}
+            <InfoItem
+              label="Week Start Date"
+              value={weekStartDate ? formatDate(weekStartDate) : "—"}
+            />
+            <InfoItem label="Week End Date" value={weekEndDate ? formatDate(weekEndDate) : "—"} />
+          </dl>
+          <div className="mt-4 grid grid-cols-3 gap-3 rounded-[16px] bg-card-2 p-4">
+            <Figure label="Order Target Qty" value={formatQty(currentPo.targetQty)} hint={uom} />
+            <Figure label="Other Weeks Allocated" value={formatQty(otherAllocated)} hint={uom} />
+            <Figure
+              label="Remaining To Plan"
+              tone="accent"
+              value={formatQty(remainingToPlan)}
+              hint={uom}
+            />
           </div>
-        </form>
-      )}
-    </div>
+        </Tile>
+
+        <Tile title="This week">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <TextInput
+              label="Planned Qty This Week"
+              name="plannedQty"
+              type="number"
+              inputMode="numeric"
+              required
+              value={plannedQty}
+              onChange={(e) => setPlannedQty(e.target.value)}
+              min={1}
+              max={remainingToPlan}
+            />
+            <TextInput
+              label="Assigned Machine"
+              name="assignedMachine"
+              value={
+                machines.find((m: any) => m.machineId === selectedMachineId)?.machineName ||
+                selectedMachineId
+              }
+              disabled
+            />
+          </div>
+        </Tile>
+
+        <StickyFormFooter hint="F2 saves">
+          <ActionPill
+            variant="secondary"
+            onClick={() => navigate("/weekly-machine-schedules")}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </ActionPill>
+          {can("weekly_programs.edit") && (
+            <ActionPill
+              type="submit"
+              icon={<Save size={17} />}
+              loading={isSubmitting}
+              loadingText="Saving..."
+            >
+              Update Assignment
+            </ActionPill>
+          )}
+        </StickyFormFooter>
+      </form>
+    </PageBody>
   );
 };
 

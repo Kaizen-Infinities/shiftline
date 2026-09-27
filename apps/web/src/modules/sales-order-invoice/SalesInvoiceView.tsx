@@ -1,14 +1,23 @@
 // src/pages/sales/SalesInvoiceView.tsx
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { FaArrowLeft, FaPrint, FaDownload, FaCircleNotch } from "react-icons/fa";
+import { ArrowLeft, Download, IndianRupee, Printer } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  PageHeader,
+  SearchField,
+  SectionLabel,
+  SkeletonRows,
+  SkeletonTile,
+  Tile,
+} from "../../components/ui/v2";
+import { KeyFigure } from "../sales/shared/tradeUi";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { GST_STATES } from "@shiftline/shared";
 import { useSelector, useDispatch } from "react-redux";
 import { salesInvoiceService } from "../../services/salesInvoiceService";
 import { useSocketSync } from "../../hooks/useSocketSync";
-import CustomButton from "../../components/ui/Button/Button";
-import SearchInput from "../../components/ui/SearchInput/SearchInput";
 import { fetchCompany } from "../../features/company/companySlice";
 import { customerService } from "../../services/customerService";
 import EInvoicePanel from "../compliance/components/EInvoicePanel";
@@ -529,180 +538,255 @@ const SalesInvoiceView: React.FC = () => {
     }
   };
 
-  return (
-    <div className="flex bg-page overflow-hidden h-[calc(100vh-115px)] print:block print:h-auto print:overflow-visible print:bg-white">
-      {/* ── Left Sidebar (Invoice List) ── */}
-      <div className="hidden md:flex w-72 md:w-80 flex-shrink-0 bg-card border-r border-line flex-col h-full no-print">
-        <div className="p-4 border-b border-line flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate("/sales-invoices")}
-              className="flex items-center gap-2 text-ink hover:text-primary font-bold text-lg transition-colors"
-            >
-              <FaArrowLeft className="text-sm" /> Sales Invoices
-            </button>
-          </div>
+  const isCancelled =
+    Boolean(invoice?.cancelledAt) || String(invoice?.status || "").toUpperCase() === "CANCELLED";
+  const canRecordReceipt =
+    Boolean(invoice) && can("sales-invoices.edit") && !invoice?.cancelledAt && outstanding > 0;
 
-          <SearchInput
+  return (
+    <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] print:block">
+      {/* ── Left rail: other invoices ── */}
+      <aside
+        aria-label="Sales invoices"
+        className="sl-tile no-print hidden h-[calc(100vh-140px)] flex-col overflow-hidden lg:sticky lg:top-4 lg:flex"
+      >
+        <div className="flex flex-col gap-3 border-b border-line-soft p-4">
+          <button
+            type="button"
+            onClick={() => navigate("/sales-invoices")}
+            className="flex items-center gap-2 text-left text-base font-semibold text-ink hover:text-accent"
+          >
+            <ArrowLeft size={16} aria-hidden="true" /> Sales Invoices
+          </button>
+          <SearchField
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search Invoice or customer..."
-            fullWidthOnMobileOnly={false}
+            onValueChange={setSearchTerm}
+            placeholder="Search invoice or customer"
+            label="Search invoices"
+            className="sm:w-full"
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-line-soft">
+        <div className="flex-1 overflow-y-auto p-2">
           {loadingList ? (
-            <div className="flex items-center justify-center py-8">
-              <FaCircleNotch className="animate-spin text-ink-subtle text-xl" />
-            </div>
+            <SkeletonRows
+              rows={6}
+              columns={2}
+              header={false}
+              rowHeight={64}
+              label="Loading invoices"
+            />
           ) : (
             filteredInvoices.map((inv) => {
               const isSelected = String(inv.id) === String(idParam || invoice?.id);
+              const st = String(inv.status || "").toUpperCase();
               return (
-                <div
+                <button
+                  type="button"
                   key={inv.id}
                   onClick={() => navigate(`/sales-invoices/details/${inv.id}`)}
-                  className={`p-4 cursor-pointer hover:bg-card-2 transition-colors ${isSelected ? "bg-primary/10 border-l-4 border-primary" : ""}`}
+                  aria-current={isSelected ? "page" : undefined}
+                  className={`mb-1 block w-full rounded-[14px] px-3 py-2.5 text-left transition-colors ${isSelected ? "bg-nav-active" : "hover:bg-card-2"}`}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-bold text-ink">{inv.invoiceNo}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                        inv.status?.toUpperCase() === "PAID"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
+                  <div className="mb-0.5 flex items-start justify-between gap-2">
+                    <span className="font-semibold text-ink">{inv.invoiceNo}</span>
+                    <Chip
+                      size="sm"
+                      tone={st === "PAID" ? "success" : st === "CANCELLED" ? "danger" : "muted"}
                     >
                       {inv.status || "Draft"}
-                    </span>
+                    </Chip>
                   </div>
-                  <div className="text-sm text-ink-muted mb-2">
+                  <div className="truncate text-[13px] text-ink-muted">
                     {inv.customer?.displayName || inv.customer?.firmName || "N/A"}
                   </div>
-                  <div className="flex justify-between items-center text-xs text-ink-subtle">
-                    <span>{formatDate(inv.invoiceDate)}</span>
-                    <span className="font-bold text-ink">₹{formatMoney(inv.grandTotal)}</span>
+                  <div className="mt-1 flex items-center justify-between text-[12px] text-ink-subtle">
+                    <span className="tabular-nums">{formatDate(inv.invoiceDate)}</span>
+                    <span className="font-semibold tabular-nums text-ink">
+                      ₹{formatMoney(inv.grandTotal)}
+                    </span>
                   </div>
-                </div>
+                </button>
               );
             })
           )}
           {!loadingList && filteredInvoices.length === 0 && (
-            <div className="p-8 text-center text-ink-muted text-sm">No invoices found.</div>
+            <div className="p-6 text-center text-sm text-ink-muted">No invoices found.</div>
           )}
         </div>
-      </div>
+      </aside>
 
       {/* ── Right Content (Invoice Details) ── */}
-      <div className="flex-1 overflow-y-auto p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block">
+      <div className="min-w-0 print:block print:h-auto print:overflow-visible print:p-0">
         {loading || !invoice ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
-            <FaCircleNotch className="animate-spin text-primary text-4xl mb-4" />
-            <p className="text-ink-muted font-medium">Loading invoice details...</p>
+          <div className="flex flex-col gap-4" role="status">
+            <span className="sr-only">Loading invoice details...</span>
+            <SkeletonTile lines={2} />
+            <SkeletonTile lines={4} height={320} />
           </div>
         ) : (
-          <div className="max-w-5xl mx-auto">
-            {/* Action buttons */}
-            <div className="flex items-center justify-between gap-4 mb-6 no-print">
-              <h2 className="text-xl font-bold text-ink m-0">Sales Invoice #{invoice.invoiceNo}</h2>
-              <div className="flex items-center gap-3">
-                <CustomButton
-                  text="Print"
-                  icon={FaPrint}
-                  variant="primary"
-                  onClick={() => window.print()}
-                />
-                <CustomButton
-                  text="Download PDF"
-                  icon={FaDownload}
-                  variant="secondary"
-                  onClick={handleDownloadPdf}
-                />
-                {can("sales-invoices.edit") && !invoice.cancelledAt && outstanding > 0 && (
-                  <CustomButton
-                    text="Record Receipt"
-                    variant="primary"
-                    onClick={() => setShowReceiptModal(true)}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Receipts (P2-12): cash, bank or cheque, and the cheque register's own status */}
-            <div className="mb-6 no-print border border-line-soft rounded-lg overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-2 bg-card-2">
-                <span className="text-sm font-semibold text-ink">Receipts</span>
-                <span className="text-xs text-ink-subtle">
-                  Received ₹{formatMoney(alreadyReceived)} · Outstanding ₹{formatMoney(outstanding)}
-                </span>
-              </div>
-              {receipts.length === 0 ? (
-                <div className="px-4 py-3 text-xs text-ink-subtle">No receipts recorded yet.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-line-soft text-ink-subtle">
-                        <th className="text-left px-4 py-2 font-semibold">Date</th>
-                        <th className="text-left px-4 py-2 font-semibold">Method</th>
-                        <th className="text-left px-4 py-2 font-semibold">Reference</th>
-                        <th className="text-left px-4 py-2 font-semibold">Cheque Status</th>
-                        <th className="text-right px-4 py-2 font-semibold">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {receipts.map((p: any, idx: number) => (
-                        <tr key={p.id || idx} className="border-b border-line-soft last:border-b-0">
-                          <td className="px-4 py-2 text-ink">{formatDate(p.paymentDate)}</td>
-                          <td className="px-4 py-2 text-ink">{p.paymentMethod || "—"}</td>
-                          <td className="px-4 py-2 text-ink-subtle">
-                            {p.referenceNumber || p.chequeNo || "—"}
-                          </td>
-                          <td className="px-4 py-2">
-                            {p.cheque ? (
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                  p.cheque.status === "CLEARED"
-                                    ? "bg-emerald-100 text-emerald-800"
-                                    : p.cheque.status === "BOUNCED"
-                                      ? "bg-rose-100 text-rose-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {p.cheque.status}
-                              </span>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className="px-4 py-2 text-right font-semibold text-ink">
-                            ₹{formatMoney(p.amount)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* E-invoice (P1-11) */}
-            <div className="mb-6 no-print">
-              <EInvoicePanel
-                docType="INV"
-                docId={invoice.id}
-                docDate={invoice.invoiceDate}
-                buyerGstin={invoice.customerGstin ?? invoice.customer?.gstin}
-                documentCancelled={Boolean(invoice.cancelledAt)}
+          <div className="mx-auto max-w-5xl">
+            <div className="no-print">
+              <PageHeader
+                title={`Sales Invoice #${invoice.invoiceNo}`}
+                meta={
+                  isCancelled ? (
+                    <Chip dot tone="danger">
+                      Cancelled
+                    </Chip>
+                  ) : outstanding > 0 ? (
+                    <Chip dot tone="warning">
+                      Unpaid
+                    </Chip>
+                  ) : (
+                    <Chip dot tone="success">
+                      Paid
+                    </Chip>
+                  )
+                }
+                subtitle={`${invoice.customer?.displayName || invoice.customer?.firmName || "Customer"} · ${formatDate(invoice.invoiceDate)}`}
+                back="/sales-invoices"
+                backLabel="Back to Sales Invoices"
+                primaryAction={
+                  canRecordReceipt ? (
+                    <ActionPill
+                      icon={<IndianRupee size={17} />}
+                      onClick={() => setShowReceiptModal(true)}
+                    >
+                      Record Receipt
+                    </ActionPill>
+                  ) : null
+                }
+                actions={
+                  <>
+                    <ActionPill
+                      variant="secondary"
+                      icon={<Printer size={16} />}
+                      onClick={() => window.print()}
+                    >
+                      Print
+                    </ActionPill>
+                    <ActionPill
+                      variant="secondary"
+                      icon={<Download size={16} />}
+                      onClick={handleDownloadPdf}
+                    >
+                      Download PDF
+                    </ActionPill>
+                  </>
+                }
               />
-              <div className="mt-3">
-                <EwayBillPanel
+
+              {/* Summary */}
+              <Tile className="mb-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <KeyFigure
+                    label="Invoice total"
+                    value={`₹${formatMoney(invoice.grandTotal)}`}
+                    emphasis
+                  />
+                  <KeyFigure label="Received" value={`₹${formatMoney(alreadyReceived)}`} />
+                  <KeyFigure label="Outstanding" value={`₹${formatMoney(outstanding)}`} />
+                  <KeyFigure
+                    label="Customer GSTIN"
+                    value={invoice.customerGstin ?? invoice.customer?.gstin ?? "Unregistered"}
+                  />
+                </div>
+              </Tile>
+
+              {/* Receipts (P2-12): cash, bank or cheque, and the cheque register's own status */}
+              <Tile
+                padding="none"
+                title="Receipts"
+                subtitle={`Received ₹${formatMoney(alreadyReceived)} · Outstanding ₹${formatMoney(outstanding)}`}
+                className="mb-4"
+              >
+                {receipts.length === 0 ? (
+                  <p className="m-0 px-4 pb-4 text-sm text-ink-subtle sm:px-5">
+                    No receipts recorded yet.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto border-t border-line-soft">
+                    <table className="w-full text-sm">
+                      <caption className="sr-only">Receipts against this invoice</caption>
+                      <thead className="bg-card-2">
+                        <tr>
+                          <th scope="col" className="sl-th px-4 py-2.5 text-left">
+                            Date
+                          </th>
+                          <th scope="col" className="sl-th px-4 py-2.5 text-left">
+                            Method
+                          </th>
+                          <th scope="col" className="sl-th px-4 py-2.5 text-left">
+                            Reference
+                          </th>
+                          <th scope="col" className="sl-th px-4 py-2.5 text-left">
+                            Cheque Status
+                          </th>
+                          <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                            Amount
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {receipts.map((p: any, idx: number) => (
+                          <tr key={p.id || idx} className="border-t border-line-soft">
+                            <td className="px-4 py-2.5 tabular-nums text-ink">
+                              {formatDate(p.paymentDate)}
+                            </td>
+                            <td className="px-4 py-2.5 text-ink">{p.paymentMethod || "—"}</td>
+                            <td className="px-4 py-2.5 text-ink-subtle">
+                              {p.referenceNumber || p.chequeNo || "—"}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              {p.cheque ? (
+                                <Chip
+                                  size="sm"
+                                  dot
+                                  tone={
+                                    p.cheque.status === "CLEARED"
+                                      ? "success"
+                                      : p.cheque.status === "BOUNCED"
+                                        ? "danger"
+                                        : "warning"
+                                  }
+                                >
+                                  {p.cheque.status}
+                                </Chip>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-ink">
+                              ₹{formatMoney(p.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Tile>
+
+              {/* E-invoice (P1-11) */}
+              <div className="mb-4">
+                <EInvoicePanel
                   docType="INV"
-                  docRef={invoice.id}
+                  docId={invoice.id}
+                  docDate={invoice.invoiceDate}
+                  buyerGstin={invoice.customerGstin ?? invoice.customer?.gstin}
                   documentCancelled={Boolean(invoice.cancelledAt)}
                 />
+                <div className="mt-3">
+                  <EwayBillPanel
+                    docType="INV"
+                    docRef={invoice.id}
+                    documentCancelled={Boolean(invoice.cancelledAt)}
+                  />
+                </div>
               </div>
+
+              <SectionLabel>Invoice copy</SectionLabel>
             </div>
 
             {/* Print + screen overrides — invoice card always white/black regardless of theme */}
@@ -1188,26 +1272,30 @@ const SalesInvoiceView: React.FC = () => {
         maxWidth="md"
         footer={
           <div className="flex justify-end gap-2">
-            <CustomButton
-              text="Cancel"
+            <ActionPill
               variant="secondary"
               onClick={() => {
                 setShowReceiptModal(false);
                 setReceiptErrors({});
               }}
               disabled={recordingReceipt}
-            />
-            <CustomButton
-              text={recordingReceipt ? "Recording..." : "Record Receipt"}
+            >
+              Cancel
+            </ActionPill>
+            <ActionPill
               onClick={handleRecordReceipt}
-              disabled={recordingReceipt}
-            />
+              loading={recordingReceipt}
+              loadingText="Recording..."
+            >
+              Record Receipt
+            </ActionPill>
           </div>
         }
       >
         <div className="space-y-3">
-          <div className="text-xs text-ink-subtle">
-            Outstanding: <span className="font-semibold text-ink">₹{formatMoney(outstanding)}</span>
+          <div className="rounded-[14px] bg-chip px-3 py-2 text-sm text-chip-fg">
+            Outstanding:{" "}
+            <span className="font-semibold tabular-nums">₹{formatMoney(outstanding)}</span>
           </div>
           <TextInput
             label="Amount (₹) *"
@@ -1224,7 +1312,7 @@ const SalesInvoiceView: React.FC = () => {
             onChange={(e) => setReceiptForm((p) => ({ ...p, paymentDate: e.target.value }))}
           />
           {receiptErrors.paymentDate && (
-            <span className="text-red-500 text-xs block">{receiptErrors.paymentDate}</span>
+            <span className="sl-field-error">{receiptErrors.paymentDate}</span>
           )}
           <SelectInput
             label="Instrument"
@@ -1248,7 +1336,7 @@ const SalesInvoiceView: React.FC = () => {
             />
           )}
           {receiptForm.instrumentType === "CHEQUE" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <TextInput
                 label="Cheque No. *"
                 name="chequeNo"
@@ -1274,7 +1362,7 @@ const SalesInvoiceView: React.FC = () => {
                 value={receiptForm.chequeParty}
                 onChange={(e) => setReceiptForm((p) => ({ ...p, chequeParty: e.target.value }))}
               />
-              <p className="col-span-2 text-[11px] text-ink-subtle">
+              <p className="sl-field-hint m-0 sm:col-span-2">
                 A cheque dated after the payment date is treated as post-dated: the register row is
                 created now, and the receipt posts only once it clears.
               </p>

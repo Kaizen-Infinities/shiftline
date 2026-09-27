@@ -117,6 +117,8 @@ app.use(
     "/api/auth/forgot-password",
     "/api/auth/reset-password",
     "/api/auth/register",
+    // A password check like login, so it gets login's brute-force limit.
+    "/api/shift-execution/supervisor-override",
   ],
   authLimiter
 );

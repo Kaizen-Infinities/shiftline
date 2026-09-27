@@ -1,6 +1,20 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaChevronLeft, FaChevronRight, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import { ChevronDown, ChevronUp, Clock, Lock, Plus, Timer } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SearchField,
+  SectionLabel,
+  StatTile,
+  Toolbar,
+  cx,
+  type ChipTone,
+} from "../../../components/ui/v2";
+import { Figure, InfoItem, PageBody, formatQty } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 import CommonModal from "../../../components/ui/Modal/CommonModal";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -17,13 +31,9 @@ import { useSocketSync } from "../../../hooks/useSocketSync";
 
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
-import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
-import TextInput from "../../../components/form/TextInput/TextInput";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { hourlyProductionService } from "../../../services/hourlyProductionService";
@@ -85,11 +95,6 @@ const HourlyWorkReportList: React.FC = () => {
     updated: hourlyProductionUpdated,
     deleted: hourlyProductionDeleted,
   });
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
 
   const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({});
 
@@ -291,182 +296,208 @@ const HourlyWorkReportList: React.FC = () => {
     setShowViewModal(true);
   };
 
+  const groupStatus = (group: any): { label: string; tone: ChipTone } => {
+    if (group.weeklyProgramStatus === "IN_PROGRESS" && group.hours.length === 0)
+      return { label: "Running", tone: "success" };
+    const closed =
+      group.hours.length >= group.shiftTotalHours ||
+      ["COMPLETED", "STOPPED", "CANCELLED"].includes(group.weeklyProgramStatus);
+    if (!closed) return { label: "Open", tone: "default" };
+    if (
+      group.totalQtyProduced >= group.plannedQty ||
+      group.hours.length >= group.shiftTotalHours ||
+      group.weeklyProgramStatus === "COMPLETED"
+    )
+      return { label: "Completed", tone: "success" };
+    if (group.weeklyProgramStatus === "STOPPED") return { label: "Stopped", tone: "danger" };
+    if (group.weeklyProgramStatus === "CANCELLED") return { label: "Cancelled", tone: "danger" };
+    return { label: "On Hold", tone: "warning" };
+  };
+
+  const dayTotals = useMemo(
+    () =>
+      groupedData.reduce(
+        (acc: any, g: any) => ({
+          produced: acc.produced + g.totalQtyProduced,
+          reject: acc.reject + g.totalRejectQty,
+          scrap: acc.scrap + g.totalScrapQty,
+          downtime: acc.downtime + g.totalDowntime,
+        }),
+        { produced: 0, reject: 0, scrap: 0, downtime: 0 }
+      ),
+    [groupedData]
+  );
+
   const columns: DataTableColumn<any>[] = useMemo(
     () => [
       {
         header: "",
-        width: "40px",
+        width: "44px",
         align: "center",
         render: (group) => {
           const isExpanded = !!expandedGroups[group.key];
-          return isExpanded ? (
-            <FaChevronUp className="text-ink-subtle" />
-          ) : (
-            <FaChevronDown className="text-ink-subtle" />
+          return (
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-card-2 text-ink-muted"
+              aria-hidden="true"
+            >
+              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </span>
           );
         },
       },
       {
-        header: "DATE",
-        width: "90px",
+        header: "Machine · shift",
         render: (group) => (
-          <span className="font-medium text-ink-subtle">
-            {new Date(group.productionDate).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
+          <div className="py-1">
+            <div className="font-semibold text-ink">{group.machineName}</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              <Chip size="sm">{group.shiftName}</Chip>
+              <span className="sl-muted text-[12px] tabular-nums">
+                {formatDate(group.productionDate)}
+              </span>
+            </div>
+          </div>
         ),
       },
       {
-        header: "MACHINE",
-        width: "90px",
-        render: (group) => <span className="font-bold">{group.machineName}</span>,
-      },
-      {
-        header: "SHIFT",
-        width: "120px",
+        header: "Order · product",
         render: (group) => (
-          <StatusBadge
-            status="UNKNOWN"
-            customText={group.shiftName}
-            customColor={{ bg: "#f8f9fa", text: "#212529" }}
-          />
+          <div className="min-w-0 py-1">
+            <div className="font-mono text-[13px] font-semibold text-accent">
+              {group.productionOrderId}
+            </div>
+            <div className="max-w-[240px] truncate text-ink-muted" title={group.productName}>
+              {group.productName}
+            </div>
+          </div>
         ),
       },
       {
-        header: "PO ID",
-        width: "100px",
-        render: (group) => <span className="font-semibold">{group.productionOrderId}</span>,
-      },
-      {
-        header: "PRODUCT",
-        width: "minmax(100px, 1fr)",
-        render: (group) => <div className="truncate">{group.productName}</div>,
-      },
-      {
-        header: "HOURS LOGGED",
-        width: "100px",
+        header: "Hours",
         render: (group) => {
           const isActiveNoEntry =
             group.weeklyProgramStatus === "IN_PROGRESS" && group.hours.length === 0;
           if (isActiveNoEntry) {
             return (
-              <span className="text-[color:var(--color-success)] font-bold text-xs">● Running</span>
+              <Chip size="sm" tone="success" dot>
+                Running
+              </Chip>
             );
           }
           return (
-            <span className="font-bold text-ink">
-              {group.hours.length} {group.hours.length === 1 ? "Hour" : "Hours"}
+            <span className="font-semibold text-ink tabular-nums">
+              {group.hours.length}
+              <span className="text-ink-subtle">/{group.shiftTotalHours}</span>
             </span>
           );
         },
       },
       {
-        header: "TARGET",
-        width: "90px",
-        render: (group) => (
-          <span className="font-bold text-ink">
-            {group.plannedQty}{" "}
-            <span className="text-xs text-ink-subtle font-normal">{group.uom}</span>
-          </span>
-        ),
-      },
-      {
-        header: "TOTAL PRODUCED",
-        width: "110px",
+        header: "Produced / target",
+        align: "right",
         render: (group) => {
           const isActiveNoEntry =
             group.weeklyProgramStatus === "IN_PROGRESS" && group.hours.length === 0;
-          if (isActiveNoEntry) {
-            return <span className="text-ink-subtle">— PCS</span>;
-          }
+          const pct =
+            group.plannedQty > 0
+              ? Math.min(100, (group.totalQtyProduced / group.plannedQty) * 100)
+              : 0;
           return (
-            <span className="font-bold text-[color:var(--color-success)]">
-              {group.totalQtyProduced}{" "}
-              <span className="text-xs text-ink-subtle font-normal">{group.uom}</span>
-            </span>
+            <div className="min-w-[130px] py-1 text-right">
+              <div className="tabular-nums">
+                <span className="text-[16px] font-bold text-ink">
+                  {isActiveNoEntry ? "—" : formatQty(group.totalQtyProduced)}
+                </span>
+                <span className="text-ink-subtle">
+                  {" "}
+                  / {formatQty(group.plannedQty)} {group.uom}
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-card-2">
+                <div className="h-full rounded-full bg-cta" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
           );
         },
       },
       {
-        header: "REJECT / SCRAP",
-        width: "105px",
+        header: "Reject · scrap",
+        align: "right",
         render: (group) => (
-          <>
-            <span className="text-[color:var(--color-danger)] text-xs font-semibold">
-              R: {group.totalRejectQty}
-            </span>{" "}
-            <span className="text-ink-subtle mx-1">|</span>{" "}
-            <span className="text-[color:var(--color-warning)] text-xs font-semibold">
-              S: {group.totalScrapQty}
+          <span className="tabular-nums">
+            <span
+              className={
+                group.totalRejectQty > 0
+                  ? "font-semibold text-[color:var(--color-danger)]"
+                  : "text-ink-subtle"
+              }
+            >
+              R {formatQty(group.totalRejectQty)}
             </span>
-          </>
-        ),
-      },
-      {
-        header: "DOWNTIME",
-        width: "90px",
-        render: (group) => (
-          <span className="text-ink-subtle">
-            {group.totalDowntime > 0 ? `${group.totalDowntime} Mins` : "-"}
+            <span className="mx-1.5 text-ink-subtle">·</span>
+            <span
+              className={
+                group.totalScrapQty > 0
+                  ? "font-semibold text-[color:var(--color-warning)]"
+                  : "text-ink-subtle"
+              }
+            >
+              S {formatQty(group.totalScrapQty)}
+            </span>
           </span>
         ),
       },
       {
-        header: "ACTIONS",
+        header: "Downtime",
         align: "right",
-        width: "150px",
+        render: (group) => (
+          <span className="text-ink-muted tabular-nums">
+            {group.totalDowntime > 0 ? `${group.totalDowntime} min` : "—"}
+          </span>
+        ),
+      },
+      {
+        header: "Actions",
+        align: "right",
         render: (group) => {
+          const status = groupStatus(group);
+          const closed =
+            group.hours.length >= group.shiftTotalHours ||
+            group.weeklyProgramStatus === "COMPLETED" ||
+            group.weeklyProgramStatus === "STOPPED" ||
+            group.weeklyProgramStatus === "CANCELLED";
           return (
             <div className="text-right" onClick={(e) => e.stopPropagation()}>
-              {group.hours.length >= group.shiftTotalHours ||
-              group.weeklyProgramStatus === "COMPLETED" ||
-              group.weeklyProgramStatus === "STOPPED" ||
-              group.weeklyProgramStatus === "CANCELLED" ? (
-                <div className="flex flex-col items-end justify-center gap-1">
+              {closed ? (
+                <div className="flex flex-col items-end justify-center gap-1 py-1">
                   <div className="flex items-center justify-end gap-2">
-                    {group.totalQtyProduced >= group.plannedQty ||
-                    group.hours.length >= group.shiftTotalHours ||
-                    group.weeklyProgramStatus === "COMPLETED" ? (
-                      <span className="font-bold text-xs text-[color:var(--color-success)]">
-                        Completed
-                      </span>
-                    ) : group.weeklyProgramStatus === "STOPPED" ? (
-                      <span className="font-bold text-xs text-[color:var(--color-danger)]">
-                        Stopped
-                      </span>
-                    ) : group.weeklyProgramStatus === "CANCELLED" ? (
-                      <span className="font-bold text-xs text-[color:var(--color-danger)]">
-                        Cancelled
-                      </span>
-                    ) : (
-                      <span className="font-bold text-xs text-[color:var(--color-warning)]">
-                        On Hold
-                      </span>
-                    )}
+                    <Chip size="sm" tone={status.tone} dot>
+                      {status.label}
+                    </Chip>
                     {can("hourly_productions.view") && (
                       <ViewButton onClick={() => handleView(group)} />
                     )}
                   </div>
                   {group.totalQtyProduced < group.plannedQty ? (
-                    <span className="text-[color:var(--color-danger)] font-bold text-[10px]">
-                      Pending: {group.plannedQty - group.totalQtyProduced} {group.uom}
+                    <span className="text-[12px] font-semibold text-[color:var(--color-danger)] tabular-nums">
+                      Pending: {formatQty(group.plannedQty - group.totalQtyProduced)} {group.uom}
                     </span>
                   ) : group.totalQtyProduced > group.plannedQty ? (
-                    <span className="text-[color:var(--color-success)] font-bold text-[10px]">
-                      Extra: +{group.totalQtyProduced - group.plannedQty} {group.uom}
+                    <span className="text-[12px] font-semibold text-[color:var(--color-success)] tabular-nums">
+                      Extra: +{formatQty(group.totalQtyProduced - group.plannedQty)} {group.uom}
                     </span>
                   ) : null}
                 </div>
               ) : (
                 can("hourly_productions.create") && (
-                  <CustomButton
-                    text="Add Hourly"
+                  <ActionPill
                     size="sm"
+                    icon={<Plus size={15} />}
                     onClick={() => handleAddHourly(group)}
-                  />
+                  >
+                    Add Hourly
+                  </ActionPill>
                 )
               )}
             </div>
@@ -483,156 +514,109 @@ const HourlyWorkReportList: React.FC = () => {
       if (!isExpanded) return null;
 
       return (
-        <div className="bg-card-2 p-4 border-b border-line">
-          <div className="rounded-sm p-5 border border-line bg-card">
-            {/* SHIFT SUMMARY DASHBOARD */}
-            <div className="flex items-center justify-between mb-5">
-              <h6 className="font-bold mb-0 text-ink tracking-wide text-sm uppercase">
-                SHIFT SUMMARY DASHBOARD
-              </h6>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 rounded-sm border border-line-soft bg-card-2/50 text-center">
-                <div className="text-ink-subtle text-[11px] font-bold mb-1 uppercase tracking-wider">
-                  Efficiency (OEE)
-                </div>
-                <h3 className="mb-0 font-bold text-ink text-2xl">
-                  {group.plannedQty > 0
+        <div className="border-b border-line-soft bg-card-2 p-3 sm:p-4">
+          <div className="rounded-[16px] bg-card p-4 sm:p-5">
+            <SectionLabel>Shift summary</SectionLabel>
+            <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <Figure
+                label="Efficiency (OEE)"
+                tone="accent"
+                value={`${
+                  group.plannedQty > 0
                     ? ((group.totalQtyProduced / group.plannedQty) * 100).toFixed(1)
-                    : 0}
-                  %
-                </h3>
-              </div>
-              <div className="p-4 rounded-sm border border-line-soft bg-card-2/50 text-center">
-                <div className="text-ink-subtle text-[11px] font-bold mb-1 uppercase tracking-wider">
-                  Total Produced
-                </div>
-                <h3 className="mb-0 font-bold text-[color:var(--color-success)] text-2xl">
-                  {group.totalQtyProduced}
-                </h3>
-              </div>
-              <div className="p-4 rounded-sm border border-line-soft bg-card-2/50 text-center">
-                <div className="text-ink-subtle text-[11px] font-bold mb-1 uppercase tracking-wider">
-                  Scrap Rate
-                </div>
-                <h3 className="mb-0 font-bold text-[color:var(--color-warning)] text-2xl">
-                  {group.totalQtyProduced > 0
+                    : 0
+                }%`}
+              />
+              <Figure
+                label="Total Produced"
+                tone="success"
+                value={formatQty(group.totalQtyProduced)}
+                hint={group.uom}
+              />
+              <Figure
+                label="Scrap Rate"
+                tone="warning"
+                value={`${
+                  group.totalQtyProduced > 0
                     ? ((group.totalScrapQty / group.totalQtyProduced) * 100).toFixed(1)
-                    : 0}
-                  %
-                </h3>
-              </div>
-              <div className="p-4 rounded-sm border border-line-soft bg-card-2/50 text-center">
-                <div className="text-ink-subtle text-[11px] font-bold mb-1 uppercase tracking-wider">
-                  Total Downtime
-                </div>
-                <h3 className="mb-0 font-bold text-[color:var(--color-danger)] text-2xl">
-                  {group.totalDowntime > 0 ? `${group.totalDowntime} min` : "0 min"}
-                </h3>
-              </div>
+                    : 0
+                }%`}
+              />
+              <Figure
+                label="Total Downtime"
+                tone={group.totalDowntime > 0 ? "danger" : "default"}
+                value={group.totalDowntime > 0 ? `${group.totalDowntime} min` : "0 min"}
+              />
             </div>
 
-            {/* TIMELINE */}
-            <h6 className="font-bold mb-4 text-ink-subtle uppercase tracking-wide text-xs">
-              Hourly Timeline
-            </h6>
+            <SectionLabel>Hourly Timeline</SectionLabel>
             {group.hours.length === 0 ? (
-              <div className="text-center text-ink-subtle p-6 border border-dashed border-line rounded-sm bg-card-2">
-                No hours logged yet for this shift. Click "Log Next Hour" to start.
-              </div>
+              <EmptyState
+                compact
+                icon={<Clock size={22} />}
+                title="No hours logged yet for this shift."
+                description='Use "Add Hourly" to log the first hour.'
+              />
             ) : (
-              <div className="flex flex-col gap-3">
+              <ol className="m-0 flex list-none flex-col gap-2 p-0">
                 {group.hours.map((h: any) => {
                   const hasIssues = h.scrapQty > 0 || h.downtime > 0 || h.rejectQty > 0;
                   return (
-                    <div
+                    <li
                       key={h.hourlyProductionId}
-                      className={`flex items-center p-4 rounded-sm border relative ${hasIssues ? "bg-[color:var(--color-danger)]/5 border-[color:var(--color-danger)]/30" : "bg-card-2 border-line-soft"}`}
+                      className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-[14px] bg-card-2 p-3 sm:flex-nowrap"
                     >
-                      {hasIssues && (
-                        <div className="absolute left-0 top-0 bottom-0 rounded-l-sm w-1.5 bg-[color:var(--color-danger)]"></div>
-                      )}
-                      {!hasIssues && (
-                        <div className="absolute left-0 top-0 bottom-0 rounded-l-sm w-1.5 bg-[color:var(--color-success)]"></div>
-                      )}
-                      <div className="mr-6 text-center ml-3 min-w-[60px]">
-                        <div className="font-bold text-ink-subtle text-[10px] uppercase mb-1 tracking-wider">
-                          Hour
+                      <div className="flex min-w-[64px] items-center gap-2">
+                        <span
+                          className={cx(
+                            "h-9 w-1.5 rounded-full",
+                            hasIssues
+                              ? "bg-[color:var(--color-danger)]"
+                              : "bg-[color:var(--color-success)]"
+                          )}
+                          aria-hidden="true"
+                        />
+                        <div>
+                          <div className="text-[11px] font-medium text-ink-subtle">Hour</div>
+                          <div className="text-[20px] font-bold leading-none text-ink tabular-nums">
+                            {h.hourIndex}
+                          </div>
                         </div>
-                        <h4 className="mb-0 font-bold font-mono text-ink text-2xl">
-                          {h.hourIndex}
-                        </h4>
                       </div>
-                      <div className="flex-grow grid grid-cols-5 items-center gap-4">
-                        <div>
-                          <div className="text-[11px] font-bold tracking-wide uppercase text-ink-subtle mb-1">
-                            Produced
-                          </div>
-                          <div className="font-bold text-[color:var(--color-success)] text-xl">
-                            {h.qtyProduced}{" "}
-                            <span className="text-xs text-ink-subtle">{group.uom}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-bold tracking-wide uppercase text-ink-subtle mb-1">
-                            Reject
-                          </div>
+                      <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-5">
+                        <Figure
+                          label="Produced"
+                          tone="success"
+                          value={formatQty(h.qtyProduced)}
+                          hint={group.uom}
+                        />
+                        <Figure
+                          label="Reject"
+                          tone={h.rejectQty > 0 ? "danger" : "default"}
+                          value={formatQty(h.rejectQty || 0)}
+                        />
+                        <Figure
+                          label="Scrap"
+                          tone={h.scrapQty > 0 ? "warning" : "default"}
+                          value={formatQty(h.scrapQty || 0)}
+                        />
+                        <Figure
+                          label="Downtime"
+                          tone={h.downtime > 0 ? "danger" : "default"}
+                          value={h.downtime > 0 ? `${h.downtime} min` : "—"}
+                          hint={h.downtimeReason || undefined}
+                        />
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-medium text-ink-subtle">Operator</div>
                           <div
-                            className={
-                              h.rejectQty > 0
-                                ? "font-bold text-[color:var(--color-danger)] text-lg"
-                                : "text-ink-subtle text-lg"
-                            }
-                          >
-                            {h.rejectQty || 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-bold tracking-wide uppercase text-ink-subtle mb-1">
-                            Scrap
-                          </div>
-                          <div
-                            className={
-                              h.scrapQty > 0
-                                ? "font-bold text-[color:var(--color-warning)] text-lg"
-                                : "text-ink-subtle text-lg"
-                            }
-                          >
-                            {h.scrapQty || 0}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-bold tracking-wide uppercase text-ink-subtle mb-1">
-                            Downtime
-                          </div>
-                          <div
-                            className={
-                              h.downtime > 0
-                                ? "font-bold text-[color:var(--color-danger)] text-lg"
-                                : "text-ink-subtle text-lg"
-                            }
-                          >
-                            {h.downtime > 0 ? `${h.downtime} min` : "—"}
-                            {h.downtimeReason && (
-                              <div className="text-[10px] font-normal text-ink-subtle leading-tight mt-0.5">
-                                {h.downtimeReason}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-[11px] font-bold tracking-wide uppercase text-ink-subtle mb-1">
-                            Operator
-                          </div>
-                          <div
-                            className="text-ink text-sm font-medium truncate max-w-[120px]"
+                            className="truncate text-[14px] font-medium text-ink"
                             title={h.operatorName || h.operatorId}
                           >
                             {h.operatorName || h.operatorId || "—"}
                           </div>
                         </div>
                       </div>
-                      <div className="ml-4 flex gap-2">
+                      <div className="flex gap-1.5">
                         {!isGroupEditDisabled(group) ? (
                           <>
                             {can("hourly_productions.edit") && (
@@ -646,15 +630,15 @@ const HourlyWorkReportList: React.FC = () => {
                             )}
                           </>
                         ) : (
-                          <span className="text-ink-subtle text-xs font-semibold select-none flex items-center bg-card-2 border border-line rounded-sm px-2.5 py-1">
+                          <Chip size="sm" tone="muted" icon={<Lock size={12} />}>
                             Locked
-                          </span>
+                          </Chip>
                         )}
                       </div>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
             )}
           </div>
         </div>
@@ -663,45 +647,80 @@ const HourlyWorkReportList: React.FC = () => {
     [expandedGroups, handleAddHourly, handleOpenEdit, triggerDelete, user?.roleId]
   );
 
-  return (
-    <div>
-      <div className="max-w-[1400px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Hourly Production Logs</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search by PO, Product, Machine..."
-            />
-            <div className="w-[160px]">
-              <DatePickerCalendar
-                name="dateFilter"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-              />
-            </div>
-            {can("hourly_productions.export") && (
-              <ExportCSVButton
-                fetchData={fetchHourlyForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-          </div>
-        </div>
+  const isToday = filterDate === getTodayDateStr();
 
-        {/* Table */}
+  return (
+    <PageBody>
+      <PageHeader
+        title="Hourly Production Logs"
+        icon={<Timer size={22} />}
+        subtitle={`${filterDate ? formatDate(filterDate) : "All dates"}${isToday ? " (today)" : ""} · ${groupedData.length} machine shift${groupedData.length === 1 ? "" : "s"}. Tap a row for its hour-by-hour timeline.`}
+        actions={
+          can("hourly_productions.export") ? (
+            <ExportCSVButton
+              fetchData={fetchHourlyForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : undefined
+        }
+        primaryAction={
+          can("hourly_productions.create") ? (
+            <ActionPill
+              icon={<Plus size={18} />}
+              onClick={() => navigate("/hourly-work-reports/create")}
+            >
+              Log Hour
+            </ActionPill>
+          ) : undefined
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile label="Produced" value={formatQty(dayTotals.produced)} loading={loading} />
+        <StatTile label="Rejected" value={formatQty(dayTotals.reject)} loading={loading} />
+        <StatTile label="Scrap" value={formatQty(dayTotals.scrap)} loading={loading} />
+        <StatTile label="Downtime" value={`${dayTotals.downtime} min`} loading={loading} />
+      </div>
+
+      <div>
+        <Toolbar>
+          <SearchField
+            data-search-input
+            value={searchTerm}
+            onValueChange={(v) => {
+              setSearchTerm(v);
+              setCurrentPage(1);
+            }}
+            placeholder="Search by PO, Product, Machine..."
+            label="Search hourly logs"
+          />
+          <div className="w-full sm:w-[190px]">
+            <DatePickerCalendar
+              name="dateFilter"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+            />
+          </div>
+          {!isToday && (
+            <Chip size="lg" onClick={() => setFilterDate(getTodayDateStr())}>
+              Today
+            </Chip>
+          )}
+        </Toolbar>
+
         <DataTable
+          ariaLabel="Hourly production by machine shift"
           columns={columns}
           data={paginatedData}
           rowKey={(group) => group.key}
           loading={loading}
-          emptyMessage="No hourly reports found."
+          emptyMessage={
+            searchTerm
+              ? "No hourly logs match this search."
+              : "No hourly reports found for this date."
+          }
           onRowClick={(group) => toggleGroup(group.key)}
           renderSubRow={renderSubRow}
           getRowStyle={(group) => {
@@ -711,7 +730,7 @@ const HourlyWorkReportList: React.FC = () => {
               return {
                 background:
                   "linear-gradient(90deg, color-mix(in srgb, var(--color-success) 10%, var(--color-card)) 0%, var(--color-card) 100%)",
-                borderLeft: "4px solid var(--color-success)",
+                boxShadow: "inset 4px 0 0 var(--color-success)",
               };
             }
             return {};
@@ -739,57 +758,18 @@ const HourlyWorkReportList: React.FC = () => {
         <CommonModal
           show={showViewModal}
           onHide={() => setShowViewModal(false)}
-          title={
-            <span className="text-ink font-bold tracking-wide uppercase text-sm">
-              Hourly Entries — {selectedViewGroup.shiftName}
-            </span>
-          }
+          title={`Hourly Entries — ${selectedViewGroup.shiftName}`}
           maxWidth="5xl"
         >
-          {/* Summary info strip */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5 p-4 bg-card-2 rounded-sm border border-line">
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-subtle mb-0.5">
-                Date
-              </div>
-              <div className="text-sm font-semibold text-ink-muted">
-                {new Date(selectedViewGroup.productionDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-subtle mb-0.5">
-                Machine
-              </div>
-              <div className="text-sm font-semibold text-ink-muted">
-                {selectedViewGroup.machineName}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-subtle mb-0.5">
-                Product
-              </div>
-              <div className="text-sm font-semibold text-ink-muted">
-                {selectedViewGroup.productName}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-subtle mb-0.5">
-                PO ID
-              </div>
-              <div className="text-sm font-semibold text-ink">
-                {selectedViewGroup.productionOrderId}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-subtle mb-0.5">
-                Operator(s)
-              </div>
-              <div className="text-sm font-semibold text-ink-muted">
-                {selectedViewGroup.hours && selectedViewGroup.hours.length > 0
+          <dl className="m-0 mb-5 grid grid-cols-2 gap-4 rounded-[16px] bg-card-2 p-4 md:grid-cols-5">
+            <InfoItem label="Date" value={formatDate(selectedViewGroup.productionDate)} />
+            <InfoItem label="Machine" value={selectedViewGroup.machineName} />
+            <InfoItem label="Product" value={selectedViewGroup.productName} />
+            <InfoItem label="PO ID" value={selectedViewGroup.productionOrderId} mono />
+            <InfoItem
+              label="Operator(s)"
+              value={
+                selectedViewGroup.hours && selectedViewGroup.hours.length > 0
                   ? [
                       ...new Set(
                         selectedViewGroup.hours
@@ -797,109 +777,120 @@ const HourlyWorkReportList: React.FC = () => {
                           .filter(Boolean)
                       ),
                     ].join(", ")
-                  : "N/A"}
-              </div>
-            </div>
-          </div>
+                  : "N/A"
+              }
+            />
+          </dl>
 
-          {/* Hourly entries table */}
-          <div className="overflow-x-auto rounded-sm border border-line">
+          <div className="overflow-x-auto rounded-[16px] border border-line-soft">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-card-2 border-b border-line">
-                  <th className="py-3 px-4 text-left text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-                    Hour
-                  </th>
-                  <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-                    Produced
-                  </th>
-                  <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-                    Reject
-                  </th>
-                  <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-                    Scrap
-                  </th>
-                  <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-                    Downtime
-                  </th>
-                  <th className="py-3 px-4 text-left text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-                    Operator
-                  </th>
-                  <th className="py-3 px-4 text-left text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
-                    Remarks
-                  </th>
+                <tr className="border-b border-line-soft bg-card-2">
+                  {["Hour", "Produced", "Reject", "Scrap", "Downtime", "Operator", "Remarks"].map(
+                    (h, i) => (
+                      <th
+                        key={h}
+                        scope="col"
+                        className={cx(
+                          "sl-th px-4 py-3",
+                          i >= 1 && i <= 4 ? "text-right" : "text-left"
+                        )}
+                      >
+                        {h}
+                      </th>
+                    )
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {selectedViewGroup.hours.map((hour: any, idx: number) => {
-                  const hasIssues = hour.rejectQty > 0 || hour.scrapQty > 0 || hour.downtime > 0;
-                  return (
-                    <tr
-                      key={hour.hourlyProductionId || idx}
-                      className={`border-b border-line-soft ${hasIssues ? "bg-[color:var(--color-danger)]/5" : "bg-card"}`}
+                {selectedViewGroup.hours.map((hour: any, idx: number) => (
+                  <tr key={hour.hourlyProductionId || idx} className="border-b border-line-soft">
+                    <td className="px-4 py-3 font-semibold text-ink">Hour {hour.hourIndex}</td>
+                    <td className="px-4 py-3 text-right font-bold text-ink tabular-nums">
+                      {formatQty(hour.qtyProduced)}{" "}
+                      <span className="text-xs font-normal text-ink-subtle">
+                        {selectedViewGroup.uom}
+                      </span>
+                    </td>
+                    <td
+                      className={cx(
+                        "px-4 py-3 text-right tabular-nums",
+                        hour.rejectQty > 0
+                          ? "font-semibold text-[color:var(--color-danger)]"
+                          : "text-ink-subtle"
+                      )}
                     >
-                      <td className="py-3 px-4 font-bold text-ink-muted">Hour {hour.hourIndex}</td>
-                      <td className="py-3 px-4 text-center font-bold text-[color:var(--color-success)]">
-                        {hour.qtyProduced}{" "}
-                        <span className="text-xs text-ink-subtle font-normal">
-                          {selectedViewGroup.uom}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center font-semibold text-[color:var(--color-danger)]">
-                        {hour.rejectQty || 0}
-                      </td>
-                      <td className="py-3 px-4 text-center font-semibold text-[color:var(--color-warning)]">
-                        {hour.scrapQty || 0}
-                      </td>
-                      <td className="py-3 px-4 text-center text-ink-subtle">
-                        {hour.downtime > 0 ? `${hour.downtime} min` : "—"}
-                      </td>
-                      <td className="py-3 px-4 text-ink-muted">
-                        {hour.operatorName || hour.operatorId || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-ink-subtle text-xs">{hour.remarks || "—"}</td>
-                    </tr>
-                  );
-                })}
+                      {formatQty(hour.rejectQty || 0)}
+                    </td>
+                    <td
+                      className={cx(
+                        "px-4 py-3 text-right tabular-nums",
+                        hour.scrapQty > 0
+                          ? "font-semibold text-[color:var(--color-warning)]"
+                          : "text-ink-subtle"
+                      )}
+                    >
+                      {formatQty(hour.scrapQty || 0)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-ink-muted tabular-nums">
+                      {hour.downtime > 0 ? `${hour.downtime} min` : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-ink-muted">
+                      {hour.operatorName || hour.operatorId || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-ink-subtle">{hour.remarks || "—"}</td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot>
-                <tr className="bg-card-2 border-t-2 border-line">
-                  <td className="py-3 px-4 font-bold text-ink-muted uppercase text-xs tracking-wide">
+                <tr className="bg-card-2">
+                  <td className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-ink-muted">
                     Total
                   </td>
                   <td
-                    className={`py-3 px-4 text-center font-bold text-lg ${selectedViewGroup.totalQtyProduced >= selectedViewGroup.plannedQty ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
+                    className={cx(
+                      "px-4 py-3 text-right text-lg font-bold tabular-nums",
+                      selectedViewGroup.totalQtyProduced >= selectedViewGroup.plannedQty
+                        ? "text-[color:var(--color-success)]"
+                        : "text-[color:var(--color-danger)]"
+                    )}
                   >
-                    {selectedViewGroup.totalQtyProduced}
-                    <span className="text-xs font-normal text-ink-subtle ml-1">
+                    {formatQty(selectedViewGroup.totalQtyProduced)}
+                    <span className="ml-1 text-xs font-normal text-ink-subtle">
                       {selectedViewGroup.uom}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-center font-bold text-[color:var(--color-danger)]">
-                    {selectedViewGroup.totalRejectQty}
+                  <td className="px-4 py-3 text-right font-bold text-ink tabular-nums">
+                    {formatQty(selectedViewGroup.totalRejectQty)}
                   </td>
-                  <td className="py-3 px-4 text-center font-bold text-[color:var(--color-warning)]">
-                    {selectedViewGroup.totalScrapQty}
+                  <td className="px-4 py-3 text-right font-bold text-ink tabular-nums">
+                    {formatQty(selectedViewGroup.totalScrapQty)}
                   </td>
-                  <td className="py-3 px-4 text-center text-ink-subtle font-semibold">
+                  <td className="px-4 py-3 text-right font-semibold text-ink-muted tabular-nums">
                     {selectedViewGroup.totalDowntime > 0
                       ? `${selectedViewGroup.totalDowntime} min`
                       : "—"}
                   </td>
-                  <td colSpan={2} className="py-3 px-4 text-ink-subtle text-xs">
+                  <td colSpan={2} className="px-4 py-3 text-xs text-ink-subtle">
                     <span className="font-semibold text-ink-muted">Planned:</span>{" "}
-                    {selectedViewGroup.plannedQty} {selectedViewGroup.uom}
+                    {formatQty(selectedViewGroup.plannedQty)} {selectedViewGroup.uom}
                     {selectedViewGroup.totalQtyProduced < selectedViewGroup.plannedQty && (
-                      <span className="ml-3 text-[color:var(--color-danger)] font-bold">
-                        ↓ {selectedViewGroup.plannedQty - selectedViewGroup.totalQtyProduced}{" "}
+                      <Chip size="sm" tone="danger" className="ml-3">
+                        ↓{" "}
+                        {formatQty(
+                          selectedViewGroup.plannedQty - selectedViewGroup.totalQtyProduced
+                        )}{" "}
                         {selectedViewGroup.uom} short
-                      </span>
+                      </Chip>
                     )}
                     {selectedViewGroup.totalQtyProduced > selectedViewGroup.plannedQty && (
-                      <span className="ml-3 text-[color:var(--color-success)] font-bold">
-                        ↑ +{selectedViewGroup.totalQtyProduced - selectedViewGroup.plannedQty}{" "}
+                      <Chip size="sm" tone="success" className="ml-3">
+                        ↑ +
+                        {formatQty(
+                          selectedViewGroup.totalQtyProduced - selectedViewGroup.plannedQty
+                        )}{" "}
                         {selectedViewGroup.uom} extra
-                      </span>
+                      </Chip>
                     )}
                   </td>
                 </tr>
@@ -908,7 +899,7 @@ const HourlyWorkReportList: React.FC = () => {
           </div>
         </CommonModal>
       )}
-    </div>
+    </PageBody>
   );
 };
 

@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { FaSave, FaEraser, FaPlus } from "react-icons/fa";
+import { Eraser, Plus, Save } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  PageHeader,
+  SectionLabel,
+  Skeleton,
+  Tile,
+} from "../../../components/ui/v2";
+import { InfoItem, PageBody, StickyFormFooter } from "../../production/ui";
+import { formatDate as formatDisplayDate } from "../../../utils/dateUtils";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -11,7 +21,6 @@ import { z } from "zod";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import TextArea from "../../../components/form/TextArea/TextArea";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
@@ -22,7 +31,6 @@ import { salesOrderService } from "../../../services/salesOrderService";
 import { rawMaterialService } from "../../../services/rawMaterialService";
 import { productService } from "../../../services/productService";
 import { billOfMaterialService } from "../../../services/billOfMaterialService";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 
@@ -377,7 +385,10 @@ const ProductRawMaterialsSection: React.FC<ProductRawMaterialsSectionProps> = Re
           header: "STORE",
           headerNode: (
             <>
-              STORE <span className="text-[color:var(--color-danger)]">*</span>
+              STORE{" "}
+              <span className="sl-required" aria-hidden="true">
+                *
+              </span>
             </>
           ),
           width: "minmax(140px, 1fr)",
@@ -398,7 +409,10 @@ const ProductRawMaterialsSection: React.FC<ProductRawMaterialsSectionProps> = Re
           header: "RAW MATERIAL",
           headerNode: (
             <>
-              RAW MATERIAL <span className="text-[color:var(--color-danger)]">*</span>
+              RAW MATERIAL{" "}
+              <span className="sl-required" aria-hidden="true">
+                *
+              </span>
             </>
           ),
           width: "minmax(180px, 1.3fr)",
@@ -421,7 +435,10 @@ const ProductRawMaterialsSection: React.FC<ProductRawMaterialsSectionProps> = Re
           header: "REQUIRED QTY & UOM",
           headerNode: (
             <>
-              REQUIRED QTY & UOM <span className="text-[color:var(--color-danger)]">*</span>
+              REQUIRED QTY & UOM{" "}
+              <span className="sl-required" aria-hidden="true">
+                *
+              </span>
             </>
           ),
           width: "minmax(160px, 1fr)",
@@ -472,25 +489,26 @@ const ProductRawMaterialsSection: React.FC<ProductRawMaterialsSectionProps> = Re
     return (
       <div className="md:col-span-12 mt-3 relative min-h-[150px]">
         {isCalculatingRM && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80 backdrop-blur-[2px] rounded-lg overflow-hidden">
+          <div className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden rounded-[16px] bg-card/80 backdrop-blur-[2px]">
             <div className="scale-[0.6] origin-center -mt-6">
               <CommonLoader text="Calculating..." fullScreen={false} />
             </div>
           </div>
         )}
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-xs font-extrabold text-ink uppercase tracking-wider">
-            Manual Raw Materials ({productName || `Product ${productIndex + 1}`})
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="sl-section-label m-0">
+            Raw materials · {productName || `Product ${productIndex + 1}`}
           </h3>
-          <CustomButton
-            text="Add Material Row"
-            icon={FaPlus}
-            type="button"
+          <ActionPill
+            variant="secondary"
             size="sm"
+            icon={<Plus size={15} />}
             onClick={() =>
               append({ rawMaterialId: "", requiredQty: "", uom: "", storeId: "", remarks: "" })
             }
-          />
+          >
+            Add Material Row
+          </ActionPill>
         </div>
 
         <DataTable
@@ -498,7 +516,8 @@ const ProductRawMaterialsSection: React.FC<ProductRawMaterialsSectionProps> = Re
           data={fields}
           rowKey={(row) => row.id}
           minHeightClassName="min-h-[60px]"
-          density="default"
+          density="compact"
+          ariaLabel="Raw materials"
           emptyMessage="No raw materials added. Click 'Add Material Row' to include materials."
         />
       </div>
@@ -1187,314 +1206,300 @@ const ProductionOrderCreate: React.FC = () => {
     }
   };
 
+  const title = isEditMode ? "Edit Production Order" : "Create Production Order";
+  const addProductButton = !watchSalesOrderId ? (
+    <ActionPill
+      variant="secondary"
+      size="sm"
+      icon={<Plus size={15} />}
+      onClick={() =>
+        appendProduct({
+          productItemId: "",
+          targetQty: 0,
+          damageQty: 0,
+          uom: "PCS",
+          rawMaterials: [{ rawMaterialId: "", requiredQty: "", uom: "", storeId: "", remarks: "" }],
+        })
+      }
+    >
+      Add Production
+    </ActionPill>
+  ) : null;
+
   return (
-    <div className="max-w-[1024px] xl:mr-auto">
-      <div className="bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h2 className="text-xl font-bold text-ink flex items-start">
-            {isEditMode ? "Edit Production Order" : "Create Production Order"}
-            <span className="text-ink-subtle text-sm ml-1 mt-0.5 leading-none">
-              *{watch("productionOrderId")}
-            </span>
-          </h2>
-          <BackButton text="Back to List" to="/production-orders" />
+    <PageBody className="max-w-[1200px]">
+      <PageHeader
+        title={title}
+        meta={
+          watch("productionOrderId") ? (
+            <Chip size="sm" tone="muted" className="font-mono">
+              {watch("productionOrderId")}
+            </Chip>
+          ) : undefined
+        }
+        subtitle={
+          watchSalesOrderId
+            ? "Plan production for a confirmed sales order: products, raw materials and dates."
+            : "A direct production order: pick products, the raw materials they draw and the dates."
+        }
+        back="/production-orders"
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Production orders", to: "/production-orders" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+      />
+
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
+        {watchSalesOrderId && (
+          <Tile title="Sales order" subtitle="The order this production plan fulfils.">
+            {isFetchingSalesOrder ? (
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4" aria-hidden="true">
+                {[0, 1, 2, 3].map((i) => (
+                  <Skeleton key={i} height={40} />
+                ))}
+              </div>
+            ) : selectedSalesOrder ? (
+              <dl className="m-0 grid grid-cols-2 gap-4 rounded-[14px] bg-card-2 p-4 md:grid-cols-4">
+                <InfoItem label="Sales Order No" value={selectedSalesOrder.orderNo} mono />
+                <InfoItem label="Customer" value={selectedSalesOrder.customer?.firmName} />
+                <InfoItem
+                  label="Order Date"
+                  value={
+                    selectedSalesOrder.orderDate
+                      ? formatDisplayDate(selectedSalesOrder.orderDate)
+                      : "-"
+                  }
+                />
+                <InfoItem
+                  label="Due Date"
+                  value={
+                    selectedSalesOrder.expectedCompletionDate
+                      ? formatDisplayDate(selectedSalesOrder.expectedCompletionDate)
+                      : "-"
+                  }
+                />
+              </dl>
+            ) : (
+              <p role="alert" className="m-0 text-sm font-medium text-[color:var(--color-danger)]">
+                No Sales Order selected. Please navigate from Approved Sales Orders.
+              </p>
+            )}
+            {selectedSalesOrderItems.length > 0 && (
+              <div className="mt-4">
+                <SectionLabel as="h3">Sales Order Items</SectionLabel>
+                <DataTable
+                  ariaLabel="Sales order items"
+                  columns={salesOrderColumns}
+                  data={selectedSalesOrderItems}
+                  rowKey={(item: any) => item.productId}
+                  emptyMessage="No sales order items found."
+                  className="!shadow-none border border-line-soft"
+                  minHeightClassName="min-h-0"
+                  density="compact"
+                />
+              </div>
+            )}
+          </Tile>
+        )}
+        <div>
+          <div className="flex flex-col gap-5">
+            {productFields.map((prodItem, index) => (
+              <Tile
+                key={prodItem.id}
+                title={
+                  productFields.length > 1 || !watchSalesOrderId
+                    ? `Product ${index + 1}`
+                    : "Production item"
+                }
+                subtitle={
+                  index === 0
+                    ? watchSalesOrderId
+                      ? "Production Item Details"
+                      : "Direct Production Item Details"
+                    : undefined
+                }
+                actions={
+                  <>
+                    {!watchSalesOrderId && productFields.length > 1 && (
+                      <DeleteButton onClick={() => removeProduct(index)} />
+                    )}
+                    {index === productFields.length - 1 && addProductButton}
+                  </>
+                }
+              >
+                <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                  <Controller
+                    name={`products.${index}.productItemId` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <SelectInput
+                        label="Finished Product"
+                        name={field.name}
+                        value={field.value}
+                        options={products.map((p) => {
+                          const isSelected = watchProducts?.some(
+                            (wp: any, wpIdx: number) =>
+                              wpIdx !== index && wp.productItemId === p.id?.toString()
+                          );
+                          return {
+                            label: p.productName || p.productCode || p.id?.toString(),
+                            value: p.id?.toString() || "",
+                            disabled: isSelected,
+                          };
+                        })}
+                        defaultOptionLabel="Select Finished Product"
+                        onChange={async (e) => {
+                          field.onChange(e);
+                          const p = products.find((x) => x.id?.toString() === e.target.value);
+                          if (p) {
+                            setValue(
+                              `products.${index}.uom` as any,
+                              p.uom?.name || p.uom?.uomCode || "ea"
+                            );
+                          }
+                        }}
+                        required
+                        disabled={!!watchSalesOrderId}
+                        error={errors.products?.[index]?.productItemId?.message}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name={`products.${index}.targetQty` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <TextInput
+                        label="Target Qty"
+                        name={field.name}
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={field.value !== undefined ? String(field.value) : ""}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                        required
+                        disabled={!!watchSalesOrderId}
+                        error={errors.products?.[index]?.targetQty?.message}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name={`products.${index}.uom` as const}
+                    control={control}
+                    render={({ field }) => (
+                      <input type="hidden" name={field.name} value={field.value || "ea"} />
+                    )}
+                  />
+                  <div className="md:col-span-2">
+                    <ProductRawMaterialsSection
+                      productIndex={index}
+                      productName={
+                        products.find(
+                          (p) => p.id?.toString() === watchProducts?.[index]?.productItemId
+                        )?.productName
+                      }
+                      control={control}
+                      errors={errors.products?.[index]}
+                      storeOptions={storeOptions}
+                      rowRmStates={rowRmStates}
+                      handleStoreChange={handleStoreChange}
+                      handleRmChange={handleRmChange}
+                      fetchRawMaterialsForStore={fetchRawMaterialsForStore}
+                      setValue={setValue}
+                      isCalculatingRM={isCalculatingRM}
+                    />
+                  </div>
+                </div>
+              </Tile>
+            ))}
+            <Tile title="Dates & narration">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                <Controller
+                  name="orderDate"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePickerCalendar
+                      label="Order Date"
+                      name={field.name}
+                      value={field.value ? field.value.substring(0, 10) : ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      required
+                      disabled={!!watchSalesOrderId}
+                      error={errors.orderDate?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="dueDate"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePickerCalendar
+                      label="Due Date"
+                      name={field.name}
+                      value={field.value ? field.value.substring(0, 10) : ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      required
+                      minDate={watch("orderDate")}
+                      error={errors.dueDate?.message}
+                    />
+                  )}
+                />
+              </div>
+
+              {/* ── 2. General Details ──────────────────────────── */}
+              <div className="mt-4">
+                <Controller
+                  name="remarks"
+                  control={control}
+                  render={({ field }) => (
+                    <TextArea
+                      label="Narration "
+                      name={field.name}
+                      value={field.value ?? ""}
+                      placeholder="Any remarks for this order"
+                      rows={2}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+              </div>
+            </Tile>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-5 lg:p-6 space-y-6" noValidate>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            {/* ── 1. Source Information ─────────────────────────── */}
-            {watchSalesOrderId && (
-              <>
-                <div className="md:col-span-12">
-                  <h3 className="text-xs font-semibold text-ink-subtle uppercase tracking-wider mb-4">
-                    1. Selected Sales Order
-                  </h3>
-                  <div className="p-0">
-                    {isFetchingSalesOrder ? (
-                      <div className="text-ink-muted">Fetching Sales Order details…</div>
-                    ) : selectedSalesOrder ? (
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-card-2 p-4 rounded-lg border border-line-soft">
-                        <div className="md:col-span-3">
-                          <div className="text-ink-muted text-sm">Sales Order No</div>
-                          <div className="font-bold text-ink">
-                            {selectedSalesOrder.orderNo || "-"}
-                          </div>
-                        </div>
-                        <div className="md:col-span-3">
-                          <div className="text-ink-muted text-sm">Customer</div>
-                          <div className="font-bold text-ink">
-                            {selectedSalesOrder.customer?.firmName || "-"}
-                          </div>
-                        </div>
-                        <div className="md:col-span-3">
-                          <div className="text-ink-muted text-sm">Order Date</div>
-                          <div className="font-bold text-ink">
-                            {selectedSalesOrder.orderDate
-                              ? new Date(selectedSalesOrder.orderDate).toLocaleDateString("en-IN")
-                              : "-"}
-                          </div>
-                        </div>
-                        <div className="md:col-span-3">
-                          <div className="text-ink-muted text-sm">Due Date</div>
-                          <div className="font-bold text-ink">
-                            {selectedSalesOrder.expectedCompletionDate
-                              ? new Date(
-                                  selectedSalesOrder.expectedCompletionDate
-                                ).toLocaleDateString("en-IN")
-                              : "-"}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-[color:var(--color-danger)]">
-                        No Sales Order selected. Please navigate from Approved Sales Orders.
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {selectedSalesOrderItems.length > 0 && (
-                  <div className="md:col-span-12 mt-3 mb-3">
-                    <h3 className="text-xs font-semibold text-ink-subtle uppercase tracking-wider mb-3">
-                      Sales Order Items
-                    </h3>
-                    <div className="mt-2 mb-4 border rounded-lg border-line-soft overflow-hidden">
-                      <DataTable
-                        columns={salesOrderColumns}
-                        data={selectedSalesOrderItems}
-                        rowKey={(item: any) => item.productId}
-                        emptyMessage="No sales order items found."
-                        className="border-0"
-                        minHeightClassName="min-h-0"
-                      />
-                    </div>
-                  </div>
-                )}
-              </>
+        {/* ── Form Actions ──────────────────────────────────────── */}
+        <StickyFormFooter>
+          <ActionPill
+            variant="secondary"
+            icon={<Eraser size={16} />}
+            onClick={() => {
+              reset(defaultValues);
+              setRowRmStates({});
+            }}
+            disabled={isSubmitting}
+          >
+            Clear Form
+          </ActionPill>
+          <ActionPill
+            variant="secondary"
+            onClick={handleSubmit((data) => onSubmit({ ...data, status: "DRAFT" }))}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Save as Draft"}
+          </ActionPill>
+          <ActionPill
+            icon={<Save size={17} />}
+            onClick={handleSubmit((data) =>
+              onSubmit({ ...data, status: data.status === "DRAFT" ? "CREATED" : data.status })
             )}
-            <div className="md:col-span-12">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xs font-extrabold text-ink uppercase tracking-wider">
-                  {watchSalesOrderId
-                    ? "2. Production Item Details"
-                    : "1. Direct Production Item Details"}
-                </h3>
-                {!watchSalesOrderId && (
-                  <CustomButton
-                    text="Add Production"
-                    icon={FaPlus}
-                    type="button"
-                    variant="secondary"
-                    onClick={() =>
-                      appendProduct({
-                        productItemId: "",
-                        targetQty: 0,
-                        damageQty: 0,
-                        uom: "PCS",
-                        rawMaterials: [
-                          { rawMaterialId: "", requiredQty: "", uom: "", storeId: "", remarks: "" },
-                        ],
-                      })
-                    }
-                  />
-                )}
-              </div>
-              <div className="p-0">
-                {productFields.map((prodItem, index) => (
-                  <div
-                    key={prodItem.id}
-                    className={index > 0 ? "mt-6 pt-6 border-t border-line-soft" : ""}
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-sm font-bold text-ink-muted">Product {index + 1}</h3>
-                      {!watchSalesOrderId && productFields.length > 1 && (
-                        <DeleteButton onClick={() => removeProduct(index)} />
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-                      <Controller
-                        name={`products.${index}.productItemId` as const}
-                        control={control}
-                        render={({ field }) => (
-                          <SelectInput
-                            label="Finished Product"
-                            name={field.name}
-                            value={field.value}
-                            options={products.map((p) => {
-                              const isSelected = watchProducts?.some(
-                                (wp: any, wpIdx: number) =>
-                                  wpIdx !== index && wp.productItemId === p.id?.toString()
-                              );
-                              return {
-                                label: p.productName || p.productCode || p.id?.toString(),
-                                value: p.id?.toString() || "",
-                                disabled: isSelected,
-                              };
-                            })}
-                            defaultOptionLabel="Select Finished Product"
-                            onChange={async (e) => {
-                              field.onChange(e);
-                              const p = products.find((x) => x.id?.toString() === e.target.value);
-                              if (p) {
-                                setValue(
-                                  `products.${index}.uom` as any,
-                                  p.uom?.name || p.uom?.uomCode || "ea"
-                                );
-                              }
-                            }}
-                            required
-                            horizontal
-                            disabled={!!watchSalesOrderId}
-                            error={errors.products?.[index]?.productItemId?.message}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name={`products.${index}.targetQty` as const}
-                        control={control}
-                        render={({ field }) => (
-                          <TextInput
-                            label="Target Qty"
-                            name={field.name}
-                            type="number"
-                            min="0"
-                            step="any"
-                            value={field.value !== undefined ? String(field.value) : ""}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            required
-                            horizontal
-                            disabled={!!watchSalesOrderId}
-                            error={errors.products?.[index]?.targetQty?.message}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name={`products.${index}.uom` as const}
-                        control={control}
-                        render={({ field }) => (
-                          <input type="hidden" name={field.name} value={field.value || "ea"} />
-                        )}
-                      />
-                      <div className="sm:col-span-2">
-                        <ProductRawMaterialsSection
-                          productIndex={index}
-                          productName={
-                            products.find(
-                              (p) => p.id?.toString() === watchProducts?.[index]?.productItemId
-                            )?.productName
-                          }
-                          control={control}
-                          errors={errors.products?.[index]}
-                          storeOptions={storeOptions}
-                          rowRmStates={rowRmStates}
-                          handleStoreChange={handleStoreChange}
-                          handleRmChange={handleRmChange}
-                          fetchRawMaterialsForStore={fetchRawMaterialsForStore}
-                          setValue={setValue}
-                          isCalculatingRM={isCalculatingRM}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5 mt-6 pt-6 border-t border-line-soft">
-                  <Controller
-                    name="orderDate"
-                    control={control}
-                    render={({ field }) => (
-                      <DatePickerCalendar
-                        label="Order Date"
-                        name={field.name}
-                        value={field.value ? field.value.substring(0, 10) : ""}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        required
-                        horizontal
-                        disabled={!!watchSalesOrderId}
-                        error={errors.orderDate?.message}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="dueDate"
-                    control={control}
-                    render={({ field }) => (
-                      <DatePickerCalendar
-                        label="Due Date"
-                        name={field.name}
-                        value={field.value ? field.value.substring(0, 10) : ""}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        required
-                        horizontal
-                        minDate={watch("orderDate")}
-                        error={errors.dueDate?.message}
-                      />
-                    )}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* ── 2. General Details ──────────────────────────── */}
-            <div className="md:col-span-12">
-              <Controller
-                name="remarks"
-                control={control}
-                render={({ field }) => (
-                  <TextArea
-                    label="Narration "
-                    name={field.name}
-                    value={field.value ?? ""}
-                    placeholder="Any remarks for this order"
-                    rows={2}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
-            </div>
-          </div>
-
-          {/* ── Form Actions ──────────────────────────────────────── */}
-          <div className="flex justify-end gap-3 px-5 py-4 border-t border-line -mx-5 lg:-mx-6 -mb-6">
-            <CustomButton
-              text="Clear Form"
-              icon={FaEraser}
-              variant="secondary"
-              onClick={() => {
-                reset(defaultValues);
-                setRowRmStates({});
-              }}
-              disabled={isSubmitting}
-            />
-            <div className="ml-2">
-              <CustomButton
-                text={isSubmitting ? "Saving..." : "Save as Draft"}
-                onClick={handleSubmit((data) => onSubmit({ ...data, status: "DRAFT" }))}
-                disabled={isSubmitting}
-              />
-            </div>
-            <div className="ml-2">
-              <CustomButton
-                text={
-                  isSubmitting
-                    ? isEditMode
-                      ? "Updating"
-                      : "Creating"
-                    : isEditMode
-                      ? "Update Order"
-                      : "Create Production Order"
-                }
-                icon={isSubmitting ? undefined : FaSave}
-                onClick={handleSubmit((data) =>
-                  onSubmit({ ...data, status: data.status === "DRAFT" ? "CREATED" : data.status })
-                )}
-                type="button"
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+            loading={isSubmitting}
+            loadingText={isEditMode ? "Updating" : "Creating"}
+          >
+            {isEditMode ? "Update Order" : "Create Production Order"}
+          </ActionPill>
+        </StickyFormFooter>
+      </form>
+    </PageBody>
   );
 };
 
