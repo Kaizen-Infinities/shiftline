@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-
 import { useListCache } from "../../../hooks/useListCache";
 import { finishedGoodsStockService } from "../../../services/finishedGoodsStockService";
 import { useSocketSync } from "../../../hooks/useSocketSync";
-
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import DataTable from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
 import { Search } from "lucide-react";
-
-import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
-import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import { categoryService } from "../../../services/categoryService";
 import { usePermission } from "../../../hooks/usePermission";
+import { PackageCheck } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Toolbar } from "../../../components/ui/v2";
+import { qty } from "../../stock/lib/format";
 
 const formatUom = (uomCode: string | undefined) => {
   if (!uomCode) return "PCS";
@@ -39,7 +36,7 @@ const FinishedStockList: React.FC<FinishedStockListProps> = ({ storeId: propStor
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [, setCategoryFilter] = useState("");
   const [appliedCategory, setAppliedCategory] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([]);
 
@@ -102,22 +99,12 @@ const FinishedStockList: React.FC<FinishedStockListProps> = ({ storeId: propStor
   // Re-fetch category options on category changes
   useSocketSync("category", undefined, fetchCategoriesData);
 
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
   const handleOpenView = useCallback((item: any) => {
     setSelectedItem(item);
     setShowViewModal(true);
   }, []);
 
   const hasActiveFilters = !!appliedCategory;
-  const activeFilterCount = appliedCategory ? 1 : 0;
-
-  const handleApplyFilters = useCallback(() => {
-    setAppliedCategory(categoryFilter);
-    setCurrentPage(1);
-  }, [categoryFilter]);
 
   const handleClearFilters = useCallback(() => {
     setCategoryFilter("");
@@ -150,147 +137,156 @@ const FinishedStockList: React.FC<FinishedStockListProps> = ({ storeId: propStor
     },
   ];
 
+  const lowOnPage = (data || []).filter((item: any) => {
+    const onHand = Number(item.onHandQty) || 0;
+    return onHand <= (Number(item.product?.minimumQty) || 0) || onHand <= 0;
+  }).length;
+
   return (
     <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-visible">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Finished Goods Stock</h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <div className="relative w-full md:w-56">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
-                size={15}
-              />
-              <input
-                type="text"
-                className="w-full pl-9 pr-4 py-2 bg-card-2 border border-line-soft rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                placeholder="Search stock..."
-                value={searchTerm}
-                onChange={handleSearch}
-                data-search-input
-              />
-            </div>
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            >
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Category
-                  </label>
-                  <SelectInput
-                    name="categoryFilter"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    options={categoryOptions}
-                    defaultOptionLabel="All Categories"
-                    noMargin
-                  />
-                </div>
-              </div>
-            </FilterPopover>
-            {can("finished_goods_stocks.export") && (
+      <div className="w-full min-w-0">
+        <PageHeader
+          title="Finished Goods Stock"
+          subtitle={`${total || 0} stock lines · finished products on hand, by store`}
+          icon={<PackageCheck size={22} />}
+          actions={
+            can("finished_goods_stocks.export") ? (
               <ExportCSVButton
                 data={data || []}
                 columns={exportColumns}
                 filename="finished_goods_stock.csv"
               />
-            )}
-          </div>
-        </div>
+            ) : null
+          }
+        />
 
-        {/* Table */}
-        <div className="p-0 overflow-hidden rounded-b-sm">
-          <DataTable
-            data={paginatedData || []}
-            rowKey={(item) => `${item.storeId}-${item.productItemId}`}
-            loading={loading}
-            emptyMessage="No finished goods stock found."
-            pagination={
-              totalPages > 1
-                ? { currentPage, totalPages, onPageChange: (page) => setCurrentPage(page) }
-                : undefined
-            }
-            columns={[
-              {
-                header: "#",
-                render: (_, index) => (
-                  <span className="text-ink-subtle">
-                    {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
-                  </span>
-                ),
-              },
-              {
-                header: "PRODUCT CODE",
-                render: (item) => (
-                  <span className="font-mono text-ink-muted">
+        <Toolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search stock..."
+          searchLabel="Search finished goods stock"
+          filters={[
+            { key: "", label: "All categories" },
+            ...categoryOptions.map((c) => ({ key: c.value, label: c.label })),
+          ]}
+          filterValue={appliedCategory}
+          onFilterChange={(key) => {
+            setCategoryFilter(key);
+            setAppliedCategory(key);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Category"
+          right={
+            lowOnPage > 0 ? (
+              <Chip tone="danger" dot>
+                {lowOnPage} at or below minimum
+              </Chip>
+            ) : null
+          }
+        />
+
+        <DataTable
+          data={paginatedData || []}
+          rowKey={(item) => `${item.storeId}-${item.productItemId}`}
+          loading={loading}
+          ariaLabel="Finished goods stock"
+          emptyMessage={
+            hasActiveFilters || debouncedSearch
+              ? "No stock matches these filters."
+              : "No finished goods stock found."
+          }
+          emptyAction={
+            hasActiveFilters || debouncedSearch ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  handleClearFilters();
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : undefined
+          }
+          pagination={
+            totalPages > 1
+              ? { currentPage, totalPages, onPageChange: (page) => setCurrentPage(page) }
+              : undefined
+          }
+          columns={[
+            {
+              header: "#",
+              width: "56px",
+              align: "center",
+              render: (_, index) => (
+                <span className="text-ink-subtle">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                </span>
+              ),
+            },
+            {
+              header: "Product",
+              render: (item) => (
+                <div className="flex min-w-0 flex-col">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenView(item)}
+                    className="w-fit text-left font-semibold text-accent hover:underline underline-offset-4"
+                  >
+                    {item.product?.productName || "N/A"}
+                  </button>
+                  <span className="font-mono text-xs text-ink-subtle">
                     {item.product?.productCode || "N/A"}
                   </span>
-                ),
-              },
-              {
-                header: "PRODUCT NAME",
-                render: (item) => (
-                  <span className="font-semibold text-ink">
-                    {item.product?.productName || "N/A"}
-                  </span>
-                ),
-              },
-              {
-                header: "CATEGORY",
-                render: (item) => (
-                  <span className="text-ink-muted">
-                    {(item.product?.category as any)?.name ||
-                      item.product?.category?.categoryName ||
-                      "N/A"}
-                  </span>
-                ),
-              },
-              {
-                header: "STORE / LOCATION",
-                render: (item) => (
-                  <span className="font-medium text-ink-muted">
-                    {item.store?.storeName || "N/A"}
-                  </span>
-                ),
-              },
-              {
-                header: "PHYSICAL STOCK",
-                render: (item) => {
-                  const onHand = Number(item.onHandQty) || 0;
-                  const minQty = Number((item.product as any)?.minimumQty) || 0;
-                  return (
-                    <div className="flex flex-col">
-                      <span
-                        className={`font-semibold ${onHand <= minQty || onHand <= 0 ? "text-red-600" : "text-ink"}`}
-                      >
-                        {item.onHandQty} {formatUom(item.product?.uom?.uomCode)}
-                      </span>
-                      <span className="text-xs text-ink-subtle mt-1">
-                        Min: {minQty} | Max: {(item.product as any)?.maximumQty || "0"}
-                      </span>
-                    </div>
-                  );
-                },
-              },
-              {
-                header: "ACTIONS",
-                render: (item) => (
-                  <div className="flex items-center gap-2">
-                    <ViewButton onClick={() => handleOpenView(item)} />
+                </div>
+              ),
+            },
+            {
+              header: "Category",
+              render: (item) => (
+                <span className="text-ink-muted">
+                  {(item.product?.category as any)?.name ||
+                    item.product?.category?.categoryName ||
+                    "N/A"}
+                </span>
+              ),
+            },
+            {
+              header: "Store / Location",
+              render: (item) => <Chip size="sm">{item.store?.storeName || "N/A"}</Chip>,
+            },
+            {
+              header: "Physical stock",
+              align: "right",
+              render: (item) => {
+                const onHand = Number(item.onHandQty) || 0;
+                const minQty = Number((item.product as any)?.minimumQty) || 0;
+                const low = onHand <= minQty || onHand <= 0;
+                return (
+                  <div className="flex flex-col items-end tabular-nums">
+                    <span
+                      className={`font-semibold ${low ? "text-[color:var(--color-danger)]" : "text-ink"}`}
+                    >
+                      {qty(item.onHandQty)} {formatUom(item.product?.uom?.uomCode)}
+                    </span>
+                    <span className="text-xs text-ink-subtle">
+                      Min {qty(minQty)} · Max {qty((item.product as any)?.maximumQty || 0)}
+                    </span>
                   </div>
-                ),
+                );
               },
-            ]}
-          />
-        </div>
+            },
+            {
+              header: "Actions",
+              align: "right",
+              render: (item) => (
+                <div className="table-action-group w-full justify-end">
+                  <ViewButton onClick={() => handleOpenView(item)} />
+                </div>
+              ),
+            },
+          ]}
+        />
 
         {/* View Modal */}
         <CommonViewModal
