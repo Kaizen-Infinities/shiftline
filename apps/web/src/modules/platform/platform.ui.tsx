@@ -1,15 +1,15 @@
 import React from "react";
 
-/** Shared bits for the platform console pages (P1-02). */
-export const input =
-  "rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-blue-500";
-export const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-export const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-export const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-export const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
-export const th =
-  "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
-export const td = "px-3 py-1.5 text-sm text-ink";
+import { Chip, StatTile, Tile, type ChipTone } from "../../components/ui/v2";
+
+/** Shared bits for the platform console pages (P1-02), in the UI v2 look. */
+export const input = "sl-input h-11 py-0 text-sm";
+export const btn = "sl-pill-sm";
+export const primary = "sl-btn-blue sl-pill-sm";
+export const secondary = "sl-btn sl-pill-sm";
+export const danger = "sl-btn-soft-danger sl-pill-sm";
+export const th = "sl-th bg-card-2 px-3 py-2.5 text-left first:rounded-l-xl last:rounded-r-xl";
+export const td = "px-3 py-2.5 text-sm text-ink";
 
 export const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -19,50 +19,53 @@ export const message = (err: unknown) =>
 export const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
 
-const STATUS: Record<string, string> = {
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  TRIALING: "bg-sky-100 text-sky-800",
-  PAST_DUE: "bg-amber-100 text-amber-800",
-  SUSPENDED: "bg-rose-100 text-rose-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
-  active: "bg-emerald-100 text-emerald-800",
-  suspended: "bg-rose-100 text-rose-800",
-  locked: "bg-amber-100 text-amber-800",
+const TONE: Record<string, ChipTone> = {
+  ACTIVE: "success",
+  TRIALING: "info",
+  PAST_DUE: "warning",
+  SUSPENDED: "danger",
+  CANCELLED: "muted",
+  active: "success",
+  suspended: "danger",
+  locked: "warning",
+};
+const LABEL: Record<string, string> = {
+  ACTIVE: "Active",
+  TRIALING: "Trialing",
+  PAST_DUE: "Past due",
+  SUSPENDED: "Suspended",
+  CANCELLED: "Cancelled",
+  active: "Active",
+  suspended: "Suspended",
+  locked: "Locked",
 };
 
+/** A status as a chip with a dot; unknown values show as they came, muted. */
 export const Badge: React.FC<{ value: string | null | undefined }> = ({ value }) =>
   value ? (
-    <span
-      className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[value] ?? "bg-card-2 text-ink-muted"}`}
-    >
-      {value}
-    </span>
+    <Chip tone={TONE[value] ?? "muted"} size="sm" dot>
+      {LABEL[value] ?? value}
+    </Chip>
   ) : (
     <span className="text-ink-subtle">—</span>
   );
 
-export const Stat: React.FC<{ label: string; value: React.ReactNode; hint?: string }> = ({
-  label,
-  value,
-  hint,
-}) => (
-  <div className="rounded-xl border border-line-soft bg-card p-4">
-    <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{label}</div>
-    <div className="mt-1 text-2xl font-bold tabular-nums text-ink">{value}</div>
-    {hint && <div className="text-xs text-ink-subtle">{hint}</div>}
-  </div>
+export const Stat: React.FC<{
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  icon?: React.ReactNode;
+}> = ({ label, value, hint, icon }) => (
+  <StatTile label={label} value={value} hint={hint} icon={icon} />
 );
 
 export const Section: React.FC<{
   title: string;
   right?: React.ReactNode;
   children: React.ReactNode;
-}> = ({ title, right, children }) => (
-  <section className="rounded-xl border border-line-soft bg-card">
-    <div className="flex items-center justify-between gap-2 border-b border-line-soft px-4 py-2">
-      <h3 className="text-sm font-semibold text-ink">{title}</h3>
-      {right}
-    </div>
-    <div className="p-4">{children}</div>
-  </section>
+  icon?: React.ReactNode;
+}> = ({ title, right, children, icon }) => (
+  <Tile title={title} actions={right} icon={icon}>
+    {children}
+  </Tile>
 );
