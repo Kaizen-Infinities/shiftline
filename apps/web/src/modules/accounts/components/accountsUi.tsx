@@ -45,13 +45,15 @@ export const fmtINRCompact = (value: number | string | null | undefined): string
   return `${sign}₹${Math.round(abs).toLocaleString("en-IN")}`;
 };
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 /** "24 Sep 2026" (en-IN). Accepts ISO strings or Dates; empty input gives "—". */
 export const fmtDate = (value: string | Date | null | undefined): string => {
   if (!value) return "—";
   const d = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return "—";
-  // en-GB spells the month "Sep" (en-IN says "Sept"); the order is the same.
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  // Built by hand: newer ICU data spells September "Sept" in en-IN and en-GB.
+  return `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 };
 
 /* ── Voucher types ── */
@@ -240,6 +242,56 @@ export const tdClass = (align: "left" | "right" | "center" = "left", extra = "")
     align === "center" && "text-center",
     extra
   );
+
+/** Compact (40px) report body cell: tabular numbers, hairline rows. */
+export const rptTdClass = (align: "left" | "right" | "center" = "left", extra = "") =>
+  cx(
+    "px-4 py-2 align-middle text-[13.5px] text-ink",
+    align === "right" && "text-right tabular-nums whitespace-nowrap",
+    align === "center" && "text-center",
+    extra
+  );
+
+/** Report subtotal / group-heading row classes. */
+export const rptGroupRowClass = "bg-card-2 border-y border-line-soft";
+
+/** "—" for zero in report bodies, en-IN two decimals otherwise. */
+export const fmtRpt = (value: number | null | undefined): string =>
+  !value || Math.abs(value) < 0.005 ? "—" : fmtAmt(value);
+
+/** A report filter bar tile: children laid out in a wrapping row. */
+export const ReportFilterBar: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => (
+  <div
+    className={cx(
+      "sl-tile mb-4 flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:flex-wrap lg:items-end",
+      className
+    )}
+  >
+    {children}
+  </div>
+);
+
+/** A labelled group inside a filter bar (label above, control below). */
+export const FilterGroup: React.FC<{
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ label, htmlFor, children, className }) => (
+  <div className={cx("min-w-0", className)}>
+    {htmlFor ? (
+      <label htmlFor={htmlFor} className="sl-label">
+        {label}
+      </label>
+    ) : (
+      <span className="sl-label">{label}</span>
+    )}
+    {children}
+  </div>
+);
 
 /* ── Voucher entry grid ── */
 
