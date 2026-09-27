@@ -356,6 +356,10 @@ export const API_PATHS = {
   inventory: {
     eodStock: "/inventory/eod-stock",
   },
+  projectJobs: {
+    base: "/project-jobs", // ← service appends /:id, /:id/summary, /:id/stages[/order|/:stageId], /:id/costs[/post|/:costId], /:id/billings
+    stagePlans: "/project-jobs/stage-plans",
+  },
   orderTna: {
     base: "/order-tna", // ← service appends /:id, /:id/milestones[/:milestoneId]
     templates: "/order-tna/templates",
