@@ -117,7 +117,7 @@ ALTER TABLE "asn_lines" ADD CONSTRAINT "asn_lines_asn_id_fkey" FOREIGN KEY ("asn
 ALTER TABLE "asn_lines" ADD CONSTRAINT "asn_lines_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "asn_lines" ADD CONSTRAINT "asn_lines_schedule_line_id_fkey" FOREIGN KEY ("schedule_line_id") REFERENCES "customer_schedule_lines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "asn_lines" ADD CONSTRAINT "asn_lines_schedule_line_id_fkey" FOREIGN KEY ("schedule_line_id") REFERENCES "customer_schedule_lines"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "asn_lines" ADD CONSTRAINT "asn_lines_dispatch_id_fkey" FOREIGN KEY ("dispatch_id") REFERENCES "customer_schedule_dispatches"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -297,6 +297,17 @@ class DeliveryScheduleService {
         "LINE_HAS_DISPATCHES"
       );
     }
+    // TN-07: an ASN line may point at this schedule line.
+    const onAsn = await prisma.asnLine.count({
+      where: { scheduleLineId: line.id, asn: { status: { not: "CANCELLED" } } },
+    });
+    if (onAsn > 0) {
+      throw new ApiError(
+        409,
+        "An ASN is linked to this line; unlink or cancel it first",
+        "LINE_ON_ASN"
+      );
+    }
     await prisma.customerScheduleLine.delete({ where: { id: line.id } });
     return { id: line.id };
   }

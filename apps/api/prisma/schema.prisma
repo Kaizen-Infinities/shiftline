@@ -6485,7 +6485,7 @@ model AsnLine {
 
   asn          Asn                       @relation(fields: [asnId], references: [id], onDelete: Cascade)
   product      Product                   @relation(fields: [productId], references: [id], onDelete: Restrict)
-  scheduleLine CustomerScheduleLine?     @relation(fields: [scheduleLineId], references: [id], onDelete: Restrict)
+  scheduleLine CustomerScheduleLine?     @relation(fields: [scheduleLineId], references: [id], onDelete: SetNull)
   dispatch     CustomerScheduleDispatch? @relation(fields: [dispatchId], references: [id], onDelete: SetNull)
   company      Company                   @relation("CompanyAsnLine", fields: [companyId], references: [id], onDelete: Restrict)
 
