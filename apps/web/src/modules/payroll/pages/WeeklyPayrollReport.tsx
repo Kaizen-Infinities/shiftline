@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   FileDown,
   Users,
+  FileText,
 } from "lucide-react";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import { usePermission } from "../../../hooks/usePermission";
@@ -15,6 +16,9 @@ import { FiRefreshCw } from "react-icons/fi";
 import CustomButton from "../../../components/ui/custombutton/CustomButton";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import { StatusBadge } from "../../../components/ui/StatusBadge/Badge";
+import { Chip, PageHeader } from "../../../components/ui/v2";
+import { Notice } from "../components/peopleUi";
 import { useSocket } from "../../../providers/SocketProvider";
 import { payrollService } from "../../../services/payrollService";
 import type { ApiPayrollRun, ApiPayrollResult } from "../../../services/payrollService";
@@ -281,7 +285,7 @@ const WeeklyPayrollReport: React.FC = () => {
   // ── Error ──
   if (error) {
     return (
-      <div className="min-h-screen  flex items-center justify-center">
+      <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center space-y-4">
           <AlertTriangle size={36} className="text-[color:var(--color-danger)] mx-auto" />
           <p className="text-ink font-semibold">{error}</p>
@@ -294,78 +298,76 @@ const WeeklyPayrollReport: React.FC = () => {
   // ── Empty ──
   if (runs.length === 0) {
     return (
-      <div className="min-h-screen p-6 space-y-5">
+      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
-          <div>
-            <h1 className="text-2xl font-bold text-ink">Weekly Payroll Report</h1>
-            <p className="text-sm text-ink-muted mt-0.5">
-              No payroll runs found for selected filters.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap justify-end">
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-              onOpen={handleOpenFilter}
-            >
-              <div className="mb-3">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                  Week
-                </label>
-                <select
-                  className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                  value={draftWeek}
-                  onChange={(e) => setDraftWeek(e.target.value)}
-                >
-                  {WEEK_OPTIONS.map((w) => (
-                    <option key={w.value} value={w.value}>
-                      {w.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <PageHeader
+          className="print:hidden"
+          title="Weekly Payroll Report"
+          icon={<FileText size={20} />}
+          back="/payroll"
+          backLabel="Back to payroll"
+          breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Weekly Payroll Report" }]}
+          subtitle={"No payroll runs found for selected filters."}
+          meta={undefined}
+          actions={
+            <>
+              <FilterPopover
+                activeFilterCount={activeFilterCount}
+                hasActiveFilters={hasActiveFilters}
+                onApply={handleApplyFilters}
+                onClear={handleClearFilters}
+                onOpen={handleOpenFilter}
+              >
+                <div className="mb-3">
+                  <label className="sl-label">Week</label>
+                  <select
+                    className="sl-input h-10 text-sm"
+                    value={draftWeek}
+                    onChange={(e) => setDraftWeek(e.target.value)}
+                  >
+                    {WEEK_OPTIONS.map((w) => (
+                      <option key={w.value} value={w.value}>
+                        {w.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="mb-3">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                  Month
-                </label>
-                <select
-                  className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                  value={draftMonth}
-                  onChange={(e) => setDraftMonth(e.target.value)}
-                >
-                  {MONTH_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="mb-3">
+                  <label className="sl-label">Month</label>
+                  <select
+                    className="sl-input h-10 text-sm"
+                    value={draftMonth}
+                    onChange={(e) => setDraftMonth(e.target.value)}
+                  >
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="mb-3">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                  Year
-                </label>
-                <select
-                  className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                  value={draftYear}
-                  onChange={(e) => setDraftYear(e.target.value)}
-                >
-                  {YEAR_OPTIONS.map((y) => (
-                    <option key={y.value} value={y.value}>
-                      {y.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </FilterPopover>
-          </div>
-        </div>
+                <div className="mb-3">
+                  <label className="sl-label">Year</label>
+                  <select
+                    className="sl-input h-10 text-sm"
+                    value={draftYear}
+                    onChange={(e) => setDraftYear(e.target.value)}
+                  >
+                    {YEAR_OPTIONS.map((y) => (
+                      <option key={y.value} value={y.value}>
+                        {y.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </FilterPopover>
+            </>
+          }
+        />
 
-        <div className="sl-tile p-12 text-center">
+        <div className="sl-tile p-12 text-center" role="status">
           <p className="text-ink font-semibold text-lg">No weekly payroll runs found</p>
           <p className="text-ink-muted text-sm mt-1">
             Try selecting a different week, month, or year filter using the Filters button.
@@ -555,113 +557,106 @@ const WeeklyPayrollReport: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen p-6 space-y-5 print:p-0 print:bg-card">
+    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2 print:p-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
-        <div>
-          <h1 className="text-2xl font-bold text-ink">Weekly Payroll Report</h1>
-          <p className="text-sm text-ink-muted mt-0.5">
-            {run.runCode} — {run.period}
-            <span
-              className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[run.status]}`}
+      <PageHeader
+        className="print:hidden"
+        title="Weekly Payroll Report"
+        icon={<FileText size={20} />}
+        back="/payroll"
+        backLabel="Back to payroll"
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Weekly Payroll Report" }]}
+        subtitle={`${run.runCode} · ${run.period}`}
+        meta={<StatusBadge status={run.status} />}
+        actions={
+          <>
+            {/* Run Selector if multiple runs exist */}
+            {runs.length > 1 && (
+              <div className="flex items-center gap-2">
+                <span className="sl-label !mb-0">Run</span>
+                <select
+                  value={runIdx}
+                  onChange={(e) => setRunIdx(Number(e.target.value))}
+                  className="sl-input h-10 w-auto text-sm"
+                  aria-label="Payroll run"
+                >
+                  {runs.map((r, i) => (
+                    <option key={r.id} value={i}>
+                      {r.runCode} ({r.period})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <FilterPopover
+              activeFilterCount={activeFilterCount}
+              hasActiveFilters={hasActiveFilters}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
+              onOpen={handleOpenFilter}
             >
-              {run.status}
-            </span>
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap justify-end">
-          {/* Run Selector if multiple runs exist */}
-          {runs.length > 1 && (
-            <div className="flex items-center gap-1.5 bg-card border border-line-soft rounded-lg px-2.5 py-1.5 text-xs font-semibold shadow-sm">
-              <span className="text-ink-muted">Run:</span>
-              <select
-                value={runIdx}
-                onChange={(e) => setRunIdx(Number(e.target.value))}
-                className="bg-transparent font-semibold text-ink outline-none cursor-pointer"
-              >
-                {runs.map((r, i) => (
-                  <option key={r.id} value={i}>
-                    {r.runCode} ({r.period})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+              <div className="mb-3">
+                <label className="sl-label">Week</label>
+                <select
+                  className="sl-input h-10 text-sm"
+                  value={draftWeek}
+                  onChange={(e) => setDraftWeek(e.target.value)}
+                >
+                  {WEEK_OPTIONS.map((w) => (
+                    <option key={w.value} value={w.value}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <FilterPopover
-            activeFilterCount={activeFilterCount}
-            hasActiveFilters={hasActiveFilters}
-            onApply={handleApplyFilters}
-            onClear={handleClearFilters}
-            onOpen={handleOpenFilter}
-          >
-            <div className="mb-3">
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                Week
-              </label>
-              <select
-                className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                value={draftWeek}
-                onChange={(e) => setDraftWeek(e.target.value)}
-              >
-                {WEEK_OPTIONS.map((w) => (
-                  <option key={w.value} value={w.value}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="mb-3">
+                <label className="sl-label">Month</label>
+                <select
+                  className="sl-input h-10 text-sm"
+                  value={draftMonth}
+                  onChange={(e) => setDraftMonth(e.target.value)}
+                >
+                  {MONTH_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="mb-3">
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                Month
-              </label>
-              <select
-                className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                value={draftMonth}
-                onChange={(e) => setDraftMonth(e.target.value)}
-              >
-                {MONTH_OPTIONS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              <div className="mb-3">
+                <label className="sl-label">Year</label>
+                <select
+                  className="sl-input h-10 text-sm"
+                  value={draftYear}
+                  onChange={(e) => setDraftYear(e.target.value)}
+                >
+                  {YEAR_OPTIONS.map((y) => (
+                    <option key={y.value} value={y.value}>
+                      {y.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </FilterPopover>
 
-            <div className="mb-3">
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                Year
-              </label>
-              <select
-                className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                value={draftYear}
-                onChange={(e) => setDraftYear(e.target.value)}
-              >
-                {YEAR_OPTIONS.map((y) => (
-                  <option key={y.value} value={y.value}>
-                    {y.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </FilterPopover>
-
-          {run && (can("payroll.export") || can("payroll-run.export")) && (
-            <ExportCSVButton
-              data={csvData}
-              columns={csvColsIndexed}
-              filename={`weekly-payroll-${run.period}.csv`}
-              text="Export CSV"
-            />
-          )}
-        </div>
-      </div>
+            {run && (can("payroll.export") || can("payroll-run.export")) && (
+              <ExportCSVButton
+                data={csvData}
+                columns={csvColsIndexed}
+                filename={`weekly-payroll-${run.period}.csv`}
+                text="Export CSV"
+              />
+            )}
+          </>
+        }
+      />
 
       {/* Variance alert */}
       {varianceCount > 0 && (
-        <div className="flex items-start gap-3 p-4 bg-[color-mix(in_srgb,var(--color-danger)_9%,transparent)] border border-[color-mix(in_srgb,var(--color-danger)_32%,transparent)] rounded-lg text-sm text-[color:var(--color-danger)]">
-          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+        <Notice tone="danger" className="print:hidden">
           <div>
             <span className="font-bold">
               Variance detected in {varianceCount} employee{varianceCount > 1 ? "s" : ""}.
@@ -677,14 +672,15 @@ const WeeklyPayrollReport: React.FC = () => {
                 </p>
               ))}
           </div>
-        </div>
+        </Notice>
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-3 print:hidden flex-wrap">
-        <span className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
-          Filter:
-        </span>
+      <div
+        className="flex flex-wrap items-center gap-2 print:hidden"
+        role="group"
+        aria-label="Payment mode"
+      >
         {(
           [
             ["ALL", "All Employees"],
@@ -692,19 +688,11 @@ const WeeklyPayrollReport: React.FC = () => {
             ["CASH", "Cash"],
           ] as const
         ).map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => setFilter(v)}
-            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
-              filter === v
-                ? "bg-primary text-[color:var(--color-on-primary)] border-primary"
-                : "border-line-soft text-ink-muted hover:border-line"
-            }`}
-          >
+          <Chip key={v} size="lg" selected={filter === v} onClick={() => setFilter(v)}>
             {l}
-          </button>
+          </Chip>
         ))}
-        <span className="ml-auto text-xs text-ink-subtle">
+        <span className="ml-auto text-sm text-ink-subtle">
           {filtered.length} employee{filtered.length !== 1 ? "s" : ""}
         </span>
       </div>
@@ -717,9 +705,7 @@ const WeeklyPayrollReport: React.FC = () => {
           rowKey={(r) => r.id}
           emptyMessage="No employees match the selected filter."
           rowClassName={(r) =>
-            r.hasVariance
-              ? "bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)] border-l-4 border-l-amber-400"
-              : ""
+            r.hasVariance ? "bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)]" : ""
           }
           density="compact"
           pagination={{ currentPage: page, totalPages, onPageChange: setPage }}

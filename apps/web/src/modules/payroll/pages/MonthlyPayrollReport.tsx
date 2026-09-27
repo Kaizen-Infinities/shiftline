@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
+  FileText,
   Calendar,
   AlertTriangle,
   ChevronLeft,
@@ -21,6 +22,9 @@ import CustomButton from "../../../components/ui/custombutton/CustomButton";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import DetailBox from "../../../components/ui/DetailBox/DetailBox";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import { StatusBadge } from "../../../components/ui/StatusBadge/Badge";
+import { ChipTabs, PageHeader } from "../../../components/ui/v2";
+import { Notice, periodLabel } from "../components/peopleUi";
 import { useSocket } from "../../../providers/SocketProvider";
 import { payrollService } from "../../../services/payrollService";
 import type { ApiPayrollRun, ApiPayrollResult } from "../../../services/payrollService";
@@ -794,7 +798,7 @@ const MonthlyPayrollReport: React.FC = () => {
   // ── Error ──
   if (error) {
     return (
-      <div className="min-h-screen bg-page flex items-center justify-center">
+      <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center space-y-4">
           <AlertTriangle size={36} className="text-[color:var(--color-danger)] mx-auto" />
           <p className="text-ink font-semibold">{error}</p>
@@ -807,61 +811,61 @@ const MonthlyPayrollReport: React.FC = () => {
   // ── Empty ──
   if (runs.length === 0) {
     return (
-      <div className="min-h-screen p-6 space-y-5">
+      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-ink">Monthly Payroll Report</h1>
-            <p className="text-sm text-ink-muted mt-0.5">
-              No payroll runs found for selected filters.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap justify-end">
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-              onOpen={handleOpenFilter}
-            >
-              <div className="mb-3">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                  Month
-                </label>
-                <select
-                  className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                  value={draftMonth}
-                  onChange={(e) => setDraftMonth(e.target.value)}
-                >
-                  {MONTH_OPTIONS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        <PageHeader
+          className="print:hidden"
+          title="Monthly Payroll Report"
+          icon={<FileText size={20} />}
+          back="/payroll"
+          backLabel="Back to payroll"
+          breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Monthly Payroll Report" }]}
+          subtitle={"No payroll runs found for selected filters."}
+          meta={undefined}
+          actions={
+            <>
+              <FilterPopover
+                activeFilterCount={activeFilterCount}
+                hasActiveFilters={hasActiveFilters}
+                onApply={handleApplyFilters}
+                onClear={handleClearFilters}
+                onOpen={handleOpenFilter}
+              >
+                <div className="mb-3">
+                  <label className="sl-label">Month</label>
+                  <select
+                    className="sl-input h-10 text-sm"
+                    value={draftMonth}
+                    onChange={(e) => setDraftMonth(e.target.value)}
+                  >
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="mb-3">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                  Year
-                </label>
-                <select
-                  className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                  value={draftYear}
-                  onChange={(e) => setDraftYear(e.target.value)}
-                >
-                  {YEAR_OPTIONS.map((y) => (
-                    <option key={y.value} value={y.value}>
-                      {y.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </FilterPopover>
-          </div>
-        </div>
+                <div className="mb-3">
+                  <label className="sl-label">Year</label>
+                  <select
+                    className="sl-input h-10 text-sm"
+                    value={draftYear}
+                    onChange={(e) => setDraftYear(e.target.value)}
+                  >
+                    {YEAR_OPTIONS.map((y) => (
+                      <option key={y.value} value={y.value}>
+                        {y.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </FilterPopover>
+            </>
+          }
+        />
 
-        <div className="sl-tile p-12 text-center">
+        <div className="sl-tile p-12 text-center" role="status">
           <p className="text-ink font-semibold text-lg">No monthly payroll runs found</p>
           <p className="text-ink-muted text-sm mt-1">
             Try selecting a different month or year filter using the Filters button.
@@ -880,99 +884,92 @@ const MonthlyPayrollReport: React.FC = () => {
   const pagedData = activeData.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="min-h-screen p-6 space-y-5">
+    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-ink">Monthly Payroll Report</h1>
-          {run && (
-            <p className="text-sm text-ink-muted mt-0.5">
-              {run.runCode} — {run.period}
-              <span
-                className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_COLOR[run.status]}`}
-              >
-                {run.status}
-              </span>
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-3 flex-wrap justify-end">
-          {/* Run Selector if multiple runs exist */}
-          {runs.length > 1 && (
-            <div className="flex items-center gap-1.5 bg-card border border-line-soft rounded-lg px-2.5 py-1.5 text-xs font-semibold shadow-sm">
-              <span className="text-ink-muted">Run:</span>
-              <select
-                value={runIdx}
-                onChange={(e) => setRunIdx(Number(e.target.value))}
-                className="bg-transparent font-semibold text-ink outline-none cursor-pointer"
-              >
-                {runs.map((r, i) => (
-                  <option key={r.id} value={i}>
-                    {r.runCode} ({r.period})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+      <PageHeader
+        className="print:hidden"
+        title="Monthly Payroll Report"
+        icon={<FileText size={20} />}
+        back="/payroll"
+        backLabel="Back to payroll"
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Monthly Payroll Report" }]}
+        subtitle={run ? `${run.runCode} · ${periodLabel(run.period)}` : undefined}
+        meta={run ? <StatusBadge status={run.status} /> : undefined}
+        actions={
+          <>
+            {/* Run Selector if multiple runs exist */}
+            {runs.length > 1 && (
+              <div className="flex items-center gap-2">
+                <span className="sl-label !mb-0">Run</span>
+                <select
+                  value={runIdx}
+                  onChange={(e) => setRunIdx(Number(e.target.value))}
+                  className="sl-input h-10 w-auto text-sm"
+                  aria-label="Payroll run"
+                >
+                  {runs.map((r, i) => (
+                    <option key={r.id} value={i}>
+                      {r.runCode} ({r.period})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {/* Filter Popover Button */}
-          <FilterPopover
-            activeFilterCount={activeFilterCount}
-            hasActiveFilters={hasActiveFilters}
-            onApply={handleApplyFilters}
-            onClear={handleClearFilters}
-            onOpen={handleOpenFilter}
-          >
-            <div className="mb-3">
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                Month
-              </label>
-              <select
-                className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                value={draftMonth}
-                onChange={(e) => setDraftMonth(e.target.value)}
-              >
-                {MONTH_OPTIONS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Filter Popover Button */}
+            <FilterPopover
+              activeFilterCount={activeFilterCount}
+              hasActiveFilters={hasActiveFilters}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
+              onOpen={handleOpenFilter}
+            >
+              <div className="mb-3">
+                <label className="sl-label">Month</label>
+                <select
+                  className="sl-input h-10 text-sm"
+                  value={draftMonth}
+                  onChange={(e) => setDraftMonth(e.target.value)}
+                >
+                  {MONTH_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="mb-3">
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-muted font-semibold">
-                Year
-              </label>
-              <select
-                className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card text-ink font-medium cursor-pointer"
-                value={draftYear}
-                onChange={(e) => setDraftYear(e.target.value)}
-              >
-                {YEAR_OPTIONS.map((y) => (
-                  <option key={y.value} value={y.value}>
-                    {y.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </FilterPopover>
+              <div className="mb-3">
+                <label className="sl-label">Year</label>
+                <select
+                  className="sl-input h-10 text-sm"
+                  value={draftYear}
+                  onChange={(e) => setDraftYear(e.target.value)}
+                >
+                  {YEAR_OPTIONS.map((y) => (
+                    <option key={y.value} value={y.value}>
+                      {y.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </FilterPopover>
 
-          {run && (can("payroll.export") || can("payroll-run.export")) && (
-            <ExportCSVButton
-              data={getCsvData()}
-              columns={getCsvCols()}
-              filename={`monthly-payroll-${view.toLowerCase()}-${run.period}.csv`}
-              text="Export CSV"
-            />
-          )}
-        </div>
-      </div>
+            {run && (can("payroll.export") || can("payroll-run.export")) && (
+              <ExportCSVButton
+                data={getCsvData()}
+                columns={getCsvCols()}
+                filename={`monthly-payroll-${view.toLowerCase()}-${run.period}.csv`}
+                text="Export CSV"
+              />
+            )}
+          </>
+        }
+      />
 
       {/* Variance alert */}
       {varianceCount > 0 && (
-        <div className="flex items-start gap-3 p-4 bg-[color-mix(in_srgb,var(--color-danger)_9%,transparent)] border border-[color-mix(in_srgb,var(--color-danger)_32%,transparent)] rounded-lg text-sm text-[color:var(--color-danger)]">
-          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+        <Notice tone="danger" className="print:hidden">
           <div>
             <span className="font-bold">
               Variance detected in {varianceCount} employee{varianceCount > 1 ? "s" : ""}.
@@ -988,33 +985,20 @@ const MonthlyPayrollReport: React.FC = () => {
                 </p>
               ))}
           </div>
-        </div>
+        </Notice>
       )}
 
       {/* View toggle */}
-      <div className="flex justify-center">
-        <div className="inline-flex rounded-xl border-2 border-line-soft overflow-hidden shadow-sm">
-          {(
-            [
-              ["ALL", `All Employees (${allResults.length})`],
-              ["PF", `PF / Fixed (${pfEmployees.length})`],
-              ["CASH", `Cash / Non-PF (${cashEmployees.length})`],
-            ] as const
-          ).map(([v, label]) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`px-5 py-2.5 text-sm font-semibold transition-colors ${
-                view === v
-                  ? "bg-primary text-[color:var(--color-on-primary)]"
-                  : "bg-card text-ink-muted hover:bg-card-2"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ChipTabs
+        ariaLabel="Employee view"
+        value={view}
+        onChange={(v) => setView(v as typeof view)}
+        items={[
+          { key: "ALL", label: "All Employees", count: allResults.length },
+          { key: "PF", label: "PF / Fixed", count: pfEmployees.length },
+          { key: "CASH", label: "Cash / Non-PF", count: cashEmployees.length },
+        ]}
+      />
 
       {/* Main table — full width */}
       <div className="sl-tile overflow-hidden">
@@ -1024,9 +1008,7 @@ const MonthlyPayrollReport: React.FC = () => {
           rowKey={(r) => r.id}
           emptyMessage="No employees match the selected view."
           rowClassName={(r) =>
-            r.hasVariance
-              ? "bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)] border-l-4 border-l-amber-400"
-              : ""
+            r.hasVariance ? "bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)]" : ""
           }
           density="compact"
           pagination={{ currentPage: page, totalPages, onPageChange: setPage }}
