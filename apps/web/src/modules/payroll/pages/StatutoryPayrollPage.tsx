@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { Link } from "react-router-dom";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -12,6 +13,8 @@ import {
 import { Download, Landmark, Send, BookCheck, Calculator } from "lucide-react";
 import {
   ActionPill,
+  actionPillClass,
+  EmptyState,
   Chip,
   ChipTabs,
   PageHeader,
@@ -177,6 +180,23 @@ const StatutoryPayrollPage: React.FC = () => {
       </PageHeader>
 
       {loading && <SkeletonTile lines={4} label="Loading statutory figures" />}
+
+      {!loading && !runId && tab !== "rules" && (
+        <div className="sl-tile">
+          <EmptyState
+            icon={<Landmark size={28} strokeWidth={1.75} />}
+            title="No payroll run yet"
+            description="Statutory dues, challan files and the payroll journal follow from a month's payroll run."
+            action={
+              can("payroll-run.create") ? (
+                <Link to="/payroll/run" className={actionPillClass({ variant: "secondary" })}>
+                  Run Payroll
+                </Link>
+              ) : null
+            }
+          />
+        </div>
+      )}
 
       {notComputed && tab !== "rules" && (
         <Notice tone="warning" title="Not worked out yet">
