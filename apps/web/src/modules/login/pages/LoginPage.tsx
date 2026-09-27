@@ -124,7 +124,7 @@ const LoginPage = () => {
         </>
       }
       subline="Production, inventory, sales, purchasing, accounts and statutory compliance, on one ledger."
-      footer={`© ${new Date().getFullYear()} Shiftline · ${MAKER.full}`}
+      footer={`© ${new Date().getFullYear()} Shiftline Beta · ${MAKER.full}`}
     >
       <div className="sl-tile w-full max-w-[420px] !rounded-[24px] p-7 sm:p-9">
         <h2 className="sl-h1">Sign in</h2>

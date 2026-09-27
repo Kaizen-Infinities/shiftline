@@ -19,9 +19,9 @@ const AreaHubPage: React.FC = () => {
   const known = NAV_AREAS.some((a) => a.id === areaId);
 
   useEffect(() => {
-    if (area) document.title = `${area.title} · Shiftline`;
+    if (area) document.title = `${area.title} · Shiftline Beta`;
     return () => {
-      document.title = "Shiftline";
+      document.title = "Shiftline Beta";
     };
   }, [area]);
 
