@@ -1,22 +1,23 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
+import { Plus, Undo2, Wallet, X } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import { advanceService, type AdvanceRow } from "../../../services/advanceService";
 import { customerService } from "../../../services/customerService";
+import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import {
-  Card,
-  danger,
-  day,
-  field,
-  message,
-  money,
-  primary,
-  secondary,
-  success,
-  td,
-  th,
-} from "../../compliance/components/gstUi";
+  ActionPill,
+  Chip,
+  Field,
+  PageHeader,
+  StatTile,
+  Tile,
+  Toolbar,
+  fieldControlClass,
+  type ChipTone,
+} from "../../../components/ui/v2";
+import { PAGE_CLASS, errorMessage, formatDateIN, formatINR } from "../shared/tradeUi";
 
 /**
  * Advances received (P1-14).
@@ -25,10 +26,10 @@ import {
  * ₹10,000 plus ₹1,800 — so the form shows the split as it is typed. That is the number people
  * get wrong, and seeing it before saving is the point of the screen.
  */
-const STATUS_STYLE: Record<AdvanceRow["status"], string> = {
-  OPEN: "bg-amber-100 text-amber-800",
-  PART_ADJUSTED: "bg-sky-100 text-sky-800",
-  CLOSED: "bg-slate-100 text-slate-700",
+const STATUS_TONE: Record<AdvanceRow["status"], ChipTone> = {
+  OPEN: "warning",
+  PART_ADJUSTED: "info",
+  CLOSED: "muted",
 };
 const STATUS_LABEL: Record<AdvanceRow["status"], string> = {
   OPEN: "Unused",
@@ -61,7 +62,7 @@ const AdvancesPage: React.FC = () => {
     try {
       setRows(await advanceService.list(status ? { status } : {}));
     } catch (err) {
-      toast.error(message(err));
+      toast.error(errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -82,6 +83,18 @@ const AdvancesPage: React.FC = () => {
   const rate = Number(form.gstRate) || 0;
   const taxable = rate > 0 ? Math.round((gross / (1 + rate / 100)) * 100) / 100 : gross;
   const tax = Math.round((gross - taxable) * 100) / 100;
+
+  const totals = useMemo(() => {
+    let received = 0;
+    let left = 0;
+    let unused = 0;
+    rows.forEach((r) => {
+      received += Number(r.amount) || 0;
+      left += Number(r.balance) || 0;
+      if (r.status !== "CLOSED") unused += 1;
+    });
+    return { received, left, unused };
+  }, [rows]);
 
   const save = async () => {
     if (!form.customerId || !(gross > 0)) {
@@ -104,7 +117,7 @@ const AdvancesPage: React.FC = () => {
       setForm({ ...form, amount: "", referenceNumber: "", narration: "" });
       await load();
     } catch (err) {
-      toast.error(message(err));
+      toast.error(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -118,48 +131,114 @@ const AdvancesPage: React.FC = () => {
       setRefunding(null);
       await load();
     } catch (err) {
-      toast.error(message(err));
+      toast.error(errorMessage(err));
     } finally {
       setBusy(false);
     }
   };
 
-  return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Advances Received</h1>
-          <p className="text-sm text-ink-muted">
-            Money taken before the invoice. The tax on it is due the day it arrives.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            className={field}
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            aria-label="Status"
+  const canCreate = can("advances.create");
+  const recordButton = canCreate ? (
+    <ActionPill
+      icon={open ? <X size={18} /> : <Plus size={18} />}
+      variant={open ? "secondary" : "cta"}
+      onClick={() => setOpen((o) => !o)}
+    >
+      {open ? "Close" : "Record Advance"}
+    </ActionPill>
+  ) : null;
+
+  const columns: DataTableColumn<AdvanceRow>[] = [
+    {
+      header: "Receipt",
+      render: (r) => <span className="font-semibold text-ink">{r.receiptNo}</span>,
+    },
+    {
+      header: "Customer",
+      render: (r) => <span className="font-medium text-ink">{r.customer?.firmName ?? "—"}</span>,
+    },
+    {
+      header: "Date",
+      render: (r) => (
+        <span className="tabular-nums text-ink-muted">{formatDateIN(r.receiptDate)}</span>
+      ),
+    },
+    {
+      header: "Received",
+      align: "right",
+      render: (r) => <span className="tabular-nums text-ink">{formatINR(r.amount)}</span>,
+    },
+    {
+      header: "Tax in it",
+      align: "right",
+      render: (r) => (
+        <span className="tabular-nums text-ink-muted">
+          {formatINR(Number(r.igst) + Number(r.cgst) + Number(r.sgst))}
+        </span>
+      ),
+    },
+    {
+      header: "Left",
+      align: "right",
+      render: (r) => (
+        <span className="font-semibold tabular-nums text-ink">{formatINR(r.balance)}</span>
+      ),
+    },
+    {
+      header: "Status",
+      render: (r) => (
+        <Chip size="sm" dot tone={STATUS_TONE[r.status]}>
+          {STATUS_LABEL[r.status]}
+        </Chip>
+      ),
+    },
+    {
+      header: "Actions",
+      align: "right",
+      render: (r) =>
+        can("advances.refund") && Number(r.balance) > 0 ? (
+          <ActionPill
+            variant="secondary"
+            size="sm"
+            icon={<Undo2 size={15} />}
+            onClick={() => setRefunding(r)}
           >
-            <option value="">All</option>
-            <option value="OPEN">Unused</option>
-            <option value="PART_ADJUSTED">Part used</option>
-            <option value="CLOSED">Closed</option>
-          </select>
-          {can("advances.create") && (
-            <button className={primary} onClick={() => setOpen((o) => !o)}>
-              {open ? "Close" : "Record an advance"}
-            </button>
-          )}
-        </div>
-      </header>
+            Refund
+          </ActionPill>
+        ) : null,
+    },
+  ];
+
+  return (
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Advances Received"
+        subtitle="Money taken before the invoice. The tax on it is due the day it arrives."
+        icon={<Wallet size={22} />}
+        primaryAction={recordButton}
+      />
+
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <StatTile label="Received" value={formatINR(totals.received)} loading={loading} />
+        <StatTile
+          label="Still to adjust"
+          value={formatINR(totals.left)}
+          hint="Against future invoices or refunds"
+          loading={loading}
+        />
+        <StatTile label="Open advances" value={totals.unused} loading={loading} />
+      </div>
 
       {open && (
-        <Card title="New advance">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="text-sm">
-              <span className="text-ink-muted">Customer</span>
+        <Tile
+          title="New advance"
+          subtitle="Enter what the customer paid, tax included."
+          className="mb-5"
+        >
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Field label="Customer" required>
               <select
-                className={`${field} mt-1 w-full`}
+                className={fieldControlClass()}
                 value={form.customerId}
                 onChange={(e) => setForm({ ...form, customerId: e.target.value })}
               >
@@ -170,115 +249,88 @@ const AdvancesPage: React.FC = () => {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="text-sm">
-              <span className="text-ink-muted">Received on</span>
+            </Field>
+            <Field label="Received on">
               <input
                 type="date"
-                className={`${field} mt-1 w-full`}
+                className={fieldControlClass()}
                 value={form.receiptDate}
                 onChange={(e) => setForm({ ...form, receiptDate: e.target.value })}
               />
-            </label>
-            <label className="text-sm">
-              <span className="text-ink-muted">Amount received (tax included)</span>
+            </Field>
+            <Field label="Amount received (tax included)" required>
               <input
                 type="number"
-                className={`${field} mt-1 w-full`}
+                inputMode="decimal"
+                className={fieldControlClass(false, "text-right tabular-nums")}
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
               />
-            </label>
-            <label className="text-sm">
-              <span className="text-ink-muted">GST rate %</span>
+            </Field>
+            <Field label="GST rate %">
               <input
                 type="number"
-                className={`${field} mt-1 w-full`}
+                inputMode="decimal"
+                className={fieldControlClass(false, "text-right tabular-nums")}
                 value={form.gstRate}
                 onChange={(e) => setForm({ ...form, gstRate: e.target.value })}
               />
-            </label>
-            <label className="text-sm">
-              <span className="text-ink-muted">Paid by</span>
+            </Field>
+            <Field label="Paid by">
               <input
-                className={`${field} mt-1 w-full`}
+                className={fieldControlClass()}
                 value={form.paymentMethod}
                 onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
               />
-            </label>
-            <label className="text-sm">
-              <span className="text-ink-muted">Reference</span>
+            </Field>
+            <Field label="Reference">
               <input
-                className={`${field} mt-1 w-full`}
+                className={fieldControlClass()}
                 value={form.referenceNumber}
                 onChange={(e) => setForm({ ...form, referenceNumber: e.target.value })}
               />
-            </label>
+            </Field>
           </div>
-          <div className="mt-3 rounded-lg border border-line-soft bg-card-2 p-3 text-sm">
-            Of {money(gross)} received, <strong>{money(taxable)}</strong> is the value of the supply
-            and <strong>{money(tax)}</strong> is GST already due.
+          <div className="mt-4 flex flex-col gap-3 rounded-[14px] bg-card-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="m-0 text-sm text-ink-muted" aria-live="polite">
+              Of <strong className="tabular-nums text-ink">{formatINR(gross)}</strong> received,{" "}
+              <strong className="tabular-nums text-ink">{formatINR(taxable)}</strong> is the value
+              of the supply and <strong className="tabular-nums text-ink">{formatINR(tax)}</strong>{" "}
+              is GST already due.
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <ActionPill variant="secondary" onClick={() => setOpen(false)}>
+                Cancel
+              </ActionPill>
+              <ActionPill onClick={() => void save()} loading={busy} loadingText="Saving…">
+                Save
+              </ActionPill>
+            </div>
           </div>
-          <button className={`${primary} mt-3`} onClick={() => void save()} disabled={busy}>
-            Save
-          </button>
-        </Card>
+        </Tile>
       )}
 
-      <Card title="Advances">
-        {loading && <p className="text-sm text-ink-muted">Loading…</p>}
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr>
-                <th className={th}>Receipt</th>
-                <th className={th}>Customer</th>
-                <th className={th}>Date</th>
-                <th className={`${th} text-right`}>Received</th>
-                <th className={`${th} text-right`}>Tax in it</th>
-                <th className={`${th} text-right`}>Left</th>
-                <th className={th}>Status</th>
-                <th className={th} />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t border-line-soft">
-                  <td className={td}>{r.receiptNo}</td>
-                  <td className={td}>{r.customer?.firmName ?? "—"}</td>
-                  <td className={td}>{day(r.receiptDate)}</td>
-                  <td className={`${td} text-right`}>{money(r.amount)}</td>
-                  <td className={`${td} text-right`}>
-                    {money(Number(r.igst) + Number(r.cgst) + Number(r.sgst))}
-                  </td>
-                  <td className={`${td} text-right font-semibold`}>{money(r.balance)}</td>
-                  <td className={td}>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}
-                    >
-                      {STATUS_LABEL[r.status]}
-                    </span>
-                  </td>
-                  <td className={`${td} text-right`}>
-                    {can("advances.refund") && Number(r.balance) > 0 && (
-                      <button className={danger} onClick={() => setRefunding(r)}>
-                        Refund
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && !loading && (
-                <tr>
-                  <td className={`${td} text-ink-muted`} colSpan={8}>
-                    No advances.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <Toolbar
+        filters={[
+          { key: "", label: "All" },
+          { key: "OPEN", label: "Unused" },
+          { key: "PART_ADJUSTED", label: "Part used" },
+          { key: "CLOSED", label: "Closed" },
+        ]}
+        filterValue={status}
+        onFilterChange={setStatus}
+        filtersLabel="Advance status"
+      />
+
+      <DataTable
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.id}
+        loading={loading}
+        ariaLabel="Advances"
+        emptyMessage={status ? "No advances with this status." : "No advances yet."}
+        emptyAction={status ? undefined : open ? undefined : recordButton}
+      />
 
       {refunding && (
         <RefundDialog
@@ -301,41 +353,43 @@ const RefundDialog: React.FC<{
   const [amount, setAmount] = useState(String(row.balance));
   const [reason, setReason] = useState("");
   return (
-    <Card title={`Refund ${row.receiptNo}`}>
-      <p className="mb-2 text-sm text-ink-muted">
-        {money(row.balance)} is left. The GST paid on whatever is refunded comes back too.
-      </p>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="text-sm">
-          <span className="text-ink-muted">Amount</span>
+    <Tile
+      title={`Refund ${row.receiptNo}`}
+      subtitle={`${formatINR(row.balance)} is left. The GST paid on whatever is refunded comes back too.`}
+      className="mt-5"
+    >
+      <div className="grid gap-4 md:grid-cols-[200px_1fr_auto] md:items-end">
+        <Field label="Amount">
           <input
             type="number"
-            className={`${field} mt-1`}
+            inputMode="decimal"
+            className={fieldControlClass(false, "text-right tabular-nums")}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
           />
-        </label>
-        <label className="flex-1 text-sm">
-          <span className="text-ink-muted">Why</span>
+        </Field>
+        <Field label="Why">
           <input
-            className={`${field} mt-1 w-full`}
+            className={fieldControlClass()}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Order cancelled"
           />
-        </label>
-        <button
-          className={success}
-          disabled={busy}
-          onClick={() => onConfirm(Number(amount), reason)}
-        >
-          Refund
-        </button>
-        <button className={secondary} onClick={onCancel}>
-          Cancel
-        </button>
+        </Field>
+        <div className="flex gap-2">
+          <ActionPill variant="secondary" onClick={onCancel}>
+            Cancel
+          </ActionPill>
+          <ActionPill
+            variant="danger"
+            loading={busy}
+            onClick={() => onConfirm(Number(amount), reason)}
+          >
+            Refund
+          </ActionPill>
+        </div>
       </div>
-    </Card>
+    </Tile>
   );
 };
 

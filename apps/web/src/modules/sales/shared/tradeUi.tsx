@@ -46,6 +46,10 @@ export const formatDateIN = (value: string | Date | null | undefined): string =>
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+/** The server's safe message from an API error, else a generic line (never raw error text). */
+export const errorMessage = (err: unknown, fallback = "Something went wrong"): string =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
+
 /** Page frame for trade screens: full width with a comfortable maximum. */
 export const PAGE_CLASS = "mx-auto w-full max-w-[1600px]";
 
