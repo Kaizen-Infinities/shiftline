@@ -226,6 +226,7 @@ export const optionInputClass = "sl-input h-11 w-full text-sm";
 export const thClass = (align: "left" | "right" | "center" = "left", extra = "") =>
   cx(
     "sticky top-0 z-[1] bg-card-2 px-4 py-3 text-[12px] font-semibold text-ink-muted whitespace-nowrap border-b border-line-soft",
+    align === "left" && "text-left",
     align === "right" && "text-right",
     align === "center" && "text-center",
     extra
@@ -260,6 +261,7 @@ export const gridLedgerCellClass =
 export const gridThClass = (align: "left" | "right" | "center" = "left", extra = "") =>
   cx(
     "bg-card-2 px-3 py-2.5 text-[12px] font-semibold text-ink-muted whitespace-nowrap border-b border-line-soft",
+    align === "left" && "text-left",
     align === "right" && "text-right",
     align === "center" && "text-center",
     extra
@@ -315,13 +317,21 @@ export const EntryFooter: React.FC<{
   hints?: React.ReactNode;
   children: React.ReactNode;
 }> = ({ hints, children }) => (
-  <div className="sticky bottom-0 z-20 -mx-1 mt-4 px-1 pb-3 pt-2">
+  <div className="sticky bottom-0 z-20 -mx-1 mt-4 bg-[linear-gradient(to_top,var(--color-page)_70%,transparent)] px-1 pb-3 pt-4">
     <div className="sl-tile flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">{hints}</div>
       <div className="flex shrink-0 items-center justify-end gap-2.5">{children}</div>
     </div>
   </div>
 );
+
+/** Form keydown handler: Ctrl/⌘+Enter saves (submits the form), as on other entry screens. */
+export const ctrlEnterSubmit = (e: React.KeyboardEvent<HTMLFormElement>) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    e.currentTarget.requestSubmit();
+  }
+};
 
 /** A small "Label: value" pair for summary strips. */
 export const MetaItem: React.FC<{

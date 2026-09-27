@@ -11,7 +11,11 @@ import {
   FaFilter,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { pettyCashService, type PettyCashEntry, type PettyCashSummary } from "../../../../services/pettyCashService";
+import {
+  pettyCashService,
+  type PettyCashEntry,
+  type PettyCashSummary,
+} from "../../../../services/pettyCashService";
 import { useAppSelector } from "../../../../hooks/reduxHooks";
 import { useListCache, prependToListCacheByPrefix } from "../../../../hooks/useListCache";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
@@ -107,7 +111,13 @@ export const PettyCashPage: React.FC = () => {
     [company?.id, applied.entryType, applied.startDate, applied.endDate]
   );
 
-  const { data: entries, total, loading, refreshing, refresh } = useListCache<PettyCashEntry>({
+  const {
+    data: entries,
+    total,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<PettyCashEntry>({
     cacheKey,
     socketModule: "pettyCashEntry",
     fetcher,
@@ -275,8 +285,9 @@ export const PettyCashPage: React.FC = () => {
                 </button>
               </div>
               <div className="text-center text-[10px] text-ink-subtle italic pt-1">
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Esc</kbd> to quit ·
-                {" "}<kbd className="px-1 border border-line rounded bg-card text-[10px]">F2</kbd> to submit
+                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Esc</kbd> to
+                quit · <kbd className="px-1 border border-line rounded bg-card text-[10px]">F2</kbd>{" "}
+                to submit
               </div>
             </div>
           </div>
@@ -288,242 +299,284 @@ export const PettyCashPage: React.FC = () => {
   return (
     <div className="p-3 flex gap-3 w-full items-start">
       <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
-      {/* Header — title + inline search + Change Filters + Refresh + Record */}
-      <div className="bg-card rounded-md border border-line px-3 py-1.5 flex flex-wrap items-center gap-2 shrink-0 shadow-sm">
-        <h1 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-          <FaCoins className="text-amber-500 text-sm" /> Petty Cash Register
-          {refreshing && <FaSync className="animate-spin text-amber-500 text-[10px]" />}
-        </h1>
-        <span className="text-[10px] text-ink-subtle italic">
-          From <b className="text-ink">{applied.startDate}</b> to{" "}
-          <b className="text-ink">{applied.endDate}</b> · Type{" "}
-          <b className="text-ink">{applied.entryType}</b>
-        </span>
+        {/* Header — title + inline search + Change Filters + Refresh + Record */}
+        <div className="bg-card rounded-md border border-line px-3 py-1.5 flex flex-wrap items-center gap-2 shrink-0 shadow-sm">
+          <h1 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
+            <FaCoins className="text-amber-500 text-sm" /> Petty Cash Register
+            {refreshing && <FaSync className="animate-spin text-amber-500 text-[10px]" />}
+          </h1>
+          <span className="text-[10px] text-ink-subtle italic">
+            From <b className="text-ink">{applied.startDate}</b> to{" "}
+            <b className="text-ink">{applied.endDate}</b> · Type{" "}
+            <b className="text-ink">{applied.entryType}</b>
+          </span>
 
-        <div className="relative w-full max-w-[280px] ml-2">
-          <input
-            type="text"
-            placeholder="Search entry no, category, description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
-          />
-          <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[10px]" />
-        </div>
-
-        <div className="flex items-center gap-1.5 ml-auto">
-          <button
-            onClick={() => {
-              setPending(applied);
-              setPanelOpen(true);
-            }}
-            className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line cursor-pointer"
-            title="Change filters"
-          >
-            <FaFilter className="text-[10px]" /> Change Filters
-          </button>
-          <button
-            onClick={refresh}
-            className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
-          >
-            <FaSync className={refreshing ? "animate-spin text-amber-500" : ""} /> Refresh
-          </button>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowModal(true);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-semibold transition cursor-pointer"
-          >
-            <FaPlus className="text-[10px]" /> Record Cash Entry
-          </button>
-        </div>
-      </div>
-
-      {/* Spreadsheet-style table (Busy density) */}
-      <div
-        className="bg-card border border-line rounded-md overflow-hidden shadow-sm flex flex-col"
-        style={{ height: "calc(100vh - 240px)" }}
-      >
-        {filteredEntries.length === 0 ? (
-          <div className="p-8 text-center text-xs text-ink-subtle flex-1">
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <FaSync className="animate-spin text-amber-500 text-[10px]" />
-                Loading petty cash entries…
-              </span>
-            ) : (
-              "No petty cash transactions found."
-            )}
+          <div className="relative w-full max-w-[280px] ml-2">
+            <input
+              type="text"
+              placeholder="Search entry no, category, description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
+            />
+            <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[10px]" />
           </div>
-        ) : (
-          <div className="overflow-auto flex-1">
-            <table className="w-full text-left text-[11px] text-ink-muted border-collapse">
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
-                  <th className="px-2 py-1.5 border-r border-line w-28">Date</th>
-                  <th className="px-2 py-1.5 border-r border-line w-24 text-center">Entry No</th>
-                  <th className="px-2 py-1.5 border-r border-line w-20 text-center">Type</th>
-                  {applied.showCategory && (
-                    <th className="px-2 py-1.5 border-r border-line w-40">Category</th>
-                  )}
-                  {applied.showDescription && (
-                    <th className="px-2 py-1.5 border-r border-line">Description</th>
-                  )}
-                  <th className="px-2 py-1.5 border-r border-line w-40">Paid To / From</th>
-                  {applied.showReceiptNo && (
-                    <th className="px-2 py-1.5 border-r border-line w-24 text-center">Receipt No</th>
-                  )}
-                  <th className="px-2 py-1.5 border-r border-line w-28 text-right">Amount (₹)</th>
-                  {applied.showBalance && (
-                    <th className="px-2 py-1.5 w-28 text-right">Balance (₹)</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEntries.map((item, rowIdx) => {
-                  const isSelected = selectedRow === item.id;
-                  const isIn = item.type === "IN";
-                  return (
-                    <tr
-                      key={item.id}
-                      onClick={() => setSelectedRow(item.id)}
-                      className={`border-b border-line-soft cursor-pointer ${
-                        isSelected
-                          ? "bg-amber-500/20 text-ink"
-                          : rowIdx % 2 === 0
-                            ? "hover:bg-card-2/70"
-                            : "bg-card-2/20 hover:bg-card-2/70"
-                      }`}
-                    >
-                      <td className="px-2 py-1 border-r border-line-soft font-mono text-[11px]">
-                        {new Date(item.entryDate).toLocaleDateString("en-GB")}
-                      </td>
-                      <td className="px-2 py-1 border-r border-line-soft font-mono font-semibold text-amber-500 text-center">
-                        {item.entryNo || "-"}
-                      </td>
-                      <td className="px-2 py-1 border-r border-line-soft text-center">
-                        <span
-                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            isIn
-                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                              : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                          }`}
-                        >
-                          {isIn ? "IN" : "OUT"}
-                        </span>
-                      </td>
-                      {applied.showCategory && (
-                        <td className="px-2 py-1 border-r border-line-soft font-semibold text-ink uppercase">
-                          {item.category || "-"}
+
+          <div className="flex items-center gap-1.5 ml-auto">
+            <button
+              onClick={() => {
+                setPending(applied);
+                setPanelOpen(true);
+              }}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line cursor-pointer"
+              title="Change filters"
+            >
+              <FaFilter className="text-[10px]" /> Change Filters
+            </button>
+            <button
+              onClick={refresh}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
+            >
+              <FaSync className={refreshing ? "animate-spin text-amber-500" : ""} /> Refresh
+            </button>
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-semibold transition cursor-pointer"
+            >
+              <FaPlus className="text-[10px]" /> Record Cash Entry
+            </button>
+          </div>
+        </div>
+
+        {/* Spreadsheet-style table (Busy density) */}
+        <div
+          className="bg-card border border-line rounded-md overflow-hidden shadow-sm flex flex-col"
+          style={{ height: "calc(100vh - 240px)" }}
+        >
+          {filteredEntries.length === 0 ? (
+            <div className="p-8 text-center text-xs text-ink-subtle flex-1">
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <FaSync className="animate-spin text-amber-500 text-[10px]" />
+                  Loading petty cash entries…
+                </span>
+              ) : (
+                "No petty cash transactions found."
+              )}
+            </div>
+          ) : (
+            <div className="overflow-auto flex-1">
+              <table className="w-full text-left text-[11px] text-ink-muted border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                    <th className="px-2 py-1.5 border-r border-line w-28">Date</th>
+                    <th className="px-2 py-1.5 border-r border-line w-24 text-center">Entry No</th>
+                    <th className="px-2 py-1.5 border-r border-line w-20 text-center">Type</th>
+                    {applied.showCategory && (
+                      <th className="px-2 py-1.5 border-r border-line w-40">Category</th>
+                    )}
+                    {applied.showDescription && (
+                      <th className="px-2 py-1.5 border-r border-line">Description</th>
+                    )}
+                    <th className="px-2 py-1.5 border-r border-line w-40">Paid To / From</th>
+                    {applied.showReceiptNo && (
+                      <th className="px-2 py-1.5 border-r border-line w-24 text-center">
+                        Receipt No
+                      </th>
+                    )}
+                    <th className="px-2 py-1.5 border-r border-line w-28 text-right">Amount (₹)</th>
+                    {applied.showBalance && (
+                      <th className="px-2 py-1.5 w-28 text-right">Balance (₹)</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEntries.map((item, rowIdx) => {
+                    const isSelected = selectedRow === item.id;
+                    const isIn = item.type === "IN";
+                    return (
+                      <tr
+                        key={item.id}
+                        onClick={() => setSelectedRow(item.id)}
+                        className={`border-b border-line-soft cursor-pointer ${
+                          isSelected
+                            ? "bg-amber-500/20 text-ink"
+                            : rowIdx % 2 === 0
+                              ? "hover:bg-card-2/70"
+                              : "bg-card-2/20 hover:bg-card-2/70"
+                        }`}
+                      >
+                        <td className="px-2 py-1 border-r border-line-soft font-mono text-[11px]">
+                          {new Date(item.entryDate).toLocaleDateString("en-GB")}
                         </td>
+                        <td className="px-2 py-1 border-r border-line-soft font-mono font-semibold text-amber-500 text-center">
+                          {item.entryNo || "-"}
+                        </td>
+                        <td className="px-2 py-1 border-r border-line-soft text-center">
+                          <span
+                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              isIn
+                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                            }`}
+                          >
+                            {isIn ? "IN" : "OUT"}
+                          </span>
+                        </td>
+                        {applied.showCategory && (
+                          <td className="px-2 py-1 border-r border-line-soft font-semibold text-ink uppercase">
+                            {item.category || "-"}
+                          </td>
+                        )}
+                        {applied.showDescription && (
+                          <td className="px-2 py-1 border-r border-line-soft text-ink-muted max-w-xs truncate">
+                            {item.description || "-"}
+                          </td>
+                        )}
+                        <td className="px-2 py-1 border-r border-line-soft text-ink-subtle uppercase">
+                          {item.paidTo || "-"}
+                        </td>
+                        {applied.showReceiptNo && (
+                          <td className="px-2 py-1 border-r border-line-soft font-mono text-[11px] text-ink-subtle text-center">
+                            {item.receiptNo || "-"}
+                          </td>
+                        )}
+                        <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold whitespace-nowrap">
+                          <span className={isIn ? "text-emerald-500" : "text-rose-500"}>
+                            {isIn ? "+" : "−"}
+                            {Number(item.amount).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        </td>
+                        {applied.showBalance && (
+                          <td className="px-2 py-1 text-right font-mono font-semibold text-ink whitespace-nowrap">
+                            {(runningBalances.get(item.id) || 0).toLocaleString("en-IN", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  {/* Busy-style empty filler rows */}
+                  {Array.from({ length: Math.max(0, 25 - filteredEntries.length) }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="border-b border-line-soft">
+                      <td className="px-2 py-1 border-r border-line-soft">&nbsp;</td>
+                      <td className="px-2 py-1 border-r border-line-soft"></td>
+                      <td className="px-2 py-1 border-r border-line-soft"></td>
+                      {applied.showCategory && (
+                        <td className="px-2 py-1 border-r border-line-soft"></td>
                       )}
                       {applied.showDescription && (
-                        <td className="px-2 py-1 border-r border-line-soft text-ink-muted max-w-xs truncate">
-                          {item.description || "-"}
-                        </td>
+                        <td className="px-2 py-1 border-r border-line-soft"></td>
                       )}
-                      <td className="px-2 py-1 border-r border-line-soft text-ink-subtle uppercase">
-                        {item.paidTo || "-"}
-                      </td>
+                      <td className="px-2 py-1 border-r border-line-soft"></td>
                       {applied.showReceiptNo && (
-                        <td className="px-2 py-1 border-r border-line-soft font-mono text-[11px] text-ink-subtle text-center">
-                          {item.receiptNo || "-"}
-                        </td>
+                        <td className="px-2 py-1 border-r border-line-soft"></td>
                       )}
-                      <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold whitespace-nowrap">
-                        <span className={isIn ? "text-emerald-500" : "text-rose-500"}>
-                          {isIn ? "+" : "−"}
-                          {Number(item.amount).toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </span>
-                      </td>
-                      {applied.showBalance && (
-                        <td className="px-2 py-1 text-right font-mono font-semibold text-ink whitespace-nowrap">
-                          {(runningBalances.get(item.id) || 0).toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </td>
-                      )}
+                      <td className="px-2 py-1 border-r border-line-soft"></td>
+                      {applied.showBalance && <td className="px-2 py-1"></td>}
                     </tr>
-                  );
-                })}
-                {/* Busy-style empty filler rows */}
-                {Array.from({ length: Math.max(0, 25 - filteredEntries.length) }).map((_, i) => (
-                  <tr key={`empty-${i}`} className="border-b border-line-soft">
-                    <td className="px-2 py-1 border-r border-line-soft">&nbsp;</td>
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    {applied.showCategory && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                    {applied.showDescription && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    {applied.showReceiptNo && <td className="px-2 py-1 border-r border-line-soft"></td>}
-                    <td className="px-2 py-1 border-r border-line-soft"></td>
-                    {applied.showBalance && <td className="px-2 py-1"></td>}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="sticky bottom-0 z-10 bg-card-2 border-t-2 border-line">
-                <tr>
-                  <td
-                    colSpan={
-                      3 /* Date + Entry No + Type */ +
-                      (applied.showCategory ? 1 : 0) +
-                      (applied.showDescription ? 1 : 0) +
-                      1 /* Paid To/From */ +
-                      (applied.showReceiptNo ? 1 : 0)
-                    }
-                    className="px-2 py-1.5 text-right text-[10px] font-bold text-ink uppercase tracking-wide border-r border-line"
-                  >
-                    Page Total ({filteredEntries.length})
-                    <span className="ml-3 normal-case text-ink-subtle">
-                      IN <b className="text-emerald-500">₹{totalInPage.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
-                      <span className="mx-2">·</span>
-                      OUT <b className="text-rose-500">₹{totalOutPage.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
-                    </span>
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-bold text-sm text-ink font-mono border-r border-line">
-                    {(totalInPage - totalOutPage).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </td>
-                  {applied.showBalance && (
-                    <td className="px-2 py-1.5 text-right font-bold text-sm text-amber-500 font-mono">
-                      {summary.currentBalance.toLocaleString("en-IN", {
+                  ))}
+                </tbody>
+                <tfoot className="sticky bottom-0 z-10 bg-card-2 border-t-2 border-line">
+                  <tr>
+                    <td
+                      colSpan={
+                        3 /* Date + Entry No + Type */ +
+                        (applied.showCategory ? 1 : 0) +
+                        (applied.showDescription ? 1 : 0) +
+                        1 /* Paid To/From */ +
+                        (applied.showReceiptNo ? 1 : 0)
+                      }
+                      className="px-2 py-1.5 text-right text-[10px] font-bold text-ink uppercase tracking-wide border-r border-line"
+                    >
+                      Page Total ({filteredEntries.length})
+                      <span className="ml-3 normal-case text-ink-subtle">
+                        IN{" "}
+                        <b className="text-emerald-500">
+                          ₹
+                          {totalInPage.toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </b>
+                        <span className="mx-2">·</span>
+                        OUT{" "}
+                        <b className="text-rose-500">
+                          ₹
+                          {totalOutPage.toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </b>
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-bold text-sm text-ink font-mono border-r border-line">
+                      {(totalInPage - totalOutPage).toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </td>
-                  )}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+                    {applied.showBalance && (
+                      <td className="px-2 py-1.5 text-right font-bold text-sm text-amber-500 font-mono">
+                        {summary.currentBalance.toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    )}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
 
-        {/* Busy-style status bar */}
-        <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle shrink-0">
-          <div className="flex gap-4">
-            <span>
-              Entry No: <b className="text-ink">{filteredEntries.length > 0 ? 1 : 0} / {filteredEntries.length}</b>
-            </span>
-            <span>
-              Row No: <b className="text-ink">
-                {selectedRow ? filteredEntries.findIndex((v) => v.id === selectedRow) + 1 : (filteredEntries.length > 0 ? 1 : 0)}
-                {" / "}{filteredEntries.length}
-              </b>
-            </span>
-          </div>
-          <div className="flex gap-3 uppercase tracking-wide">
-            <span>Total: <b className="text-ink">{total}</b></span>
-            <span>Balance: <b className="text-amber-500">₹{summary.currentBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b></span>
+          {/* Busy-style status bar */}
+          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle shrink-0">
+            <div className="flex gap-4">
+              <span>
+                Entry No:{" "}
+                <b className="text-ink">
+                  {filteredEntries.length > 0 ? 1 : 0} / {filteredEntries.length}
+                </b>
+              </span>
+              <span>
+                Row No:{" "}
+                <b className="text-ink">
+                  {selectedRow
+                    ? filteredEntries.findIndex((v) => v.id === selectedRow) + 1
+                    : filteredEntries.length > 0
+                      ? 1
+                      : 0}
+                  {" / "}
+                  {filteredEntries.length}
+                </b>
+              </span>
+            </div>
+            <div className="flex gap-3 uppercase tracking-wide">
+              <span>
+                Total: <b className="text-ink">{total}</b>
+              </span>
+              <span>
+                Balance:{" "}
+                <b className="text-amber-500">
+                  ₹
+                  {summary.currentBalance.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </b>
+              </span>
+            </div>
           </div>
         </div>
-      </div>
       </div>
 
       {/* Right sidebar — 3 summary stats. Amounts render on their own row so

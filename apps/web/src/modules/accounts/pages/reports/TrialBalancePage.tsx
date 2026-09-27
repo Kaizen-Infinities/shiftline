@@ -53,23 +53,63 @@ const fmt = (n: number) =>
   n > 0 ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 
 const fmtSigned = (n: number) =>
-  Math.abs(n) < 0.01 ? "" : Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  Math.abs(n) < 0.01
+    ? ""
+    : Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const VARIANT_MAP: Record<ReportVariant, {
-  label: string;
-  category: "closing" | "opening";
-  layout: "alpha" | "grouped" | "hierarchical";
-  detailed: boolean;
-}> = {
-  "closing-alpha-balances": { label: "Alphabetical · Balances", category: "closing", layout: "alpha", detailed: false },
-  "closing-alpha-detailed": { label: "Alphabetical · Detailed", category: "closing", layout: "alpha", detailed: true },
-  "closing-grouped-balances": { label: "Grouped · Balances", category: "closing", layout: "grouped", detailed: false },
-  "closing-grouped-detailed": { label: "Grouped · Detailed", category: "closing", layout: "grouped", detailed: true },
-  "closing-hierarchical-balances": { label: "Hierarchical · Balances", category: "closing", layout: "hierarchical", detailed: false },
-  "closing-hierarchical-detailed": { label: "Hierarchical · Detailed", category: "closing", layout: "hierarchical", detailed: true },
+const VARIANT_MAP: Record<
+  ReportVariant,
+  {
+    label: string;
+    category: "closing" | "opening";
+    layout: "alpha" | "grouped" | "hierarchical";
+    detailed: boolean;
+  }
+> = {
+  "closing-alpha-balances": {
+    label: "Alphabetical · Balances",
+    category: "closing",
+    layout: "alpha",
+    detailed: false,
+  },
+  "closing-alpha-detailed": {
+    label: "Alphabetical · Detailed",
+    category: "closing",
+    layout: "alpha",
+    detailed: true,
+  },
+  "closing-grouped-balances": {
+    label: "Grouped · Balances",
+    category: "closing",
+    layout: "grouped",
+    detailed: false,
+  },
+  "closing-grouped-detailed": {
+    label: "Grouped · Detailed",
+    category: "closing",
+    layout: "grouped",
+    detailed: true,
+  },
+  "closing-hierarchical-balances": {
+    label: "Hierarchical · Balances",
+    category: "closing",
+    layout: "hierarchical",
+    detailed: false,
+  },
+  "closing-hierarchical-detailed": {
+    label: "Hierarchical · Detailed",
+    category: "closing",
+    layout: "hierarchical",
+    detailed: true,
+  },
   "opening-alpha": { label: "Alphabetical", category: "opening", layout: "alpha", detailed: false },
   "opening-grouped": { label: "Grouped", category: "opening", layout: "grouped", detailed: false },
-  "opening-hierarchical": { label: "Hierarchical", category: "opening", layout: "hierarchical", detailed: false },
+  "opening-hierarchical": {
+    label: "Hierarchical",
+    category: "opening",
+    layout: "hierarchical",
+    detailed: false,
+  },
 };
 
 const getFYStartDate = () => {
@@ -116,7 +156,10 @@ export const TrialBalancePage: React.FC = () => {
   const filteredRows = useMemo(() => {
     if (!data) return [];
     let rows = data.rows;
-    if (!showZeroBalance) rows = rows.filter((r) => r.debitBalance > 0 || r.creditBalance > 0 || Math.abs(r.openingBalance) > 0.01);
+    if (!showZeroBalance)
+      rows = rows.filter(
+        (r) => r.debitBalance > 0 || r.creditBalance > 0 || Math.abs(r.openingBalance) > 0.01
+      );
     rows = [...rows].sort((a, b) => a.name.localeCompare(b.name));
     return rows;
   }, [data, showZeroBalance]);
@@ -143,7 +186,16 @@ export const TrialBalancePage: React.FC = () => {
   const exportCSV = () => {
     if (!data) return;
     const cols = activeConfig.detailed
-      ? ["Account/Group", "Group", "Opening Dr", "Opening Cr", "Debit", "Credit", "Closing Dr", "Closing Cr"]
+      ? [
+          "Account/Group",
+          "Group",
+          "Opening Dr",
+          "Opening Cr",
+          "Debit",
+          "Credit",
+          "Closing Dr",
+          "Closing Cr",
+        ]
       : ["Account/Group", "Debit Bal.", "Credit Bal."];
     const rowsArr: string[][] = [cols];
     filteredRows.forEach((r) => {
@@ -151,10 +203,14 @@ export const TrialBalancePage: React.FC = () => {
         const opDr = r.openingBalance > 0 ? r.openingBalance : 0;
         const opCr = r.openingBalance < 0 ? -r.openingBalance : 0;
         rowsArr.push([
-          r.name, r.group,
-          fmtSigned(opDr), fmtSigned(opCr),
-          fmtSigned(r.totalDebit), fmtSigned(r.totalCredit),
-          fmt(r.debitBalance), fmt(r.creditBalance),
+          r.name,
+          r.group,
+          fmtSigned(opDr),
+          fmtSigned(opCr),
+          fmtSigned(r.totalDebit),
+          fmtSigned(r.totalCredit),
+          fmt(r.debitBalance),
+          fmt(r.creditBalance),
         ]);
       } else {
         rowsArr.push([r.name, fmt(r.debitBalance), fmt(r.creditBalance)]);
@@ -175,7 +231,9 @@ export const TrialBalancePage: React.FC = () => {
       key={v}
       onClick={() => handleVariantClick(v)}
       className={`w-full text-left px-2 py-1 text-[11px] flex items-center gap-2 rounded transition-colors ${
-        variant === v ? "bg-indigo-500/15 text-indigo-400 font-semibold" : "text-ink-muted hover:bg-card-2/60"
+        variant === v
+          ? "bg-indigo-500/15 text-indigo-400 font-semibold"
+          : "text-ink-muted hover:bg-card-2/60"
       }`}
     >
       <span className="text-[9px] opacity-70">{icon}</span>
@@ -191,14 +249,21 @@ export const TrialBalancePage: React.FC = () => {
           <FaBalanceScale className="text-indigo-500 text-xs" />
           <h2 className="text-xs font-bold text-ink">Trial Balance</h2>
         </div>
-        <div className="p-2 space-y-2 text-xs overflow-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
+        <div
+          className="p-2 space-y-2 text-xs overflow-auto"
+          style={{ maxHeight: "calc(100vh - 160px)" }}
+        >
           {/* Closing Trial group */}
           <div>
             <button
               onClick={() => setExpandClosing((x) => !x)}
               className="w-full flex items-center gap-1.5 text-[11px] font-bold text-ink px-1 py-1 hover:bg-card-2/60 rounded"
             >
-              {expandClosing ? <FaChevronDown className="text-[9px] text-ink-subtle" /> : <FaChevronRight className="text-[9px] text-ink-subtle" />}
+              {expandClosing ? (
+                <FaChevronDown className="text-[9px] text-ink-subtle" />
+              ) : (
+                <FaChevronRight className="text-[9px] text-ink-subtle" />
+              )}
               <FaFolderOpen className="text-[10px] text-indigo-400" />
               Closing Trial
             </button>
@@ -220,7 +285,11 @@ export const TrialBalancePage: React.FC = () => {
               onClick={() => setExpandOpening((x) => !x)}
               className="w-full flex items-center gap-1.5 text-[11px] font-bold text-ink px-1 py-1 hover:bg-card-2/60 rounded"
             >
-              {expandOpening ? <FaChevronDown className="text-[9px] text-ink-subtle" /> : <FaChevronRight className="text-[9px] text-ink-subtle" />}
+              {expandOpening ? (
+                <FaChevronDown className="text-[9px] text-ink-subtle" />
+              ) : (
+                <FaChevronRight className="text-[9px] text-ink-subtle" />
+              )}
               <FaFolderOpen className="text-[10px] text-emerald-400" />
               Opening Trial
             </button>
@@ -249,9 +318,13 @@ export const TrialBalancePage: React.FC = () => {
         <div className="bg-card rounded-lg border border-line px-3 py-2 flex flex-wrap items-center gap-3 sticky top-0 z-20">
           <h3 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
             {activeConfig.category === "opening" ? (
-              <><FaFolderOpen className="text-emerald-500 text-sm" /> Opening Trial</>
+              <>
+                <FaFolderOpen className="text-emerald-500 text-sm" /> Opening Trial
+              </>
             ) : (
-              <><FaFolderOpen className="text-indigo-500 text-sm" /> Closing Trial</>
+              <>
+                <FaFolderOpen className="text-indigo-500 text-sm" /> Closing Trial
+              </>
             )}
             <span className="text-[10px] font-medium text-ink-subtle uppercase tracking-wide">
               · {activeConfig.label}
@@ -272,8 +345,12 @@ export const TrialBalancePage: React.FC = () => {
           </div>
 
           <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)}
-              className="w-3.5 h-3.5 accent-indigo-500" />
+            <input
+              type="checkbox"
+              checked={showZeroBalance}
+              onChange={(e) => setShowZeroBalance(e.target.checked)}
+              className="w-3.5 h-3.5 accent-indigo-500"
+            />
             <span className="text-xs text-ink-muted">Show Zero Balance</span>
           </label>
 
@@ -284,16 +361,25 @@ export const TrialBalancePage: React.FC = () => {
           )}
 
           <div className="flex items-center gap-1.5 ml-auto">
-            <button onClick={handlePrint} disabled={!data}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
+            <button
+              onClick={handlePrint}
+              disabled={!data}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
+            >
               <FaPrint /> Print
             </button>
-            <button onClick={exportCSV} disabled={!data}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
+            <button
+              onClick={exportCSV}
+              disabled={!data}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
+            >
               <FaDownload /> Export
             </button>
-            <button onClick={refresh} disabled={refreshing}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
+            <button
+              onClick={refresh}
+              disabled={refreshing}
+              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
+            >
               <FaSync className={refreshing ? "animate-spin text-indigo-500" : ""} /> Refresh
             </button>
           </div>
@@ -304,22 +390,33 @@ export const TrialBalancePage: React.FC = () => {
         {!data && !loading && (
           <div className="bg-card border border-line rounded-lg p-12 text-center text-xs text-ink-subtle">
             <FaBalanceScale className="text-indigo-500/40 text-3xl mx-auto mb-2" />
-            <div className="text-sm text-ink-muted font-semibold mb-1">No data for the selected variant</div>
-            <div className="text-[11px]">Selected: <b>{activeConfig.label}</b></div>
+            <div className="text-sm text-ink-muted font-semibold mb-1">
+              No data for the selected variant
+            </div>
+            <div className="text-[11px]">
+              Selected: <b>{activeConfig.label}</b>
+            </div>
           </div>
         )}
 
         {data && (
-          <div className="bg-card border border-line rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 180px)" }}>
+          <div
+            className="bg-card border border-line rounded-lg overflow-hidden flex flex-col"
+            style={{ maxHeight: "calc(100vh - 180px)" }}
+          >
             {/* Meta bar */}
             <div className="px-3 py-1.5 border-b border-line bg-card-2/50 flex items-center justify-between text-[11px] shrink-0">
               <span className="text-ink-subtle">
                 {activeConfig.category === "opening" ? "As On FY Start: " : "As On: "}
                 <b className="text-ink">
-                  {new Date(activeConfig.category === "opening" ? getFYStartDate() : asOnDate).toLocaleDateString("en-IN")}
+                  {new Date(
+                    activeConfig.category === "opening" ? getFYStartDate() : asOnDate
+                  ).toLocaleDateString("en-IN")}
                 </b>
               </span>
-              <span className="text-ink-subtle">{filteredRows.length} entries · {activeConfig.label}</span>
+              <span className="text-ink-subtle">
+                {filteredRows.length} entries · {activeConfig.label}
+              </span>
             </div>
 
             <div className="overflow-auto flex-1 min-h-0">
@@ -329,10 +426,18 @@ export const TrialBalancePage: React.FC = () => {
                     <th className="px-4 py-2 bg-head">Account / Group</th>
                     {activeConfig.detailed && (
                       <>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Opening Dr</th>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Opening Cr</th>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Debit</th>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Credit</th>
+                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">
+                          Opening Dr
+                        </th>
+                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">
+                          Opening Cr
+                        </th>
+                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">
+                          Debit
+                        </th>
+                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">
+                          Credit
+                        </th>
                       </>
                     )}
                     <th className="px-4 py-2 text-right w-[140px] bg-head">Closing Dr</th>
@@ -342,7 +447,10 @@ export const TrialBalancePage: React.FC = () => {
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={activeConfig.detailed ? 7 : 3} className="p-8 text-center text-xs text-ink-subtle">
+                      <td
+                        colSpan={activeConfig.detailed ? 7 : 3}
+                        className="p-8 text-center text-xs text-ink-subtle"
+                      >
                         No entries found.
                       </td>
                     </tr>
@@ -350,63 +458,118 @@ export const TrialBalancePage: React.FC = () => {
                     grouped.map(([gname, gitems]) => {
                       const gd = gitems.reduce((s, i) => s + i.debitBalance, 0);
                       const gc = gitems.reduce((s, i) => s + i.creditBalance, 0);
-                      const gOpDr = gitems.reduce((s, i) => s + (i.openingBalance > 0 ? i.openingBalance : 0), 0);
-                      const gOpCr = gitems.reduce((s, i) => s + (i.openingBalance < 0 ? -i.openingBalance : 0), 0);
+                      const gOpDr = gitems.reduce(
+                        (s, i) => s + (i.openingBalance > 0 ? i.openingBalance : 0),
+                        0
+                      );
+                      const gOpCr = gitems.reduce(
+                        (s, i) => s + (i.openingBalance < 0 ? -i.openingBalance : 0),
+                        0
+                      );
                       const gDebit = gitems.reduce((s, i) => s + i.totalDebit, 0);
                       const gCredit = gitems.reduce((s, i) => s + i.totalCredit, 0);
                       return (
                         <React.Fragment key={gname}>
                           <tr className="bg-card-2 border-b border-line">
-                            <td colSpan={activeConfig.detailed ? 7 : 3} className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-indigo-400">
-                              {activeConfig.layout === "hierarchical" ? <FaSitemap className="inline mr-1.5 text-[9px]" /> : null}
+                            <td
+                              colSpan={activeConfig.detailed ? 7 : 3}
+                              className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-indigo-400"
+                            >
+                              {activeConfig.layout === "hierarchical" ? (
+                                <FaSitemap className="inline mr-1.5 text-[9px]" />
+                              ) : null}
                               {gname}
                             </td>
                           </tr>
                           {gitems.map((row) => (
-                            <tr key={row.ledgerId} className="hover:bg-card-2/50 border-b border-line-soft">
+                            <tr
+                              key={row.ledgerId}
+                              className="hover:bg-card-2/50 border-b border-line-soft"
+                            >
                               <td className="pl-8 pr-4 py-1 text-xs text-ink">{row.name}</td>
                               {activeConfig.detailed && (
                                 <>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance > 0 ? row.openingBalance : 0)}</td>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance < 0 ? -row.openingBalance : 0)}</td>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-emerald-500">{fmtSigned(row.totalDebit)}</td>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-red-400">{fmtSigned(row.totalCredit)}</td>
+                                  <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                                    {fmtSigned(row.openingBalance > 0 ? row.openingBalance : 0)}
+                                  </td>
+                                  <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                                    {fmtSigned(row.openingBalance < 0 ? -row.openingBalance : 0)}
+                                  </td>
+                                  <td className="px-3 py-1 text-right text-xs font-mono text-emerald-500">
+                                    {fmtSigned(row.totalDebit)}
+                                  </td>
+                                  <td className="px-3 py-1 text-right text-xs font-mono text-red-400">
+                                    {fmtSigned(row.totalCredit)}
+                                  </td>
                                 </>
                               )}
-                              <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.debitBalance)}</td>
-                              <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.creditBalance)}</td>
+                              <td className="px-4 py-1 text-right text-xs font-mono text-ink">
+                                {fmt(row.debitBalance)}
+                              </td>
+                              <td className="px-4 py-1 text-right text-xs font-mono text-ink">
+                                {fmt(row.creditBalance)}
+                              </td>
                             </tr>
                           ))}
                           <tr className="bg-card-2/40 border-b border-line font-semibold">
-                            <td className="pl-4 pr-4 py-1 text-[11px] italic text-ink-muted">Total {gname}</td>
+                            <td className="pl-4 pr-4 py-1 text-[11px] italic text-ink-muted">
+                              Total {gname}
+                            </td>
                             {activeConfig.detailed && (
                               <>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gOpDr)}</td>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gOpCr)}</td>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gDebit)}</td>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gCredit)}</td>
+                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                                  {fmtSigned(gOpDr)}
+                                </td>
+                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                                  {fmtSigned(gOpCr)}
+                                </td>
+                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                                  {fmtSigned(gDebit)}
+                                </td>
+                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                                  {fmtSigned(gCredit)}
+                                </td>
                               </>
                             )}
-                            <td className="px-4 py-1 text-right text-xs font-mono text-ink-muted">{fmt(gd)}</td>
-                            <td className="px-4 py-1 text-right text-xs font-mono text-ink-muted">{fmt(gc)}</td>
+                            <td className="px-4 py-1 text-right text-xs font-mono text-ink-muted">
+                              {fmt(gd)}
+                            </td>
+                            <td className="px-4 py-1 text-right text-xs font-mono text-ink-muted">
+                              {fmt(gc)}
+                            </td>
                           </tr>
                         </React.Fragment>
                       );
                     })
                   ) : (
                     filteredRows.map((row) => (
-                      <tr key={row.ledgerId} className="hover:bg-card-2/50 border-b border-line-soft">
+                      <tr
+                        key={row.ledgerId}
+                        className="hover:bg-card-2/50 border-b border-line-soft"
+                      >
                         <td className="px-4 py-1 text-xs text-ink">{row.name}</td>
                         {activeConfig.detailed && (
                           <>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance > 0 ? row.openingBalance : 0)}</td>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance < 0 ? -row.openingBalance : 0)}</td>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-emerald-500">{fmtSigned(row.totalDebit)}</td>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-red-400">{fmtSigned(row.totalCredit)}</td>
+                            <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                              {fmtSigned(row.openingBalance > 0 ? row.openingBalance : 0)}
+                            </td>
+                            <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">
+                              {fmtSigned(row.openingBalance < 0 ? -row.openingBalance : 0)}
+                            </td>
+                            <td className="px-3 py-1 text-right text-xs font-mono text-emerald-500">
+                              {fmtSigned(row.totalDebit)}
+                            </td>
+                            <td className="px-3 py-1 text-right text-xs font-mono text-red-400">
+                              {fmtSigned(row.totalCredit)}
+                            </td>
                           </>
                         )}
-                        <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.debitBalance)}</td>
-                        <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.creditBalance)}</td>
+                        <td className="px-4 py-1 text-right text-xs font-mono text-ink">
+                          {fmt(row.debitBalance)}
+                        </td>
+                        <td className="px-4 py-1 text-right text-xs font-mono text-ink">
+                          {fmt(row.creditBalance)}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -417,14 +580,26 @@ export const TrialBalancePage: React.FC = () => {
             {/* Sticky footer */}
             <div className="shrink-0 border-t-2 border-line bg-card-2">
               <div className="flex items-center px-4 py-2">
-                <span className="flex-1 text-xs font-bold uppercase tracking-wide text-ink">Grand Total</span>
+                <span className="flex-1 text-xs font-bold uppercase tracking-wide text-ink">
+                  Grand Total
+                </span>
                 {activeConfig.detailed && (
                   <>
                     <span className="w-[110px] px-3 text-right text-xs font-mono text-ink-muted">
-                      {fmtSigned(filteredRows.reduce((s, r) => s + (r.openingBalance > 0 ? r.openingBalance : 0), 0))}
+                      {fmtSigned(
+                        filteredRows.reduce(
+                          (s, r) => s + (r.openingBalance > 0 ? r.openingBalance : 0),
+                          0
+                        )
+                      )}
                     </span>
                     <span className="w-[110px] px-3 text-right text-xs font-mono text-ink-muted">
-                      {fmtSigned(filteredRows.reduce((s, r) => s + (r.openingBalance < 0 ? -r.openingBalance : 0), 0))}
+                      {fmtSigned(
+                        filteredRows.reduce(
+                          (s, r) => s + (r.openingBalance < 0 ? -r.openingBalance : 0),
+                          0
+                        )
+                      )}
                     </span>
                     <span className="w-[110px] px-3 text-right text-xs font-mono text-emerald-500">
                       {fmtSigned(filteredRows.reduce((s, r) => s + r.totalDebit, 0))}
@@ -435,10 +610,18 @@ export const TrialBalancePage: React.FC = () => {
                   </>
                 )}
                 <span className="w-[140px] text-right text-sm font-mono font-bold text-ink">
-                  ₹ {totals.dr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₹{" "}
+                  {totals.dr.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </span>
                 <span className="w-[140px] text-right text-sm font-mono font-bold text-ink">
-                  ₹ {totals.cr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₹{" "}
+                  {totals.cr.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </span>
               </div>
               <div className="px-4 py-1.5 border-t border-line-soft">
@@ -448,7 +631,11 @@ export const TrialBalancePage: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 text-[11px] text-red-500 font-semibold">
-                    <FaExclamationTriangle /> Not balanced &middot; Difference: ₹ {Math.abs(totals.dr - totals.cr).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <FaExclamationTriangle /> Not balanced &middot; Difference: ₹{" "}
+                    {Math.abs(totals.dr - totals.cr).toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </div>
                 )}
               </div>
@@ -467,13 +654,21 @@ export const TrialBalancePage: React.FC = () => {
           <div className="px-3 py-2">
             <div className="text-[11px] font-semibold text-ink-muted mb-1">Total Debit</div>
             <div className="text-sm font-mono font-bold text-emerald-500 break-all leading-tight">
-              ₹{totals.dr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹
+              {totals.dr.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
           </div>
           <div className="px-3 py-2">
             <div className="text-[11px] font-semibold text-ink-muted mb-1">Total Credit</div>
             <div className="text-sm font-mono font-bold text-red-400 break-all leading-tight">
-              ₹{totals.cr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹
+              {totals.cr.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </div>
           </div>
           <div className={`px-3 py-2 ${totals.isBalanced ? "bg-emerald-500/5" : "bg-red-500/5"}`}>
@@ -488,14 +683,20 @@ export const TrialBalancePage: React.FC = () => {
                   <FaExclamationTriangle className="text-[10px]" /> Not balanced
                 </div>
                 <div className="text-[11px] font-mono font-bold text-red-500 break-all leading-tight">
-                  ₹{Math.abs(totals.dr - totals.cr).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₹
+                  {Math.abs(totals.dr - totals.cr).toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </div>
               </>
             )}
           </div>
           <div className="px-3 py-2">
             <div className="text-[11px] font-semibold text-ink-muted mb-1">Accounts</div>
-            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">{filteredRows.length}</div>
+            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
+              {filteredRows.length}
+            </div>
           </div>
         </div>
       </aside>

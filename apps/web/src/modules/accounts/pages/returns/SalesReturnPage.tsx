@@ -52,7 +52,11 @@ export const SalesReturnPage: React.FC = () => {
     }
   }, []);
 
-  const { data: returns, loading, refresh } = useListCache<SalesReturn>({
+  const {
+    data: returns,
+    loading,
+    refresh,
+  } = useListCache<SalesReturn>({
     cacheKey,
     socketModule: "salesReturn",
     fetcher,
@@ -61,7 +65,9 @@ export const SalesReturnPage: React.FC = () => {
   useSocketSync("salesInvoice", undefined, refresh);
   useSocketSync("customer", undefined, refresh);
 
-  const activeFilterCount = [appliedFilters.customerGradeId, appliedFilters.status].filter(Boolean).length;
+  const activeFilterCount = [appliedFilters.customerGradeId, appliedFilters.status].filter(
+    Boolean
+  ).length;
   const hasActiveFilters = activeFilterCount > 0;
 
   const handleFilterOpen = () => setDraftFilters(appliedFilters);
@@ -93,8 +99,7 @@ export const SalesReturnPage: React.FC = () => {
     if (appliedFilters.customerGradeId) {
       const gradeId = Number(appliedFilters.customerGradeId);
       const matchGrade =
-        r.customer?.customerGradeId === gradeId ||
-        r.customer?.customerGrade?.id === gradeId;
+        r.customer?.customerGradeId === gradeId || r.customer?.customerGrade?.id === gradeId;
       if (!matchGrade) return false;
     }
 
@@ -119,11 +124,31 @@ export const SalesReturnPage: React.FC = () => {
     const columns = [
       { header: "Return No", accessor: (item: any) => item.returnNo || "" },
       { header: "Credit Note", accessor: (item: any) => item.creditNoteNo || "" },
-      { header: "Kind", accessor: (item: any) => (item.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return") },
-      { header: "Return Date", accessor: (item: any) => item.returnDate ? new Date(item.returnDate).toLocaleDateString("en-IN") : "" },
-      { header: "Customer", accessor: (item: any) => item.customer?.firmName || item.customer?.displayName || "" },
-      { header: "Invoice No", accessor: (item: any) => item.salesInvoice?.invoiceNo || (item.salesInvoiceId ? `INV #${item.salesInvoiceId}` : "") },
-      { header: "Grand Total (₹)", accessor: (item: any) => item.grandTotal != null ? Number(item.grandTotal).toFixed(2) : "0.00" },
+      {
+        header: "Kind",
+        accessor: (item: any) =>
+          item.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return",
+      },
+      {
+        header: "Return Date",
+        accessor: (item: any) =>
+          item.returnDate ? new Date(item.returnDate).toLocaleDateString("en-IN") : "",
+      },
+      {
+        header: "Customer",
+        accessor: (item: any) => item.customer?.firmName || item.customer?.displayName || "",
+      },
+      {
+        header: "Invoice No",
+        accessor: (item: any) =>
+          item.salesInvoice?.invoiceNo ||
+          (item.salesInvoiceId ? `INV #${item.salesInvoiceId}` : ""),
+      },
+      {
+        header: "Grand Total (₹)",
+        accessor: (item: any) =>
+          item.grandTotal != null ? Number(item.grandTotal).toFixed(2) : "0.00",
+      },
       { header: "Reason", accessor: (item: any) => item.reason || "" },
       { header: "Status", accessor: (item: any) => item.status || "" },
     ];
@@ -173,9 +198,7 @@ export const SalesReturnPage: React.FC = () => {
         return (
           <div className="flex flex-col">
             <span className="font-semibold text-ink">{item.customer?.firmName || "—"}</span>
-            {gradeName && (
-              <span className="text-[11px] text-ink-subtle">Grade: {gradeName}</span>
-            )}
+            {gradeName && <span className="text-[11px] text-ink-subtle">Grade: {gradeName}</span>}
           </div>
         );
       },
@@ -214,13 +237,9 @@ export const SalesReturnPage: React.FC = () => {
   return (
     <div>
       <div className="max-w-[1400px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <h2 className="text-2xl font-bold text-ink flex items-center gap-2">
-           
-            Sales Returns 
-          </h2>
+          <h2 className="text-2xl font-bold text-ink flex items-center gap-2">Sales Returns</h2>
 
           <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
             <SearchInput
@@ -268,9 +287,7 @@ export const SalesReturnPage: React.FC = () => {
                     defaultOptionLabel="All Statuses"
                     searchable={false}
                     noMargin
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, status: e.target.value }))
-                    }
+                    onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
                   />
                 </div>
               </div>
@@ -371,13 +388,17 @@ export const SalesReturnPage: React.FC = () => {
               {
                 label: "Kind",
                 value:
-                  selectedViewReturn?.kind === "PRICE_ADJUSTMENT" ? "Price adjustment" : "Goods return",
+                  selectedViewReturn?.kind === "PRICE_ADJUSTMENT"
+                    ? "Price adjustment"
+                    : "Goods return",
               },
               {
                 label: "GST",
                 value: selectedViewReturn
                   ? `₹${Number(selectedViewReturn.taxAmount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}${
-                      selectedViewReturn.supplyType ? ` · ${String(selectedViewReturn.supplyType).replace("_", " ").toLowerCase()}` : ""
+                      selectedViewReturn.supplyType
+                        ? ` · ${String(selectedViewReturn.supplyType).replace("_", " ").toLowerCase()}`
+                        : ""
                     }`
                   : "—",
               },
@@ -414,7 +435,9 @@ export const SalesReturnPage: React.FC = () => {
                         selectedViewReturn.items.map((item, i) => (
                           <tr key={item.id || i} className="hover:bg-card-2 transition-colors">
                             <td className="px-3 py-1.5 font-medium text-ink">
-                              {item.product?.productName || item.description || `Product #${item.productId}`}
+                              {item.product?.productName ||
+                                item.description ||
+                                `Product #${item.productId}`}
                             </td>
                             <td className="px-3 py-1.5 text-center font-mono font-semibold text-ink">
                               {item.quantity}

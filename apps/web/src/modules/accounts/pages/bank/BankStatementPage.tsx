@@ -30,7 +30,12 @@ const BankStatementPage: React.FC = () => {
     [id, startDate, endDate]
   );
 
-  const { data: statementList, loading, refreshing, refresh } = useListCache<LedgerStatementResult>({
+  const {
+    data: statementList,
+    loading,
+    refreshing,
+    refresh,
+  } = useListCache<LedgerStatementResult>({
     cacheKey,
     socketModule: "voucher",
     fetcher,
@@ -73,7 +78,9 @@ const BankStatementPage: React.FC = () => {
         {/* Filter row */}
         <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
           <div className="w-[140px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">From</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              From
+            </label>
             <input
               type="date"
               value={startDate}
@@ -82,7 +89,9 @@ const BankStatementPage: React.FC = () => {
             />
           </div>
           <div className="w-[140px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">To</label>
+            <label className="block mb-0.5 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              To
+            </label>
             <input
               type="date"
               value={endDate}
@@ -92,7 +101,10 @@ const BankStatementPage: React.FC = () => {
           </div>
           {(startDate || endDate) && (
             <button
-              onClick={() => { setStartDate(""); setEndDate(""); }}
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+              }}
               className="px-2.5 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card rounded transition-colors border border-line cursor-pointer"
             >
               Clear
@@ -105,19 +117,27 @@ const BankStatementPage: React.FC = () => {
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           <div className="bg-card rounded-lg border border-line px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Opening Balance</p>
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              Opening Balance
+            </p>
             <p className="text-base font-mono font-bold text-ink mt-0.5">
               ₹{Math.abs(data.openingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </p>
           </div>
           <div className="bg-card rounded-lg border border-line px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Closing Balance</p>
-            <p className={`text-base font-mono font-bold mt-0.5 ${data.closingBalance >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              Closing Balance
+            </p>
+            <p
+              className={`text-base font-mono font-bold mt-0.5 ${data.closingBalance >= 0 ? "text-emerald-500" : "text-red-500"}`}
+            >
               ₹{Math.abs(data.closingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </p>
           </div>
           <div className="bg-card rounded-lg border border-line px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">Transactions</p>
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              Transactions
+            </p>
             <p className="text-base font-mono font-bold text-ink mt-0.5">{data.entries.length}</p>
           </div>
         </div>
@@ -132,10 +152,10 @@ const BankStatementPage: React.FC = () => {
           </span>
         </div>
 
-        {!data && loading ? (
-          null
-        ) : !data || data.entries.length === 0 ? (
-          <div className="p-8 text-center text-xs text-ink-subtle">No transactions found for this period.</div>
+        {!data && loading ? null : !data || data.entries.length === 0 ? (
+          <div className="p-8 text-center text-xs text-ink-subtle">
+            No transactions found for this period.
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-ink-muted border-collapse">
@@ -160,13 +180,19 @@ const BankStatementPage: React.FC = () => {
                       {entry.voucherNo}
                     </td>
                     <td className="px-3 py-1.5 text-xs">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        entry.voucherType === "RECEIPT" ? "bg-emerald-500/10 text-emerald-500" :
-                        entry.voucherType === "PAYMENT" ? "bg-red-500/10 text-red-500" :
-                        entry.voucherType === "CONTRA" ? "bg-purple-500/10 text-purple-500" :
-                        entry.voucherType === "OPENING" ? "bg-amber-500/10 text-amber-500" :
-                        "bg-blue-500/10 text-blue-500"
-                      }`}>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          entry.voucherType === "RECEIPT"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : entry.voucherType === "PAYMENT"
+                              ? "bg-red-500/10 text-red-500"
+                              : entry.voucherType === "CONTRA"
+                                ? "bg-purple-500/10 text-purple-500"
+                                : entry.voucherType === "OPENING"
+                                  ? "bg-amber-500/10 text-amber-500"
+                                  : "bg-blue-500/10 text-blue-500"
+                        }`}
+                      >
                         {entry.voucherType}
                       </span>
                     </td>
@@ -178,22 +204,31 @@ const BankStatementPage: React.FC = () => {
                         <span className="text-emerald-500 font-semibold">
                           {entry.debit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </span>
-                      ) : "-"}
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className="px-3 py-1.5 text-xs text-right font-mono">
                       {entry.credit > 0 ? (
                         <span className="text-red-500 font-semibold">
                           {entry.credit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </span>
-                      ) : "-"}
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className="px-3 py-1.5 text-xs text-right font-mono font-bold text-ink">
-                      ₹{Math.abs(entry.runningBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      ₹
+                      {Math.abs(entry.runningBalance).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
                       {/* Bank/Cash is an ASSET — natural side is Dr. Negative
                           running balance means the ledger sits on Cr (overdraft /
                           cash shortage). Show "Cr" so the sign matches accounting
                           convention — old code wrote "Dr" here which was inverted. */}
-                      {entry.runningBalance < 0 && <span className="text-[10px] text-red-500 ml-1">Cr</span>}
+                      {entry.runningBalance < 0 && (
+                        <span className="text-[10px] text-red-500 ml-1">Cr</span>
+                      )}
                     </td>
                   </tr>
                 ))}

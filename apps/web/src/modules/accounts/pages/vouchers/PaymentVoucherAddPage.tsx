@@ -1,7 +1,27 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useFormShortcuts } from "../../../../hooks/useFormShortcuts";
 import { useNavigate } from "react-router-dom";
-import { FaMoneyBillWave, FaPlus } from "react-icons/fa";
+import { AlertTriangle, Plus } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  Field,
+  PageHeader,
+  Tile,
+  fieldControlClass,
+} from "../../../../components/ui/v2";
+import {
+  EntryFooter,
+  Kbd,
+  KeyHints,
+  VOUCHER_KINDS,
+  VoucherTypeNav,
+  ctrlEnterSubmit,
+  fmtINR,
+  gridInputClass,
+  gridLedgerCellClass,
+  gridThClass,
+} from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import {
   voucherService,
@@ -290,235 +310,235 @@ const PaymentVoucherAddPage: React.FC = () => {
     }
   };
 
+  const msmeText =
+    msmeWarning && msmeWarning.count > 0
+      ? msmeWarning.type === "PAYEE_SMALL"
+        ? `This is a micro/small supplier: ${msmeWarning.count} bill(s) worth ${fmtINR(msmeWarning.amount)} are due within 5 days or already overdue on the section 15 clock.`
+        : `${msmeWarning.count} bill(s) to other micro/small suppliers, worth ${fmtINR(msmeWarning.amount)}, are about to breach the section 15 clock — this payment is money that could have gone to them instead.`
+      : null;
+
   return (
-    <div className="p-3">
-      <div className="w-full lg:w-5xl max-w-full">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-card border border-line rounded-md overflow-hidden shadow-sm"
+    <form onSubmit={handleSubmit} onKeyDown={ctrlEnterSubmit} className="w-full">
+      <PageHeader
+        title="New payment voucher"
+        subtitle={VOUCHER_KINDS.PAYMENT.hint}
+        back="/accounts/payment-voucher"
+        backLabel="Back to payment register"
+        breadcrumbs={[
+          { label: "Accounts" },
+          { label: "Payment Register", to: "/accounts/payment-voucher" },
+          { label: "New" },
+        ]}
+        meta={
+          <Chip tone="muted">Vch no. {nextVoucherNo ? displayVoucherNo(nextVoucherNo) : "…"}</Chip>
+        }
+      >
+        <VoucherTypeNav current="PAYMENT" target="add" />
+      </PageHeader>
+
+      {msmeText && (
+        <div
+          role="status"
+          className="sl-tile mb-4 flex items-start gap-3 border-[color:var(--color-warning)] px-4 py-3"
         >
-          {/* Title bar — Busy-style red header */}
-          <div className="text-white text-[11px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
-            Add Payment Voucher
-          </div>
+          <AlertTriangle
+            size={18}
+            className="mt-0.5 shrink-0 text-[color:var(--color-warning)]"
+            aria-hidden="true"
+          />
+          <p className="m-0 text-sm text-ink">
+            <span className="font-semibold">MSME payment clock. </span>
+            {msmeText}
+          </p>
+        </div>
+      )}
 
-          {msmeWarning &&
-            (msmeWarning.type === "PAYEE_SMALL"
-              ? msmeWarning.count > 0 && (
-                  <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-                    This is a micro/small supplier: {msmeWarning.count} bill(s) worth{" "}
-                    {msmeWarning.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })} are
-                    due within 5 days or already overdue on the section 15 clock.
-                  </div>
-                )
-              : msmeWarning.count > 0 && (
-                  <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-                    {msmeWarning.count} bill(s) to other micro/small suppliers, worth{" "}
-                    {msmeWarning.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}, are
-                    about to breach the section 15 clock — this payment is money that could have
-                    gone to them instead.
-                  </div>
-                ))}
-
-          {/* Top meta section — Busy layout: compact labels + inline values */}
-          <div className="px-3 py-2 border-b border-line grid grid-cols-12 gap-x-3 gap-y-1.5 text-[11px] items-center">
-            {/* Voucher Series (readonly)
-            <label className="col-span-2 text-ink-subtle font-semibold">Voucher Series</label>
-            <div className="col-span-4 text-ink font-semibold">Main</div> */}
-
-            <label className="col-span-2 text-ink-subtle font-semibold">Date</label>
-            <div className="col-span-4">
-              <DatePickerCalendar
-                name="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
-            </div>
-
-            <label className="col-span-2 text-ink-subtle font-semibold">Vch No.</label>
-            <div className="col-span-4 text-ink font-mono font-bold text-[12px]">
-              {nextVoucherNo ? displayVoucherNo(nextVoucherNo) : "…"}
-            </div>
-
-            {/* Payment Mode (bank/cash) */}
-            <label className="col-span-2 text-ink-subtle font-semibold">Payment Mode</label>
-            <div className="col-span-4">
-              <LedgerSearchInput
-                value={creditLedgerId}
-                ledgers={ledgers}
-                onChange={setCreditLedgerId}
-                placeholder="Search bank / cash..."
-                required
-                filterFn={isBankOrCashLedger}
-                accentColor="red-500"
-                onSelected={() => focusCell(0, "account")}
-              />
-            </div>
-
-            <label className="col-span-2 text-ink-subtle font-semibold">Narration</label>
-            <div className="col-span-4">
-              <input
-                type="text"
-                placeholder=""
-                value={mainNarration}
-                onChange={(e) => setMainNarration(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    focusCell(0, "account");
-                  }
-                }}
-                className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
-              />
-            </div>
-
+      <Tile title="Voucher details" className="mb-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,220px)_minmax(0,1fr)_minmax(0,1fr)]">
+          <DatePickerCalendar
+            name="date"
+            label="Date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+          <div>
+            <LedgerSearchInput
+              label="Payment mode (bank / cash)"
+              value={creditLedgerId}
+              ledgers={ledgers}
+              onChange={setCreditLedgerId}
+              placeholder="Search bank / cash..."
+              required
+              filterFn={isBankOrCashLedger}
+              accentColor="red-500"
+              onSelected={() => focusCell(0, "account")}
+            />
             {paidFromLedger && (
-              <div className="col-span-12 text-[10px] pt-0.5 flex items-center gap-3">
-                <span className="text-ink-subtle italic">
-                  ({paidFromLedger.name} — {paidFromLedger.group})
-                </span>
+              <p className="m-0 mt-1.5 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-muted">
+                <span>{paidFromLedger.group}</span>
                 {balanceLoading ? (
-                  <span className="text-ink-subtle">Cur. Bal. = ...</span>
-                ) : paidFromBalance !== null ? (
                   <span
-                    className={`font-mono font-semibold ${
-                      paidFromBalance < 0 ? "text-red-500" : "text-emerald-500"
-                    }`}
-                  >
-                    Cur. Bal. = {formatBalance(paidFromBalance)}
-                  </span>
+                    className="sl-skeleton inline-block h-3 w-24"
+                    aria-label="Loading balance"
+                  />
+                ) : paidFromBalance !== null ? (
+                  <Chip size="sm" tone={paidFromBalance < 0 ? "danger" : "success"}>
+                    Cur. bal. {formatBalance(paidFromBalance)}
+                  </Chip>
                 ) : null}
-              </div>
+              </p>
             )}
           </div>
+          <Field
+            label="Narration"
+            className="md:col-span-2 xl:col-span-1"
+            hint="Used for every line that has no narration of its own"
+          >
+            <input
+              type="text"
+              value={mainNarration}
+              onChange={(e) => setMainNarration(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  focusCell(0, "account");
+                }
+              }}
+              className={fieldControlClass()}
+            />
+          </Field>
+        </div>
+      </Tile>
 
-          {/* Spreadsheet-style items grid */}
-          <div className="border-b border-line" ref={tableRef}>
-            <table className="w-full text-[11px] border-collapse">
-              <thead>
-                <tr className="bg-card-2 text-ink font-bold border-b border-line">
-                  <th className="w-10 px-2 py-1 text-center border-r border-line">S.No</th>
-                  <th className="px-2 py-1 text-left border-r border-line">Account</th>
-                  <th className="w-32 px-2 py-1 text-right border-r border-line">Amount (Rs.)</th>
-                  <th className="px-2 py-1 text-left">Short Narration</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, idx) => {
-                  const unlocked = isRowUnlocked(idx);
-                  return (
-                    <tr
-                      key={row.id}
-                      className={`border-b border-line-soft last:border-b-0 ${unlocked ? "" : "bg-card-2/10"}`}
+      <Tile padding="none" title="Paid to" subtitle="One line per account paid" divider>
+        <div className="overflow-x-auto" ref={tableRef}>
+          <table className="w-full min-w-[640px] border-collapse text-[14px]">
+            <thead>
+              <tr>
+                <th scope="col" className={gridThClass("center", "w-12")}>
+                  #
+                </th>
+                <th scope="col" className={gridThClass("left")}>
+                  Account
+                </th>
+                <th scope="col" className={gridThClass("right", "w-44")}>
+                  Amount (₹)
+                </th>
+                <th scope="col" className={gridThClass("left", "w-[30%]")}>
+                  Short narration
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => {
+                const unlocked = isRowUnlocked(idx);
+                return (
+                  <tr
+                    key={row.id}
+                    className={`border-b border-line-soft last:border-b-0 ${unlocked ? "" : "bg-card-2/40"}`}
+                  >
+                    <td
+                      className={`w-12 text-center text-[12px] tabular-nums ${unlocked ? "text-ink-muted" : "text-ink-subtle/60"}`}
                     >
-                      <td
-                        className={`w-10 px-2 py-0 text-center border-r border-line font-mono text-[11px] ${unlocked ? "text-ink-subtle bg-card-2/40" : "text-ink-subtle/40 bg-card-2/20"}`}
-                      >
-                        {idx + 1}
-                      </td>
-                      <td className="px-0 py-0 border-r border-line">
-                        <div data-cell={`${idx}-account`}>
-                          <LedgerSearchInput
-                            value={row.debitLedgerId}
-                            ledgers={ledgers}
-                            onChange={(val) => updateRow(row.id, "debitLedgerId", val)}
-                            placeholder=""
-                            filterFn={(l) => !isBankOrCashLedger(l)}
-                            accentColor="red-500"
-                            variant="cell"
-                            onSelected={() => focusCell(idx, "amount")}
-                            disabled={!unlocked}
-                          />
-                        </div>
-                      </td>
-                      <td className="w-32 px-0 py-0 border-r border-line">
-                        <input
-                          data-cell={`${idx}-amount`}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder=""
-                          value={row.amount}
-                          onChange={(e) => updateRow(row.id, "amount", e.target.value)}
-                          onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                      {idx + 1}
+                    </td>
+                    <td className="border-l border-line-soft">
+                      <div data-cell={`${idx}-account`} className={gridLedgerCellClass}>
+                        <LedgerSearchInput
+                          value={row.debitLedgerId}
+                          ledgers={ledgers}
+                          onChange={(val) => updateRow(row.id, "debitLedgerId", val)}
+                          placeholder={unlocked ? "Type to search ledgers" : ""}
+                          filterFn={(l) => !isBankOrCashLedger(l)}
+                          accentColor="red-500"
+                          variant="cell"
+                          onSelected={() => focusCell(idx, "amount")}
                           disabled={!unlocked}
-                          className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-ink text-right font-mono focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
                         />
-                      </td>
-                      <td className="px-0 py-0">
-                        <input
-                          data-cell={`${idx}-narration`}
-                          type="text"
-                          placeholder=""
-                          value={row.narration}
-                          onChange={(e) => updateRow(row.id, "narration", e.target.value)}
-                          onKeyDown={(e) => handleNarrationKeyDown(e, idx)}
-                          disabled={!unlocked}
-                          className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-ink focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="bg-card-2 border-t border-line">
-                  <td className="px-2 py-1 text-left" colSpan={2}>
-                    <button
-                      type="button"
-                      onClick={addRow}
-                      className="flex items-center gap-1 text-[10px] font-semibold text-red-500 hover:text-red-600 cursor-pointer"
-                    >
-                      <FaPlus className="w-2 h-2" /> Add Row
-                    </button>
-                  </td>
-                  <td className="w-32 px-2 py-1 text-right font-mono font-bold text-ink border-l border-line">
-                    {totalAmount.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </td>
-                  <td className="px-2 py-1 text-[10px] text-ink-subtle italic">
-                    {validCount} valid entries
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                      </div>
+                    </td>
+                    <td className="w-44 border-l border-line-soft">
+                      <input
+                        data-cell={`${idx}-amount`}
+                        aria-label={`Line ${idx + 1} amount`}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={row.amount}
+                        onChange={(e) => updateRow(row.id, "amount", e.target.value)}
+                        onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                        disabled={!unlocked}
+                        className={gridInputClass(!unlocked, "text-right tabular-nums")}
+                      />
+                    </td>
+                    <td className="border-l border-line-soft">
+                      <input
+                        data-cell={`${idx}-narration`}
+                        aria-label={`Line ${idx + 1} narration`}
+                        type="text"
+                        value={row.narration}
+                        onChange={(e) => updateRow(row.id, "narration", e.target.value)}
+                        onKeyDown={(e) => handleNarrationKeyDown(e, idx)}
+                        disabled={!unlocked}
+                        className={gridInputClass(!unlocked)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-line bg-card-2">
+                <td colSpan={2} className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={addRow}
+                    className="sl-btn-ghost sl-pill-sm text-accent"
+                  >
+                    <Plus size={15} aria-hidden="true" /> Add line
+                  </button>
+                </td>
+                <td className="px-3 py-2 text-right text-[15px] font-bold tabular-nums text-ink">
+                  {fmtINR(totalAmount)}
+                </td>
+                <td className="px-3 py-2 text-[12px] text-ink-muted">{validCount} valid entries</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </Tile>
 
-          {/* Bottom action bar */}
-          <div className="px-3 py-2 flex items-center justify-between bg-card-2/40">
-            <div className="flex items-center gap-2 text-[11px] text-ink-subtle">
-              <FaMoneyBillWave className="text-red-500" />
-              <span>
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Enter</kbd> /{" "}
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Tab</kbd> to
-                move forward •{" "}
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">↑↓</kbd> in
-                dropdown
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("/accounts/payment-voucher")}
-                className="px-4 py-1 text-ink bg-card-2 hover:bg-card border border-line rounded font-semibold text-[11px] transition cursor-pointer"
-              >
-                Quit
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-5 py-1 bg-red-600 hover:bg-red-700 text-white rounded font-semibold text-[11px] transition disabled:opacity-50 cursor-pointer"
-              >
-                {submitting ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+      <EntryFooter
+        hints={
+          <KeyHints
+            hints={[
+              [<Kbd key="enter">Enter</Kbd>, "/ Tab next cell"],
+              [<Kbd key="arrows">↑↓</Kbd>, "in the ledger list"],
+              [
+                <span key="save" className="inline-flex gap-1">
+                  <Kbd>Ctrl</Kbd>
+                  <Kbd>Enter</Kbd>
+                </span>,
+                "save",
+              ],
+            ]}
+          />
+        }
+      >
+        <div className="mr-2 hidden text-right sm:block">
+          <div className="text-[12px] text-ink-subtle">Total</div>
+          <div className="text-lg font-bold tabular-nums text-ink">{fmtINR(totalAmount)}</div>
+        </div>
+        <ActionPill variant="secondary" onClick={() => navigate("/accounts/payment-voucher")}>
+          Quit
+        </ActionPill>
+        <ActionPill type="submit" loading={submitting} loadingText="Saving...">
+          Save Payment
+        </ActionPill>
+      </EntryFooter>
+    </form>
   );
 };
 

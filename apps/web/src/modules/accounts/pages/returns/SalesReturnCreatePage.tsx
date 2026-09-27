@@ -96,13 +96,23 @@ export const SalesReturnCreatePage: React.FC = () => {
                 if (uomCode === "ton" || uomCode === "tonne" || uomCode === "tons") uomCode = "t";
 
                 const prodObj = pList?.find((p: any) => Number(p.id) === Number(item.productId));
-                const groupName = (prodObj as any)?.category?.name || (prodObj as any)?.category?.categoryName || "Sales Group";
-                const rawBaseUom = (prodObj as any)?.baseUom || (prodObj as any)?.uom?.baseUom || (prodObj as any)?.weightUom || "kg, g, t";
+                const groupName =
+                  (prodObj as any)?.category?.name ||
+                  (prodObj as any)?.category?.categoryName ||
+                  "Sales Group";
+                const rawBaseUom =
+                  (prodObj as any)?.baseUom ||
+                  (prodObj as any)?.uom?.baseUom ||
+                  (prodObj as any)?.weightUom ||
+                  "kg, g, t";
 
                 return {
                   productId: Number(item.productId),
                   salesInvoiceItemId: item.salesInvoiceItemId || undefined,
-                  description: item.product?.productName || prodObj?.productName || `Product #${item.productId}`,
+                  description:
+                    item.product?.productName ||
+                    prodObj?.productName ||
+                    `Product #${item.productId}`,
                   productCode: prodObj?.productCode || "",
                   productGroup: groupName,
                   quantity: Number(item.quantity || 0),
@@ -144,7 +154,9 @@ export const SalesReturnCreatePage: React.FC = () => {
         const comps = sp.components || [];
 
         comps.forEach((comp: any) => {
-          const prod = comp.componentProduct || allProducts.find((p: any) => String(p.id) === String(comp.componentProductId));
+          const prod =
+            comp.componentProduct ||
+            allProducts.find((p: any) => String(p.id) === String(comp.componentProductId));
           if (prod) {
             let price = Number(prod.rate || 0);
             if (gradeName && prod.gradeRates && typeof prod.gradeRates === "object") {
@@ -159,7 +171,9 @@ export const SalesReturnCreatePage: React.FC = () => {
 
         // Sum weight from all components
         comps.forEach((comp: any) => {
-          const prod = comp.componentProduct || allProducts.find((p: any) => String(p.id) === String(comp.componentProductId));
+          const prod =
+            comp.componentProduct ||
+            allProducts.find((p: any) => String(p.id) === String(comp.componentProductId));
           if (prod) {
             defaultWeight += Number(prod.weightPerPiece || 0) * Number(comp.quantity || 1);
           }
@@ -229,7 +243,9 @@ export const SalesReturnCreatePage: React.FC = () => {
   const buildComponents = (sp: any): ReturnComponent[] => {
     const comps = sp?.components || [];
     return comps.map((comp: any) => {
-      const prod = comp.componentProduct || allProducts.find((p: any) => String(p.id) === String(comp.componentProductId));
+      const prod =
+        comp.componentProduct ||
+        allProducts.find((p: any) => String(p.id) === String(comp.componentProductId));
       return {
         componentProductId: Number(comp.componentProductId),
         productName: prod?.productName || `Product #${comp.componentProductId}`,
@@ -333,7 +349,11 @@ export const SalesReturnCreatePage: React.FC = () => {
     });
   };
 
-  const handleRowFieldChange = (index: number, field: "quantity" | "weight" | "unitPrice", value: number) => {
+  const handleRowFieldChange = (
+    index: number,
+    field: "quantity" | "weight" | "unitPrice",
+    value: number
+  ) => {
     setReturnRows((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: Math.max(0, value) };
@@ -443,7 +463,15 @@ export const SalesReturnCreatePage: React.FC = () => {
 
     // Expand sales products into included component production products for backend
     const gradeName = getGradeName();
-    const expandedItems: { productId: number; quantity: number; weight: number; uom: string; unitPrice: number; taxRate: number; reason: string }[] = [];
+    const expandedItems: {
+      productId: number;
+      quantity: number;
+      weight: number;
+      uom: string;
+      unitPrice: number;
+      taxRate: number;
+      reason: string;
+    }[] = [];
 
     activeReturnItems.forEach((r) => {
       const includedComps = r.components.filter((c) => c.included);
@@ -469,7 +497,8 @@ export const SalesReturnCreatePage: React.FC = () => {
           }
 
           // Proportional share of the user's entered price
-          const share = autoTotal > 0 ? (basePrice * comp.perUnit) / autoTotal : 1 / includedComps.length;
+          const share =
+            autoTotal > 0 ? (basePrice * comp.perUnit) / autoTotal : 1 / includedComps.length;
           const compUnitPrice = (r.unitPrice * share) / comp.perUnit;
 
           expandedItems.push({
@@ -525,7 +554,9 @@ export const SalesReturnCreatePage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <CommonLoader text={isEditMode ? "Loading Sales Return Details..." : "Loading Sales Return Form..."} />
+        <CommonLoader
+          text={isEditMode ? "Loading Sales Return Details..." : "Loading Sales Return Form..."}
+        />
       </div>
     );
   }
@@ -562,7 +593,8 @@ export const SalesReturnCreatePage: React.FC = () => {
                   const gradeShort = rawGrade ? rawGrade.replace(/grade\s*/i, "").trim() : "";
                   const gradeTag = gradeShort ? `(${gradeShort})` : null;
 
-                  const location = c.billingCity || c.city || c.shippingCity || c.customerType?.name;
+                  const location =
+                    c.billingCity || c.city || c.shippingCity || c.customerType?.name;
                   const locationTag = location ? `(${location.toLowerCase()})` : null;
 
                   const parts = [name, gradeTag, locationTag].filter(Boolean);
@@ -580,7 +612,6 @@ export const SalesReturnCreatePage: React.FC = () => {
                 }}
               />
             </div>
-
           </div>
 
           {/* Items Section */}
@@ -588,7 +619,9 @@ export const SalesReturnCreatePage: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold text-ink uppercase tracking-wide">
                 Return Line Items <span className="text-red-500">*</span>
-                <span className="text-ink-muted font-normal normal-case ml-1 text-xs">(Select sales products and specify quantities to return)</span>
+                <span className="text-ink-muted font-normal normal-case ml-1 text-xs">
+                  (Select sales products and specify quantities to return)
+                </span>
               </h4>
               <CustomButton
                 type="button"
@@ -599,20 +632,30 @@ export const SalesReturnCreatePage: React.FC = () => {
               />
             </div>
 
-            {errors.rows && (
-              <p className="text-red-500 text-sm mb-2">{errors.rows}</p>
-            )}
+            {errors.rows && <p className="text-red-500 text-sm mb-2">{errors.rows}</p>}
 
             <div className="border border-line-soft rounded-xl overflow-hidden bg-card">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-card-2 border-b border-line-soft">
-                    <th className="py-2 pl-3 pr-1 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wide w-8">#</th>
-                    <th className="py-2 px-1 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wide">Sales Product</th>
-                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-20">Qty</th>
-                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-40">Weight / UOM</th>
-                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-28">Unit Price</th>
-                    <th className="py-2 px-1 text-right text-[11px] font-bold text-ink-muted uppercase tracking-wide w-28">Total</th>
+                    <th className="py-2 pl-3 pr-1 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wide w-8">
+                      #
+                    </th>
+                    <th className="py-2 px-1 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wide">
+                      Sales Product
+                    </th>
+                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-20">
+                      Qty
+                    </th>
+                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-40">
+                      Weight / UOM
+                    </th>
+                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-28">
+                      Unit Price
+                    </th>
+                    <th className="py-2 px-1 text-right text-[11px] font-bold text-ink-muted uppercase tracking-wide w-28">
+                      Total
+                    </th>
                     <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-10"></th>
                   </tr>
                 </thead>
@@ -646,8 +689,14 @@ export const SalesReturnCreatePage: React.FC = () => {
                                 searchable
                                 error={errors[`product_${idx}`]}
                                 options={availableSalesProducts.map((p) => {
-                                  const usedByOther = returnRows.some((r, i) => i !== idx && r.productId === p.productId);
-                                  return { label: p.description, value: String(p.productId), disabled: usedByOther };
+                                  const usedByOther = returnRows.some(
+                                    (r, i) => i !== idx && r.productId === p.productId
+                                  );
+                                  return {
+                                    label: p.description,
+                                    value: String(p.productId),
+                                    disabled: usedByOther,
+                                  };
                                 })}
                                 onChange={(e) => handleProductSelect(idx, e.target.value)}
                               />
@@ -661,7 +710,11 @@ export const SalesReturnCreatePage: React.FC = () => {
                               min="0"
                               preventNegative
                               onChange={(e: any) =>
-                                handleRowFieldChange(idx, "quantity", parseFloat(e.target.value) || 0)
+                                handleRowFieldChange(
+                                  idx,
+                                  "quantity",
+                                  parseFloat(e.target.value) || 0
+                                )
                               }
                               error={errors[`qty_${idx}`]}
                             />
@@ -689,7 +742,11 @@ export const SalesReturnCreatePage: React.FC = () => {
                               step="0.01"
                               preventNegative
                               onChange={(e: any) =>
-                                handleRowFieldChange(idx, "unitPrice", parseFloat(e.target.value) || 0)
+                                handleRowFieldChange(
+                                  idx,
+                                  "unitPrice",
+                                  parseFloat(e.target.value) || 0
+                                )
                               }
                               placeholder="0"
                               error={errors[`unitPrice_${idx}`]}
@@ -697,8 +754,12 @@ export const SalesReturnCreatePage: React.FC = () => {
                           </td>
                           <td className="py-2 px-1 text-right font-bold whitespace-nowrap">
                             {lineTot > 0 ? (
-                              <span className="text-emerald-500 text-sm">₹{lineTot.toFixed(2)}</span>
-                            ) : "—"}
+                              <span className="text-emerald-500 text-sm">
+                                ₹{lineTot.toFixed(2)}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
                           </td>
                           <td className="py-1 px-1 w-10 text-center">
                             <DeleteButton onClick={() => handleRemoveRow(idx)} />
@@ -712,9 +773,15 @@ export const SalesReturnCreatePage: React.FC = () => {
                               <div className="ml-6 rounded-md border border-line-soft overflow-hidden">
                                 <div className="grid grid-cols-[auto_1fr_auto_80px] gap-2 px-3 py-1.5 bg-card-2 border-b border-line-soft">
                                   <div className="w-4" />
-                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">Component</span>
-                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">Per Unit</span>
-                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">Qty</span>
+                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                                    Component
+                                  </span>
+                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">
+                                    Per Unit
+                                  </span>
+                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">
+                                    Qty
+                                  </span>
                                 </div>
                                 {row.components.map((comp, compIdx) => (
                                   <div
@@ -727,10 +794,14 @@ export const SalesReturnCreatePage: React.FC = () => {
                                       onChange={() => handleToggleComponent(idx, compIdx)}
                                       className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer"
                                     />
-                                    <span className={`text-xs ${comp.included ? "text-ink font-medium" : "line-through text-ink-subtle"}`}>
+                                    <span
+                                      className={`text-xs ${comp.included ? "text-ink font-medium" : "line-through text-ink-subtle"}`}
+                                    >
                                       {comp.productName}
                                     </span>
-                                    <span className="text-[11px] text-ink-subtle text-center w-12">x{comp.perUnit}</span>
+                                    <span className="text-[11px] text-ink-subtle text-center w-12">
+                                      x{comp.perUnit}
+                                    </span>
                                     <span className="text-xs text-ink font-medium text-center">
                                       {comp.included ? comp.perUnit * row.quantity : 0}
                                     </span>
@@ -779,12 +850,7 @@ export const SalesReturnCreatePage: React.FC = () => {
 
         {/* Footer Actions */}
         <div className="flex justify-end gap-3 px-5 py-4 border-t border-line">
-          <CustomButton
-            text="Clear"
-            variant="danger"
-            onClick={handleReset}
-            disabled={submitting}
-          />
+          <CustomButton text="Clear" variant="danger" onClick={handleReset} disabled={submitting} />
           <CustomButton
             text={submitting ? "Saving..." : isEditMode ? "Update Return" : "Confirm Return"}
             onClick={handleSubmit}

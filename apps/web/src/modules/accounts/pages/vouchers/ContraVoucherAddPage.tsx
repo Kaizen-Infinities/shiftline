@@ -1,10 +1,33 @@
 import React, { useState, useCallback, useRef } from "react";
 import { useFormShortcuts } from "../../../../hooks/useFormShortcuts";
-import { FaExchangeAlt, FaPlus } from "react-icons/fa";
+import { Plus } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  Field,
+  PageHeader,
+  Tile,
+  fieldControlClass,
+} from "../../../../components/ui/v2";
+import {
+  BalanceSummary,
+  EntryFooter,
+  Kbd,
+  KeyHints,
+  VOUCHER_KINDS,
+  VoucherTypeNav,
+  ctrlEnterSubmit,
+  fmtAmt,
+  gridInputClass,
+  gridLedgerCellClass,
+  gridThClass,
+} from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import { voucherService, type Voucher } from "../../../../services/voucherService";
 import { accountService, type AccountLedger } from "../../../../services/accountService";
-import LedgerSearchInput, { isBankOrCashLedger } from "../../../../components/form/LedgerSearchInput/LedgerSearchInput";
+import LedgerSearchInput, {
+  isBankOrCashLedger,
+} from "../../../../components/form/LedgerSearchInput/LedgerSearchInput";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import { useListCache, prependToListCacheByPrefix } from "../../../../hooks/useListCache";
 
@@ -28,8 +51,7 @@ const makeEmptyRow = (idx: number): ContraRow => ({
   narration: "",
 });
 
-const buildEmptyRows = () =>
-  Array.from({ length: INITIAL_ROW_COUNT }, (_, i) => makeEmptyRow(i));
+const buildEmptyRows = () => Array.from({ length: INITIAL_ROW_COUNT }, (_, i) => makeEmptyRow(i));
 
 const ContraVoucherAddPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
@@ -141,8 +163,8 @@ const ContraVoucherAddPage: React.FC = () => {
       const amt = parseFloat(r.amount);
       const isDOut = r.dc === "D"; // D = Out = source = Credit posting
       return {
-        debitLedgerId: !isDOut ? parseInt(r.ledgerId, 10) : null,  // C = In = Debit
-        creditLedgerId: isDOut ? parseInt(r.ledgerId, 10) : null,  // D = Out = Credit
+        debitLedgerId: !isDOut ? parseInt(r.ledgerId, 10) : null, // C = In = Debit
+        creditLedgerId: isDOut ? parseInt(r.ledgerId, 10) : null, // D = Out = Credit
         debitAmount: !isDOut ? amt : 0,
         creditAmount: isDOut ? amt : 0,
         narration: r.narration || mainNarration || "Contra Entry",
@@ -170,220 +192,238 @@ const ContraVoucherAddPage: React.FC = () => {
   };
 
   return (
-    <div className="p-3">
-      <div className="w-full lg:w-7xl max-w-full">
-        <form onSubmit={handleSubmit} className="bg-card border border-line rounded-md overflow-hidden shadow-sm">
-          {/* Title bar */}
-          <div className="bg-rose-600/90 text-white text-[11px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
-            Add Contra Voucher
-          </div>
+    <form onSubmit={handleSubmit} onKeyDown={ctrlEnterSubmit} className="w-full" noValidate={false}>
+      <PageHeader
+        title="New contra voucher"
+        subtitle={VOUCHER_KINDS.CONTRA.hint}
+        back="/accounts/contra-entry"
+        backLabel="Back to contra register"
+        breadcrumbs={[
+          { label: "Accounts" },
+          { label: "Contra Register", to: "/accounts/contra-entry" },
+          { label: "New" },
+        ]}
+        meta={<Chip tone="muted">Vch no. assigned on save</Chip>}
+      >
+        <VoucherTypeNav current="CONTRA" target="add" />
+      </PageHeader>
 
-          {/* Top meta */}
-          <div className="px-3 py-2 border-b border-line grid grid-cols-12 gap-x-2 gap-y-1.5 text-[11px] items-center">
-            <label className="col-span-1 text-ink-subtle font-semibold text-right">Date</label>
-            <div className="col-span-4">
-              <DatePickerCalendar name="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </div>
+      <Tile title="Voucher details" className="mb-4">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
+          <DatePickerCalendar
+            name="date"
+            label="Date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+          <Field label="Narration" hint="Used for every line that has no narration of its own">
+            <input
+              type="text"
+              value={mainNarration}
+              onChange={(e) => setMainNarration(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  focusCell(0, "dc");
+                }
+              }}
+              className={fieldControlClass()}
+            />
+          </Field>
+        </div>
+      </Tile>
 
-            <label className="col-span-1 text-ink-subtle font-semibold text-right">Vch No.</label>
-            <div className="col-span-6 text-ink-subtle font-mono text-[11px] italic">
-              (auto)
-            </div>
-
-            <label className="col-span-1 text-ink-subtle font-semibold text-right">Narration</label>
-            <div className="col-span-11">
-              <input
-                type="text"
-                placeholder=""
-                value={mainNarration}
-                onChange={(e) => setMainNarration(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    focusCell(0, "dc");
-                  }
-                }}
-                className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-rose-500/40 focus:border-rose-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Spreadsheet table */}
-          <div className="border-b border-line" ref={tableRef}>
-            <table className="w-full text-[11px] border-collapse">
-              <thead>
-                <tr className="bg-card-2 text-ink font-bold border-b border-line">
-                  <th className="w-10 px-2 py-1 text-center border-r border-line">S.No</th>
-                  <th className="w-20 px-2 py-1 text-center border-r border-line">
-                    D / C
-                    <div className="text-[9px] font-normal text-ink-subtle normal-case tracking-normal">
-                      D=Out(↓) · C=In(↑)
-                    </div>
-                  </th>
-                  <th className="px-2 py-1 text-left border-r border-line">Account (Cash / Bank)</th>
-                  <th className="w-28 px-2 py-1 text-right border-r border-line text-red-400">Debit (Rs.)</th>
-                  <th className="w-28 px-2 py-1 text-right border-r border-line text-emerald-500">Credit (Rs.)</th>
-                  <th className="px-2 py-1 text-left">Short Narration</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, idx) => {
-                  const unlocked = isRowUnlocked(idx);
-                  const isDebit = row.dc === "D";
-                  return (
-                    <tr
-                      key={row.id}
-                      className={`border-b border-line-soft last:border-b-0 ${unlocked ? "" : "bg-card-2/10"}`}
+      <Tile
+        padding="none"
+        title="Entries"
+        subtitle="D = money out of the account, C = money into it"
+        divider
+      >
+        <div className="overflow-x-auto" ref={tableRef}>
+          <table className="w-full min-w-[760px] border-collapse text-[14px]">
+            <thead>
+              <tr>
+                <th scope="col" className={gridThClass("center", "w-12")}>
+                  #
+                </th>
+                <th scope="col" className={gridThClass("center", "w-16")}>
+                  D/C
+                </th>
+                <th scope="col" className={gridThClass("left")}>
+                  Account (cash / bank)
+                </th>
+                <th scope="col" className={gridThClass("right", "w-40")}>
+                  Debit (₹)
+                </th>
+                <th scope="col" className={gridThClass("right", "w-40")}>
+                  Credit (₹)
+                </th>
+                <th scope="col" className={gridThClass("left", "w-[26%]")}>
+                  Short narration
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => {
+                const unlocked = isRowUnlocked(idx);
+                const isDebit = row.dc === "D";
+                return (
+                  <tr
+                    key={row.id}
+                    className={`border-b border-line-soft last:border-b-0 ${unlocked ? "" : "bg-card-2/40"}`}
+                  >
+                    <td
+                      className={`w-12 text-center text-[12px] tabular-nums ${unlocked ? "text-ink-muted" : "text-ink-subtle/60"}`}
                     >
-                      <td className={`w-10 px-2 py-0 text-center border-r border-line font-mono text-[11px] ${unlocked ? "text-ink-subtle bg-card-2/40" : "text-ink-subtle/40 bg-card-2/20"}`}>
-                        {idx + 1}
-                      </td>
-                      <td className="w-20 px-0 py-0 border-r border-line text-center">
-                        <select
-                          data-cell={`${idx}-dc`}
-                          value={row.dc}
-                          onChange={(e) => updateRow(row.id, "dc", e.target.value)}
+                      {idx + 1}
+                    </td>
+                    <td className="w-16 border-l border-line-soft">
+                      <select
+                        data-cell={`${idx}-dc`}
+                        aria-label={`Line ${idx + 1} debit or credit`}
+                        value={row.dc}
+                        onChange={(e) => updateRow(row.id, "dc", e.target.value)}
+                        disabled={!unlocked}
+                        className={gridInputClass(!unlocked, "text-center font-semibold")}
+                      >
+                        <option value="D">D</option>
+                        <option value="C">C</option>
+                      </select>
+                    </td>
+                    <td className="border-l border-line-soft">
+                      <div data-cell={`${idx}-account`} className={gridLedgerCellClass}>
+                        <LedgerSearchInput
+                          value={row.ledgerId}
+                          ledgers={ledgers}
+                          onChange={(val) => updateRow(row.id, "ledgerId", val)}
+                          placeholder={unlocked ? "Type to search ledgers" : ""}
+                          filterFn={isBankOrCashLedger}
+                          accentColor="rose-500"
+                          variant="cell"
+                          onSelected={() => focusCell(idx, "amount")}
                           disabled={!unlocked}
-                          className={`w-full px-1 py-1 bg-transparent border-0 text-[11px] font-bold font-mono text-center focus:outline-none focus:bg-card-2/60 ${
-                            row.dc === "D" ? "text-red-400" : "text-emerald-500"
-                          } ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
-                        >
-                          <option value="D">D</option>
-                          <option value="C">C</option>
-                        </select>
-                      </td>
-                      <td className="px-0 py-0 border-r border-line">
-                        <div data-cell={`${idx}-account`}>
-                          <LedgerSearchInput
-                            value={row.ledgerId}
-                            ledgers={ledgers}
-                            onChange={(val) => updateRow(row.id, "ledgerId", val)}
-                            placeholder=""
-                            filterFn={isBankOrCashLedger}
-                            accentColor="rose-500"
-                            variant="cell"
-                            onSelected={() => focusCell(idx, "amount")}
-                            disabled={!unlocked}
-                          />
-                        </div>
-                      </td>
-                      <td className="w-28 px-0 py-0 border-r border-line">
-                        {isDebit ? (
-                          <input
-                            data-cell={`${idx}-amount`}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder=""
-                            value={row.amount}
-                            onChange={(e) => updateRow(row.id, "amount", e.target.value)}
-                            onKeyDown={(e) => handleAmountKeyDown(e, idx)}
-                            disabled={!unlocked}
-                            className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-red-400 text-right font-mono focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
-                          />
-                        ) : (
-                          <div className="w-full px-2 py-1 text-right text-ink-subtle/30 font-mono">-</div>
-                        )}
-                      </td>
-                      <td className="w-28 px-0 py-0 border-r border-line">
-                        {!isDebit ? (
-                          <input
-                            data-cell={`${idx}-amount`}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder=""
-                            value={row.amount}
-                            onChange={(e) => updateRow(row.id, "amount", e.target.value)}
-                            onKeyDown={(e) => handleAmountKeyDown(e, idx)}
-                            disabled={!unlocked}
-                            className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-emerald-500 text-right font-mono focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
-                          />
-                        ) : (
-                          <div className="w-full px-2 py-1 text-right text-ink-subtle/30 font-mono">-</div>
-                        )}
-                      </td>
-                      <td className="px-0 py-0">
-                        <input
-                          data-cell={`${idx}-narration`}
-                          type="text"
-                          placeholder=""
-                          value={row.narration}
-                          onChange={(e) => updateRow(row.id, "narration", e.target.value)}
-                          onKeyDown={(e) => handleNarrationKeyDown(e, idx)}
-                          disabled={!unlocked}
-                          className={`w-full px-2 py-1 bg-transparent border-0 text-[11px] text-ink focus:outline-none focus:bg-card-2/60 ${!unlocked ? "opacity-40 cursor-not-allowed" : ""}`}
                         />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="bg-card-2 border-t border-line">
-                  <td className="px-2 py-1 text-left" colSpan={3}>
-                    <button
-                      type="button"
-                      onClick={addRow}
-                      className="flex items-center gap-1 text-[10px] font-semibold text-rose-500 hover:text-rose-600 cursor-pointer"
-                    >
-                      <FaPlus className="w-2 h-2" /> Add Row
-                    </button>
-                  </td>
-                  <td className="w-28 px-2 py-1 text-right font-mono font-bold text-red-400 border-l border-line">
-                    {totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="w-28 px-2 py-1 text-right font-mono font-bold text-emerald-500 border-l border-line">
-                    {totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="px-2 py-1 text-[10px] italic">
-                    {hasAnyAmount ? (
-                      isBalanced ? (
-                        <span className="text-emerald-600 font-semibold">Balanced · {validCount} entries</span>
+                      </div>
+                    </td>
+                    {/* Debit column — filled only when D/C = D */}
+                    <td className="w-40 border-l border-line-soft">
+                      {isDebit ? (
+                        <input
+                          data-cell={`${idx}-amount`}
+                          aria-label={`Line ${idx + 1} debit amount`}
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          value={row.amount}
+                          onChange={(e) => updateRow(row.id, "amount", e.target.value)}
+                          onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                          disabled={!unlocked}
+                          className={gridInputClass(!unlocked, "text-right tabular-nums")}
+                        />
                       ) : (
-                        <span className="text-red-500 font-semibold">
-                          Diff: {Math.abs(diff).toFixed(2)} {diff > 0 ? "(Cr short)" : "(Dr short)"}
-                        </span>
-                      )
-                    ) : (
-                      <span className="text-ink-subtle">{validCount} valid entries</span>
-                    )}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                        <div className="px-3 text-right text-ink-subtle/50" aria-hidden="true">
+                          —
+                        </div>
+                      )}
+                    </td>
+                    {/* Credit column — filled only when D/C = C */}
+                    <td className="w-40 border-l border-line-soft">
+                      {!isDebit ? (
+                        <input
+                          data-cell={`${idx}-amount`}
+                          aria-label={`Line ${idx + 1} credit amount`}
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min="0"
+                          value={row.amount}
+                          onChange={(e) => updateRow(row.id, "amount", e.target.value)}
+                          onKeyDown={(e) => handleAmountKeyDown(e, idx)}
+                          disabled={!unlocked}
+                          className={gridInputClass(!unlocked, "text-right tabular-nums")}
+                        />
+                      ) : (
+                        <div className="px-3 text-right text-ink-subtle/50" aria-hidden="true">
+                          —
+                        </div>
+                      )}
+                    </td>
+                    <td className="border-l border-line-soft">
+                      <input
+                        data-cell={`${idx}-narration`}
+                        aria-label={`Line ${idx + 1} narration`}
+                        type="text"
+                        value={row.narration}
+                        onChange={(e) => updateRow(row.id, "narration", e.target.value)}
+                        onKeyDown={(e) => handleNarrationKeyDown(e, idx)}
+                        disabled={!unlocked}
+                        className={gridInputClass(!unlocked)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-line bg-card-2">
+                <td colSpan={3} className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={addRow}
+                    className="sl-btn-ghost sl-pill-sm text-accent"
+                  >
+                    <Plus size={15} aria-hidden="true" /> Add line
+                  </button>
+                </td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-ink">
+                  {fmtAmt(totalDebit)}
+                </td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-ink">
+                  {fmtAmt(totalCredit)}
+                </td>
+                <td className="px-3 py-2 text-[12px] text-ink-muted">{validCount} valid entries</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div className="border-t border-line-soft px-4 py-4 sm:px-5">
+          <BalanceSummary debit={totalDebit} credit={totalCredit} count={validCount} />
+          {hasAnyAmount && !isBalanced && (
+            <p className="sl-muted m-0 mt-2 text-[13px]">
+              Debit and credit must be equal before the voucher can be saved (difference{" "}
+              {fmtAmt(Math.abs(diff))}).
+            </p>
+          )}
+        </div>
+      </Tile>
 
-          {/* Bottom action bar */}
-          <div className="px-3 py-2 flex items-center justify-between bg-card-2/40">
-            <div className="flex items-center gap-2 text-[11px] text-ink-subtle">
-              <FaExchangeAlt className="text-rose-500" />
-              <span>
-                <b className="text-red-400">D</b> = Debit (Amount ↓) &nbsp;·&nbsp;
-                <b className="text-emerald-500">C</b> = Credit (Amount ↑) &nbsp;·&nbsp;
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Enter</kbd> to next
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-1 text-ink bg-card-2 hover:bg-card border border-line rounded font-semibold text-[11px] transition cursor-pointer"
-              >
-                Quit
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded font-semibold text-[11px] transition disabled:opacity-50 cursor-pointer"
-              >
-                {submitting ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+      <EntryFooter
+        hints={
+          <KeyHints
+            hints={[
+              [<Kbd key="dc">D</Kbd>, "= out, C = in"],
+              [<Kbd key="enter">Enter</Kbd>, "next cell"],
+              [
+                <span key="save" className="inline-flex gap-1">
+                  <Kbd>Ctrl</Kbd>
+                  <Kbd>Enter</Kbd>
+                </span>,
+                "save",
+              ],
+            ]}
+          />
+        }
+      >
+        <ActionPill variant="secondary" onClick={resetForm}>
+          Quit
+        </ActionPill>
+        <ActionPill type="submit" loading={submitting} loadingText="Saving...">
+          Post Voucher
+        </ActionPill>
+      </EntryFooter>
+    </form>
   );
 };
 
