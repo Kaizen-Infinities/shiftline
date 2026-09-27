@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaUndo, FaPlus, FaTimes } from "react-icons/fa";
+import { FaPlus, FaTimes } from "react-icons/fa";
 import { toast } from "react-toastify";
 
 import { returnService, type SalesReturn } from "../../../../services/returnService";

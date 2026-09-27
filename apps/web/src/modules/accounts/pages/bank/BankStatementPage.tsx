@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaSync } from "react-icons/fa";
+
 import { Landmark, RefreshCw } from "lucide-react";
 import { ActionPill, PageHeader } from "../../../../components/ui/v2";
 import { toast } from "react-toastify";
