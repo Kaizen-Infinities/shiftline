@@ -19,7 +19,9 @@ import { usePermission } from "../../../hooks/usePermission";
 
 const InfoField = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div>
-    <p className="text-[11px] uppercase tracking-wider text-ink-subtle font-extrabold mb-1">{label}</p>
+    <p className="text-[11px] uppercase tracking-wider text-ink-subtle font-extrabold mb-1">
+      {label}
+    </p>
     <div className="text-sm font-bold text-ink">{value || "—"}</div>
   </div>
 );
@@ -59,11 +61,17 @@ const GoodsDispatchView: React.FC = () => {
   }, [dispatch, id]);
 
   if (loading && !dispatchData) {
-    return <div className="p-8 text-center text-ink-subtle font-semibold">Loading dispatch details...</div>;
+    return (
+      <div className="p-8 text-center text-ink-subtle font-semibold">
+        Loading dispatch details...
+      </div>
+    );
   }
 
   if (!dispatchData) {
-    return <div className="p-8 text-center text-red-400 font-semibold">Goods Dispatch not found.</div>;
+    return (
+      <div className="p-8 text-center text-red-400 font-semibold">Goods Dispatch not found.</div>
+    );
   }
 
   const handleGateApproval = async (action: "APPROVE" | "REJECT") => {
@@ -72,7 +80,9 @@ const GoodsDispatchView: React.FC = () => {
       return;
     }
     try {
-      await dispatch(gateApproveDispatch({ id: dispatchData.id, data: { action, remarks } })).unwrap();
+      await dispatch(
+        gateApproveDispatch({ id: dispatchData.id, data: { action, remarks } })
+      ).unwrap();
       toast.success(`Gate approval ${action.toLowerCase()} processed`);
       setRemarks("");
     } catch (err: any) {
@@ -86,17 +96,20 @@ const GoodsDispatchView: React.FC = () => {
       return;
     }
     try {
-      const receivedItems = action === "APPROVE" 
-        ? dispatchData.items?.map((item: any) => ({
-            itemId: Number(item.id),
-            receivedQty: Number(receivedQuantities[item.id] || item.dispatchQty)
-          }))
-        : undefined;
+      const receivedItems =
+        action === "APPROVE"
+          ? dispatchData.items?.map((item: any) => ({
+              itemId: Number(item.id),
+              receivedQty: Number(receivedQuantities[item.id] || item.dispatchQty),
+            }))
+          : undefined;
 
-      await dispatch(storeReceiveDispatch({ 
-        id: dispatchData.id, 
-        data: { action, remarks, receivedItems } 
-      })).unwrap();
+      await dispatch(
+        storeReceiveDispatch({
+          id: dispatchData.id,
+          data: { action, remarks, receivedItems },
+        })
+      ).unwrap();
       toast.success(`Store receipt ${action.toLowerCase()} processed`);
       setRemarks("");
     } catch (err: any) {
@@ -135,7 +148,12 @@ const GoodsDispatchView: React.FC = () => {
                   <thead className="bg-card-2 border-b border-line-soft">
                     <tr>
                       {["PO No", "Product", "Dispatch Qty", "Received Qty"].map((h, i) => (
-                        <th key={h} className={`text-[11px] uppercase tracking-wider text-ink-subtle font-extrabold px-4 py-3 ${i >= 3 ? "text-right" : "text-left"}`}>{h}</th>
+                        <th
+                          key={h}
+                          className={`text-[11px] uppercase tracking-wider text-ink-subtle font-extrabold px-4 py-3 ${i >= 3 ? "text-right" : "text-left"}`}
+                        >
+                          {h}
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -147,7 +165,9 @@ const GoodsDispatchView: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 text-sm text-ink">
                           <div className="font-bold text-ink">{item.product?.productName}</div>
-                          <div className="text-xs text-ink-subtle font-mono mt-0.5">{item.product?.productCode}</div>
+                          <div className="text-xs text-ink-subtle font-mono mt-0.5">
+                            {item.product?.productCode}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-right font-bold text-ink">
                           {Number(item.dispatchQty)} {formatUOM(item.uom)}
@@ -168,20 +188,32 @@ const GoodsDispatchView: React.FC = () => {
                                     if (val > Number(item.dispatchQty)) {
                                       val = Number(item.dispatchQty);
                                     }
-                                    setReceivedQuantities(prev => ({ ...prev, [item.id]: String(val) }));
+                                    setReceivedQuantities((prev) => ({
+                                      ...prev,
+                                      [item.id]: String(val),
+                                    }));
                                   }}
                                 />
                               </div>
-                              <span className="text-xs text-ink-subtle font-semibold">{formatUOM(item.uom)}</span>
+                              <span className="text-xs text-ink-subtle font-semibold">
+                                {formatUOM(item.uom)}
+                              </span>
                             </div>
                           ) : (
                             <div className="flex flex-col items-end gap-1">
-                              <div>{item.receivedQty !== null && item.receivedQty !== undefined ? `${Number(item.receivedQty)} ${formatUOM(item.uom)}` : "—"}</div>
-                              {item.receivedQty !== null && item.receivedQty !== undefined && Number(item.receivedQty) < Number(item.dispatchQty) && (
-                                <span className="inline-flex items-center bg-red-500/15 text-red-400 px-2 py-0.5 rounded text-[10px] font-bold border border-red-500/30">
-                                  {Number(item.dispatchQty) - Number(item.receivedQty)} {formatUOM(item.uom)} Missing
-                                </span>
-                              )}
+                              <div>
+                                {item.receivedQty !== null && item.receivedQty !== undefined
+                                  ? `${Number(item.receivedQty)} ${formatUOM(item.uom)}`
+                                  : "—"}
+                              </div>
+                              {item.receivedQty !== null &&
+                                item.receivedQty !== undefined &&
+                                Number(item.receivedQty) < Number(item.dispatchQty) && (
+                                  <span className="inline-flex items-center bg-red-500/15 text-red-400 px-2 py-0.5 rounded text-[10px] font-bold border border-red-500/30">
+                                    {Number(item.dispatchQty) - Number(item.receivedQty)}{" "}
+                                    {formatUOM(item.uom)} Missing
+                                  </span>
+                                )}
                             </div>
                           )}
                         </td>
@@ -255,7 +287,11 @@ const GoodsDispatchView: React.FC = () => {
                 <div className="p-5 space-y-4">
                   <div className="bg-primary/10 border border-primary/20 rounded-xl p-3">
                     <p className="text-xs text-primary font-medium leading-relaxed">
-                      Approving this will automatically update the Finished Goods Stock in <span className="font-bold">{dispatchData.store?.storeName || "the destination store"}</span>.
+                      Approving this will automatically update the Finished Goods Stock in{" "}
+                      <span className="font-bold">
+                        {dispatchData.store?.storeName || "the destination store"}
+                      </span>
+                      .
                     </p>
                   </div>
                   <textarea
@@ -302,7 +338,8 @@ const GoodsDispatchView: React.FC = () => {
                       color: "bg-primary",
                     },
                     {
-                      label: dispatchData.status === "GATE_REJECTED" ? "Gate Rejected" : "Gate Approved",
+                      label:
+                        dispatchData.status === "GATE_REJECTED" ? "Gate Rejected" : "Gate Approved",
                       date: dispatchData.gateApprovedAt,
                       done: !!dispatchData.gateApprovedAt,
                       rejected: dispatchData.status === "GATE_REJECTED",
@@ -310,12 +347,16 @@ const GoodsDispatchView: React.FC = () => {
                       color: dispatchData.status === "GATE_REJECTED" ? "bg-red-500" : "bg-primary",
                     },
                     {
-                      label: dispatchData.status === "STORE_REJECTED" ? "Store Rejected" : "Warehouse Received",
+                      label:
+                        dispatchData.status === "STORE_REJECTED"
+                          ? "Store Rejected"
+                          : "Warehouse Received",
                       date: dispatchData.storeReceivedAt,
                       done: !!dispatchData.storeReceivedAt,
                       rejected: dispatchData.status === "STORE_REJECTED",
                       remarks: dispatchData.storeRemarks,
-                      color: dispatchData.status === "STORE_REJECTED" ? "bg-red-500" : "bg-emerald-500",
+                      color:
+                        dispatchData.status === "STORE_REJECTED" ? "bg-red-500" : "bg-emerald-500",
                     },
                   ];
 
@@ -355,7 +396,9 @@ const GoodsDispatchView: React.FC = () => {
 
                           {/* Right: label + date + remarks */}
                           <div className={`pb-4 ${idx === steps.length - 1 ? "pb-0" : ""}`}>
-                            <p className={`text-[12px] font-extrabold leading-tight ${step.rejected ? "text-red-400" : step.done ? "text-ink" : "text-ink-subtle"}`}>
+                            <p
+                              className={`text-[12px] font-extrabold leading-tight ${step.rejected ? "text-red-400" : step.done ? "text-ink" : "text-ink-subtle"}`}
+                            >
                               {step.label}
                             </p>
                             {step.date && (
@@ -364,7 +407,9 @@ const GoodsDispatchView: React.FC = () => {
                               </p>
                             )}
                             {step.remarks && (
-                              <p className="text-[11px] text-ink-subtle mt-1 italic leading-tight">"{step.remarks}"</p>
+                              <p className="text-[11px] text-ink-subtle mt-1 italic leading-tight">
+                                "{step.remarks}"
+                              </p>
                             )}
                           </div>
                         </div>
