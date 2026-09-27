@@ -133,33 +133,43 @@ export const findAreaByPath = (
 };
 
 /** Human label for the last segment of a detail URL ("edit", "view", "create"). */
-const detailLabel = (path: string, root: string): string | null => {
+export const DETAIL_WORDS: Record<string, string> = {
+  create: "New",
+  add: "New",
+  edit: "Edit",
+  view: "Details",
+  details: "Details",
+  detail: "Details",
+  history: "History",
+  report: "Report",
+  "gate-approval": "Gate approval",
+  "store-approval": "Store approval",
+  "material-prices": "Material prices",
+};
+
+const detailLabel = (
+  path: string,
+  root: string,
+  words: Record<string, string> = DETAIL_WORDS
+): string | null => {
   const rest = cleanPath(path).slice(cleanPath(root).length).split("/").filter(Boolean);
   if (rest.length === 0) return null;
-  const words: Record<string, string> = {
-    create: "New",
-    add: "New",
-    edit: "Edit",
-    view: "Details",
-    details: "Details",
-    detail: "Details",
-    history: "History",
-    report: "Report",
-    "gate-approval": "Gate approval",
-    "store-approval": "Store approval",
-    "material-prices": "Material prices",
-  };
   for (const segment of rest) {
     if (words[segment]) return words[segment];
   }
-  return "Details";
+  return words.details ?? "Details";
 };
 
 /**
  * Breadcrumbs for a URL: the area (linking to its hub), the screen, and a last crumb for
  * create/edit/detail pages. The dashboard is a single crumb.
  */
-export const breadcrumbsFor = (pathname: string, areas: NavArea[] = NAV_AREAS): Crumb[] => {
+export const breadcrumbsFor = (
+  pathname: string,
+  areas: NavArea[] = NAV_AREAS,
+  /** Labels for create/edit/detail crumbs, translated by the caller (TN-04). */
+  detailWords: Record<string, string> = DETAIL_WORDS
+): Crumb[] => {
   const path = cleanPath(pathname);
   const hub = /^\/hub\/([^/]+)$/.exec(path);
   if (hub) {
@@ -184,7 +194,7 @@ export const breadcrumbsFor = (pathname: string, areas: NavArea[] = NAV_AREAS): 
   }
   const root = [screen.path, ...(screen.matchPaths ?? [])].find((r) => isUnder(path, r));
   crumbs.push({ label: screen.title, path: screen.path });
-  const last = root ? detailLabel(path, root) : null;
+  const last = root ? detailLabel(path, root, detailWords) : null;
   if (last) crumbs.push({ label: last });
   return crumbs;
 };

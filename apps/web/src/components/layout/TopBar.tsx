@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Keyboard, Menu, Search } from "lucide-react";
+import { useT } from "../../i18n/I18nProvider";
 
 import { BrandMark } from "../brand/BrandMark";
 import { useCommandPalette } from "../command-palette/paletteContext";
@@ -27,6 +28,7 @@ const isMac = () =>
 const TopBar: React.FC<TopBarProps> = ({ onOpenMenu, menuButtonRef, onOpenShortcuts }) => {
   const crumbs = useBreadcrumbs();
   const { openPalette } = useCommandPalette();
+  const { t } = useT();
   const modKey = isMac() ? "⌘" : "Ctrl";
 
   return (
@@ -35,12 +37,12 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenMenu, menuButtonRef, onOpenShortc
         ref={menuButtonRef}
         type="button"
         onClick={onOpenMenu}
-        aria-label="Open navigation"
+        aria-label={t("shell.openNavigation")}
         className="sl-icon-btn sl-icon-btn-plain lg:hidden"
       >
         <Menu size={22} aria-hidden />
       </button>
-      <Link to="/dashboard" aria-label="Shiftline home" className="shrink-0 lg:hidden">
+      <Link to="/dashboard" aria-label={t("shell.home")} className="shrink-0 lg:hidden">
         <BrandMark size={34} />
       </Link>
 
@@ -52,11 +54,11 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenMenu, menuButtonRef, onOpenShortc
         type="button"
         onClick={openPalette}
         className="sl-search-trigger hidden w-[min(22rem,24vw)] shrink-0 md:flex"
-        aria-label="Search screens and actions"
+        aria-label={t("shell.searchScreens")}
         aria-keyshortcuts="Control+K Meta+K"
       >
         <Search size={17} aria-hidden className="shrink-0" />
-        <span className="flex-1 truncate text-left">Search screens and actions…</span>
+        <span className="flex-1 truncate text-left">{t("shell.searchPlaceholder")}</span>
         <span className="flex items-center gap-1" aria-hidden>
           <span className="sl-kbd">{modKey}</span>
           <span className="sl-kbd">K</span>
@@ -65,7 +67,7 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenMenu, menuButtonRef, onOpenShortc
       <button
         type="button"
         onClick={openPalette}
-        aria-label="Search screens and actions"
+        aria-label={t("shell.searchScreens")}
         className="sl-icon-btn md:hidden"
       >
         <Search size={18} aria-hidden />
@@ -75,8 +77,8 @@ const TopBar: React.FC<TopBarProps> = ({ onOpenMenu, menuButtonRef, onOpenShortc
       <button
         type="button"
         onClick={onOpenShortcuts}
-        aria-label="Keyboard shortcuts"
-        title="Keyboard shortcuts (F1)"
+        aria-label={t("shell.keyboardShortcuts")}
+        title={t("shell.keyboardShortcutsF1")}
         className="sl-icon-btn hidden lg:inline-flex"
       >
         <Keyboard size={18} aria-hidden />

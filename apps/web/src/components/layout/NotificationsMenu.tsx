@@ -6,6 +6,7 @@ import { useNotifications } from "../common/notifications/useNotifications";
 import { timeAgo } from "../common/notifications/NotificationBell";
 import type { AppNotification } from "../../services/notificationsService";
 import { useDismiss } from "./useDismiss";
+import { useT } from "../../i18n/I18nProvider";
 
 /** Dot colour per level; status colours come from the theme tokens. */
 const LEVEL_DOT: Record<AppNotification["level"], string> = {
@@ -22,6 +23,7 @@ const isNudge = (n: AppNotification) =>
 const NotificationsMenu: React.FC = () => {
   const navigate = useNavigate();
   const { items, unreadCount, markRead, markAllRead, enabled } = useNotifications(12);
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -42,7 +44,11 @@ const NotificationsMenu: React.FC = () => {
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        aria-label={
+          unreadCount
+            ? t("shell.notificationsUnread", { count: unreadCount })
+            : t("shell.notifications")
+        }
         aria-haspopup="dialog"
         aria-expanded={open}
         data-testid="notification-bell"
@@ -62,11 +68,11 @@ const NotificationsMenu: React.FC = () => {
       {open && (
         <div
           role="dialog"
-          aria-label="Latest notifications"
+          aria-label={t("shell.latestNotifications")}
           className="sl-popover sl-anim-pop absolute right-0 z-50 mt-2 w-[min(92vw,22rem)] overflow-hidden"
         >
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <span className="sl-h2 text-base">Notifications</span>
+            <span className="sl-h2 text-base">{t("shell.notifications")}</span>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-accent hover:bg-nav-hover disabled:opacity-50"
@@ -74,12 +80,14 @@ const NotificationsMenu: React.FC = () => {
               disabled={unreadCount === 0}
             >
               <CheckCheck size={14} aria-hidden />
-              Mark all read
+              {t("shell.markAllRead")}
             </button>
           </div>
           <ul className="sl-scroll max-h-96 overflow-auto px-2 pb-2">
             {items.length === 0 && (
-              <li className="px-3 py-8 text-center text-sm text-ink-muted">Nothing new for you</li>
+              <li className="px-3 py-8 text-center text-sm text-ink-muted">
+                {t("shell.nothingNew")}
+              </li>
             )}
             {items.map((n) => (
               <li key={n.id}>
@@ -99,7 +107,9 @@ const NotificationsMenu: React.FC = () => {
                         {n.title}
                       </span>
                       {isNudge(n) && (
-                        <span className="sl-chip !px-2 !py-0 text-[0.625rem]">Nudge</span>
+                        <span className="sl-chip !px-2 !py-0 text-[0.625rem]">
+                          {t("shell.nudge")}
+                        </span>
                       )}
                     </span>
                     {n.body && (
@@ -122,7 +132,7 @@ const NotificationsMenu: React.FC = () => {
                 navigate("/notifications");
               }}
             >
-              View all notifications
+              {t("shell.viewAllNotifications")}
             </button>
           </div>
         </div>
