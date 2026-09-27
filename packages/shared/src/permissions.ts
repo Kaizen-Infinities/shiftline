@@ -342,7 +342,11 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Customer delivery schedules and adherence",
   },
-  { module: "shift-execution", actions: ["view", "edit"], description: "Shift Execution Board" },
+  {
+    module: "shift-execution",
+    actions: ["view", "edit", "supervise"],
+    description: "Shift Execution Board (supervise: unlock every hour row)",
+  },
   { module: "oee-dashboard", actions: ["view", "export"], description: "OEE Dashboard" },
   {
     module: "bill_of_materials",

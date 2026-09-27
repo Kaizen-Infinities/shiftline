@@ -16,6 +16,8 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import apiClient from "../../../api/apiClient";
+import { API_PATHS } from "@shiftline/shared";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   fetchProductionOrders,
@@ -77,7 +79,11 @@ const ShiftExecutionBoard: React.FC = () => {
   const [activeHourIndex, setActiveHourIndex] = useState(1);
   const [supervisorMode, setSupervisorMode] = useState(false);
   const [showSupervisorModal, setShowSupervisorModal] = useState(false);
-  const [passcode, setPasscode] = useState("");
+  // The supervisor signs in with their own account; the server checks it and their
+  // shift-execution.supervise permission. Nothing secret lives in this page.
+  const [supervisorEmail, setSupervisorEmail] = useState("");
+  const [supervisorPassword, setSupervisorPassword] = useState("");
+  const [verifyingSupervisor, setVerifyingSupervisor] = useState(false);
 
   // Downtime modal state
   const [showDowntimeModal, setShowDowntimeModal] = useState(false);
@@ -335,15 +341,29 @@ const ShiftExecutionBoard: React.FC = () => {
   };
 
   // Supervisor override authentication
-  const handleSupervisorVerify = (e: React.FormEvent) => {
+  const handleSupervisorVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === "1234") {
+    if (!supervisorEmail || !supervisorPassword || verifyingSupervisor) return;
+    setVerifyingSupervisor(true);
+    try {
+      const res = await apiClient.post(API_PATHS.shiftExecution.supervisorOverride, {
+        email: supervisorEmail,
+        password: supervisorPassword,
+      });
+      const name: string | undefined = res.data?.data?.supervisorName;
       setSupervisorMode(true);
       setShowSupervisorModal(false);
-      setPasscode("");
-      toast.success("Supervisor Mode activated! Editing unlocked.");
-    } else {
-      toast.error("Incorrect passcode. Editing remains locked.");
+      toast.success(
+        `Supervisor mode unlocked${name ? ` by ${name}` : ""}. Every hour is editable.`
+      );
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ??
+          "Supervisor mode stays locked. Check the details and try again."
+      );
+    } finally {
+      setSupervisorPassword("");
+      setVerifyingSupervisor(false);
     }
   };
 
@@ -949,6 +969,8 @@ const ShiftExecutionBoard: React.FC = () => {
             </ActionPill>
             <ActionPill
               icon={<Unlock size={16} />}
+              loading={verifyingSupervisor}
+              disabled={!supervisorEmail || !supervisorPassword}
               onClick={() =>
                 handleSupervisorVerify({ preventDefault: () => {} } as unknown as React.FormEvent)
               }
@@ -958,18 +980,31 @@ const ShiftExecutionBoard: React.FC = () => {
           </div>
         }
       >
-        <form onSubmit={handleSupervisorVerify}>
+        <form onSubmit={handleSupervisorVerify} className="flex flex-col gap-4">
+          <p className="sl-muted text-sm">
+            A supervisor signs in with their own account to unlock every hour on this console.
+          </p>
           <TextInput
-            label="Enter Supervisor Passcode"
-            name="passcode"
-            type="password"
-            inputMode="numeric"
-            placeholder="Enter passcode (Hint: 1234)"
-            value={passcode}
+            label="Supervisor email"
+            name="supervisorEmail"
+            type="email"
+            autoComplete="off"
+            value={supervisorEmail}
             required
-            onChange={(e) => setPasscode(e.target.value)}
-            inputClassName="h-14 text-center font-mono text-[20px] tracking-[0.3em]"
+            onChange={(e) => setSupervisorEmail(e.target.value)}
+            inputClassName="h-12"
           />
+          <TextInput
+            label="Supervisor password"
+            name="supervisorPassword"
+            type="password"
+            autoComplete="off"
+            value={supervisorPassword}
+            required
+            onChange={(e) => setSupervisorPassword(e.target.value)}
+            inputClassName="h-12"
+          />
+          <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
         </form>
       </CommonModal>
 

@@ -16,6 +16,7 @@ import productImageRoutes from "../modules/product-image/product-image.routes";
 import productRoutes from "../modules/product/product.routes";
 import companyRoutes from "../modules/company/company.routes";
 import shiftRoutes from "../modules/shift/shift.routes";
+import shiftExecutionRoutes from "../modules/shift-execution/shift-execution.routes";
 import storeRoutes from "../modules/store/store.routes";
 import rawMaterialRoutes from "../modules/raw-material/raw-material.routes";
 import rawMaterialStockRoutes from "../modules/raw-material-stock/raw-material-stock.routes";
@@ -119,6 +120,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/role-permissions", router: rolePermissionRoutes },
   { path: "/departments", router: departmentRoutes },
   { path: "/shifts", router: shiftRoutes },
+  { path: "/shift-execution", router: shiftExecutionRoutes },
   { path: "/employees", router: employeeRoutes },
   { path: "/customers", router: customerRoutes },
   { path: "/customer-types", router: customerTypeRoutes },

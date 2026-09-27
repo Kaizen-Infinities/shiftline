@@ -374,6 +374,9 @@ export const API_PATHS = {
     calendar: "/leave/calendar",
     me: "/leave/me",
   },
+  shiftExecution: {
+    supervisorOverride: "/shift-execution/supervisor-override",
+  },
   machineGateway: {
     base: "/machine-gateways",
     testConnection: "/machine-gateways", // ← base; service appends /:id/test-connection
