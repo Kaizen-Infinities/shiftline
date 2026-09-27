@@ -23,7 +23,7 @@ import {
   success,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/reportUi";
 
 /**
  * Bank reconciliation and cheques (P1-20).
@@ -35,11 +35,11 @@ import {
 type Tab = "lines" | "brs" | "cheques" | "import";
 const FORMATS: StatementFormat[] = ["HDFC", "ICICI", "SBI", "AXIS", "KOTAK", "GENERIC"];
 const CHEQUE_STYLE: Record<ChequeRow["status"], string> = {
-  IN_HAND: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
-  DEPOSITED: "bg-nav-active text-accent",
-  CLEARED: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
-  BOUNCED: "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]",
-  CANCELLED: "bg-card-2 text-ink-muted",
+  IN_HAND: "sl-chip-warning",
+  DEPOSITED: "",
+  CLEARED: "sl-chip-success",
+  BOUNCED: "sl-chip-danger",
+  CANCELLED: "sl-chip-muted",
 };
 
 interface BankAccountOption {
@@ -114,11 +114,11 @@ const BankReconciliationPage: React.FC = () => {
   const unmatched = lines.filter((l) => l.status === "UNMATCHED");
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full space-y-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Bank Reconciliation</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1 m-0 leading-tight">Bank Reconciliation</h1>
+          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
             The statement against the cash book, and the cheques that have not turned into money
             yet.
           </p>
@@ -157,7 +157,7 @@ const BankReconciliationPage: React.FC = () => {
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
+      <nav className="flex flex-wrap gap-2" role="tablist">
         {(
           [
             ["lines", "Statement lines"],
@@ -171,16 +171,20 @@ const BankReconciliationPage: React.FC = () => {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key ? "border-b-2 border-accent text-accent" : "text-ink-muted hover:text-ink"
-            }`}
+            className="sl-chip sl-chip-lg"
           >
             {label}
           </button>
         ))}
       </nav>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+          <div className="sl-skeleton h-3 w-1/2" />
+        </div>
+      )}
 
       {tab === "lines" && (
         <Card title={`Statement lines · ${unmatched.length} still to deal with`}>
@@ -345,9 +349,7 @@ const BankReconciliationPage: React.FC = () => {
                     <td className={td}>{c.kind.toLowerCase()}</td>
                     <td className={`${td} text-right font-semibold`}>{money(c.amount)}</td>
                     <td className={td}>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${CHEQUE_STYLE[c.status]}`}
-                      >
+                      <span className={`sl-chip sl-chip-sm ${CHEQUE_STYLE[c.status]}`}>
                         {c.status.replace(/_/g, " ").toLowerCase()}
                       </span>
                       {c.bounceReason && (

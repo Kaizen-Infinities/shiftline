@@ -10,6 +10,8 @@ import {
   type YearEndPreview,
 } from "../../../../services/yearEndService";
 import { formatDate, formatDateTime } from "../../../../utils/dateUtils";
+import { CalendarCheck } from "lucide-react";
+import { PageHeader } from "../../../../components/ui/v2";
 
 /**
  * Year-end closing (P1-09e). Preview the closing journal for a financial year, prepare it, have
@@ -22,10 +24,10 @@ const secondary = "sl-btn sl-pill-sm";
 const danger = "sl-btn-danger sl-pill-sm";
 
 const STATUS_STYLE: Record<string, string> = {
-  PREPARED: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
-  APPROVED: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
-  REVERSED: "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]",
-  DISCARDED: "bg-card-2 text-ink-muted",
+  PREPARED: "sl-chip-warning",
+  APPROVED: "sl-chip-success",
+  REVERSED: "sl-chip-danger",
+  DISCARDED: "sl-chip-muted",
 };
 
 const inr = (n: number) =>
@@ -107,18 +109,16 @@ const YearEndPage: React.FC = () => {
   const existing = preview?.existing ?? null;
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-ink">Year-End Closing</h2>
-        <p className="text-sm text-ink-muted">
-          Transfer the year&apos;s result to Retained Earnings, close the year&apos;s periods, open
-          the next year and freeze the books. Prepared by one person, approved by another.
-        </p>
-      </div>
+    <div className="w-full space-y-4">
+      <PageHeader
+        title="Year-End Closing"
+        subtitle="Transfer the year's result to Retained Earnings, close the year's periods, open the next year and freeze the books. Prepared by one person, approved by another."
+        icon={<CalendarCheck size={20} />}
+      />
 
-      <section className="sl-tile p-4">
-        <h3 className="text-sm font-semibold text-ink">Books frozen up to</h3>
-        <p className="mb-3 text-xs text-ink-muted">
+      <section className="sl-tile p-5 sm:p-6">
+        <h2 className="sl-h2 m-0 text-[16px]">Books frozen up to</h2>
+        <p className="sl-muted mb-4 mt-1 text-sm">
           Nothing dated on or before this day can be posted or changed. It moves forward on its own
           when a year is closed; moving it back needs the box ticked.
         </p>
@@ -176,16 +176,12 @@ const YearEndPage: React.FC = () => {
         {preview && (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-sm font-semibold text-ink">
-                Closing journal for {preview.fy.periodName}
-              </h3>
+              <h2 className="sl-h2 m-0 text-[16px]">Closing journal for {preview.fy.periodName}</h2>
               <span className="text-xs text-ink-muted">
                 {formatDate(preview.fy.start)} – {formatDate(preview.fy.end)}
               </span>
               {existing && (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[existing.status]}`}
-                >
+                <span className={`sl-chip sl-chip-sm ${STATUS_STYLE[existing.status]}`}>
                   {existing.status}
                 </span>
               )}
@@ -204,7 +200,7 @@ const YearEndPage: React.FC = () => {
             )}
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wide text-ink-muted">
+                <thead className="bg-card-2 text-left text-[12px] font-semibold text-ink-muted [&_th]:px-3 [&_th]:py-2.5">
                   <tr>
                     <th className="py-1 pr-4">Ledger</th>
                     <th className="py-1 pr-4">Type</th>
@@ -317,11 +313,11 @@ const YearEndPage: React.FC = () => {
         )}
       </section>
 
-      <section className="sl-tile p-4">
-        <h3 className="mb-2 text-sm font-semibold text-ink">History</h3>
+      <section className="sl-tile p-5 sm:p-6">
+        <h2 className="sl-h2 m-0 mb-3 text-[16px]">History</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-ink-muted">
+            <thead className="bg-card-2 text-left text-[12px] font-semibold text-ink-muted [&_th]:px-3 [&_th]:py-2.5">
               <tr>
                 <th className="py-1 pr-4">Year</th>
                 <th className="py-1 pr-4">Status</th>
@@ -344,9 +340,7 @@ const YearEndPage: React.FC = () => {
                 <tr key={c.id} className="border-t border-line-soft">
                   <td className="py-1 pr-4 text-ink">{c.fyCode}</td>
                   <td className="py-1 pr-4">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[c.status]}`}
-                    >
+                    <span className={`sl-chip sl-chip-sm ${STATUS_STYLE[c.status]}`}>
                       {c.status}
                     </span>
                   </td>

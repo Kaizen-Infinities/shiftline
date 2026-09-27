@@ -300,17 +300,17 @@ const ExpensesList: React.FC = () => {
                 const s = String(item.status || "Draft");
                 const cls =
                   s === "Approved"
-                    ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]"
+                    ? "sl-chip-success"
                     : s === "Pending"
-                      ? "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]"
+                      ? "sl-chip-warning"
                       : s === "Rejected"
-                        ? "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]"
+                        ? "sl-chip-danger"
                         : s === "Cancelled"
                           ? "bg-card-2 text-ink-muted line-through"
-                          : "bg-card-2 text-ink-muted";
+                          : "sl-chip-muted";
                 return (
                   <span
-                    className={`rounded px-2 py-0.5 text-xs font-semibold ${cls}`}
+                    className={`sl-chip sl-chip-sm ${cls}`}
                     title={item.rejectReason || undefined}
                   >
                     {s === "Pending" ? "Pending approval" : s}
