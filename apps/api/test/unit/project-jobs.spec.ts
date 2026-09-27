@@ -117,6 +117,9 @@ describe("job costing calc (TN-09)", () => {
     const zero = summariseJob({ quoted: 0, costs: [], stages: [], billings: [] });
     expect(zero.marginPct).toBeNull();
     expect(zero.marginBand).toBe("THIN");
+    expect(zero.percentComplete).toBe(0);
+    const done = summariseJob({ quoted: 0, costs: [], stages: [], billings: [], finished: true });
+    expect(done.percentComplete).toBe(100);
   });
 
   it("bands the margin", () => {

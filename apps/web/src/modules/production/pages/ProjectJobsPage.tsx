@@ -21,9 +21,9 @@ import {
   Toolbar,
   type ToolbarFilter,
 } from "../../../components/ui/v2";
-import { PageBody, ProgressBar, formatINR } from "../ui";
+import { PageBody, formatINR } from "../ui";
 import { todayIso } from "./projectJobsFormat";
-import { JobStatusChip, MarginChip } from "./projectJobsUi";
+import { JobProgress, JobStatusChip, MarginChip } from "./projectJobsUi";
 
 /**
  * Job / project costing (TN-09): every body-building or fabrication job with its quote,
@@ -469,7 +469,7 @@ const ProjectJobsPage: React.FC = () => {
                     </td>
                     <td className={td}>
                       <div className="flex items-center gap-2">
-                        <ProgressBar
+                        <JobProgress
                           pct={r.summary.percentComplete}
                           label={`${r.jobNo} progress`}
                           className="flex-1"

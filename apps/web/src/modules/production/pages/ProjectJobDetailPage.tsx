@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   ArrowDown,
@@ -42,9 +42,9 @@ import {
   Tile,
   cx,
 } from "../../../components/ui/v2";
-import { ErrorTile, InfoItem, PageBody, ProgressBar, formatINR, formatQty } from "../ui";
+import { ErrorTile, InfoItem, PageBody, formatINR, formatQty } from "../ui";
 import { COST_TYPE_LABEL, STAGE_STATUS_LABEL, pct, shortInr, todayIso } from "./projectJobsFormat";
-import { JobStatusChip, MarginChip } from "./projectJobsUi";
+import { JobProgress, JobStatusChip, MarginChip } from "./projectJobsUi";
 
 /**
  * One job (TN-09): quote vs cost to date, the stage timeline, the cost ledger (append-style:
@@ -71,9 +71,9 @@ const NEXT: Partial<Record<JobStatus, { to: JobStatus; label: string }>> = {
 
 const stageDot = (s: JobStage) =>
   s.status === "DONE"
-    ? "bg-[color:var(--color-success)] text-white"
+    ? "bg-[color:var(--color-success)] text-[color:var(--color-on-primary)]"
     : s.status === "IN_PROGRESS"
-      ? "bg-accent text-white"
+      ? "bg-accent text-[color:var(--color-on-primary)]"
       : s.status === "SKIPPED"
         ? "bg-card-2 text-ink-subtle"
         : "bg-chip text-chip-fg";
@@ -106,7 +106,11 @@ const ProjectJobDetailPage: React.FC = () => {
   const canEdit = can("project-jobs.edit");
   const [job, setJob] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("stages");
+  const [params] = useSearchParams();
+  const initialTab = params.get("tab");
+  const [tab, setTab] = useState<Tab>(
+    initialTab === "costs" || initialTab === "billing" ? initialTab : "stages"
+  );
   const [newStage, setNewStage] = useState("");
   const [cost, setCost] = useState(emptyCost);
   const [billing, setBilling] = useState(emptyBilling);
@@ -266,7 +270,7 @@ const ProjectJobDetailPage: React.FC = () => {
           <>
             {canEdit && open && (
               <ActionPill
-                variant="danger"
+                variant="secondary"
                 size="sm"
                 disabled={busy}
                 onClick={() => {
@@ -360,7 +364,7 @@ const ProjectJobDetailPage: React.FC = () => {
           </span>
         }
       >
-        <ProgressBar pct={s.percentComplete} label="Job progress" className="mb-4" />
+        <JobProgress pct={s.percentComplete} label="Job progress" className="mb-4" />
         <dl className="m-0 grid grid-cols-2 gap-4 md:grid-cols-4">
           <InfoItem label="Chassis no." value={job.chassisNo ?? "—"} />
           <InfoItem label="Make / model" value={job.chassisMake ?? "—"} />
@@ -397,7 +401,10 @@ const ProjectJobDetailPage: React.FC = () => {
           ) : (
             <ol className="m-0 list-none p-0" aria-label="Stages">
               {job.stages.map((st, i) => (
-                <li key={st.id} className="relative flex gap-3 pb-4 last:pb-0">
+                <li
+                  key={st.id}
+                  className="relative flex flex-wrap gap-x-3 gap-y-2 sm:flex-nowrap pb-4 last:pb-0"
+                >
                   {i < job.stages.length - 1 && (
                     <span
                       className="absolute left-[15px] top-8 h-[calc(100%-24px)] w-px bg-line"
@@ -419,7 +426,7 @@ const ProjectJobDetailPage: React.FC = () => {
                       i + 1
                     )}
                   </span>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-[calc(100%-44px)] sm:basis-auto">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={cx(
@@ -454,7 +461,7 @@ const ProjectJobDetailPage: React.FC = () => {
                     </div>
                   </div>
                   {editable && (
-                    <div className="flex shrink-0 flex-wrap items-start justify-end gap-1.5">
+                    <div className="flex w-full shrink-0 flex-wrap items-start justify-start gap-1.5 pl-11 sm:w-auto sm:justify-end sm:pl-0">
                       {st.status === "PENDING" && (
                         <ActionPill
                           variant="secondary"

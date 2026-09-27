@@ -168,6 +168,8 @@ export const summariseJob = (input: {
   quoted: number;
   costs: CostLike[];
   stages: StageLike[];
+  /** A COMPLETED or DELIVERED job is 100 % complete whatever its stages say. */
+  finished?: boolean;
   billings: BillingLike[];
 }): JobSummary => {
   const byType = costByType(input.costs);
@@ -186,7 +188,7 @@ export const summariseJob = (input: {
     draftCost: rupees(draftP),
     margin: rupees(marginP),
     marginPct,
-    percentComplete: percentComplete(input.stages),
+    percentComplete: input.finished ? 100 : percentComplete(input.stages),
     ...bill,
     billedVsCost: rupees(paise(bill.billed) - costP),
     toBill: rupees(Math.max(0, quotedP - paise(bill.billed))),

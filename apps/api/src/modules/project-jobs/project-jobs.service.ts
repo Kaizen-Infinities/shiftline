@@ -53,6 +53,7 @@ const summaryOf = (job: Job) =>
     quoted: n(job.quotedAmount),
     costs: job.costs.map((c) => ({ type: c.type, amount: n(c.amount), status: c.status })),
     stages: job.stages.map((s) => ({ status: s.status, weight: s.weight })),
+    finished: job.status === "COMPLETED" || job.status === "DELIVERED",
     billings: job.billings.map((b) => ({
       kind: b.kind,
       amount: n(b.amount),
