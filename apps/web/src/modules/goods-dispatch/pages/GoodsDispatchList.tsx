@@ -1,26 +1,27 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
-import { fetchGoodsDispatches, goodsDispatchCreated, goodsDispatchUpdated, goodsDispatchDeleted } from "../../../features/goods-dispatch/goodsDispatchSlice";
+import {
+  fetchGoodsDispatches,
+  goodsDispatchCreated,
+  goodsDispatchUpdated,
+  goodsDispatchDeleted,
+} from "../../../features/goods-dispatch/goodsDispatchSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
-
-import CustomButton from "../../../components/ui/Button/Button";
 import DataTable from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { goodsDispatchService } from "../../../services/goodsDispatchService";
 import type { DataTableColumn } from "../../../components/ui/table/DataTable";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import { formatDate } from "../../../utils/dateUtils";
-
 import { usePermission } from "../../../hooks/usePermission";
+import { AlertCircle, Plus, Truck } from "lucide-react";
+import { ActionPill, PageHeader, Tile, Toolbar } from "../../../components/ui/v2";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -40,16 +41,17 @@ const GoodsDispatchList: React.FC = () => {
   const [filterDateTo, setFilterDateTo] = useState("");
 
   // Draft filter states (for popover)
-  const [draftFilterStatus, setDraftFilterStatus] = useState("");
+  const [, setDraftFilterStatus] = useState("");
   const [draftFilterDateFrom, setDraftFilterDateFrom] = useState("");
   const [draftFilterDateTo, setDraftFilterDateTo] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
 
   const hasActiveFilters = !!(filterStatus || filterDateFrom || filterDateTo);
-  const activeFilterCount = [filterStatus, filterDateFrom, filterDateTo].filter(Boolean).length;
 
-  usePageShortcuts({ onRefresh: () => dispatch(fetchGoodsDispatches({ page: currentPage, limit: ITEMS_PER_PAGE })) });
+  usePageShortcuts({
+    onRefresh: () => dispatch(fetchGoodsDispatches({ page: currentPage, limit: ITEMS_PER_PAGE })),
+  });
 
   // Handle search debouncing
   useEffect(() => {
@@ -81,7 +83,6 @@ const GoodsDispatchList: React.FC = () => {
   });
 
   const handleApplyFilters = () => {
-    setFilterStatus(draftFilterStatus);
     setFilterDateFrom(draftFilterDateFrom);
     setFilterDateTo(draftFilterDateTo);
     setCurrentPage(1);
@@ -106,7 +107,7 @@ const GoodsDispatchList: React.FC = () => {
   const fetchDispatchesForExport = useCallback(async () => {
     try {
       const res = await goodsDispatchService.fetchAll({ page: 1, limit: 100000 });
-      const list = res?.dispatches || (Array.isArray(res) ? res : (res?.data || []));
+      const list = res?.dispatches || (Array.isArray(res) ? res : res?.data || []);
       if (Array.isArray(list) && list.length > 0) return list;
     } catch {
       // fallback
@@ -117,10 +118,16 @@ const GoodsDispatchList: React.FC = () => {
   const { csvColumns, csvFilename } = useMemo(() => {
     const columns = [
       { header: "Dispatch No", accessor: (item: any) => item.dispatchNumber || "" },
-      { header: "Date", accessor: (item: any) => item.dispatchDate ? formatDate(item.dispatchDate) : "" },
+      {
+        header: "Date",
+        accessor: (item: any) => (item.dispatchDate ? formatDate(item.dispatchDate) : ""),
+      },
       { header: "Vehicle No", accessor: (item: any) => item.vehicleNumber || "" },
       { header: "Driver Name", accessor: (item: any) => item.driverName || "" },
-      { header: "Destination Store", accessor: (item: any) => item.store?.storeName || item.destinationStoreId || "" },
+      {
+        header: "Destination Store",
+        accessor: (item: any) => item.store?.storeName || item.destinationStoreId || "",
+      },
       { header: "Total Items", accessor: (item: any) => item.items?.length || 0 },
       { header: "Status", accessor: (item: any) => item.status || "" },
     ];
@@ -138,117 +145,150 @@ const GoodsDispatchList: React.FC = () => {
   // Or we could compute from allData if we had it. For now use meta totals.
   // const totalCount = meta?.total || 0;
 
+  const STATUS_CHIPS = [
+    { key: "", label: "All" },
+    { key: "PENDING_GATE_APPROVAL", label: "Pending Gate" },
+    { key: "PENDING_STORE_RECEIPT", label: "Pending Store" },
+    { key: "WAREHOUSE_RECEIVED", label: "Received" },
+    { key: "GATE_REJECTED", label: "Gate Rejected" },
+    { key: "STORE_REJECTED", label: "Store Rejected" },
+  ];
+
+  const filtered = Boolean(hasActiveFilters || debouncedSearch);
+
   const columns: DataTableColumn<any>[] = [
     {
       header: "Dispatch No",
-      width: "130px",
       accessor: "dispatchNumber",
-      render: (item: any) => <span className="font-bold text-ink tracking-tight">{item.dispatchNumber}</span>,
+      render: (item: any) =>
+        can("goods-dispatch.view") ? (
+          <button
+            type="button"
+            onClick={() => navigate(`/production/goods-dispatch/detail/${item.id}`)}
+            className="font-semibold text-accent hover:underline underline-offset-4"
+          >
+            {item.dispatchNumber}
+          </button>
+        ) : (
+          <span className="font-semibold text-ink">{item.dispatchNumber}</span>
+        ),
     },
     {
       header: "Date",
-      width: "110px",
       accessor: "dispatchDate",
-      render: (item: any) => <span className="text-ink font-semibold">{formatDate(item.dispatchDate)}</span>,
+      render: (item: any) => (
+        <span className="text-ink-muted">{formatDate(item.dispatchDate)}</span>
+      ),
     },
     {
       header: "Vehicle",
-      width: "minmax(100px, 1fr)",
       accessor: "vehicleNumber",
-      render: (item: any) => <span className="text-ink font-semibold">{item.vehicleNumber}</span>,
+      render: (item: any) => (
+        <span className="font-mono text-sm text-ink">{item.vehicleNumber || "—"}</span>
+      ),
     },
     {
       header: "Driver",
-      width: "minmax(100px, 1fr)",
       accessor: "driverName",
-      render: (item: any) => <span className="text-ink font-semibold">{item.driverName}</span>,
+      render: (item: any) => <span className="text-ink">{item.driverName || "—"}</span>,
     },
     {
       header: "Items",
-      width: "80px",
       accessor: "items",
+      align: "right",
       render: (item: any) => (
-        <span className="text-ink-subtle font-bold">{item.items?.length || 0} PO(s)</span>
+        <span className="tabular-nums text-ink-muted">{item.items?.length || 0} PO(s)</span>
       ),
     },
     {
       header: "Status",
-      width: "185px",
       accessor: "status",
-      render: (item: any) => {
-        return <StatusBadge status={item.status} />;
-      },
+      render: (item: any) => <StatusBadge status={item.status} />,
     },
     {
-      header: "Action",
-      width: "90px",
+      header: "Actions",
       accessor: "id",
+      align: "right",
       render: (item: any) => (
-        <div className="flex items-center gap-2">
+        <div className="table-action-group w-full justify-end">
           {can("goods-dispatch.view") && (
             <ViewButton onClick={() => navigate(`/production/goods-dispatch/detail/${item.id}`)} />
           )}
           {item.status === "PENDING_GATE_APPROVAL" && can("goods-dispatch.edit") && (
-            <EditButton onClick={() => navigate(`/production/goods-dispatch/gate-approval/${item.id}`)} />
+            <EditButton
+              onClick={() => navigate(`/production/goods-dispatch/gate-approval/${item.id}`)}
+            />
           )}
           {item.status === "PENDING_STORE_RECEIPT" && can("goods-dispatch.edit") && (
-            <EditButton onClick={() => navigate(`/production/goods-dispatch/store-approval/${item.id}`)} />
+            <EditButton
+              onClick={() => navigate(`/production/goods-dispatch/store-approval/${item.id}`)}
+            />
           )}
         </div>
       ),
     },
   ];
 
+  const createCta = can("goods-dispatch.create") ? (
+    <ActionPill
+      icon={<Plus size={18} />}
+      onClick={() => navigate("/production/goods-dispatch/create")}
+    >
+      Create Dispatch
+    </ActionPill>
+  ) : null;
+
   return (
     <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Goods Dispatch</h2>
-            <p className="text-sm text-ink-subtle mt-0.5">Manage finished goods dispatches to warehouse</p>
-          </div>
+      <div className="w-full min-w-0">
+        <PageHeader
+          title="Goods Dispatch"
+          subtitle="Manage finished goods dispatches to warehouse"
+          icon={<Truck size={22} />}
+          actions={
+            can("goods-dispatch.export") ? (
+              <ExportCSVButton
+                fetchData={fetchDispatchesForExport}
+                columns={csvColumns}
+                filename={csvFilename}
+                text="Export"
+              />
+            ) : null
+          }
+          primaryAction={createCta}
+        />
 
-          <div className="flex flex-wrap items-center gap-3">
-            <SearchInput
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by Dispatch No, Vehicle, Driver..."
-            />
+        <Toolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by Dispatch No, Vehicle, Driver..."
+          searchLabel="Search dispatches"
+          filters={STATUS_CHIPS}
+          filterValue={filterStatus}
+          onFilterChange={(key) => {
+            setFilterStatus(key);
+            setDraftFilterStatus(key);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Status"
+          right={
             <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
+              activeFilterCount={[filterDateFrom, filterDateTo].filter(Boolean).length}
+              hasActiveFilters={Boolean(filterDateFrom || filterDateTo)}
               onApply={handleApplyFilters}
               onClear={handleClearFilters}
               onOpen={handleOpenFilter}
             >
-              <div className="mb-3">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Status</label>
-                <select
-                  className="w-full border border-line-soft rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary bg-card-2 text-ink font-semibold"
-                  value={draftFilterStatus}
-                  onChange={(e) => setDraftFilterStatus(e.target.value)}
-                >
-                  <option value="">All Statuses</option>
-                  <option value="PENDING_GATE_APPROVAL">Pending Gate Approval</option>
-                  <option value="PENDING_STORE_RECEIPT">Pending Store Receipt</option>
-                  <option value="WAREHOUSE_RECEIVED">Warehouse Received</option>
-                  <option value="GATE_REJECTED">Gate Rejected</option>
-                  <option value="STORE_REJECTED">Store Rejected</option>
-                </select>
-              </div>
-              <div className="mb-3">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Date From</label>
+              <div className="space-y-3">
                 <DatePickerCalendar
+                  label="Date From"
                   name="dateFrom"
                   value={draftFilterDateFrom}
                   onChange={(e) => setDraftFilterDateFrom(e.target.value)}
                   placeholder="Select date"
                 />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Date To</label>
                 <DatePickerCalendar
+                  label="Date To"
                   name="dateTo"
                   value={draftFilterDateTo}
                   onChange={(e) => setDraftFilterDateTo(e.target.value)}
@@ -256,45 +296,53 @@ const GoodsDispatchList: React.FC = () => {
                 />
               </div>
             </FilterPopover>
+          }
+        />
 
-            {can("goods-dispatch.export") && (
-              <ExportCSVButton
-                fetchData={fetchDispatchesForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-
-            {can("goods-dispatch.create") && (
-              <CustomButton
-                text="Create Dispatch"
-                icon={FaPlus}
-                onClick={() => navigate("/production/goods-dispatch/create")}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Error State */}
         {error && (
-          <div className="bg-red-500/15 border-l-4 border-red-500 p-4 m-4 rounded-r-xl">
-            <p className="text-red-400 font-semibold">{error}</p>
-          </div>
+          <Tile className="mb-4 flex items-center gap-3">
+            <AlertCircle
+              size={18}
+              className="shrink-0 text-[color:var(--color-danger)]"
+              aria-hidden="true"
+            />
+            <p role="alert" className="m-0 text-sm font-semibold text-ink">
+              Could not load dispatches. Press F5 to retry.
+            </p>
+          </Tile>
         )}
 
-        {/* Data Table */}
         <DataTable
           columns={columns}
           data={dispatches || []}
           loading={loading}
           rowKey={(item) => item.id.toString()}
-          emptyMessage="No dispatches found"
-          pagination={meta && meta.totalPages > 1 ? {
-            currentPage,
-            totalPages: meta.totalPages,
-            onPageChange: handlePageChange
-          } : undefined}
+          ariaLabel="Goods dispatches"
+          emptyMessage={filtered ? "No dispatches match these filters." : "No dispatches found"}
+          emptyAction={
+            filtered ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  handleClearFilters();
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : (
+              createCta
+            )
+          }
+          pagination={
+            meta && meta.totalPages > 1
+              ? {
+                  currentPage,
+                  totalPages: meta.totalPages,
+                  onPageChange: handlePageChange,
+                }
+              : undefined
+          }
         />
       </div>
     </div>

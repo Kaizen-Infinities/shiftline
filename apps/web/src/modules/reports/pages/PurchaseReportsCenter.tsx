@@ -7,12 +7,13 @@ import { DATE_RANGE_OPTIONS } from "../../../constants/selectOption";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
-import Button from "../../../components/ui/Button/Button";
 import ColumnToggle from "../../../components/ui/ColumnToggle/ColumnToggle";
 import type { DataTableColumn } from "../../../components/ui/table/DataTable";
 import DataTable from "../../../components/ui/table/DataTable";
 import { useListCache } from "../../../hooks/useListCache";
 import { usePermission } from "../../../hooks/usePermission";
+import { ShoppingCart, Play } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
 
 const PurchaseReportsCenter: React.FC = () => {
   const { can } = usePermission();
@@ -35,8 +36,18 @@ const PurchaseReportsCenter: React.FC = () => {
   const LIMIT = 10;
 
   const DEFAULT_COLUMNS = [
-    "#", "PO NUMBER", "PO DATE", "DELIVERY DATE", "SUPPLIER", "BILLING ADDRESS",
-    "SHIPPING ADDRESS", "ITEMS (QTY)", "TAXES", "DISCOUNT", "NET AMOUNT", "STATUS"
+    "#",
+    "PO NUMBER",
+    "PO DATE",
+    "DELIVERY DATE",
+    "SUPPLIER",
+    "BILLING ADDRESS",
+    "SHIPPING ADDRESS",
+    "ITEMS (QTY)",
+    "TAXES",
+    "DISCOUNT",
+    "NET AMOUNT",
+    "STATUS",
   ];
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
@@ -70,17 +81,29 @@ const PurchaseReportsCenter: React.FC = () => {
   // Load report data via useListCache
   const cacheKey = `purchaseReport:${page}:${LIMIT}:${startDate}:${endDate}:${poNumber}:${supplierId}:${status}`;
 
-  const fetcher = useCallback(async (_signal: AbortSignal) => {
-    const res = await reportsService.getPurchaseOrderReport({
-      startDate, endDate, poNumber, supplierId, status,
-      page, limit: LIMIT,
-    });
-    const data = res?.data?.data || [];
-    const tp = res?.data?.totalPages || 1;
-    return { data, total: tp * LIMIT };
-  }, [startDate, endDate, poNumber, supplierId, status, page]);
+  const fetcher = useCallback(
+    async (_signal: AbortSignal) => {
+      const res = await reportsService.getPurchaseOrderReport({
+        startDate,
+        endDate,
+        poNumber,
+        supplierId,
+        status,
+        page,
+        limit: LIMIT,
+      });
+      const data = res?.data?.data || [];
+      const tp = res?.data?.totalPages || 1;
+      return { data, total: tp * LIMIT };
+    },
+    [startDate, endDate, poNumber, supplierId, status, page]
+  );
 
-  const { data: backendReports, total, loading: loadingBackend } = useListCache({
+  const {
+    data: backendReports,
+    total,
+    loading: loadingBackend,
+  } = useListCache({
     cacheKey,
     socketModule: "purchaseOrder",
     fetcher,
@@ -92,17 +115,28 @@ const PurchaseReportsCenter: React.FC = () => {
     const columns = [
       { header: "PO NUMBER", accessor: (item: any) => item.poNumber },
       { header: "PO DATE", accessor: (item: any) => item.poDate?.split("T")[0] },
-      { header: "DELIVERY DATE", accessor: (item: any) => item.expectedDeliveryDate?.split("T")[0] },
+      {
+        header: "DELIVERY DATE",
+        accessor: (item: any) => item.expectedDeliveryDate?.split("T")[0],
+      },
       { header: "SUPPLIER", accessor: (item: any) => item.supplierName },
       { header: "BILLING ADDRESS", accessor: (item: any) => item.billingAddress },
       { header: "SHIPPING ADDRESS", accessor: (item: any) => item.shippingAddress },
       { header: "ITEMS (QTY)", accessor: (item: any) => item.itemsCount },
-      { header: "TAXES", accessor: (item: any) => (item.totalCgst || 0) + (item.totalSgst || 0) + (item.totalIgst || 0) },
+      {
+        header: "TAXES",
+        accessor: (item: any) =>
+          (item.totalCgst || 0) + (item.totalSgst || 0) + (item.totalIgst || 0),
+      },
       { header: "DISCOUNT", accessor: (item: any) => item.totalDiscount },
       { header: "NET AMOUNT", accessor: (item: any) => item.netAmount },
-      { header: "STATUS", accessor: (item: any) => item.status }
+      { header: "STATUS", accessor: (item: any) => item.status },
     ];
-    return { csvData: backendReports, csvColumns: columns, csvFilename: `Purchase_Order_Report_${startDate}_${endDate}.csv` };
+    return {
+      csvData: backendReports,
+      csvColumns: columns,
+      csvFilename: `Purchase_Order_Report_${startDate}_${endDate}.csv`,
+    };
   }, [backendReports, startDate, endDate]);
 
   const handleApplyFilters = () => {
@@ -170,15 +204,29 @@ const PurchaseReportsCenter: React.FC = () => {
     },
     {
       header: "PO NUMBER",
-      render: (item: any) => <span className="font-semibold text-ink">{item.poNumber || "-"}</span>
+      render: (item: any) => <span className="font-semibold text-ink">{item.poNumber || "-"}</span>,
     },
     {
       header: "PO DATE",
-      render: (item: any) => item.poDate ? new Date(item.poDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"
+      render: (item: any) =>
+        item.poDate
+          ? new Date(item.poDate).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })
+          : "-",
     },
     {
       header: "DELIVERY DATE",
-      render: (item: any) => item.expectedDeliveryDate ? new Date(item.expectedDeliveryDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"
+      render: (item: any) =>
+        item.expectedDeliveryDate
+          ? new Date(item.expectedDeliveryDate).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })
+          : "-",
     },
     {
       header: "SUPPLIER",
@@ -187,7 +235,7 @@ const PurchaseReportsCenter: React.FC = () => {
           <div className="font-semibold">{item.supplierName || "N/A"}</div>
           <div className="text-[10px] text-ink-subtle">{item.supplierCode || "-"}</div>
         </div>
-      )
+      ),
     },
     {
       header: "BILLING ADDRESS",
@@ -195,7 +243,7 @@ const PurchaseReportsCenter: React.FC = () => {
         <div className="text-xs max-w-[200px]" title={item.billingAddress}>
           {item.billingAddress || "-"}
         </div>
-      )
+      ),
     },
     {
       header: "SHIPPING ADDRESS",
@@ -203,17 +251,21 @@ const PurchaseReportsCenter: React.FC = () => {
         <div className="text-xs max-w-[200px]" title={item.shippingAddress}>
           {item.shippingAddress || "-"}
         </div>
-      )
+      ),
     },
     {
       header: "ITEMS (QTY)",
       render: (item: any) => (
         <div className="text-xs max-w-[250px]">
           {item.items && item.items.length > 0
-            ? item.items.map((i: any, idx: number) => <div key={idx}>{i.productId} ({i.quantity} {i.uom})</div>)
+            ? item.items.map((i: any, idx: number) => (
+                <div key={idx}>
+                  {i.productId} ({i.quantity} {i.uom})
+                </div>
+              ))
             : "-"}
         </div>
-      )
+      ),
     },
     {
       header: "TAXES",
@@ -223,150 +275,162 @@ const PurchaseReportsCenter: React.FC = () => {
           <div>SGST: ₹{item.totalSgst || 0}</div>
           <div>IGST: ₹{item.totalIgst || 0}</div>
         </div>
-      )
+      ),
     },
     {
       header: "DISCOUNT",
-      render: (item: any) => `₹${(item.totalDiscount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      render: (item: any) =>
+        `₹${(item.totalDiscount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       header: "NET AMOUNT",
-      render: (item: any) => `₹${(item.netAmount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      render: (item: any) =>
+        `₹${(item.netAmount ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     },
     {
       header: "STATUS",
-      render: (item: any) => <StatusBadge status={item.status} />
-    }
+      render: (item: any) => <StatusBadge status={item.status} />,
+    },
   ];
 
-  const finalColumns = tableColumns.filter(c => visibleColumns.includes(c.header));
+  const finalColumns = tableColumns.filter((c) => visibleColumns.includes(c.header));
 
   return (
-    <div className="w-full">
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Purchase Order Report"
+        subtitle="Purchase orders by period, supplier and status"
+        icon={<ShoppingCart size={22} />}
+        actions={
+          can("purchase-reports.export") && (
+            <ExportCSVButton
+              data={csvData}
+              columns={csvColumns.filter((c) =>
+                visibleColumns.map((v) => v.toLowerCase()).includes(c.header.toLowerCase())
+              )}
+              filename={csvFilename}
+              text="Export CSV"
+            />
+          )
+        }
+      />
+
+      <Tile className="mb-4" title="Filters" subtitle="Set the filters, then run the report">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-ink">Purchase Order Report</h2>
+            <label className="sl-label">Date Range</label>
+            <SelectInput
+              name="dateRangePreset"
+              value={dateRangePreset}
+              options={DATE_RANGE_OPTIONS}
+              hideLabel={true}
+              onChange={(e) => handleDateRangeChange(e.target.value)}
+            />
           </div>
-
-          <div className="flex flex-wrap items-center gap-3 relative w-full lg:w-auto">
-            {can("purchase-reports.export") && (
-              <ExportCSVButton
-                data={csvData}
-                columns={csvColumns.filter(c => visibleColumns.map(v => v.toLowerCase()).includes(c.header.toLowerCase()))}
-                filename={csvFilename}
-                text="Export CSV"
-              />
-            )}
+          <div>
+            <label className="sl-label">Start Date</label>
+            <DatePickerCalendar
+              name="draftStartDate"
+              value={draftStartDate}
+              onChange={(e) => {
+                setDraftStartDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
+            />
           </div>
-        </div>
-
-        <div className="p-6 border-b border-line bg-card-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Date Range</label>
-              <SelectInput
-                name="dateRangePreset"
-                value={dateRangePreset}
-                options={DATE_RANGE_OPTIONS}
-                hideLabel={true}
-                onChange={(e) => handleDateRangeChange(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Start Date</label>
-              <DatePickerCalendar
-                name="draftStartDate"
-                value={draftStartDate}
-                onChange={(e) => { setDraftStartDate(e.target.value); setDateRangePreset("custom"); }}
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">End Date</label>
-              <DatePickerCalendar
-                name="draftEndDate"
-                value={draftEndDate}
-                onChange={(e) => { setDraftEndDate(e.target.value); setDateRangePreset("custom"); }}
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">PO No</label>
-              <input type="text" className="w-full border border-line rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm" value={draftPoNumber} onChange={(e) => setDraftPoNumber(e.target.value)} placeholder="Search PO No..." />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Supplier</label>
-              <SelectInput
-                name="draftSupplierId"
-                value={draftSupplierId}
-                options={suppliers.map(s => ({ label: s.displayName, value: s.id.toString() }))}
-                defaultOptionLabel="All Suppliers"
-                hideLabel={true}
-                searchable
-                onChange={(e) => setDraftSupplierId(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block mb-1 text-[11px] uppercase tracking-wider text-ink-subtle font-bold">Status</label>
-              <SelectInput
-                name="draftStatus"
-                value={draftStatus}
-                options={[
-                  { label: "Draft", value: "DRAFT" },
-                  { label: "Pending", value: "PENDING" },
-                  { label: "Open", value: "OPEN" },
-                  { label: "Approved", value: "APPROVED" },
-                  { label: "Rejected", value: "REJECTED" },
-                  { label: "Partially Received", value: "PARTIALLY_RECEIVED" },
-                  { label: "Received", value: "RECEIVED" },
-                  { label: "Completed", value: "COMPLETED" },
-                  { label: "Closed", value: "CLOSED" },
-                  { label: "Cancelled", value: "CANCELLED" }
-                ]}
-                defaultOptionLabel="All Statuses"
-                hideLabel={true}
-                onChange={(e) => setDraftStatus(e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="sl-label">End Date</label>
+            <DatePickerCalendar
+              name="draftEndDate"
+              value={draftEndDate}
+              onChange={(e) => {
+                setDraftEndDate(e.target.value);
+                setDateRangePreset("custom");
+              }}
+            />
           </div>
-
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-line">
-            <div>
-              <ColumnToggle
-                columns={tableColumns}
-                visibleColumns={visibleColumns}
-                setVisibleColumns={setVisibleColumns}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                text="Clear All"
-                variant="secondary"
-                size="sm"
-                onClick={handleClearFilters}
-              />
-              <Button
-                text="Apply Filters"
-                variant="primary"
-                size="sm"
-                onClick={handleApplyFilters}
-              />
-            </div>
+          <div>
+            <label className="sl-label">PO No</label>
+            <input
+              type="text"
+              className="sl-input h-11 w-full px-4"
+              value={draftPoNumber}
+              onChange={(e) => setDraftPoNumber(e.target.value)}
+              placeholder="Search PO No..."
+            />
+          </div>
+          <div>
+            <label className="sl-label">Supplier</label>
+            <SelectInput
+              name="draftSupplierId"
+              value={draftSupplierId}
+              options={suppliers.map((s) => ({ label: s.displayName, value: s.id.toString() }))}
+              defaultOptionLabel="All Suppliers"
+              hideLabel={true}
+              searchable
+              onChange={(e) => setDraftSupplierId(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="sl-label">Status</label>
+            <SelectInput
+              name="draftStatus"
+              value={draftStatus}
+              options={[
+                { label: "Draft", value: "DRAFT" },
+                { label: "Pending", value: "PENDING" },
+                { label: "Open", value: "OPEN" },
+                { label: "Approved", value: "APPROVED" },
+                { label: "Rejected", value: "REJECTED" },
+                { label: "Partially Received", value: "PARTIALLY_RECEIVED" },
+                { label: "Received", value: "RECEIVED" },
+                { label: "Completed", value: "COMPLETED" },
+                { label: "Closed", value: "CLOSED" },
+                { label: "Cancelled", value: "CANCELLED" },
+              ]}
+              defaultOptionLabel="All Statuses"
+              hideLabel={true}
+              onChange={(e) => setDraftStatus(e.target.value)}
+            />
           </div>
         </div>
 
-        <DataTable
-          columns={finalColumns}
-          data={backendReports}
-          rowKey={(item: any) => item.id || item.poNumber}
-          loading={loadingBackend}
-          emptyMessage="No purchase order data found in date range."
-          pagination={{
-            currentPage: page,
-            totalPages: totalPages,
-            onPageChange: (newPage) => setPage(newPage)
-          }}
-        />
-      </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-4">
+          <div>
+            <ColumnToggle
+              columns={tableColumns}
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <ActionPill variant="secondary" size="sm" onClick={handleClearFilters}>
+              Clear All
+            </ActionPill>
+            <ActionPill
+              variant="blue"
+              size="sm"
+              icon={<Play size={14} />}
+              onClick={handleApplyFilters}
+            >
+              Run report
+            </ActionPill>
+          </div>
+        </div>
+      </Tile>
+
+      <DataTable
+        columns={finalColumns}
+        data={backendReports}
+        rowKey={(item: any) => item.id || item.poNumber}
+        loading={loadingBackend}
+        emptyMessage="No purchase order data found in date range."
+        pagination={{
+          currentPage: page,
+          totalPages: totalPages,
+          onPageChange: (newPage) => setPage(newPage),
+        }}
+      />
     </div>
   );
 };

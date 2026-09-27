@@ -1,14 +1,13 @@
 import React, { useState } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { Container, Row, Col } from "../../../components/ui/TailwindPrimitives";
-import { FaSave, FaEraser, FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import UOMSelect from "../../../components/form/SelectInput/UOMSelect";
-import BackButton from "../../../components/ui/BackButton/BackButton";
+import { Eraser, Save } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 const CATEGORY_OPTIONS = [
   { label: "Fabric Scraps", value: "Fabric Scraps" },
@@ -67,26 +66,22 @@ const WastageStockCreate: React.FC = () => {
   };
 
   return (
-    <div className="inner-container">
-      <Container fluid>
-        <div className="page-header">
-          <Row className="align-items-center g-3">
-            <Col lg={6} md={12}>
-              <div className="page-header-info">
-                <h2 className="page-title">Log Wastage Stock Entry</h2>
-              </div>
-            </Col>
-            <Col lg={6} md={12}>
-              <div className="page-header-actions">
-                <BackButton text="Back to List" to="/wastage-stock" />
-              </div>
-            </Col>
-          </Row>
-        </div>
+    <div className="w-full min-w-0 max-w-[1100px]">
+      <PageHeader
+        title="Log Wastage Stock Entry"
+        back="/wastage-stock"
+        backLabel="Back to list"
+        breadcrumbs={[
+          { label: "Inventory" },
+          { label: "Wastage stock", to: "/wastage-stock" },
+          { label: "New" },
+        ]}
+      />
 
-        <form onSubmit={handleSubmit} className="form-inner">
-          <Row className="g-3">
-            <Col md={6}>
+      <form onSubmit={handleSubmit} noValidate>
+        <Tile title="Wastage entry">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+            <div>
               <TextInput
                 label="Wastage Code / Log No"
                 name="wastageCode"
@@ -95,8 +90,8 @@ const WastageStockCreate: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Log Date"
                 name="logDate"
@@ -105,8 +100,8 @@ const WastageStockCreate: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <SelectInput
                 label="Material Type"
                 name="category"
@@ -115,8 +110,8 @@ const WastageStockCreate: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <UOMSelect
                 label="UOM"
                 name="uom"
@@ -126,8 +121,8 @@ const WastageStockCreate: React.FC = () => {
                 category={["length", "mass", "each"]}
                 allowedCodes={["kg", "g", "mt", "l", "ml", "m", "cm", "mm", "ea", "dz"]}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Wastage Quantity"
                 name="quantity"
@@ -138,8 +133,8 @@ const WastageStockCreate: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <SelectInput
                 label="Source Department"
                 name="department"
@@ -148,8 +143,8 @@ const WastageStockCreate: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Cause of Wastage"
                 name="cause"
@@ -158,8 +153,8 @@ const WastageStockCreate: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Scrap Price per Unit (₹)"
                 name="scrapUnitPrice"
@@ -169,8 +164,8 @@ const WastageStockCreate: React.FC = () => {
                 placeholder="e.g. 15.00"
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={12}>
+            </div>
+            <div>
               <SelectInput
                 label="Wastage Disposal Status"
                 name="status"
@@ -179,17 +174,22 @@ const WastageStockCreate: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-          </Row>
-
-          <div className="form-actions d-flex justify-content-end gap-3 mt-4">
-            <CustomButton text="Clear" icon={FaEraser} variant="secondary" onClick={handleClear} />
-            <div className="ms-2">
-              <CustomButton text="Save Wastage Log" icon={FaSave} type="submit" />
             </div>
           </div>
-        </form>
-      </Container>
+        </Tile>
+
+        <FormFooter hint="F2 saves">
+          <ActionPill variant="secondary" onClick={() => navigate("/wastage-stock")}>
+            Cancel
+          </ActionPill>
+          <ActionPill variant="secondary" icon={<Eraser size={16} />} onClick={handleClear}>
+            Clear
+          </ActionPill>
+          <ActionPill type="submit" icon={<Save size={17} />}>
+            Save Wastage Log
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

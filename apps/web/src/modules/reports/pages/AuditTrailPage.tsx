@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
-
 import { usePermission } from "../../../hooks/usePermission";
 import {
   auditTrailService,
@@ -11,22 +10,29 @@ import {
   type AuditQuery,
 } from "../../../services/auditTrailService";
 import { formatDateTime } from "../../../utils/dateUtils";
+import { History } from "lucide-react";
+import {
+  Chip,
+  EmptyState,
+  PageHeader,
+  SkeletonRows,
+  type ChipTone,
+} from "../../../components/ui/v2";
 
 /**
  * Audit trail (P1-09d, MCA Rule 3(1)): every change to the books, documents, payroll and
  * masters as the database recorded it. Filter by entity, record, user, action and date; open a
  * row to see the fields that changed. Read-only by design; nothing here can edit or delete.
  */
-const input =
-  "w-full rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-blue-500";
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2 disabled:opacity-50`;
+const input = "sl-input mt-1.5 h-11 w-full px-3.5 text-left text-[15px] font-normal text-ink";
+const labelCls = "flex flex-col text-left text-[13px] font-semibold text-ink-muted";
+const primary = "sl-btn-blue sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
 
-const ACTION_STYLE: Record<string, string> = {
-  CREATE: "bg-emerald-100 text-emerald-800",
-  UPDATE: "bg-amber-100 text-amber-800",
-  DELETE: "bg-rose-100 text-rose-800",
+const ACTION_TONE: Record<string, ChipTone> = {
+  CREATE: "success",
+  UPDATE: "warning",
+  DELETE: "danger",
 };
 
 const message = (err: unknown) =>
@@ -158,32 +164,31 @@ const AuditTrailPage: React.FC = () => {
   const last = result ? Math.min(result.total, result.page * result.pageSize) : 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-ink">Audit Trail</h2>
-          <p className="text-sm text-ink-muted">
-            Every change to the books, documents, payroll and masters, recorded by the database and
-            never editable.
-          </p>
-        </div>
-        {can("audit-reports.export") && (
-          <button
-            type="button"
-            className={secondary}
-            onClick={() => void exportCsv()}
-            disabled={exporting || !result || result.total === 0}
-          >
-            {exporting ? "Exporting…" : "Export CSV"}
-          </button>
-        )}
-      </div>
+    <div className="w-full min-w-0 space-y-4">
+      <PageHeader
+        title="Audit Trail"
+        subtitle="Every change to the books, documents, payroll and masters, recorded by the database and never editable."
+        icon={<History size={22} />}
+        className="!mb-1"
+        actions={
+          can("audit-reports.export") && (
+            <button
+              type="button"
+              className={secondary}
+              onClick={() => void exportCsv()}
+              disabled={exporting || !result || result.total === 0}
+            >
+              {exporting ? "Exporting…" : "Export CSV"}
+            </button>
+          )
+        }
+      />
 
       <form
         onSubmit={apply}
-        className="grid grid-cols-1 gap-3 rounded-xl border border-line-soft bg-card p-4 md:grid-cols-4"
+        className="sl-tile grid grid-cols-1 gap-x-4 gap-y-3 p-4 sm:p-5 md:grid-cols-4"
       >
-        <label className="text-xs font-medium text-ink-muted">
+        <label className={labelCls}>
           Entity
           <select
             className={input}
@@ -198,7 +203,7 @@ const AuditTrailPage: React.FC = () => {
             ))}
           </select>
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className={labelCls}>
           Record id
           <input
             className={input}
@@ -207,7 +212,7 @@ const AuditTrailPage: React.FC = () => {
             placeholder="Row id"
           />
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className={labelCls}>
           Action
           <select
             className={input}
@@ -222,7 +227,7 @@ const AuditTrailPage: React.FC = () => {
             ))}
           </select>
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className={labelCls}>
           User
           <select
             className={input}
@@ -237,7 +242,7 @@ const AuditTrailPage: React.FC = () => {
             ))}
           </select>
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className={labelCls}>
           From
           <input
             type="date"
@@ -246,7 +251,7 @@ const AuditTrailPage: React.FC = () => {
             onChange={(e) => setDraft({ ...draft, from: e.target.value })}
           />
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className={labelCls}>
           To
           <input
             type="date"
@@ -255,7 +260,7 @@ const AuditTrailPage: React.FC = () => {
             onChange={(e) => setDraft({ ...draft, to: e.target.value })}
           />
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className={labelCls}>
           Request id
           <input
             className={input}
@@ -264,9 +269,9 @@ const AuditTrailPage: React.FC = () => {
             placeholder="From an error or log line"
           />
         </label>
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 md:justify-end">
           <button type="submit" className={primary} disabled={loading}>
-            Apply
+            Run report
           </button>
           <button type="button" className={secondary} onClick={reset} disabled={loading}>
             Reset
@@ -274,31 +279,35 @@ const AuditTrailPage: React.FC = () => {
         </div>
       </form>
 
-      <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
+      <div className="sl-tile overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="bg-card-2 text-left text-xs uppercase tracking-wide text-ink-muted">
+          <thead className="bg-card-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted">
             <tr>
-              <th className="px-3 py-2">When</th>
-              <th className="px-3 py-2">Entity</th>
-              <th className="px-3 py-2">Record</th>
-              <th className="px-3 py-2">Action</th>
-              <th className="px-3 py-2">By</th>
-              <th className="px-3 py-2">Changes</th>
-              <th className="px-3 py-2" />
+              <th className="px-4 py-3">When</th>
+              <th className="px-4 py-3">Entity</th>
+              <th className="px-4 py-3">Record</th>
+              <th className="px-4 py-3">Action</th>
+              <th className="px-4 py-3">By</th>
+              <th className="px-4 py-3">Changes</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-ink-muted">
-                  Loading…
+                <td colSpan={7} className="p-0">
+                  <SkeletonRows rows={6} columns={6} header={false} label="Loading…" />
                 </td>
               </tr>
             )}
             {!loading && result && result.data.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-ink-muted">
-                  Nothing recorded for these filters.
+                <td colSpan={7}>
+                  <EmptyState
+                    compact
+                    icon={<History size={22} strokeWidth={1.75} />}
+                    title="Nothing recorded for these filters."
+                  />
                 </td>
               </tr>
             )}
@@ -306,36 +315,34 @@ const AuditTrailPage: React.FC = () => {
               result?.data.map((row) => (
                 <React.Fragment key={row.id}>
                   <tr
-                    className="cursor-pointer border-t border-line-soft hover:bg-card-2"
+                    className="h-[52px] cursor-pointer border-t border-line-soft hover:bg-card-2"
                     onClick={() => setOpen(open === row.id ? null : row.id)}
                   >
-                    <td className="whitespace-nowrap px-3 py-2 text-ink">
+                    <td className="whitespace-nowrap px-4 py-2 text-ink">
                       {formatDateTime(row.changedAt)}
                     </td>
-                    <td className="px-3 py-2 text-ink">{row.entityLabel}</td>
+                    <td className="px-4 py-2 text-ink">{row.entityLabel}</td>
                     <td
-                      className="px-3 py-2 font-mono text-xs text-ink-muted"
+                      className="px-4 py-2 font-mono text-xs text-ink-muted"
                       title={row.entityId ?? ""}
                     >
                       {shortId(row.entityId)}
                     </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ACTION_STYLE[row.action] ?? "bg-slate-100 text-slate-700"}`}
-                      >
+                    <td className="px-4 py-2">
+                      <Chip size="sm" tone={ACTION_TONE[row.action] ?? "muted"}>
                         {row.action}
-                      </span>
+                      </Chip>
                     </td>
-                    <td className="px-3 py-2 text-ink">
+                    <td className="px-4 py-2 text-ink">
                       {row.actor.name}
                       {row.impersonatedBy && (
-                        <span className="ml-1 text-xs text-amber-700">
+                        <span className="ml-1 text-xs text-[color:var(--color-warning)]">
                           (impersonated by {row.impersonatedBy})
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-ink-muted">{summary(row)}</td>
-                    <td className="px-3 py-2 text-ink-muted">{open === row.id ? "▾" : "▸"}</td>
+                    <td className="px-4 py-2 text-ink-muted">{summary(row)}</td>
+                    <td className="px-4 py-2 text-ink-muted">{open === row.id ? "▾" : "▸"}</td>
                   </tr>
                   {open === row.id && (
                     <tr className="border-t border-line-soft bg-card-2/60">
@@ -416,10 +423,10 @@ const Details: React.FC<{ row: AuditEntry }> = ({ row }) => {
               {row.changes.map((c) => (
                 <tr key={c.field} className="border-t border-line-soft">
                   <td className="py-1 pr-4 font-mono text-xs text-ink">{c.field}</td>
-                  <td className="py-1 pr-4 text-rose-700 line-through decoration-rose-300">
+                  <td className="py-1 pr-4 text-[color:var(--color-danger)] line-through">
                     {fmt(c.from)}
                   </td>
-                  <td className="py-1 text-emerald-700">{fmt(c.to)}</td>
+                  <td className="py-1 text-[color:var(--color-success)]">{fmt(c.to)}</td>
                 </tr>
               ))}
             </tbody>

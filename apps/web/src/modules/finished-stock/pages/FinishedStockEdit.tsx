@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { Container, Row, Col } from "../../../components/ui/TailwindPrimitives";
-import { FaSave, FaEraser, FaArrowLeft } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
+import { Save } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 const CATEGORY_OPTIONS = [
   { label: "T-Shirt", value: "T-Shirt" },
@@ -70,26 +69,22 @@ const FinishedStockEdit: React.FC = () => {
   };
 
   return (
-    <div className="inner-container">
-      <Container fluid>
-        <div className="page-header">
-          <Row className="align-items-center g-3">
-            <Col lg={6} md={12}>
-              <div className="page-header-info">
-                <h2 className="page-title">Edit Finished Stock</h2>
-              </div>
-            </Col>
-            <Col lg={6} md={12}>
-              <div className="page-header-actions">
-                <BackButton text="Back to List" to="/finished-stock" />
-              </div>
-            </Col>
-          </Row>
-        </div>
+    <div className="w-full min-w-0 max-w-[1100px]">
+      <PageHeader
+        title="Edit Finished Stock"
+        back="/finished-stock"
+        backLabel="Back to list"
+        breadcrumbs={[
+          { label: "Inventory" },
+          { label: "Finished goods stock", to: "/finished-stock" },
+          { label: "Edit" },
+        ]}
+      />
 
-        <form onSubmit={handleSubmit} className="form-inner">
-          <Row className="g-3">
-            <Col md={6}>
+      <form onSubmit={handleSubmit} noValidate>
+        <Tile title="Stock details">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+            <div>
               <TextInput
                 label="Product Code"
                 name="productCode"
@@ -98,8 +93,8 @@ const FinishedStockEdit: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Product Name"
                 name="productName"
@@ -108,8 +103,8 @@ const FinishedStockEdit: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <SelectInput
                 label="Category"
                 name="category"
@@ -118,8 +113,8 @@ const FinishedStockEdit: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <SelectInput
                 label="Size"
                 name="size"
@@ -128,8 +123,8 @@ const FinishedStockEdit: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Color"
                 name="color"
@@ -137,8 +132,8 @@ const FinishedStockEdit: React.FC = () => {
                 placeholder="e.g. Navy Blue"
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Quantity"
                 name="quantity"
@@ -148,8 +143,8 @@ const FinishedStockEdit: React.FC = () => {
                 required
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Batch No"
                 name="batchNo"
@@ -157,8 +152,8 @@ const FinishedStockEdit: React.FC = () => {
                 placeholder="e.g. BATCH-2024-001"
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Store Location"
                 name="storeName"
@@ -166,8 +161,8 @@ const FinishedStockEdit: React.FC = () => {
                 placeholder="e.g. Finished Goods Store"
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Manufacture Date"
                 name="manufactureDate"
@@ -175,8 +170,8 @@ const FinishedStockEdit: React.FC = () => {
                 type="date"
                 onChange={handleChange}
               />
-            </Col>
-            <Col md={6}>
+            </div>
+            <div>
               <TextInput
                 label="Unit Price (₹)"
                 name="unitPrice"
@@ -186,21 +181,19 @@ const FinishedStockEdit: React.FC = () => {
                 placeholder="e.g. 599.00"
                 onChange={handleChange}
               />
-            </Col>
-          </Row>
-
-          <div className="form-actions d-flex justify-content-end gap-3 mt-4">
-            <CustomButton
-              text="Cancel"
-              icon={FaEraser}
-              onClick={() => navigate("/finished-stock")}
-            />
-            <div className="ms-2">
-              <CustomButton text="Update Stock" icon={FaSave} type="submit" />
             </div>
           </div>
-        </form>
-      </Container>
+        </Tile>
+
+        <FormFooter hint="F2 saves">
+          <ActionPill variant="secondary" onClick={() => navigate("/finished-stock")}>
+            Cancel
+          </ActionPill>
+          <ActionPill type="submit" icon={<Save size={17} />}>
+            Update Stock
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

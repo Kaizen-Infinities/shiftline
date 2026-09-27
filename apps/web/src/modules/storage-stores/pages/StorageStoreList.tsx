@@ -1,39 +1,24 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-
 import type { Store } from "../../../features/stores/types";
-import { STORE_CATEGORY_OPTIONS, STORE_CATEGORY_LABELS } from "../../../features/stores/types";
-
+import { STORE_CATEGORY_LABELS, STORE_CATEGORY_OPTIONS } from "../../../features/stores/types";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
-import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import DataTable from "../../../components/ui/table/DataTable";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { storeService } from "../../../services/storeService";
 import { usePermission } from "../../../hooks/usePermission";
 import { useListCache } from "../../../hooks/useListCache";
+import { Plus, Warehouse } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Toolbar, type ChipTone } from "../../../components/ui/v2";
 
 const ITEMS_PER_PAGE = 15;
-
-const storeCategoryFilterOptions = [
-  { label: "All Categories", value: "" },
-  ...STORE_CATEGORY_OPTIONS,
-];
-
-const activeFilterOptions = [
-  { label: "All Status", value: "" },
-  { label: "Active", value: "true" },
-  { label: "Inactive", value: "false" },
-];
 
 const StorageStoreList: React.FC = () => {
   const navigate = useNavigate();
@@ -87,20 +72,6 @@ const StorageStoreList: React.FC = () => {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
-
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
-  const handleCategoryFilter = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStoreCategoryFilter(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
-  const handleActiveFilter = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setActiveFilter(e.target.value);
-    setCurrentPage(1);
-  }, []);
 
   const handleOpenView = useCallback((item: Store) => {
     setSelectedItem(item);
@@ -162,116 +133,175 @@ const StorageStoreList: React.FC = () => {
     };
   }, []);
 
-  return (
-    <div>
-      <div className="max-w-[1200px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink"> Store Management</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="w-48">
-              <SelectInput
-                label="Store Category"
-                hideLabel={true}
-                name="storeCategoryFilter"
-                value={storeCategoryFilter}
-                options={storeCategoryFilterOptions}
-                onChange={handleCategoryFilter}
-              />
-            </div>
-            <div className="w-36">
-              <SelectInput
-                label="Status Filter"
-                hideLabel={true}
-                name="activeFilter"
-                value={activeFilter}
-                options={activeFilterOptions}
-                onChange={handleActiveFilter}
-              />
-            </div>
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search stores..."
-            />
-            {can("stores.export") && (
-              <ExportCSVButton
-                fetchData={fetchStoresForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-            {can("stores.create") && (
-              <CustomButton
-                text="Add Store"
-                icon={FaPlus}
-                onClick={() => navigate("/storage-stores/create")}
-              />
-            )}
-          </div>
-        </div>
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allStores.forEach((st: any) => {
+      counts[st.storeCategory] = (counts[st.storeCategory] || 0) + 1;
+    });
+    return counts;
+  }, [allStores]);
 
-        {/* Table */}
-        <div className="p-0">
-          <DataTable
-            data={paginatedStores}
-            rowKey={(item) => item.storeId}
-            emptyMessage="No stores found."
-            loading={loading}
-            pagination={
-              totalPages > 1
-                ? {
-                    currentPage,
-                    totalPages,
-                    onPageChange: setCurrentPage,
-                  }
-                : undefined
-            }
-            columns={[
-              {
-                header: "#",
-                width: "60px",
-                render: (_item, index) => (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
-                align: "center",
-              },
-              { header: "STORE ID", accessor: "storeId" },
-              { header: "STORE NAME", accessor: "storeName" },
-              {
-                header: "CATEGORY",
-                render: (item) =>
-                  item.storeCategory
-                    ? ((STORE_CATEGORY_LABELS as any)[item.storeCategory] ?? item.storeCategory)
-                    : "N/A",
-              },
-              {
-                header: "INCHARGE",
-                render: (item) => item.incharge?.fullName || "N/A",
-              },
-              {
-                header: "STATUS",
-                render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} />,
-                align: "center",
-              },
-              {
-                header: "ACTIONS",
-                render: (item) => (
-                  <div className="flex items-center gap-2">
-                    <ViewButton onClick={() => handleOpenView(item)} />
-                    {can("stores.edit") && <EditButton onClick={() => handleOpenEdit(item)} />}
-                    {can("stores.delete") && (
-                      <DeleteButton onClick={() => triggerDelete(item.storeId)} />
-                    )}
-                  </div>
-                ),
-                align: "center",
-              },
-            ]}
-          />
-        </div>
-      </div>
+  const hasFilters = Boolean(searchTerm || storeCategoryFilter || activeFilter);
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStoreCategoryFilter("");
+    setActiveFilter("");
+    setCurrentPage(1);
+  };
+
+  const createCta = can("stores.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/storage-stores/create")}>
+      New Store
+    </ActionPill>
+  ) : null;
+
+  const categoryTone = (cat?: string): ChipTone =>
+    cat === "RAW_MATERIAL" ? "success" : cat === "WASTAGE" ? "warning" : "default";
+
+  return (
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Store Management"
+        subtitle={`${allStores.length} stores · where raw materials, finished goods and wastage are kept`}
+        icon={<Warehouse size={22} />}
+        actions={
+          can("stores.export") ? (
+            <ExportCSVButton
+              fetchData={fetchStoresForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : null
+        }
+        primaryAction={createCta}
+      />
+
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(value) => {
+          setSearchTerm(value);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search stores..."
+        searchLabel="Search stores"
+        filters={[
+          { key: "", label: "All", count: allStores.length },
+          ...STORE_CATEGORY_OPTIONS.map((o) => ({
+            key: o.value,
+            label: o.label.replace(" Store", ""),
+            count: categoryCounts[o.value] ?? 0,
+          })),
+        ]}
+        filterValue={storeCategoryFilter}
+        onFilterChange={(key) => {
+          setStoreCategoryFilter(key);
+          setCurrentPage(1);
+        }}
+        filtersLabel="Store category"
+        right={
+          <div role="group" aria-label="Status" className="flex items-center gap-2">
+            {[
+              { key: "", label: "Any status" },
+              { key: "true", label: "Active" },
+              { key: "false", label: "Inactive" },
+            ].map((f) => (
+              <Chip
+                key={f.key || "all"}
+                selected={activeFilter === f.key}
+                onClick={() => {
+                  setActiveFilter(f.key);
+                  setCurrentPage(1);
+                }}
+              >
+                {f.label}
+              </Chip>
+            ))}
+          </div>
+        }
+      />
+
+      <DataTable
+        data={paginatedStores}
+        rowKey={(item) => item.storeId}
+        ariaLabel="Stores"
+        emptyMessage={hasFilters ? "No stores match these filters." : "No stores found."}
+        emptyAction={
+          hasFilters ? (
+            <ActionPill variant="secondary" onClick={clearFilters}>
+              Clear filters
+            </ActionPill>
+          ) : (
+            createCta
+          )
+        }
+        loading={loading}
+        pagination={
+          totalPages > 1
+            ? {
+                currentPage,
+                totalPages,
+                onPageChange: setCurrentPage,
+              }
+            : undefined
+        }
+        columns={[
+          {
+            header: "#",
+            width: "56px",
+            render: (_item, index) => (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
+            align: "center",
+          },
+          {
+            header: "Store",
+            render: (item) => (
+              <div className="flex min-w-0 flex-col">
+                <button
+                  type="button"
+                  onClick={() => handleOpenView(item)}
+                  className="w-fit text-left font-semibold text-accent hover:underline underline-offset-4"
+                >
+                  {item.storeName}
+                </button>
+                <span className="font-mono text-xs text-ink-subtle">{item.storeId}</span>
+              </div>
+            ),
+          },
+          {
+            header: "Category",
+            render: (item) =>
+              item.storeCategory ? (
+                <Chip size="sm" tone={categoryTone(item.storeCategory)}>
+                  {(STORE_CATEGORY_LABELS as any)[item.storeCategory] ?? item.storeCategory}
+                </Chip>
+              ) : (
+                "—"
+              ),
+          },
+          {
+            header: "Incharge",
+            render: (item) => item.incharge?.fullName || "—",
+          },
+          {
+            header: "Status",
+            render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} />,
+            align: "center",
+          },
+          {
+            header: "Actions",
+            render: (item) => (
+              <div className="table-action-group w-full justify-end">
+                <ViewButton onClick={() => handleOpenView(item)} />
+                {can("stores.edit") && <EditButton onClick={() => handleOpenEdit(item)} />}
+                {can("stores.delete") && (
+                  <DeleteButton onClick={() => triggerDelete(item.storeId)} />
+                )}
+              </div>
+            ),
+            align: "right",
+          },
+        ]}
+      />
 
       {/* View Modal */}
       <CommonViewModal

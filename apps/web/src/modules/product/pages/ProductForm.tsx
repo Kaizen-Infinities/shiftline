@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useNavigate, useParams } from "react-router-dom";
-import { FaSave, FaEraser, FaTimes, FaPlus, FaImage } from "react-icons/fa";
+import { Eraser, Gauge, Image as ImageIcon, ImagePlus, Plus, Save, X } from "lucide-react";
 import { toast } from "react-toastify";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
 import MultiSelect from "../../../components/form/multiSelect/MultiSelect";
-import CustomButton from "../../../components/ui/Button/Button";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import { useProducts } from "../../../hooks/useProducts";
 import { productService } from "../../../services/productService";
@@ -15,7 +14,15 @@ import { storeService } from "../../../services/storeService";
 import { rawMaterialService } from "../../../services/rawMaterialService";
 import { getImageUrl } from "../../../utils/ImageUrls";
 import { useSocketSync } from "../../../hooks/useSocketSync";
-import BackButton from "../../../components/ui/BackButton/BackButton";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SkeletonTile,
+  Tile,
+} from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import { employeeService } from "../../../services/employeeService";
@@ -627,82 +634,126 @@ const ProductForm: React.FC = () => {
 
   const hasAnyImage = existingImages.length > 0 || newImagePreviews.length > 0;
 
+  const bomTotal = rawMaterials.reduce((sum, rm) => sum + (Number(rm.percentage) || 0), 0);
+  const gridClass = "grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-4";
+
   if (isLoadingData) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="w-full min-w-0">
+        <PageHeader
+          title={isEditMode ? "Edit Product" : "Create Product"}
+          back="/products"
+          backLabel="Back to products"
+        />
+        <div className="flex flex-col gap-4">
+          <SkeletonTile lines={4} />
+          <SkeletonTile lines={3} />
+          <SkeletonTile lines={2} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1200px] mr-auto product-form-compact">
-      {/* Compact overrides for child form components */}
-      <style>{`
-                .product-form-compact label { margin-bottom: 3px !important; font-size: 11px !important; }
-                .product-form-compact input, .product-form-compact select,
-                .product-form-compact button[role="combobox"] { height: 34px !important; min-height: 34px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
-                .product-form-compact .group { margin-bottom: 0 !important; }
-            `}</style>
-      <div className="bg-card rounded-sm border border-line-soft overflow-visible">
-        {/* ── Page Header ── */}
-        <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
-          <h2 className="text-base font-bold text-ink">
-            {isEditMode ? "Edit Product" : "Create Product"}
-          </h2>
-          <BackButton text="Back to List" to="/products" />
-        </div>
+    <div className="w-full min-w-0">
+      <PageHeader
+        title={isEditMode ? "Edit Product" : "Create Product"}
+        subtitle={
+          isEditMode
+            ? `${formData.productCode} · ${formData.productName || "Production product"}`
+            : "A finished good you manufacture, its recipe (BOM) and machine capacity"
+        }
+        back="/products"
+        backLabel="Back to products"
+        breadcrumbs={[
+          { label: "Inventory" },
+          { label: "Products", to: "/products" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+        meta={isEditMode ? <Chip size="sm">{formData.productCode}</Chip> : undefined}
+      />
 
-        <form onSubmit={handleSubmit} className="px-5 py-3 space-y-3" noValidate>
-          {/* ── Section 1: Basic Product Details ── */}
-          <div>
-            <div className="flex items-center gap-2 mb-2.5 pb-1.5 border-b border-line-soft">
-              <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                Basic Product Details
-              </h3>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        {/* ── Product ── */}
+        <Tile title="Product details" subtitle="What it is and how it is classified">
+          <div className={gridClass}>
+            <TextInput
+              label="Product Code"
+              name="productCode"
+              value={formData.productCode}
+              placeholder="e.g. PRD-001"
+              required
+              onChange={handleChange}
+              disabled
+            />
+            <TextInput
+              label="Product Name"
+              name="productName"
+              value={formData.productName}
+              placeholder="e.g. Plastic Bucket 20L"
+              required
+              onChange={handleChange}
+              error={errors.productName}
+            />
+            <SelectInput
+              label="Category"
+              name="categoryId"
+              value={formData.categoryId}
+              options={categoryOptions}
+              defaultOptionLabel="-- Select Category --"
+              required
+              onChange={handleChange}
+              error={errors.categoryId}
+              disabled={isEditMode}
+            />
+            <SelectInput
+              label="Product Type"
+              name="productType"
+              value={formData.productType}
+              options={[
+                { value: "PRODUCTION", label: "Production" },
+                { value: "SALES_PRODUCTION", label: "Sales Production" },
+              ]}
+              required
+              onChange={handleChange}
+              error={errors.productType}
+            />
+            <SelectInput
+              label="Status"
+              name="isActive"
+              value={formData.isActive}
+              options={[
+                { value: "true", label: "Active" },
+                { value: "false", label: "Inactive" },
+              ]}
+              onChange={handleChange}
+            />
+            <SelectInput
+              label="Scrap / Waste Item"
+              name="isScrap"
+              value={formData.isScrap}
+              options={[
+                { value: "false", label: "No" },
+                { value: "true", label: "Yes" },
+              ]}
+              onChange={handleChange}
+            />
+            <div className="md:col-span-2">
+              <TextInput
+                label="Description"
+                name="description"
+                value={formData.description}
+                placeholder="Enter catalogue description..."
+                onChange={handleChange}
+              />
             </div>
-            <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-              <TextInput
-                label="Product Code"
-                name="productCode"
-                value={formData.productCode}
-                placeholder="e.g. PRD-001"
-                required
-                onChange={handleChange}
-                disabled
-              />
-              <TextInput
-                label="Product Name"
-                name="productName"
-                value={formData.productName}
-                placeholder="e.g. Plastic Bucket 20L"
-                required
-                onChange={handleChange}
-                error={errors.productName}
-              />
-              <SelectInput
-                label="Category"
-                name="categoryId"
-                value={formData.categoryId}
-                options={categoryOptions}
-                defaultOptionLabel="-- Select Category --"
-                required
-                onChange={handleChange}
-                error={errors.categoryId}
-                disabled={isEditMode}
-              />
-              <SelectInput
-                label="Product Type"
-                name="productType"
-                value={formData.productType}
-                options={[
-                  { value: "PRODUCTION", label: "Production" },
-                  { value: "SALES_PRODUCTION", label: "Sales Production" },
-                ]}
-                required
-                onChange={handleChange}
-                error={errors.productType}
-              />
+          </div>
+        </Tile>
+
+        {/* ── Weight, pricing and stock ── */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Tile title="Weight & pricing" subtitle="Per-piece weight and the default selling rate">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
               <QuantityInput
                 label="Weight per Piece"
                 name="weightPerPiece"
@@ -720,11 +771,17 @@ const ProductForm: React.FC = () => {
                 name="rate"
                 type="number"
                 step="0.01"
+                inputMode="decimal"
                 value={formData.rate}
                 placeholder="0.00"
                 onChange={handleChange}
                 error={errors.rate}
               />
+            </div>
+          </Tile>
+
+          <Tile title="Stock" subtitle="Opening balance and the reorder level">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
               <SelectInput
                 label="Opening Stock Store"
                 name="openingStockStoreId"
@@ -739,6 +796,7 @@ const ProductForm: React.FC = () => {
                 label="Opening Stock Qty"
                 name="openingStockQty"
                 type="number"
+                inputMode="decimal"
                 placeholder="0"
                 required
                 value={formData.openingStockQty}
@@ -750,426 +808,430 @@ const ProductForm: React.FC = () => {
                 label="Minimum Stock Qty"
                 name="minimumQty"
                 type="number"
+                inputMode="decimal"
                 placeholder="0"
                 value={String(formData.minimumQty)}
                 onChange={handleChange}
                 required
                 error={errors.minimumQty}
               />
-              <SelectInput
-                label="Status"
-                name="isActive"
-                value={formData.isActive}
-                options={[
-                  { value: "true", label: "Active" },
-                  { value: "false", label: "Inactive" },
-                ]}
-                onChange={handleChange}
+            </div>
+          </Tile>
+        </div>
+
+        {/* ── Grade rates ── */}
+        {customerGrades.length > 0 && (
+          <Tile
+            title={
+              <>
+                Grade rates (₹){" "}
+                <span className="sl-required" aria-hidden="true">
+                  *
+                </span>
+              </>
+            }
+            subtitle="Price per customer grade; fill at least one"
+          >
+            <div className={gridClass}>
+              {customerGrades.map((grade) => (
+                <TextInput
+                  key={grade.id}
+                  label={`${grade.name} Rate (₹)`}
+                  name={`gradeRate_${grade.name}`}
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={gradeRates[grade.name] ?? ""}
+                  placeholder="0.00"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setGradeRates((prev) => ({ ...prev, [grade.name]: val }));
+                    if (errors[`gradeRate_${grade.name}`] || errors.gradeRates) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        [`gradeRate_${grade.name}`]: "",
+                        gradeRates: "",
+                      }));
+                    }
+                  }}
+                  error={errors[`gradeRate_${grade.name}`]}
+                />
+              ))}
+            </div>
+            {errors.gradeRates && (
+              <p role="alert" className="sl-field-error m-0 mt-2">
+                {errors.gradeRates}
+              </p>
+            )}
+          </Tile>
+        )}
+
+        {/* ── Images ── */}
+        <Tile
+          title="Product images"
+          subtitle={`Up to ${MAX_IMAGES}; the first is the primary image`}
+          actions={
+            <Chip size="sm" tone={remainingSlots > 0 ? "muted" : "warning"}>
+              {remainingSlots > 0 ? `${remainingSlots} left` : "Limit reached"}
+            </Chip>
+          }
+        >
+          <div className="flex flex-col gap-3 md:flex-row md:items-stretch">
+            <label
+              className={`flex min-h-[112px] flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed border-line bg-card-2 px-4 py-4 text-center md:w-64 ${remainingSlots > 0 ? "cursor-pointer hover:bg-nav-active" : "opacity-60"}`}
+            >
+              <ImagePlus size={22} className="text-accent" aria-hidden="true" />
+              <span className="text-sm font-semibold text-ink">Add images</span>
+              <span className="text-xs text-ink-subtle">PNG, JPEG or WebP</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/webp"
+                className="sr-only"
+                onChange={handleImageChange}
+                disabled={remainingSlots <= 0}
               />
-              <SelectInput
-                label="Scrap / Waste Item"
-                name="isScrap"
-                value={formData.isScrap}
-                options={[
-                  { value: "false", label: "No" },
-                  { value: "true", label: "Yes" },
-                ]}
-                onChange={handleChange}
-              />
-              <TextInput
-                label="Description"
-                name="description"
-                value={formData.description}
-                placeholder="Enter catalogue description..."
-                onChange={handleChange}
-              />
+            </label>
+
+            <div className="flex min-h-[112px] flex-1 flex-wrap items-center gap-3 rounded-[14px] border border-line-soft bg-card-2 p-3">
+              {existingImages.map((img, index) => (
+                <div
+                  key={`existing-${img.id}`}
+                  className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-line-soft bg-card"
+                >
+                  <img
+                    src={getImageUrl(img.imageUrl)}
+                    alt={`Product image ${index + 1}`}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                  {index === 0 && (
+                    <span className="sl-chip sl-chip-sm sl-chip-success absolute left-1 top-1">
+                      Primary
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Remove image"
+                    className="sl-icon-btn sl-icon-btn-hover-danger absolute right-1 top-1 !h-7 !w-7"
+                    onClick={() => handleRemoveExistingImage(img.id)}
+                  >
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+
+              {newImagePreviews.map((preview, index) => (
+                <div
+                  key={`new-${index}`}
+                  className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-line-soft bg-card"
+                >
+                  <img
+                    src={preview}
+                    alt={`New image ${index + 1}`}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                  {existingImages.length === 0 && index === 0 ? (
+                    <span className="sl-chip sl-chip-sm sl-chip-success absolute left-1 top-1">
+                      Primary
+                    </span>
+                  ) : (
+                    <span className="sl-chip sl-chip-sm absolute bottom-1 left-1">New</span>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Remove image"
+                    className="sl-icon-btn sl-icon-btn-hover-danger absolute right-1 top-1 !h-7 !w-7"
+                    onClick={() => handleRemoveNewImage(index)}
+                  >
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+
+              {!hasAnyImage && (
+                <div className="flex w-full flex-col items-center justify-center text-ink-subtle">
+                  <ImageIcon size={22} aria-hidden="true" />
+                  <span className="mt-1 text-xs">No images yet</span>
+                </div>
+              )}
             </div>
           </div>
+          {errors.images && (
+            <p role="alert" className="sl-field-error m-0 mt-2">
+              {errors.images}
+            </p>
+          )}
+        </Tile>
 
-          {/* ── Section 2: Grade Rates ── */}
-          {customerGrades.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2.5 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Grade Rates (₹) <span className="text-rose-500">*</span>
-                </h3>
-              </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                {customerGrades.map((grade) => (
-                  <TextInput
-                    key={grade.id}
-                    label={`${grade.name} Rate (₹)`}
-                    name={`gradeRate_${grade.name}`}
-                    type="number"
-                    step="0.01"
-                    value={gradeRates[grade.name] ?? ""}
-                    placeholder="0.00"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setGradeRates((prev) => ({ ...prev, [grade.name]: val }));
-                      if (errors[`gradeRate_${grade.name}`] || errors.gradeRates) {
-                        setErrors((prev) => ({
-                          ...prev,
-                          [`gradeRate_${grade.name}`]: "",
-                          gradeRates: "",
-                        }));
+        {/* ── Raw Materials BOM ── */}
+        <Tile
+          title={
+            <>
+              Raw materials (BOM){" "}
+              <span className="sl-required" aria-hidden="true">
+                *
+              </span>
+            </>
+          }
+          subtitle="The recipe: share of each raw material in one piece"
+          actions={
+            <>
+              {rawMaterials.length > 0 && (
+                <Chip
+                  size="sm"
+                  tone={Math.abs(bomTotal - 100) < 0.001 ? "success" : "warning"}
+                  className="tabular-nums"
+                >
+                  Total {Number(bomTotal.toFixed(2))}%
+                </Chip>
+              )}
+              <ActionPill
+                variant="secondary"
+                size="sm"
+                icon={<Plus size={15} />}
+                onClick={handleAddRawMaterial}
+              >
+                Add Raw Material
+              </ActionPill>
+            </>
+          }
+        >
+          <DataTable
+            columns={
+              [
+                {
+                  header: "Raw material",
+                  render: (_, idx) => (
+                    <SelectInput
+                      hideLabel
+                      noMargin
+                      name={`rm-${idx}`}
+                      value={rawMaterials[idx]?.rawMaterialId ?? ""}
+                      options={[{ value: "", label: "-- Select --" }, ...bomOptions]}
+                      onChange={(e) =>
+                        handleRawMaterialChange(idx, "rawMaterialId", e.target.value)
                       }
-                    }}
-                    error={errors[`gradeRate_${grade.name}`]}
-                  />
+                      error={errors[`rawMaterials.${idx}.rawMaterialId`]}
+                    />
+                  ),
+                },
+                {
+                  header: "Percentage (%)",
+                  width: "200px",
+                  render: (_, idx) => (
+                    <TextInput
+                      label=""
+                      bottom
+                      name={`percent-${idx}`}
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={rawMaterials[idx]?.percentage ?? ""}
+                      placeholder="0.00"
+                      onChange={(e) => handleRawMaterialChange(idx, "percentage", e.target.value)}
+                      error={errors[`rawMaterials.${idx}.percentage`]}
+                    />
+                  ),
+                },
+                {
+                  header: "",
+                  width: "56px",
+                  align: "center",
+                  render: (_, idx) => <DeleteButton onClick={() => handleRemoveRawMaterial(idx)} />,
+                },
+              ] as DataTableColumn<any>[]
+            }
+            data={rawMaterials}
+            rowKey={(rm) => rm.rawMaterialId || rawMaterials.indexOf(rm)}
+            minHeightClassName="min-h-0"
+            density="compact"
+            ariaLabel="Bill of materials"
+            emptyMessage={
+              <span
+                className={
+                  errors.rawMaterials ? "text-[color:var(--color-danger)]" : "text-ink-subtle"
+                }
+              >
+                No raw materials added. Click "Add Raw Material" to specify the composition.
+              </span>
+            }
+          />
+          {errors.rawMaterials && (
+            <p role="alert" className="sl-field-error m-0 mt-2">
+              {errors.rawMaterials}
+            </p>
+          )}
+        </Tile>
+
+        {/* ── Initial Capacity Setup — create mode only ── */}
+        {!isEditMode && (
+          <Tile
+            title="Initial capacity setup"
+            subtitle="Pieces per shift on each machine, and who runs it"
+            actions={
+              <ActionPill
+                variant="secondary"
+                size="sm"
+                icon={<Plus size={15} />}
+                onClick={handleAddInitialCapacity}
+              >
+                Add Capacity Setup
+              </ActionPill>
+            }
+          >
+            {initialCapacities.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {initialCapacities.map((cap, idx) => (
+                  <div
+                    key={`cap-${idx}`}
+                    className="rounded-[14px] border border-line-soft bg-card-2 p-3 sm:p-4"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="sl-section-label">Setup #{idx + 1}</span>
+                      <DeleteButton onClick={() => handleRemoveInitialCapacity(idx)} />
+                    </div>
+                    <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2 lg:grid-cols-5">
+                      <DatePickerCalendar
+                        label="Date"
+                        name={`capDate-${idx}`}
+                        value={cap.capDate}
+                        onChange={(e) =>
+                          handleInitialCapacityChange(idx, "capDate", e.target.value)
+                        }
+                        required
+                        error={errors[`cap_${idx}_date`]}
+                      />
+                      <SelectInput
+                        label="Shift"
+                        name={`capShiftId-${idx}`}
+                        value={cap.capShiftId}
+                        options={[
+                          { value: "", label: "-- Shift --" },
+                          ...shifts.map((s) => ({
+                            value: s.shiftName || s.shiftCode,
+                            label: s.shiftName || s.shiftCode,
+                          })),
+                        ]}
+                        onChange={(e) =>
+                          handleInitialCapacityChange(idx, "capShiftId", e.target.value)
+                        }
+                        required
+                        error={errors[`cap_${idx}_shift`]}
+                      />
+                      <SelectInput
+                        label="Machine"
+                        name={`capMachine-${idx}`}
+                        value={cap.capMachine}
+                        options={[
+                          { value: "", label: "-- Machine --" },
+                          ...machines
+                            .filter(
+                              (m) =>
+                                String(m.machineId) === String(cap.capMachine) ||
+                                !initialCapacities.some(
+                                  (c, i) =>
+                                    i !== idx && String(c.capMachine) === String(m.machineId)
+                                )
+                            )
+                            .map((m) => ({ value: String(m.machineId), label: m.machineName })),
+                        ]}
+                        onChange={(e) =>
+                          handleInitialCapacityChange(idx, "capMachine", e.target.value)
+                        }
+                        required
+                        error={errors[`cap_${idx}_machine`]}
+                      />
+                      <SelectInput
+                        label="Role"
+                        name={`capRoleId-${idx}`}
+                        value={cap.capRoleId}
+                        options={[
+                          { value: "", label: "-- Role --" },
+                          ...roles.map((role) => ({ value: String(role.id), label: role.name })),
+                        ]}
+                        onChange={(e) =>
+                          handleInitialCapacityChange(idx, "capRoleId", e.target.value)
+                        }
+                        required
+                        error={errors[`cap_${idx}_role`]}
+                      />
+                      <TextInput
+                        label="Qty / Shift"
+                        name={`capQty-${idx}`}
+                        type="number"
+                        step="any"
+                        inputMode="decimal"
+                        value={cap.capQty}
+                        onChange={(e) => handleInitialCapacityChange(idx, "capQty", e.target.value)}
+                        placeholder="0"
+                        required
+                        error={errors[`cap_${idx}_qty`]}
+                      />
+                      <div className="col-span-full">
+                        <MultiSelect
+                          label="Operators"
+                          name={`capOperatorIds-${idx}`}
+                          options={employees
+                            .filter((emp) => {
+                              if (!cap.capRoleId) return false;
+                              const empRoleId =
+                                emp.roleId ??
+                                emp.role?.id ??
+                                emp.user?.roleId ??
+                                emp.user?.role?.id;
+                              return String(empRoleId) === String(cap.capRoleId);
+                            })
+                            .map((emp) => ({ value: String(emp.id), label: emp.fullName }))}
+                          value={cap.capOperatorIds}
+                          onChange={(_, vals) =>
+                            handleInitialCapacityChange(idx, "capOperatorIds", vals)
+                          }
+                          placeholder={cap.capRoleId ? "Select operators" : "Select role first"}
+                          required
+                          error={errors[`cap_${idx}_operators`]}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
-              {errors.gradeRates && (
-                <p className="mt-0.5 text-[11px] text-rose-500">{errors.gradeRates}</p>
-              )}
-            </div>
-          )}
-
-          {/* ── Images & BOM stacked full-width ── */}
-          <div className="flex flex-col gap-4">
-            {/* Product Images */}
-            <div>
-              <div className="flex items-center gap-2 mb-2.5 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Product Images
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Left: file input */}
-                <div className="border border-line-soft rounded p-3 bg-card-2 flex flex-col justify-center">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/png,image/jpeg,image/webp"
-                    className="w-full text-[11px] text-ink-muted file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-primary/15 file:text-primary hover:file:bg-primary/25 cursor-pointer"
-                    onChange={handleImageChange}
-                    disabled={remainingSlots <= 0}
-                    style={{ height: "auto", minHeight: "auto" }}
-                  />
-                  <p className="text-[10px] text-ink-subtle mt-1 leading-tight">
-                    Max {MAX_IMAGES} · First = primary ·{" "}
-                    {remainingSlots > 0 ? `${remainingSlots} left` : "Limit reached"}
-                  </p>
-                  {errors.images && (
-                    <p className="text-[10px] text-red-500 mt-0.5">{errors.images}</p>
-                  )}
-                </div>
-
-                {/* Right: image previews */}
-                <div className="border border-line-soft rounded p-3 bg-card-2 flex flex-wrap gap-2 items-center min-h-[60px]">
-                  {existingImages.map((img, index) => (
-                    <div
-                      key={`existing-${img.id}`}
-                      className="w-14 h-14 border border-line-soft rounded relative flex items-center justify-center bg-card flex-shrink-0"
-                    >
-                      <img
-                        src={getImageUrl(img.imageUrl)}
-                        alt={`img-${index + 1}`}
-                        className="max-h-full max-w-full object-contain rounded"
-                      />
-                      {index === 0 && (
-                        <span className="absolute top-0.5 left-0.5 bg-emerald-500 text-white text-[7px] font-bold px-0.5 rounded leading-none">
-                          Pri
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        className="absolute top-0.5 right-0.5 bg-red-500 text-white p-0.5 rounded-full hover:bg-red-600"
-                        onClick={() => handleRemoveExistingImage(img.id)}
-                      >
-                        <FaTimes size={6} />
-                      </button>
-                    </div>
-                  ))}
-
-                  {newImagePreviews.map((preview, index) => (
-                    <div
-                      key={`new-${index}`}
-                      className="w-14 h-14 border border-line-soft rounded relative flex items-center justify-center bg-card flex-shrink-0"
-                    >
-                      <img
-                        src={preview}
-                        alt={`new-${index + 1}`}
-                        className="max-h-full max-w-full object-contain rounded"
-                      />
-                      {existingImages.length === 0 && index === 0 && (
-                        <span className="absolute top-0.5 left-0.5 bg-emerald-500 text-white text-[7px] font-bold px-0.5 rounded leading-none">
-                          Pri
-                        </span>
-                      )}
-                      <span className="absolute bottom-0.5 left-0.5 bg-primary text-white text-[7px] font-bold px-0.5 rounded leading-none">
-                        New
-                      </span>
-                      <button
-                        type="button"
-                        className="absolute top-0.5 right-0.5 bg-red-500 text-white p-0.5 rounded-full hover:bg-red-600"
-                        onClick={() => handleRemoveNewImage(index)}
-                      >
-                        <FaTimes size={6} />
-                      </button>
-                    </div>
-                  ))}
-
-                  {!hasAnyImage && (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-ink-subtle opacity-50">
-                      <FaImage size={20} />
-                      <span className="text-[10px] mt-1">No images</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Raw Materials BOM */}
-            <div>
-              <div className="flex items-center justify-between mb-2.5 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Raw Materials (BOM) <span className="text-rose-500">*</span>
-                </h3>
-                <CustomButton
-                  text="Add Raw Material"
-                  icon={FaPlus}
-                  onClick={handleAddRawMaterial}
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                />
-              </div>
-              <DataTable
-                columns={
-                  [
-                    {
-                      header: "RAW MATERIAL",
-                      render: (_, idx) => (
-                        <SelectInput
-                          hideLabel
-                          noMargin
-                          name={`rm-${idx}`}
-                          value={rawMaterials[idx]?.rawMaterialId ?? ""}
-                          options={[{ value: "", label: "-- Select --" }, ...bomOptions]}
-                          onChange={(e) =>
-                            handleRawMaterialChange(idx, "rawMaterialId", e.target.value)
-                          }
-                          error={errors[`rawMaterials.${idx}.rawMaterialId`]}
-                        />
-                      ),
-                    },
-                    {
-                      header: "PERCENTAGE (%)",
-                      width: "200px",
-                      render: (_, idx) => (
-                        <TextInput
-                          label=""
-                          bottom
-                          name={`percent-${idx}`}
-                          type="number"
-                          step="0.01"
-                          value={rawMaterials[idx]?.percentage ?? ""}
-                          placeholder="0.00"
-                          onChange={(e) =>
-                            handleRawMaterialChange(idx, "percentage", e.target.value)
-                          }
-                          error={errors[`rawMaterials.${idx}.percentage`]}
-                        />
-                      ),
-                    },
-                    {
-                      header: "",
-                      width: "52px",
-                      align: "center",
-                      render: (_, idx) => (
-                        <DeleteButton onClick={() => handleRemoveRawMaterial(idx)} />
-                      ),
-                    },
-                  ] as DataTableColumn<any>[]
-                }
-                data={rawMaterials}
-                rowKey={(rm) => rm.rawMaterialId || rawMaterials.indexOf(rm)}
-                minHeightClassName="min-h-0"
-                density="compact"
-                emptyMessage={
-                  <span
-                    className={
-                      errors.rawMaterials ? "text-rose-400 font-medium" : "text-ink-subtle"
-                    }
-                  >
-                    No raw materials added. Click "Add Raw Material" to specify the composition.
-                  </span>
-                }
-              />
-              {errors.rawMaterials && rawMaterials.length === 0 && (
-                <p className="mt-1 text-[10px] text-rose-400 font-medium">{errors.rawMaterials}</p>
-              )}
-              {errors.rawMaterials && rawMaterials.length > 0 && (
-                <p className="mt-1 text-[10px] text-rose-400 font-medium">{errors.rawMaterials}</p>
-              )}
-            </div>
-          </div>
-
-          {/* ── Initial Capacity Setup — create mode only ── */}
-          {!isEditMode && (
-            <div>
-              <div className="flex items-center justify-between mb-2.5 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Initial Capacity Setup
-                </h3>
-                <CustomButton
-                  text="Add Capacity Setup"
-                  icon={FaPlus}
-                  onClick={handleAddInitialCapacity}
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                />
-              </div>
-              {initialCapacities.length > 0 ? (
-                <div className="space-y-1.5">
-                  {initialCapacities.map((cap, idx) => (
-                    <div
-                      key={`cap-${idx}`}
-                      className="p-2 border border-line-soft rounded-lg bg-card-2/40"
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">
-                          Setup #{idx + 1}
-                        </span>
-                        <DeleteButton onClick={() => handleRemoveInitialCapacity(idx)} />
-                      </div>
-                      <div className="grid grid-cols-6 gap-x-2 gap-y-1">
-                        <DatePickerCalendar
-                          label="Date"
-                          name={`capDate-${idx}`}
-                          value={cap.capDate}
-                          onChange={(e) =>
-                            handleInitialCapacityChange(idx, "capDate", e.target.value)
-                          }
-                          required
-                          error={errors[`cap_${idx}_date`]}
-                        />
-                        <SelectInput
-                          label="Shift"
-                          name={`capShiftId-${idx}`}
-                          value={cap.capShiftId}
-                          options={[
-                            { value: "", label: "-- Shift --" },
-                            ...shifts.map((s) => ({
-                              value: s.shiftName || s.shiftCode,
-                              label: s.shiftName || s.shiftCode,
-                            })),
-                          ]}
-                          onChange={(e) =>
-                            handleInitialCapacityChange(idx, "capShiftId", e.target.value)
-                          }
-                          required
-                          error={errors[`cap_${idx}_shift`]}
-                        />
-                        <SelectInput
-                          label="Machine"
-                          name={`capMachine-${idx}`}
-                          value={cap.capMachine}
-                          options={[
-                            { value: "", label: "-- Machine --" },
-                            ...machines
-                              .filter(
-                                (m) =>
-                                  String(m.machineId) === String(cap.capMachine) ||
-                                  !initialCapacities.some(
-                                    (c, i) =>
-                                      i !== idx && String(c.capMachine) === String(m.machineId)
-                                  )
-                              )
-                              .map((m) => ({ value: String(m.machineId), label: m.machineName })),
-                          ]}
-                          onChange={(e) =>
-                            handleInitialCapacityChange(idx, "capMachine", e.target.value)
-                          }
-                          required
-                          error={errors[`cap_${idx}_machine`]}
-                        />
-                        <SelectInput
-                          label="Role"
-                          name={`capRoleId-${idx}`}
-                          value={cap.capRoleId}
-                          options={[
-                            { value: "", label: "-- Role --" },
-                            ...roles.map((role) => ({ value: String(role.id), label: role.name })),
-                          ]}
-                          onChange={(e) =>
-                            handleInitialCapacityChange(idx, "capRoleId", e.target.value)
-                          }
-                          required
-                          error={errors[`cap_${idx}_role`]}
-                        />
-                        <TextInput
-                          label="Qty / Shift"
-                          name={`capQty-${idx}`}
-                          type="number"
-                          step="any"
-                          value={cap.capQty}
-                          onChange={(e) =>
-                            handleInitialCapacityChange(idx, "capQty", e.target.value)
-                          }
-                          placeholder="0"
-                          required
-                          error={errors[`cap_${idx}_qty`]}
-                        />
-                        <div className="col-span-full">
-                          <MultiSelect
-                            label="Operators"
-                            name={`capOperatorIds-${idx}`}
-                            options={employees
-                              .filter((emp) => {
-                                if (!cap.capRoleId) return false;
-                                const empRoleId =
-                                  emp.roleId ??
-                                  emp.role?.id ??
-                                  emp.user?.roleId ??
-                                  emp.user?.role?.id;
-                                return String(empRoleId) === String(cap.capRoleId);
-                              })
-                              .map((emp) => ({ value: String(emp.id), label: emp.fullName }))}
-                            value={cap.capOperatorIds}
-                            onChange={(_, vals) =>
-                              handleInitialCapacityChange(idx, "capOperatorIds", vals)
-                            }
-                            placeholder={cap.capRoleId ? "Select operators" : "Select role first"}
-                            required
-                            error={errors[`cap_${idx}_operators`]}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-[11px] italic p-1.5 rounded-lg bg-card-2 border border-dashed border-line-soft text-ink-subtle text-center">
-                  No capacity added. Click "Add Capacity Setup" to configure machines and operators.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Footer Action Buttons ── */}
-          <div className="flex justify-end gap-3 pt-2 border-t border-line-soft">
-            {!isEditMode && (
-              <CustomButton
-                text="Clear"
-                icon={FaEraser}
-                onClick={handleClear}
-                variant="secondary"
-                disabled={isSubmitting}
+            ) : (
+              <EmptyState
+                compact
+                icon={<Gauge size={22} strokeWidth={1.75} />}
+                title="No capacity added"
+                description='Click "Add Capacity Setup" to configure machines and operators.'
               />
             )}
-            <CustomButton
-              text={isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : "Save Product"}
-              icon={FaSave}
-              type="submit"
+          </Tile>
+        )}
+
+        {/* ── Footer ── */}
+        <FormFooter hint="F2 saves">
+          <ActionPill variant="secondary" onClick={() => navigate("/products")}>
+            Cancel
+          </ActionPill>
+          {!isEditMode && (
+            <ActionPill
+              variant="secondary"
+              icon={<Eraser size={16} />}
+              onClick={handleClear}
               disabled={isSubmitting}
-            />
-          </div>
-        </form>
-      </div>
+            >
+              Clear
+            </ActionPill>
+          )}
+          <ActionPill
+            type="submit"
+            icon={<Save size={17} />}
+            loading={isSubmitting}
+            loadingText="Saving…"
+          >
+            {isEditMode ? "Save Changes" : "Save Product"}
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

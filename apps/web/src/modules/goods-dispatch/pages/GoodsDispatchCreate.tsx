@@ -2,16 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { FaSave, FaArrowLeft, FaPlus } from "react-icons/fa";
-
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   createGoodsDispatch,
   fetchEligibleOrders,
 } from "../../../features/goods-dispatch/goodsDispatchSlice";
 import { fetchStores } from "../../../features/stores/storeSlice";
-
-import CustomButton from "../../../components/ui/Button/Button";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import DataTable from "../../../components/ui/table/DataTable";
@@ -20,8 +16,10 @@ import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePi
 import IndiaPhoneInput, { validatePhoneNumber } from "../../../components/ui/PhoneInput/PhoneInput";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import TimePickerInput from "../../../components/form/TimePickerInput/TimePickerInput";
-
 import { usePermission } from "../../../hooks/usePermission";
+import { Plus, Send } from "lucide-react";
+import { ActionPill, Chip, PageHeader, SectionLabel, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 const formatUOM = (code: string | null | undefined) => {
   if (!code) return "pcs";
@@ -65,7 +63,9 @@ const GoodsDispatchCreate: React.FC = () => {
     dispatch(fetchStores({ storeCategory: "FINISHED_GOODS", limit: 100 }));
   }, [dispatch]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -82,12 +82,14 @@ const GoodsDispatchCreate: React.FC = () => {
       if (selectedPOs.length === 0 || !formData.destinationStoreId) {
         const matchedStore = stores.find((s: any) => s.storeId === poStoreId);
         const storeLabel = matchedStore ? matchedStore.storeName : poStoreId;
-        
+
         setFormData((prev) => ({ ...prev, destinationStoreId: poStoreId }));
         setFormErrors((prev) => ({ ...prev, destinationStoreId: "" }));
         toast.info(`Destination store auto-set to "${storeLabel}".`);
       } else if (poStoreId !== formData.destinationStoreId) {
-        toast.error(`Production Order ${po.productionOrderId} belongs to store "${poStoreId}", which doesn't match current destination store.`);
+        toast.error(
+          `Production Order ${po.productionOrderId} belongs to store "${poStoreId}", which doesn't match current destination store.`
+        );
         return;
       }
     }
@@ -99,7 +101,7 @@ const GoodsDispatchCreate: React.FC = () => {
     setSelectedPOs((prev) => {
       const nextPOs = prev.filter((p) => p.productionOrderId !== productionOrderId);
       if (nextPOs.length === 0) {
-        setFormData(f => ({ ...f, destinationStoreId: "" }));
+        setFormData((f) => ({ ...f, destinationStoreId: "" }));
       }
       return nextPOs;
     });
@@ -174,7 +176,9 @@ const GoodsDispatchCreate: React.FC = () => {
       (po) => po.destinationStoreId && po.destinationStoreId !== formData.destinationStoreId
     );
     if (storeMismatch) {
-      toast.error(`Production Order ${storeMismatch.productionOrderId} is assigned to store "${storeMismatch.destinationStoreId}", which doesn't match the selected destination store.`);
+      toast.error(
+        `Production Order ${storeMismatch.productionOrderId} is assigned to store "${storeMismatch.destinationStoreId}", which doesn't match the selected destination store.`
+      );
       return;
     }
 
@@ -203,7 +207,9 @@ const GoodsDispatchCreate: React.FC = () => {
       header: "PO Number",
       width: "110px",
       accessor: "productionOrderId",
-      render: (item: any) => <span className="font-bold text-ink text-sm">{item.productionOrderId}</span>,
+      render: (item: any) => (
+        <span className="font-bold text-ink text-sm">{item.productionOrderId}</span>
+      ),
     },
     {
       header: "Product",
@@ -222,7 +228,12 @@ const GoodsDispatchCreate: React.FC = () => {
       header: "Pending",
       width: "100px",
       accessor: "pendingDispatchQty",
-      render: (item: any) => <span className="font-bold text-[#5D87FF] text-sm">{item.pendingDispatchQty} {formatUOM(item.uom)}</span>,
+      align: "right",
+      render: (item: any) => (
+        <span className="font-semibold tabular-nums text-accent">
+          {Number(item.pendingDispatchQty).toLocaleString("en-IN")} {formatUOM(item.uom)}
+        </span>
+      ),
     },
     {
       header: "Dispatch Qty",
@@ -233,11 +244,18 @@ const GoodsDispatchCreate: React.FC = () => {
         return (
           <div className="flex items-center gap-1.5">
             <input
-              type="number" min="0.1" step="any" max={item.pendingDispatchQty}
+              type="number"
+              min="0.1"
+              step="any"
+              max={item.pendingDispatchQty}
               value={selected.dispatchQty}
               onClick={(e) => e.stopPropagation()}
-              onChange={(e) => handleQtyChange(item.productionOrderId, e.target.value, item.pendingDispatchQty)}
-              className="w-20 px-2 py-1 border border-line-soft rounded-md text-sm font-medium bg-card-2 text-ink focus:ring-1 focus:ring-primary outline-none"
+              onChange={(e) =>
+                handleQtyChange(item.productionOrderId, e.target.value, item.pendingDispatchQty)
+              }
+              inputMode="decimal"
+              aria-label={`Dispatch quantity for ${item.productionOrderId}`}
+              className="sl-input h-9 w-24 px-2 text-right tabular-nums"
             />
             <span className="text-xs text-ink-subtle">{formatUOM(item.uom)}</span>
           </div>
@@ -252,11 +270,13 @@ const GoodsDispatchCreate: React.FC = () => {
         if (!selected) return <span className="text-ink-subtle text-xs">—</span>;
         return (
           <input
-            type="text" placeholder="Optional"
+            type="text"
+            placeholder="Optional"
             value={selected.remarks || ""}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => handleRemarksChange(item.productionOrderId, e.target.value)}
-            className="w-full px-2 py-1 text-xs border border-line-soft rounded-md bg-card-2 text-ink placeholder:text-ink-subtle focus:ring-1 focus:ring-primary outline-none"
+            aria-label={`Remarks for ${item.productionOrderId}`}
+            className="sl-input h-9 w-full px-2 text-sm"
           />
         );
       },
@@ -270,13 +290,26 @@ const GoodsDispatchCreate: React.FC = () => {
         return isSelected ? (
           <DeleteButton onClick={() => handleRemovePO(item.productionOrderId)} />
         ) : (
-          <CustomButton text="Add" icon={FaPlus} onClick={() => handleSelectPO(item)} className="!py-1 !px-3 text-xs" />
+          <ActionPill
+            variant="blue"
+            size="sm"
+            icon={<Plus size={14} />}
+            onClick={() => handleSelectPO(item)}
+          >
+            Add
+          </ActionPill>
         );
       },
     },
   ];
 
-  const DISPATCH_ELIGIBLE_STATUSES = ["READY_FOR_DISPATCH", "COMPLETED", "PARTIAL_COMPLETED", "COMPLETED_WITH_SHORTFALL", "CLOSED"];
+  const DISPATCH_ELIGIBLE_STATUSES = [
+    "READY_FOR_DISPATCH",
+    "COMPLETED",
+    "PARTIAL_COMPLETED",
+    "COMPLETED_WITH_SHORTFALL",
+    "CLOSED",
+  ];
 
   const filteredEligibleOrders = eligibleOrders.filter((o) => {
     // Only allow fully completed orders — block POST_PRODUCTION and earlier statuses
@@ -288,78 +321,156 @@ const GoodsDispatchCreate: React.FC = () => {
     );
   });
 
-  const totalDispatchQty = selectedPOs.reduce(
-    (sum, po) => sum + (Number(po.dispatchQty) || 0),
-    0
-  );
+  const totalDispatchQty = selectedPOs.reduce((sum, po) => sum + (Number(po.dispatchQty) || 0), 0);
 
   return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Create Goods Dispatch</h2>
-            <p className="text-xs text-ink-subtle mt-0.5">Select completed production orders to dispatch to the warehouse</p>
-          </div>
-        </div>
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Create Goods Dispatch"
+        subtitle="Select completed production orders to dispatch to the warehouse"
+        back="/production/goods-dispatch"
+        backLabel="Back to dispatches"
+        breadcrumbs={[
+          { label: "Production" },
+          { label: "Goods dispatch", to: "/production/goods-dispatch" },
+          { label: "New" },
+        ]}
+      />
 
-        {/* Step 1 & 2 Combined */}
-        <div className="px-5 py-3 border-b border-line">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] font-bold text-ink-subtle uppercase tracking-wider">Select Production Orders</p>
-            {selectedPOs.length > 0 && (
-              <div className="flex items-center gap-3 text-xs font-semibold text-ink-muted">
-                <span>{selectedPOs.length} Selected</span>
-                <span>Total: {totalDispatchQty} Units</span>
-              </div>
-            )}
-          </div>
+      <div className="flex flex-col gap-4">
+        <section aria-label="Select Production Orders">
+          <SectionLabel
+            action={
+              selectedPOs.length > 0 ? (
+                <span className="flex items-center gap-2">
+                  <Chip size="sm">{selectedPOs.length} Selected</Chip>
+                  <Chip size="sm" tone="success" className="tabular-nums">
+                    Total: {totalDispatchQty.toLocaleString("en-IN")} Units
+                  </Chip>
+                </span>
+              ) : undefined
+            }
+          >
+            Select Production Orders
+          </SectionLabel>
           <DataTable
             columns={combinedColumns}
             data={filteredEligibleOrders}
             loading={loading}
             rowKey={(item) => item.productionOrderId}
+            ariaLabel="Eligible production orders"
             emptyMessage="No eligible production orders available for dispatch."
             minHeightClassName=""
             rowClassName={(item: any) =>
               selectedPOs.some((p) => p.productionOrderId === item.productionOrderId)
-                ? "bg-emerald-500/5 border-l-2 border-emerald-500"
+                ? "bg-nav-active"
                 : ""
             }
           />
-        </div>
+        </section>
 
-        {/* Vehicle & Transport Details */}
-        <div className="px-5 py-5 border-b border-line">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <DatePickerCalendar label="Dispatch Date" name="dispatchDate" value={formData.dispatchDate} onChange={(e) => handleInputChange(e as any)} required horizontal />
-            <SelectInput label="Destination Store" name="destinationStoreId" value={formData.destinationStoreId} onChange={handleInputChange} required error={formErrors.destinationStoreId}
-              options={[{ value: "", label: "Select Store" }, ...stores.map((s) => ({ value: s.storeId, label: s.storeName }))]} horizontal />
-            <TextInput label="Vehicle Number" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} placeholder="e.g. TN-XX-XXXX" required error={formErrors.vehicleNumber} horizontal />
-            <TextInput label="Driver Name" name="driverName" value={formData.driverName} onChange={handleInputChange} placeholder="Driver Name" required error={formErrors.driverName} horizontal />
-            <IndiaPhoneInput label="Driver Mobile" name="driverMobile" value={formData.driverMobile} onChange={(e: any) => handleInputChange(e)} required={false} error={formErrors.driverMobile} horizontal />
-            <TextInput label="Transport Name" name="transportName" value={formData.transportName} onChange={handleInputChange} placeholder="e.g. VRL Logistics" horizontal />
-            <TimePickerInput label="Loading Time" name="loadingTime" value={formData.loadingTime} onChange={(val) => setFormData((prev) => ({ ...prev, loadingTime: val }))} horizontal />
+        <Tile title="Vehicle & transport" subtitle="Where it goes, who drives and when it loads">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
+            <DatePickerCalendar
+              label="Dispatch Date"
+              name="dispatchDate"
+              value={formData.dispatchDate}
+              onChange={(e) => handleInputChange(e as any)}
+              required
+            />
+            <SelectInput
+              label="Destination Store"
+              name="destinationStoreId"
+              value={formData.destinationStoreId}
+              onChange={handleInputChange}
+              required
+              error={formErrors.destinationStoreId}
+              options={[
+                { value: "", label: "Select Store" },
+                ...stores.map((s) => ({ value: s.storeId, label: s.storeName })),
+              ]}
+            />
+            <TextInput
+              label="Vehicle Number"
+              name="vehicleNumber"
+              value={formData.vehicleNumber}
+              onChange={handleInputChange}
+              placeholder="e.g. TN-XX-XXXX"
+              required
+              error={formErrors.vehicleNumber}
+            />
+            <TextInput
+              label="Driver Name"
+              name="driverName"
+              value={formData.driverName}
+              onChange={handleInputChange}
+              placeholder="Driver Name"
+              required
+              error={formErrors.driverName}
+            />
+            <IndiaPhoneInput
+              label="Driver Mobile"
+              name="driverMobile"
+              value={formData.driverMobile}
+              onChange={(e: any) => handleInputChange(e)}
+              required={false}
+              error={formErrors.driverMobile}
+            />
+            <TextInput
+              label="Transport Name"
+              name="transportName"
+              value={formData.transportName}
+              onChange={handleInputChange}
+              placeholder="e.g. VRL Logistics"
+            />
+            <TimePickerInput
+              label="Loading Time"
+              name="loadingTime"
+              value={formData.loadingTime}
+              onChange={(val) => setFormData((prev) => ({ ...prev, loadingTime: val }))}
+            />
             <div className="md:col-span-2">
-              <TextInput label="Remarks" name="remarks" value={formData.remarks} onChange={handleInputChange} placeholder="Enter dispatch remarks..." horizontal as="textarea" rows={2} />
+              <TextInput
+                label="Remarks"
+                name="remarks"
+                value={formData.remarks}
+                onChange={handleInputChange}
+                placeholder="Enter dispatch remarks..."
+                as="textarea"
+                rows={2}
+              />
             </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end items-center gap-3 px-5 py-3">
-          <CustomButton text="Cancel" icon={FaArrowLeft} onClick={() => navigate("/production/goods-dispatch")} disabled={loading} variant="secondary" />
-          {can("goods-dispatch.create") && (
-            <CustomButton text={loading ? "Creating..." : "Create Dispatch"} icon={FaSave} onClick={handleSubmit} disabled={loading} />
-          )}
-        </div>
+        </Tile>
       </div>
+
+      <FormFooter
+        hint={
+          selectedPOs.length > 0
+            ? `${selectedPOs.length} order(s) · ${totalDispatchQty.toLocaleString("en-IN")} units`
+            : "Add at least one production order"
+        }
+      >
+        <ActionPill
+          variant="secondary"
+          onClick={() => navigate("/production/goods-dispatch")}
+          disabled={loading}
+        >
+          Cancel
+        </ActionPill>
+        {can("goods-dispatch.create") && (
+          <ActionPill
+            icon={<Send size={16} />}
+            onClick={handleSubmit}
+            loading={loading}
+            loadingText="Creating..."
+          >
+            Create Dispatch
+          </ActionPill>
+        )}
+      </FormFooter>
     </div>
   );
 };
 
 export default GoodsDispatchCreate;
-
-
-

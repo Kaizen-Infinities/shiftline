@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-
 import { useListCache, markStaleByPrefix } from "../../../hooks/useListCache";
 import { stockAdjustmentService } from "../../../services/stockAdjustmentService";
 import { usePermission } from "../../../hooks/usePermission";
-
-import { Search } from "lucide-react";
-import CustomButton from "../../../components/ui/Button/Button";
 import DataTable from "../../../components/ui/table/DataTable";
 import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
@@ -18,32 +13,11 @@ import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/Common
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import { formatDate } from "../../../utils/dateUtils";
+import { ArrowUpDown, Plus } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Toolbar } from "../../../components/ui/v2";
+import { qty } from "../../stock/lib/format";
 
 const ITEMS_PER_PAGE = 15;
-
-const ADJUSTMENT_TYPE_LABELS: Record<string, string> = {
-  PRODUCTION_MATERIAL_ISSUE: "Prod. Material Issue",
-  PRODUCTION_MATERIAL_RETURN: "Prod. Material Return",
-  STOCK_INCREASE: "Stock Increase",
-  STOCK_DECREASE: "Stock Decrease",
-  DAMAGE: "Damage",
-  SCRAP: "Scrap",
-  OPENING_STOCK: "Opening Stock",
-  MANUAL_CORRECTION: "Manual Correction",
-  OTHER: "Other",
-};
-
-const ADJUSTMENT_TYPE_BADGE: Record<string, string> = {
-  PRODUCTION_MATERIAL_ISSUE: "primary",
-  PRODUCTION_MATERIAL_RETURN: "info",
-  STOCK_INCREASE: "success",
-  STOCK_DECREASE: "warning",
-  DAMAGE: "danger",
-  SCRAP: "secondary",
-  OPENING_STOCK: "dark",
-  MANUAL_CORRECTION: "light",
-  OTHER: "secondary",
-};
 
 const getReasonLabel = (reasonStr?: string) => {
   if (!reasonStr) return "";
@@ -158,8 +132,6 @@ const getStockAdjustmentSourceInfo = (item: any) => {
   };
 };
 
-const getTypeBadgeClass = (_type: string) => NEUTRAL_CHIP_CLASS;
-
 const getPrimaryUom = (uomStr?: string) => {
   if (!uomStr) return "";
   const first = uomStr.split(",")[0].trim();
@@ -220,7 +192,6 @@ const StockAdjustmentList: React.FC = () => {
   const [draftDateTo, setDraftDateTo] = useState("");
 
   const hasActiveFilters = !!(status || adjustmentType || dateFrom || dateTo);
-  const activeFilterCount = [status, adjustmentType, dateFrom, dateTo].filter(Boolean).length;
 
   // Debounce search — 300 ms
   useEffect(() => {
@@ -258,10 +229,6 @@ const StockAdjustmentList: React.FC = () => {
   });
 
   usePageShortcuts({ onRefresh: () => refresh() });
-
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  }, []);
 
   const handleOpenFilter = useCallback(() => {
     setDraftStatus(status);
@@ -306,136 +273,125 @@ const StockAdjustmentList: React.FC = () => {
     }
   }, [deleteId, isDeleting, refresh]);
 
-  const getTypeBadge = (type: string) => (
-    <span
-      className={`px-2.5 py-1 rounded-sm text-[11px] font-semibold tracking-wider border ${getTypeBadgeClass(type)}`}
-    >
-      {ADJUSTMENT_TYPE_LABELS[type] || type}
-    </span>
-  );
-
   const totalPages = Math.ceil((total || 0) / ITEMS_PER_PAGE) || 1;
+
+  const STATUS_CHIPS = [
+    { key: "", label: "All" },
+    { key: "DRAFT", label: "Draft" },
+    { key: "PENDING_APPROVAL", label: "Pending Approval" },
+    { key: "APPROVED", label: "Approved" },
+    { key: "REJECTED", label: "Rejected" },
+  ];
+
+  const createCta = can("stock-adjustments.create") ? (
+    <ActionPill
+      icon={<Plus size={18} />}
+      onClick={() => navigate("/inventory/stock-adjustments/create")}
+    >
+      New Adjustment
+    </ActionPill>
+  ) : null;
+
+  const filtered = Boolean(hasActiveFilters || debouncedSearch);
+
+  const moreLines = (item: any) =>
+    item.items && item.items.length > 1 ? (
+      <div className="mt-0.5 text-[11px] text-ink-subtle">+{item.items.length - 1} more</div>
+    ) : null;
 
   return (
     <div>
-      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Stock Adjustments</h2>
-          </div>
+      <div className="w-full min-w-0">
+        <PageHeader
+          title="Stock Adjustments"
+          subtitle={`${total || 0} adjustments · issues, returns, corrections and write-offs`}
+          icon={<ArrowUpDown size={22} />}
+          primaryAction={createCta}
+        />
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* Search */}
-            <div className="relative w-full md:w-64">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
-                size={15}
-              />
-              <input
-                type="text"
-                data-search-input
-                className="w-full pl-9 pr-4 py-2 bg-card-2 border border-line-soft rounded-xl text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                placeholder="Search by No, Reason, PO..."
-                value={searchTerm}
-                onChange={handleSearch}
-              />
-            </div>
-
-            {/* Filter Popover */}
+        <Toolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by No, Reason, PO..."
+          searchLabel="Search stock adjustments"
+          filters={STATUS_CHIPS}
+          filterValue={status}
+          onFilterChange={(key) => {
+            setStatus(key);
+            setDraftStatus(key);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Status"
+          right={
             <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
+              activeFilterCount={[adjustmentType, dateFrom, dateTo].filter(Boolean).length}
+              hasActiveFilters={Boolean(adjustmentType || dateFrom || dateTo)}
               onApply={handleApplyFilters}
               onClear={handleClearFilters}
               onOpen={handleOpenFilter}
             >
               <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Status
-                  </label>
-                  <SelectInput
-                    name="draftStatus"
-                    value={draftStatus}
-                    onChange={(e) => setDraftStatus(e.target.value)}
-                    options={[
-                      { value: "DRAFT", label: "Draft" },
-                      { value: "PENDING_APPROVAL", label: "Pending Approval" },
-                      { value: "APPROVED", label: "Approved" },
-                      { value: "REJECTED", label: "Rejected" },
-                    ]}
-                    defaultOptionLabel="All Statuses"
-                    noMargin
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Adjustment Type
-                  </label>
-                  <SelectInput
-                    name="draftAdjustmentType"
-                    value={draftAdjustmentType}
-                    onChange={(e) => setDraftAdjustmentType(e.target.value)}
-                    options={[
-                      { value: "PRODUCTION_MATERIAL_ISSUE", label: "Production Material Issue" },
-                      { value: "PRODUCTION_MATERIAL_RETURN", label: "Production Material Return" },
-                      { value: "STOCK_INCREASE", label: "Stock Increase" },
-                      { value: "STOCK_DECREASE", label: "Stock Decrease" },
-                      { value: "DAMAGE", label: "Damage" },
-                      { value: "SCRAP", label: "Scrap" },
-                      { value: "OPENING_STOCK", label: "Opening Stock" },
-                      { value: "MANUAL_CORRECTION", label: "Manual Correction" },
-                      { value: "OTHER", label: "Other" },
-                    ]}
-                    defaultOptionLabel="All Types"
-                    noMargin
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    From Date
-                  </label>
-                  <DatePickerCalendar
-                    name="fromDate"
-                    value={draftDateFrom}
-                    maxDate={draftDateTo || undefined}
-                    onChange={(e) => setDraftDateFrom(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    To Date
-                  </label>
-                  <DatePickerCalendar
-                    name="toDate"
-                    value={draftDateTo}
-                    minDate={draftDateFrom || undefined}
-                    onChange={(e) => setDraftDateTo(e.target.value)}
-                  />
-                </div>
+                <SelectInput
+                  label="Adjustment Type"
+                  name="draftAdjustmentType"
+                  value={draftAdjustmentType}
+                  onChange={(e) => setDraftAdjustmentType(e.target.value)}
+                  options={[
+                    { value: "PRODUCTION_MATERIAL_ISSUE", label: "Production Material Issue" },
+                    { value: "PRODUCTION_MATERIAL_RETURN", label: "Production Material Return" },
+                    { value: "STOCK_INCREASE", label: "Stock Increase" },
+                    { value: "STOCK_DECREASE", label: "Stock Decrease" },
+                    { value: "DAMAGE", label: "Damage" },
+                    { value: "SCRAP", label: "Scrap" },
+                    { value: "OPENING_STOCK", label: "Opening Stock" },
+                    { value: "MANUAL_CORRECTION", label: "Manual Correction" },
+                    { value: "OTHER", label: "Other" },
+                  ]}
+                  defaultOptionLabel="All Types"
+                  noMargin
+                />
+                <DatePickerCalendar
+                  label="From Date"
+                  name="fromDate"
+                  value={draftDateFrom}
+                  maxDate={draftDateTo || undefined}
+                  onChange={(e) => setDraftDateFrom(e.target.value)}
+                />
+                <DatePickerCalendar
+                  label="To Date"
+                  name="toDate"
+                  value={draftDateTo}
+                  minDate={draftDateFrom || undefined}
+                  onChange={(e) => setDraftDateTo(e.target.value)}
+                />
               </div>
             </FilterPopover>
+          }
+        />
 
-            {can("stock-adjustments.create") && (
-              <CustomButton
-                text="New Adjustment"
-                icon={FaPlus}
-                onClick={() => navigate("/inventory/stock-adjustments/create")}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Table */}
         <DataTable
           data={data || []}
           rowKey={(item) => item.id}
           loading={loading}
-          emptyMessage="No stock adjustments found."
+          ariaLabel="Stock adjustments"
+          emptyMessage={
+            filtered ? "No adjustments match these filters." : "No stock adjustments found."
+          }
+          emptyAction={
+            filtered ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  handleClearFilters();
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : (
+              createCta
+            )
+          }
           pagination={
             totalPages > 1
               ? { currentPage, totalPages, onPageChange: (page) => setCurrentPage(page) }
@@ -443,88 +399,71 @@ const StockAdjustmentList: React.FC = () => {
           }
           columns={[
             {
-              header: "ADJUSTMENT NO",
-              width: "140px",
+              header: "Adjustment no",
               accessor: "adjustmentNumber",
               render: (item) => (
                 <div>
-                  <div className="font-semibold text-ink-muted">{item.adjustmentNumber}</div>
-                  <div className="text-xs text-ink-subtle font-medium">
-                    {formatDate(item.adjustmentDate)}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/inventory/stock-adjustments/view/${item.id}`)}
+                    className="font-semibold text-accent hover:underline underline-offset-4"
+                  >
+                    {item.adjustmentNumber}
+                  </button>
+                  <div className="text-xs text-ink-subtle">{formatDate(item.adjustmentDate)}</div>
                 </div>
               ),
             },
             {
-              header: "TYPE",
-              width: "150px",
+              header: "Type",
               render: (item) => {
                 const info = getStockAdjustmentTypeInfo(item);
                 return (
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold whitespace-nowrap border ${
-                      info.variant === "success"
-                        ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border-[color:var(--color-success)]/30"
-                        : "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border-[color:var(--color-danger)]/30"
-                    }`}
+                  <Chip
+                    size="sm"
+                    tone={info.variant === "success" ? "success" : "danger"}
+                    className="whitespace-nowrap"
                   >
                     {info.label}
-                  </span>
+                  </Chip>
                 );
               },
             },
             {
-              header: "SOURCE",
-              width: "110px",
+              header: "Source",
               render: (item) => {
                 const src = getStockAdjustmentSourceInfo(item);
                 return (
                   <div>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-sm text-xs font-semibold border ${src.badgeClass}`}
-                    >
+                    <Chip size="sm" tone="muted">
                       {src.module}
-                    </span>
+                    </Chip>
                     {src.detail && (
-                      <div className="text-xs text-ink-subtle font-mono mt-0.5 font-medium">
-                        {src.detail}
-                      </div>
+                      <div className="mt-0.5 font-mono text-xs text-ink-subtle">{src.detail}</div>
                     )}
                   </div>
                 );
               },
             },
             {
-              header: "PRODUCT",
-              width: "minmax(160px, 1.5fr)",
+              header: "Item",
               render: (item) => {
                 const product = item.productionOrder?.productItem || item.items?.[0]?.product;
                 const rawMaterial = item.items?.[0]?.rawMaterial;
-
                 if (product?.productName) {
                   return (
                     <div>
-                      <div className="font-semibold text-sm text-ink">{product.productName}</div>
-                      <div className="text-xs text-ink-subtle">{product.productCode}</div>
-                      {item.items && item.items.length > 1 && (
-                        <div className="text-[10px] text-ink-subtle mt-0.5">
-                          +{item.items.length - 1} more
-                        </div>
-                      )}
+                      <div className="font-semibold text-ink">{product.productName}</div>
+                      <div className="font-mono text-xs text-ink-subtle">{product.productCode}</div>
+                      {moreLines(item)}
                     </div>
                   );
                 }
                 if (rawMaterial?.materialName) {
                   return (
                     <div>
-                      <div className="font-semibold text-sm text-ink">
-                        {rawMaterial.materialName}
-                      </div>
-                      {item.items && item.items.length > 1 && (
-                        <div className="text-[10px] text-ink-subtle mt-0.5">
-                          +{item.items.length - 1} more
-                        </div>
-                      )}
+                      <div className="font-semibold text-ink">{rawMaterial.materialName}</div>
+                      {moreLines(item)}
                     </div>
                   );
                 }
@@ -532,102 +471,73 @@ const StockAdjustmentList: React.FC = () => {
               },
             },
             {
-              header: "ORIGINAL QTY",
-              width: "minmax(120px, 1fr)",
+              header: "Original qty",
+              align: "right",
               render: (item) => {
                 const firstItem = item.items?.[0];
                 if (!firstItem || firstItem.currentQty == null)
                   return <span className="text-ink-subtle">—</span>;
-                const qty = Number(firstItem.currentQty);
                 const primaryUom = getItemPrimaryUom(firstItem);
-                const uomStr = primaryUom ? ` ${primaryUom}` : "";
                 return (
-                  <div>
-                    <span className="font-semibold text-ink-muted text-sm">
-                      {qty}
-                      {uomStr}
-                    </span>
-                    {item.items && item.items.length > 1 && (
-                      <div className="text-[10px] text-ink-subtle mt-0.5">
-                        +{item.items.length - 1} more
-                      </div>
-                    )}
-                  </div>
+                  <span className="tabular-nums text-ink-muted">
+                    {qty(firstItem.currentQty)}
+                    {primaryUom ? ` ${primaryUom}` : ""}
+                  </span>
                 );
               },
             },
             {
-              header: "ADJUSTED QTY",
-              width: "minmax(150px, 1fr)",
+              header: "Adjusted qty",
+              align: "right",
               render: (item) => {
                 const firstItem = item.items?.[0];
                 if (!firstItem || firstItem.adjustedQty == null)
                   return <span className="text-ink-subtle">—</span>;
-                const qty = Number(firstItem.adjustedQty);
                 const diff = Number(firstItem.difference || 0);
                 const primaryUom = getItemPrimaryUom(firstItem);
                 const uomStr = primaryUom ? ` ${primaryUom}` : "";
-                const diffColor =
-                  diff > 0
-                    ? "text-[color:var(--color-success)] bg-[color:var(--color-success)]/10 border border-[color:var(--color-success)]/30"
-                    : diff < 0
-                      ? "text-[color:var(--color-danger)] bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/30"
-                      : "text-ink-subtle bg-card-2";
-                const diffSign =
-                  diff > 0
-                    ? `+${diff}${primaryUom ? ` ${primaryUom}` : ""}`
-                    : `${diff}${primaryUom ? ` ${primaryUom}` : ""}`;
                 return (
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-ink text-sm">
-                        {qty}
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-semibold tabular-nums text-ink">
+                      {qty(firstItem.adjustedQty)}
+                      {uomStr}
+                    </span>
+                    {diff !== 0 && (
+                      <Chip
+                        size="sm"
+                        tone={diff > 0 ? "success" : "danger"}
+                        className="tabular-nums"
+                      >
+                        {diff > 0 ? "+" : ""}
+                        {qty(diff)}
                         {uomStr}
-                      </span>
-                      {diff !== 0 && (
-                        <span
-                          className={`text-[11px] font-bold px-1.5 py-0.5 rounded-sm ${diffColor}`}
-                        >
-                          {diffSign}
-                        </span>
-                      )}
-                    </div>
-                    {item.items && item.items.length > 1 && (
-                      <div className="text-[10px] text-ink-subtle mt-0.5">
-                        +{item.items.length - 1} more
-                      </div>
+                      </Chip>
                     )}
                   </div>
                 );
               },
             },
             {
-              header: "REASON",
-              width: "minmax(150px, 1fr)",
+              header: "Reason",
               render: (item) => {
                 const firstItem = item.items?.[0];
                 const displayReason = getAdjustmentDisplayReason(item);
                 const fullTooltip = firstItem?.remarks || displayReason;
-
                 return (
-                  <div className="min-w-0">
-                    <span title={fullTooltip} className="block truncate text-ink-muted font-medium">
-                      {displayReason}
-                    </span>
-                    {item.items && item.items.length > 1 && (
-                      <div className="text-[10px] text-ink-subtle mt-0.5">
-                        +{item.items.length - 1} more
-                      </div>
-                    )}
-                  </div>
+                  <span title={fullTooltip} className="block max-w-[220px] truncate text-ink-muted">
+                    {displayReason}
+                  </span>
                 );
               },
             },
             {
-              header: "ACTIONS",
-              width: "80px",
+              header: "Actions",
+              align: "right",
               render: (item: any) => (
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="table-action-group w-full justify-end"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <ViewButton
                     onClick={() => navigate(`/inventory/stock-adjustments/view/${item.id}`)}
                   />

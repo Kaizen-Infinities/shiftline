@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus, FaCog } from "react-icons/fa";
+import { FaCog } from "react-icons/fa";
+import { Package, Plus } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -8,7 +9,6 @@ import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import IconButton from "../../../components/ui/IconButton/IconButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
@@ -16,7 +16,6 @@ import DataTable, { type DataTableColumn } from "../../../components/ui/table/Da
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import MultiSelect from "../../../components/form/multiSelect/MultiSelect";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { productService } from "../../../services/productService";
@@ -31,6 +30,9 @@ import { useSocketSync } from "../../../hooks/useSocketSync";
 import { usePermission } from "../../../hooks/usePermission";
 import { getImageUrl } from "../../../utils/ImageUrls";
 import { categoryService } from "../../../services/categoryService";
+import CommonModal from "../../../components/ui/Modal/CommonModal";
+import { ActionPill, Chip, PageHeader, StatTile, Toolbar } from "../../../components/ui/v2";
+import { inr, qty } from "../../stock/lib/format";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -180,16 +182,6 @@ const ProductList: React.FC = () => {
         .catch(() => setCapHistoryRecords([]));
     }
   });
-
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
-  const handleCategoryFilter = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCategoryFilter(e.target.value);
-    setCurrentPage(1);
-  }, []);
 
   const handleView = useCallback(async (product: any) => {
     setSelectedProduct(product);
@@ -345,46 +337,74 @@ const ProductList: React.FC = () => {
     }
   }, [currentPage, totalPages]);
 
+  const onHandOf = (product: any) =>
+    (product.finishedGoodsStocks || []).reduce(
+      (sum: number, s: any) => sum + (Number(s.onHandQty) || 0),
+      0
+    );
+
+  const stats = useMemo(() => {
+    const active = products.filter((p: any) => p.isActive).length;
+    const low = products.filter((p: any) => {
+      const min = Number(p.minimumQty) || 0;
+      return min > 0 && onHandOf(p) < min;
+    }).length;
+    return { total: products.length, active, inactive: products.length - active, low };
+  }, [products]);
+
+  const hasFilters = Boolean(searchTerm || categoryFilter);
+
   const columns: DataTableColumn<any>[] = [
-    { header: "#", render: (_, index) => startIndex + index + 1, width: "60px", align: "center" },
+    { header: "#", render: (_, index) => startIndex + index + 1, width: "56px", align: "center" },
     {
-      header: "Product Name",
-      render: (product) => <span className="whitespace-nowrap">{product.productName}</span>,
-      width: "200px",
+      header: "Product",
+      render: (product) => (
+        <div className="flex min-w-0 flex-col">
+          <button
+            type="button"
+            onClick={() => handleView(product)}
+            className="w-fit whitespace-nowrap text-left font-semibold text-accent hover:underline underline-offset-4"
+          >
+            {product.productName}
+          </button>
+          <span className="text-xs text-ink-subtle font-mono">{product.productCode}</span>
+        </div>
+      ),
     },
-    { header: "Category", render: (product) => product.category?.name || "-" },
+    { header: "Category", render: (product) => product.category?.name || "—" },
     {
       header: "Product Type",
       render: (product) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+        <Chip size="sm" tone={product.productType === "SALES_PRODUCTION" ? "info" : "default"}>
           {product.productType === "SALES_PRODUCTION" ? "Sales Production" : "Production"}
-        </span>
+        </Chip>
       ),
-      align: "center",
     },
     {
       header: "Rate (₹)",
       render: (product) => (
-        <span className="font-semibold text-ink">
-          {product.rate != null ? `₹${product.rate}` : "-"}
-        </span>
+        <span className="font-semibold tabular-nums text-ink">{inr(product.rate)}</span>
       ),
+      align: "right",
     },
     {
       header: "Stock (Min)",
       render: (product) => {
-        const onHandQty = (product.finishedGoodsStocks || []).reduce(
-          (sum: number, s: any) => sum + (Number(s.onHandQty) || 0),
-          0
-        );
-        const minQty = product.minimumQty || 0;
+        const onHandQty = onHandOf(product);
+        const minQty = Number(product.minimumQty) || 0;
+        const low = minQty > 0 && onHandQty < minQty;
         return (
-          <div className="flex flex-col items-center">
-            <span className="font-semibold text-ink">{onHandQty}</span>
-            <span className="text-xs text-ink-subtle">Min: {minQty}</span>
+          <div className="flex flex-col items-end">
+            <span
+              className={`font-semibold tabular-nums ${low ? "text-[color:var(--color-danger)]" : "text-ink"}`}
+            >
+              {qty(onHandQty)}
+            </span>
+            <span className="text-xs text-ink-subtle tabular-nums">Min {qty(minQty)}</span>
           </div>
         );
       },
+      align: "right",
     },
     {
       header: "Status",
@@ -412,69 +432,98 @@ const ProductList: React.FC = () => {
     },
   ];
 
+  const createCta = can("products.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/products/create")}>
+      New Product
+    </ActionPill>
+  ) : null;
+
   return (
     <div>
       <div>
-        <div className="max-w-[1400px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-          {/* Page Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-            <div>
-              <h2 className="text-2xl font-bold text-ink">Production Product</h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-              <div className="w-48">
-                <SelectInput
-                  name="categoryFilter"
-                  value={categoryFilter}
-                  onChange={handleCategoryFilter}
-                  options={categoryOptions}
-                  defaultOptionLabel="All Categories"
-                />
-              </div>
-              <div className="w-full md:w-64">
-                <SearchInput
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  placeholder="Search product..."
-                />
-              </div>
-              {can("products.export") && (
+        <div className="w-full min-w-0">
+          <PageHeader
+            title="Production Product"
+            subtitle={`${stats.total} products · finished goods, their bill of materials and machine capacity`}
+            icon={<Package size={22} />}
+            actions={
+              can("products.export") ? (
                 <ExportCSVButton
                   fetchData={fetchProductsForExport}
                   columns={csvColumns}
                   filename={csvFilename}
                   text="Export"
                 />
-              )}
-              {can("products.create") && (
-                <CustomButton
-                  text="Add Product"
-                  icon={FaPlus}
-                  onClick={() => navigate("/products/create")}
-                />
-              )}
-            </div>
-          </div>
+              ) : null
+            }
+            primaryAction={createCta}
+          />
 
-          {/* View Table */}
-          <div className="p-0">
-            <DataTable
-              columns={columns}
-              data={paginatedProducts}
-              rowKey={(row) => row.id}
+          <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <StatTile label="Products" value={qty(stats.total)} loading={loading} />
+            <StatTile label="Active" value={qty(stats.active)} loading={loading} />
+            <StatTile label="Inactive" value={qty(stats.inactive)} loading={loading} />
+            <StatTile
+              label="Below minimum stock"
+              value={qty(stats.low)}
               loading={loading}
-              emptyMessage="No products found."
-              pagination={
-                totalPages > 1
-                  ? {
-                      currentPage: safeCurrentPage,
-                      totalPages,
-                      onPageChange: setCurrentPage,
-                    }
-                  : undefined
-              }
+              delta={stats.low > 0 ? "Reorder" : undefined}
+              deltaTone="warning"
             />
           </div>
+
+          <Toolbar
+            searchValue={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="Search name or code"
+            searchLabel="Search products"
+            filters={[
+              { key: "", label: "All" },
+              ...categoryOptions.map((c) => ({ key: c.value, label: c.label })),
+            ]}
+            filterValue={categoryFilter}
+            onFilterChange={(key) => {
+              setCategoryFilter(key);
+              setCurrentPage(1);
+            }}
+            filtersLabel="Category"
+          />
+
+          <DataTable
+            columns={columns}
+            data={paginatedProducts}
+            rowKey={(row) => row.id}
+            loading={loading}
+            ariaLabel="Production products"
+            emptyMessage={hasFilters ? "No products match these filters." : "No products yet."}
+            emptyAction={
+              hasFilters ? (
+                <ActionPill
+                  variant="secondary"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setCategoryFilter("");
+                  }}
+                >
+                  Clear filters
+                </ActionPill>
+              ) : (
+                createCta
+              )
+            }
+            pagination={
+              totalPages > 1
+                ? {
+                    currentPage: safeCurrentPage,
+                    totalPages,
+                    onPageChange: setCurrentPage,
+                  }
+                : undefined
+            }
+          />
         </div>
 
         <CommonViewModal
@@ -589,9 +638,7 @@ const ProductList: React.FC = () => {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                         {img.isPrimary && (
-                          <div className="absolute top-2 left-2 bg-accent/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wider">
-                            PRIMARY
-                          </div>
+                          <div className="absolute top-2 left-2 sl-chip sl-chip-sm">PRIMARY</div>
                         )}
                       </div>
                     ))}
@@ -711,11 +758,11 @@ const ProductList: React.FC = () => {
                                   return (
                                     <tr
                                       key={r.id || `${machineId}-${idx}`}
-                                      className={`hover:bg-card-2/50 transition-colors ${isCurrent ? "bg-primary/10" : ""}`}
+                                      className={`hover:bg-card-2/50 transition-colors ${isCurrent ? "bg-nav-active" : ""}`}
                                     >
                                       <td className="px-4 py-2.5">
                                         <span
-                                          className={`inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider ${isInitial ? "text-emerald-500" : isCurrent ? "text-primary" : "text-ink-subtle"}`}
+                                          className={`inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider ${isInitial ? "text-[color:var(--color-success)]" : isCurrent ? "text-accent" : "text-ink-subtle"}`}
                                         >
                                           {isInitial
                                             ? "Initial"
@@ -771,172 +818,164 @@ const ProductList: React.FC = () => {
 
         {/* Manual Capacity Change Modal */}
         {showCapModal && capProduct && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
-            <div className="bg-card rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-                <h3 className="text-lg font-bold text-ink">Change Capacity</h3>
-                <button
-                  onClick={() => setShowCapModal(false)}
-                  className="text-ink-subtle hover:text-ink-muted text-xl leading-none"
-                >
-                  &times;
-                </button>
+          <CommonModal
+            show
+            onHide={() => setShowCapModal(false)}
+            title="Change Capacity"
+            maxWidth="2xl"
+            overflowVisible
+            footer={
+              <>
+                <ActionPill variant="secondary" onClick={() => setShowCapModal(false)}>
+                  Cancel
+                </ActionPill>
+                <ActionPill onClick={handleCapSave} loading={savingCap} loadingText="Saving…">
+                  Save capacity
+                </ActionPill>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <Chip>{capProduct.productName}</Chip>
+                {capMachine ? (
+                  <span className="text-xs text-ink-subtle">
+                    (Machine Current: {getMachineCurrentCap(capMachine).toLocaleString()} / Shift)
+                  </span>
+                ) : (
+                  <span className="text-xs text-ink-subtle">
+                    (Product Current:{" "}
+                    {capProduct.capacityLitres != null
+                      ? Number(capProduct.capacityLitres).toLocaleString()
+                      : 0}{" "}
+                    / Shift)
+                  </span>
+                )}
               </div>
-              <div className="p-6 space-y-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-sm font-semibold text-ink-muted">Product:</span>
-                  <span className="text-sm text-ink-muted">{capProduct.productName}</span>
-                  {capMachine ? (
-                    <span className="text-xs text-ink-subtle">
-                      (Machine Current: {getMachineCurrentCap(capMachine).toLocaleString()} / Shift)
-                    </span>
-                  ) : (
-                    <span className="text-xs text-ink-subtle">
-                      (Product Current:{" "}
-                      {capProduct.capacityLitres != null
-                        ? Number(capProduct.capacityLitres).toLocaleString()
-                        : 0}{" "}
-                      / Shift)
-                    </span>
-                  )}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <div>
+                  <DatePickerCalendar
+                    label="Date"
+                    name="capDate"
+                    value={capDate}
+                    onChange={(e) => {
+                      setCapDate(e.target.value);
+                      setCapErrors((prev) => ({ ...prev, capDate: "" }));
+                    }}
+                    error={capErrors.capDate}
+                  />
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <DatePickerCalendar
-                      label="Date"
-                      name="capDate"
-                      value={capDate}
-                      onChange={(e) => {
-                        setCapDate(e.target.value);
-                        setCapErrors((prev) => ({ ...prev, capDate: "" }));
-                      }}
-                      error={capErrors.capDate}
-                    />
-                  </div>
-                  <div>
-                    <SelectInput
-                      label="Shift"
-                      name="capShift"
-                      value={capShift}
-                      options={[
-                        { value: "", label: "-- Shift --" },
-                        ...shifts.map((s) => ({
-                          value: s.shiftName || s.shiftCode,
-                          label: s.shiftName || s.shiftCode,
-                        })),
-                      ]}
-                      onChange={(e) => {
-                        setCapShift(e.target.value);
-                        setCapErrors((prev) => ({ ...prev, capShift: "" }));
-                      }}
-                      error={capErrors.capShift}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <SelectInput
-                      label="Machine"
-                      name="capMachine"
-                      value={capMachine}
-                      options={[
-                        { value: "", label: "-- Machine --" },
-                        ...machines.map((m) => ({
-                          value: m.machineId,
-                          label: `${m.machineId} - ${m.machineName}`,
-                        })),
-                      ]}
-                      onChange={(e) => {
-                        setCapMachine(e.target.value);
-                        setCapQty("");
-                        setCapErrors((prev) => ({ ...prev, capMachine: "", capQty: "" }));
-                      }}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <SelectInput
-                      label="Role"
-                      name="capRoleId"
-                      value={capRoleId}
-                      options={[
-                        { value: "", label: "-- Role --" },
-                        ...roles.map((r) => ({
-                          value: String(r.id || r.roleId || r.code),
-                          label: r.name || r.roleName || r.code || r.roleId,
-                        })),
-                      ]}
-                      onChange={(e) => {
-                        setCapRoleId(e.target.value);
-                        setCapOps([]);
-                        setCapErrors((prev) => ({ ...prev, capRoleId: "", capOps: "" }));
-                      }}
-                      error={capErrors.capRoleId}
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <MultiSelect
-                      label="Operators"
-                      name="capOps"
-                      options={employees
-                        .filter((emp) => {
-                          if (!capRoleId) return true;
-                          const empRoleId = emp.roleId || emp.role?.id || emp.designationId;
-                          if (empRoleId && String(empRoleId) === capRoleId) return true;
-                          const matchedRole = roles.find(
-                            (r) => String(r.id || r.roleId || r.code) === capRoleId
-                          );
-                          if (
-                            matchedRole &&
-                            (emp.role?.name === matchedRole.name ||
-                              emp.roleName === matchedRole.name ||
-                              emp.designation?.name === matchedRole.name)
-                          )
-                            return true;
-                          return false;
-                        })
-                        .map((emp) => ({ value: String(emp.id), label: emp.fullName }))}
-                      value={capOps}
-                      onChange={(_, vals) => {
-                        setCapOps(vals);
-                        setCapErrors((prev) => ({ ...prev, capOps: "" }));
-                      }}
-                      placeholder={capRoleId ? "Select operators" : "Select role first"}
-                      error={capErrors.capOps}
-                    />
-                  </div>
-                  <div>
-                    <TextInput
-                      label="New Capacity / Shift"
-                      name="capQty"
-                      type="number"
-                      step="any"
-                      value={capQty}
-                      placeholder="0"
-                      onChange={(e) => {
-                        setCapQty(e.target.value);
-                        setCapErrors((prev) => ({ ...prev, capQty: "" }));
-                      }}
-                      error={capErrors.capQty}
-                      required
-                    />
-                  </div>
+                <div>
+                  <SelectInput
+                    label="Shift"
+                    name="capShift"
+                    value={capShift}
+                    options={[
+                      { value: "", label: "-- Shift --" },
+                      ...shifts.map((s) => ({
+                        value: s.shiftName || s.shiftCode,
+                        label: s.shiftName || s.shiftCode,
+                      })),
+                    ]}
+                    onChange={(e) => {
+                      setCapShift(e.target.value);
+                      setCapErrors((prev) => ({ ...prev, capShift: "" }));
+                    }}
+                    error={capErrors.capShift}
+                    required
+                  />
                 </div>
-              </div>
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-line">
-                <CustomButton
-                  text="Cancel"
-                  variant="secondary"
-                  onClick={() => setShowCapModal(false)}
-                />
-                <CustomButton
-                  text={savingCap ? "Saving..." : "Save"}
-                  onClick={handleCapSave}
-                  disabled={savingCap}
-                />
+                <div>
+                  <SelectInput
+                    label="Machine"
+                    name="capMachine"
+                    value={capMachine}
+                    options={[
+                      { value: "", label: "-- Machine --" },
+                      ...machines.map((m) => ({
+                        value: m.machineId,
+                        label: `${m.machineId} - ${m.machineName}`,
+                      })),
+                    ]}
+                    onChange={(e) => {
+                      setCapMachine(e.target.value);
+                      setCapQty("");
+                      setCapErrors((prev) => ({ ...prev, capMachine: "", capQty: "" }));
+                    }}
+                    required
+                  />
+                </div>
+                <div>
+                  <SelectInput
+                    label="Role"
+                    name="capRoleId"
+                    value={capRoleId}
+                    options={[
+                      { value: "", label: "-- Role --" },
+                      ...roles.map((r) => ({
+                        value: String(r.id || r.roleId || r.code),
+                        label: r.name || r.roleName || r.code || r.roleId,
+                      })),
+                    ]}
+                    onChange={(e) => {
+                      setCapRoleId(e.target.value);
+                      setCapOps([]);
+                      setCapErrors((prev) => ({ ...prev, capRoleId: "", capOps: "" }));
+                    }}
+                    error={capErrors.capRoleId}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <MultiSelect
+                    label="Operators"
+                    name="capOps"
+                    options={employees
+                      .filter((emp) => {
+                        if (!capRoleId) return true;
+                        const empRoleId = emp.roleId || emp.role?.id || emp.designationId;
+                        if (empRoleId && String(empRoleId) === capRoleId) return true;
+                        const matchedRole = roles.find(
+                          (r) => String(r.id || r.roleId || r.code) === capRoleId
+                        );
+                        if (
+                          matchedRole &&
+                          (emp.role?.name === matchedRole.name ||
+                            emp.roleName === matchedRole.name ||
+                            emp.designation?.name === matchedRole.name)
+                        )
+                          return true;
+                        return false;
+                      })
+                      .map((emp) => ({ value: String(emp.id), label: emp.fullName }))}
+                    value={capOps}
+                    onChange={(_, vals) => {
+                      setCapOps(vals);
+                      setCapErrors((prev) => ({ ...prev, capOps: "" }));
+                    }}
+                    placeholder={capRoleId ? "Select operators" : "Select role first"}
+                    error={capErrors.capOps}
+                  />
+                </div>
+                <div>
+                  <TextInput
+                    label="New Capacity / Shift"
+                    name="capQty"
+                    type="number"
+                    step="any"
+                    value={capQty}
+                    placeholder="0"
+                    onChange={(e) => {
+                      setCapQty(e.target.value);
+                      setCapErrors((prev) => ({ ...prev, capQty: "" }));
+                    }}
+                    error={capErrors.capQty}
+                    required
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          </CommonModal>
         )}
       </div>
     </div>
