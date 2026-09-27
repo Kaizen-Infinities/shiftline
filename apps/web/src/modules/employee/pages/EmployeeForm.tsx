@@ -30,8 +30,7 @@ import {
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import CityStateSelect from "../../../components/ui/CityStateSelect/CityStateSelect";
-import CustomButton from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
+import { ActionPill, PageHeader, SkeletonTile } from "../../../components/ui/v2";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import IndiaPhoneInput from "../../../components/ui/PhoneInput/PhoneInput";
 import { useDepartments } from "../../../hooks/useDepartments";
@@ -310,9 +309,14 @@ const SectionHeader: React.FC<{ icon: React.ElementType; title: string; color?: 
   title,
   color = "text-accent",
 }) => (
-  <div className="flex items-center gap-2 mb-5 pb-2 border-b border-line-soft">
-    <Icon className={`${color} text-lg`} />
-    <h3 className="text-base font-extrabold text-ink tracking-wide">{title}</h3>
+  <div className="mb-5 flex items-center gap-2.5">
+    <span
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-chip"
+      aria-hidden="true"
+    >
+      <Icon className={color} size={16} />
+    </span>
+    <h3 className="sl-h2 m-0">{title}</h3>
   </div>
 );
 
@@ -334,7 +338,7 @@ const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) =
         className={`block w-14 h-8 rounded-full transition-colors duration-300 ${value ? "bg-accent" : "bg-line"}`}
       />
       <div
-        className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ${value ? "transform translate-x-6" : ""}`}
+        className={`dot absolute left-1 top-1 bg-card w-6 h-6 rounded-full transition-transform duration-300 ${value ? "transform translate-x-6" : ""}`}
       />
     </label>
     <span className="text-sm font-medium text-ink-muted">{value ? "YES" : "NO"}</span>
@@ -967,7 +971,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaUser} title="Basic Information" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <TextInput
-          horizontal
           label="Employee Code"
           name="empCode"
           value={form.empCode}
@@ -978,7 +981,6 @@ const EmployeeForm: React.FC = () => {
           disabled={isEdit}
         />
         <TextInput
-          horizontal
           label="Employee Name"
           name="fullName"
           value={form.fullName}
@@ -988,7 +990,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Full name"
         />
         <SelectInput
-          horizontal
           label="Gender"
           name="gender"
           value={form.gender}
@@ -1001,7 +1002,6 @@ const EmployeeForm: React.FC = () => {
           ]}
         />
         <DatePickerCalendar
-          horizontal
           label="Date of Birth"
           name="dateOfBirth"
           value={form.dateOfBirth}
@@ -1010,7 +1010,6 @@ const EmployeeForm: React.FC = () => {
           maxDate={new Date()}
         />
         <TextInput
-          horizontal
           label="Age (years)"
           name="_age"
           value={age}
@@ -1019,7 +1018,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Auto-calculated"
         />
         <SelectInput
-          horizontal
           label="Blood Group"
           name="bloodGroup"
           value={form.bloodGroup}
@@ -1031,7 +1029,6 @@ const EmployeeForm: React.FC = () => {
           }))}
         />
         <SelectInput
-          horizontal
           label="Marital Status"
           name="maritalStatus"
           value={form.maritalStatus}
@@ -1043,7 +1040,6 @@ const EmployeeForm: React.FC = () => {
           }))}
         />
         <SelectInput
-          horizontal
           label="Employee Status"
           name="employeeStatus"
           value={form.employeeStatus}
@@ -1123,7 +1119,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaPhone} title="Contact Information" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <IndiaPhoneInput
-          horizontal
           label="Personal Mobile Number"
           name="personalMobile"
           value={form.personalMobile}
@@ -1132,7 +1127,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="98765 43210"
         />
         <IndiaPhoneInput
-          horizontal
           label="Official Mobile Number"
           name="officialMobile"
           value={form.officialMobile}
@@ -1142,7 +1136,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="98765 43210"
         />
         <TextInput
-          horizontal
           label="Personal Email Address"
           name="personalEmail"
           type="email"
@@ -1151,7 +1144,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Personal email"
         />
         <TextInput
-          horizontal
           label="Official Email Address"
           name="officialEmail"
           type="email"
@@ -1161,7 +1153,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Official email"
         />
         <TextInput
-          horizontal
           label="Emergency Contact Name"
           name="emergencyContactName"
           value={form.emergencyContactName}
@@ -1169,7 +1160,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Emergency contact name"
         />
         <IndiaPhoneInput
-          horizontal
           label="Emergency Contact Number"
           name="emergencyContactNumber"
           value={form.emergencyContactNumber}
@@ -1186,7 +1176,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaUsers} title="Family Details" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <TextInput
-          horizontal
           label="Father Name"
           name="fatherName"
           value={form.fatherName}
@@ -1194,7 +1183,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Father's name"
         />
         <TextInput
-          horizontal
           label="Mother Name"
           name="motherName"
           value={form.motherName}
@@ -1202,7 +1190,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Mother's name"
         />
         <TextInput
-          horizontal
           label="Husband / Wife Name"
           name="spouseName"
           value={form.spouseName}
@@ -1210,7 +1197,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Spouse's name"
         />
         <TextInput
-          horizontal
           label="Guardian Name"
           name="guardianName"
           value={form.guardianName}
@@ -1218,7 +1204,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Guardian's name"
         />
         <TextInput
-          horizontal
           label="Guardian Relationship"
           name="guardianRelationship"
           value={form.guardianRelationship}
@@ -1234,7 +1219,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaIdCard} title="Identity Documents" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <TextInput
-          horizontal
           label="Aadhaar Number"
           name="aadhaarNumber"
           value={form.aadhaarNumber}
@@ -1244,7 +1228,6 @@ const EmployeeForm: React.FC = () => {
           maxLength={12}
         />
         <TextInput
-          horizontal
           label="PAN Number"
           name="panNumber"
           value={form.panNumber}
@@ -1254,7 +1237,6 @@ const EmployeeForm: React.FC = () => {
           maxLength={10}
         />
         <TextInput
-          horizontal
           label="Driving License Number"
           name="drivingLicense"
           value={form.drivingLicense}
@@ -1264,7 +1246,6 @@ const EmployeeForm: React.FC = () => {
           maxLength={16}
         />
         <TextInput
-          horizontal
           label="Voter ID"
           name="voterId"
           value={form.voterId}
@@ -1282,7 +1263,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaMapMarkerAlt} title="Permanent Address" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <TextInput
-          horizontal
           label="Address Line 1"
           name="permAddress1"
           value={form.permAddress1}
@@ -1290,7 +1270,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Street / Building / Plot"
         />
         <TextInput
-          horizontal
           label="Address Line 2"
           name="permAddress2"
           value={form.permAddress2}
@@ -1298,7 +1277,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Area / Locality"
         />
         <TextInput
-          horizontal
           label="Pincode"
           name="permPincode"
           value={form.permPincode}
@@ -1312,7 +1290,6 @@ const EmployeeForm: React.FC = () => {
           cityValue={form.permCity}
           onStateChange={(s) => setForm((p) => ({ ...p, permState: s.name, permCity: "" }))}
           onCityChange={(c) => setForm((p) => ({ ...p, permCity: c.name }))}
-          horizontal
         />
       </div>
 
@@ -1338,7 +1315,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaMapMarkerAlt} title="Present Address" color="text-ink-muted" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <TextInput
-          horizontal
           label="Address Line 1"
           name="presAddress1"
           value={form.presAddress1}
@@ -1347,7 +1323,6 @@ const EmployeeForm: React.FC = () => {
           disabled={form.sameAsPermanent}
         />
         <TextInput
-          horizontal
           label="Address Line 2"
           name="presAddress2"
           value={form.presAddress2}
@@ -1356,7 +1331,6 @@ const EmployeeForm: React.FC = () => {
           disabled={form.sameAsPermanent}
         />
         <TextInput
-          horizontal
           label="Pincode"
           name="presPincode"
           value={form.presPincode}
@@ -1372,7 +1346,6 @@ const EmployeeForm: React.FC = () => {
           onStateChange={(s) => setForm((p) => ({ ...p, presState: s.name, presCity: "" }))}
           onCityChange={(c) => setForm((p) => ({ ...p, presCity: c.name }))}
           disabled={form.sameAsPermanent}
-          horizontal
         />
       </div>
     </div>
@@ -1383,7 +1356,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaBriefcase} title="Official Information" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <SelectInput
-          horizontal
           label="Department"
           name="departmentId"
           value={form.departmentId}
@@ -1395,7 +1367,6 @@ const EmployeeForm: React.FC = () => {
           searchable
         />
         <SelectInput
-          horizontal
           label="Role"
           name="roleId"
           value={form.roleId}
@@ -1407,7 +1378,6 @@ const EmployeeForm: React.FC = () => {
           searchable
         />
         <SelectInput
-          horizontal
           label="Employee Type"
           name="employeeType"
           value={form.employeeType}
@@ -1418,7 +1388,6 @@ const EmployeeForm: React.FC = () => {
           )}
         />
         <SelectInput
-          horizontal
           label="Employment Status"
           name="employeeStatus"
           value={form.employeeStatus}
@@ -1440,7 +1409,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaCalendarAlt} title="Joining Details" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <DatePickerCalendar
-          horizontal
           label="Date of Joining"
           name="dateOfJoining"
           value={form.dateOfJoining}
@@ -1448,7 +1416,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Select joining date"
         />
         <DatePickerCalendar
-          horizontal
           label="Relieving Date"
           name="relievingDate"
           value={form.relievingDate}
@@ -1456,7 +1423,6 @@ const EmployeeForm: React.FC = () => {
           placeholder="Select relieving date"
         />
         <TextInput
-          horizontal
           label="Previous Experience"
           name="previousExperience"
           value={form.previousExperience}
@@ -1472,7 +1438,6 @@ const EmployeeForm: React.FC = () => {
       <SectionHeader icon={FaClock} title="Shift Assignment" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4">
         <SelectInput
-          horizontal
           label="Shift"
           name="shiftId"
           value={form.shiftId}
@@ -1482,7 +1447,6 @@ const EmployeeForm: React.FC = () => {
           searchable
         />
         <TextInput
-          horizontal
           label="Business Place ID"
           name="businessPlaceId"
           value={form.businessPlaceId}
@@ -1537,10 +1501,9 @@ const EmployeeForm: React.FC = () => {
       </div>
 
       {form.createLoginAccount && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4 p-5 bg-card-2 rounded-sm border border-line-soft">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 gap-y-3 md:gap-y-4 rounded-[14px] bg-card-2 p-5">
           <div className="flex flex-col gap-1">
             <TextInput
-              horizontal
               label="Username"
               name="username"
               value={form.username}
@@ -1578,7 +1541,6 @@ const EmployeeForm: React.FC = () => {
             )}
           </div>
           <TextInput
-            horizontal
             label="Official Email Address"
             name="officialEmail"
             type="email"
@@ -1652,115 +1614,109 @@ const EmployeeForm: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 bg-card rounded-sm border border-line-soft">
-        <div className="flex flex-col items-center gap-3 text-ink-muted">
-          <div className="w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Loading employee data…</span>
-        </div>
+      <div className="mx-auto w-full max-w-[1400px] space-y-5 py-1 sm:py-2">
+        <PageHeader
+          title={isEdit ? "Edit Employee" : "Create Employee"}
+          subtitle="Loading employee data…"
+        />
+        <SkeletonTile lines={6} label="Loading employee data" />
       </div>
     );
   }
 
+  const saveLabel = isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Save Employee";
+
   return (
-    <div className="max-w-[1400px] xl:mr-auto">
-      <div className="bg-card rounded-sm border border-line overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <div>
-            <h2 className="text-lg font-bold text-ink">
-              {isEdit ? "Edit Employee" : "Create Employee"}
-            </h2>
-            {isEdit && (form.empCode || form.fullName) && (
-              <p className="text-xs text-ink-muted mt-0.5">
-                {form.empCode && <span className="font-semibold text-accent">{form.empCode}</span>}
-                {form.fullName && <span> — {form.fullName}</span>}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <BackButton />
-            <CustomButton
-              text={isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Save Employee"}
-              icon={FaSave}
-              type="button"
-              disabled={isSubmitting}
-              onClick={handleSubmit}
-            />
-          </div>
-        </div>
-
-        {/* Tab navigation */}
-        <div className="px-5 overflow-x-auto border-b border-line">
-          <div className="flex gap-0 min-w-max">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    flex items-center gap-1.5 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide
-                    border-b-2 transition-all duration-200 whitespace-nowrap
-                    ${
-                      isActive
-                        ? "border-accent text-accent bg-accent/5"
-                        : "border-transparent text-ink-muted hover:text-ink hover:bg-card-2"
-                    }
-                  `}
+    <div className="mx-auto w-full max-w-[1400px] space-y-5 py-1 sm:py-2">
+      <PageHeader
+        title={isEdit ? "Edit Employee" : "Create Employee"}
+        back={() => navigate(-1)}
+        breadcrumbs={[
+          { label: "Employees", to: "/employees" },
+          { label: isEdit ? "Edit" : "New employee" },
+        ]}
+        subtitle={
+          isEdit && (form.empCode || form.fullName) ? (
+            <>
+              {form.empCode && <span className="font-semibold text-accent">{form.empCode}</span>}
+              {form.fullName && <span> — {form.fullName}</span>}
+            </>
+          ) : (
+            "Personal details, job, pay, statutory numbers and login — one tab at a time."
+          )
+        }
+      >
+        <div
+          role="tablist"
+          aria-label="Employee sections"
+          className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 py-1 [scrollbar-width:none]"
+        >
+          {TABS.map((tab, index) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
+                className="sl-chip sl-chip-lg shrink-0"
+              >
+                <span
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-card text-[11px] font-bold text-ink-muted"
+                  aria-hidden="true"
                 >
-                  <Icon size={12} />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+                  {index + 1}
+                </span>
+                <Icon size={13} aria-hidden="true" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
+      </PageHeader>
 
-        {/* Tab content */}
-        <div className="px-5 py-5 min-h-[350px]">{tabRenderers[activeTab]()}</div>
+      {/* Tab content */}
+      <div className="sl-tile min-h-[350px] p-5 sm:p-6">{tabRenderers[activeTab]()}</div>
 
-        {/* Footer navigation */}
-        <div className="border-t border-line px-5 py-3 flex items-center justify-between">
-          <button
-            type="button"
+      {/* Sticky footer */}
+      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <ActionPill
+            variant="secondary"
+            icon={<FaChevronLeft size={12} />}
             disabled={activeTab === 0}
             onClick={() => setActiveTab((p) => Math.max(0, p - 1))}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
-              ${
-                activeTab === 0
-                  ? "text-ink-subtle cursor-not-allowed"
-                  : "text-ink-muted hover:bg-card-2 border border-line-soft"
-              }`}
           >
-            <FaChevronLeft size={12} /> Previous
-          </button>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-ink-muted font-medium">
-              {activeTab + 1} / {TABS.length}
-            </span>
-            <CustomButton
-              text={isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Save Employee"}
-              icon={FaSave}
-              type="button"
-              disabled={isSubmitting}
-              onClick={handleSubmit}
-            />
-          </div>
-
-          {activeTab < TABS.length - 1 ? (
-            <button
-              type="button"
+            Previous
+          </ActionPill>
+          <span className="px-1 text-sm font-medium tabular-nums text-ink-muted">
+            {activeTab + 1} / {TABS.length}
+          </span>
+          {activeTab < TABS.length - 1 && (
+            <ActionPill
+              variant="secondary"
+              iconRight={<FaChevronRight size={12} />}
               onClick={() => setActiveTab((p) => Math.min(TABS.length - 1, p + 1))}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent/90 transition-all"
             >
-              Next <FaChevronRight size={12} />
-            </button>
-          ) : (
-            <div className="w-24" />
+              Next
+            </ActionPill>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <ActionPill variant="ghost" onClick={() => navigate(-1)}>
+            Cancel
+          </ActionPill>
+          <ActionPill
+            icon={<FaSave size={15} />}
+            disabled={isSubmitting}
+            loading={isSubmitting}
+            loadingText="Saving..."
+            onClick={handleSubmit}
+          >
+            {saveLabel}
+          </ActionPill>
         </div>
       </div>
     </div>

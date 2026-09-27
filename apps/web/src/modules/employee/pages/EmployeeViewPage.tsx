@@ -1,4 +1,15 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Pencil } from "lucide-react";
+import {
+  Chip,
+  ChipTabs,
+  PageHeader,
+  SkeletonTile,
+  Tile,
+  actionPillClass,
+} from "../../../components/ui/v2";
+import { usePermission } from "../../../hooks/usePermission";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -12,7 +23,6 @@ import {
   FaClock,
   FaMoneyBillWave,
   FaLock,
-  FaArrowLeft,
 } from "react-icons/fa";
 import { employeeService } from "../../../services/employeeService";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
@@ -47,11 +57,11 @@ function InfoRow({
   value?: string | number | null | React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-2 border-b border-line-soft/40 hover:bg-card-2/30 transition-colors min-w-0">
-      <span className="text-[11px] text-ink-subtle w-[140px] shrink-0">{label}</span>
-      <span className="text-[12px] font-semibold text-ink truncate">
+    <div className="flex min-w-0 flex-col gap-0.5 border-b border-line-soft py-2.5">
+      <span className="text-[12px] font-medium text-ink-subtle">{label}</span>
+      <span className="truncate text-sm font-semibold text-ink">
         {value === null || value === undefined || value === "" ? (
-          <span className="text-ink-muted italic font-normal">—</span>
+          <span className="font-normal text-ink-subtle">—</span>
         ) : (
           value
         )}
@@ -62,22 +72,25 @@ function InfoRow({
 
 // ─── 2-col section body ───────────────────────────────────────────────────────
 function FieldGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-2 [&>*:nth-child(odd)]:border-r [&>*:nth-child(odd)]:border-line-soft/40">
-      {children}
-    </div>
-  );
+  return <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">{children}</div>;
 }
 
 // ─── SectionHeader ────────────────────────────────────────────────────────────
-function SectionHeader({ icon: Icon, title }: { icon: any; title: string }) {
+function Section({
+  icon: Icon,
+  title,
+  children,
+  className,
+}: {
+  icon: any;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="flex items-center gap-2 px-5 py-2 bg-card-2/50 border-y border-line-soft/50">
-      <Icon className="text-accent" size={11} />
-      <span className="text-[10px] font-extrabold text-ink-subtle uppercase tracking-[2px]">
-        {title}
-      </span>
-    </div>
+    <Tile title={title} icon={<Icon size={15} />} className={className}>
+      {children}
+    </Tile>
   );
 }
 
@@ -141,26 +154,21 @@ function CalcCard({
 }) {
   const s = CARD_STYLES[color] ?? CARD_STYLES.slate;
   return (
-    <div className={`p-3 ${s.bg} border ${s.border} rounded-sm flex flex-col gap-1`}>
-      <span className={`text-[9px] font-bold uppercase tracking-wider ${s.label}`}>{label}</span>
-      <span className={`text-base font-extrabold ${s.val}`}>{amount}</span>
-      <span className={`text-[9px] font-medium ${s.label}`}>{note}</span>
+    <div className={`flex flex-col gap-1 rounded-[14px] px-4 py-3 ${s.bg}`}>
+      <span className={`text-[12px] font-medium ${s.label}`}>{label}</span>
+      <span className={`text-lg font-bold tabular-nums ${s.val}`}>{amount}</span>
+      <span className="text-[12px] text-ink-subtle">{note}</span>
     </div>
   );
 }
 
 function StatFlag({ label, value }: { label: string; value: boolean }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card-2 border border-line-soft">
-      <span
-        className={`w-2 h-2 rounded-full shrink-0 ${value ? "bg-[color:var(--color-success)]" : "bg-ink-muted/30"}`}
-      />
-      <span className="text-[11px] font-semibold text-ink-subtle">{label}</span>
-      <span
-        className={`ml-auto text-[11px] font-bold ${value ? "text-[color:var(--color-success)]" : "text-ink-muted"}`}
-      >
+    <div className="flex items-center gap-2 rounded-[14px] bg-card-2 px-3.5 py-2.5">
+      <span className="text-sm font-medium text-ink">{label}</span>
+      <Chip size="sm" tone={value ? "success" : "muted"} className="ml-auto">
         {value ? "Yes" : "No"}
-      </span>
+      </Chip>
     </div>
   );
 }
@@ -231,7 +239,7 @@ function PayrollRows({ employee, payrollConfig }: { employee: any; payrollConfig
 
       {/* Salary breakdown cards */}
       {derivatives && (
-        <div className="px-5 py-3 border-b border-line-soft/40">
+        <div className="py-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
             {salaryType !== "daily" && salaryType !== "hourly" && (
               <CalcCard
@@ -266,7 +274,7 @@ function PayrollRows({ employee, payrollConfig }: { employee: any; payrollConfig
               />
             )}
           </div>
-          <div className="flex flex-wrap gap-3 px-3 py-2 rounded-lg bg-card-2 border border-line-soft text-[10px] text-ink-subtle">
+          <div className="flex flex-wrap gap-2 text-[12px] text-ink-subtle">
             <span>
               <span className="font-semibold text-ink">Method:</span> {methodLabel}
             </span>
@@ -286,8 +294,8 @@ function PayrollRows({ employee, payrollConfig }: { employee: any; payrollConfig
       {/* Statutory */}
       {employee.paymentMode === "BANK" && (
         <>
-          <div className="px-5 py-3 border-b border-line-soft/40">
-            <div className="grid grid-cols-3 gap-2">
+          <div className="py-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <StatFlag label="PF Applicable" value={!!employee.pfApplicable} />
               <StatFlag label="ESI Applicable" value={!!employee.esiApplicable} />
               <StatFlag label="Professional Tax" value={!!employee.professionalTax} />
@@ -299,8 +307,8 @@ function PayrollRows({ employee, payrollConfig }: { employee: any; payrollConfig
             <InfoRow label="ESIC Number" value={employee.esiNumber} />
             <InfoRow label="Work State" value={employee.workStateCode} />
           </FieldGrid>
-          <div className="px-5 py-3 border-b border-line-soft/40">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="py-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <CalcCard
                 label="Est. Employee PF / Month"
                 amount={employee.pfApplicable ? formatINR(pf) : "₹0.00"}
@@ -348,6 +356,8 @@ export default function EmployeeViewPage() {
   const [employee, setEmployee] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
+  const [tab, setTab] = useState<"profile" | "job" | "pay" | "login">("profile");
+  const { can } = usePermission();
   const { config: payrollConfig } = usePayrollConfig();
 
   useEffect(() => {
@@ -365,8 +375,10 @@ export default function EmployeeViewPage() {
 
   if (loading)
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+      <div className="mx-auto w-full max-w-[1200px] space-y-5 py-1 sm:py-2">
+        <PageHeader title="Employee" back="/employees" subtitle="Loading…" />
+        <SkeletonTile lines={3} />
+        <SkeletonTile lines={6} />
       </div>
     );
 
@@ -385,252 +397,300 @@ export default function EmployeeViewPage() {
   const totalCTC = onRecordGross + cashInHand;
 
   return (
-    <div className="max-w-4xl xl:mr-auto space-y-3">
-      {/* Top nav */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => navigate("/employees")}
-          className="flex items-center gap-1.5 text-xs text-ink-subtle hover:text-accent transition-colors font-medium"
-        >
-          <FaArrowLeft size={11} /> Back to Employees
-        </button>
-      </div>
+    <div className="mx-auto w-full max-w-[1200px] space-y-5 py-1 sm:py-2">
+      <PageHeader
+        title={employee.fullName}
+        back="/employees"
+        backLabel="Back to Employees"
+        breadcrumbs={[{ label: "Employees", to: "/employees" }, { label: employee.empCode }]}
+        meta={
+          <StatusBadge
+            status={STATUS_MAP[employee.status] ?? employee.status?.toUpperCase() ?? "INACTIVE"}
+          />
+        }
+        subtitle={
+          [employee.designation, employee.department?.name].filter(Boolean).join(" · ") ||
+          employee.empCode
+        }
+        actions={
+          can("employees.edit") ? (
+            <Link
+              to={`/employees/edit/${employee.id}`}
+              state={employee}
+              className={actionPillClass({ variant: "secondary" })}
+            >
+              <Pencil size={15} aria-hidden="true" /> Edit
+            </Link>
+          ) : undefined
+        }
+      />
 
-      {/* ── Single Card ───────────────────────────────────────────────────── */}
-      <div className="bg-card border border-line-soft rounded-sm overflow-hidden">
-        {/* Hero */}
-        <div className="flex items-center gap-4 px-5 py-4 border-b border-line-soft">
-          {employee.photoUrl && !imgError ? (
-            <img
-              src={getPhotoUrl(employee.photoUrl)}
-              alt={employee.fullName}
-              onError={() => setImgError(true)}
-              className="w-12 h-12 rounded-sm object-cover border border-line-soft shrink-0"
-            />
-          ) : (
-            <div className="w-12 h-12 rounded-sm bg-accent flex items-center justify-center text-white text-lg font-bold shrink-0">
-              {initials}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-sm font-bold text-ink">{employee.fullName}</h1>
-              <StatusBadge
-                status={STATUS_MAP[employee.status] ?? employee.status?.toUpperCase() ?? "INACTIVE"}
-              />
-            </div>
-            <p className="text-[11px] text-ink-muted mt-0.5">{employee.empCode}</p>
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {employee.designation && (
-                <span className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-[10px] font-semibold border border-accent/20">
-                  {employee.designation}
-                </span>
-              )}
-              {employee.department?.name && (
-                <span className="px-2 py-0.5 rounded-full bg-card-2 text-ink-subtle text-[10px] font-semibold border border-line-soft">
-                  {employee.department.name}
-                </span>
-              )}
-              {employee.employeeType && (
-                <span className="px-2 py-0.5 rounded-full bg-card-2 text-ink-subtle text-[10px] font-semibold border border-line-soft capitalize">
-                  {employee.employeeType}
-                </span>
-              )}
-            </div>
+      {/* Summary */}
+      <div className="sl-tile flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:p-6">
+        {employee.photoUrl && !imgError ? (
+          <img
+            src={getPhotoUrl(employee.photoUrl)}
+            alt={employee.fullName}
+            onError={() => setImgError(true)}
+            className="h-20 w-20 shrink-0 rounded-[18px] border border-line-soft object-cover"
+          />
+        ) : (
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[18px] bg-chip text-2xl font-bold text-chip-fg">
+            {initials}
           </div>
-        </div>
-
-        {/* 1. Basic Information */}
-        <SectionHeader icon={FaUser} title="Basic Information" />
-        <FieldGrid>
-          <InfoRow label="Employee Code" value={employee.empCode} />
-          <InfoRow label="Full Name" value={employee.fullName} />
-          <InfoRow
-            label="Gender"
-            value={
-              employee.gender
-                ? employee.gender.charAt(0).toUpperCase() + employee.gender.slice(1)
-                : null
-            }
-          />
-          <InfoRow
-            label="Date of Birth"
-            value={
-              employee.dateOfBirth
-                ? `${formatDate(employee.dateOfBirth)} (${calcAge(employee.dateOfBirth)})`
-                : null
-            }
-          />
-          <InfoRow label="Blood Group" value={employee.bloodGroup} />
-          <InfoRow
-            label="Marital Status"
-            value={
-              employee.maritalStatus
-                ? employee.maritalStatus.charAt(0).toUpperCase() + employee.maritalStatus.slice(1)
-                : null
-            }
-          />
-        </FieldGrid>
-
-        {/* 2. Contact Details */}
-        <SectionHeader icon={FaPhone} title="Contact Details" />
-        <FieldGrid>
-          <InfoRow label="Work Mobile" value={employee.mobile} />
-          <InfoRow label="Work Email" value={employee.email} />
-          <InfoRow label="Personal Mobile" value={employee.personalMobile} />
-          <InfoRow label="Personal Email" value={employee.personalEmail} />
-          <InfoRow label="Emergency Contact" value={employee.emergencyContactName} />
-          <InfoRow label="Emergency Number" value={employee.emergencyContactNumber} />
-        </FieldGrid>
-
-        {/* 3. Family Details */}
-        <SectionHeader icon={FaUsers} title="Family Details" />
-        <FieldGrid>
-          <InfoRow label="Father's Name" value={employee.fatherName} />
-          <InfoRow label="Mother's Name" value={employee.motherName} />
-          <InfoRow label="Spouse's Name" value={employee.spouseName} />
-          <InfoRow label="Guardian's Name" value={employee.guardianName} />
-          <InfoRow label="Guardian Relationship" value={employee.guardianRelationship} />
-        </FieldGrid>
-
-        {/* 4. Identity Documents */}
-        <SectionHeader icon={FaIdCard} title="Identity Documents" />
-        <FieldGrid>
-          <InfoRow label="Aadhaar Number" value={employee.aadhaarNumber} />
-          <InfoRow label="PAN Number" value={employee.panNumber} />
-          <InfoRow label="Driving License" value={employee.drivingLicense} />
-          <InfoRow label="Voter ID" value={employee.voterId} />
-        </FieldGrid>
-
-        {/* 5. Address */}
-        <SectionHeader icon={FaMapMarkerAlt} title="Address" />
-        <div className="grid grid-cols-2 border-b border-line-soft/40">
-          <div className="border-r border-line-soft/40 px-5 py-3">
-            <p className="text-[9px] font-extrabold uppercase tracking-[2px] text-ink-muted mb-2">
-              Permanent Address
-            </p>
-            <InfoRow label="Line 1" value={employee.permanentAddressLine1} />
-            <InfoRow label="Line 2" value={employee.permanentAddressLine2} />
-            <InfoRow label="City" value={employee.permanentCity} />
-            <InfoRow label="State" value={employee.permanentState} />
-            <InfoRow label="Pincode" value={employee.permanentPincode} />
-          </div>
-          <div className="px-5 py-3">
-            <p className="text-[9px] font-extrabold uppercase tracking-[2px] text-ink-muted mb-2">
-              Present Address
-            </p>
-            <InfoRow label="Line 1" value={employee.presentAddressLine1} />
-            <InfoRow label="Line 2" value={employee.presentAddressLine2} />
-            <InfoRow label="City" value={employee.presentCity} />
-            <InfoRow label="State" value={employee.presentState} />
-            <InfoRow label="Pincode" value={employee.presentPincode} />
-          </div>
-        </div>
-
-        {/* 6. Official Info */}
-        <SectionHeader icon={FaBriefcase} title="Official Information" />
-        <FieldGrid>
-          <InfoRow label="Department" value={employee.department?.name} />
-          <InfoRow label="Role" value={employee.role?.name || employee.user?.role?.name} />
-          <InfoRow
-            label="Employee Type"
-            value={
-              employee.employeeType
-                ? employee.employeeType.charAt(0).toUpperCase() + employee.employeeType.slice(1)
-                : null
-            }
-          />
-          <InfoRow
-            label="Status"
-            value={
-              <StatusBadge
-                status={STATUS_MAP[employee.status] ?? employee.status?.toUpperCase() ?? "INACTIVE"}
-              />
-            }
-          />
-        </FieldGrid>
-
-        {/* 7. Joining Details */}
-        <SectionHeader icon={FaCalendarAlt} title="Joining Details" />
-        <FieldGrid>
-          <InfoRow label="Date of Joining" value={formatDate(employee.dateOfJoining)} />
-          <InfoRow label="Relieving Date" value={formatDate(employee.relievingDate)} />
-          <InfoRow label="Previous Experience" value={employee.previousExperience} />
-        </FieldGrid>
-
-        {/* 8. Shift */}
-        <SectionHeader icon={FaClock} title="Shift Assignment" />
-        <FieldGrid>
-          <InfoRow label="Shift" value={employee.shift?.shiftName || employee.shiftId} />
-          <InfoRow label="Shift Code" value={employee.shiftId} />
-        </FieldGrid>
-
-        {/* 9. Payroll & Statutory */}
-        <SectionHeader icon={FaMoneyBillWave} title="Payroll & Statutory" />
-        <PayrollRows employee={employee} payrollConfig={payrollConfig} />
-
-        {/* 9b. Total CTC */}
-        {cashInHand > 0 && (
-          <>
-            <SectionHeader icon={FaMoneyBillWave} title="Total Compensation Summary" />
-            <div className="px-5 py-3 border-b border-line-soft/40">
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <CalcCard
-                  label="Net Pay (Monthly)"
-                  amount={formatINR(onRecordGross)}
-                  note="On-record gross"
-                  color="slate"
-                />
-                <CalcCard
-                  label="Cash in Hand"
-                  amount={formatINR(cashInHand)}
-                  note="Off-payroll"
-                  color="indigo"
-                />
-                <CalcCard
-                  label="Total Monthly CTC"
-                  amount={formatINR(totalCTC)}
-                  note="Net + Cash"
-                  color="emerald"
-                />
-              </div>
-              <p className="text-[10px] text-ink-muted text-center italic">
-                {formatINR(onRecordGross)} + {formatINR(cashInHand)} = {formatINR(totalCTC)}
-              </p>
-            </div>
-          </>
         )}
-
-        {/* 10. Login Account */}
-        <SectionHeader icon={FaLock} title="Login Account" />
-        <FieldGrid>
-          <InfoRow label="Username" value={employee.user?.username} />
-          <InfoRow label="Role" value={employee.user?.role?.name} />
-          <InfoRow
-            label="Login Status"
-            value={
-              employee.user ? (
-                <StatusBadge status={employee.user.status?.toUpperCase() || "INACTIVE"} />
-              ) : (
-                <span className="text-ink-muted italic text-[11px] font-normal">No account</span>
-              )
-            }
-          />
-          <InfoRow
-            label="Must Change Password"
-            value={
-              employee.user ? (
-                <span
-                  className={`text-[11px] font-semibold ${employee.user.mustChangePw ? "text-[color:var(--color-warning)]" : "text-[color:var(--color-success)]"}`}
-                >
-                  {employee.user.mustChangePw ? "Yes" : "No"}
-                </span>
-              ) : null
-            }
-          />
-        </FieldGrid>
+        <div className="min-w-0 flex-1">
+          <p className="m-0 text-sm font-semibold text-accent">{employee.empCode}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {employee.designation && <Chip size="sm">{employee.designation}</Chip>}
+            {employee.department?.name && (
+              <Chip size="sm" tone="muted">
+                {employee.department.name}
+              </Chip>
+            )}
+            {employee.employeeType && (
+              <Chip size="sm" tone="muted" className="capitalize">
+                {employee.employeeType}
+              </Chip>
+            )}
+            {employee.paymentMode && (
+              <Chip size="sm" tone="info">
+                {employee.paymentMode}
+              </Chip>
+            )}
+          </div>
+        </div>
+        <dl className="m-0 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
+          <div>
+            <dt className="text-[12px] font-medium text-ink-subtle">
+              {PRIMARY_SALARY_LABELS[(employee.salaryType || "monthly").toLowerCase()] ?? "Gross"}
+            </dt>
+            <dd className="m-0 text-xl font-bold tabular-nums text-ink">
+              {onRecordGross > 0 ? formatINR(onRecordGross) : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[12px] font-medium text-ink-subtle">Joined</dt>
+            <dd className="m-0 text-base font-semibold text-ink">
+              {formatDate(employee.dateOfJoining) || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[12px] font-medium text-ink-subtle">Shift</dt>
+            <dd className="m-0 text-base font-semibold text-ink">
+              {employee.shift?.shiftName || employee.shiftId || "—"}
+            </dd>
+          </div>
+        </dl>
       </div>
-      {/* end single card */}
+
+      <ChipTabs
+        ariaLabel="Employee details"
+        value={tab}
+        onChange={(k) => setTab(k as typeof tab)}
+        items={[
+          { key: "profile", label: "Profile" },
+          { key: "job", label: "Job" },
+          { key: "pay", label: "Pay & statutory" },
+          { key: "login", label: "Login" },
+        ]}
+      />
+
+      {tab === "profile" && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Section icon={FaUser} title="Basic Information">
+            <FieldGrid>
+              <InfoRow label="Employee Code" value={employee.empCode} />
+              <InfoRow label="Full Name" value={employee.fullName} />
+              <InfoRow
+                label="Gender"
+                value={
+                  employee.gender
+                    ? employee.gender.charAt(0).toUpperCase() + employee.gender.slice(1)
+                    : null
+                }
+              />
+              <InfoRow
+                label="Date of Birth"
+                value={
+                  employee.dateOfBirth
+                    ? `${formatDate(employee.dateOfBirth)} (${calcAge(employee.dateOfBirth)})`
+                    : null
+                }
+              />
+              <InfoRow label="Blood Group" value={employee.bloodGroup} />
+              <InfoRow
+                label="Marital Status"
+                value={
+                  employee.maritalStatus
+                    ? employee.maritalStatus.charAt(0).toUpperCase() +
+                      employee.maritalStatus.slice(1)
+                    : null
+                }
+              />
+            </FieldGrid>
+          </Section>
+          <Section icon={FaPhone} title="Contact Details">
+            <FieldGrid>
+              <InfoRow label="Work Mobile" value={employee.mobile} />
+              <InfoRow label="Work Email" value={employee.email} />
+              <InfoRow label="Personal Mobile" value={employee.personalMobile} />
+              <InfoRow label="Personal Email" value={employee.personalEmail} />
+              <InfoRow label="Emergency Contact" value={employee.emergencyContactName} />
+              <InfoRow label="Emergency Number" value={employee.emergencyContactNumber} />
+            </FieldGrid>
+          </Section>
+          <Section icon={FaUsers} title="Family Details">
+            <FieldGrid>
+              <InfoRow label="Father's Name" value={employee.fatherName} />
+              <InfoRow label="Mother's Name" value={employee.motherName} />
+              <InfoRow label="Spouse's Name" value={employee.spouseName} />
+              <InfoRow label="Guardian's Name" value={employee.guardianName} />
+              <InfoRow label="Guardian Relationship" value={employee.guardianRelationship} />
+            </FieldGrid>
+          </Section>
+          <Section icon={FaIdCard} title="Identity Documents">
+            <FieldGrid>
+              <InfoRow label="Aadhaar Number" value={employee.aadhaarNumber} />
+              <InfoRow label="PAN Number" value={employee.panNumber} />
+              <InfoRow label="Driving License" value={employee.drivingLicense} />
+              <InfoRow label="Voter ID" value={employee.voterId} />
+            </FieldGrid>
+          </Section>
+          <Section icon={FaMapMarkerAlt} title="Address" className="lg:col-span-2">
+            <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+              <div>
+                <p className="sl-section-label m-0 mb-1">Permanent Address</p>
+                <InfoRow label="Line 1" value={employee.permanentAddressLine1} />
+                <InfoRow label="Line 2" value={employee.permanentAddressLine2} />
+                <InfoRow label="City" value={employee.permanentCity} />
+                <InfoRow label="State" value={employee.permanentState} />
+                <InfoRow label="Pincode" value={employee.permanentPincode} />
+              </div>
+              <div>
+                <p className="sl-section-label m-0 mb-1">Present Address</p>
+                <InfoRow label="Line 1" value={employee.presentAddressLine1} />
+                <InfoRow label="Line 2" value={employee.presentAddressLine2} />
+                <InfoRow label="City" value={employee.presentCity} />
+                <InfoRow label="State" value={employee.presentState} />
+                <InfoRow label="Pincode" value={employee.presentPincode} />
+              </div>
+            </div>
+          </Section>
+        </div>
+      )}
+
+      {tab === "job" && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Section icon={FaBriefcase} title="Official Information" className="lg:col-span-2">
+            <FieldGrid>
+              <InfoRow label="Department" value={employee.department?.name} />
+              <InfoRow label="Role" value={employee.role?.name || employee.user?.role?.name} />
+              <InfoRow
+                label="Employee Type"
+                value={
+                  employee.employeeType
+                    ? employee.employeeType.charAt(0).toUpperCase() + employee.employeeType.slice(1)
+                    : null
+                }
+              />
+              <InfoRow
+                label="Status"
+                value={
+                  <StatusBadge
+                    status={
+                      STATUS_MAP[employee.status] ?? employee.status?.toUpperCase() ?? "INACTIVE"
+                    }
+                  />
+                }
+              />
+            </FieldGrid>
+          </Section>
+          <Section icon={FaCalendarAlt} title="Joining Details">
+            <FieldGrid>
+              <InfoRow label="Date of Joining" value={formatDate(employee.dateOfJoining)} />
+              <InfoRow label="Relieving Date" value={formatDate(employee.relievingDate)} />
+              <InfoRow label="Previous Experience" value={employee.previousExperience} />
+            </FieldGrid>
+          </Section>
+          <Section icon={FaClock} title="Shift Assignment">
+            <FieldGrid>
+              <InfoRow label="Shift" value={employee.shift?.shiftName || employee.shiftId} />
+              <InfoRow label="Shift Code" value={employee.shiftId} />
+            </FieldGrid>
+          </Section>
+        </div>
+      )}
+
+      {tab === "pay" && (
+        <div className="space-y-5">
+          <Section icon={FaMoneyBillWave} title="Payroll & Statutory">
+            <PayrollRows employee={employee} payrollConfig={payrollConfig} />
+          </Section>
+
+          {/* 9b. Total CTC */}
+          {cashInHand > 0 && (
+            <Section icon={FaMoneyBillWave} title="Total Compensation Summary">
+              <div className="py-3">
+                <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <CalcCard
+                    label="Net Pay (Monthly)"
+                    amount={formatINR(onRecordGross)}
+                    note="On-record gross"
+                    color="slate"
+                  />
+                  <CalcCard
+                    label="Cash in Hand"
+                    amount={formatINR(cashInHand)}
+                    note="Off-payroll"
+                    color="indigo"
+                  />
+                  <CalcCard
+                    label="Total Monthly CTC"
+                    amount={formatINR(totalCTC)}
+                    note="Net + Cash"
+                    color="emerald"
+                  />
+                </div>
+                <p className="m-0 text-center text-[12px] text-ink-subtle">
+                  {formatINR(onRecordGross)} + {formatINR(cashInHand)} = {formatINR(totalCTC)}
+                </p>
+              </div>
+            </Section>
+          )}
+        </div>
+      )}
+
+      {tab === "login" && (
+        <Section icon={FaLock} title="Login Account">
+          <FieldGrid>
+            <InfoRow label="Username" value={employee.user?.username} />
+            <InfoRow label="Role" value={employee.user?.role?.name} />
+            <InfoRow
+              label="Login Status"
+              value={
+                employee.user ? (
+                  <StatusBadge status={employee.user.status?.toUpperCase() || "INACTIVE"} />
+                ) : (
+                  <span className="font-normal text-ink-subtle">No account</span>
+                )
+              }
+            />
+            <InfoRow
+              label="Must Change Password"
+              value={
+                employee.user ? (
+                  <span
+                    className={`text-sm font-semibold ${employee.user.mustChangePw ? "text-[color:var(--color-warning)]" : "text-[color:var(--color-success)]"}`}
+                  >
+                    {employee.user.mustChangePw ? "Yes" : "No"}
+                  </span>
+                ) : null
+              }
+            />
+          </FieldGrid>
+        </Section>
+      )}
     </div>
   );
 }

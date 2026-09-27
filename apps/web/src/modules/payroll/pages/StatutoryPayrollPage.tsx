@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { Link } from "react-router-dom";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -9,17 +10,32 @@ import {
   type StatutoryRuleRow,
   type StatutorySummary,
 } from "../../../services/statutoryPayrollService";
+import { Download, Landmark, Send, BookCheck, Calculator } from "lucide-react";
+import {
+  ActionPill,
+  actionPillClass,
+  EmptyState,
+  Chip,
+  ChipTabs,
+  PageHeader,
+  SkeletonTile,
+  StatTile,
+} from "../../../components/ui/v2";
 import {
   Card,
+  Figure,
+  Notice,
+  PageShell,
+  TableWrap,
+  num,
   field,
   message,
   money,
-  primary,
   secondary,
   success,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/peopleUi";
 
 /**
  * Statutory payroll (P1-16).
@@ -99,16 +115,13 @@ const StatutoryPayrollPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Statutory Payroll</h1>
-          <p className="text-sm text-ink-muted">
-            What the month owes the provident fund, the insurance scheme, the state and the
-            income-tax department — and the files each of them wants.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="Statutory Payroll"
+        icon={<Landmark size={20} />}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Statutory" }]}
+        subtitle="What the month owes the provident fund, the insurance scheme, the state and the income-tax department — and the files each of them wants."
+        actions={
           <select
             className={field}
             value={runId ?? ""}
@@ -122,10 +135,12 @@ const StatutoryPayrollPage: React.FC = () => {
             ))}
             {runs.length === 0 && <option value="">No payroll run yet</option>}
           </select>
-          {runId && can("payroll-run.create") && (
-            <button
-              className={primary}
-              disabled={busy}
+        }
+        primaryAction={
+          runId && can("payroll-run.create") ? (
+            <ActionPill
+              icon={<Calculator size={17} />}
+              loading={busy}
               onClick={() =>
                 act(async () => {
                   const out = await statutoryPayrollService.compute(runId);
@@ -138,94 +153,107 @@ const StatutoryPayrollPage: React.FC = () => {
               }
             >
               Work out the month
-            </button>
-          )}
+            </ActionPill>
+          ) : undefined
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ChipTabs
+            ariaLabel="Statutory sections"
+            value={tab}
+            onChange={(k) => setTab(k as Tab)}
+            items={[
+              { key: "summary", label: "What is owed" },
+              { key: "files", label: "Files and postings" },
+              { key: "rules", label: "State rules" },
+            ]}
+          />
+          <div className="flex flex-wrap gap-1.5" aria-label="Schemes">
+            {["TDS", "PF", "ESI", "PT", "LWF"].map((c) => (
+              <Chip key={c} size="sm">
+                {c}
+              </Chip>
+            ))}
+          </div>
         </div>
-      </header>
+      </PageHeader>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
-        {(
-          [
-            ["summary", "What is owed"],
-            ["files", "Files and postings"],
-            ["rules", "State rules"],
-          ] as [Tab, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      {loading && <SkeletonTile lines={4} label="Loading statutory figures" />}
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {!loading && !runId && tab !== "rules" && (
+        <div className="sl-tile">
+          <EmptyState
+            icon={<Landmark size={28} strokeWidth={1.75} />}
+            title="No payroll run yet"
+            description="Statutory dues, challan files and the payroll journal follow from a month's payroll run."
+            action={
+              can("payroll-run.create") ? (
+                <Link to="/payroll/run" className={actionPillClass({ variant: "secondary" })}>
+                  Run Payroll
+                </Link>
+              ) : null
+            }
+          />
+        </div>
+      )}
 
       {notComputed && tab !== "rules" && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <Notice tone="warning" title="Not worked out yet">
           The statutory figures have not been worked out for this run yet. Use “Work out the month”
           above — nothing is posted or filed by it.
-        </div>
+        </Notice>
       )}
 
       {tab === "summary" && summary && (
         <>
           {summary.wageCheckFailures > 0 && (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+            <Notice tone="danger" title="Code on Wages check">
               {summary.wageCheckFailures} employee(s) have a basic under half of gross. The Code on
               Wages puts a floor there, and provident fund, gratuity and bonus all follow that wage
               — so all three are being understated.
-            </div>
+            </Notice>
           )}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label="Gross" value={money(summary.gross)} />
-            <Stat label="Net payable" value={money(summary.net)} />
-            <Stat label="Employees" value={String(summary.employees)} />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatTile label="Gross" value={money(summary.gross)} />
+            <StatTile label="Net payable" value={money(summary.net)} />
+            <StatTile label="Employees" value={String(summary.employees)} />
           </div>
           <Card title="Provident fund">
-            <p className="mb-3 text-xs text-ink-muted">
+            <p className="sl-muted m-0 mb-4 text-sm">
               The employer&apos;s 12% is not one contribution: 8.33% goes to the pension scheme on
               wages capped at ₹15,000, the balance to the provident fund, and EDLI and
               administration charges are 0.5% each on top.
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <Stat label="Employee" value={money(summary.pf.employee)} />
-              <Stat label="Voluntary" value={money(summary.pf.vpf)} />
-              <Stat label="Pension (8.33%)" value={money(summary.pf.pension)} />
-              <Stat label="Employer (balance)" value={money(summary.pf.employer)} />
-              <Stat label="EDLI" value={money(summary.pf.edli)} />
-              <Stat label="Administration" value={money(summary.pf.admin)} />
+              <Figure label="Employee" value={money(summary.pf.employee)} />
+              <Figure label="Voluntary" value={money(summary.pf.vpf)} />
+              <Figure label="Pension (8.33%)" value={money(summary.pf.pension)} />
+              <Figure label="Employer (balance)" value={money(summary.pf.employer)} />
+              <Figure label="EDLI" value={money(summary.pf.edli)} />
+              <Figure label="Administration" value={money(summary.pf.admin)} />
             </div>
           </Card>
           <div className="grid gap-3 sm:grid-cols-2">
             <Card title="Employees' state insurance">
               <div className="grid grid-cols-2 gap-3">
-                <Stat label="Employee (0.75%)" value={money(summary.esi.employee)} />
-                <Stat label="Employer (3.25%)" value={money(summary.esi.employer)} />
+                <Figure label="Employee (0.75%)" value={money(summary.esi.employee)} />
+                <Figure label="Employer (3.25%)" value={money(summary.esi.employer)} />
               </div>
             </Card>
             <Card title="State and tax">
               <div className="grid grid-cols-2 gap-3">
-                <Stat label="Professional tax" value={money(summary.professionalTax)} />
-                <Stat
+                <Figure label="Professional tax" value={money(summary.professionalTax)} />
+                <Figure
                   label="Welfare fund"
                   value={money(summary.lwf.employee + summary.lwf.employer)}
                 />
-                <Stat label="Tax on salary" value={money(summary.incomeTax)} />
+                <Figure label="Tax on salary" value={money(summary.incomeTax)} />
               </div>
             </Card>
           </div>
           {pt && pt.rows.length > 0 && (
             <Card title="Professional tax by state">
-              <div className="overflow-x-auto">
+              <TableWrap>
                 <table className="min-w-full">
                   <thead>
                     <tr>
@@ -238,13 +266,13 @@ const StatutoryPayrollPage: React.FC = () => {
                     {pt.rows.map((r) => (
                       <tr key={r.stateCode} className="border-t border-line-soft">
                         <td className={td}>{r.stateName}</td>
-                        <td className={`${td} text-right`}>{r.employees}</td>
-                        <td className={`${td} text-right font-semibold`}>{money(r.amount)}</td>
+                        <td className={`${td} ${num}`}>{r.employees}</td>
+                        <td className={`${td} ${num} font-semibold`}>{money(r.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableWrap>
             </Card>
           )}
         </>
@@ -252,7 +280,7 @@ const StatutoryPayrollPage: React.FC = () => {
 
       {tab === "files" && runId && (
         <Card title="Files and postings">
-          <p className="mb-3 text-xs text-ink-muted">
+          <p className="sl-muted m-0 mb-4 text-sm">
             Each portal takes a file in its own fixed shape and rejects the whole thing on one bad
             line. Anyone left out of a file — no UAN, no ESIC number, no bank details — is counted
             rather than silently dropped.
@@ -263,14 +291,14 @@ const StatutoryPayrollPage: React.FC = () => {
               disabled={busy || notComputed}
               onClick={() => act(() => statutoryPayrollService.downloadEcr(runId), "Downloaded")}
             >
-              EPFO ECR
+              <Download size={15} aria-hidden="true" /> EPFO ECR
             </button>
             <button
               className={secondary}
               disabled={busy || notComputed}
               onClick={() => act(() => statutoryPayrollService.downloadEsic(runId), "Downloaded")}
             >
-              ESIC monthly file
+              <Download size={15} aria-hidden="true" /> ESIC monthly file
             </button>
             <button
               className={secondary}
@@ -279,7 +307,7 @@ const StatutoryPayrollPage: React.FC = () => {
                 act(() => statutoryPayrollService.downloadBankFile(runId), "Downloaded")
               }
             >
-              Bank salary transfer
+              <Download size={15} aria-hidden="true" /> Bank salary transfer
             </button>
             {can("payroll-run.edit") && (
               <button
@@ -292,18 +320,18 @@ const StatutoryPayrollPage: React.FC = () => {
                   }, "Posted")
                 }
               >
-                Post the payroll journal
+                <BookCheck size={15} aria-hidden="true" /> Post the payroll journal
               </button>
             )}
             {can("filings.prepare") && (
               <button
-                className={primary}
+                className={secondary}
                 disabled={busy || notComputed}
                 onClick={() =>
                   act(() => statutoryPayrollService.registerFilings(runId), "Sent for approval")
                 }
               >
-                Send the filings for approval
+                <Send size={15} aria-hidden="true" /> Send the filings for approval
               </button>
             )}
           </div>
@@ -312,12 +340,12 @@ const StatutoryPayrollPage: React.FC = () => {
 
       {tab === "rules" && (
         <Card title="Professional tax and welfare fund, by state">
-          <p className="mb-3 text-xs text-ink-muted">
+          <p className="sl-muted m-0 mb-4 text-sm">
             Neither is a national rate. Professional tax has its own slabs in each state that levies
             it — several charge more in one month of the year — and the welfare fund is a fixed
             amount at the frequency the state decides.
           </p>
-          <div className="overflow-x-auto">
+          <TableWrap>
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -345,11 +373,15 @@ const StatutoryPayrollPage: React.FC = () => {
                         <span className="text-xs text-ink-muted">Not levied</span>
                       )}
                     </td>
-                    <td className={`${td} text-right`}>
+                    <td className={`${td} ${num}`}>
                       {money(Number(r.lwfEmployee) + Number(r.lwfEmployer))}
                     </td>
                     <td className={td}>{r.lwfFrequency.replace(/_/g, " ").toLowerCase()}</td>
-                    <td className={td}>{r.isActive ? "Yes" : "No"}</td>
+                    <td className={td}>
+                      <Chip size="sm" tone={r.isActive ? "success" : "muted"}>
+                        {r.isActive ? "Active" : "Off"}
+                      </Chip>
+                    </td>
                   </tr>
                 ))}
                 {rules.length === 0 && !loading && (
@@ -361,18 +393,11 @@ const StatutoryPayrollPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 };
-
-const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-lg border border-line-soft bg-card-2 p-3">
-    <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
-    <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
-  </div>
-);
 
 export default StatutoryPayrollPage;

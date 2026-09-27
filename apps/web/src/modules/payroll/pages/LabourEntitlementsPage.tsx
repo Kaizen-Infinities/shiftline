@@ -11,8 +11,12 @@ import {
   type LeaveTypeRow,
   type SettlementRow,
 } from "../../../services/labourService";
+import { Umbrella } from "lucide-react";
+import { ChipTabs, PageHeader, SkeletonTile } from "../../../components/ui/v2";
 import {
   Card,
+  PageShell,
+  num,
   day,
   field,
   fyOptions,
@@ -23,7 +27,7 @@ import {
   success,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/peopleUi";
 
 /**
  * Leave, gratuity, bonus and settlements (P1-17b).
@@ -35,10 +39,11 @@ import {
  */
 type Tab = "leave" | "gratuity" | "bonus" | "settlements" | "holidays";
 const STATUS_STYLE: Record<SettlementRow["status"], string> = {
-  DRAFT: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-sky-100 text-sky-800",
-  PAID: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+  DRAFT:
+    "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]",
+  APPROVED: "bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] text-accent",
+  PAID: "bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]",
+  CANCELLED: "bg-card-2 text-ink",
 };
 
 const LabourEntitlementsPage: React.FC = () => {
@@ -107,80 +112,66 @@ const LabourEntitlementsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Leave and Entitlements</h1>
-          <p className="text-sm text-ink-muted">
-            What the company owes rather than what it deducts: leave accrued, gratuity building
-            since the fifth year, the statutory bonus, and what is settled when someone leaves.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select
-            className={field}
-            value={fyCode}
-            onChange={(e) => setFyCode(e.target.value)}
-            aria-label="Financial year"
-          >
-            {years.map((y) => (
-              <option key={y.value} value={y.value}>
-                {y.label}
-              </option>
-            ))}
-          </select>
-          {tab === "leave" && can("payroll-settings.edit") && (
-            <button
-              className={secondary}
-              disabled={busy}
-              onClick={() =>
-                act(async () => {
-                  const out = await labourService.closeLeaveYear(fyCode);
-                  toast.info(`${out.lapsedDays} day(s) lapsed at the carry-forward cap`);
-                }, "Year closed")
-              }
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="Leave and Entitlements"
+        icon={<Umbrella size={20} />}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Entitlements" }]}
+        subtitle="What the company owes rather than what it deducts: leave accrued, gratuity building since the fifth year, the statutory bonus, and what is settled when someone leaves."
+        actions={
+          <>
+            <select
+              className={field}
+              value={fyCode}
+              onChange={(e) => setFyCode(e.target.value)}
+              aria-label="Financial year"
             >
-              Close the leave year
-            </button>
-          )}
-        </div>
-      </header>
+              {years.map((y) => (
+                <option key={y.value} value={y.value}>
+                  {y.label}
+                </option>
+              ))}
+            </select>
+            {tab === "leave" && can("payroll-settings.edit") && (
+              <button
+                className={secondary}
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    const out = await labourService.closeLeaveYear(fyCode);
+                    toast.info(`${out.lapsedDays} day(s) lapsed at the carry-forward cap`);
+                  }, "Year closed")
+                }
+              >
+                Close the leave year
+              </button>
+            )}
+          </>
+        }
+      >
+        <ChipTabs
+          ariaLabel="Entitlements"
+          value={tab}
+          onChange={(k) => setTab(k as Tab)}
+          items={[
+            { key: "leave", label: "Leave" },
+            { key: "gratuity", label: "Gratuity" },
+            { key: "bonus", label: "Bonus" },
+            { key: "settlements", label: "Settlements" },
+            { key: "holidays", label: "Holidays" },
+          ]}
+        />
+      </PageHeader>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
-        {(
-          [
-            ["leave", "Leave"],
-            ["gratuity", "Gratuity"],
-            ["bonus", "Bonus"],
-            ["settlements", "Settlements"],
-            ["holidays", "Holidays"],
-          ] as [Tab, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && <SkeletonTile lines={4} label="Loading entitlements" />}
 
       {tab === "leave" && (
         <Card title="Leave types">
-          <p className="mb-3 text-xs text-ink-muted">
+          <p className="sl-muted m-0 mb-4 text-sm">
             "Leave without pay allowed" lets a request against this type take an employee's balance
             negative instead of being refused for insufficient leave.
           </p>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-[14px] border border-line-soft">
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -195,7 +186,7 @@ const LabourEntitlementsPage: React.FC = () => {
                   <tr key={t.id} className="border-t border-line-soft">
                     <td className={td}>{t.code}</td>
                     <td className={td}>{t.name}</td>
-                    <td className={`${td} text-right`}>{Number(t.daysPerYear)}</td>
+                    <td className={`${td} ${num}`}>{Number(t.daysPerYear)}</td>
                     <td className={td}>
                       {can("payroll-settings.edit") ? (
                         <button
@@ -226,12 +217,12 @@ const LabourEntitlementsPage: React.FC = () => {
 
       {tab === "leave" && (
         <Card title={`Leave balances · FY ${fyCode}`}>
-          <p className="mb-3 text-xs text-ink-muted">
+          <p className="sl-muted m-0 mb-4 text-sm">
             Earned leave accrues on days actually worked — one day for every twenty — and is the
             only kind that can be encashed. What is over the carry-forward cap lapses when the year
             is closed.
           </p>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-[14px] border border-line-soft">
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -254,10 +245,10 @@ const LabourEntitlementsPage: React.FC = () => {
                         <div className="text-xs text-ink-muted">encashable</div>
                       )}
                     </td>
-                    <td className={`${td} text-right`}>{Number(b.opening)}</td>
-                    <td className={`${td} text-right`}>{Number(b.accrued)}</td>
-                    <td className={`${td} text-right`}>{Number(b.taken)}</td>
-                    <td className={`${td} text-right`}>{Number(b.lapsed)}</td>
+                    <td className={`${td} ${num}`}>{Number(b.opening)}</td>
+                    <td className={`${td} ${num}`}>{Number(b.accrued)}</td>
+                    <td className={`${td} ${num}`}>{Number(b.taken)}</td>
+                    <td className={`${td} ${num}`}>{Number(b.lapsed)}</td>
                     <td className={`${td} text-right font-semibold`}>{Number(b.closing)}</td>
                   </tr>
                 ))}
@@ -285,7 +276,7 @@ const LabourEntitlementsPage: React.FC = () => {
             </p>
           </Card>
           <Card title="By employee">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-[14px] border border-line-soft">
               <table className="min-w-full">
                 <thead>
                   <tr>
@@ -305,9 +296,9 @@ const LabourEntitlementsPage: React.FC = () => {
                         <div className="text-xs text-ink-muted">{r.employeeCode}</div>
                       </td>
                       <td className={td}>{r.joinedOn ? day(r.joinedOn) : "—"}</td>
-                      <td className={`${td} text-right`}>{r.serviceYears}</td>
-                      <td className={`${td} text-right`}>{r.countedYears}</td>
-                      <td className={`${td} text-right`}>{money(r.lastDrawnWage)}</td>
+                      <td className={`${td} ${num}`}>{r.serviceYears}</td>
+                      <td className={`${td} ${num}`}>{r.countedYears}</td>
+                      <td className={`${td} ${num}`}>{money(r.lastDrawnWage)}</td>
                       <td className={`${td} text-right font-semibold`}>
                         {r.eligible ? money(r.amount) : "—"}
                         {r.cappedAtCeiling && (
@@ -325,13 +316,13 @@ const LabourEntitlementsPage: React.FC = () => {
 
       {tab === "bonus" && bonus && (
         <Card title={`Statutory bonus · FY ${bonus.fyCode}`}>
-          <p className="mb-3 text-xs text-ink-muted">
+          <p className="sl-muted m-0 mb-4 text-sm">
             {bonus.eligible} employee(s) are eligible, at {bonus.percent}%, for a total of{" "}
             {money(bonus.total)}. The bonus is worked out on ₹7,000 a month (or the minimum wage
             where that is higher), not on what the employee actually earns — computing it on the
             real wage overstates the liability nearly threefold.
           </p>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-[14px] border border-line-soft">
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -349,9 +340,9 @@ const LabourEntitlementsPage: React.FC = () => {
                       {r.employeeName}
                       <div className="text-xs text-ink-muted">{r.employeeCode}</div>
                     </td>
-                    <td className={`${td} text-right`}>{money(r.monthlyWage)}</td>
-                    <td className={`${td} text-right`}>{money(r.calculationWage)}</td>
-                    <td className={`${td} text-right`}>{r.percent}%</td>
+                    <td className={`${td} ${num}`}>{money(r.monthlyWage)}</td>
+                    <td className={`${td} ${num}`}>{money(r.calculationWage)}</td>
+                    <td className={`${td} ${num}`}>{r.percent}%</td>
                     <td className={`${td} text-right font-semibold`}>{money(r.amount)}</td>
                   </tr>
                 ))}
@@ -370,7 +361,7 @@ const LabourEntitlementsPage: React.FC = () => {
 
       {tab === "settlements" && (
         <Card title="Full and final settlements">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-[14px] border border-line-soft">
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -390,15 +381,15 @@ const LabourEntitlementsPage: React.FC = () => {
                   <tr key={s.id} className="border-t border-line-soft">
                     <td className={td}>{s.employeeCode}</td>
                     <td className={td}>{day(s.lastWorkingDay)}</td>
-                    <td className={`${td} text-right`}>{money(s.salaryDue)}</td>
-                    <td className={`${td} text-right`}>{money(s.leaveEncashment)}</td>
-                    <td className={`${td} text-right`}>{money(s.gratuity)}</td>
-                    <td className={`${td} text-right`}>
+                    <td className={`${td} ${num}`}>{money(s.salaryDue)}</td>
+                    <td className={`${td} ${num}`}>{money(s.leaveEncashment)}</td>
+                    <td className={`${td} ${num}`}>{money(s.gratuity)}</td>
+                    <td className={`${td} ${num}`}>
                       {money(Number(s.noticeRecovery) + Number(s.advanceRecovery))}
                     </td>
                     <td
                       className={`${td} text-right font-semibold ${
-                        Number(s.netPayable) < 0 ? "text-rose-700" : ""
+                        Number(s.netPayable) < 0 ? "text-[color:var(--color-danger)]" : ""
                       }`}
                     >
                       {money(s.netPayable)}
@@ -410,7 +401,7 @@ const LabourEntitlementsPage: React.FC = () => {
                         {s.status.toLowerCase()}
                       </span>
                     </td>
-                    <td className={`${td} text-right`}>
+                    <td className={`${td} ${num}`}>
                       {s.status === "DRAFT" && can("payroll-run.edit") && (
                         <button
                           className={success}
@@ -459,7 +450,7 @@ const LabourEntitlementsPage: React.FC = () => {
             )
           }
         >
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-[14px] border border-line-soft">
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -490,7 +481,7 @@ const LabourEntitlementsPage: React.FC = () => {
           </div>
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 };
 
