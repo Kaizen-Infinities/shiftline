@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useFormShortcuts } from "../../hooks/useFormShortcuts";
-import { FaSave, FaEraser, FaArrowLeft } from "react-icons/fa";
+import { Eraser, Save } from "lucide-react";
+import { ActionPill, PageHeader } from "../../components/ui/v2";
 import { toast } from "react-toastify";
 import TextInput from "../../components/form/TextInput/TextInput";
 import SelectInput from "../../components/form/SelectInput/SelectInput";
 import DateInput from "../../components/form/DateInput/DateInput";
 import FileUpload from "../../components/form/FileUpload/FileUpload";
 import TextArea from "../../components/form/TextArea/TextArea";
-import CustomButton from "../../components/ui/Button/Button";
 import apiClient from "../../api/apiClient";
 import { useExpenses } from "../../hooks/useExpenses";
-import BackButton from "../../components/ui/BackButton/BackButton";
 
 interface ExpenseFormData {
   expenseNumber: string;
@@ -326,28 +325,25 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
   ];
 
   return (
-    <div className="w-full mx-auto">
-      <div className="bg-card rounded-lg shadow-sm border border-line-soft">
-        <div className="px-6 py-4 ">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-ink">
-                {isEdit ? `Edit Expense: ${formData.expenseNumber}` : "Create Expense"}
-              </h2>
-            </div>
-            <div>
-              <BackButton text="Back to List" />
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="px-6 py-3 space-y-4" noValidate>
+    <div className="w-full">
+      <PageHeader
+        back={onCancel}
+        backLabel="Back to list"
+        breadcrumbs={[
+          { label: "Expense Management", to: "/expenses" },
+          { label: isEdit ? "Edit" : "New" },
+        ]}
+        title={isEdit ? `Edit Expense: ${formData.expenseNumber}` : "Create Expense"}
+        subtitle="Posted to the expense ledger; TDS is worked out from the section you pick"
+      />
+      <div className="w-full">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {/* Expense Info */}
-          <div>
-            <h6 className="text-lg font-semibold text-ink mb-4">Expense Info</h6>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="sl-tile p-5 sm:p-6">
+            <h2 className="sl-h2 m-0 mb-4">Expense Info</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <TextInput
-                label="Expense Number *"
+                label="Expense Number"
                 name="expenseNumber"
                 value={formData.expenseNumber}
                 placeholder="e.g. EXP-001"
@@ -358,7 +354,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
               />
 
               <SelectInput
-                label="Expense Category *"
+                label="Expense Category"
                 name="expenseCategory"
                 value={formData.expenseCategory}
                 options={categories}
@@ -371,7 +367,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
 
               <div>
                 <DateInput
-                  label="Expense Date *"
+                  label="Expense Date"
                   name="date"
                   value={formData.date}
                   required
@@ -386,7 +382,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
               </div>
 
               <TextInput
-                label="Expense Name *"
+                label="Expense Name"
                 name="expense"
                 value={formData.expense}
                 placeholder="e.g. Server hosting fees"
@@ -397,7 +393,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
               />
 
               <TextInput
-                label="Amount (₹) *"
+                label="Amount (₹)"
                 name="amount"
                 type="number"
                 value={formData.amount}
@@ -424,11 +420,11 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
           </div>
 
           {/* Payment & Processing */}
-          <div className="mt-6">
-            <h6 className="text-lg font-semibold text-ink mb-4">Payment & Processing</h6>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="sl-tile p-5 sm:p-6">
+            <h2 className="sl-h2 m-0 mb-4">Payment & Processing</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <SelectInput
-                label="Payment Method *"
+                label="Payment Method"
                 name="paymentMethod"
                 value={formData.paymentMethod}
                 options={paymentMethods}
@@ -452,9 +448,9 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
           </div>
 
           {/* TDS (P2-05/P2-12) */}
-          <div className="mt-6">
-            <h6 className="text-lg font-semibold text-ink mb-4">Tax Deducted at Source</h6>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-end">
+          <div className="sl-tile p-5 sm:p-6">
+            <h2 className="sl-h2 m-0 mb-4">Tax Deducted at Source</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
               <label className="flex items-center gap-2 text-sm font-medium text-ink pb-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -481,7 +477,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
               />
 
               {isEdit && existingTdsAmount !== null ? (
-                <div className="md:col-span-2 text-sm rounded-md border border-line-soft bg-card-2 p-3">
+                <div className="md:col-span-2 text-sm rounded-[14px] border border-line-soft bg-card-2 p-3">
                   <div className="flex justify-between">
                     <span className="text-ink-subtle">Deducted (section {tdsSection})</span>
                     <span className="font-semibold text-ink">
@@ -490,7 +486,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
                   </div>
                 </div>
               ) : deductTds && tdsSection ? (
-                <div className="md:col-span-2 text-sm rounded-md border border-line-soft bg-card-2 p-3">
+                <div className="md:col-span-2 text-sm rounded-[14px] border border-line-soft bg-card-2 p-3">
                   {tdsLoading ? (
                     <span className="text-ink-subtle">Calculating…</span>
                   ) : tdsPreview ? (
@@ -532,8 +528,8 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
           </div>
 
           {/* Descriptions & Notes */}
-          <div className="mt-6">
-            <h6 className="text-lg font-semibold text-ink mb-4">Descriptions & Notes</h6>
+          <div className="sl-tile p-5 sm:p-6">
+            <h2 className="sl-h2 m-0 mb-4">Descriptions & Notes</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <TextArea
@@ -561,29 +557,24 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
             </div>
           </div>
 
-          {/* Form Actions */}
-          <div className="flex flex-wrap justify-end gap-3 mt-8 pt-4 border-t border-line-soft">
-            <CustomButton
-              text="Cancel"
-              onClick={onCancel}
-              type="button"
-              variant="secondary"
-              disabled={saving}
-            />
-            <CustomButton
-              text="Clear"
-              icon={FaEraser}
-              onClick={handleClear}
-              type="button"
-              variant="secondary"
-              disabled={saving}
-            />
-            <CustomButton
-              text={saving ? "Saving..." : isEdit ? "Update Expense" : "Save Expense"}
-              icon={FaSave}
-              type="submit"
-              disabled={saving}
-            />
+          {/* Form Actions — sticky footer */}
+          <div className="sticky bottom-0 z-20 -mx-1 bg-[linear-gradient(to_top,var(--color-page)_70%,transparent)] px-1 pb-3 pt-4">
+            <div className="sl-tile flex flex-wrap items-center justify-end gap-2.5 px-4 py-3">
+              <ActionPill variant="secondary" onClick={onCancel} disabled={saving}>
+                Cancel
+              </ActionPill>
+              <ActionPill
+                variant="secondary"
+                icon={<Eraser size={16} />}
+                onClick={handleClear}
+                disabled={saving}
+              >
+                Clear
+              </ActionPill>
+              <ActionPill type="submit" icon={<Save size={17} />} disabled={saving}>
+                {saving ? "Saving..." : isEdit ? "Update Expense" : "Save Expense"}
+              </ActionPill>
+            </div>
           </div>
         </form>
       </div>
