@@ -54,6 +54,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/hr/leave", marker: /^Leave$/ },
   { path: "/me/leave", marker: /My Leave/ },
   { path: "/production/order-tna", marker: /Order T&A/ },
+  { path: "/production/jobs", marker: /^Jobs$/ },
   { path: "/exports/incentives", marker: /Export incentives/ },
   { path: "/hr/registers", marker: /Statutory Registers/ },
   { path: "/hr/fines", marker: /Fines and deductions/ },
