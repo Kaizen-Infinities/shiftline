@@ -1,5 +1,6 @@
 import React from "react";
 import PrefetchProgressBar from "../../providers/PrefetchProgressBar";
+import { MAKER } from "../brand/BrandMark";
 
 const Footer: React.FC = () => {
   const nowYear = new Date().getFullYear();
@@ -14,14 +15,14 @@ const Footer: React.FC = () => {
       </div>
 
       <p className="shrink-0">
-        Developed by{" "}
+        Made by{" "}
         <a
-          href="https://kaizeninfinities.com/"
+          href={MAKER.url}
           target="_blank"
           rel="noopener noreferrer"
           className="font-semibold text-accent hover:underline"
         >
-          Kaizen Infinities
+          {MAKER.full}
         </a>
       </p>
     </footer>

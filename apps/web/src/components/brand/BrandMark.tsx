@@ -48,6 +48,13 @@ export const BrandMark: React.FC<BrandMarkProps> = ({ size = 40, title, classNam
   </svg>
 );
 
+/** Who makes Shiftline: shown under the wordmark and in footers. */
+export const MAKER = {
+  short: "Applied Softwares",
+  full: "Applied Softwares, a division of Kaizen Infinities",
+  url: "https://kaizeninfinities.com/",
+} as const;
+
 /** Mark and wordmark side by side, as in the sidebar and on the sign-in page. */
 export const BrandLockup: React.FC<{
   size?: number;
@@ -56,10 +63,15 @@ export const BrandLockup: React.FC<{
 }> = ({ size = 40, className = "", wordmarkClassName = "" }) => (
   <span className={`inline-flex items-center gap-3 ${className}`}>
     <BrandMark size={size} />
-    <span
-      className={`text-[1.3rem] font-bold tracking-[-0.02em] text-ink leading-none ${wordmarkClassName}`}
-    >
-      Shiftline
+    <span className="flex flex-col leading-none">
+      <span
+        className={`text-[1.3rem] font-bold tracking-[-0.02em] text-ink leading-none ${wordmarkClassName}`}
+      >
+        Shiftline
+      </span>
+      <span className="mt-1 text-[11px] font-medium tracking-[0.01em] text-ink-subtle">
+        by {MAKER.short}
+      </span>
     </span>
   </span>
 );

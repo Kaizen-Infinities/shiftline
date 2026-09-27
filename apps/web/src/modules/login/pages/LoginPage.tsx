@@ -1,5 +1,6 @@
 import { useState, useEffect, useId } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { MAKER } from "../../../components/brand/BrandMark";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
@@ -119,11 +120,11 @@ const LoginPage = () => {
       logoAlt={companyName}
       headline={
         <>
-          Welcome to <strong>{company?.shortName || company?.companyName || "Shiftline"}</strong>
+          Welcome to <strong>Shiftline</strong>
         </>
       }
       subline="Production, inventory, sales, purchasing, accounts and statutory compliance, on one ledger."
-      footer={`© ${new Date().getFullYear()} ${companyName}. All rights reserved.`}
+      footer={`© ${new Date().getFullYear()} Shiftline · ${MAKER.full}`}
     >
       <div className="sl-tile w-full max-w-[420px] !rounded-[24px] p-7 sm:p-9">
         <h2 className="sl-h1">Sign in</h2>
