@@ -344,7 +344,6 @@ export const SupplierBreakdownPage: React.FC = () => {
   return (
     <div className="w-full space-y-4 text-ink">
       <PageHeader
-        className="!mb-0"
         back="/accounts/payable"
         backLabel="Back to payables"
         breadcrumbs={[

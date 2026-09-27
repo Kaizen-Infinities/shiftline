@@ -1,16 +1,10 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  FaUniversity,
-  FaPlus,
-  FaArrowRight,
-  FaTimes,
-  FaSync,
-  FaMoneyBillWave,
-  FaPen,
-  FaTools,
-} from "react-icons/fa";
+import { FaUniversity, FaPlus, FaArrowRight, FaTimes, FaSync, FaPen } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { Banknote, Landmark, Plus, RefreshCw, Wrench } from "lucide-react";
+import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
+import { fmtINR } from "../../components/accountsUi";
 import apiClient from "../../../../api/apiClient";
 import { accountService } from "../../../../services/accountService";
 import { useListCache, invalidateCache, prefetchCache } from "../../../../hooks/useListCache";
@@ -171,111 +165,101 @@ const BankAccountsPage: React.FC = () => {
     }
   };
 
+  const runRepair = async () => {
+    if (repairRunning) return;
+    setRepairRunning(true);
+    try {
+      const res = await accountService.repairPartyOpeningVouchers();
+      toast.success(
+        res.removed > 0
+          ? `Repaired ${res.removed} legacy opening-balance voucher(s)`
+          : "No legacy opening-balance vouchers to repair"
+      );
+      invalidateCache(cacheKey);
+      refresh();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Repair failed");
+    } finally {
+      setRepairRunning(false);
+    }
+  };
+
   return (
-    <div className="p-3 space-y-3 min-h-screen">
-      {/* Compact merged header */}
-      <div className="sl-tile">
-        <div className="px-3 py-2 border-b border-line flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-ink flex items-center gap-2">
-            {filterType === "cash" ? (
-              <FaMoneyBillWave className="text-ink-muted text-sm" />
-            ) : filterType === "bank" ? (
-              <FaUniversity className="text-ink-muted text-sm" />
-            ) : (
-              <FaUniversity className="text-ink-muted text-sm" />
-            )}
-            {filterType === "cash"
-              ? "Cash Accounts"
-              : filterType === "bank"
-                ? "Bank Accounts"
-                : "Bank & Cash Accounts"}
-            {refreshing && <FaSync className="animate-spin text-ink-muted text-[11.5px]" />}
-          </h2>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={async () => {
-                if (repairRunning) return;
-                setRepairRunning(true);
-                try {
-                  const res = await accountService.repairPartyOpeningVouchers();
-                  toast.success(
-                    res.removed > 0
-                      ? `Repaired ${res.removed} legacy opening-balance voucher(s)`
-                      : "No legacy opening-balance vouchers to repair"
-                  );
-                  invalidateCache(cacheKey);
-                  refresh();
-                } catch (err: any) {
-                  toast.error(err?.response?.data?.message || err?.message || "Repair failed");
-                } finally {
-                  setRepairRunning(false);
-                }
-              }}
+    <div className="w-full space-y-4">
+      <PageHeader
+        title={
+          filterType === "cash"
+            ? "Cash Accounts"
+            : filterType === "bank"
+              ? "Bank Accounts"
+              : "Bank & Cash Accounts"
+        }
+        subtitle="Every bank, overdraft and cash ledger with its current balance"
+        icon={<Landmark size={20} />}
+        primaryAction={
+          <ActionPill icon={<Plus size={18} />} onClick={() => setShowAddForm(true)}>
+            Add Account
+          </ActionPill>
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<Wrench size={16} className={repairRunning ? "animate-spin" : ""} />}
+              onClick={runRepair}
               disabled={repairRunning}
               title="One-time cleanup: removes legacy customer/supplier opening JVs that wrongly hit a bank ledger"
-              className="flex items-center gap-1 px-2 py-1 bg-[color:var(--color-warning)]/10 hover:bg-[color:var(--color-warning)]/20 text-[color:var(--color-warning)] rounded-sm text-xs font-semibold border border-[color:var(--color-warning)]/40 disabled:opacity-50"
             >
-              <FaTools className={repairRunning ? "animate-spin" : ""} /> Repair
-            </button>
-            <button onClick={refresh} className="sl-btn sl-pill-sm">
-              <FaSync className={refreshing ? "animate-spin" : ""} /> Refresh
-            </button>
-            <button onClick={() => setShowAddForm(true)} className="sl-cta sl-pill-md">
-              <FaPlus className="text-[11.5px]" /> Add Account
-            </button>
-          </div>
-        </div>
-
-        {/* Filter tabs + Total Balance */}
-        <div className="px-3 py-2 bg-card-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setSearchParams({})}
-              className={`px-2 py-1 rounded-sm text-[11.5px] font-bold uppercase tracking-wide border transition-colors ${
-                !filterType
-                  ? "bg-accent/10 text-accent border-accent"
-                  : "bg-card text-ink-muted border-line hover:border-accent/50"
-              }`}
+              Repair
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+              onClick={refresh}
             >
+              Refresh
+            </ActionPill>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div role="group" aria-label="Account type" className="flex flex-wrap gap-2">
+            <Chip size="lg" selected={!filterType} onClick={() => setSearchParams({})}>
               All
-            </button>
-            <button
+            </Chip>
+            <Chip
+              size="lg"
+              icon={<Banknote size={15} />}
+              selected={filterType === "cash"}
               onClick={() => setSearchParams({ filter: "cash" })}
-              className={`px-2 py-1 rounded-sm text-[11.5px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
-                filterType === "cash"
-                  ? "bg-accent/10 text-accent border-accent"
-                  : "bg-card text-ink-muted border-line hover:border-accent/50"
-              }`}
             >
-              <FaMoneyBillWave className="text-[12.5px]" /> Cash
-            </button>
-            <button
+              Cash
+            </Chip>
+            <Chip
+              size="lg"
+              icon={<Landmark size={15} />}
+              selected={filterType === "bank"}
               onClick={() => setSearchParams({ filter: "bank" })}
-              className={`px-2 py-1 rounded-sm text-[11.5px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
-                filterType === "bank"
-                  ? "bg-accent/10 text-accent border-accent"
-                  : "bg-card text-ink-muted border-line hover:border-accent/50"
-              }`}
             >
-              <FaUniversity className="text-[12.5px]" /> Bank
-            </button>
+              Bank
+            </Chip>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
+          <div className="text-right">
+            <div className="text-[12.5px] font-medium text-ink-subtle">
               {filterType === "cash"
-                ? "Cash Balance"
+                ? "Cash balance"
                 : filterType === "bank"
-                  ? "Bank Balance"
-                  : "Total Balance"}
-            </span>
-            <span
-              className={`text-lg tabular-nums font-bold ${filteredBalance < 0 ? "text-[color:var(--color-danger)]" : "text-ink"}`}
+                  ? "Bank balance"
+                  : "Total balance"}
+            </div>
+            <div
+              className={`text-2xl font-bold tabular-nums ${filteredBalance < 0 ? "text-[color:var(--color-danger)]" : "text-ink"}`}
             >
-              ₹{Math.abs(filteredBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </span>
+              {fmtINR(Math.abs(filteredBalance))}
+            </div>
           </div>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Account Cards */}
       {filteredAccounts.length === 0 && !loading ? (
@@ -288,12 +272,12 @@ const BankAccountsPage: React.FC = () => {
           Click "Add Account" to create one.
         </div>
       ) : filteredAccounts.length === 0 ? null : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {filteredAccounts.map((acc) => (
             <div
               key={acc.id}
               onClick={() => navigate(`/accounts/bank-accounts/${acc.id}`)}
-              className="sl-tile p-3 hover:border-accent/50 transition-all cursor-pointer group"
+              className="sl-tile sl-tile-hover cursor-pointer p-4 sm:p-5 group"
             >
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="min-w-0">

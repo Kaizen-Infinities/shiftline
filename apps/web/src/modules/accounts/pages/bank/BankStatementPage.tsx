@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaUniversity, FaArrowLeft, FaSync } from "react-icons/fa";
+import { FaSync } from "react-icons/fa";
+import { Landmark, RefreshCw } from "lucide-react";
+import { ActionPill, PageHeader } from "../../../../components/ui/v2";
 import { toast } from "react-toastify";
 import { accountService, type LedgerStatementResult } from "../../../../services/accountService";
 import { useListCache } from "../../../../hooks/useListCache";
@@ -45,36 +47,31 @@ const BankStatementPage: React.FC = () => {
   const data: LedgerStatementResult | null = statementList[0] || null;
 
   return (
-    <div className="p-3 space-y-3 min-h-screen">
-      {/* Compact merged header + filters */}
+    <div className="w-full space-y-4">
+      <PageHeader
+        back="/accounts/bank-accounts"
+        backLabel="Back to bank accounts"
+        breadcrumbs={[
+          { label: "Bank & Cash Accounts", to: "/accounts/bank-accounts" },
+          { label: data?.ledger?.name || "Statement" },
+        ]}
+        title={data?.ledger?.name || "Bank Statement"}
+        subtitle={data?.ledger ? `${data.ledger.code} · ${data.ledger.group}` : "Running statement"}
+        icon={<Landmark size={20} />}
+        actions={
+          <ActionPill
+            variant="secondary"
+            icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+            onClick={refresh}
+          >
+            Refresh
+          </ActionPill>
+        }
+      />
       <div className="sl-tile">
-        <div className="px-3 py-2 border-b border-line flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-ink flex items-center gap-2">
-            <FaUniversity className="text-accent text-sm" />
-            {data?.ledger?.name || "Bank Statement"}
-            {data?.ledger && (
-              <span className="text-[11.5px] uppercase tracking-wide tabular-nums text-ink-subtle">
-                · {data.ledger.code} · {data.ledger.group}
-              </span>
-            )}
-            {refreshing && <FaSync className="animate-spin text-accent text-[11.5px]" />}
-          </h2>
-          <div className="flex items-center gap-1.5">
-            <button onClick={refresh} className="sl-btn sl-pill-sm">
-              <FaSync className={refreshing ? "animate-spin text-accent" : ""} /> Refresh
-            </button>
-            <button
-              onClick={() => navigate("/accounts/bank-accounts")}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line cursor-pointer"
-            >
-              <FaArrowLeft className="text-[11.5px]" /> Back
-            </button>
-          </div>
-        </div>
-
         {/* Filter row */}
-        <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
-          <div className="w-[140px]">
+        <div className="p-4 sm:p-5 flex flex-wrap items-end gap-3">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">From</label>
             <input
               type="date"
@@ -83,7 +80,7 @@ const BankStatementPage: React.FC = () => {
               className="sl-input h-11 w-full text-sm"
             />
           </div>
-          <div className="w-[140px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">To</label>
             <input
               type="date"
@@ -98,7 +95,7 @@ const BankStatementPage: React.FC = () => {
                 setStartDate("");
                 setEndDate("");
               }}
-              className="px-2.5 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card rounded transition-colors border border-line cursor-pointer"
+              className="sl-btn sl-pill-sm"
             >
               Clear
             </button>
@@ -108,8 +105,8 @@ const BankStatementPage: React.FC = () => {
 
       {/* Balance Summary - compact 3-up */}
       {data && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <div className="sl-tile px-3 py-2">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
+          <div className="sl-tile p-4 sm:p-5">
             <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
               Opening Balance
             </p>
@@ -117,7 +114,7 @@ const BankStatementPage: React.FC = () => {
               ₹{Math.abs(data.openingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="sl-tile px-3 py-2">
+          <div className="sl-tile p-4 sm:p-5">
             <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
               Closing Balance
             </p>
@@ -127,7 +124,7 @@ const BankStatementPage: React.FC = () => {
               ₹{Math.abs(data.closingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="sl-tile px-3 py-2">
+          <div className="sl-tile p-4 sm:p-5">
             <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
               Transactions
             </p>

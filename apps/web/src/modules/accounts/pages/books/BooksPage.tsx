@@ -176,7 +176,6 @@ const BooksPage: React.FC = () => {
               : "One bank account or overdraft as a running statement."
         }
         icon={<BookOpen size={20} />}
-        className="!mb-0"
       >
         <ChipTabs
           ariaLabel="Books"
