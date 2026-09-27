@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
-import { Plus, Trash2, Edit3, Check, X, AlertTriangle, Save, Info, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit3,
+  Check,
+  X,
+  AlertTriangle,
+  Save,
+  Info,
+  Loader2,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { usePermission } from "../../../hooks/usePermission";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import Button from "../../../components/ui/Button/Button";
@@ -8,7 +19,15 @@ import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import CheckboxInput from "../../../components/form/CheckboxInput/CheckboxInput";
 import RadioInput from "../../../components/form/RadioInput/RadioInput";
-import Tabs from "../../../components/ui/tab/Tabs";
+import {
+  ActionPill,
+  Chip,
+  ChipTabs,
+  PageHeader,
+  SkeletonTile,
+  Tile,
+} from "../../../components/ui/v2";
+import { Notice, PageShell } from "../components/peopleUi";
 import { payrollService } from "../../../services/payrollService";
 import type { ApiPayrollConfig } from "../../../services/payrollService";
 
@@ -677,11 +696,15 @@ const SalaryComponentsEditor: React.FC<{
 };
 
 // ─── Section wrapper ──────────────────────────────────────────────────────────
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="sl-tile p-6 space-y-4 text-ink">
-    <h3 className="text-sm font-extrabold text-ink border-b border-line-soft pb-3">{title}</h3>
+const Section: React.FC<{
+  title: string;
+  subtitle?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ title, subtitle, children, className }) => (
+  <Tile title={title} subtitle={subtitle} className={className} bodyClassName="space-y-4">
     {children}
-  </div>
+  </Tile>
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -700,6 +723,7 @@ const PayrollSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<"general" | "deductions">("general");
 
   // Load config from API on mount
   useEffect(() => {
@@ -760,22 +784,34 @@ const PayrollSettings: React.FC = () => {
     }
   };
 
-  if (loading) return <CommonLoader text="Loading payroll settings…" />;
+  if (loading) {
+    return (
+      <PageShell className="space-y-5">
+        <PageHeader title="Payroll Settings" subtitle="Loading payroll settings…" />
+        <div className="grid gap-5 lg:grid-cols-2">
+          <SkeletonTile lines={4} />
+          <SkeletonTile lines={4} />
+        </div>
+      </PageShell>
+    );
+  }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-page flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <AlertTriangle size={40} className="text-[color:var(--color-danger)] mx-auto" />
-          <p className="text-sm text-ink-subtle">{error}</p>
-          <Button
-            text="Retry"
-            onClick={() => window.location.reload()}
-            variant="primary"
-            size="sm"
-          />
-        </div>
-      </div>
+      <PageShell className="space-y-5">
+        <PageHeader title="Payroll Settings" back="/payroll" />
+        <Notice
+          tone="danger"
+          title="Settings could not be loaded"
+          action={
+            <ActionPill variant="secondary" size="sm" onClick={() => window.location.reload()}>
+              Retry
+            </ActionPill>
+          }
+        >
+          {error}
+        </Notice>
+      </PageShell>
     );
   }
 
@@ -784,39 +820,26 @@ const PayrollSettings: React.FC = () => {
       key: "general",
       label: "General",
       content: (
-        <div className="sl-tile p-6 space-y-6 text-ink">
-          {/* Company Policy */}
-          <div>
-            <h3 className="text-sm font-extrabold text-ink mb-3">Company Policy</h3>
-            <div className="flex items-start gap-2 bg-primary/10 border border-primary/20 rounded-xl p-3.5 text-xs text-primary font-medium">
-              <Info size={14} className="mt-0.5 shrink-0" />
-              <span>
-                Daily rate = Monthly salary ÷ Calendar days in month (e.g. ÷ 31 for August)
-              </span>
-            </div>
-          </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Section title="Company policy" subtitle="How a day's pay is worked out">
+            <Notice tone="info">
+              Daily rate = Monthly salary ÷ Calendar days in month (e.g. ÷ 31 for August)
+            </Notice>
+          </Section>
 
-          <hr className="border-line-soft" />
-
-          {/* Overtime */}
-          <div>
-            <h3 className="text-sm font-extrabold text-ink mb-3">Overtime</h3>
+          <Section title="Overtime">
             <Toggle
               checked={config.otEnabled ?? true}
               onChange={(v) => set({ otEnabled: v })}
               label="Enable Overtime"
             />
-            <p className="text-xs text-ink-subtle mt-2">
+            <p className="sl-muted m-0 text-sm">
               Overtime is always paid at double the ordinary hourly rate (Labour Codes), so there is
               no rate to configure here.
             </p>
-          </div>
+          </Section>
 
-          <hr className="border-line-soft" />
-
-          {/* PF */}
-          <div>
-            <h3 className="text-sm font-extrabold text-ink mb-3">Provident Fund (PF)</h3>
+          <Section title="Provident Fund (PF)">
             <Toggle
               checked={config.pfEnabled ?? true}
               onChange={(v) => set({ pfEnabled: v })}
@@ -857,13 +880,9 @@ const PayrollSettings: React.FC = () => {
                 />
               </div>
             )}
-          </div>
+          </Section>
 
-          <hr className="border-line-soft" />
-
-          {/* ESI */}
-          <div>
-            <h3 className="text-sm font-extrabold text-ink mb-3">Employee State Insurance (ESI)</h3>
+          <Section title="Employee State Insurance (ESI)">
             <Toggle
               checked={config.esiEnabled ?? true}
               onChange={(v) => set({ esiEnabled: v })}
@@ -894,19 +913,15 @@ const PayrollSettings: React.FC = () => {
                 />
               </div>
             )}
-          </div>
+          </Section>
 
-          <hr className="border-line-soft" />
-
-          {/* Professional Tax */}
-          <div>
-            <h3 className="text-sm font-extrabold text-ink mb-3">Professional Tax</h3>
-            <p className="text-xs text-ink-subtle">
+          <Section title="Professional Tax" className="lg:col-span-2">
+            <p className="sl-muted m-0 text-sm">
               Professional tax is computed per employee from their own work state's slabs, not a
               flat company-wide amount — set an employee's work state on their profile. Toggle it
               per employee under "Professional Tax" there.
             </p>
-          </div>
+          </Section>
         </div>
       ),
     },
@@ -937,10 +952,8 @@ const PayrollSettings: React.FC = () => {
             }
           />
 
-          <div className="flex items-start gap-2 bg-primary/10 border border-primary/20 rounded-xl p-3.5 text-xs text-primary font-medium">
-            <Info size={14} className="mt-0.5 shrink-0" />
+          <Notice tone="info" title="How Late Entry Deduction works">
             <div>
-              <p className="font-bold mb-1">How Late Entry Deduction works</p>
               <p>
                 If an employee is late by ≤ <strong>{config.lateEntryGraceMinutes ?? 5} min</strong>{" "}
                 (grace period), <strong>no deduction</strong> is applied.
@@ -949,15 +962,15 @@ const PayrollSettings: React.FC = () => {
                 If late by more than the grace period, the <strong>total late minutes</strong> are
                 looked up in the slab table above and that fixed amount is deducted.
               </p>
-              <p className="mt-1 text-primary">
+              <p className="mt-1">
                 Example: Late 30 min → matches slab "21–60 min → ₹50" → ₹50 deducted.
               </p>
-              <p className="mt-1 text-primary">
+              <p className="mt-1">
                 If no slabs are configured, a per-minute rate (Daily Rate ÷ Working Minutes) is used
                 as fallback.
               </p>
             </div>
-          </div>
+          </Notice>
           <SlabConfigurator
             title="Permission Deduction Slabs"
             slabs={slabs.perm}
@@ -975,42 +988,49 @@ const PayrollSettings: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-page">
-      {/* Header */}
-      <div className="bg-card border-b border-line-soft px-6 py-4 sticky top-0 z-20">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-ink">Payroll Settings</h1>
-            <p className="text-sm text-ink-muted mt-0.5">
-              Configure payroll policies, statutory deductions, and salary components.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {isDirty && (
-              <span className="text-xs text-[color:var(--color-warning)] font-semibold flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)] border border-[color-mix(in_srgb,var(--color-warning)_32%,transparent)] px-3 py-1.5 rounded-lg">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-warning)] animate-pulse" />
-                Unsaved changes
-              </span>
-            )}
-            {canEditSettings && (
-              <Button
-                text={saving ? "Saving…" : "Save Changes"}
-                icon={saving ? (Loader2 as any) : (Save as any)}
-                variant="primary"
-                size="md"
-                disabled={saving || !isDirty}
-                onClick={handleSave}
-                className={saving ? "[&>svg]:animate-spin" : ""}
-              />
-            )}
-          </div>
-        </div>
-      </div>
+    <PageShell className="space-y-5 pb-24">
+      <PageHeader
+        title="Payroll Settings"
+        icon={<SettingsIcon size={20} />}
+        back="/payroll"
+        backLabel="Back to payroll"
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Settings" }]}
+        subtitle="Configure payroll policies, statutory deductions, and salary components."
+        meta={
+          isDirty ? (
+            <Chip tone="warning" size="sm" dot>
+              Unsaved changes
+            </Chip>
+          ) : undefined
+        }
+      >
+        <ChipTabs
+          ariaLabel="Settings section"
+          value={tab}
+          onChange={(k) => setTab(k as "general" | "deductions")}
+          items={tabItems.map((t) => ({ key: t.key as "general" | "deductions", label: t.label }))}
+        />
+      </PageHeader>
 
-      <div className="p-6">
-        <Tabs tabs={tabItems} variant="primary" />
-      </div>
-    </div>
+      {tabItems.find((t) => t.key === tab)?.content}
+
+      {canEditSettings && (
+        <div className="sticky bottom-0 z-20 -mx-1 flex justify-end gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 shadow-[0_-6px_24px_-12px_rgba(15,27,38,0.25)] backdrop-blur">
+          <span className="sl-muted mr-auto self-center text-sm">
+            {isDirty ? "You have unsaved changes." : "All changes saved."}
+          </span>
+          <ActionPill
+            icon={<Save size={16} />}
+            loading={saving}
+            loadingText="Saving…"
+            disabled={!isDirty}
+            onClick={handleSave}
+          >
+            Save Changes
+          </ActionPill>
+        </div>
+      )}
+    </PageShell>
   );
 };
 
