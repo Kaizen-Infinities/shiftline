@@ -83,7 +83,7 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
   return (
     <div
       className="sl-tile overflow-hidden flex flex-col"
-      style={{ height: "calc(100vh - 240px)" }}
+      style={{ maxHeight: "calc(100vh - 240px)" }}
     >
       <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between gap-2 shrink-0">
         <h2 className="text-xs font-semibold text-ink">

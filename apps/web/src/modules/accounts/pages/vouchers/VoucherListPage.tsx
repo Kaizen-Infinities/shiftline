@@ -371,7 +371,7 @@ export const VoucherListPage: React.FC = () => {
 
         {vouchers.length === 0 ? (
           loading ? null : (
-            <div className="p-8 text-center text-xs text-ink-subtle">
+            <div className="p-10 text-center text-sm text-ink-muted">
               No vouchers matching your filter criteria.
             </div>
           )

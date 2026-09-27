@@ -279,7 +279,7 @@ const BankAccountsPage: React.FC = () => {
 
       {/* Account Cards */}
       {filteredAccounts.length === 0 && !loading ? (
-        <div className="sl-tile p-8 text-center text-xs text-ink-subtle">
+        <div className="sl-tile p-10 text-center text-sm text-ink-muted">
           {filterType === "cash"
             ? "No cash accounts found."
             : filterType === "bank"

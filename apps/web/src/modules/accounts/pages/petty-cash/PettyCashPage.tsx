@@ -1,15 +1,23 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
-  FaCoins,
-  FaArrowDown,
-  FaArrowUp,
-  FaPlus,
-  FaSearch,
-  FaSync,
-  FaWallet,
-  FaTimes,
-  FaFilter,
-} from "react-icons/fa";
+  ArrowDownLeft,
+  ArrowUpRight,
+  Coins,
+  Plus,
+  RefreshCw,
+  SlidersHorizontal,
+  Wallet,
+} from "lucide-react";
+import { FaCoins, FaSync, FaTimes } from "react-icons/fa";
+import { ActionPill, PageHeader, SearchField, StatTile } from "../../../../components/ui/v2";
+import {
+  OptionRow,
+  RegisterOptionsCard,
+  YesNo,
+  fmtDate,
+  fmtINR,
+  fmtINRCompact,
+} from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import {
   pettyCashService,
@@ -207,158 +215,169 @@ export const PettyCashPage: React.FC = () => {
     return { totalInPage: inSum, totalOutPage: outSum };
   }, [filteredEntries]);
 
-  // ────── Busy-style pre-list filter dialog ──────
+  const recordButton = (
+    <ActionPill
+      icon={<Plus size={18} />}
+      onClick={() => {
+        resetForm();
+        setShowModal(true);
+      }}
+    >
+      Record Cash Entry
+    </ActionPill>
+  );
+
+  const summaryTiles = (
+    <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+      <StatTile
+        label="Total cash in"
+        icon={<ArrowDownLeft size={18} />}
+        value={<span title={fmtINR(summary.totalIn)}>{fmtINRCompact(summary.totalIn)}</span>}
+      />
+      <StatTile
+        label="Total cash out"
+        icon={<ArrowUpRight size={18} />}
+        value={<span title={fmtINR(summary.totalOut)}>{fmtINRCompact(summary.totalOut)}</span>}
+      />
+      <StatTile
+        className="col-span-2 lg:col-span-1"
+        label="Cash balance on hand"
+        icon={<Wallet size={18} />}
+        value={
+          <span title={fmtINR(summary.currentBalance)}>
+            {fmtINRCompact(summary.currentBalance)}
+          </span>
+        }
+      />
+    </div>
+  );
+
+  // ────── Busy-style pre-list options (F2 = show, Esc = close) ──────
   if (panelOpen) {
     return (
-      <div className="p-3">
-        <div className="w-full lg:w-[420px]">
-          <div className="sl-tile overflow-hidden">
-            <div className="bg-card-2 text-ink text-[12.5px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
-              List of Petty Cash Entries
-            </div>
-            <div className="p-4 space-y-2.5 text-[12.5px]">
-              <FilterRow label="Starting Date">
-                <DatePickerCalendar
-                  name="startDate"
-                  value={pending.startDate}
-                  onChange={(e) => setPending({ ...pending, startDate: e.target.value })}
-                />
-              </FilterRow>
-
-              <FilterRow label="Ending Date">
-                <DatePickerCalendar
-                  name="endDate"
-                  value={pending.endDate}
-                  onChange={(e) => setPending({ ...pending, endDate: e.target.value })}
-                />
-              </FilterRow>
-
-              <FilterRow label="Entry Type">
-                <SelectInput
-                  label="Entry Type"
-                  hideLabel
-                  noMargin
-                  searchable={false}
-                  value={pending.entryType}
-                  onChange={(e) =>
-                    setPending({ ...pending, entryType: e.target.value as "ALL" | "IN" | "OUT" })
-                  }
-                  options={[
-                    { value: "ALL", label: "All Entry Types" },
-                    { value: "IN", label: "Cash IN (Receipts)" },
-                    { value: "OUT", label: "Cash OUT (Expenses)" },
-                  ]}
-                />
-              </FilterRow>
-
-              <ToggleRow
-                label="Show Category?"
-                value={pending.showCategory}
-                onChange={(v) => setPending({ ...pending, showCategory: v })}
-              />
-              <ToggleRow
-                label="Show Description?"
-                value={pending.showDescription}
-                onChange={(v) => setPending({ ...pending, showDescription: v })}
-              />
-              <ToggleRow
-                label="Show Receipt No?"
-                value={pending.showReceiptNo}
-                onChange={(v) => setPending({ ...pending, showReceiptNo: v })}
-              />
-              <ToggleRow
-                label="Show Balance?"
-                value={pending.showBalance}
-                onChange={(v) => setPending({ ...pending, showBalance: v })}
-              />
-
-              <div className="pt-2 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApplied(pending);
-                    setPanelOpen(false);
-                  }}
-                  className="sl-btn-blue sl-pill-md"
-                >
-                  OK (F2)
-                </button>
-              </div>
-              <div className="text-center text-[11.5px] text-ink-subtle italic pt-1">
-                <kbd className="sl-kbd">Esc</kbd> to quit · <kbd className="sl-kbd">F2</kbd> to
-                submit
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="w-full">
+        <PageHeader
+          title="Petty Cash Register"
+          subtitle="Small cash spends and top-ups, with a running balance"
+          icon={<Coins size={20} />}
+          primaryAction={recordButton}
+        />
+        <RegisterOptionsCard
+          okLabel="Show entries"
+          onOk={() => {
+            setApplied(pending);
+            setPanelOpen(false);
+          }}
+        >
+          <OptionRow label="Starting date">
+            <DatePickerCalendar
+              name="startDate"
+              value={pending.startDate}
+              onChange={(e) => setPending({ ...pending, startDate: e.target.value })}
+            />
+          </OptionRow>
+          <OptionRow label="Ending date">
+            <DatePickerCalendar
+              name="endDate"
+              value={pending.endDate}
+              onChange={(e) => setPending({ ...pending, endDate: e.target.value })}
+            />
+          </OptionRow>
+          <OptionRow label="Entry type">
+            <SelectInput
+              label="Entry Type"
+              hideLabel
+              noMargin
+              searchable={false}
+              value={pending.entryType}
+              onChange={(e) =>
+                setPending({ ...pending, entryType: e.target.value as "ALL" | "IN" | "OUT" })
+              }
+              options={[
+                { value: "ALL", label: "All Entry Types" },
+                { value: "IN", label: "Cash IN (Receipts)" },
+                { value: "OUT", label: "Cash OUT (Expenses)" },
+              ]}
+            />
+          </OptionRow>
+          <YesNo
+            label="Show category?"
+            value={pending.showCategory}
+            onChange={(v) => setPending({ ...pending, showCategory: v })}
+          />
+          <YesNo
+            label="Show description?"
+            value={pending.showDescription}
+            onChange={(v) => setPending({ ...pending, showDescription: v })}
+          />
+          <YesNo
+            label="Show receipt no?"
+            value={pending.showReceiptNo}
+            onChange={(v) => setPending({ ...pending, showReceiptNo: v })}
+          />
+          <YesNo
+            label="Show balance?"
+            value={pending.showBalance}
+            onChange={(v) => setPending({ ...pending, showBalance: v })}
+          />
+        </RegisterOptionsCard>
       </div>
     );
   }
 
   return (
-    <div className="p-3 flex gap-3 w-full items-start">
-      <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
-        {/* Header — title + inline search + Change Filters + Refresh + Record */}
-        <div className="sl-tile flex flex-wrap items-center gap-3 px-4 py-3">
-          <h1 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-            <FaCoins className="text-[color:var(--color-warning)] text-sm" /> Petty Cash Register
-            {refreshing && (
-              <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
-            )}
-          </h1>
-          <span className="text-[11.5px] text-ink-subtle italic">
-            From <b className="text-ink">{applied.startDate}</b> to{" "}
-            <b className="text-ink">{applied.endDate}</b> · Type{" "}
-            <b className="text-ink">{applied.entryType}</b>
-          </span>
-
-          <div className="relative w-full max-w-[280px] ml-2">
-            <input
-              type="text"
-              placeholder="Search entry no, category, description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
-            />
-            <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[11.5px]" />
-          </div>
-
-          <div className="flex items-center gap-1.5 ml-auto">
-            <button
+    <div className="w-full">
+      <PageHeader
+        title="Petty Cash Register"
+        subtitle={`${fmtDate(applied.startDate)} to ${fmtDate(applied.endDate)} · ${
+          applied.entryType === "ALL"
+            ? "All entries"
+            : applied.entryType === "IN"
+              ? "Cash in"
+              : "Cash out"
+        }`}
+        icon={<Coins size={20} />}
+        primaryAction={recordButton}
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<SlidersHorizontal size={16} />}
               onClick={() => {
                 setPending(applied);
                 setPanelOpen(true);
               }}
-              className="sl-btn sl-pill-sm cursor-pointer"
               title="Change filters"
             >
-              <FaFilter className="text-[11.5px]" /> Change Filters
-            </button>
-            <button onClick={refresh} className="sl-btn sl-pill-sm">
-              <FaSync
-                className={refreshing ? "animate-spin text-[color:var(--color-warning)]" : ""}
-              />{" "}
-              Refresh
-            </button>
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-              className="sl-cta sl-pill-md"
+              Change filters
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+              onClick={refresh}
             >
-              <FaPlus className="text-[11.5px]" /> Record Cash Entry
-            </button>
-          </div>
-        </div>
-
+              Refresh
+            </ActionPill>
+          </>
+        }
+      />
+      {summaryTiles}
+      <div className="mb-4">
+        <SearchField
+          value={searchTerm}
+          onValueChange={setSearchTerm}
+          placeholder="Search entry no, category, description..."
+          className="sm:w-96"
+        />
+      </div>
+      <div className="w-full">
         {/* Spreadsheet-style table (Busy density) */}
         <div
           className="sl-tile overflow-hidden flex flex-col"
-          style={{ height: "calc(100vh - 240px)" }}
+          style={{ maxHeight: "calc(100vh - 240px)" }}
         >
           {filteredEntries.length === 0 ? (
-            <div className="p-8 text-center text-xs text-ink-subtle flex-1">
+            <div className="p-10 text-center text-sm text-ink-muted flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
@@ -574,57 +593,15 @@ export const PettyCashPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Right sidebar — 3 summary stats. Amounts render on their own row so
-         crores-scale values never squeeze the label or overflow the card. */}
-      <aside className="sl-tile w-[240px] shrink-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-line-soft text-[15px] font-semibold text-ink flex items-center gap-2">
-          <FaCoins className="text-[color:var(--color-warning)] text-xs" /> Summary
-        </div>
-        <div className="divide-y divide-line-soft">
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaArrowDown className="text-[color:var(--color-success)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Total Cash IN</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-[color:var(--color-success)] break-all leading-tight">
-              ₹{summary.totalIn.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaArrowUp className="text-[color:var(--color-danger)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Total Cash OUT</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-[color:var(--color-danger)] break-all leading-tight">
-              ₹{summary.totalOut.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div className="px-3 py-2 bg-[color:var(--color-warning)]/10">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaWallet className="text-[color:var(--color-warning)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">
-                Cash Balance on Hand
-              </span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-[color:var(--color-warning)] break-all leading-tight">
-              ₹{summary.currentBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </div>
-          </div>
-        </div>
-      </aside>
-
       {/* Record Cash Entry Modal — Busy-compact */}
       {showModal && (
         <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
           <div className="sl-dialog w-full max-w-lg overflow-hidden">
-            <div className="px-3 py-1.5 border-b border-line bg-card-2 text-ink flex items-center justify-between">
-              <h2 className="text-[12.5px] font-bold uppercase tracking-wide flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-line-soft flex items-center justify-between gap-3">
+              <h2 className="sl-dialog-title flex items-center gap-2">
                 <FaCoins className="text-xs" /> New Petty Cash Entry
               </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-1 text-ink-muted hover:text-ink hover:bg-nav-hover rounded cursor-pointer"
-              >
+              <button onClick={() => setShowModal(false)} className="sl-icon-btn sl-icon-btn-ghost">
                 <FaTimes className="text-xs" />
               </button>
             </div>
@@ -757,47 +734,5 @@ export const PettyCashPage: React.FC = () => {
     </div>
   );
 };
-
-// ── Small presentational helpers for the filter panel ──
-const FilterRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="grid grid-cols-12 gap-3 items-center">
-    <label className="col-span-5 text-ink-subtle font-semibold">{label}</label>
-    <div className="col-span-7">{children}</div>
-  </div>
-);
-
-const ToggleRow: React.FC<{ label: string; value: boolean; onChange: (v: boolean) => void }> = ({
-  label,
-  value,
-  onChange,
-}) => (
-  <div className="grid grid-cols-12 gap-3 items-center">
-    <label className="col-span-5 text-ink-subtle font-semibold">{label}</label>
-    <div className="col-span-7 flex gap-2">
-      <button
-        type="button"
-        onClick={() => onChange(true)}
-        className={`px-3 py-0.5 rounded text-[12.5px] tabular-nums font-bold border cursor-pointer ${
-          value
-            ? "bg-accent text-[color:var(--color-on-primary)] border-accent"
-            : "bg-card text-ink-muted border-line hover:bg-card-2"
-        }`}
-      >
-        Y
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(false)}
-        className={`px-3 py-0.5 rounded text-[12.5px] tabular-nums font-bold border cursor-pointer ${
-          !value
-            ? "bg-card-2 text-ink border-line"
-            : "bg-card text-ink-muted border-line hover:bg-card-2"
-        }`}
-      >
-        N
-      </button>
-    </div>
-  </div>
-);
 
 export default PettyCashPage;

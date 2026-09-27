@@ -419,7 +419,7 @@ export const AmountPayablePage: React.FC = () => {
         {/* Table card — Busy density */}
         <div
           className="sl-tile overflow-hidden flex flex-col"
-          style={{ height: "calc(100vh - 240px)" }}
+          style={{ maxHeight: "calc(100vh - 240px)" }}
           hidden={view === "ageing"}
         >
           {/* Table toolbar row */}
@@ -487,7 +487,7 @@ export const AmountPayablePage: React.FC = () => {
           </div>
 
           {filteredSuppliers.length === 0 ? (
-            <div className="p-8 text-center text-xs text-ink-subtle flex-1">
+            <div className="p-10 text-center text-sm text-ink-muted flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
