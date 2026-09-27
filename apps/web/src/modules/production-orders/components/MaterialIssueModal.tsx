@@ -5,7 +5,8 @@ import { convertUomQty, parseBaseUom } from "../../../utils/uomConversion";
 import { productionOrderService } from "../../../services/productionOrderService";
 import { storeService } from "../../../services/storeService";
 import { rawMaterialService } from "../../../services/rawMaterialService";
-import CustomButton from "../../../components/ui/Button/Button";
+import { Info, PackageMinus, Plus } from "lucide-react";
+import { ActionPill } from "../../../components/ui/v2";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
@@ -526,12 +527,12 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
           />
         ) : (
           <div className="flex flex-col gap-0.5">
-            <div className="font-extrabold text-ink">{item.materialName}</div>
-            <div className="text-xs text-ink-subtle font-medium">{item.rawMaterialId}</div>
+            <div className="font-semibold text-ink">{item.materialName}</div>
+            <div className="font-mono text-xs text-ink-subtle">{item.rawMaterialId}</div>
             {item.reusedQtyInfo && (
-              <div className="text-xs text-[color:var(--color-success)] font-semibold mt-1 bg-[color:var(--color-success)]/10 px-2 py-1 rounded-sm border border-[color:var(--color-success)]/30">
+              <span className="sl-chip sl-chip-sm sl-chip-success mt-1 whitespace-normal">
                 {item.reusedQtyInfo}
-              </div>
+              </span>
             )}
           </div>
         ),
@@ -540,7 +541,7 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
       header: "Req. Qty",
       width: "100px",
       render: (item: any) => (
-        <span className="font-bold text-ink">
+        <span className="font-semibold text-ink tabular-nums">
           {item.reservedQty.toFixed(2)} {item.primaryUom || item.uom}
         </span>
       ),
@@ -549,7 +550,9 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
       header: "Available Stock",
       width: "110px",
       render: (item: any) => (
-        <span className="font-bold text-ink">
+        <span
+          className={`font-semibold tabular-nums ${item.availableStock < item.reservedQty ? "text-[color:var(--color-danger)]" : "text-ink"}`}
+        >
           {item.availableStock.toFixed(2)} {item.primaryUom || item.uom}
         </span>
       ),
@@ -605,42 +608,43 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
       maxWidth="full"
       footer={
         <>
-          <CustomButton
-            type="button"
-            onClick={onHide}
-            disabled={issuing}
-            text="Cancel"
-            variant="secondary"
-          />
-          <CustomButton
-            type="button"
+          <ActionPill variant="secondary" onClick={onHide} disabled={issuing}>
+            Cancel
+          </ActionPill>
+          <ActionPill
+            icon={<PackageMinus size={17} />}
             onClick={doSubmit}
-            disabled={issuing}
-            text={issuing ? "Issuing..." : "Confirm Material Issue"}
-            variant="primary"
-          />
+            loading={issuing}
+            loadingText="Issuing..."
+          >
+            Confirm Material Issue
+          </ActionPill>
         </>
       }
     >
       {/* Info banner */}
-      <div className="bg-[color:var(--color-info)]/10 border border-[color:var(--color-info)]/30 text-[color:var(--color-info)] rounded-lg p-4 mb-4 text-sm font-semibold">
+      <div className="mb-4 flex items-start gap-3 rounded-[14px] bg-card-2 p-4 text-sm font-medium text-ink-muted">
+        <Info size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
         Please review and confirm the quantity of raw materials you are taking from the store. This
         will automatically update the Physical Stock (on hand) and log an approved Stock Adjustment.
       </div>
 
       {/* Daily plan qty */}
       {dailyPlanQty !== undefined && dailyPlanQty !== null && (
-        <div className="bg-card-2 border border-line-soft text-ink rounded-lg p-4 mb-6 flex justify-between items-center text-sm font-bold">
-          <span className="text-ink-subtle font-semibold">Daily Plan Production Quantity:</span>
-          <span className="text-lg text-primary font-extrabold">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-[14px] bg-nav-active p-4">
+          <span className="text-sm font-semibold text-nav-active-fg">
+            Daily Plan Production Quantity
+          </span>
+          <span className="text-[20px] font-bold text-ink tabular-nums">
             {dailyPlanQty} pcs {totalTargetQty ? `/ ${totalTargetQty}` : ""}
           </span>
         </div>
       )}
 
       {/* Table */}
-      <div className="border border-line-soft rounded-lg overflow-hidden bg-card">
+      <div className="overflow-hidden rounded-[16px] border border-line-soft bg-card">
         <DataTable
+          ariaLabel="Raw materials to issue"
           columns={columns}
           data={issueItems}
           rowKey={(item: any) => `${item.rawMaterialId || "new"}-${item.storeId || ""}`}
@@ -648,13 +652,15 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
           maxHeightClassName="max-h-none"
           density="compact"
         />
-        <div className="px-4 py-3 border-t border-line-soft bg-card-2 flex justify-end">
-          <CustomButton
-            type="button"
-            text="+ Add Row"
+        <div className="flex justify-end border-t border-line-soft bg-card-2 px-4 py-3">
+          <ActionPill
             variant="secondary"
+            size="sm"
+            icon={<Plus size={15} />}
             onClick={() => addRow(issueItems.length - 1)}
-          />
+          >
+            Add Row
+          </ActionPill>
         </div>
       </div>
     </CommonModal>
