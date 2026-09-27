@@ -236,7 +236,7 @@ const UpComingOrderDetailPage: React.FC = () => {
         className="inner-container d-flex justify-content-center align-items-center"
         style={{ minHeight: "300px" }}
       >
-        <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-8 w-8"></div>
+        <div className="animate-spin rounded-full border-b-2 border-accent h-8 w-8"></div>
       </div>
     );
   }

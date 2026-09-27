@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { FaSave } from "react-icons/fa";
+import { Hash, Save } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../components/ui/v2";
+import ToggleSwitch from "../../components/ui/ToggleSwitch/ToggleSwitch";
+import { FormFooter } from "../sales/shared/tradeUi";
 import { toast } from "react-toastify";
 
 import TextInput from "../../components/form/TextInput/TextInput";
-import CustomButton from "../../components/ui/Button/Button";
 import CommonLoader from "../../components/ui/Loader/CommonLoader";
 import { usePermission } from "../../hooks/usePermission";
 import { useDetailCache, invalidateDetailCache } from "../../hooks/useDetailCache";
@@ -209,201 +211,159 @@ const SalesInvoiceCreate: React.FC = () => {
     return <CommonLoader text="Loading settings..." fullScreen={false} />;
   }
 
+  const toggleAutoFy = () =>
+    handleChange({
+      target: {
+        name: "autoFinancialYear",
+        type: "checkbox",
+        checked: !formData.autoFinancialYear,
+        value: "",
+      },
+    } as unknown as React.ChangeEvent<HTMLInputElement>);
+
   return (
-    <div className="max-w-[1024px] xl:mr-auto">
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="bg-card rounded-sm border border-line overflow-hidden">
-          {/* Page Header */}
-          <div className="px-4 py-3 border-b border-line">
-            <h2 className="text-base font-bold text-ink">Invoice Configuration</h2>
-          </div>
-
-          <div className="p-4 lg:p-5 space-y-5">
-            {/* Section 1: Invoice Numbering */}
-            <div className="space-y-3">
-              <div>
-                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">
-                  Invoice Numbering
-                </h6>
-                <p className="text-[10px] text-ink-subtle mt-0.5">
-                  Configure how invoice numbers are generated
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-                <div>
-                  <TextInput
-                    label="Invoice Prefix"
-                    name="invoicePrefix"
-                    value={formData.invoicePrefix}
-                    onChange={handleChange as any}
-                    required
-                    horizontal
-                    error={errors.invoicePrefix}
-                    maxLength={3}
-                  />
-                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                    2-3 letter prefix (e.g., IN, INV)
-                  </p>
-                </div>
-                <div>
-                  <TextInput
-                    label="Sequence Length"
-                    name="sequenceLength"
-                    type="number"
-                    min={1}
-                    value={String(formData.sequenceLength)}
-                    onChange={handleChange as any}
-                    required
-                    horizontal
-                    error={errors.sequenceLength}
-                  />
-                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                    Number of digits (e.g., 4 = 0001)
-                  </p>
-                </div>
-                <div>
-                  <TextInput
-                    label="Current Sequence"
-                    name="currentSequenceNumber"
-                    type="number"
-                    value={String(formData.currentSequenceNumber)}
-                    onChange={handleChange as any}
-                    disabled
-                    horizontal
-                  />
-                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                    Auto-incremented with each invoice
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-line" />
-
-            {/* Section 2: Financial Year */}
-            <div className="space-y-3">
-              <div>
-                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">
-                  Financial Year
-                </h6>
-                <p className="text-[10px] text-ink-subtle mt-0.5">
-                  Configure financial year for invoice numbering
-                </p>
-              </div>
-
-              {/* Auto Toggle */}
-              <div className="flex items-center justify-between bg-card-2 p-3 rounded-lg border border-line-soft">
-                <div>
-                  <div className="font-semibold text-xs text-ink">Auto Financial Year</div>
-                  <div className="text-[10px] text-ink-subtle">
-                    {formData.autoFinancialYear
-                      ? "System automatically determines the financial year based on today's date"
-                      : "Manually set your financial year start date"}
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="autoFinancialYear"
-                    className="sr-only peer"
-                    checked={formData.autoFinancialYear}
-                    onChange={handleChange as any}
-                  />
-                  <div className="w-11 h-6 bg-ink-subtle/40 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-line-soft after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-                <div>
-                  <TextInput
-                    label="FY Start"
-                    name="financialYearStart"
-                    type="date"
-                    value={formData.financialYearStart}
-                    onChange={handleChange as any}
-                    required
-                    horizontal
-                    error={errors.financialYearStart}
-                    disabled={formData.autoFinancialYear}
-                  />
-                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                    {formData.autoFinancialYear
-                      ? "Auto-calculated — disabled while Auto Financial Year is on"
-                      : "Start date of your financial year"}
-                  </p>
-                </div>
-                <div>
-                  <TextInput
-                    label="FY End"
-                    name="financialYearEnd"
-                    type="date"
-                    value={formData.financialYearEnd}
-                    onChange={handleChange as any}
-                    disabled
-                    horizontal
-                  />
-                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                    Auto-calculated as one day before start date (next year)
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-line" />
-
-            {/* Section 3: Invoice Format */}
-            <div className="space-y-3">
-              <div>
-                <h6 className="text-[10px] font-bold text-ink uppercase tracking-[1.5px]">
-                  Invoice Format
-                </h6>
-                <p className="text-[10px] text-ink-subtle mt-0.5">
-                  Auto-generated invoice number format based on your settings
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5 items-start">
-                <div>
-                  <TextInput
-                    label="Format Template"
-                    name="formatTemplate"
-                    value={formData.formatTemplate}
-                    onChange={handleChange as any}
-                    required
-                    horizontal
-                    error={errors.formatTemplate}
-                  />
-                  <p className="text-[9px] text-ink-subtle mt-0.5 ml-[152px]">
-                    Variables: {"{PREFIX}"} - Prefix, {"{FY}"} - Financial Year, {"{SEQ}"} -
-                    Sequence
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <label className="shrink-0 w-[140px] text-[10px] font-extrabold uppercase tracking-[0.5px] text-ink">
-                    Preview
-                  </label>
-                  <div className="flex-1 h-9 px-3 rounded-md border border-accent/30 bg-accent/5 flex items-center justify-center text-sm font-mono font-bold tracking-widest text-ink">
-                    {livePreview}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {canEditInvoice && (
-            <div className="px-4 py-3 border-t border-line flex justify-end">
-              <CustomButton
-                text={saving ? "Saving..." : "Save Settings"}
-                icon={FaSave}
-                type="submit"
-                disabled={saving}
+    <div className="mx-auto w-full max-w-[1100px]">
+      <PageHeader
+        title="Invoice Configuration"
+        subtitle="Numbering for sales invoices: prefix, sequence and financial year."
+        icon={<Hash size={22} />}
+      />
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <Tile title="Invoice Numbering" subtitle="Configure how invoice numbers are generated">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-3">
+            <div>
+              <TextInput
+                label="Invoice Prefix"
+                name="invoicePrefix"
+                value={formData.invoicePrefix}
+                onChange={handleChange as any}
+                required
+                error={errors.invoicePrefix}
+                maxLength={3}
               />
+              <p className="sl-field-hint m-0">2-3 letter prefix (e.g., IN, INV)</p>
             </div>
-          )}
-        </div>
+            <div>
+              <TextInput
+                label="Sequence Length"
+                name="sequenceLength"
+                type="number"
+                min={1}
+                value={String(formData.sequenceLength)}
+                onChange={handleChange as any}
+                required
+                error={errors.sequenceLength}
+              />
+              <p className="sl-field-hint m-0">Number of digits (e.g., 4 = 0001)</p>
+            </div>
+            <div>
+              <TextInput
+                label="Current Sequence"
+                name="currentSequenceNumber"
+                type="number"
+                value={String(formData.currentSequenceNumber)}
+                onChange={handleChange as any}
+                disabled
+              />
+              <p className="sl-field-hint m-0">Auto-incremented with each invoice</p>
+            </div>
+          </div>
+        </Tile>
+
+        <Tile title="Financial Year" subtitle="Configure financial year for invoice numbering">
+          <div className="mb-4 flex items-center justify-between gap-4 rounded-[14px] bg-card-2 p-3">
+            <div>
+              <div id="auto-fy-label" className="text-sm font-semibold text-ink">
+                Auto Financial Year
+              </div>
+              <div className="text-[13px] text-ink-subtle">
+                {formData.autoFinancialYear
+                  ? "System automatically determines the financial year based on today's date"
+                  : "Manually set your financial year start date"}
+              </div>
+            </div>
+            <ToggleSwitch
+              checked={formData.autoFinancialYear}
+              onChange={toggleAutoFy}
+              label="Auto Financial Year"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <div>
+              <TextInput
+                label="FY Start"
+                name="financialYearStart"
+                type="date"
+                value={formData.financialYearStart}
+                onChange={handleChange as any}
+                required
+                error={errors.financialYearStart}
+                disabled={formData.autoFinancialYear}
+              />
+              <p className="sl-field-hint m-0">
+                {formData.autoFinancialYear
+                  ? "Auto-calculated — disabled while Auto Financial Year is on"
+                  : "Start date of your financial year"}
+              </p>
+            </div>
+            <div>
+              <TextInput
+                label="FY End"
+                name="financialYearEnd"
+                type="date"
+                value={formData.financialYearEnd}
+                onChange={handleChange as any}
+                disabled
+              />
+              <p className="sl-field-hint m-0">
+                Auto-calculated as one day before start date (next year)
+              </p>
+            </div>
+          </div>
+        </Tile>
+
+        <Tile
+          title="Invoice Format"
+          subtitle="Auto-generated invoice number format based on your settings"
+        >
+          <div className="grid grid-cols-1 items-start gap-x-6 gap-y-4 md:grid-cols-2">
+            <div>
+              <TextInput
+                label="Format Template"
+                name="formatTemplate"
+                value={formData.formatTemplate}
+                onChange={handleChange as any}
+                required
+                error={errors.formatTemplate}
+              />
+              <p className="sl-field-hint m-0">
+                Variables: {"{PREFIX}"} - Prefix, {"{FY}"} - Financial Year, {"{SEQ}"} - Sequence
+              </p>
+            </div>
+            <div>
+              <span className="sl-label">Preview</span>
+              <div
+                aria-live="polite"
+                className="flex h-11 items-center justify-center rounded-[12px] bg-chip px-3 font-mono text-base font-bold tracking-widest text-chip-fg"
+              >
+                {livePreview}
+              </div>
+            </div>
+          </div>
+        </Tile>
+
+        {canEditInvoice && (
+          <FormFooter>
+            <ActionPill
+              type="submit"
+              icon={<Save size={17} />}
+              loading={saving}
+              loadingText="Saving..."
+            >
+              Save Settings
+            </ActionPill>
+          </FormFooter>
+        )}
       </form>
     </div>
   );

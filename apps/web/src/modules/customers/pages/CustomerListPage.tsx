@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaTimes, FaPlus } from "react-icons/fa";
+import { Plus, X } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Toolbar } from "../../../components/ui/v2";
+import { PAGE_CLASS, formatINR } from "../../sales/shared/tradeUi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import { useListCache, markStaleByPrefix } from "../../../hooks/useListCache";
@@ -119,11 +119,6 @@ const CustomerListPage: React.FC = () => {
   const totalPages = Math.ceil((total || 0) / ITEMS_PER_PAGE);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
   // Sync draft with applied when panel opens
   const handleFilterOpen = useCallback(() => {
     setDraftFilters(appliedFilters);
@@ -218,230 +213,267 @@ const CustomerListPage: React.FC = () => {
     (g) => String(g.id) === appliedFilters.customerGradeId
   )?.name;
 
+  const createButton = canCreate ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/customers/create")}>
+      Add Customer
+    </ActionPill>
+  ) : null;
+
+  const setStatusChip = (status: string) => {
+    setAppliedFilters((p) => ({ ...p, status }));
+    setDraftFilters((p) => ({ ...p, status }));
+    setCurrentPage(1);
+  };
+
+  const filtered = Boolean(debouncedSearch) || hasActiveFilters;
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div>
-      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <h2 className="text-2xl font-bold text-ink">Customer Management</h2>
-
-          <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search customer..."
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Customer Management"
+        subtitle={`${(total || 0).toLocaleString("en-IN")} customer${total === 1 ? "" : "s"} · parties you sell to, with their GSTIN, grade and credit terms`}
+        primaryAction={createButton}
+        actions={
+          canExport ? (
+            <ExportCSVButton
+              fetchData={fetchCustomersForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
             />
+          ) : null
+        }
+      />
 
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onOpen={handleFilterOpen}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            >
-              <div className="space-y-3">
-                {/* Customer Grade */}
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Customer Grade
-                  </label>
-                  <SelectInput
-                    name="filterGrade"
-                    value={draftFilters.customerGradeId}
-                    options={gradeOptions}
-                    defaultOptionLabel="All Grades"
-                    searchable={false}
-                    noMargin
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, customerGradeId: e.target.value }))
-                    }
-                  />
-                </div>
-
-                {/* Customer Type */}
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Customer Type
-                  </label>
-                  <SelectInput
-                    name="filterType"
-                    value={draftFilters.customerTypeId}
-                    options={typeOptions}
-                    defaultOptionLabel="All Types"
-                    searchable={false}
-                    noMargin
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, customerTypeId: e.target.value }))
-                    }
-                  />
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Status
-                  </label>
-                  <SelectInput
-                    name="filterStatus"
-                    value={draftFilters.status}
-                    options={[
-                      { value: "Active", label: "Active" },
-                      { value: "Inactive", label: "Inactive" },
-                    ]}
-                    defaultOptionLabel="All Statuses"
-                    searchable={false}
-                    noMargin
-                    onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </FilterPopover>
-
-            {canExport && (
-              <ExportCSVButton
-                fetchData={fetchCustomersForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search name, mobile, GSTIN"
+        searchLabel="Search customers"
+        filters={[
+          { key: "", label: "All" },
+          { key: "Active", label: "Active" },
+          { key: "Inactive", label: "Inactive" },
+        ]}
+        filterValue={appliedFilters.status}
+        onFilterChange={setStatusChip}
+        filtersLabel="Customer status"
+        right={
+          <FilterPopover
+            activeFilterCount={activeFilterCount}
+            hasActiveFilters={hasActiveFilters}
+            onOpen={handleFilterOpen}
+            onApply={handleApplyFilters}
+            onClear={handleClearFilters}
+          >
+            <div className="space-y-3">
+              <SelectInput
+                label="Customer Grade"
+                name="filterGrade"
+                value={draftFilters.customerGradeId}
+                options={gradeOptions}
+                defaultOptionLabel="All Grades"
+                searchable={false}
+                noMargin
+                onChange={(e) =>
+                  setDraftFilters((p) => ({ ...p, customerGradeId: e.target.value }))
+                }
               />
-            )}
-
-            {canCreate && (
-              <CustomButton
-                text="Add Customer"
-                icon={FaPlus}
-                onClick={() => navigate("/customers/create")}
+              <SelectInput
+                label="Customer Type"
+                name="filterType"
+                value={draftFilters.customerTypeId}
+                options={typeOptions}
+                defaultOptionLabel="All Types"
+                searchable={false}
+                noMargin
+                onChange={(e) => setDraftFilters((p) => ({ ...p, customerTypeId: e.target.value }))}
               />
-            )}
-          </div>
-        </div>
-
-        {/* Active filter chips */}
-        {hasActiveFilters && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-line flex-wrap">
-            <span className="text-xs text-ink-subtle">Active filters:</span>
-
-            {appliedFilters.status && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-card-2 text-ink-muted border border-line rounded-sm text-xs font-medium">
-                Status: {appliedFilters.status}
-                <FaTimes
-                  className="cursor-pointer hover:text-ink ml-0.5"
-                  onClick={() => {
-                    setAppliedFilters((p) => ({ ...p, status: "" }));
-                    setCurrentPage(1);
-                  }}
-                />
-              </span>
-            )}
-
+              <SelectInput
+                label="Status"
+                name="filterStatus"
+                value={draftFilters.status}
+                options={[
+                  { value: "Active", label: "Active" },
+                  { value: "Inactive", label: "Inactive" },
+                ]}
+                defaultOptionLabel="All Statuses"
+                searchable={false}
+                noMargin
+                onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
+              />
+            </div>
+          </FilterPopover>
+        }
+      >
+        {(appliedFilters.customerTypeId || appliedFilters.customerGradeId) && (
+          <div className="flex flex-wrap items-center gap-2" aria-label="Active filters">
             {appliedFilters.customerTypeId && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-card-2 text-ink-muted border border-line rounded-sm text-xs font-medium">
+              <Chip size="lg">
                 Type: {activeTypeName}
-                <FaTimes
-                  className="cursor-pointer hover:text-ink ml-0.5"
+                <button
+                  type="button"
+                  aria-label="Remove type filter"
+                  className="-mr-1 inline-flex rounded-full p-0.5 hover:text-ink"
                   onClick={() => {
                     setAppliedFilters((p) => ({ ...p, customerTypeId: "" }));
                     setCurrentPage(1);
                   }}
-                />
-              </span>
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </Chip>
             )}
-
             {appliedFilters.customerGradeId && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-card-2 text-ink-muted border border-line rounded-sm text-xs font-medium">
+              <Chip size="lg">
                 Grade: {activeGradeName}
-                <FaTimes
-                  className="cursor-pointer hover:text-ink ml-0.5"
+                <button
+                  type="button"
+                  aria-label="Remove grade filter"
+                  className="-mr-1 inline-flex rounded-full p-0.5 hover:text-ink"
                   onClick={() => {
                     setAppliedFilters((p) => ({ ...p, customerGradeId: "" }));
                     setCurrentPage(1);
                   }}
-                />
-              </span>
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </Chip>
             )}
           </div>
         )}
+      </Toolbar>
 
-        {/* Table */}
-        <div className="p-0">
-          <DataTable
-            data={customers ?? []}
-            rowKey={(customer) => customer.id}
-            loading={loading}
-            emptyMessage="No customers found."
-            pagination={
-              totalPages > 1
-                ? { currentPage, totalPages, onPageChange: (page) => setCurrentPage(page) }
-                : undefined
-            }
-            columns={[
-              {
-                header: "#",
-                width: "60px",
-                render: (_item, index) => startIndex + index + 1,
-                align: "center",
-              },
-              { header: " NAME", accessor: "firmName" },
-              { header: "TYPE", render: (c) => c.customerType?.name || "—" },
-              { header: "GRADE", render: (c) => c.customerGrade?.name || "—" },
-              {
-                header: "MOBILE",
-                render: (c) =>
-                  Array.isArray(c.mobile) && c.mobile.length > 0
-                    ? c.mobile[0].number
-                    : typeof c.mobile === "string"
-                      ? c.mobile
-                      : "N/A",
-              },
-              { header: "EMAIL", render: (c) => c.email || "N/A" },
-              {
-                header: "BALANCE",
-                render: (c: any) => {
-                  const netBal = Number(
-                    c.netBalance ??
-                      (c.openingBalanceType === "CREDIT"
-                        ? -Math.abs(c.openingBalance || 0)
-                        : Math.abs(c.openingBalance || 0))
-                  );
-                  const amt = Math.abs(netBal);
-                  const formattedAmt = amt.toLocaleString("en-IN", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  });
-                  if (netBal > 0) {
-                    return <span className="font-mono font-bold text-ink">₹{formattedAmt} Dr</span>;
-                  } else if (netBal < 0) {
-                    return <span className="font-mono font-bold text-ink">₹{formattedAmt} Cr</span>;
-                  }
-                  return <span className="font-mono text-ink-muted">₹0.00</span>;
-                },
-                align: "right",
-              },
-              {
-                header: "STATUS",
-                render: (c) => (
-                  <StatusBadge status={c.status === "Active" ? "ACTIVE" : "INACTIVE"} />
-                ),
-                align: "center",
-              },
-              {
-                header: "ACTIONS",
-                render: (customer) => (
-                  <div className="flex items-center gap-2">
-                    <ViewButton onClick={() => handleView(customer)} />
-                    {canEditCustomer && <EditButton onClick={() => handleEdit(customer)} />}
-                    {canDeleteCustomer && (
-                      <DeleteButton onClick={() => triggerDelete(customer.id)} />
-                    )}
-                  </div>
-                ),
-                align: "center",
-              },
-            ]}
-          />
-        </div>
-      </div>
+      <DataTable
+        data={customers ?? []}
+        rowKey={(customer) => customer.id}
+        loading={loading}
+        ariaLabel="Customers"
+        emptyMessage={filtered ? "No customers match these filters." : "No customers yet."}
+        emptyAction={
+          filtered ? (
+            <button
+              type="button"
+              className="sl-btn sl-pill-md"
+              onClick={() => {
+                setSearchTerm("");
+                handleClearFilters();
+              }}
+            >
+              Clear filters
+            </button>
+          ) : (
+            createButton
+          )
+        }
+        pagination={
+          totalPages > 1
+            ? { currentPage, totalPages, onPageChange: (page) => setCurrentPage(page) }
+            : undefined
+        }
+        columns={[
+          {
+            header: "#",
+            width: "56px",
+            render: (_item, index) => (
+              <span className="tabular-nums text-ink-subtle">{startIndex + index + 1}</span>
+            ),
+          },
+          {
+            header: "Name",
+            render: (c) => (
+              <button
+                type="button"
+                onClick={() => handleView(c)}
+                className="min-w-0 text-left leading-tight"
+              >
+                <span className="block font-semibold text-accent hover:underline underline-offset-4">
+                  {c.firmName}
+                </span>
+                {(c.gstin || c.gstNumber) && (
+                  <span className="mt-0.5 block text-[12px] tabular-nums text-ink-subtle">
+                    {c.gstin || c.gstNumber}
+                  </span>
+                )}
+              </button>
+            ),
+          },
+          {
+            header: "Type",
+            render: (c) =>
+              c.customerType?.name ? (
+                <Chip size="sm" tone="muted">
+                  {c.customerType.name}
+                </Chip>
+              ) : (
+                <span className="text-ink-subtle">—</span>
+              ),
+          },
+          {
+            header: "Grade",
+            render: (c) =>
+              c.customerGrade?.name ? (
+                <Chip size="sm">{c.customerGrade.name}</Chip>
+              ) : (
+                <span className="text-ink-subtle">—</span>
+              ),
+          },
+          {
+            header: "Mobile",
+            render: (c) => (
+              <span className="tabular-nums text-ink-muted">
+                {Array.isArray(c.mobile) && c.mobile.length > 0
+                  ? c.mobile[0].number
+                  : typeof c.mobile === "string"
+                    ? c.mobile
+                    : "—"}
+              </span>
+            ),
+          },
+          {
+            header: "Email",
+            render: (c) => <span className="text-ink-muted">{c.email || "—"}</span>,
+          },
+          {
+            header: "Balance",
+            render: (c: any) => {
+              const netBal = Number(
+                c.netBalance ??
+                  (c.openingBalanceType === "CREDIT"
+                    ? -Math.abs(c.openingBalance || 0)
+                    : Math.abs(c.openingBalance || 0))
+              );
+              const amt = formatINR(Math.abs(netBal));
+              if (netBal > 0) {
+                return <span className="font-semibold tabular-nums text-ink">{amt} Dr</span>;
+              } else if (netBal < 0) {
+                return <span className="font-semibold tabular-nums text-ink">{amt} Cr</span>;
+              }
+              return <span className="tabular-nums text-ink-subtle">₹0.00</span>;
+            },
+            align: "right",
+          },
+          {
+            header: "Status",
+            render: (c) => <StatusBadge status={c.status === "Active" ? "ACTIVE" : "INACTIVE"} />,
+          },
+          {
+            header: "Actions",
+            render: (customer) => (
+              <div className="flex items-center justify-end gap-1.5">
+                <ViewButton onClick={() => handleView(customer)} />
+                {canEditCustomer && <EditButton onClick={() => handleEdit(customer)} />}
+                {canDeleteCustomer && <DeleteButton onClick={() => triggerDelete(customer.id)} />}
+              </div>
+            ),
+            align: "right",
+          },
+        ]}
+      />
 
       <CustomerViewModal
         show={showViewModal}

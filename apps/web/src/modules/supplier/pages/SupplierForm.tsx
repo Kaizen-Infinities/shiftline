@@ -1,14 +1,25 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useSelector } from "react-redux";
-import { FaSave, FaEraser, FaPlus, FaTrash, FaArrowLeft, FaTimes } from "react-icons/fa";
+import {
+  Building2,
+  Eraser,
+  MapPin,
+  Percent,
+  Plus,
+  Save,
+  ShieldCheck,
+  Truck,
+  Wallet,
+} from "lucide-react";
+import { ActionPill, Chip, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import { FormFooter, KeyHint } from "../../sales/shared/tradeUi";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { z } from "zod";
 
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import { useSuppliers } from "../../../hooks/useSuppliers";
 import { supplierService } from "../../../services/supplierService";
 import type { SupplierAddress } from "../../../features/supplier/types";
@@ -19,7 +30,6 @@ import IndiaPhoneInput, {
 } from "../../../components/ui/PhoneInput/PhoneInput";
 import AddressForm from "../../../components/form/AddressFrom/AddressFrom";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import { useSocket } from "../../../providers/SocketProvider";
 import { usePermission } from "../../../hooks/usePermission";
 import { tdsService, type TdsSectionRow } from "../../../services/tdsService";
@@ -571,494 +581,464 @@ const SupplierForm: React.FC = () => {
 
   if (isLoadingData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg font-semibold text-ink-subtle animate-pulse">
-          Loading Supplier Details...
-        </div>
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4">
+        <SkeletonTile lines={4} label="Loading Supplier Details..." />
+        <SkeletonTile lines={3} />
+        <SkeletonTile lines={2} />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1200px] mr-auto supplier-form-compact">
-      <style>{`
-                .supplier-form-compact label { margin-bottom: 2px !important; font-size: 11px !important; }
-                .supplier-form-compact input, .supplier-form-compact select,
-                .supplier-form-compact button[role="combobox"] { height: 32px !important; min-height: 32px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
-                .supplier-form-compact .group { margin-bottom: 0 !important; }
-            `}</style>
-      <div className="bg-card rounded-sm border border-line-soft overflow-visible">
-        {/* Header */}
-        <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
-          <h2 className="text-base font-bold text-ink">
-            {isEdit ? "Edit Supplier" : "Add New Supplier"}
-          </h2>
-          <BackButton text="Back" />
-        </div>
+    <div className="mx-auto w-full max-w-[1200px]">
+      <PageHeader
+        title={isEdit ? "Edit Supplier" : "Add New Supplier"}
+        meta={
+          formData.supplierCode ? (
+            <Chip size="sm" tone="muted">
+              {formData.supplierCode}
+            </Chip>
+          ) : null
+        }
+        subtitle="Vendor master: GSTIN, addresses, credit terms, MSME status and TDS defaults."
+        back={() => navigate(-1)}
+        breadcrumbs={[{ label: "Suppliers", to: "/suppliers" }, { label: isEdit ? "Edit" : "New" }]}
+      />
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="px-5 py-3 space-y-3">
-            {/* ── Section 1: Supplier Details ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Supplier Details
-                </h3>
-              </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                <TextInput
-                  label="Supplier Code"
-                  name="supplierCode"
-                  value={formData.supplierCode}
-                  placeholder="SUP-001"
-                  required
-                  error={errors.supplierCode}
-                  onChange={handleChange}
-                  disabled
-                />
-                <TextInput
-                  label="Legal Name"
-                  name="legalName"
-                  value={formData.legalName}
-                  placeholder="Sri Vinayaga Chemicals Pvt Ltd"
-                  required
-                  error={errors.legalName}
-                  onChange={handleChange}
-                />
-                <TextInput
-                  label="Display Name"
-                  name="displayName"
-                  value={formData.displayName}
-                  placeholder="SVC"
-                  error={errors.displayName}
-                  onChange={handleChange}
-                />
-                <SelectInput
-                  label="Status"
-                  name="status"
-                  value={formData.status}
-                  options={[
-                    { value: "Active", label: "Active" },
-                    { value: "Backup", label: "Backup" },
-                    { value: "Inactive", label: "Inactive" },
-                    { value: "Blacklisted", label: "Blacklisted" },
-                  ]}
-                  error={errors.status}
-                  onChange={handleChange}
-                />
-                <TextInput
-                  label="Contact Person"
-                  name="contactPerson"
-                  value={formData.contactPerson}
-                  placeholder="Contact person name"
-                  error={errors.contactPerson}
-                  onChange={handleChange}
-                />
-                <TextInput
-                  label="Email"
-                  name="email"
-                  value={formData.email}
-                  placeholder="sales@svchemicals.com"
-                  error={errors.email}
-                  onChange={handleChange}
-                />
-                <TextInput
-                  label="GSTIN"
-                  name="gstin"
-                  value={formData.gstin}
-                  placeholder="33ABCDE1234F1Z5"
-                  error={errors.gstin}
-                  onChange={handleChange}
-                />
-                <TextInput
-                  label="PAN"
-                  name="pan"
-                  value={formData.pan}
-                  placeholder="ABCDE1234F"
-                  error={errors.pan}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="mt-1.5 max-w-[50%]">
-                <IndiaPhoneInput
-                  multi
-                  label="Mobile Numbers"
-                  name="phones"
-                  value={phones}
-                  onChange={(e) => {
-                    setPhones(e.target.value);
-                    if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: "" }));
-                  }}
-                  maxNumbers={5}
-                  error={errors.mobile}
-                />
-              </div>
-            </div>
-
-            {/* ── Section 2: Billing Address ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Billing Address <span className="text-[color:var(--color-danger)]">*</span>
-                </h3>
-              </div>
-              <AddressForm
-                addressValue={formData.billingAddressLine1}
-                onAddressChange={(v) =>
-                  handleChange({ target: { name: "billingAddressLine1", value: v } })
-                }
-                addressError={errors.billingAddressLine1}
-                countryValue={formData.billingAddressCountry}
-                onCountryChange={(v) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    billingAddressCountry: v,
-                    billingAddressState: "",
-                    billingAddressCity: "",
-                  }));
-                  setErrors((prev) => ({
-                    ...prev,
-                    billingAddressCountry: "",
-                    billingAddressState: "",
-                    billingAddressCity: "",
-                  }));
-                }}
-                countryError={errors.billingAddressCountry}
-                stateValue={formData.billingAddressState}
-                onStateChange={(v) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    billingAddressState: v,
-                    billingAddressCity: "",
-                  }));
-                  setErrors((prev) => ({
-                    ...prev,
-                    billingAddressState: "",
-                    billingAddressCity: "",
-                  }));
-                }}
-                stateError={errors.billingAddressState}
-                cityValue={formData.billingAddressCity}
-                onCityChange={(v) => {
-                  setFormData((prev) => ({ ...prev, billingAddressCity: v }));
-                  setErrors((prev) => ({ ...prev, billingAddressCity: "" }));
-                }}
-                cityError={errors.billingAddressCity}
-                pincodeValue={formData.billingAddressPincode}
-                onPincodeChange={(v) =>
-                  handleChange({ target: { name: "billingAddressPincode", value: v } })
-                }
-                pincodeError={errors.billingAddressPincode}
-                required
-              />
-            </div>
-
-            {/* ── Section 3: Delivery / Plant Addresses ── */}
-            <div>
-              <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  Delivery / Plant Addresses{" "}
-                  <span className="text-[color:var(--color-danger)]">*</span>
-                </h3>
-                <CustomButton
-                  text="Add Address"
-                  icon={FaPlus}
-                  onClick={addShippingAddress}
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                />
-              </div>
-              <div className="space-y-2">
-                {addresses.length === 0 && (
-                  <div className="text-center text-[11px] text-ink-subtle py-2 border border-dashed border-line-soft rounded-lg bg-card-2">
-                    No addresses added.
-                  </div>
-                )}
-                {(() => {
-                  const isAnyAddressSameAsBilling = addresses.some(
-                    (addr) =>
-                      addr.address.addressLine1 === formData.billingAddressLine1 &&
-                      addr.address.city === formData.billingAddressCity &&
-                      addr.address.state === formData.billingAddressState &&
-                      addr.address.pincode === formData.billingAddressPincode &&
-                      !!formData.billingAddressLine1
-                  );
-                  return addresses.map((addr, index) => {
-                    const isThisSameAsBilling =
-                      addr.address.addressLine1 === formData.billingAddressLine1 &&
-                      addr.address.city === formData.billingAddressCity &&
-                      addr.address.state === formData.billingAddressState &&
-                      addr.address.pincode === formData.billingAddressPincode &&
-                      !!formData.billingAddressLine1;
-                    const showSameAsBillingCheckbox =
-                      isThisSameAsBilling || !isAnyAddressSameAsBilling;
-                    return (
-                      <div
-                        key={index}
-                        className="p-2.5 border border-line-soft rounded-lg bg-card-2"
-                      >
-                        <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-line-soft">
-                          <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">
-                            Address {index + 1}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {showSameAsBillingCheckbox && (
-                              <label className="flex items-center gap-1 text-[10px] text-ink-subtle cursor-pointer hover:text-ink">
-                                <input
-                                  type="checkbox"
-                                  className="w-3 h-3 rounded accent-primary cursor-pointer"
-                                  checked={isThisSameAsBilling}
-                                  onChange={(e) => toggleSameAsBilling(index, e.target.checked)}
-                                />
-                                Same as billing
-                              </label>
-                            )}
-                            {addresses.length > 1 && (
-                              <DeleteButton onClick={() => removeShippingAddress(index)} />
-                            )}
-                          </div>
-                        </div>
-                        <AddressForm
-                          addressValue={addr.address.addressLine1}
-                          onAddressChange={(v) =>
-                            handleShippingAddressChange(index, "addressLine1", v)
-                          }
-                          addressError={errors[`addresses.${index}.address.addressLine1`]}
-                          stateValue={addr.address.state}
-                          onStateChange={(v) => {
-                            handleShippingAddressChange(index, "state", v);
-                            handleShippingAddressChange(index, "city", "");
-                          }}
-                          stateError={errors[`addresses.${index}.address.state`]}
-                          cityValue={addr.address.city}
-                          onCityChange={(v) => handleShippingAddressChange(index, "city", v)}
-                          cityError={errors[`addresses.${index}.address.city`]}
-                          pincodeValue={addr.address.pincode}
-                          onPincodeChange={(v) => handleShippingAddressChange(index, "pincode", v)}
-                          pincodeError={errors[`addresses.${index}.address.pincode`]}
-                          required
-                        />
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-
-            {/* ── Section 4: Opening Balance — create mode only ── */}
-            {!isEdit && (
-              <div>
-                <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                  <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                    Opening Balance
-                  </h3>
-                </div>
-                <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                  <div>
-                    <TextInput
-                      label="Opening Balance (₹)"
-                      name="openingBalance"
-                      type="number"
-                      value={String(formData.openingBalance)}
-                      placeholder="0.00"
-                      error={errors.openingBalance}
-                      onChange={handleChange}
-                    />
-                    <p className="mt-0.5 text-[10px] text-[color:var(--color-warning)]">
-                      Set once. Cannot be edited later.
-                    </p>
-                  </div>
-                  <SelectInput
-                    label="Balance Type"
-                    name="openingBalanceType"
-                    value={formData.openingBalanceType}
-                    options={[
-                      { value: "CREDIT", label: "Credit (We owe supplier)" },
-                      { value: "DEBIT", label: "Debit (Advance paid)" },
-                    ]}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-            )}
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">Credit Terms</h3>
-              </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                <div>
-                  <TextInput
-                    label="Credit Days"
-                    name="creditDays"
-                    type="number"
-                    value={String(formData.creditDays ?? "")}
-                    placeholder="e.g. 30"
-                    onChange={handleChange}
-                  />
-                  <p className="mt-0.5 text-[10px] text-ink-muted">
-                    Bills fall due this many days after the bill date.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">
-                  MSME Registration
-                </h3>
-              </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                <div>
-                  <SelectInput
-                    label="MSME Category"
-                    name="msmeCategory"
-                    value={String(formData.msmeCategory ?? "NOT_REGISTERED")}
-                    options={[
-                      { value: "NOT_REGISTERED", label: "Not registered" },
-                      { value: "MICRO", label: "Micro" },
-                      { value: "SMALL", label: "Small" },
-                      { value: "MEDIUM", label: "Medium" },
-                    ]}
-                    onChange={handleChange}
-                  />
-                  <p className="mt-0.5 text-[10px] text-ink-muted">
-                    Micro and small carry the section 15 clock; medium does not.
-                  </p>
-                </div>
-                <div>
-                  <TextInput
-                    label="Udyam Number"
-                    name="udyamNumber"
-                    value={String(formData.udyamNumber ?? "")}
-                    placeholder="UDYAM-TN-01-0000001"
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <SelectInput
-                    label="Written Contract"
-                    name="hasWrittenContract"
-                    value={formData.hasWrittenContract ? "yes" : "no"}
-                    options={[
-                      { value: "no", label: "No — 15-day limit" },
-                      { value: "yes", label: "Yes — up to 45 days" },
-                    ]}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        hasWrittenContract: e.target.value === "yes",
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <TextInput
-                    label="Agreed Payment Days"
-                    name="agreedPaymentDays"
-                    type="number"
-                    value={String(formData.agreedPaymentDays ?? "")}
-                    placeholder="e.g. 45"
-                    onChange={handleChange}
-                  />
-                  <p className="mt-0.5 text-[10px] text-ink-muted">
-                    Section 15 caps this at 45 days however long the contract says.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">TDS Defaults</h3>
-              </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                <div>
-                  {canViewTds ? (
-                    <SelectInput
-                      label="Default TDS Section"
-                      name="defaultTdsSectionCode"
-                      value={String(formData.defaultTdsSectionCode ?? "")}
-                      defaultOptionLabel="-- None --"
-                      options={tdsSections
-                        .filter((s) => !s.isTcs)
-                        .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
-                      onChange={handleChange}
-                    />
-                  ) : (
-                    <TextInput
-                      label="Default TDS Section"
-                      name="defaultTdsSectionCode"
-                      value={formData.defaultTdsSectionCode}
-                      placeholder="e.g. 194C(5)"
-                      error={errors.defaultTdsSectionCode}
-                      onChange={handleChange}
-                    />
-                  )}
-                  <p className="mt-0.5 text-[10px] text-ink-muted">
-                    The GRN form's TDS picker defaults to this section for this supplier.
-                  </p>
-                </div>
-                <div>
-                  <SelectInput
-                    label="Deductee Type"
-                    name="deducteeType"
-                    value={String(formData.deducteeType ?? "")}
-                    defaultOptionLabel="-- Not set --"
-                    options={[
-                      { value: "COMPANY", label: "Company / Firm" },
-                      { value: "INDIVIDUAL_HUF", label: "Individual / HUF" },
-                      { value: "FIRM", label: "Firm" },
-                      { value: "AOP_BOI", label: "AOP / BOI" },
-                      { value: "LOCAL_AUTHORITY", label: "Local Authority" },
-                      { value: "NON_RESIDENT", label: "Non-Resident" },
-                    ]}
-                    onChange={handleChange}
-                  />
-                </div>
-                <div>
-                  <SelectInput
-                    label="Higher Rate (206AB)"
-                    name="higherRate206AB"
-                    value={formData.higherRate206AB ? "yes" : "no"}
-                    options={[
-                      { value: "no", label: "No" },
-                      { value: "yes", label: "Yes — non-filer" },
-                    ]}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        higherRate206AB: e.target.value === "yes",
-                      }))
-                    }
-                  />
-                  <p className="mt-0.5 text-[10px] text-ink-muted">
-                    Doubles the TDS rate when this supplier has not filed their returns.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-3 px-5 py-2.5 border-t border-line-soft bg-card-2">
-            {!isEdit && (
-              <CustomButton
-                text="Clear Form"
-                icon={FaEraser}
-                onClick={handleClear}
-                type="button"
-                variant="secondary"
-              />
-            )}
-            <CustomButton
-              text={isSubmitting ? "Saving..." : isEdit ? "Update Supplier" : "Save Supplier"}
-              icon={FaSave}
-              type="submit"
-              disabled={isSubmitting || loading}
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <Tile title="Supplier Details" icon={<Building2 size={18} />}>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
+            <TextInput
+              label="Supplier Code"
+              name="supplierCode"
+              value={formData.supplierCode}
+              placeholder="SUP-001"
+              required
+              error={errors.supplierCode}
+              onChange={handleChange}
+              disabled
+            />
+            <TextInput
+              label="Legal Name"
+              name="legalName"
+              value={formData.legalName}
+              placeholder="Sri Vinayaga Chemicals Pvt Ltd"
+              required
+              error={errors.legalName}
+              onChange={handleChange}
+            />
+            <TextInput
+              label="Display Name"
+              name="displayName"
+              value={formData.displayName}
+              placeholder="SVC"
+              error={errors.displayName}
+              onChange={handleChange}
+            />
+            <SelectInput
+              label="Status"
+              name="status"
+              value={formData.status}
+              options={[
+                { value: "Active", label: "Active" },
+                { value: "Backup", label: "Backup" },
+                { value: "Inactive", label: "Inactive" },
+                { value: "Blacklisted", label: "Blacklisted" },
+              ]}
+              error={errors.status}
+              onChange={handleChange}
+            />
+            <TextInput
+              label="Contact Person"
+              name="contactPerson"
+              value={formData.contactPerson}
+              placeholder="Contact person name"
+              error={errors.contactPerson}
+              onChange={handleChange}
+            />
+            <TextInput
+              label="Email"
+              name="email"
+              value={formData.email}
+              placeholder="sales@svchemicals.com"
+              error={errors.email}
+              onChange={handleChange}
+            />
+            <TextInput
+              label="GSTIN"
+              name="gstin"
+              value={formData.gstin}
+              placeholder="33ABCDE1234F1Z5"
+              error={errors.gstin}
+              onChange={handleChange}
+            />
+            <TextInput
+              label="PAN"
+              name="pan"
+              value={formData.pan}
+              placeholder="ABCDE1234F"
+              error={errors.pan}
+              onChange={handleChange}
             />
           </div>
-        </form>
-      </div>
+          <div className="mt-4 md:max-w-[50%]">
+            <IndiaPhoneInput
+              multi
+              label="Mobile Numbers"
+              name="phones"
+              value={phones}
+              onChange={(e) => {
+                setPhones(e.target.value);
+                if (errors.mobile) setErrors((prev) => ({ ...prev, mobile: "" }));
+              }}
+              maxNumbers={5}
+              error={errors.mobile}
+            />
+          </div>
+        </Tile>
+
+        <Tile
+          title="Billing Address"
+          subtitle="Required. Its state decides the GST split on bills."
+          icon={<MapPin size={18} />}
+        >
+          <AddressForm
+            addressValue={formData.billingAddressLine1}
+            onAddressChange={(v) =>
+              handleChange({ target: { name: "billingAddressLine1", value: v } })
+            }
+            addressError={errors.billingAddressLine1}
+            countryValue={formData.billingAddressCountry}
+            onCountryChange={(v) => {
+              setFormData((prev) => ({
+                ...prev,
+                billingAddressCountry: v,
+                billingAddressState: "",
+                billingAddressCity: "",
+              }));
+              setErrors((prev) => ({
+                ...prev,
+                billingAddressCountry: "",
+                billingAddressState: "",
+                billingAddressCity: "",
+              }));
+            }}
+            countryError={errors.billingAddressCountry}
+            stateValue={formData.billingAddressState}
+            onStateChange={(v) => {
+              setFormData((prev) => ({
+                ...prev,
+                billingAddressState: v,
+                billingAddressCity: "",
+              }));
+              setErrors((prev) => ({
+                ...prev,
+                billingAddressState: "",
+                billingAddressCity: "",
+              }));
+            }}
+            stateError={errors.billingAddressState}
+            cityValue={formData.billingAddressCity}
+            onCityChange={(v) => {
+              setFormData((prev) => ({ ...prev, billingAddressCity: v }));
+              setErrors((prev) => ({ ...prev, billingAddressCity: "" }));
+            }}
+            cityError={errors.billingAddressCity}
+            pincodeValue={formData.billingAddressPincode}
+            onPincodeChange={(v) =>
+              handleChange({ target: { name: "billingAddressPincode", value: v } })
+            }
+            pincodeError={errors.billingAddressPincode}
+            required
+          />
+        </Tile>
+
+        <Tile
+          title="Delivery / Plant Addresses"
+          subtitle="Where the supplier ships from; at least one is required."
+          icon={<Truck size={18} />}
+          actions={
+            <ActionPill
+              size="sm"
+              variant="secondary"
+              icon={<Plus size={15} />}
+              onClick={addShippingAddress}
+            >
+              Add Address
+            </ActionPill>
+          }
+        >
+          <div className="space-y-4">
+            {addresses.length === 0 && (
+              <div className="rounded-[14px] border border-dashed border-line py-4 text-center text-sm text-ink-subtle">
+                No addresses added.
+              </div>
+            )}
+            {(() => {
+              const isAnyAddressSameAsBilling = addresses.some(
+                (addr) =>
+                  addr.address.addressLine1 === formData.billingAddressLine1 &&
+                  addr.address.city === formData.billingAddressCity &&
+                  addr.address.state === formData.billingAddressState &&
+                  addr.address.pincode === formData.billingAddressPincode &&
+                  !!formData.billingAddressLine1
+              );
+              return addresses.map((addr, index) => {
+                const isThisSameAsBilling =
+                  addr.address.addressLine1 === formData.billingAddressLine1 &&
+                  addr.address.city === formData.billingAddressCity &&
+                  addr.address.state === formData.billingAddressState &&
+                  addr.address.pincode === formData.billingAddressPincode &&
+                  !!formData.billingAddressLine1;
+                const showSameAsBillingCheckbox = isThisSameAsBilling || !isAnyAddressSameAsBilling;
+                return (
+                  <div
+                    key={index}
+                    className="rounded-[14px] border border-line-soft bg-card-2/60 p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="sl-section-label m-0">Address {index + 1}</h3>
+                      <div className="flex items-center gap-2">
+                        {showSameAsBillingCheckbox && (
+                          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink-muted hover:text-ink">
+                            <input
+                              type="checkbox"
+                              className="sl-check"
+                              checked={isThisSameAsBilling}
+                              onChange={(e) => toggleSameAsBilling(index, e.target.checked)}
+                            />
+                            Same as billing
+                          </label>
+                        )}
+                        {addresses.length > 1 && (
+                          <DeleteButton onClick={() => removeShippingAddress(index)} />
+                        )}
+                      </div>
+                    </div>
+                    <AddressForm
+                      addressValue={addr.address.addressLine1}
+                      onAddressChange={(v) => handleShippingAddressChange(index, "addressLine1", v)}
+                      addressError={errors[`addresses.${index}.address.addressLine1`]}
+                      stateValue={addr.address.state}
+                      onStateChange={(v) => {
+                        handleShippingAddressChange(index, "state", v);
+                        handleShippingAddressChange(index, "city", "");
+                      }}
+                      stateError={errors[`addresses.${index}.address.state`]}
+                      cityValue={addr.address.city}
+                      onCityChange={(v) => handleShippingAddressChange(index, "city", v)}
+                      cityError={errors[`addresses.${index}.address.city`]}
+                      pincodeValue={addr.address.pincode}
+                      onPincodeChange={(v) => handleShippingAddressChange(index, "pincode", v)}
+                      pincodeError={errors[`addresses.${index}.address.pincode`]}
+                      required
+                    />
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </Tile>
+
+        <Tile title="Payment terms" icon={<Wallet size={18} />}>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
+            {!isEdit && (
+              <>
+                <div>
+                  <TextInput
+                    label="Opening Balance (₹)"
+                    name="openingBalance"
+                    type="number"
+                    value={String(formData.openingBalance)}
+                    placeholder="0.00"
+                    error={errors.openingBalance}
+                    onChange={handleChange}
+                  />
+                  <p className="sl-field-hint m-0 text-[color:var(--color-warning)]">
+                    Set once. Cannot be edited later.
+                  </p>
+                </div>
+                <SelectInput
+                  label="Balance Type"
+                  name="openingBalanceType"
+                  value={formData.openingBalanceType}
+                  options={[
+                    { value: "CREDIT", label: "Credit (We owe supplier)" },
+                    { value: "DEBIT", label: "Debit (Advance paid)" },
+                  ]}
+                  onChange={handleChange}
+                />
+              </>
+            )}
+            <div>
+              <TextInput
+                label="Credit Days"
+                name="creditDays"
+                type="number"
+                value={String(formData.creditDays ?? "")}
+                placeholder="e.g. 30"
+                onChange={handleChange}
+              />
+              <p className="sl-field-hint m-0">
+                Bills fall due this many days after the bill date.
+              </p>
+            </div>
+          </div>
+        </Tile>
+
+        <Tile
+          title="MSME Registration"
+          subtitle="Drives the MSME dues clock under section 15 of the MSMED Act."
+          icon={<ShieldCheck size={18} />}
+        >
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <SelectInput
+                label="MSME Category"
+                name="msmeCategory"
+                value={String(formData.msmeCategory ?? "NOT_REGISTERED")}
+                options={[
+                  { value: "NOT_REGISTERED", label: "Not registered" },
+                  { value: "MICRO", label: "Micro" },
+                  { value: "SMALL", label: "Small" },
+                  { value: "MEDIUM", label: "Medium" },
+                ]}
+                onChange={handleChange}
+              />
+              <p className="sl-field-hint m-0">
+                Micro and small carry the section 15 clock; medium does not.
+              </p>
+            </div>
+            <div>
+              <TextInput
+                label="Udyam Number"
+                name="udyamNumber"
+                value={String(formData.udyamNumber ?? "")}
+                placeholder="UDYAM-TN-01-0000001"
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <SelectInput
+                label="Written Contract"
+                name="hasWrittenContract"
+                value={formData.hasWrittenContract ? "yes" : "no"}
+                options={[
+                  { value: "no", label: "No — 15-day limit" },
+                  { value: "yes", label: "Yes — up to 45 days" },
+                ]}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    hasWrittenContract: e.target.value === "yes",
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <TextInput
+                label="Agreed Payment Days"
+                name="agreedPaymentDays"
+                type="number"
+                value={String(formData.agreedPaymentDays ?? "")}
+                placeholder="e.g. 45"
+                onChange={handleChange}
+              />
+              <p className="sl-field-hint m-0">
+                Section 15 caps this at 45 days however long the contract says.
+              </p>
+            </div>
+          </div>
+        </Tile>
+
+        <Tile title="TDS Defaults" icon={<Percent size={18} />}>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
+            <div>
+              {canViewTds ? (
+                <SelectInput
+                  label="Default TDS Section"
+                  name="defaultTdsSectionCode"
+                  value={String(formData.defaultTdsSectionCode ?? "")}
+                  defaultOptionLabel="-- None --"
+                  options={tdsSections
+                    .filter((s) => !s.isTcs)
+                    .map((s) => ({ value: s.code, label: `${s.code} — ${s.name}` }))}
+                  onChange={handleChange}
+                />
+              ) : (
+                <TextInput
+                  label="Default TDS Section"
+                  name="defaultTdsSectionCode"
+                  value={formData.defaultTdsSectionCode}
+                  placeholder="e.g. 194C(5)"
+                  error={errors.defaultTdsSectionCode}
+                  onChange={handleChange}
+                />
+              )}
+              <p className="sl-field-hint m-0">
+                The GRN form's TDS picker defaults to this section for this supplier.
+              </p>
+            </div>
+            <div>
+              <SelectInput
+                label="Deductee Type"
+                name="deducteeType"
+                value={String(formData.deducteeType ?? "")}
+                defaultOptionLabel="-- Not set --"
+                options={[
+                  { value: "COMPANY", label: "Company / Firm" },
+                  { value: "INDIVIDUAL_HUF", label: "Individual / HUF" },
+                  { value: "FIRM", label: "Firm" },
+                  { value: "AOP_BOI", label: "AOP / BOI" },
+                  { value: "LOCAL_AUTHORITY", label: "Local Authority" },
+                  { value: "NON_RESIDENT", label: "Non-Resident" },
+                ]}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <SelectInput
+                label="Higher Rate (206AB)"
+                name="higherRate206AB"
+                value={formData.higherRate206AB ? "yes" : "no"}
+                options={[
+                  { value: "no", label: "No" },
+                  { value: "yes", label: "Yes — non-filer" },
+                ]}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    higherRate206AB: e.target.value === "yes",
+                  }))
+                }
+              />
+              <p className="sl-field-hint m-0">
+                Doubles the TDS rate when this supplier has not filed their returns.
+              </p>
+            </div>
+          </div>
+        </Tile>
+
+        <FormFooter start={<KeyHint keys={["F2"]}>saves the supplier</KeyHint>}>
+          <ActionPill variant="secondary" onClick={() => navigate(-1)}>
+            Cancel
+          </ActionPill>
+          {!isEdit && (
+            <ActionPill variant="secondary" icon={<Eraser size={16} />} onClick={handleClear}>
+              Clear Form
+            </ActionPill>
+          )}
+          <ActionPill
+            type="submit"
+            icon={<Save size={17} />}
+            loading={isSubmitting}
+            loadingText="Saving..."
+            disabled={loading}
+          >
+            {isEdit ? "Update Supplier" : "Save Supplier"}
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

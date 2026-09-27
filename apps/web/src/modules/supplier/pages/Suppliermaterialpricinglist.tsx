@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { FaHistory, FaChevronDown, FaChevronUp, FaArrowLeft, FaTimes } from "react-icons/fa";
+import { ChevronDown, ChevronUp, History, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { useParams, useNavigate } from "react-router-dom";
 import { supplierService } from "../../../services/supplierService";
 
 import TextInput from "../../../components/form/TextInput/TextInput";
-import Button from "../../../components/ui/Button/Button";
-import CustomButton from "../../../components/ui/Button/Button";
+import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
+import { ActionPill, Chip, PageHeader, SkeletonRows } from "../../../components/ui/v2";
+import { PAGE_CLASS, formatDateIN, formatINR } from "../../sales/shared/tradeUi";
 import { supplierMaterialPriceService } from "../../../services/Suppliermaterialpriceservice";
 import type {
   SupplierMaterialPriceRow,
   SupplierMaterialPrice,
 } from "../../../features/supplier/types";
 
-const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-IN") : "—");
-const fmtMoney = (n: number) => (n > 0 ? `₹${Number(n).toFixed(2)}` : "—");
+const fmtDate = (d: string | null) => formatDateIN(d);
+const fmtMoney = (n: number) => (n > 0 ? formatINR(n) : "—");
 const todayISO = () => new Date().toISOString().split("T")[0];
 
 const SupplierMaterialPricingList: React.FC = () => {
@@ -161,261 +162,222 @@ const SupplierMaterialPricingList: React.FC = () => {
     }
   };
 
-  return (
-    <div className="w-full min-h-screen bg-page p-4 md:p-6 lg:p-8">
-      <div className=" space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-6 rounded-sm border border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink tracking-tight">Raw Material Pricing</h2>
-            {supplierName && <p className="text-ink-muted mt-1 font-medium">{supplierName}</p>}
+  const columns: DataTableColumn<SupplierMaterialPriceRow>[] = [
+    {
+      header: "Raw material",
+      render: (row) => <span className="font-semibold text-ink">{row.materialName}</span>,
+    },
+    {
+      header: "Current price",
+      align: "right",
+      render: (row) => (
+        <span className="font-semibold tabular-nums text-ink">{fmtMoney(row.price)}</span>
+      ),
+    },
+    {
+      header: "Valid from",
+      render: (row) => (
+        <span className="tabular-nums text-ink-muted">{fmtDate(row.validFrom)}</span>
+      ),
+    },
+    {
+      header: "Revisions",
+      align: "right",
+      render: (row) => (
+        <Chip size="sm" tone="muted" className="tabular-nums">
+          {row.revisionCount}
+        </Chip>
+      ),
+    },
+    {
+      header: "Actions",
+      align: "right",
+      render: (row) => {
+        const isExpanded = expandedMaterialId === row.rawMaterialId;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <ActionPill
+              size="sm"
+              variant="secondary"
+              icon={<History size={15} />}
+              iconRight={isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              aria-expanded={isExpanded}
+              onClick={() => toggleHistory(row)}
+            >
+              History
+            </ActionPill>
+            <ActionPill size="sm" variant="blue" onClick={() => openReviseModal(row)}>
+              Revise Price
+            </ActionPill>
           </div>
+        );
+      },
+    },
+  ];
 
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-card-2 border border-line rounded-sm text-sm font-medium text-ink hover:bg-card transition-all duration-200 active:scale-95"
-            onClick={() => navigate("/suppliers")}
-          >
-            <FaArrowLeft className="text-ink-subtle" />
-            Back to Suppliers
-          </button>
-        </div>
-
-        {/* Table Section */}
-        <div className="bg-card rounded-sm border border-line overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead>
-                <tr className="bg-card-2 border-b border-line text-ink-muted font-semibold">
-                  <th className="px-6 py-4">Raw Material</th>
-                  <th className="px-6 py-4">Current Price</th>
-                  <th className="px-6 py-4">Valid From</th>
-                  <th className="px-6 py-4">Revisions</th>
-                  <th className="px-6 py-4 text-center w-64">Actions</th>
+  const renderHistory = (row: SupplierMaterialPriceRow) => {
+    if (expandedMaterialId !== row.rawMaterialId) return null;
+    const history = historyByMaterial[row.rawMaterialId];
+    return (
+      <div className="bg-card-2 px-4 py-4 sm:px-6">
+        {historyLoading === row.rawMaterialId ? (
+          <SkeletonRows rows={3} columns={4} rowHeight={40} label="Loading history" />
+        ) : (
+          <div className="sl-tile overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Price history of {row.materialName}</caption>
+              <thead className="bg-card-2">
+                <tr>
+                  <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                    Price
+                  </th>
+                  <th scope="col" className="sl-th px-4 py-2.5">
+                    Valid from
+                  </th>
+                  <th scope="col" className="sl-th px-4 py-2.5">
+                    Valid to
+                  </th>
+                  <th scope="col" className="sl-th px-4 py-2.5">
+                    Recorded on
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-soft">
-                {loading && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-ink-muted font-medium">
-                      <div className="flex justify-center items-center gap-3">
-                        <div className="w-5 h-5 border-2 border-ink-subtle border-t-transparent rounded-full animate-spin"></div>
-                        Loading pricing data...
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {!loading && rows.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-ink-muted">
-                      No raw materials priced for this supplier yet.
-                    </td>
-                  </tr>
-                )}
-
-                {!loading &&
-                  rows.map((row) => {
-                    const isExpanded = expandedMaterialId === row.rawMaterialId;
-                    const history = historyByMaterial[row.rawMaterialId];
-
-                    return (
-                      <React.Fragment key={row.rawMaterialId}>
-                        <tr className="hover:bg-card-2 transition-colors duration-150">
-                          <td className="px-6 py-4 font-medium text-ink">{row.materialName}</td>
-                          <td className="px-6 py-4 text-ink font-semibold">
-                            {fmtMoney(row.price)}
-                          </td>
-                          <td className="px-6 py-4 text-ink-muted">{fmtDate(row.validFrom)}</td>
-                          <td className="px-6 py-4 text-ink-muted">
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-sm border border-line bg-card-2 text-ink-muted font-medium">
-                              {row.revisionCount}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <CustomButton
-                                text="Revise Price"
-                                onClick={() => openReviseModal(row)}
-                                type="button"
-                              />
-                              <button
-                                type="button"
-                                className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 border ${
-                                  isExpanded
-                                    ? "bg-card-2 border-line text-ink"
-                                    : "bg-card border-line text-ink-muted hover:bg-card-2 hover:text-ink"
-                                }`}
-                                onClick={() => toggleHistory(row)}
-                              >
-                                <FaHistory
-                                  className={isExpanded ? "text-ink-muted" : "text-ink-subtle"}
-                                />
-                                History
-                                <span className="ml-0.5 text-ink-subtle">
-                                  {isExpanded ? (
-                                    <FaChevronUp size={12} />
-                                  ) : (
-                                    <FaChevronDown size={12} />
-                                  )}
-                                </span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {isExpanded && (
-                          <tr className="bg-card border-b border-line">
-                            <td colSpan={5} className="p-0">
-                              <div className="px-6 py-5">
-                                {historyLoading === row.rawMaterialId ? (
-                                  <div className="text-center py-4 text-sm text-ink-muted font-medium animate-pulse">
-                                    Loading history...
-                                  </div>
-                                ) : (
-                                  <div className="bg-card rounded-sm border border-line overflow-hidden">
-                                    <table className="w-full text-left text-sm">
-                                      <thead className="bg-card-2 text-ink-muted text-xs uppercase tracking-wider">
-                                        <tr>
-                                          <th className="px-4 py-3 font-semibold">Price</th>
-                                          <th className="px-4 py-3 font-semibold">Valid From</th>
-                                          <th className="px-4 py-3 font-semibold">Valid To</th>
-                                          <th className="px-4 py-3 font-semibold">Recorded On</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-line-soft">
-                                        {(history || [])
-                                          .slice()
-                                          .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
-                                          .map((h) => (
-                                            <tr
-                                              key={h.id}
-                                              className="hover:bg-card-2 transition-colors"
-                                            >
-                                              <td className="px-4 py-3 font-medium text-ink">
-                                                {fmtMoney(h.price)}
-                                              </td>
-                                              <td className="px-4 py-3 text-ink-muted">
-                                                {fmtDate(h.validFrom)}
-                                              </td>
-                                              <td className="px-4 py-3">
-                                                {h.validTo ? (
-                                                  <span className="text-ink-muted">
-                                                    {fmtDate(h.validTo)}
-                                                  </span>
-                                                ) : (
-                                                  <span className="inline-flex items-center px-2 py-1 rounded-sm border border-line bg-card-2 text-ink-muted text-xs font-semibold">
-                                                    Current
-                                                  </span>
-                                                )}
-                                              </td>
-                                              <td className="px-4 py-3 text-ink-subtle">
-                                                {fmtDate(h.createdAt)}
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        {(!history || history.length === 0) && (
-                                          <tr>
-                                            <td
-                                              colSpan={4}
-                                              className="px-4 py-8 text-center text-ink-muted"
-                                            >
-                                              No history found.
-                                            </td>
-                                          </tr>
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
+                {(history || [])
+                  .slice()
+                  .sort((a, b) => b.validFrom.localeCompare(a.validFrom))
+                  .map((h) => (
+                    <tr key={h.id}>
+                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-ink">
+                        {fmtMoney(h.price)}
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums text-ink-muted">
+                        {fmtDate(h.validFrom)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {h.validTo ? (
+                          <span className="tabular-nums text-ink-muted">{fmtDate(h.validTo)}</span>
+                        ) : (
+                          <Chip size="sm" tone="success" dot>
+                            Current
+                          </Chip>
                         )}
-                      </React.Fragment>
-                    );
-                  })}
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums text-ink-subtle">
+                        {fmtDate(h.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                {(!history || history.length === 0) && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-ink-muted">
+                      No history found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
       </div>
+    );
+  };
+
+  return (
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Raw Material Pricing"
+        subtitle={
+          supplierName
+            ? `${supplierName} · a revision closes the current price and keeps it in history`
+            : "A revision closes the current price and keeps it in history"
+        }
+        back="/suppliers"
+        backLabel="Back to Suppliers"
+        breadcrumbs={[
+          { label: "Suppliers", to: "/suppliers" },
+          { label: supplierName || "Pricing" },
+        ]}
+      />
+
+      <DataTable
+        columns={columns}
+        data={rows}
+        rowKey={(row) => row.rawMaterialId}
+        loading={loading}
+        ariaLabel="Raw material prices"
+        emptyMessage="No raw materials priced for this supplier yet."
+        renderSubRow={renderHistory}
+      />
 
       {/* REVISE PRICE MODAL */}
       {reviseTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={closeReviseModal}
-          ></div>
+          <div className="sl-backdrop" onClick={closeReviseModal} aria-hidden="true" />
 
-          {/* Modal Content */}
-          <div className="relative bg-card border border-line rounded-sm shadow-md w-full max-w-lg mx-auto flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-              <h3 className="text-lg font-semibold text-ink">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="revise-price-title"
+            className="sl-dialog mx-auto flex w-full max-w-lg flex-col overflow-hidden"
+          >
+            <div className="flex items-center justify-between border-b border-line-soft px-6 py-4">
+              <h3 id="revise-price-title" className="sl-h2 m-0">
                 Revise Price{" "}
-                <span className="text-ink-muted font-normal">â€” {reviseTarget.materialName}</span>
+                <span className="font-normal text-ink-muted">· {reviseTarget.materialName}</span>
               </h3>
               <button
+                type="button"
+                aria-label="Close"
                 onClick={closeReviseModal}
-                className="text-ink-subtle hover:text-ink hover:bg-card-2 p-2 rounded-sm transition-colors"
+                className="sl-icon-btn sl-icon-btn-ghost"
               >
-                <FaTimes />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
 
             <div className="p-6">
-              <div className="bg-[color:var(--color-info)]/10 border border-[color:var(--color-info)]/30 rounded-sm p-4 mb-6">
-                <p className="text-sm text-[color:var(--color-info)] leading-relaxed">
+              <div className="mb-6 rounded-[14px] bg-chip p-4">
+                <p className="m-0 text-sm leading-relaxed text-chip-fg">
                   Current price is{" "}
-                  <strong className="font-semibold">{fmtMoney(reviseTarget.price)}</strong> since{" "}
-                  <span className="font-medium">{fmtDate(reviseTarget.validFrom)}</span>. Setting a
-                  new price below will close the current row and start a new one — the old price
-                  stays in history.
+                  <strong className="font-semibold tabular-nums">
+                    {fmtMoney(reviseTarget.price)}
+                  </strong>{" "}
+                  since <span className="font-medium">{fmtDate(reviseTarget.validFrom)}</span>.
+                  Setting a new price below will close the current row and start a new one — the old
+                  price stays in history.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <TextInput
-                    label="New Price (₹)"
-                    name="revisePrice"
-                    type="number"
-                    value={revisePrice}
-                    onChange={(e) => setRevisePrice(e.target.value)}
-                    min={0}
-                    step={0.01}
-                    required
-                  />
-                </div>
-                <div>
-                  <TextInput
-                    label="Effective From"
-                    name="reviseDate"
-                    type="date"
-                    value={reviseDate}
-                    onChange={(e) => setReviseDate(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <TextInput
+                  label="New Price (₹)"
+                  name="revisePrice"
+                  type="number"
+                  value={revisePrice}
+                  onChange={(e) => setRevisePrice(e.target.value)}
+                  min={0}
+                  step={0.01}
+                  required
+                />
+                <TextInput
+                  label="Effective From"
+                  name="reviseDate"
+                  type="date"
+                  value={reviseDate}
+                  onChange={(e) => setReviseDate(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-card border-t border-line">
-              <button
-                type="button"
-                onClick={closeReviseModal}
-                className="px-4 py-2 text-sm font-medium text-ink-muted bg-card-2 border border-line rounded-sm hover:bg-card hover:text-ink transition-colors"
-              >
+            <div className="flex items-center justify-end gap-3 border-t border-line-soft px-6 py-4">
+              <ActionPill variant="secondary" onClick={closeReviseModal}>
                 Cancel
-              </button>
-              <Button
-                text={revising ? "Saving..." : "Save New Price"}
-                onClick={submitRevise}
-                type="button"
-                disabled={revising}
-              />
+              </ActionPill>
+              <ActionPill onClick={submitRevise} loading={revising} loadingText="Saving...">
+                Save New Price
+              </ActionPill>
             </div>
           </div>
         </div>
