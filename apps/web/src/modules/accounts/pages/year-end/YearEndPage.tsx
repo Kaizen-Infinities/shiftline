@@ -18,7 +18,7 @@ import { PageHeader } from "../../../../components/ui/v2";
  * an approver post it (which also closes the year's periods, opens the next year and freezes
  * the books), or reverse a closing after moving the freeze date back.
  */
-const input = "sl-input h-11 text-sm";
+const input = "sl-input h-11 !w-auto min-w-44 text-sm";
 const primary = "sl-cta sl-pill-sm";
 const secondary = "sl-btn sl-pill-sm";
 const danger = "sl-btn-danger sl-pill-sm";
@@ -150,7 +150,7 @@ const YearEndPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="sl-tile p-4 space-y-3">
+      <section className="sl-tile p-5 sm:p-6 space-y-3">
         <form
           className="flex flex-wrap items-end gap-3"
           onSubmit={(e) => {
@@ -158,7 +158,7 @@ const YearEndPage: React.FC = () => {
             setApplied(fyCode.trim());
           }}
         >
-          <label className="text-xs font-medium text-ink-muted">
+          <label className="sl-label !mb-0 flex-col items-start gap-1.5">
             Financial year
             <input
               className={`${input} block w-32`}
