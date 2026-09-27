@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Chip, PageHeader, SkeletonTile } from "../../../components/ui/v2";
 import {
   FaShieldAlt,
   FaSlidersH,
@@ -55,9 +56,9 @@ const SECTION_STYLE: Record<
   }
 > = (() => {
   const neutral = {
-    activeBg: "bg-accent",
+    activeBg: "bg-nav-active",
     activeShadow: "",
-    badgeActive: "bg-card/20 text-white",
+    badgeActive: "bg-card text-accent",
     badgeInactive: "bg-card-2 text-ink-subtle",
     iconClass: "text-ink-subtle",
     hex: "var(--color-accent)",
@@ -700,47 +701,42 @@ const RolePermissionMapping: React.FC = () => {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-[1180px] xl:mr-auto space-y-5">
+    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <PageHeader
+        title="Role Permissions Matrix"
+        icon={<FaShieldAlt size={18} />}
+        subtitle="Choose a role, then switch each screen's actions on or off. Changes take effect immediately."
+        actions={
+          <Chip size="lg" icon={<FaShieldAlt size={12} />} count={assignedIds.size}>
+            Total Active
+          </Chip>
+        }
+      />
+
       {/* ROLE SELECTOR */}
-      <div className="bg-card rounded-sm border border-line overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h2 className="text-lg font-bold text-ink">Role Permissions Matrix</h2>
-          <div className="flex items-center gap-2 bg-accent/10 px-3 py-1.5 rounded-md border border-accent/20 shrink-0">
-            <FaShieldAlt className="text-accent text-sm" />
-            <div>
-              <div className="text-[9px] text-accent/80 font-semibold uppercase tracking-wider leading-none mb-0.5">
-                Total Active
-              </div>
-              <div className="text-lg font-extrabold text-accent leading-none">
-                {assignedIds.size}
-              </div>
-            </div>
+      <div className="sl-tile p-4 sm:p-5">
+        <div className="grid grid-cols-1 items-center gap-4 lg:grid-cols-12">
+          <div className="lg:col-span-4">
+            <SelectInput
+              label="Target Role"
+              name="roleSelector"
+              value={selectedRoleId}
+              options={roleOptions}
+              onChange={(e) => setSelectedRoleId(e.target.value)}
+            />
           </div>
-        </div>
-        <div className="p-4">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-            <div className="lg:col-span-4">
-              <SelectInput
-                label="Target Role"
-                name="roleSelector"
-                value={selectedRoleId}
-                options={roleOptions}
-                onChange={(e) => setSelectedRoleId(e.target.value)}
-              />
-            </div>
-            <div className="lg:col-span-8 flex items-start gap-3">
-              <div className="p-2.5 bg-accent/10 text-accent rounded-md shrink-0 mt-1">
-                <FaSlidersH className="text-xl" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-ink mb-0.5">
-                  Modifying Policy: <span className="text-accent">{selectedRoleName || "—"}</span>
-                </p>
-                <p className="text-[10px] text-ink-subtle leading-relaxed">
-                  Changes take effect immediately. Verify you are editing the correct role before
-                  modifying access levels.
-                </p>
-              </div>
+          <div className="flex items-start gap-3 lg:col-span-8">
+            <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-chip text-accent">
+              <FaSlidersH aria-hidden="true" />
+            </span>
+            <div>
+              <p className="m-0 text-sm font-semibold text-ink">
+                Modifying Policy: <span className="text-accent">{selectedRoleName || "—"}</span>
+              </p>
+              <p className="sl-muted m-0 mt-0.5 text-sm">
+                Changes take effect immediately. Verify you are editing the correct role before
+                modifying access levels.
+              </p>
             </div>
           </div>
         </div>
@@ -748,7 +744,7 @@ const RolePermissionMapping: React.FC = () => {
 
       {/* MAIN */}
       {loading && permissions.length === 0 ? (
-        <CommonLoader text="Loading permissions..." fullScreen={false} />
+        <SkeletonTile lines={8} label="Loading permissions" />
       ) : (
         <div className="flex gap-5">
           {/* ── LEFT SIDEBAR ── */}
@@ -766,12 +762,12 @@ const RolePermissionMapping: React.FC = () => {
                   onClick={() => setActiveGroupId(group.id)}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs font-medium transition-all duration-200 border ${
                     isActive
-                      ? `${gs.activeBg} text-white border-transparent scale-[1.02]`
+                      ? `${gs.activeBg} text-nav-active-fg border-transparent font-semibold`
                       : "bg-card border-line hover:bg-card-2 hover:border-line-soft text-ink"
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className={`text-xs shrink-0 ${isActive ? "text-white" : gs.iconClass}`}>
+                    <span className={`text-xs shrink-0 ${isActive ? "text-accent" : gs.iconClass}`}>
                       {group.icon}
                     </span>
                     <span className="truncate text-xs font-semibold">{group.groupName}</span>
@@ -791,7 +787,7 @@ const RolePermissionMapping: React.FC = () => {
           {/* ── RIGHT PANEL ── */}
           <div className="flex-1 min-w-0">
             {activeGroup && (
-              <div className="bg-card rounded-sm border border-line overflow-hidden">
+              <div className="sl-tile overflow-hidden">
                 {/* Panel header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-line bg-card-2/80">
                   <div className="flex items-center gap-2">
