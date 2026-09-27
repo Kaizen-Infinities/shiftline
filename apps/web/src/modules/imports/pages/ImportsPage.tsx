@@ -140,11 +140,7 @@ const ImportsPage: React.FC = () => {
                       "customer_code".
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={downloadTemplate}
-                    className="rounded-lg border border-line-soft bg-card-2 px-4 py-2 text-sm font-semibold hover:bg-card"
-                  >
+                  <button type="button" onClick={downloadTemplate} className="sl-btn sl-pill-sm">
                     Download template
                   </button>
                 </div>
@@ -211,7 +207,7 @@ const ImportsPage: React.FC = () => {
                           onClick={() => setFilter(key)}
                           className={`rounded-full px-3 py-1 font-semibold ${
                             filter === key
-                              ? "bg-accent text-white"
+                              ? "bg-accent text-[color:var(--color-on-primary)]"
                               : (badge[key] ?? "bg-card-2 text-ink")
                           }`}
                         >
@@ -287,7 +283,7 @@ const ImportsPage: React.FC = () => {
                           type="button"
                           onClick={commit}
                           disabled={busy !== null || report.errors > 0 || report.ok === 0}
-                          className="rounded-lg bg-accent px-5 py-2.5 text-sm font-bold text-white hover:brightness-110 disabled:opacity-60"
+                          className="sl-cta sl-pill-md"
                         >
                           {busy === "commit" ? "Importing…" : `Import ${report.ok} row(s)`}
                         </button>

@@ -12,7 +12,7 @@ import { eInvoiceService, type EInvoiceSettings } from "../../../services/eInvoi
 const primary = "sl-btn-blue sl-pill-sm";
 const secondary = "sl-btn sl-pill-sm";
 const input = "sl-input h-11 py-0 text-sm";
-const label = "block text-xs font-semibold uppercase tracking-wide text-ink-subtle mb-1";
+const label = "sl-label";
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   "Something went wrong";
@@ -111,6 +111,7 @@ const EInvoiceSettingsPage: React.FC = () => {
         <label className="flex items-center gap-2 text-sm text-ink md:col-span-2">
           <input
             type="checkbox"
+            className="sl-check"
             checked={form.enabled}
             onChange={(e) => set("enabled", e.target.checked)}
           />
@@ -208,7 +209,7 @@ const EInvoiceSettingsPage: React.FC = () => {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-          <button type="button" className={primary} disabled={busy} onClick={save}>
+          <button type="button" className="sl-cta sl-pill-md" disabled={busy} onClick={save}>
             Save
           </button>
           <button type="button" className={secondary} disabled={busy} onClick={verify}>

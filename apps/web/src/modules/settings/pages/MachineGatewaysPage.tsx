@@ -302,7 +302,7 @@ const MachineGatewaysPage: React.FC = () => {
           <div className="flex gap-2">
             <button
               type="button"
-              className={primary}
+              className="sl-cta sl-pill-md"
               disabled={busy || (!editing && (!form.code || !form.machineId))}
               onClick={save}
             >
@@ -349,11 +349,14 @@ const MachineGatewaysPage: React.FC = () => {
                     {!r.isActive ? (
                       <span className="text-ink-muted">Inactive</span>
                     ) : r.consecutiveFailures > 0 ? (
-                      <span className="text-rose-700" title={r.lastError ?? undefined}>
+                      <span
+                        className="text-[color:var(--color-danger)]"
+                        title={r.lastError ?? undefined}
+                      >
                         {r.consecutiveFailures} failing
                       </span>
                     ) : (
-                      <span className="text-emerald-700">Healthy</span>
+                      <span className="text-[color:var(--color-success)]">Healthy</span>
                     )}
                   </td>
                   <td className={td}>{relativeAge(r.lastSeenAt)}</td>
@@ -361,7 +364,7 @@ const MachineGatewaysPage: React.FC = () => {
                     {can("machine-telemetry.ingest") && (
                       <button
                         type="button"
-                        className="mr-3 text-sm font-semibold text-blue-600 hover:underline"
+                        className="sl-btn sl-pill-sm mr-2"
                         disabled={testingInFlight.has(r.id)}
                         onClick={() => testConnection(r.id)}
                       >
@@ -371,7 +374,7 @@ const MachineGatewaysPage: React.FC = () => {
                     {can("machine-telemetry.view") && (
                       <button
                         type="button"
-                        className="mr-3 text-sm font-semibold text-blue-600 hover:underline"
+                        className="sl-btn sl-pill-sm mr-2"
                         onClick={() => openSignalMap(r.id)}
                       >
                         Signal map
@@ -380,7 +383,7 @@ const MachineGatewaysPage: React.FC = () => {
                     {can("machine-telemetry.configure") && (
                       <button
                         type="button"
-                        className="mr-3 text-sm font-semibold text-blue-600 hover:underline"
+                        className="sl-btn sl-pill-sm mr-2"
                         onClick={() => startEdit(r)}
                       >
                         Edit
@@ -397,7 +400,7 @@ const MachineGatewaysPage: React.FC = () => {
                   <tr>
                     <td colSpan={7} className="px-3 pb-2">
                       <span
-                        className={`rounded-md px-2 py-1 text-xs ${testing[r.id]!.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}
+                        className={`sl-chip sl-chip-sm ${testing[r.id]!.ok ? "sl-chip-success" : "sl-chip-danger"}`}
                       >
                         {testing[r.id]!.detail}
                       </span>
@@ -422,7 +425,7 @@ const MachineGatewaysPage: React.FC = () => {
                                   <td className="py-1">
                                     <button
                                       type="button"
-                                      className="text-xs font-semibold text-rose-700 hover:underline"
+                                      className="text-xs font-semibold text-[color:var(--color-danger)] hover:underline"
                                       onClick={() =>
                                         setSignalMapRows((rowsList) =>
                                           rowsList.map((x) =>
