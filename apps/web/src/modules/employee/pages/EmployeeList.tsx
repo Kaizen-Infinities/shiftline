@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
-import { Search } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../../components/ui/Button/Button";
+import { ActionPill, Chip, EmptyState, PageHeader, SearchField } from "../../../components/ui/v2";
+import { Avatar } from "../../payroll/components/peopleUi";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
@@ -129,10 +129,18 @@ const Employeelist: React.FC = () => {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedEmployees = filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
     setCurrentPage(1);
   };
+
+  const setStatusChip = (value: string) => {
+    setAppliedStatus(value);
+    setDraftStatus(value);
+    setCurrentPage(1);
+  };
+  const statusCount = (value: string) =>
+    value ? employees.filter((e: any) => e.status === value).length : employees.length;
 
   const activeFilterCount =
     (appliedRoleId ? 1 : 0) + (appliedDeptId ? 1 : 0) + (appliedStatus ? 1 : 0);
@@ -229,8 +237,27 @@ const Employeelist: React.FC = () => {
         </span>
       ),
     },
-    { header: "Employee Code", accessor: "empCode", width: "120px" },
-    { header: "Employee Name", accessor: "fullName" },
+    {
+      header: "Employee Code",
+      width: "120px",
+      render: (emp) => <span className="font-semibold text-accent">{emp.empCode}</span>,
+    },
+    {
+      header: "Employee Name",
+      render: (emp) => (
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Avatar name={emp.fullName} size={32} />
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-ink">{emp.fullName}</span>
+            {(emp.designation || emp.department?.name) && (
+              <span className="block truncate text-[12px] text-ink-subtle">
+                {[emp.designation, emp.department?.name].filter(Boolean).join(" · ")}
+              </span>
+            )}
+          </span>
+        </span>
+      ),
+    },
     { header: "Mobile", width: "130px", render: (emp) => emp.mobile || "—" },
     {
       header: "Role",
@@ -244,27 +271,17 @@ const Employeelist: React.FC = () => {
       render: (emp) => {
         if (!emp.user) {
           return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-card-2 text-ink-subtle border border-line/80">
-              <span className="w-1.5 h-1.5 rounded-full bg-ink-subtle"></span>
+            <Chip size="sm" tone="muted" dot>
               No Login
-            </span>
+            </Chip>
           );
         }
         const isActive = emp.user.status === "active";
         return (
           <div className="flex flex-col items-center gap-0.5">
-            <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                isActive
-                  ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border-[color:var(--color-success)]/40"
-                  : "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border-[color:var(--color-warning)]/40"
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-[color:var(--color-success)] animate-pulse" : "bg-[color:var(--color-warning)]"}`}
-              ></span>
+            <Chip size="sm" tone={isActive ? "success" : "warning"} dot>
               {isActive ? "Enabled" : emp.user.status?.toUpperCase() || "Disabled"}
-            </span>
+            </Chip>
             {emp.user.username && (
               <span className="text-[11px] tabular-nums text-ink-subtle">@{emp.user.username}</span>
             )}
@@ -293,7 +310,7 @@ const Employeelist: React.FC = () => {
       width: "120px",
       align: "center",
       render: (emp) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {canView && <ViewButton onClick={() => handleView(emp)} />}
           {canEdit && <EditButton onClick={() => handleEdit(emp)} />}
           {canDelete && <DeleteButton onClick={() => triggerDelete(emp.id)} />}
@@ -303,113 +320,141 @@ const Employeelist: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-visible">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Employee Management</h2>
+    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <PageHeader
+        title="Employee Management"
+        icon={<Users size={20} />}
+        subtitle={`${employees.length} people on the rolls`}
+        actions={
+          canExport ? (
+            <ExportCSVButton
+              fetchData={fetchEmployeesForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : undefined
+        }
+        primaryAction={
+          canCreate ? (
+            <ActionPill icon={<Plus size={17} />} onClick={() => navigate("/employees/create")}>
+              Add Employee
+            </ActionPill>
+          ) : undefined
+        }
+      />
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchField
+            value={searchTerm}
+            onValueChange={handleSearch}
+            placeholder="Search name, code, mobile"
+            data-search-input
+          />
+          <div
+            role="group"
+            aria-label="Status"
+            className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 py-1 [scrollbar-width:none]"
+          >
+            {[{ value: "", label: "All" }, ...STATUS_OPTIONS].map((o) => (
+              <Chip
+                key={o.value || "all"}
+                size="lg"
+                className="shrink-0"
+                selected={appliedStatus === o.value}
+                onClick={() => setStatusChip(o.value)}
+                count={statusCount(o.value)}
+              >
+                {o.label}
+              </Chip>
+            ))}
           </div>
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* Search */}
-            <div className="relative w-full md:w-56">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
-                size={15}
-              />
-              <input
-                type="text"
-                data-search-input
-                className="w-full pl-9 pr-4 py-2 bg-card-2 border border-line-soft rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={handleSearch}
+        </div>
+        <FilterPopover
+          activeFilterCount={activeFilterCount}
+          hasActiveFilters={hasActiveFilters}
+          onApply={handleApplyFilters}
+          onClear={handleClearFilters}
+        >
+          <div className="space-y-3">
+            <div>
+              <label className="sl-label">Role</label>
+              <SelectInput
+                name="draftRoleId"
+                value={draftRoleId}
+                onChange={(e) => setDraftRoleId(e.target.value)}
+                options={roles}
+                defaultOptionLabel="All Roles"
+                noMargin
               />
             </div>
-
-            {/* Filter Popover */}
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            >
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Role
-                  </label>
-                  <SelectInput
-                    name="draftRoleId"
-                    value={draftRoleId}
-                    onChange={(e) => setDraftRoleId(e.target.value)}
-                    options={roles}
-                    defaultOptionLabel="All Roles"
-                    noMargin
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Department
-                  </label>
-                  <SelectInput
-                    name="draftDeptId"
-                    value={draftDeptId}
-                    onChange={(e) => setDraftDeptId(e.target.value)}
-                    options={departments}
-                    defaultOptionLabel="All Departments"
-                    noMargin
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Status
-                  </label>
-                  <SelectInput
-                    name="draftStatus"
-                    value={draftStatus}
-                    onChange={(e) => setDraftStatus(e.target.value)}
-                    options={STATUS_OPTIONS}
-                    defaultOptionLabel="All Statuses"
-                    noMargin
-                  />
-                </div>
-              </div>
-            </FilterPopover>
-
-            {canExport && (
-              <ExportCSVButton
-                fetchData={fetchEmployeesForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
+            <div>
+              <label className="sl-label">Department</label>
+              <SelectInput
+                name="draftDeptId"
+                value={draftDeptId}
+                onChange={(e) => setDraftDeptId(e.target.value)}
+                options={departments}
+                defaultOptionLabel="All Departments"
+                noMargin
               />
-            )}
-
-            {canCreate && (
-              <CustomButton
-                text="Add Employee"
-                icon={FaPlus}
-                onClick={() => navigate("/employees/create")}
+            </div>
+            <div>
+              <label className="sl-label">Status</label>
+              <SelectInput
+                name="draftStatus"
+                value={draftStatus}
+                onChange={(e) => setDraftStatus(e.target.value)}
+                options={STATUS_OPTIONS}
+                defaultOptionLabel="All Statuses"
+                noMargin
               />
-            )}
+            </div>
           </div>
-        </div>
-
-        {/* Table */}
-        <div className="p-0 overflow-hidden rounded-b-sm">
-          <DataTable
-            data={paginatedEmployees}
-            rowKey={(emp) => emp.id}
-            loading={loading}
-            emptyMessage="No employees found."
-            pagination={
-              totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
-            }
-            columns={columns}
-          />
-        </div>
+        </FilterPopover>
       </div>
+
+      <DataTable
+        data={paginatedEmployees}
+        rowKey={(emp) => emp.id}
+        loading={loading}
+        ariaLabel="Employees"
+        emptyMessage={
+          employees.length === 0 ? (
+            <EmptyState
+              compact
+              icon={<Users size={22} strokeWidth={1.75} />}
+              title="No employees found."
+              description="Add your first employee to start attendance and payroll."
+            />
+          ) : (
+            "No employees match these filters."
+          )
+        }
+        emptyAction={
+          employees.length > 0 && (searchTerm || hasActiveFilters) ? (
+            <ActionPill
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                handleSearch("");
+                handleClearFilters();
+              }}
+            >
+              Clear filters
+            </ActionPill>
+          ) : canCreate && employees.length === 0 ? (
+            <ActionPill icon={<Plus size={16} />} onClick={() => navigate("/employees/create")}>
+              Add Employee
+            </ActionPill>
+          ) : undefined
+        }
+        pagination={
+          totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
+        }
+        columns={columns}
+      />
 
       <CommonConfirmModal
         show={showDeleteModal}
