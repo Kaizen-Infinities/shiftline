@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { FaSave, FaEraser } from "react-icons/fa";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
@@ -17,9 +15,11 @@ import { rawMaterialService } from "../../../services/rawMaterialService";
 import UOMSelect from "../../../components/form/SelectInput/UOMSelect";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import { z } from "zod";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import { categoryService } from "../../../services/categoryService";
 import { convertToPrimaryUom } from "../../../utils/uomConversion";
+import { Eraser, Save } from "lucide-react";
+import { ActionPill, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 const initialFormState = {
   rawMaterialId: "",
@@ -316,190 +316,206 @@ const RawMaterialForm: React.FC = () => {
     }
   };
 
+  const header = (
+    <PageHeader
+      title={isEditMode ? "Edit Raw Material" : "Create Raw Material"}
+      subtitle="A material you buy and consume in production, with its stock levels"
+      back="/raw-materials"
+      backLabel="Back to raw materials"
+      breadcrumbs={[
+        { label: "Inventory" },
+        { label: "Raw materials", to: "/raw-materials" },
+        { label: isEditMode ? "Edit" : "New" },
+      ]}
+    />
+  );
+
   if (isLoadingData) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+      <div className="w-full min-w-0">
+        {header}
+        <div className="flex flex-col gap-4">
+          <SkeletonTile lines={4} />
+          <SkeletonTile lines={3} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1024px] xl:mr-auto h-full flex flex-col">
-      <div className="bg-card rounded-sm border border-line-soft flex flex-col flex-1 h-full">
-        <div className="px-6 py-4 border-b border-line-soft flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold text-ink">
-            {isEditMode ? "Edit Raw Material" : "Create Raw Material"}
-          </h2>
-          <BackButton text="Back to List" to="/raw-materials" />
-        </div>
+    <div className="w-full min-w-0 max-w-[1100px]">
+      {header}
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1" noValidate>
-          <div className="px-6 py-4 flex-1 overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Row 1: ID (narrow) | Material Name (wide) */}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        <Tile title="Material" subtitle="Identity, where it is stored and how it is measured">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+            <TextInput
+              label="Raw Material ID"
+              name="rawMaterialId"
+              value={formData.rawMaterialId}
+              disabled={true}
+              required
+              error={errors.rawMaterialId}
+              onChange={handleChange}
+            />
+            <div className="md:col-span-2">
               <TextInput
-                label="Raw Material ID"
-                name="rawMaterialId"
-                value={formData.rawMaterialId}
-                disabled={true}
+                label="Material Name"
+                name="materialName"
+                value={formData.materialName}
                 required
-                error={errors.rawMaterialId}
-                onChange={handleChange}
-              />
-              <div className="md:col-span-2">
-                <TextInput
-                  label="Material Name"
-                  name="materialName"
-                  value={formData.materialName}
-                  required
-                  error={errors.materialName}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Row 2: Category | Store */}
-              <SelectInput
-                label="Category"
-                name="categoryId"
-                value={formData.categoryId}
-                options={categoryOptions}
-                onChange={handleChange}
-                searchable
-              />
-              <div className="md:col-span-2">
-                <SelectInput
-                  label="Store"
-                  name="storeId"
-                  value={formData.storeId}
-                  options={[
-                    { label: "Select Store", value: "" },
-                    ...(stores || []).map((store: any) => ({
-                      label: store.storeName,
-                      value: store.storeId,
-                    })),
-                  ]}
-                  required
-                  error={errors.storeId}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Row 3: Base UOM (full width) */}
-              <div className="md:col-span-3">
-                <UOMSelect
-                  name="baseUom"
-                  label="Base UOM"
-                  value={formData.baseUom}
-                  required
-                  isMulti
-                  category={["length", "mass", "each", "volume"]}
-                  allowedCodes={["kg", "g", "mt", "l", "ml", "m", "cm", "mm", "dz", "ea"]}
-                  onChange={(value) => {
-                    setFormData((prev) => ({ ...prev, baseUom: value }));
-                    if (errors.baseUom) {
-                      setErrors((prev) => ({ ...prev, baseUom: "" }));
-                    }
-                  }}
-                  error={errors.baseUom}
-                />
-              </div>
-
-              {/* Row 4: Opening Stock | Minimum Stock | Reorder Level */}
-              <QuantityInput
-                label="Opening Stock"
-                name="onHandQty"
-                value={formData.onHandQty}
-                baseUoms={formData.baseUom}
-                uom={openingStockUom || undefined}
-                onUomChange={setOpeningStockUom}
-                required
-                error={errors.onHandQty}
-                onChange={handleChange}
-                disabled={isEditMode}
-              />
-              <QuantityInput
-                label="Minimum Stock"
-                name="minimumStock"
-                value={formData.minimumStock}
-                baseUoms={formData.baseUom}
-                uom={minimumStockUom || undefined}
-                onUomChange={setMinimumStockUom}
-                required
-                error={errors.minimumStock}
-                onChange={handleChange}
-              />
-              <QuantityInput
-                label="Reorder Level"
-                name="reorderLevel"
-                value={formData.reorderLevel}
-                baseUoms={formData.baseUom}
-                uom={reorderLevelUom || undefined}
-                onUomChange={setReorderLevelUom}
-                required
-                error={errors.reorderLevel}
-                onChange={handleChange}
-              />
-
-              {/* Row 5: Rate (narrow) | Status (narrow) | Narration (wide) */}
-              <TextInput
-                type="number"
-                label="Rate"
-                name="rate"
-                value={formData.rate}
-                required
-                error={errors.rate}
-                onChange={handleChange}
-              />
-              <SelectInput
-                label="Status"
-                name="status"
-                value={formData.status}
-                options={[
-                  { label: "Active", value: "Active" },
-                  { label: "Inactive", value: "Inactive" },
-                ]}
-                required
-                error={errors.status}
-                onChange={handleChange}
-              />
-              <TextInput
-                label="Narration"
-                name="narration"
-                value={formData.narration}
-                error={errors.narration}
+                error={errors.materialName}
                 onChange={handleChange}
               />
             </div>
-          </div>
 
-          <div className="px-6 py-4 flex justify-end gap-3 border-t border-line-soft bg-card-2">
-            {!isEditMode && (
-              <CustomButton
-                text="Clear"
-                icon={FaEraser}
-                variant="secondary"
-                onClick={handleClear}
-                disabled={isSubmitting}
+            <SelectInput
+              label="Category"
+              name="categoryId"
+              value={formData.categoryId}
+              options={categoryOptions}
+              onChange={handleChange}
+              searchable
+            />
+            <div className="md:col-span-2">
+              <SelectInput
+                label="Store"
+                name="storeId"
+                value={formData.storeId}
+                options={[
+                  { label: "Select Store", value: "" },
+                  ...(stores || []).map((store: any) => ({
+                    label: store.storeName,
+                    value: store.storeId,
+                  })),
+                ]}
+                required
+                error={errors.storeId}
+                onChange={handleChange}
               />
-            )}
-            <CustomButton
-              text={
-                isSubmitting
-                  ? isEditMode
-                    ? "Updating..."
-                    : "Saving..."
-                  : isEditMode
-                    ? "Update Material"
-                    : "Save Material"
-              }
-              icon={FaSave}
-              type="submit"
-              disabled={isSubmitting}
+            </div>
+
+            <div className="md:col-span-3">
+              <UOMSelect
+                name="baseUom"
+                label="Base UOM"
+                value={formData.baseUom}
+                required
+                isMulti
+                category={["length", "mass", "each", "volume"]}
+                allowedCodes={["kg", "g", "mt", "l", "ml", "m", "cm", "mm", "dz", "ea"]}
+                onChange={(value) => {
+                  setFormData((prev) => ({ ...prev, baseUom: value }));
+                  if (errors.baseUom) {
+                    setErrors((prev) => ({ ...prev, baseUom: "" }));
+                  }
+                }}
+                error={errors.baseUom}
+              />
+            </div>
+          </div>
+        </Tile>
+
+        <Tile
+          title="Stock levels"
+          subtitle="Opening balance, the floor you never go below, and when to reorder"
+        >
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+            <QuantityInput
+              label="Opening Stock"
+              name="onHandQty"
+              value={formData.onHandQty}
+              baseUoms={formData.baseUom}
+              uom={openingStockUom || undefined}
+              onUomChange={setOpeningStockUom}
+              required
+              error={errors.onHandQty}
+              onChange={handleChange}
+              disabled={isEditMode}
+            />
+            <QuantityInput
+              label="Minimum Stock"
+              name="minimumStock"
+              value={formData.minimumStock}
+              baseUoms={formData.baseUom}
+              uom={minimumStockUom || undefined}
+              onUomChange={setMinimumStockUom}
+              required
+              error={errors.minimumStock}
+              onChange={handleChange}
+            />
+            <QuantityInput
+              label="Reorder Level"
+              name="reorderLevel"
+              value={formData.reorderLevel}
+              baseUoms={formData.baseUom}
+              uom={reorderLevelUom || undefined}
+              onUomChange={setReorderLevelUom}
+              required
+              error={errors.reorderLevel}
+              onChange={handleChange}
             />
           </div>
-        </form>
-      </div>
+        </Tile>
+
+        <Tile title="Pricing & status">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-3">
+            <TextInput
+              type="number"
+              label="Rate"
+              name="rate"
+              inputMode="decimal"
+              value={formData.rate}
+              required
+              error={errors.rate}
+              onChange={handleChange}
+            />
+            <SelectInput
+              label="Status"
+              name="status"
+              value={formData.status}
+              options={[
+                { label: "Active", value: "Active" },
+                { label: "Inactive", value: "Inactive" },
+              ]}
+              required
+              error={errors.status}
+              onChange={handleChange}
+            />
+            <TextInput
+              label="Narration"
+              name="narration"
+              value={formData.narration}
+              error={errors.narration}
+              onChange={handleChange}
+            />
+          </div>
+        </Tile>
+
+        <FormFooter hint="F2 saves">
+          <ActionPill variant="secondary" onClick={() => navigate("/raw-materials")}>
+            Cancel
+          </ActionPill>
+          {!isEditMode && (
+            <ActionPill
+              variant="secondary"
+              icon={<Eraser size={16} />}
+              onClick={handleClear}
+              disabled={isSubmitting}
+            >
+              Clear
+            </ActionPill>
+          )}
+          <ActionPill
+            type="submit"
+            icon={<Save size={17} />}
+            loading={isSubmitting}
+            loadingText={isEditMode ? "Updating..." : "Saving..."}
+          >
+            {isEditMode ? "Update Material" : "Save Material"}
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };

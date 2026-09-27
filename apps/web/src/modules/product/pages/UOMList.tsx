@@ -1,31 +1,33 @@
-import React, { useState } from "react";
-import { FaSearch } from "react-icons/fa";
+import React, { useMemo, useState } from "react";
+import { Ruler } from "lucide-react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import { useUOM } from "../../../hooks/useUOM";
+import { ActionPill, Chip, PageHeader, Toolbar, Tile } from "../../../components/ui/v2";
 
 const ITEMS_PER_PAGE = 15;
 
 const UOMList: React.FC = () => {
   const { units, loading, error } = useUOM();
   const [searchTerm, setSearchTerm] = useState("");
+  const [category, setCategory] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   usePageShortcuts({});
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1); // Reset to first page on search
-  };
+  const categories = useMemo(
+    () => Array.from(new Set(units.map((u) => u.category).filter(Boolean))) as string[],
+    [units]
+  );
 
-  // Filter units based on the search term
+  // Filter units by the search term and the category chip
   const filteredUnits = units.filter((u) => {
     const searchLower = searchTerm.toLowerCase();
-    return (
+    const matchesSearch =
       (u.code || "").toLowerCase().includes(searchLower) ||
       (u.label || "").toLowerCase().includes(searchLower) ||
-      (u.category || "").toLowerCase().includes(searchLower)
-    );
+      (u.category || "").toLowerCase().includes(searchLower);
+    return matchesSearch && (!category || u.category === category);
   });
 
   const totalPages = Math.ceil(filteredUnits.length / ITEMS_PER_PAGE);
@@ -33,65 +35,86 @@ const UOMList: React.FC = () => {
   const paginatedUOMs = filteredUnits.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const columns: DataTableColumn<any>[] = [
-    { header: "#", render: (_, index) => startIndex + index + 1, width: "60px", align: "center" },
+    { header: "#", render: (_, index) => startIndex + index + 1, width: "56px", align: "center" },
+    {
+      header: "Code",
+      accessor: "code",
+      render: (uom) => <span className="font-mono font-semibold text-accent">{uom.code}</span>,
+    },
+    { header: "Label / Name", accessor: "label" },
     {
       header: "Category",
       accessor: "category",
-      render: (uom) => <span style={{ textTransform: "capitalize" }}>{uom.category}</span>,
+      render: (uom) => (
+        <Chip size="sm" className="capitalize">
+          {uom.category}
+        </Chip>
+      ),
     },
-    { header: "Code", accessor: "code" },
-    { header: "Label / Name", accessor: "label" },
   ];
 
-  return (
-    <div>
-      <div>
-        <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-          {/* Page Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-            <div>
-              <h2 className="text-2xl font-bold text-ink">UOM Management</h2>
-            </div>
-            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-              <div className="relative w-full md:w-72">
-                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" />
-                <input
-                  type="text"
-                  className="w-full pl-10 pr-4 py-2 bg-card border border-line rounded-sm text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                  placeholder="Search by code, name, or category..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  data-search-input
-                />
-              </div>
-            </div>
-          </div>
+  const hasFilters = Boolean(searchTerm || category);
 
-          {/* UOMs Table */}
-          {error ? (
-            <div className="text-center p-5 text-red-500">{error}</div>
-          ) : (
-            <div className="p-0">
-              <DataTable
-                columns={columns}
-                data={paginatedUOMs}
-                rowKey={(row) => `${row.category}-${row.code}`}
-                loading={loading}
-                emptyMessage="No UOMs found."
-                pagination={
-                  totalPages > 1
-                    ? {
-                        currentPage,
-                        totalPages,
-                        onPageChange: setCurrentPage,
-                      }
-                    : undefined
-                }
-              />
-            </div>
-          )}
-        </div>
-      </div>
+  return (
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="UOM Management"
+        subtitle={`${units.length} units of measure · system defined, used on items and stock`}
+        icon={<Ruler size={22} />}
+      />
+
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(value) => {
+          setSearchTerm(value);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search by code, name, or category..."
+        searchLabel="Search units"
+        filters={[
+          { key: "", label: "All" },
+          ...categories.map((c) => ({ key: c, label: <span className="capitalize">{c}</span> })),
+        ]}
+        filterValue={category}
+        onFilterChange={(key) => {
+          setCategory(key);
+          setCurrentPage(1);
+        }}
+        filtersLabel="Category"
+      />
+
+      {error ? (
+        <Tile>
+          <p role="alert" className="m-0 text-center text-[color:var(--color-danger)]">
+            Could not load units of measure.
+          </p>
+        </Tile>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={paginatedUOMs}
+          rowKey={(row) => `${row.category}-${row.code}`}
+          loading={loading}
+          ariaLabel="Units of measure"
+          emptyMessage={hasFilters ? "No units match these filters." : "No UOMs found."}
+          emptyAction={
+            hasFilters ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  setCategory("");
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : undefined
+          }
+          pagination={
+            totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
+          }
+        />
+      )}
     </div>
   );
 };

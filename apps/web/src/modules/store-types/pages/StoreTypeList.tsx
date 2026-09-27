@@ -1,68 +1,75 @@
 import React from "react";
-import { FaBoxes, FaBoxOpen, FaTrashAlt } from "react-icons/fa";
+import { Boxes, Lock, PackageCheck, Trash2, Warehouse } from "lucide-react";
+import { Chip, PageHeader, Tile } from "../../../components/ui/v2";
 
 const STORE_CATEGORIES = [
   {
     code: "RAW_MATERIAL",
     name: "Raw Material Store",
     description: "Stores that hold raw materials used in production",
-    icon: <FaBoxes className="text-ink-muted text-2xl" />,
+    icon: <Boxes size={20} />,
   },
   {
     code: "FINISHED_GOODS",
     name: "Finished Goods Store",
     description: "Stores that hold completed finished products ready for dispatch",
-    icon: <FaBoxOpen className="text-ink-muted text-2xl" />,
+    icon: <PackageCheck size={20} />,
   },
   {
     code: "WASTAGE",
     name: "Wastage Store",
     description: "Stores that hold production wastage, scrap, and rejected items",
-    icon: <FaTrashAlt className="text-ink-muted text-2xl" />,
+    icon: <Trash2 size={20} />,
   },
 ];
 
 const StoreTypeList: React.FC = () => {
   return (
-    <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-      <div className="p-6 border-b border-line">
-        <h2 className="text-2xl font-bold text-ink">Store Categories</h2>
-        <p className="text-sm text-ink-subtle mt-1">
-          Store categories are fixed system-defined types. All stores must belong to one of the
-          following categories.
-        </p>
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Store Categories"
+        subtitle="Store categories are fixed system-defined types. All stores must belong to one of the following categories."
+        icon={<Warehouse size={22} />}
+      />
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {STORE_CATEGORIES.map((cat) => (
+          <Tile key={cat.code} className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-chip text-accent"
+                aria-hidden="true"
+              >
+                {cat.icon}
+              </span>
+              <div className="min-w-0">
+                <p className="m-0 font-semibold text-ink">{cat.name}</p>
+                <Chip size="sm" tone="muted" className="mt-1 font-mono">
+                  {cat.code}
+                </Chip>
+              </div>
+            </div>
+            <p className="m-0 text-sm text-ink-subtle">{cat.description}</p>
+          </Tile>
+        ))}
       </div>
 
-      <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {STORE_CATEGORIES.map((cat) => (
-            <div key={cat.code} className="border border-line rounded-lg p-5 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-card-2">
-                  {cat.icon}
-                </div>
-                <div>
-                  <p className="font-semibold text-ink text-sm">{cat.name}</p>
-                  <span className="inline-flex items-center text-xs font-mono px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted">
-                    {cat.code}
-                  </span>
-                </div>
-              </div>
-              <p className="text-xs text-ink-subtle">{cat.description}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 p-4 bg-[color:var(--color-warning)]/10 border border-[color:var(--color-warning)]/40 rounded-lg">
-          <p className="text-sm text-[color:var(--color-warning)] font-medium">
+      <Tile className="mt-4 flex items-start gap-3">
+        <Lock
+          size={18}
+          className="mt-0.5 shrink-0 text-[color:var(--color-warning)]"
+          aria-hidden="true"
+        />
+        <div>
+          <p className="m-0 text-sm font-semibold text-ink">
             System-defined categories — cannot be added, edited, or deleted.
           </p>
-          <p className="text-xs text-ink-subtle mt-1">
+          <p className="m-0 mt-1 text-sm text-ink-subtle">
             When creating a store, select the appropriate category. Each category controls which
             forms and modules that store appears in.
           </p>
         </div>
-      </div>
+      </Tile>
     </div>
   );
 };

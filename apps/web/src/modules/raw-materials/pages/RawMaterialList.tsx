@@ -1,27 +1,24 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-
 import type { RawMaterial } from "../../../features/raw-materials/types";
 import { usePermission } from "../../../hooks/usePermission";
 import { useListCache } from "../../../hooks/useListCache";
 import { storeService } from "../../../services/storeService";
-
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { rawMaterialService } from "../../../services/rawMaterialService";
 import { formatStockQty, parseBaseUom } from "../../../utils/uomConversion";
+import { Boxes, Plus } from "lucide-react";
+import { ActionPill, Chip, PageHeader, StatTile, Toolbar } from "../../../components/ui/v2";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -100,20 +97,6 @@ const RawMaterialList: React.FC = () => {
     [stores]
   );
 
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
-  const handleStoreFilter = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStoreFilter(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
-  const handleActiveFilter = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setActiveFilter(e.target.value);
-    setCurrentPage(1);
-  }, []);
-
   const handleOpenView = useCallback((item: RawMaterial) => {
     setSelectedItem(item);
     setShowViewModal(true);
@@ -188,63 +171,112 @@ const RawMaterialList: React.FC = () => {
     };
   }, []);
 
+  const availableOf = (item: any) => Number(item.onHandQty ?? 0) - Number(item.reservedQty ?? 0);
+  const stockLevel = (item: any): "low" | "reorder" | "ok" => {
+    const available = availableOf(item);
+    if (available <= Number(item.minimumStock ?? 0)) return "low";
+    if (available <= Number(item.reorderLevel ?? 0)) return "reorder";
+    return "ok";
+  };
+
+  const stats = useMemo(() => {
+    let low = 0;
+    let reorder = 0;
+    allRawMaterials.forEach((item: any) => {
+      const level = stockLevel(item);
+      if (level === "low") low += 1;
+      else if (level === "reorder") reorder += 1;
+    });
+    return {
+      total: allRawMaterials.length,
+      active: allRawMaterials.filter((i: any) => i.isActive).length,
+      low,
+      reorder,
+    };
+  }, [allRawMaterials]);
+
+  const hasFilters = Boolean(searchTerm || storeFilter || activeFilter);
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStoreFilter("");
+    setActiveFilter("");
+    setCurrentPage(1);
+  };
+
   const columns: DataTableColumn<RawMaterial>[] = [
     {
       header: "#",
-      width: "60px",
+      width: "56px",
       align: "center",
       render: (_, index) => (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
     },
     {
-      header: "NAME",
+      header: "Material",
       render: (item) => (
-        <div>
-          <div className="font-semibold text-ink">{item.materialName}</div>
-          <span className="text-xs text-ink-subtle">ID: {item.rawMaterialId}</span>
+        <div className="flex min-w-0 flex-col">
+          <button
+            type="button"
+            onClick={() => handleOpenView(item)}
+            className="w-fit text-left font-semibold text-accent hover:underline underline-offset-4"
+          >
+            {item.materialName}
+          </button>
+          <span className="font-mono text-xs text-ink-subtle">{item.rawMaterialId}</span>
         </div>
       ),
     },
-    { header: "CATEGORY", render: (item) => item.category?.name || "-" },
-    { header: "STORE", render: (item) => item.store?.storeName || item.storeId || "-" },
+    { header: "Category", render: (item) => item.category?.name || "—" },
+    { header: "Store", render: (item) => item.store?.storeName || item.storeId || "—" },
     {
-      header: "PHYSICAL STOCK",
+      header: "Physical stock",
+      align: "right",
       render: (item) => (
-        <div>
-          <div>{formatStockQty(item.onHandQty, item.baseUom)}</div>
+        <div className="flex flex-col items-end tabular-nums">
+          <span className="text-ink">{formatStockQty(item.onHandQty, item.baseUom)}</span>
           <span className="text-xs text-ink-subtle">
-            Min: {formatStockQty(item.minimumStock, item.baseUom)}
+            Min {formatStockQty(item.minimumStock, item.baseUom)}
           </span>
         </div>
       ),
     },
     {
-      header: "RESERVED",
-      render: (item) => formatStockQty(item.reservedQty, item.baseUom),
+      header: "Reserved",
+      align: "right",
+      render: (item) => (
+        <span className="tabular-nums text-ink-muted">
+          {formatStockQty(item.reservedQty, item.baseUom)}
+        </span>
+      ),
     },
     {
-      header: "AVAILABLE",
+      header: "Available",
+      align: "right",
       render: (item) => {
-        const available = Number(item.onHandQty ?? 0) - Number(item.reservedQty ?? 0);
-        const minStock = Number(item.minimumStock ?? 0);
-        const reorder = Number(item.reorderLevel ?? 0);
-        let color = "#2b8a3e";
-        if (available <= minStock) color = "#dc3545";
-        else if (available <= reorder) color = "#d97706";
+        const level = stockLevel(item);
         return (
-          <span style={{ color, fontWeight: 600 }}>{formatStockQty(available, item.baseUom)}</span>
+          <div className="flex flex-col items-end gap-1">
+            <span className="font-semibold tabular-nums text-ink">
+              {formatStockQty(availableOf(item), item.baseUom)}
+            </span>
+            {level !== "ok" && (
+              <Chip size="sm" tone={level === "low" ? "danger" : "warning"}>
+                {level === "low" ? "Below min" : "Reorder"}
+              </Chip>
+            )}
+          </div>
         );
       },
     },
     {
-      header: "STATUS",
+      header: "Status",
       align: "center",
       render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} />,
     },
     {
-      header: "ACTIONS",
-      align: "center",
+      header: "Actions",
+      align: "right",
       render: (item) => (
-        <div className="flex items-center gap-2">
+        <div className="table-action-group w-full justify-end">
           <ViewButton onClick={() => handleOpenView(item)} />
           {can("raw_materials.edit") && <EditButton onClick={() => handleOpenEdit(item)} />}
           {can("raw_materials.delete") && (
@@ -255,71 +287,109 @@ const RawMaterialList: React.FC = () => {
     },
   ];
 
-  return (
-    <div>
-      <div className="max-w-[1200px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Raw Materials Management</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="w-40">
-              <SelectInput
-                label="Store Filter"
-                hideLabel
-                name="storeFilter"
-                value={storeFilter}
-                options={storeOptions}
-                onChange={handleStoreFilter}
-              />
-            </div>
-            <div className="w-36">
-              <SelectInput
-                label="Status Filter"
-                hideLabel
-                name="activeFilter"
-                value={activeFilter}
-                options={[
-                  { label: "All Status", value: "" },
-                  { label: "Active", value: "true" },
-                  { label: "Inactive", value: "false" },
-                ]}
-                onChange={handleActiveFilter}
-              />
-            </div>
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search materials..."
-            />
-            {can("raw_materials.export") && (
-              <ExportCSVButton
-                fetchData={fetchRawMaterialsForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-            {can("raw_materials.create") && (
-              <CustomButton text="Add Material" icon={FaPlus} onClick={handleOpenAdd} />
-            )}
-          </div>
-        </div>
+  const createCta = can("raw_materials.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={handleOpenAdd}>
+      New Material
+    </ActionPill>
+  ) : null;
 
-        {/* Data Table */}
-        <DataTable
-          columns={columns}
-          data={paginatedData}
-          rowKey={(row) => row.rawMaterialId}
+  return (
+    <div className="w-full min-w-0">
+      <PageHeader
+        title="Raw Materials Management"
+        subtitle={`${stats.total} materials · on hand, reserved for orders and free to issue`}
+        icon={<Boxes size={22} />}
+        actions={
+          can("raw_materials.export") ? (
+            <ExportCSVButton
+              fetchData={fetchRawMaterialsForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : null
+        }
+        primaryAction={createCta}
+      />
+
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile label="Materials" value={stats.total.toLocaleString("en-IN")} loading={loading} />
+        <StatTile label="Active" value={stats.active.toLocaleString("en-IN")} loading={loading} />
+        <StatTile
+          label="At reorder level"
+          value={stats.reorder.toLocaleString("en-IN")}
           loading={loading}
-          emptyMessage="No raw materials found."
-          pagination={
-            totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
-          }
+          delta={stats.reorder > 0 ? "Plan purchase" : undefined}
+          deltaTone="warning"
         />
-        <div className="px-4 pb-2 text-xs text-ink-subtle text-right">Total: {total} record(s)</div>
+        <StatTile
+          label="Below minimum"
+          value={stats.low.toLocaleString("en-IN")}
+          loading={loading}
+          delta={stats.low > 0 ? "Urgent" : undefined}
+          deltaTone="danger"
+        />
       </div>
+
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(value) => {
+          setSearchTerm(value);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search materials..."
+        searchLabel="Search raw materials"
+        filters={[
+          { key: "", label: "All" },
+          { key: "true", label: "Active" },
+          { key: "false", label: "Inactive" },
+        ]}
+        filterValue={activeFilter}
+        onFilterChange={(key) => {
+          setActiveFilter(key);
+          setCurrentPage(1);
+        }}
+        filtersLabel="Status"
+        right={
+          <div className="w-full sm:w-52">
+            <SelectInput
+              label="Store Filter"
+              hideLabel
+              name="storeFilter"
+              value={storeFilter}
+              options={storeOptions}
+              onChange={(e) => {
+                setStoreFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        }
+      />
+
+      <DataTable
+        columns={columns}
+        data={paginatedData}
+        rowKey={(row) => row.rawMaterialId}
+        loading={loading}
+        ariaLabel="Raw materials"
+        emptyMessage={
+          hasFilters ? "No raw materials match these filters." : "No raw materials found."
+        }
+        emptyAction={
+          hasFilters ? (
+            <ActionPill variant="secondary" onClick={clearFilters}>
+              Clear filters
+            </ActionPill>
+          ) : (
+            createCta
+          )
+        }
+        pagination={
+          totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
+        }
+      />
+      <p className="sl-muted m-0 mt-2 text-right text-xs">Total: {total} record(s)</p>
 
       {/* View Modal */}
       <CommonViewModal

@@ -7,6 +7,7 @@ import {
 } from "../../../features/product-capacity-history/productCapacityHistorySlice";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import DataTable from "../../../components/ui/table/DataTable";
+import { StatTile } from "../../../components/ui/v2";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 
 interface Props {
@@ -52,14 +53,11 @@ const CapacityHistoryModal: React.FC<Props> = ({
       </Modal.Header>
       <Modal.Body>
         {currentCapacity !== undefined && currentCapacity !== null && (
-          <div className="bg-card-2 border border-line rounded-sm p-3 mb-4">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card text-ink-muted text-[11px] font-semibold mb-2">
-              CURRENT CAPACITY
-            </span>
-            <h3 className="text-lg font-bold text-ink mb-0">
-              {Number(currentCapacity).toLocaleString()} / Shift
-            </h3>
-          </div>
+          <StatTile
+            className="mb-4"
+            label="Current capacity"
+            value={`${Number(currentCapacity).toLocaleString("en-IN")} / shift`}
+          />
         )}
 
         <DataTable
@@ -68,6 +66,8 @@ const CapacityHistoryModal: React.FC<Props> = ({
           loading={loading}
           emptyMessage="No capacity history found for this product."
           minHeightClassName=""
+          density="compact"
+          ariaLabel="Capacity history"
           columns={[
             {
               header: "#",
@@ -76,7 +76,7 @@ const CapacityHistoryModal: React.FC<Props> = ({
               render: (_r, idx) => <span className="text-ink-subtle">{idx + 1}</span>,
             },
             {
-              header: "DATE",
+              header: "Date",
               render: (r) => (
                 <span className="font-semibold text-ink">
                   {new Date(r.productionDate).toLocaleDateString()}
@@ -84,21 +84,23 @@ const CapacityHistoryModal: React.FC<Props> = ({
               ),
             },
             {
-              header: "PRODUCTION ORDER",
+              header: "Production order",
               render: (r) => <span className="text-ink-subtle text-xs">{r.productionOrderId}</span>,
             },
             {
-              header: "PREVIOUS",
-              render: (r) => Number(r.previousCapacity).toLocaleString(),
+              header: "Previous",
+              render: (r) => Number(r.previousCapacity).toLocaleString("en-IN"),
             },
             {
-              header: "NEW",
+              header: "New",
               render: (r) => (
-                <span className="font-bold text-ink">{Number(r.newCapacity).toLocaleString()}</span>
+                <span className="font-bold text-ink">
+                  {Number(r.newCapacity).toLocaleString("en-IN")}
+                </span>
               ),
             },
             {
-              header: "CHANGE",
+              header: "Change",
               render: (r) => {
                 const change = Number(r.newCapacity) - Number(r.previousCapacity);
                 const isIncrease = change >= 0;
@@ -111,25 +113,29 @@ const CapacityHistoryModal: React.FC<Props> = ({
                     }
                   >
                     {isIncrease ? "+" : ""}
-                    {change.toLocaleString()}
+                    {change.toLocaleString("en-IN")}
                   </span>
                 );
               },
             },
             {
-              header: "TARGET",
+              header: "Target",
               render: (r) => (
-                <span className="text-ink-subtle">{Number(r.targetQty).toLocaleString()}</span>
+                <span className="text-ink-subtle">
+                  {Number(r.targetQty).toLocaleString("en-IN")}
+                </span>
               ),
             },
             {
-              header: "ACTUAL",
+              header: "Actual",
               render: (r) => (
-                <span className="font-bold text-ink">{Number(r.actualQty).toLocaleString()}</span>
+                <span className="font-bold text-ink">
+                  {Number(r.actualQty).toLocaleString("en-IN")}
+                </span>
               ),
             },
             {
-              header: "ACHIEVEMENT",
+              header: "Achievement",
               render: (r) => (
                 <div className="flex items-center gap-1">
                   <StatusBadge
@@ -147,14 +153,14 @@ const CapacityHistoryModal: React.FC<Props> = ({
                 </div>
               ),
             },
-            { header: "SHIFT", render: (r) => r.shiftId },
-            { header: "MACHINE", render: (r) => r.machineId },
+            { header: "Shift", render: (r) => r.shiftId },
+            { header: "Machine", render: (r) => r.machineId },
             {
-              header: "OPERATORS",
+              header: "Operators",
               render: (r) => r.operators || "-",
             },
             {
-              header: "UPDATED BY",
+              header: "Updated by",
               render: (r) => <span className="text-xs text-ink-subtle">{r.updatedBy || "-"}</span>,
             },
           ]}
