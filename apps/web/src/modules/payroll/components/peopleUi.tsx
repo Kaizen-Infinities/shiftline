@@ -163,7 +163,9 @@ export const Notice: React.FC<{
         <Icon size={18} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color }} />
         <div className="min-w-0">
           {title && <p className="m-0 font-semibold">{title}</p>}
-          {children && <div className={cx("text-ink-muted", title && "mt-0.5")}>{children}</div>}
+          {children && (
+            <div className={cx("text-ink-muted", title ? "mt-0.5" : undefined)}>{children}</div>
+          )}
         </div>
       </div>
       {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}

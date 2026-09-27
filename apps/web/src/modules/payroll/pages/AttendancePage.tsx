@@ -1,19 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  Save,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  CheckCircle2,
-  Users,
-  Info,
-  PlayCircle,
-  Calendar,
-  CalendarDays,
-  Lock,
-} from "lucide-react";
+import { Save, RefreshCw, Users, PlayCircle, CalendarDays, Lock } from "lucide-react";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import {
   ActionPill,

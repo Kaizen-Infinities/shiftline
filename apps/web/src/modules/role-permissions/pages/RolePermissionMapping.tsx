@@ -19,7 +19,6 @@ import {
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import { useRoles } from "../../../hooks/useRoles";
 import { usePermissions } from "../../../hooks/usePermissions";
 import { usePermission } from "../../../hooks/usePermission";

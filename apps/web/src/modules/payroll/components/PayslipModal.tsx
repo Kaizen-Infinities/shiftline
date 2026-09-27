@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X, Loader2 } from "lucide-react";
-import { FiPrinter, FiDownload } from "react-icons/fi";
+import { FiDownload } from "react-icons/fi";
 import { payrollService } from "../../../services/payrollService";
 import type { ApiPayslipData } from "../../../services/payrollService";
 import PayslipDocument from "./PayslipDocument";
-import CustomButton from "../../../components/ui/custombutton/CustomButton";
 
 interface PayslipModalProps {
   runId: number;
@@ -140,16 +139,21 @@ const PayslipModal: React.FC<PayslipModalProps> = ({ runId, resultId, onClose })
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-black/60"
+      className="sl-backdrop fixed inset-0 z-50 flex flex-col"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       {/* ── Sticky top bar ── */}
-      <div className="flex-shrink-0 flex items-center justify-between px-6 py-3.5 bg-card border-b border-line-soft shadow-sm">
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-line-soft bg-card px-6 py-3.5">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-primary" />
-          <h2 className="text-base font-bold text-ink">Payslip Preview</h2>
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-chip text-accent"
+            aria-hidden="true"
+          >
+            <FiDownload size={14} />
+          </span>
+          <h2 className="sl-h2 m-0">Payslip Preview</h2>
         </div>
         <div className="flex items-center gap-2.5">
           {/* <button
@@ -166,7 +170,7 @@ const PayslipModal: React.FC<PayslipModalProps> = ({ runId, resultId, onClose })
             type="button"
             onClick={handlePdf}
             disabled={!data || pdfBusy}
-            className="sl-cta sl-pill-sm"
+            className="sl-btn sl-pill-sm"
           >
             {pdfBusy ? <Loader2 size={15} className="animate-spin" /> : <FiDownload size={15} />}
             <span>{pdfBusy ? "Generating…" : "Download PDF"}</span>
@@ -177,7 +181,8 @@ const PayslipModal: React.FC<PayslipModalProps> = ({ runId, resultId, onClose })
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-ink-subtle hover:text-ink hover:bg-card-2 rounded-lg transition-colors cursor-pointer"
+            className="sl-icon-btn sl-icon-btn-md"
+            aria-label="Close payslip"
             title="Close (Esc)"
           >
             <X size={18} />

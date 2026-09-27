@@ -2,8 +2,6 @@ import React, { useState, useMemo, useCallback } from "react";
 import { ActionPill, PageHeader, SearchField } from "../../../components/ui/v2";
 import { Plus, Clock } from "lucide-react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
-import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 

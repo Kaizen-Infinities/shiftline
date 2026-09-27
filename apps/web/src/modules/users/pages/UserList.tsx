@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ActionPill, PageHeader, SearchField } from "../../../components/ui/v2";
 import { Plus, UserCog } from "lucide-react";
-import { Search } from "lucide-react";
 import { FaSave } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";

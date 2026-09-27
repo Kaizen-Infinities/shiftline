@@ -1,11 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   FileText,
-  Calendar,
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
-  Printer,
   FileDown,
   Users,
   TrendingUp,

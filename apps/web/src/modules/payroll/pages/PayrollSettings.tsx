@@ -9,16 +9,11 @@ import {
   AlertTriangle,
   Save,
   Info,
-  Loader2,
   Settings as SettingsIcon,
 } from "lucide-react";
 import { usePermission } from "../../../hooks/usePermission";
-import CommonLoader from "../../../components/ui/Loader/CommonLoader";
-import Button from "../../../components/ui/Button/Button";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CheckboxInput from "../../../components/form/CheckboxInput/CheckboxInput";
-import RadioInput from "../../../components/form/RadioInput/RadioInput";
 import {
   ActionPill,
   Chip,

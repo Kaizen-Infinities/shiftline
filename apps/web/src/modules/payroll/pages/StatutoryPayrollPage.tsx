@@ -31,7 +31,6 @@ import {
   field,
   message,
   money,
-  primary,
   secondary,
   success,
   td,

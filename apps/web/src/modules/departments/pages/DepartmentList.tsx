@@ -3,7 +3,7 @@ import { ActionPill, PageHeader, SearchField } from "../../../components/ui/v2";
 import { Plus, Building2 } from "lucide-react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
 import { useSearchParams } from "react-router-dom";
-import { FaSearch, FaPlus, FaSave, FaEraser } from "react-icons/fa";
+import { FaSave, FaEraser } from "react-icons/fa";
 import { toast } from "react-toastify";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";

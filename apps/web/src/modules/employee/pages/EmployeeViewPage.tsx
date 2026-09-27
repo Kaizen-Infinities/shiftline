@@ -23,7 +23,6 @@ import {
   FaClock,
   FaMoneyBillWave,
   FaLock,
-  FaArrowLeft,
 } from "react-icons/fa";
 import { employeeService } from "../../../services/employeeService";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Wallet, Plus, Trash2, X, Loader2, AlertTriangle } from "lucide-react";
+import { Wallet, Plus, Trash2, X, Loader2 } from "lucide-react";
 import {
   ActionPill,
   Chip,
