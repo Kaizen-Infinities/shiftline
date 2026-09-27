@@ -249,51 +249,6 @@ const TenantDetailPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <SkeletonTile key={i} lines={1} />
-        ))}
-      </div>
-    </div>
-  );
-  const c = t.company;
-
-  return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Link to="/platform/tenants" className="text-xs text-blue-700 hover:underline">
-            ← Tenants
-          </Link>
-          <h2 className="text-xl font-semibold text-ink">
-            {c.companyName} {!c.isActive && <Badge value="SUSPENDED" />}
-          </h2>
-          <p className="text-sm text-ink-muted">
-            {c.companyCode} · {c.slug} {c.gstin && `· GSTIN ${c.gstin}`} · created{" "}
-            {when(c.createdAt)}
-            {c.isOnboarded ? " · onboarded" : " · onboarding pending"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={primary}
-            disabled={busy || !c.isActive}
-            onClick={() => impersonate()}
-          >
-            Act as owner
-          </button>
-          <button
-            type="button"
-            className={c.isActive ? danger : secondary}
-            disabled={busy}
-            onClick={toggleActive}
-          >
-            {c.isActive ? "Suspend tenant" : "Activate tenant"}
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat
           label="Users"
           value={t.usage.users}

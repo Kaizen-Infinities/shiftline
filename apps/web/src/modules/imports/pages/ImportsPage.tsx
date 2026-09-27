@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { FileSpreadsheet } from "lucide-react";
 import {
   importsService,
   type ImportReport,
@@ -95,14 +97,13 @@ const ImportsPage: React.FC = () => {
   const rows = report?.rows.filter((r) => filter === "all" || r.status === filter) ?? [];
 
   return (
-    <div className="p-4 text-ink" data-testid="imports-page">
-      <div className="mb-4">
-        <h1 className="sl-h1 m-0">Data imports</h1>
-        <p className="sl-muted m-0 mt-1 text-sm">
-          Bring masters and opening figures in from a spreadsheet. Every file is checked first;
-          nothing is written until the report is clean and you press Import.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 text-ink md:p-6" data-testid="imports-page">
+      <PageHeader
+        title="Data imports"
+        icon={<FileSpreadsheet size={22} />}
+        subtitle="Bring masters and opening figures in from a spreadsheet. Every file is checked first; nothing is written until the report is clean and you press Import."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Data imports" }]}
+      />
 
       {!types ? (
         <p className="text-sm text-ink-muted">Loading…</p>

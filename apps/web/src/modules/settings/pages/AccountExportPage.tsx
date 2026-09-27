@@ -13,7 +13,6 @@ import { ActionPill, Chip, EmptyState, PageHeader, type ChipTone } from "../../.
  * Account export (P1-03): everything the company holds in Shiftline as one archive, built in
  * the background and downloadable for 24 hours. Secrets never leave; the manifest says what is in.
  */
-const btn = "sl-pill-sm";
 const secondary = "sl-btn sl-pill-sm";
 const th = "sl-th bg-card-2 px-3 py-2.5 text-left first:rounded-l-xl last:rounded-r-xl";
 const td = "px-3 py-2.5 text-sm text-ink";

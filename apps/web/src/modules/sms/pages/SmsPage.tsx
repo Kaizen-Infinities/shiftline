@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { MessageSquare } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -106,13 +108,13 @@ const SmsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <div>
-        <h1 className="sl-h1 m-0">SMS and OTP</h1>
-        <p className="text-sm text-ink-soft">
-          Templates registered on DLT, what has been sent, and the account it goes out through.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="SMS and OTP"
+        icon={<MessageSquare size={22} />}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "SMS and OTP" }]}
+        subtitle="Templates registered on DLT, what has been sent, and the account it goes out through."
+      />
 
       <div className="flex gap-2">
         {(["templates", "messages", "settings"] as const).map((t) => (

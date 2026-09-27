@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { Link2 } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -126,13 +128,12 @@ const PaymentLinksPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <div>
-        <h1 className="sl-h1 m-0">Payment Links</h1>
-        <p className="text-sm text-ink-soft">
-          Links a customer can pay, and what the gateway kept out of each collection.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="Payment Links"
+        icon={<Link2 size={22} />}
+        subtitle="Links a customer can pay, and what the gateway kept out of each collection."
+      />
 
       <div className="flex gap-2">
         {(["links", "settings"] as const).map((t) => (

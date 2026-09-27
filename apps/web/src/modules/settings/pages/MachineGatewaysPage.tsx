@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { Cpu } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import { machineService } from "../../../services/machineService";
@@ -19,7 +21,6 @@ import {
  * is connected. OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned; picking
  * one is allowed, but "Test connection" will honestly refuse until that adapter is.
  */
-const btn = "sl-pill-sm";
 const primary = "sl-btn-blue sl-pill-sm";
 const secondary = "sl-btn sl-pill-sm";
 const danger = "sl-btn-soft-danger sl-pill-sm";
@@ -228,14 +229,12 @@ const MachineGatewaysPage: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
-      <div>
-        <h1 className="sl-h1 m-0">Machine gateways</h1>
-        <p className="sl-muted m-0 mt-1 text-sm">
-          One gateway per machine connection. SIMULATOR is the only adapter that has met a real
-          device today; OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned and
-          will refuse to connect until they have.
-        </p>
-      </div>
+      <PageHeader
+        title="Machine gateways"
+        icon={<Cpu size={22} />}
+        subtitle="One gateway per machine connection. SIMULATOR is the only adapter that has met a real device today; OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned and will refuse to connect until they have."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Machine gateways" }]}
+      />
 
       {can("machine-telemetry.configure") && (
         <div className="grid gap-2 sl-tile p-4 sm:p-5 sm:grid-cols-3">

@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { PageHeader } from "../../../components/ui/v2";
+import { Coins } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -78,13 +80,12 @@ const CurrenciesPage: React.FC = () => {
 
   return (
     <div className="space-y-4 p-4">
-      <header>
-        <h1 className="sl-h1 m-0">Currencies and Rates</h1>
-        <p className="sl-muted m-0 mt-1 text-sm">
-          The books are kept in rupees. A foreign invoice converts at the rate published for its
-          date, and that rate stays on the document.
-        </p>
-      </header>
+      <PageHeader
+        title="Currencies and Rates"
+        icon={<Coins size={22} />}
+        subtitle="The books are kept in rupees. A foreign invoice converts at the rate published for its date, and that rate stays on the document."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Currencies and Rates" }]}
+      />
 
       {can("currencies.edit") && (
         <Card title="Record a rate">
