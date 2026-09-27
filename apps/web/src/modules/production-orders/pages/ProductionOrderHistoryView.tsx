@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { useLocation, useParams } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import {
   Chip,
   ChipTabs,
@@ -477,9 +477,13 @@ const ProductionOrderHistoryView: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <StatusBadge status={plan.status} />
             {plan.stopReason && plan.status !== "COMPLETED" && (
-              <div className="group relative flex items-center cursor-pointer">
-                <FaInfoCircle className="text-[color:var(--color-danger)] text-[13px]" />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-2.5 bg-card border border-line text-ink text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-md pointer-events-none">
+              <div
+                className="group relative flex cursor-pointer items-center"
+                tabIndex={0}
+                aria-label="Stop reason"
+              >
+                <Info size={15} className="text-[color:var(--color-danger)]" aria-hidden="true" />
+                <div className="sl-popover pointer-events-none invisible absolute bottom-full left-1/2 z-20 mb-2 w-56 -translate-x-1/2 p-3 text-xs text-ink opacity-0 transition-all group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
                   <span className="font-bold text-[color:var(--color-warning)] block mb-1">
                     Stop Reason:
                   </span>

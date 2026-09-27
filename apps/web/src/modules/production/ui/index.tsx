@@ -144,6 +144,35 @@ export const ErrorTile: React.FC<{
   </div>
 );
 
+const TONE_TEXT = {
+  danger: "text-[color:var(--color-danger)]",
+  warning: "text-[color:var(--color-warning)]",
+  info: "text-[color:var(--color-info)]",
+} as const;
+
+/** A tile with a coloured left edge for an in-page warning or error; text is never colour alone. */
+export const InlineAlert: React.FC<{
+  tone: "danger" | "warning" | "info";
+  icon?: React.ReactNode;
+  title: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+}> = ({ tone, icon, title, children, className }) => (
+  <div
+    role={tone === "danger" ? "alert" : "status"}
+    className={cx("sl-tile flex items-start gap-3 p-4", className)}
+    style={{ boxShadow: `inset 4px 0 0 var(--color-${tone})` }}
+  >
+    <span className={cx("mt-0.5 shrink-0", TONE_TEXT[tone])} aria-hidden="true">
+      {icon ?? <AlertTriangle size={18} />}
+    </span>
+    <div className="min-w-0">
+      <p className={cx("m-0 text-sm font-bold", TONE_TEXT[tone])}>{title}</p>
+      {children && <div className="text-[13px] text-ink-muted">{children}</div>}
+    </div>
+  </div>
+);
+
 /** Row of icon-pill actions in a table cell. */
 export const RowActions: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,

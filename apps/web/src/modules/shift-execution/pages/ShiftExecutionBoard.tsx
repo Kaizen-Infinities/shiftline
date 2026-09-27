@@ -470,7 +470,9 @@ const ShiftExecutionBoard: React.FC = () => {
         icon={<Factory size={22} />}
         subtitle="Operator Shift Execution Console · start the run, log every hour, record stoppages."
         meta={
-          isConsoleActive && activeOrder ? <StatusBadge status={activeOrder.status} /> : undefined
+          isConsoleActive && activeOrder ? (
+            <StatusBadge status={activeOrder.status ?? ""} />
+          ) : undefined
         }
         actions={
           isConsoleActive ? (

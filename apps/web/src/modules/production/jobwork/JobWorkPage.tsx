@@ -121,7 +121,7 @@ const JobWorkPage: React.FC = () => {
             { key: "itc04" as Tab, label: "ITC-04" },
           ]}
           value={tab}
-          onChange={setTab}
+          onChange={(k) => setTab(k as Tab)}
           ariaLabel="Job work sections"
           size="lg"
         />
