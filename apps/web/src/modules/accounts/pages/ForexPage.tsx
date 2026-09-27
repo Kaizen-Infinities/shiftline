@@ -19,7 +19,7 @@ import {
   secondary,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/reportUi";
 
 /**
  * Foreign exchange and imports (P1-17).
@@ -31,9 +31,9 @@ import {
  */
 type Tab = "exposure" | "revaluations" | "imports";
 const STATUS_STYLE: Record<FxRevaluationRow["status"], string> = {
-  DRAFT: "bg-amber-100 text-amber-800",
-  POSTED: "bg-emerald-100 text-emerald-800",
-  REVERSED: "bg-slate-100 text-slate-700",
+  DRAFT: "sl-chip-warning",
+  POSTED: "sl-chip-success",
+  REVERSED: "sl-chip-muted",
 };
 
 const ForexPage: React.FC = () => {
@@ -88,11 +88,11 @@ const ForexPage: React.FC = () => {
   const done = revaluations.find((r) => r.periodKey === periodKey);
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full space-y-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Foreign Exchange</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1 m-0 leading-tight">Foreign Exchange</h1>
+          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
             What is still owed in a foreign currency, what the rupee has done to it, and what
             customs charged on the way in.
           </p>
@@ -136,7 +136,7 @@ const ForexPage: React.FC = () => {
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
+      <nav className="flex flex-wrap gap-2" role="tablist">
         {(
           [
             ["exposure", "Open exposure"],
@@ -149,24 +149,26 @@ const ForexPage: React.FC = () => {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="sl-chip sl-chip-lg"
           >
             {label}
           </button>
         ))}
       </nav>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+          <div className="sl-skeleton h-3 w-1/2" />
+        </div>
+      )}
 
       {tab === "exposure" && (
         <>
           <Card title="If everything were settled at today's rate">
             <p
-              className={`text-2xl font-semibold ${net >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+              className={`text-2xl font-semibold ${net >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
             >
               {net >= 0 ? "Gain" : "Loss"} of {money(Math.abs(net))}
             </p>
@@ -206,7 +208,9 @@ const ForexPage: React.FC = () => {
                       <td className={`${td} text-right`}>{money(l.restatedInr)}</td>
                       <td
                         className={`${td} text-right font-semibold ${
-                          l.difference >= 0 ? "text-emerald-700" : "text-rose-700"
+                          l.difference >= 0
+                            ? "text-[color:var(--color-success)]"
+                            : "text-[color:var(--color-danger)]"
                         }`}
                       >
                         {money(l.difference)}
@@ -244,7 +248,7 @@ const ForexPage: React.FC = () => {
               )
             }
           >
-            <div className="rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+            <div className="rounded-lg border border-accent bg-nav-active p-3 text-sm text-accent">
               An unrealised difference is an opinion about a rate, not a transaction. The entry
               posts on the last day of the period and{" "}
               <strong>reverses on the first day of the next one</strong>, so the month the money
@@ -282,9 +286,7 @@ const ForexPage: React.FC = () => {
                       <td className={td}>{day(r.asOn)}</td>
                       <td className={`${td} text-right`}>{money(r.netAmount)}</td>
                       <td className={td}>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}
-                        >
+                        <span className={`sl-chip sl-chip-sm ${STATUS_STYLE[r.status]}`}>
                           {r.status.toLowerCase()}
                         </span>
                       </td>
@@ -405,8 +407,8 @@ const BillOfEntryDialog: React.FC<{
   const landed = assessable + Number(basicDuty || 0) + Number(swc || 0) + Number(otherCharges || 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-xl rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-xl sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Record a bill of entry</h2>
         <p className="mt-1 text-sm text-ink-muted">
           The customs exchange rate is notified fortnightly and is not the day&apos;s market rate —

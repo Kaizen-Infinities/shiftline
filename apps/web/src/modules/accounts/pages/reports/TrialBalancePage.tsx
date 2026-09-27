@@ -1,21 +1,25 @@
 import React, { useState, useMemo, useCallback } from "react";
-import {
-  FaSync,
-  FaDownload,
-  FaCheckCircle,
-  FaExclamationTriangle,
-  FaBalanceScale,
-  FaPrint,
-  FaChevronRight,
-  FaChevronDown,
-  FaFileAlt,
-  FaFolderOpen,
-  FaListUl,
-  FaSitemap,
-  FaSortAlphaDown,
-} from "react-icons/fa";
+import { Download, Printer, RefreshCw, Scale } from "lucide-react";
 import apiClient from "../../../../api/apiClient";
 import { useDetailCache } from "../../../../hooks/useDetailCache";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SkeletonRows,
+  StatTile,
+} from "../../../../components/ui/v2";
+import {
+  FilterGroup,
+  ReportFilterBar,
+  fmtDate,
+  fmtINR,
+  fmtINRCompact,
+  rptGroupRowClass,
+  rptTdClass,
+  thClass,
+} from "../../components/accountsUi";
 
 interface TrialBalanceRow {
   ledgerId: number;
@@ -53,23 +57,63 @@ const fmt = (n: number) =>
   n > 0 ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 
 const fmtSigned = (n: number) =>
-  Math.abs(n) < 0.01 ? "" : Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  Math.abs(n) < 0.01
+    ? ""
+    : Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const VARIANT_MAP: Record<ReportVariant, {
-  label: string;
-  category: "closing" | "opening";
-  layout: "alpha" | "grouped" | "hierarchical";
-  detailed: boolean;
-}> = {
-  "closing-alpha-balances": { label: "Alphabetical · Balances", category: "closing", layout: "alpha", detailed: false },
-  "closing-alpha-detailed": { label: "Alphabetical · Detailed", category: "closing", layout: "alpha", detailed: true },
-  "closing-grouped-balances": { label: "Grouped · Balances", category: "closing", layout: "grouped", detailed: false },
-  "closing-grouped-detailed": { label: "Grouped · Detailed", category: "closing", layout: "grouped", detailed: true },
-  "closing-hierarchical-balances": { label: "Hierarchical · Balances", category: "closing", layout: "hierarchical", detailed: false },
-  "closing-hierarchical-detailed": { label: "Hierarchical · Detailed", category: "closing", layout: "hierarchical", detailed: true },
+const VARIANT_MAP: Record<
+  ReportVariant,
+  {
+    label: string;
+    category: "closing" | "opening";
+    layout: "alpha" | "grouped" | "hierarchical";
+    detailed: boolean;
+  }
+> = {
+  "closing-alpha-balances": {
+    label: "Alphabetical · Balances",
+    category: "closing",
+    layout: "alpha",
+    detailed: false,
+  },
+  "closing-alpha-detailed": {
+    label: "Alphabetical · Detailed",
+    category: "closing",
+    layout: "alpha",
+    detailed: true,
+  },
+  "closing-grouped-balances": {
+    label: "Grouped · Balances",
+    category: "closing",
+    layout: "grouped",
+    detailed: false,
+  },
+  "closing-grouped-detailed": {
+    label: "Grouped · Detailed",
+    category: "closing",
+    layout: "grouped",
+    detailed: true,
+  },
+  "closing-hierarchical-balances": {
+    label: "Hierarchical · Balances",
+    category: "closing",
+    layout: "hierarchical",
+    detailed: false,
+  },
+  "closing-hierarchical-detailed": {
+    label: "Hierarchical · Detailed",
+    category: "closing",
+    layout: "hierarchical",
+    detailed: true,
+  },
   "opening-alpha": { label: "Alphabetical", category: "opening", layout: "alpha", detailed: false },
   "opening-grouped": { label: "Grouped", category: "opening", layout: "grouped", detailed: false },
-  "opening-hierarchical": { label: "Hierarchical", category: "opening", layout: "hierarchical", detailed: false },
+  "opening-hierarchical": {
+    label: "Hierarchical",
+    category: "opening",
+    layout: "hierarchical",
+    detailed: false,
+  },
 };
 
 const getFYStartDate = () => {
@@ -83,8 +127,6 @@ export const TrialBalancePage: React.FC = () => {
   const [asOnDate, setAsOnDate] = useState<string>(today);
   const [showZeroBalance, setShowZeroBalance] = useState<boolean>(false);
   const [variant, setVariant] = useState<ReportVariant>("closing-grouped-balances");
-  const [expandClosing, setExpandClosing] = useState(true);
-  const [expandOpening, setExpandOpening] = useState(true);
   const activeConfig = VARIANT_MAP[variant];
 
   const dateParam = activeConfig.category === "opening" ? getFYStartDate() : asOnDate;
@@ -116,7 +158,10 @@ export const TrialBalancePage: React.FC = () => {
   const filteredRows = useMemo(() => {
     if (!data) return [];
     let rows = data.rows;
-    if (!showZeroBalance) rows = rows.filter((r) => r.debitBalance > 0 || r.creditBalance > 0 || Math.abs(r.openingBalance) > 0.01);
+    if (!showZeroBalance)
+      rows = rows.filter(
+        (r) => r.debitBalance > 0 || r.creditBalance > 0 || Math.abs(r.openingBalance) > 0.01
+      );
     rows = [...rows].sort((a, b) => a.name.localeCompare(b.name));
     return rows;
   }, [data, showZeroBalance]);
@@ -143,7 +188,16 @@ export const TrialBalancePage: React.FC = () => {
   const exportCSV = () => {
     if (!data) return;
     const cols = activeConfig.detailed
-      ? ["Account/Group", "Group", "Opening Dr", "Opening Cr", "Debit", "Credit", "Closing Dr", "Closing Cr"]
+      ? [
+          "Account/Group",
+          "Group",
+          "Opening Dr",
+          "Opening Cr",
+          "Debit",
+          "Credit",
+          "Closing Dr",
+          "Closing Cr",
+        ]
       : ["Account/Group", "Debit Bal.", "Credit Bal."];
     const rowsArr: string[][] = [cols];
     filteredRows.forEach((r) => {
@@ -151,10 +205,14 @@ export const TrialBalancePage: React.FC = () => {
         const opDr = r.openingBalance > 0 ? r.openingBalance : 0;
         const opCr = r.openingBalance < 0 ? -r.openingBalance : 0;
         rowsArr.push([
-          r.name, r.group,
-          fmtSigned(opDr), fmtSigned(opCr),
-          fmtSigned(r.totalDebit), fmtSigned(r.totalCredit),
-          fmt(r.debitBalance), fmt(r.creditBalance),
+          r.name,
+          r.group,
+          fmtSigned(opDr),
+          fmtSigned(opCr),
+          fmtSigned(r.totalDebit),
+          fmtSigned(r.totalCredit),
+          fmt(r.debitBalance),
+          fmt(r.creditBalance),
         ]);
       } else {
         rowsArr.push([r.name, fmt(r.debitBalance), fmt(r.creditBalance)]);
@@ -170,335 +228,362 @@ export const TrialBalancePage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const menuItem = (v: ReportVariant, icon: React.ReactNode) => (
-    <button
-      key={v}
-      onClick={() => handleVariantClick(v)}
-      className={`w-full text-left px-2 py-1 text-[11px] flex items-center gap-2 rounded transition-colors ${
-        variant === v ? "bg-indigo-500/15 text-indigo-400 font-semibold" : "text-ink-muted hover:bg-card-2/60"
-      }`}
-    >
-      <span className="text-[9px] opacity-70">{icon}</span>
-      {VARIANT_MAP[v].label}
-    </button>
+  // Chip pickers compose the Busy report variant: trial × layout × (balances | detailed).
+  const pickVariant = (
+    category: "closing" | "opening",
+    layout: "alpha" | "grouped" | "hierarchical",
+    detailed: boolean
+  ) =>
+    handleVariantClick(
+      (category === "opening"
+        ? `opening-${layout}`
+        : `closing-${layout}-${detailed ? "detailed" : "balances"}`) as ReportVariant
+    );
+
+  const colCount = activeConfig.detailed ? 7 : 3;
+  const effectiveDate = activeConfig.category === "opening" ? getFYStartDate() : asOnDate;
+  const diff = Math.abs(totals.dr - totals.cr);
+
+  const numCells = (r: {
+    opDr: number;
+    opCr: number;
+    debit: number;
+    credit: number;
+    dr: number;
+    cr: number;
+    strong?: boolean;
+  }) => (
+    <>
+      {activeConfig.detailed && (
+        <>
+          <td className={rptTdClass("right", "text-ink-muted")}>{fmtSigned(r.opDr) || "—"}</td>
+          <td className={rptTdClass("right", "text-ink-muted")}>{fmtSigned(r.opCr) || "—"}</td>
+          <td className={rptTdClass("right")}>{fmtSigned(r.debit) || "—"}</td>
+          <td className={rptTdClass("right")}>{fmtSigned(r.credit) || "—"}</td>
+        </>
+      )}
+      <td className={rptTdClass("right", r.strong ? "font-semibold" : "")}>{fmt(r.dr) || "—"}</td>
+      <td className={rptTdClass("right", r.strong ? "font-semibold" : "")}>{fmt(r.cr) || "—"}</td>
+    </>
+  );
+
+  const ledgerRow = (row: TrialBalanceRow, indent: boolean) => (
+    <tr key={row.ledgerId} className="sl-row-hover border-b border-line-soft">
+      <td className={rptTdClass("left", indent ? "pl-9" : "")}>{row.name}</td>
+      {numCells({
+        opDr: row.openingBalance > 0 ? row.openingBalance : 0,
+        opCr: row.openingBalance < 0 ? -row.openingBalance : 0,
+        debit: row.totalDebit,
+        credit: row.totalCredit,
+        dr: row.debitBalance,
+        cr: row.creditBalance,
+      })}
+    </tr>
   );
 
   return (
-    <div className="p-3 font-sans text-ink flex gap-3" style={{ minHeight: "calc(100vh - 100px)" }}>
-      {/* LEFT SIDEBAR — Busy-style report menu */}
-      <aside className="w-[240px] shrink-0 bg-card rounded-lg border border-line overflow-hidden">
-        <div className="px-3 py-2 border-b border-line bg-card-2 flex items-center gap-2">
-          <FaBalanceScale className="text-indigo-500 text-xs" />
-          <h2 className="text-xs font-bold text-ink">Trial Balance</h2>
-        </div>
-        <div className="p-2 space-y-2 text-xs overflow-auto" style={{ maxHeight: "calc(100vh - 160px)" }}>
-          {/* Closing Trial group */}
-          <div>
-            <button
-              onClick={() => setExpandClosing((x) => !x)}
-              className="w-full flex items-center gap-1.5 text-[11px] font-bold text-ink px-1 py-1 hover:bg-card-2/60 rounded"
+    <div className="w-full">
+      <PageHeader
+        title="Trial Balance"
+        subtitle={`${activeConfig.category === "opening" ? "Opening Trial" : "Closing Trial"} · ${activeConfig.label} · as on ${fmtDate(effectiveDate)}`}
+        icon={<Scale size={20} />}
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<Printer size={16} />}
+              onClick={handlePrint}
+              disabled={!data}
             >
-              {expandClosing ? <FaChevronDown className="text-[9px] text-ink-subtle" /> : <FaChevronRight className="text-[9px] text-ink-subtle" />}
-              <FaFolderOpen className="text-[10px] text-indigo-400" />
-              Closing Trial
-            </button>
-            {expandClosing && (
-              <div className="ml-2 mt-1 space-y-0.5 border-l border-line-soft pl-2">
-                {menuItem("closing-alpha-balances", <FaSortAlphaDown />)}
-                {menuItem("closing-alpha-detailed", <FaListUl />)}
-                {menuItem("closing-grouped-balances", <FaFolderOpen />)}
-                {menuItem("closing-grouped-detailed", <FaListUl />)}
-                {menuItem("closing-hierarchical-balances", <FaSitemap />)}
-                {menuItem("closing-hierarchical-detailed", <FaListUl />)}
-              </div>
-            )}
-          </div>
-
-          {/* Opening Trial group */}
-          <div>
-            <button
-              onClick={() => setExpandOpening((x) => !x)}
-              className="w-full flex items-center gap-1.5 text-[11px] font-bold text-ink px-1 py-1 hover:bg-card-2/60 rounded"
+              Print
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<Download size={16} />}
+              onClick={exportCSV}
+              disabled={!data}
             >
-              {expandOpening ? <FaChevronDown className="text-[9px] text-ink-subtle" /> : <FaChevronRight className="text-[9px] text-ink-subtle" />}
-              <FaFolderOpen className="text-[10px] text-emerald-400" />
-              Opening Trial
-            </button>
-            {expandOpening && (
-              <div className="ml-2 mt-1 space-y-0.5 border-l border-line-soft pl-2">
-                {menuItem("opening-alpha", <FaSortAlphaDown />)}
-                {menuItem("opening-grouped", <FaFolderOpen />)}
-                {menuItem("opening-hierarchical", <FaSitemap />)}
-              </div>
-            )}
+              Export
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+              onClick={refresh}
+              disabled={refreshing}
+            >
+              Refresh
+            </ActionPill>
+          </>
+        }
+      />
+
+      <ReportFilterBar className="print:hidden">
+        <FilterGroup label="Trial">
+          <div role="group" aria-label="Trial" className="flex flex-wrap gap-2">
+            <Chip
+              size="lg"
+              selected={activeConfig.category === "closing"}
+              onClick={() => pickVariant("closing", activeConfig.layout, activeConfig.detailed)}
+            >
+              Closing
+            </Chip>
+            <Chip
+              size="lg"
+              selected={activeConfig.category === "opening"}
+              onClick={() => pickVariant("opening", activeConfig.layout, false)}
+            >
+              Opening
+            </Chip>
           </div>
-
-          {/* Divider */}
-          <div className="border-t border-line-soft my-2"></div>
-
-          {/* Legend */}
-          <div className="text-[10px] text-ink-subtle italic px-1">
-            <FaFileAlt className="inline mr-1" /> Click a report to load
+        </FilterGroup>
+        <FilterGroup label="Layout">
+          <div role="group" aria-label="Layout" className="flex flex-wrap gap-2">
+            {(
+              [
+                ["alpha", "Alphabetical"],
+                ["grouped", "Grouped"],
+                ["hierarchical", "Hierarchical"],
+              ] as const
+            ).map(([key, label]) => (
+              <Chip
+                key={key}
+                size="lg"
+                selected={activeConfig.layout === key}
+                onClick={() => pickVariant(activeConfig.category, key, activeConfig.detailed)}
+              >
+                {label}
+              </Chip>
+            ))}
           </div>
-        </div>
-      </aside>
-
-      {/* RIGHT PANEL — options + report */}
-      <div className="flex-1 min-w-0 space-y-3">
-        {/* Options bar */}
-        <div className="bg-card rounded-lg border border-line px-3 py-2 flex flex-wrap items-center gap-3 sticky top-0 z-20">
-          <h3 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-            {activeConfig.category === "opening" ? (
-              <><FaFolderOpen className="text-emerald-500 text-sm" /> Opening Trial</>
-            ) : (
-              <><FaFolderOpen className="text-indigo-500 text-sm" /> Closing Trial</>
-            )}
-            <span className="text-[10px] font-medium text-ink-subtle uppercase tracking-wide">
-              · {activeConfig.label}
-            </span>
-          </h3>
-
-          <div className="flex items-center gap-1.5">
-            <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              {activeConfig.category === "opening" ? "Fin. Year Start" : "As on Date"}
-            </label>
-            <input
-              type="date"
-              value={activeConfig.category === "opening" ? getFYStartDate() : asOnDate}
-              onChange={(e) => setAsOnDate(e.target.value)}
-              disabled={activeConfig.category === "opening"}
-              className="w-[130px] px-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-indigo-500/40 focus:border-indigo-500 focus:outline-none disabled:opacity-70"
-            />
-          </div>
-
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={showZeroBalance} onChange={(e) => setShowZeroBalance(e.target.checked)}
-              className="w-3.5 h-3.5 accent-indigo-500" />
-            <span className="text-xs text-ink-muted">Show Zero Balance</span>
-          </label>
-
-          {refreshing && (
-            <span className="flex items-center gap-1 text-[10px] text-indigo-400">
-              <FaSync className="animate-spin" /> Syncing…
-            </span>
-          )}
-
-          <div className="flex items-center gap-1.5 ml-auto">
-            <button onClick={handlePrint} disabled={!data}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
-              <FaPrint /> Print
-            </button>
-            <button onClick={exportCSV} disabled={!data}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
-              <FaDownload /> Export
-            </button>
-            <button onClick={refresh} disabled={refreshing}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50">
-              <FaSync className={refreshing ? "animate-spin text-indigo-500" : ""} /> Refresh
-            </button>
-          </div>
-        </div>
-
-        {/* Body — cache-first render: if data exists (fresh or stale) show it
-            instantly; only show empty-state after fetch has completed with no data. */}
-        {!data && !loading && (
-          <div className="bg-card border border-line rounded-lg p-12 text-center text-xs text-ink-subtle">
-            <FaBalanceScale className="text-indigo-500/40 text-3xl mx-auto mb-2" />
-            <div className="text-sm text-ink-muted font-semibold mb-1">No data for the selected variant</div>
-            <div className="text-[11px]">Selected: <b>{activeConfig.label}</b></div>
-          </div>
+        </FilterGroup>
+        {activeConfig.category === "closing" && (
+          <FilterGroup label="Columns">
+            <div role="group" aria-label="Columns" className="flex flex-wrap gap-2">
+              <Chip
+                size="lg"
+                selected={!activeConfig.detailed}
+                onClick={() => pickVariant("closing", activeConfig.layout, false)}
+              >
+                Balances
+              </Chip>
+              <Chip
+                size="lg"
+                selected={activeConfig.detailed}
+                onClick={() => pickVariant("closing", activeConfig.layout, true)}
+              >
+                Detailed
+              </Chip>
+            </div>
+          </FilterGroup>
         )}
+        <FilterGroup
+          label={activeConfig.category === "opening" ? "Fin. year start" : "As on date"}
+          htmlFor="tb-date"
+        >
+          <input
+            id="tb-date"
+            type="date"
+            value={effectiveDate}
+            onChange={(e) => setAsOnDate(e.target.value)}
+            disabled={activeConfig.category === "opening"}
+            className="sl-input h-11 w-full text-sm lg:w-[170px]"
+          />
+        </FilterGroup>
+        <label className="flex h-11 items-center gap-2 text-sm text-ink-muted lg:ml-auto">
+          <input
+            type="checkbox"
+            className="sl-check"
+            checked={showZeroBalance}
+            onChange={(e) => setShowZeroBalance(e.target.checked)}
+          />
+          Show zero balance
+        </label>
+      </ReportFilterBar>
 
-        {data && (
-          <div className="bg-card border border-line rounded-lg overflow-hidden flex flex-col" style={{ maxHeight: "calc(100vh - 180px)" }}>
-            {/* Meta bar */}
-            <div className="px-3 py-1.5 border-b border-line bg-card-2/50 flex items-center justify-between text-[11px] shrink-0">
-              <span className="text-ink-subtle">
-                {activeConfig.category === "opening" ? "As On FY Start: " : "As On: "}
-                <b className="text-ink">
-                  {new Date(activeConfig.category === "opening" ? getFYStartDate() : asOnDate).toLocaleDateString("en-IN")}
-                </b>
-              </span>
-              <span className="text-ink-subtle">{filteredRows.length} entries · {activeConfig.label}</span>
-            </div>
-
-            <div className="overflow-auto flex-1 min-h-0">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-head text-ink text-[11px] font-bold border-b-2 border-line sticky top-0 z-10">
-                  <tr>
-                    <th className="px-4 py-2 bg-head">Account / Group</th>
-                    {activeConfig.detailed && (
-                      <>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Opening Dr</th>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Opening Cr</th>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Debit</th>
-                        <th className="px-3 py-2 text-right w-[110px] bg-head text-[10px]">Credit</th>
-                      </>
-                    )}
-                    <th className="px-4 py-2 text-right w-[140px] bg-head">Closing Dr</th>
-                    <th className="px-4 py-2 text-right w-[140px] bg-head">Closing Cr</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={activeConfig.detailed ? 7 : 3} className="p-8 text-center text-xs text-ink-subtle">
-                        No entries found.
-                      </td>
-                    </tr>
-                  ) : activeConfig.layout !== "alpha" && grouped ? (
-                    grouped.map(([gname, gitems]) => {
-                      const gd = gitems.reduce((s, i) => s + i.debitBalance, 0);
-                      const gc = gitems.reduce((s, i) => s + i.creditBalance, 0);
-                      const gOpDr = gitems.reduce((s, i) => s + (i.openingBalance > 0 ? i.openingBalance : 0), 0);
-                      const gOpCr = gitems.reduce((s, i) => s + (i.openingBalance < 0 ? -i.openingBalance : 0), 0);
-                      const gDebit = gitems.reduce((s, i) => s + i.totalDebit, 0);
-                      const gCredit = gitems.reduce((s, i) => s + i.totalCredit, 0);
-                      return (
-                        <React.Fragment key={gname}>
-                          <tr className="bg-card-2 border-b border-line">
-                            <td colSpan={activeConfig.detailed ? 7 : 3} className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-indigo-400">
-                              {activeConfig.layout === "hierarchical" ? <FaSitemap className="inline mr-1.5 text-[9px]" /> : null}
-                              {gname}
-                            </td>
-                          </tr>
-                          {gitems.map((row) => (
-                            <tr key={row.ledgerId} className="hover:bg-card-2/50 border-b border-line-soft">
-                              <td className="pl-8 pr-4 py-1 text-xs text-ink">{row.name}</td>
-                              {activeConfig.detailed && (
-                                <>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance > 0 ? row.openingBalance : 0)}</td>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance < 0 ? -row.openingBalance : 0)}</td>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-emerald-500">{fmtSigned(row.totalDebit)}</td>
-                                  <td className="px-3 py-1 text-right text-xs font-mono text-red-400">{fmtSigned(row.totalCredit)}</td>
-                                </>
-                              )}
-                              <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.debitBalance)}</td>
-                              <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.creditBalance)}</td>
-                            </tr>
-                          ))}
-                          <tr className="bg-card-2/40 border-b border-line font-semibold">
-                            <td className="pl-4 pr-4 py-1 text-[11px] italic text-ink-muted">Total {gname}</td>
-                            {activeConfig.detailed && (
-                              <>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gOpDr)}</td>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gOpCr)}</td>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gDebit)}</td>
-                                <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(gCredit)}</td>
-                              </>
-                            )}
-                            <td className="px-4 py-1 text-right text-xs font-mono text-ink-muted">{fmt(gd)}</td>
-                            <td className="px-4 py-1 text-right text-xs font-mono text-ink-muted">{fmt(gc)}</td>
-                          </tr>
-                        </React.Fragment>
-                      );
-                    })
-                  ) : (
-                    filteredRows.map((row) => (
-                      <tr key={row.ledgerId} className="hover:bg-card-2/50 border-b border-line-soft">
-                        <td className="px-4 py-1 text-xs text-ink">{row.name}</td>
-                        {activeConfig.detailed && (
-                          <>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance > 0 ? row.openingBalance : 0)}</td>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-ink-muted">{fmtSigned(row.openingBalance < 0 ? -row.openingBalance : 0)}</td>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-emerald-500">{fmtSigned(row.totalDebit)}</td>
-                            <td className="px-3 py-1 text-right text-xs font-mono text-red-400">{fmtSigned(row.totalCredit)}</td>
-                          </>
-                        )}
-                        <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.debitBalance)}</td>
-                        <td className="px-4 py-1 text-right text-xs font-mono text-ink">{fmt(row.creditBalance)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Sticky footer */}
-            <div className="shrink-0 border-t-2 border-line bg-card-2">
-              <div className="flex items-center px-4 py-2">
-                <span className="flex-1 text-xs font-bold uppercase tracking-wide text-ink">Grand Total</span>
-                {activeConfig.detailed && (
-                  <>
-                    <span className="w-[110px] px-3 text-right text-xs font-mono text-ink-muted">
-                      {fmtSigned(filteredRows.reduce((s, r) => s + (r.openingBalance > 0 ? r.openingBalance : 0), 0))}
-                    </span>
-                    <span className="w-[110px] px-3 text-right text-xs font-mono text-ink-muted">
-                      {fmtSigned(filteredRows.reduce((s, r) => s + (r.openingBalance < 0 ? -r.openingBalance : 0), 0))}
-                    </span>
-                    <span className="w-[110px] px-3 text-right text-xs font-mono text-emerald-500">
-                      {fmtSigned(filteredRows.reduce((s, r) => s + r.totalDebit, 0))}
-                    </span>
-                    <span className="w-[110px] px-3 text-right text-xs font-mono text-red-400">
-                      {fmtSigned(filteredRows.reduce((s, r) => s + r.totalCredit, 0))}
-                    </span>
-                  </>
-                )}
-                <span className="w-[140px] text-right text-sm font-mono font-bold text-ink">
-                  ₹ {totals.dr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="w-[140px] text-right text-sm font-mono font-bold text-ink">
-                  ₹ {totals.cr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="px-4 py-1.5 border-t border-line-soft">
-                {totals.isBalanced ? (
-                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-500 font-semibold">
-                    <FaCheckCircle /> Trial Balance is balanced (Dr = Cr)
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-[11px] text-red-500 font-semibold">
-                    <FaExclamationTriangle /> Not balanced &middot; Difference: ₹ {Math.abs(totals.dr - totals.cr).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile
+          label="Total debit"
+          value={<span title={fmtINR(totals.dr)}>{fmtINRCompact(totals.dr)}</span>}
+          loading={loading && !data}
+        />
+        <StatTile
+          label="Total credit"
+          value={<span title={fmtINR(totals.cr)}>{fmtINRCompact(totals.cr)}</span>}
+          loading={loading && !data}
+        />
+        <StatTile
+          label="Status"
+          value={totals.isBalanced ? "Balanced" : fmtINRCompact(diff)}
+          delta={totals.isBalanced ? "Dr = Cr" : "Difference"}
+          deltaTone={totals.isBalanced ? "success" : "danger"}
+          loading={loading && !data}
+        />
+        <StatTile label="Accounts" value={filteredRows.length} loading={loading && !data} />
       </div>
 
-      {/* Right sidebar — Summary. Amounts render on their own row so
-         crores-scale values never squeeze the label or overflow the card. */}
-      <aside className="w-[220px] shrink-0 bg-card border border-line rounded-md shadow-sm overflow-hidden self-start">
-        <div className="px-3 py-1.5 bg-card-2 border-b border-line text-[11px] font-bold uppercase tracking-wide text-ink flex items-center gap-1.5">
-          <FaBalanceScale className="text-indigo-500 text-xs" /> Summary
+      {!data && loading && (
+        <div className="sl-tile overflow-hidden">
+          <SkeletonRows rows={8} columns={3} rowHeight={40} label="Loading trial balance" />
         </div>
-        <div className="divide-y divide-line-soft">
-          <div className="px-3 py-2">
-            <div className="text-[11px] font-semibold text-ink-muted mb-1">Total Debit</div>
-            <div className="text-sm font-mono font-bold text-emerald-500 break-all leading-tight">
-              ₹{totals.dr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div className="px-3 py-2">
-            <div className="text-[11px] font-semibold text-ink-muted mb-1">Total Credit</div>
-            <div className="text-sm font-mono font-bold text-red-400 break-all leading-tight">
-              ₹{totals.cr.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-          </div>
-          <div className={`px-3 py-2 ${totals.isBalanced ? "bg-emerald-500/5" : "bg-red-500/5"}`}>
-            <div className="text-[11px] font-semibold text-ink-muted mb-1">Status</div>
-            {totals.isBalanced ? (
-              <div className="text-[12px] font-semibold text-emerald-500 flex items-center gap-1">
-                <FaCheckCircle className="text-[10px]" /> Balanced
-              </div>
-            ) : (
-              <>
-                <div className="text-[12px] font-semibold text-red-500 flex items-center gap-1 mb-1">
-                  <FaExclamationTriangle className="text-[10px]" /> Not balanced
-                </div>
-                <div className="text-[11px] font-mono font-bold text-red-500 break-all leading-tight">
-                  ₹{Math.abs(totals.dr - totals.cr).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-              </>
-            )}
-          </div>
-          <div className="px-3 py-2">
-            <div className="text-[11px] font-semibold text-ink-muted mb-1">Accounts</div>
-            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">{filteredRows.length}</div>
-          </div>
+      )}
+
+      {!data && !loading && (
+        <div className="sl-tile">
+          <EmptyState
+            icon={<Scale size={28} />}
+            title="No data for the selected variant"
+            description={`Selected: ${activeConfig.label}`}
+          />
         </div>
-      </aside>
+      )}
+
+      {data && (
+        <section
+          aria-label="Trial balance"
+          className="sl-tile flex flex-col overflow-hidden"
+          style={{ maxHeight: "calc(100vh - 160px)" }}
+        >
+          <div className="min-h-0 flex-1 overflow-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr>
+                  <th scope="col" className={thClass()}>
+                    Account / group
+                  </th>
+                  {activeConfig.detailed && (
+                    <>
+                      <th scope="col" className={thClass("right", "w-[120px]")}>
+                        Opening Dr
+                      </th>
+                      <th scope="col" className={thClass("right", "w-[120px]")}>
+                        Opening Cr
+                      </th>
+                      <th scope="col" className={thClass("right", "w-[120px]")}>
+                        Debit
+                      </th>
+                      <th scope="col" className={thClass("right", "w-[120px]")}>
+                        Credit
+                      </th>
+                    </>
+                  )}
+                  <th scope="col" className={thClass("right", "w-[150px]")}>
+                    Closing Dr (₹)
+                  </th>
+                  <th scope="col" className={thClass("right", "w-[150px]")}>
+                    Closing Cr (₹)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={colCount}>
+                      <EmptyState compact title="No entries found." />
+                    </td>
+                  </tr>
+                ) : activeConfig.layout !== "alpha" && grouped ? (
+                  grouped.map(([gname, gitems]) => {
+                    const gd = gitems.reduce((s, i) => s + i.debitBalance, 0);
+                    const gc = gitems.reduce((s, i) => s + i.creditBalance, 0);
+                    const gOpDr = gitems.reduce(
+                      (s, i) => s + (i.openingBalance > 0 ? i.openingBalance : 0),
+                      0
+                    );
+                    const gOpCr = gitems.reduce(
+                      (s, i) => s + (i.openingBalance < 0 ? -i.openingBalance : 0),
+                      0
+                    );
+                    const gDebit = gitems.reduce((s, i) => s + i.totalDebit, 0);
+                    const gCredit = gitems.reduce((s, i) => s + i.totalCredit, 0);
+                    return (
+                      <React.Fragment key={gname}>
+                        <tr className={rptGroupRowClass}>
+                          <th
+                            scope="rowgroup"
+                            colSpan={colCount}
+                            className="px-4 py-2 text-left text-[13px] font-semibold text-ink"
+                          >
+                            {gname}
+                          </th>
+                        </tr>
+                        {gitems.map((row) => ledgerRow(row, true))}
+                        <tr className="border-b border-line">
+                          <td className={rptTdClass("left", "pl-9 font-semibold text-ink-muted")}>
+                            Total {gname}
+                          </td>
+                          {numCells({
+                            opDr: gOpDr,
+                            opCr: gOpCr,
+                            debit: gDebit,
+                            credit: gCredit,
+                            dr: gd,
+                            cr: gc,
+                            strong: true,
+                          })}
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })
+                ) : (
+                  filteredRows.map((row) => ledgerRow(row, false))
+                )}
+              </tbody>
+              <tfoot className="sticky bottom-0 z-[1]">
+                <tr className="border-t-2 border-line bg-card-2">
+                  <th scope="row" className="px-4 py-3 text-left text-[14px] font-bold text-ink">
+                    Grand total
+                  </th>
+                  {activeConfig.detailed && (
+                    <>
+                      <td className={rptTdClass("right", "text-ink-muted")}>
+                        {fmtSigned(
+                          filteredRows.reduce(
+                            (s, r) => s + (r.openingBalance > 0 ? r.openingBalance : 0),
+                            0
+                          )
+                        ) || "—"}
+                      </td>
+                      <td className={rptTdClass("right", "text-ink-muted")}>
+                        {fmtSigned(
+                          filteredRows.reduce(
+                            (s, r) => s + (r.openingBalance < 0 ? -r.openingBalance : 0),
+                            0
+                          )
+                        ) || "—"}
+                      </td>
+                      <td className={rptTdClass("right")}>
+                        {fmtSigned(filteredRows.reduce((s, r) => s + r.totalDebit, 0)) || "—"}
+                      </td>
+                      <td className={rptTdClass("right")}>
+                        {fmtSigned(filteredRows.reduce((s, r) => s + r.totalCredit, 0)) || "—"}
+                      </td>
+                    </>
+                  )}
+                  <td className="px-4 py-3 text-right text-[15px] font-bold tabular-nums text-ink">
+                    {fmtINR(totals.dr)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-[15px] font-bold tabular-nums text-ink">
+                    {fmtINR(totals.cr)}
+                  </td>
+                </tr>
+                <tr className="bg-card-2">
+                  <td colSpan={colCount} className="px-4 pb-3">
+                    {totals.isBalanced ? (
+                      <Chip tone="success" dot>
+                        Trial Balance is balanced (Dr = Cr)
+                      </Chip>
+                    ) : (
+                      <Chip tone="danger" dot>
+                        Not balanced · Difference: {fmtINR(diff)}
+                      </Chip>
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

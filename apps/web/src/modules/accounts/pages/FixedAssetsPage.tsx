@@ -27,7 +27,7 @@ import {
   success,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/reportUi";
 
 /**
  * Fixed assets (P1-18).
@@ -40,9 +40,9 @@ import {
  */
 type Tab = "register" | "depreciation" | "yearEnd" | "tax" | "classes";
 const STATUS_STYLE: Record<AssetRow["status"], string> = {
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  DISPOSED: "bg-slate-100 text-slate-700",
-  WRITTEN_OFF: "bg-amber-100 text-amber-800",
+  ACTIVE: "sl-chip-success",
+  DISPOSED: "sl-chip-muted",
+  WRITTEN_OFF: "sl-chip-warning",
 };
 
 const FixedAssetsPage: React.FC = () => {
@@ -102,11 +102,11 @@ const FixedAssetsPage: React.FC = () => {
   const runFor = runs.find((r) => r.periodKey === periodKey);
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full space-y-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Fixed Assets</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1 m-0 leading-tight">Fixed Assets</h1>
+          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
             The register, the monthly charge under Schedule II, and the income-tax block
             depreciation that goes on the return. The two are separate calculations and are not
             meant to agree.
@@ -159,7 +159,7 @@ const FixedAssetsPage: React.FC = () => {
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
+      <nav className="flex flex-wrap gap-2" role="tablist">
         {(
           [
             ["register", "Register"],
@@ -174,18 +174,20 @@ const FixedAssetsPage: React.FC = () => {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="sl-chip sl-chip-lg"
           >
             {label}
           </button>
         ))}
       </nav>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+          <div className="sl-skeleton h-3 w-1/2" />
+        </div>
+      )}
 
       {tab === "register" && (
         <Card title="Assets">
@@ -221,9 +223,7 @@ const FixedAssetsPage: React.FC = () => {
                     <td className={`${td} text-right`}>{money(a.accumulatedDepreciation)}</td>
                     <td className={`${td} text-right font-semibold`}>{money(a.wdv)}</td>
                     <td className={td}>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[a.status]}`}
-                      >
+                      <span className={`sl-chip sl-chip-sm ${STATUS_STYLE[a.status]}`}>
                         {a.status.replace(/_/g, " ").toLowerCase()}
                       </span>
                     </td>
@@ -429,7 +429,7 @@ const FixedAssetsPage: React.FC = () => {
 
       {tab === "tax" && blocks && (
         <Card title={`Income-tax depreciation · FY ${blocks.fyCode}`}>
-          <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="mb-3 rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-3 text-sm text-[color:var(--color-warning)]">
             {blocks.note} A block is a pool, the rate is the Act&apos;s, an asset used for under 180
             days gets half of it, and sale proceeds come off the block instead of producing a
             profit. This figure goes on the return; the Schedule II tab goes in the accounts.
@@ -611,8 +611,8 @@ const RunDetailDialog: React.FC<{ runId: string; onClose: () => void }> = ({ run
   }, [runId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">
           Depreciation run {detail?.periodKey ?? ""}
         </h2>
@@ -703,8 +703,8 @@ const AddAssetDialog: React.FC<{
   }, [list.length]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-lg sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Add an asset</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Depreciation runs from the day it was put to use, not the day it was bought.
@@ -815,8 +815,8 @@ const DisposeDialog: React.FC<{
   const result = Number(proceeds || 0) - asset.wdv;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-md sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Dispose of {asset.name}</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Written down to {money(asset.wdv)}. The profit or loss is measured against that, not
@@ -842,7 +842,7 @@ const DisposeDialog: React.FC<{
           </label>
         </div>
         <p
-          className={`mt-3 text-sm font-semibold ${result >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+          className={`mt-3 text-sm font-semibold ${result >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
         >
           {result >= 0 ? "Profit" : "Loss"} on sale: {money(Math.abs(result))}
         </p>
@@ -923,8 +923,8 @@ const OpeningImportDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Import opening balances</h2>
         <p className="mt-1 text-sm text-ink-muted">
           One row per asset already part-depreciated: class code, asset code, name, business place
@@ -944,16 +944,16 @@ const OpeningImportDialog: React.FC<{
           </button>
         </div>
         <textarea
-          className={`${field} mt-3 h-40 w-full font-mono text-xs`}
+          className={`${field} mt-3 h-40 w-full tabular-nums text-xs`}
           value={csv}
           onChange={(e) => setCsv(e.target.value)}
           placeholder={OPENING_TEMPLATE}
         />
-        {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+        {error && <p className="mt-2 text-sm text-[color:var(--color-danger)]">{error}</p>}
         {rowErrors.length > 0 && (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-rose-300">
+          <div className="mt-3 overflow-x-auto rounded-lg border border-[color:var(--color-danger)]/40">
             <table className="min-w-full text-sm">
-              <thead className="bg-rose-50">
+              <thead className="bg-[color:var(--color-danger)]/10">
                 <tr>
                   <th className={th}>Row</th>
                   <th className={th}>Problem</th>
@@ -961,9 +961,9 @@ const OpeningImportDialog: React.FC<{
               </thead>
               <tbody>
                 {rowErrors.map((e, i) => (
-                  <tr key={i} className="border-t border-rose-200">
+                  <tr key={i} className="border-t border-[color:var(--color-danger)]/40">
                     <td className={td}>{e.row}</td>
-                    <td className={`${td} text-rose-800`}>{e.message}</td>
+                    <td className={`${td} text-[color:var(--color-danger)]`}>{e.message}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1012,8 +1012,8 @@ const ClassEditDialog: React.FC<{
   const [isActive, setIsActive] = useState(value?.isActive ?? true);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-lg sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">{value ? "Edit class" : "Add a class"}</h2>
         <p className="mt-1 text-sm text-ink-muted">
           The Schedule II life and method for the accounts, and the income-tax block and rate for

@@ -21,7 +21,7 @@ import {
   success,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/reportUi";
 
 /**
  * Tally export (P1-06).
@@ -39,9 +39,9 @@ const SCOPES: { value: TallyScope; label: string }[] = [
 ];
 const KINDS: TallyNameKind[] = ["GROUP", "LEDGER", "UNIT", "STOCK_ITEM", "VOUCHER_TYPE"];
 const STATUS_STYLE: Record<TallyRunRow["status"], string> = {
-  DRAFT: "bg-amber-100 text-amber-800",
-  CONFIRMED: "bg-emerald-100 text-emerald-800",
-  DISCARDED: "bg-slate-100 text-slate-700",
+  DRAFT: "sl-chip-warning",
+  CONFIRMED: "sl-chip-success",
+  DISCARDED: "sl-chip-muted",
 };
 const COUNT_LABELS: Record<string, string> = {
   groups: "Groups",
@@ -122,18 +122,18 @@ const TallyExportPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full space-y-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Tally Export</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="sl-h1 m-0 leading-tight">Tally Export</h1>
+          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
             The books as an XML file your accountant imports into Tally — groups and ledgers under
             the names Tally already uses, and the month's vouchers in its own sign convention.
           </p>
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
+      <nav className="flex flex-wrap gap-2" role="tablist">
         {(
           [
             ["export", "Export"],
@@ -146,18 +146,20 @@ const TallyExportPage: React.FC = () => {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="sl-chip sl-chip-lg"
           >
             {label}
           </button>
         ))}
       </nav>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+          <div className="sl-skeleton h-3 w-1/2" />
+        </div>
+      )}
 
       {tab === "export" && (
         <>
@@ -320,9 +322,7 @@ const TallyExportPage: React.FC = () => {
                       {Object.values(r.counts ?? {}).reduce((s, v) => s + Number(v), 0)}
                     </td>
                     <td className={td}>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}
-                      >
+                      <span className={`sl-chip sl-chip-sm ${STATUS_STYLE[r.status]}`}>
                         {r.status.toLowerCase()}
                       </span>
                     </td>

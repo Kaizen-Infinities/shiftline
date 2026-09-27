@@ -10,24 +10,24 @@ import {
   type YearEndPreview,
 } from "../../../../services/yearEndService";
 import { formatDate, formatDateTime } from "../../../../utils/dateUtils";
+import { CalendarCheck } from "lucide-react";
+import { PageHeader } from "../../../../components/ui/v2";
 
 /**
  * Year-end closing (P1-09e). Preview the closing journal for a financial year, prepare it, have
  * an approver post it (which also closes the year's periods, opens the next year and freezes
  * the books), or reverse a closing after moving the freeze date back.
  */
-const input =
-  "rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-blue-500";
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
+const input = "sl-input h-11 !w-auto min-w-44 text-sm";
+const primary = "sl-cta sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const danger = "sl-btn-danger sl-pill-sm";
 
 const STATUS_STYLE: Record<string, string> = {
-  PREPARED: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  REVERSED: "bg-rose-100 text-rose-800",
-  DISCARDED: "bg-slate-100 text-slate-700",
+  PREPARED: "sl-chip-warning",
+  APPROVED: "sl-chip-success",
+  REVERSED: "sl-chip-danger",
+  DISCARDED: "sl-chip-muted",
 };
 
 const inr = (n: number) =>
@@ -109,18 +109,16 @@ const YearEndPage: React.FC = () => {
   const existing = preview?.existing ?? null;
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-ink">Year-End Closing</h2>
-        <p className="text-sm text-ink-muted">
-          Transfer the year&apos;s result to Retained Earnings, close the year&apos;s periods, open
-          the next year and freeze the books. Prepared by one person, approved by another.
-        </p>
-      </div>
+    <div className="w-full space-y-4">
+      <PageHeader
+        title="Year-End Closing"
+        subtitle="Transfer the year's result to Retained Earnings, close the year's periods, open the next year and freeze the books. Prepared by one person, approved by another."
+        icon={<CalendarCheck size={20} />}
+      />
 
-      <section className="rounded-xl border border-line-soft bg-card p-4">
-        <h3 className="text-sm font-semibold text-ink">Books frozen up to</h3>
-        <p className="mb-3 text-xs text-ink-muted">
+      <section className="sl-tile p-5 sm:p-6">
+        <h2 className="sl-h2 m-0 text-[16px]">Books frozen up to</h2>
+        <p className="sl-muted mb-4 mt-1 text-sm">
           Nothing dated on or before this day can be posted or changed. It moves forward on its own
           when a year is closed; moving it back needs the box ticked.
         </p>
@@ -152,7 +150,7 @@ const YearEndPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-xl border border-line-soft bg-card p-4 space-y-3">
+      <section className="sl-tile p-5 sm:p-6 space-y-3">
         <form
           className="flex flex-wrap items-end gap-3"
           onSubmit={(e) => {
@@ -160,7 +158,7 @@ const YearEndPage: React.FC = () => {
             setApplied(fyCode.trim());
           }}
         >
-          <label className="text-xs font-medium text-ink-muted">
+          <label className="sl-label !mb-0 flex-col items-start gap-1.5">
             Financial year
             <input
               className={`${input} block w-32`}
@@ -178,35 +176,31 @@ const YearEndPage: React.FC = () => {
         {preview && (
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-sm font-semibold text-ink">
-                Closing journal for {preview.fy.periodName}
-              </h3>
+              <h2 className="sl-h2 m-0 text-[16px]">Closing journal for {preview.fy.periodName}</h2>
               <span className="text-xs text-ink-muted">
                 {formatDate(preview.fy.start)} – {formatDate(preview.fy.end)}
               </span>
               {existing && (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[existing.status]}`}
-                >
+                <span className={`sl-chip sl-chip-sm ${STATUS_STYLE[existing.status]}`}>
                   {existing.status}
                 </span>
               )}
             </div>
             {preview.blockers.length > 0 && (
-              <ul className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <ul className="rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 px-3 py-2 text-sm text-[color:var(--color-warning)]">
                 {preview.blockers.map((b) => (
                   <li key={b}>{b}</li>
                 ))}
               </ul>
             )}
             {preview.stale && (
-              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+              <p className="rounded-lg border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 px-3 py-2 text-sm text-[color:var(--color-danger)]">
                 The books changed since this closing was prepared. Discard it and prepare again.
               </p>
             )}
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wide text-ink-muted">
+                <thead className="bg-card-2 text-left text-[12px] font-semibold text-ink-muted [&_th]:px-3 [&_th]:py-2.5">
                   <tr>
                     <th className="py-1 pr-4">Ledger</th>
                     <th className="py-1 pr-4">Type</th>
@@ -225,7 +219,8 @@ const YearEndPage: React.FC = () => {
                   {preview.lines.map((l) => (
                     <tr key={`${l.ledgerId}-${l.side}`} className="border-t border-line-soft">
                       <td className="py-1 pr-4 text-ink">
-                        <span className="font-mono text-xs text-ink-muted">{l.code}</span> {l.name}
+                        <span className="tabular-nums text-xs text-ink-muted">{l.code}</span>{" "}
+                        {l.name}
                       </td>
                       <td className="py-1 pr-4 text-ink-muted">{l.type}</td>
                       <td className="py-1 pr-4 text-right text-ink">
@@ -318,11 +313,11 @@ const YearEndPage: React.FC = () => {
         )}
       </section>
 
-      <section className="rounded-xl border border-line-soft bg-card p-4">
-        <h3 className="mb-2 text-sm font-semibold text-ink">History</h3>
+      <section className="sl-tile p-5 sm:p-6">
+        <h2 className="sl-h2 m-0 mb-3 text-[16px]">History</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-ink-muted">
+            <thead className="bg-card-2 text-left text-[12px] font-semibold text-ink-muted [&_th]:px-3 [&_th]:py-2.5">
               <tr>
                 <th className="py-1 pr-4">Year</th>
                 <th className="py-1 pr-4">Status</th>
@@ -345,9 +340,7 @@ const YearEndPage: React.FC = () => {
                 <tr key={c.id} className="border-t border-line-soft">
                   <td className="py-1 pr-4 text-ink">{c.fyCode}</td>
                   <td className="py-1 pr-4">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[c.status]}`}
-                    >
+                    <span className={`sl-chip sl-chip-sm ${STATUS_STYLE[c.status]}`}>
                       {c.status}
                     </span>
                   </td>
@@ -355,7 +348,7 @@ const YearEndPage: React.FC = () => {
                     {c.netProfit >= 0 ? "" : "−"}
                     {inr(Math.abs(c.netProfit))}
                   </td>
-                  <td className="py-1 pr-4 font-mono text-xs text-ink">
+                  <td className="py-1 pr-4 tabular-nums text-xs text-ink">
                     {c.closingVoucher?.voucherNo ?? "—"}
                   </td>
                   <td className="py-1 pr-4 text-ink-muted">{formatDateTime(c.preparedAt)}</td>
