@@ -1,11 +1,29 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaPrint, FaIndustry, FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
+import {
+  AlertCircle,
+  BarChart3,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Cog,
+  Gauge,
+  Printer,
+} from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  PageHeader,
+  SectionLabel,
+  StatTile,
+  Tile,
+  type ChipTone,
+} from "../../../components/ui/v2";
+import { PageBody, ProgressBar, formatQty } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
-import BackButton from "../../../components/ui/BackButton/BackButton";
-import CustomButton from "../../../components/ui/Button/Button";
 
 import { dailyPlanService } from "../../../services/dailyPlanService";
 import { machineService } from "../../../services/machineService";
@@ -40,8 +58,17 @@ const DailyReportPage: React.FC = () => {
           machineService.getAll(),
           shiftService.fetchAll(),
         ]);
-        setDailyPlans(Array.isArray(plans) ? plans : plans?.data || []);
-        setMachines(machs?.data || []);
+        // Services answer with a bare array or a { data } / { machines } envelope.
+        const toArray = (v: any, key?: string): any[] =>
+          Array.isArray(v)
+            ? v
+            : Array.isArray(v?.data)
+              ? v.data
+              : key && Array.isArray(v?.[key])
+                ? v[key]
+                : [];
+        setDailyPlans(toArray(plans));
+        setMachines(toArray(machs, "machines"));
         setShifts(Array.isArray(shfts) ? shfts : (shfts as any)?.data || []);
       }
 
@@ -202,74 +229,81 @@ const DailyReportPage: React.FC = () => {
     };
   }, [selectedDate, dailyPlans, hourlyProductions, machines, shifts]);
 
+  const effTone = (eff: number): ChipTone =>
+    eff >= 90 ? "success" : eff >= 50 ? "muted" : "danger";
   const columns: DataTableColumn<any>[] = [
     {
-      header: "MACHINE",
+      header: "Machine",
       render: (item) => <span className="font-semibold text-ink">{item.machineName}</span>,
     },
     {
-      header: "PROD. ORDER",
-      render: (item) => <span className="text-ink-muted">{item.productionOrder}</span>,
-    },
-    {
-      header: "PRODUCT",
-      render: (item) => <span className="text-ink font-medium">{item.productName}</span>,
-    },
-    {
-      header: "SHIFT",
-      render: (item) => <span className="text-ink-subtle">{item.shiftName}</span>,
-    },
-    {
-      header: "PLANNED CAP.",
-      render: (item) => <span className="text-ink-muted">{item.plannedCapacity}</span>,
-    },
-    {
-      header: "ACTUAL PROD.",
+      header: "Order · product",
       render: (item) => (
-        <span className="text-[color:var(--color-success)] font-semibold">
-          {item.actualProduction}
+        <div className="py-1">
+          <div className="font-mono text-[13px] font-semibold text-accent">
+            {item.productionOrder}
+          </div>
+          <div className="text-ink">{item.productName}</div>
+        </div>
+      ),
+    },
+    {
+      header: "Shift",
+      render: (item) => <Chip size="sm">{item.shiftName}</Chip>,
+    },
+    {
+      header: "Planned cap.",
+      align: "right",
+      render: (item) => (
+        <span className="text-ink-muted tabular-nums">{formatQty(item.plannedCapacity)}</span>
+      ),
+    },
+    {
+      header: "Actual prod.",
+      align: "right",
+      render: (item) => (
+        <span className="font-semibold text-ink tabular-nums">
+          {formatQty(item.actualProduction)}
         </span>
       ),
     },
     {
-      header: "PENDING QTY",
-      render: (item) => (
-        <span className="text-[color:var(--color-warning)] font-medium">{item.pendingQty}</span>
-      ),
-    },
-    {
-      header: "EFFICIENCY %",
+      header: "Pending qty",
+      align: "right",
       render: (item) => (
         <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-semibold border ${
-            Number(item.efficiency) >= 90
-              ? "border-[color:var(--color-success)] text-[color:var(--color-success)]"
-              : Number(item.efficiency) >= 50
-                ? "border-line text-ink-muted"
-                : "border-[color:var(--color-danger)] text-[color:var(--color-danger)]"
-          }`}
+          className={
+            item.pendingQty > 0
+              ? "font-medium text-[color:var(--color-warning)] tabular-nums"
+              : "text-ink-subtle tabular-nums"
+          }
         >
-          {item.efficiency}%
+          {item.pendingQty > 0 ? formatQty(item.pendingQty) : "—"}
         </span>
       ),
     },
     {
-      header: "STATUS",
-      render: (item) => {
-        let badgeClass = "border-[color:var(--color-danger)] text-[color:var(--color-danger)]";
-        if (item.status === "Highest") {
-          badgeClass = "border-[color:var(--color-success)] text-[color:var(--color-success)]";
-        } else if (item.status === "Medium") {
-          badgeClass = "border-line text-ink-muted";
-        }
-        return (
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-sm text-xs font-semibold border ${badgeClass}`}
-          >
-            {item.status}
-          </span>
-        );
-      },
+      header: "Efficiency %",
+      align: "right",
+      render: (item) => (
+        <Chip size="sm" tone={effTone(Number(item.efficiency))} className="tabular-nums">
+          {item.efficiency}%
+        </Chip>
+      ),
+    },
+    {
+      header: "Status",
+      render: (item) => (
+        <Chip
+          size="sm"
+          dot
+          tone={
+            item.status === "Highest" ? "success" : item.status === "Medium" ? "muted" : "danger"
+          }
+        >
+          {item.status}
+        </Chip>
+      ),
     },
   ];
 
@@ -289,215 +323,187 @@ const DailyReportPage: React.FC = () => {
     window.print();
   };
 
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const shiftDate = (days: number) => {
+    const d = new Date(selectedDate || todayStr);
+    d.setDate(d.getDate() + days);
+    setSelectedDate(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    );
+  };
+  const t = reportData.totals;
+
   return (
-    <div>
-      <div
-        className="max-w-[1200px] xl:mr-auto flex flex-col gap-6 report-print-container"
-        id="daily-production-report"
-      >
-        {/* Header & Controls Card */}
-        <div className="bg-card rounded-sm border border-line p-5 md:p-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-ink">Daily Production Report</h2>
-              <p className="text-sm text-ink-subtle mt-0.5">
-                Overview of production progress across all machines
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto no-print">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-ink-muted whitespace-nowrap">
-                  Select Date:
-                </label>
-                <input
-                  type="date"
-                  className="bg-card-2 border border-line-soft rounded-md px-3 py-2 text-sm text-ink outline-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all cursor-pointer [color-scheme:dark]"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                />
-              </div>
-
-              <ExportCSVButton
-                data={reportData.machineWise}
-                columns={csvColumns}
-                filename={`Daily_Production_Report_${selectedDate}.csv`}
-                text="Export Excel"
-              />
-
-              <CustomButton
-                variant="secondary"
-                text="Print / PDF"
-                icon={FaPrint}
-                onClick={handlePrint}
-              />
-
-              <BackButton />
-            </div>
+    <PageBody className="report-print-container" id="daily-production-report">
+      <PageHeader
+        title="Daily Production Report"
+        icon={<BarChart3 size={22} />}
+        subtitle={`Overview of production progress across all machines · ${selectedDate ? formatDate(selectedDate) : ""}`}
+        back={() => navigate(-1)}
+        breadcrumbs={[
+          { label: "Daily planning", to: "/daily-machine-planning" },
+          { label: "Daily report" },
+        ]}
+        actions={
+          <div className="no-print flex flex-wrap items-center gap-2.5">
+            <ExportCSVButton
+              data={reportData.machineWise}
+              columns={csvColumns}
+              filename={`Daily_Production_Report_${selectedDate}.csv`}
+              text="Export Excel"
+            />
+            <ActionPill variant="secondary" icon={<Printer size={17} />} onClick={handlePrint}>
+              Print / PDF
+            </ActionPill>
           </div>
+        }
+      />
+
+      {/* Filter bar */}
+      <Tile padding="sm" className="no-print">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => shiftDate(-1)}
+            aria-label="Previous day"
+            className="sl-icon-btn sl-icon-btn-md"
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
+          <label className="sr-only" htmlFor="daily-report-date">
+            Select Date
+          </label>
+          <input
+            id="daily-report-date"
+            type="date"
+            className="sl-input h-11 w-[170px]"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => shiftDate(1)}
+            aria-label="Next day"
+            className="sl-icon-btn sl-icon-btn-md"
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
+          <Chip
+            size="lg"
+            selected={selectedDate === todayStr}
+            onClick={() => setSelectedDate(todayStr)}
+          >
+            Today
+          </Chip>
         </div>
+      </Tile>
 
-        {loading ? (
-          <div className="flex items-center justify-center p-12 bg-card rounded-sm border border-line">
-            <div className="flex items-center gap-2 text-ink-subtle text-sm">
-              <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              Loading report data...
-            </div>
+      {/* Summary Metric Tiles */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatTile
+          label="Machines"
+          value={t.machinesExecuted}
+          hint={`of ${t.machinesPlanned} planned`}
+          icon={<Cog size={18} />}
+          loading={loading}
+        />
+        <StatTile
+          label="Production"
+          value={formatQty(t.actualProduction)}
+          hint={`of ${formatQty(t.plannedCapacity)} target`}
+          icon={<CheckCircle2 size={18} />}
+          loading={loading}
+        />
+        <StatTile
+          label="Pending"
+          value={formatQty(t.pendingQuantity)}
+          hint="units remaining"
+          icon={<AlertCircle size={18} />}
+          loading={loading}
+        />
+        <StatTile
+          label="Efficiency"
+          value={`${t.efficiency}%`}
+          hint="overall"
+          icon={<Gauge size={18} />}
+          loading={loading}
+        />
+      </div>
+
+      {!loading && (
+        <Tile>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-semibold text-ink">Overall Daily Progress</span>
+            <Chip size="sm" className="tabular-nums">
+              {formatQty(t.actualProduction)} / {formatQty(t.plannedCapacity)}
+            </Chip>
           </div>
-        ) : (
-          <>
-            {/* Summary Metric Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Machines */}
-              <div className="bg-card p-5 rounded-md border border-line flex flex-col justify-between hover:border-line-soft transition-all">
-                <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-2">
-                  Machines
-                </span>
-                <div className="flex justify-between items-end">
-                  <div>
-                    <div className="text-3xl font-bold text-ink">
-                      {reportData.totals.machinesExecuted}
-                    </div>
-                    <div className="text-xs text-ink-subtle mt-1">
-                      of {reportData.totals.machinesPlanned} Planned
-                    </div>
-                  </div>
-                  <div className="w-12 h-12 border border-line text-ink-subtle rounded-md flex items-center justify-center">
-                    <FaIndustry className="text-xl" />
-                  </div>
-                </div>
-              </div>
+          <ProgressBar
+            pct={Number(t.efficiency) || 0}
+            label="Overall daily progress"
+            className="h-3"
+          />
+          <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs font-medium text-ink-subtle">
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-accent" aria-hidden="true" />
+              {t.runningHours} Running Hours
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-ink-subtle" aria-hidden="true" />
+              {t.hourlyEntries} Hourly Records
+            </span>
+          </div>
+        </Tile>
+      )}
 
-              {/* Production */}
-              <div className="bg-card p-5 rounded-md border border-line flex flex-col justify-between hover:border-line-soft transition-all">
-                <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-2">
-                  Production
-                </span>
-                <div className="flex justify-between items-end">
-                  <div>
-                    <div className="text-3xl font-bold text-[color:var(--color-success)]">
-                      {reportData.totals.actualProduction}
-                    </div>
-                    <div className="text-xs text-ink-subtle mt-1">
-                      of {reportData.totals.plannedCapacity} Target
-                    </div>
-                  </div>
-                  <div className="w-12 h-12 border border-[color:var(--color-success)] text-[color:var(--color-success)] rounded-md flex items-center justify-center">
-                    <FaCheckCircle className="text-xl" />
-                  </div>
-                </div>
-              </div>
+      {/* Machine-wise Production Table */}
+      <div>
+        <SectionLabel>Machine-wise Production Summary</SectionLabel>
+        <DataTable
+          ariaLabel="Machine-wise production summary"
+          columns={columns}
+          data={reportData.machineWise}
+          loading={loading}
+          density="compact"
+          rowKey={(row) =>
+            row.id ??
+            row.machineId ??
+            `${row.machineName ?? ""}-${row.productName ?? ""}-${row.shiftName ?? ""}`
+          }
+          emptyMessage="No production records found for the selected date."
+        />
+      </div>
 
-              {/* Pending */}
-              <div className="bg-card p-5 rounded-md border border-line flex flex-col justify-between hover:border-line-soft transition-all">
-                <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-2">
-                  Pending
-                </span>
-                <div className="flex justify-between items-end">
-                  <div>
-                    <div className="text-3xl font-bold text-[color:var(--color-warning)]">
-                      {reportData.totals.pendingQuantity}
-                    </div>
-                    <div className="text-xs text-ink-subtle mt-1">Units Remaining</div>
-                  </div>
-                  <div className="w-12 h-12 border border-[color:var(--color-warning)] text-[color:var(--color-warning)] rounded-md flex items-center justify-center">
-                    <FaExclamationCircle className="text-xl" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Efficiency */}
-              <div className="bg-card p-5 rounded-md border border-line flex flex-col justify-between hover:border-line-soft transition-all">
-                <span className="text-ink-subtle text-xs font-semibold uppercase tracking-wider mb-2">
-                  Efficiency
-                </span>
-                <div className="flex justify-between items-end">
-                  <div>
-                    <div className="text-3xl font-bold text-ink">
-                      {reportData.totals.efficiency}%
-                    </div>
-                    <div className="text-xs text-ink-subtle mt-1">Overall OEE</div>
-                  </div>
-                  <div className="w-12 h-12 rounded-md border border-line text-ink-subtle flex items-center justify-center">
-                    <span className="text-xs font-bold">{reportData.totals.efficiency}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Overall Progress Bar */}
-            <div className="bg-card p-5 md:p-6 rounded-md border border-line">
-              <div className="flex justify-between items-center mb-3">
-                <span className="font-semibold text-sm text-ink">Overall Daily Progress</span>
-                <span className="font-semibold text-ink bg-card-2 border border-line-soft px-3 py-1 rounded-full text-xs">
-                  {reportData.totals.actualProduction} / {reportData.totals.plannedCapacity}
-                </span>
-              </div>
-              <div className="w-full bg-card-2 rounded-full h-3 overflow-hidden border border-line-soft">
-                <div
-                  className="bg-accent h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, Number(reportData.totals.efficiency) || 0)}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between items-center mt-3 text-xs font-medium text-ink-subtle">
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-accent"></span>
-                  {reportData.totals.runningHours} Running Hours
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-ink-subtle"></span>
-                  {reportData.totals.hourlyEntries} Hourly Records
-                </span>
-              </div>
-            </div>
-
-            {/* Machine-wise Production Table */}
-            <div className="bg-card rounded-sm border border-line overflow-hidden">
-              <div className="p-5 border-b border-line">
-                <h3 className="font-bold text-base text-ink">Machine-wise Production Summary</h3>
-              </div>
-              <div className="p-0">
-                <DataTable
-                  columns={columns}
-                  data={reportData.machineWise}
-                  rowKey={(row) =>
-                    row.id ??
-                    row.machineId ??
-                    `${row.machineName ?? ""}-${row.productName ?? ""}-${row.shiftName ?? ""}`
-                  }
-                  emptyMessage="No production records found for the selected date."
-                />
-              </div>
-            </div>
-          </>
-        )}
-
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           @media print {
             body * {
               visibility: hidden;
             }
             .report-print-container, .report-print-container * {
               visibility: visible;
+              color: #000 !important;
+              background: #fff !important;
+              box-shadow: none !important;
             }
             .report-print-container {
               position: absolute;
               left: 0;
               top: 0;
               width: 100%;
-              background: transparent !important;
             }
             .no-print {
               display: none !important;
             }
           }
         `,
-          }}
-        />
-      </div>
-    </div>
+        }}
+      />
+    </PageBody>
   );
 };
 

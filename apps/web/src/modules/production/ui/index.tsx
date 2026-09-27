@@ -44,10 +44,15 @@ export const humanize = (value: string | null | undefined): string => {
 /* ------------------------------------------------------------------ layout */
 
 /** Page body: vertical rhythm between tiles. */
-export const PageBody: React.FC<{ className?: string; children: React.ReactNode }> = ({
+export const PageBody: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   children,
-}) => <div className={cx("flex w-full min-w-0 flex-col gap-5", className)}>{children}</div>;
+  ...rest
+}) => (
+  <div className={cx("flex w-full min-w-0 flex-col gap-5", className)} {...rest}>
+    {children}
+  </div>
+);
 
 /**
  * Sticky form footer: Cancel (white pill) on the left of Save (green CTA). Stays at the
