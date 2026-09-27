@@ -61,6 +61,7 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "GET /api/asn/:id/labels",
   "POST /api/asn/:id/status",
   "GET /api/asn/export-formats",
+  "GET /api/asn/invoices",
   "GET /api/asn/part-maps",
   "POST /api/asn/part-maps",
   "DELETE /api/asn/part-maps/:id",

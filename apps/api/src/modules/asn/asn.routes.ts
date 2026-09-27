@@ -11,6 +11,7 @@ import {
   createPartMapBody,
   exportQuery,
   idParam,
+  invoicePickerQuery,
   labelsQuery,
   listQuery,
   partMapListQuery,
@@ -79,6 +80,15 @@ router.get(
   requirePermission("asn.view"),
   asyncHandler(async (_req: Request, res: Response) => {
     res.json(new ApiResponse("ASN export formats", svc.exportFormats()));
+  })
+);
+
+router.get(
+  "/invoices",
+  requirePermission("asn.create"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const q = invoicePickerQuery.parse(req.query);
+    res.json(new ApiResponse("Invoices without an ASN", await svc.candidateInvoices(q)));
   })
 );
 

@@ -144,6 +144,11 @@ export const listQuery = z.object({
   q: z.string().trim().max(40).optional(),
 });
 
+export const invoicePickerQuery = z.object({
+  q: z.string().trim().max(40).optional(),
+  customerId: z.string().uuid().optional(),
+});
+
 export const prefillQuery = z.object({ salesInvoiceId: z.string().uuid("Pick a sales invoice") });
 
 export const exportQuery = z.object({

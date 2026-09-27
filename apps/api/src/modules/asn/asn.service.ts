@@ -387,6 +387,36 @@ class AsnService {
   }
 
   // ── Prefill ────────────────────────────────────────────────────────────────
+  /** Recent invoices that have no live ASN yet: the picker of the create flow. */
+  async candidateInvoices(q: { q?: string; customerId?: string }) {
+    const rows = await prisma.salesInvoice.findMany({
+      where: {
+        status: { not: "CANCELLED" },
+        asns: { none: { status: { not: "CANCELLED" } } },
+        ...(q.customerId ? { customerId: q.customerId } : {}),
+        ...(q.q ? { invoiceNo: { contains: q.q, mode: "insensitive" as const } } : {}),
+      },
+      select: {
+        id: true,
+        invoiceNo: true,
+        invoiceDate: true,
+        customerId: true,
+        customer: { select: { firmName: true, displayName: true } },
+        _count: { select: { items: true } },
+      },
+      orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
+      take: 30,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      invoiceNo: r.invoiceNo,
+      invoiceDate: iso(r.invoiceDate),
+      customerId: r.customerId,
+      customerName: nameOf(r.customer),
+      itemCount: r._count.items,
+    }));
+  }
+
   /**
    * What an ASN for this invoice would hold: one line per invoiced product (split across open
    * schedule lines, earliest due first), the customer's part number and standard pack from the

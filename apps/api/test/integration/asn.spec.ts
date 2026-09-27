@@ -42,12 +42,6 @@ let LINE_B: string;
 let LINE_C: string;
 let ASN_ID: string;
 
-const binary = (res: NodeJS.ReadableStream, cb: (err: Error | null, body: Buffer) => void) => {
-  const chunks: Buffer[] = [];
-  res.on("data", (c: Buffer) => chunks.push(c));
-  res.on("end", () => cb(null, Buffer.concat(chunks)));
-};
-
 /** A sales invoice in the demo tenant with the given product lines. */
 const invoiceWith = async (
   customerId: string,
@@ -223,6 +217,17 @@ describe("OEM ASN and packing labels (TN-07)", () => {
   });
 
   it("prefills an ASN from the invoice, the part map and the open schedule lines", async () => {
+    const picker = await (
+      await api()
+    )
+      .get(`${BASE}/invoices`)
+      .query({ customerId: CUSTOMER_ID, q: INVOICE_NO })
+      .set(STORES.auth);
+    expect(picker.status).toBe(200);
+    expect(picker.body.data).toEqual([
+      expect.objectContaining({ id: INVOICE_ID, invoiceNo: INVOICE_NO, itemCount: 3 }),
+    ]);
+
     const res = await (
       await api()
     )
@@ -273,6 +278,11 @@ describe("OEM ASN and packing labels (TN-07)", () => {
       .set(OWNER.auth)
       .send({ salesInvoiceId: INVOICE_ID, dispatchAt: nowLocal() });
     expect(again.status).toBe(409);
+    const picker = await client
+      .get(`${BASE}/invoices`)
+      .query({ customerId: CUSTOMER_ID })
+      .set(OWNER.auth);
+    expect(picker.body.data.some((i: { id: string }) => i.id === INVOICE_ID)).toBe(false);
 
     const pre = await client
       .get(`${BASE}/prefill`)
@@ -393,7 +403,11 @@ describe("OEM ASN and packing labels (TN-07)", () => {
         .query({ size })
         .set(OWNER.auth)
         .buffer(true)
-        .parse(binary);
+        .parse((res, cb) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (c: Buffer) => chunks.push(c));
+          res.on("end", () => cb(null, Buffer.concat(chunks)));
+        });
       expect(pdf.status).toBe(200);
       expect(pdf.headers["content-type"]).toContain("application/pdf");
       expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");

@@ -371,6 +371,7 @@ export const API_PATHS = {
   asn: {
     base: "/asn", // ← service appends /:id, /:id/status, /:id/export, /:id/labels
     prefill: "/asn/prefill",
+    invoices: "/asn/invoices",
     formats: "/asn/export-formats",
     partMaps: "/asn/part-maps", // ← service appends /:id
   },
