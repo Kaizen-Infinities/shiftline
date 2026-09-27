@@ -16,7 +16,13 @@ import { fetchProductionOrders } from "../../../features/production-orders/produ
 import { fetchMachines } from "../../../features/machines/machineSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import { usePermission } from "../../../hooks/usePermission";
-import { DashTile, TileHeader, EmptyState, SkeletonRows } from "../components/DashboardPrimitives";
+import {
+  DashTile,
+  TileHeader,
+  EmptyState,
+  LoadError,
+  SkeletonRows,
+} from "../components/DashboardPrimitives";
 import { oeeChipClass, oeeTone } from "../components/dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
@@ -33,6 +39,10 @@ const clampPct = (v: number) => Math.min(100, Math.max(0, v));
 
 /** Threshold colour for an OEE-style percentage; an empty bar keeps its track colour. */
 const toneVar = (v: Pct) => (v == null ? "var(--color-line)" : oeeTone(v));
+
+/** Calendar day in the viewer's own time zone (not UTC), e.g. "2026-09-27". */
+const localDayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const readDowntime = (productionOrderId: string | number | undefined) => {
   if (productionOrderId == null) return 0;
@@ -73,10 +83,18 @@ const ProductionDashboard: React.FC = () => {
   const dispatch = useAppDispatch();
   const { can } = usePermission();
 
-  const { data: productionOrders, loading: loadingOrders } = useAppSelector(
-    (state) => state.productionOrders
-  );
-  const { data: machines, loading: loadingMachines } = useAppSelector((state) => state.machines);
+  const {
+    data: productionOrders,
+    loading: loadingOrders,
+    error: ordersError,
+  } = useAppSelector((state) => state.productionOrders);
+  const {
+    data: machines,
+    loading: loadingMachines,
+    error: machinesError,
+  } = useAppSelector((state) => state.machines);
+  const ordersFailed = !!ordersError && !loadingOrders && productionOrders.length === 0;
+  const machinesFailed = !!machinesError && !loadingMachines && machines.length === 0;
 
   useEffect(() => {
     dispatch(fetchProductionOrders());
@@ -88,9 +106,9 @@ const ProductionDashboard: React.FC = () => {
   useSocketSync("hourlyProduction", undefined, () => dispatch(fetchProductionOrders()));
 
   const stats = useMemo(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = localDayKey(new Date());
     const startOfWeek = new Date();
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Monday
+    startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7)); // Monday, also on a Sunday
     startOfWeek.setHours(0, 0, 0, 0);
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -116,7 +134,8 @@ const ProductionDashboard: React.FC = () => {
       if (po.status === "CANCELLED") stoppedMachineIds.add((po as any).machineId);
       if (!po.orderDate) return;
       const d = new Date(po.orderDate);
-      if (d.toISOString().split("T")[0] === todayStr) {
+      if (Number.isNaN(d.getTime())) return; // a malformed date must not take the page down
+      if (localDayKey(d) === todayStr) {
         t.todayTarget += orderQty;
         t.todayProduced += producedQty;
       }
@@ -266,6 +285,33 @@ const ProductionDashboard: React.FC = () => {
         </div>
       </header>
 
+      {ordersFailed && (
+        <div
+          role="alert"
+          className="sl-tile flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+        >
+          <p className="flex min-w-0 items-center gap-3 text-sm text-ink">
+            <span
+              aria-hidden="true"
+              className="sl-chip-danger grid h-9 w-9 shrink-0 place-items-center rounded-[12px]"
+            >
+              <LuTriangleAlert />
+            </span>
+            <span>
+              <strong className="font-semibold">Production orders didn't load.</strong>{" "}
+              <span className="sl-muted">Output, OEE and shift figures below are incomplete.</span>
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => dispatch(fetchProductionOrders())}
+            className="sl-btn min-h-10 text-sm"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
       {/* ── Output vs target ── */}
       <section
         aria-label="Output against target"
@@ -285,7 +331,7 @@ const ProductionDashboard: React.FC = () => {
                 </span>
               </div>
               <div className="text-[1.75rem] leading-none font-bold tracking-tight text-ink tabular-nums">
-                {p.produced.toLocaleString("en-IN")}
+                {ordersFailed ? "—" : p.produced.toLocaleString("en-IN")}
                 <span className="ml-1.5 text-sm font-medium text-ink-subtle">PCS</span>
               </div>
               <Meter
@@ -294,9 +340,11 @@ const ProductionDashboard: React.FC = () => {
                 label={`${p.label} output against target`}
               />
               <span className="sl-muted text-xs tabular-nums">
-                {p.target > 0
-                  ? `${Math.round(pct ?? 0)}% of ${p.target.toLocaleString("en-IN")} target`
-                  : "No target planned"}
+                {ordersFailed
+                  ? "Not loaded"
+                  : p.target > 0
+                    ? `${Math.round(pct ?? 0)}% of ${p.target.toLocaleString("en-IN")} target`
+                    : "No target planned"}
               </span>
             </div>
           );
@@ -312,9 +360,9 @@ const ProductionDashboard: React.FC = () => {
             </span>
           </div>
           <div className="text-[1.75rem] leading-none font-bold tracking-tight text-ink tabular-nums">
-            {stats.monthRejected.toLocaleString("en-IN")}
+            {ordersFailed ? "—" : stats.monthRejected.toLocaleString("en-IN")}
             <span className="mx-1.5 text-sm font-medium text-ink-subtle">rej ·</span>
-            {stats.monthScrap.toLocaleString("en-IN")}
+            {ordersFailed ? "—" : stats.monthScrap.toLocaleString("en-IN")}
             <span className="ml-1.5 text-sm font-medium text-ink-subtle">scrap</span>
           </div>
           <Meter
@@ -401,10 +449,20 @@ const ProductionDashboard: React.FC = () => {
             icon={LuCog}
             tone="production"
             title="Machines"
-            subtitle={`${machineRows.filter((m) => m.status === "RUNNING").length} running · ${machineRows.length} total`}
+            subtitle={
+              machinesFailed
+                ? "Status unavailable"
+                : `${machineRows.filter((m) => m.status === "RUNNING").length} running · ${machineRows.length} total`
+            }
           />
           {loadingMachines && machineRows.length === 0 ? (
             <SkeletonRows rows={3} />
+          ) : machinesFailed ? (
+            <LoadError
+              title="Couldn't load machines"
+              onRetry={() => dispatch(fetchMachines())}
+              retrying={loadingMachines}
+            />
           ) : machineRows.length === 0 ? (
             <EmptyState
               icon={LuCog}
@@ -467,6 +525,12 @@ const ProductionDashboard: React.FC = () => {
           {machineRows.length === 0 ? (
             loadingMachines || loadingOrders ? (
               <SkeletonRows rows={4} />
+            ) : machinesFailed ? (
+              <LoadError
+                title="Couldn't load machines"
+                onRetry={() => dispatch(fetchMachines())}
+                retrying={loadingMachines}
+              />
             ) : (
               <EmptyState
                 icon={LuFactory}

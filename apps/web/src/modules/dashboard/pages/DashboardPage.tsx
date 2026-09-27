@@ -33,6 +33,7 @@ import {
   DashTile,
   TileHeader,
   EmptyState,
+  LoadError,
   SkeletonRows,
   StatTile,
   StatTileSkeleton,
@@ -233,7 +234,11 @@ const DashboardPage: React.FC = () => {
 
   const alerts = accountsSummary?.alerts ?? [];
   const transactions = accountsSummary?.recentTransactions ?? [];
+  const accountsFailed = !accountsSummary && !!accountsSummaryCache.error;
   const showAccountsTiles = !!accountsSummary || accountsLoading;
+  // The summary feeds every list below; when it failed with nothing cached, the
+  // tiles say so instead of claiming there is nothing to show.
+  const summaryFailed = !dashboardCache.data[0] && !!dashboardCache.error;
 
   return (
     <div className="flex w-full flex-col gap-8 pb-10">
@@ -244,6 +249,50 @@ const DashboardPage: React.FC = () => {
       />
 
       <QuickActions />
+
+      {summaryFailed && (
+        <div
+          role="alert"
+          className="sl-tile flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+        >
+          <p className="flex min-w-0 items-center gap-3 text-sm text-ink">
+            <span
+              aria-hidden="true"
+              className="sl-chip-danger grid h-9 w-9 shrink-0 place-items-center rounded-[12px]"
+            >
+              <LuCircleAlert />
+            </span>
+            <span>
+              <strong className="font-semibold">Some of the dashboard didn't load.</strong>{" "}
+              <span className="sl-muted">Orders, plans and stock below may be missing.</span>
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={dashboardCache.refresh}
+            disabled={summaryLoading}
+            className="sl-btn min-h-10 text-sm"
+          >
+            {summaryLoading ? "Trying again…" : "Try again"}
+          </button>
+        </div>
+      )}
+
+      {showOverview && accountsFailed && (
+        <section aria-labelledby="dash-overview-failed" className="flex flex-col gap-3">
+          <h2 id="dash-overview-failed" className="sl-section-label">
+            Money · {PERIOD_LABEL[dashPeriod]}
+          </h2>
+          <div className="sl-tile">
+            <LoadError
+              title="Couldn't load your money figures"
+              hint="Sales, purchases, balances and alerts will show here once they load."
+              onRetry={accountsSummaryCache.refresh}
+              retrying={accountsSummaryCache.loading}
+            />
+          </div>
+        </section>
+      )}
 
       {/* ── MONEY OVERVIEW ─────────────────────────────────────── */}
       {showOverview && showAccountsTiles && (
@@ -486,6 +535,8 @@ const DashboardPage: React.FC = () => {
                 />
                 {summaryLoading && todayPlans.length === 0 ? (
                   <SkeletonRows rows={3} />
+                ) : summaryFailed ? (
+                  <LoadError title="Couldn't load today's plans" />
                 ) : todayPlans.length === 0 ? (
                   <EmptyState
                     icon={LuCalendarCheck}
@@ -579,6 +630,8 @@ const DashboardPage: React.FC = () => {
                 />
                 {summaryLoading && recentSales.length === 0 ? (
                   <SkeletonRows rows={4} />
+                ) : summaryFailed ? (
+                  <LoadError title="Couldn't load sales orders" />
                 ) : recentSales.length === 0 ? (
                   <EmptyState
                     icon={LuShoppingCart}

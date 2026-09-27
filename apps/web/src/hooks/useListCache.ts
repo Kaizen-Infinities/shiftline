@@ -121,6 +121,8 @@ export interface UseListCacheResult<T> {
   total: number;
   loading: boolean;
   refreshing: boolean;
+  /** Set once every retry has failed; cleared by the next successful fetch. */
+  error: string | null;
   refresh: () => void;
 }
 
@@ -142,6 +144,7 @@ export function useListCache<T = any>({
   const [total, setTotal] = useState<number>(hit?.total ?? 0);
   const [loading, setLoading] = useState<boolean>(!hit);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const { socket } = useSocket();
@@ -174,7 +177,13 @@ export function useListCache<T = any>({
       abortRef.current = ctrl;
 
       const key = cacheKeyRef.current;
-      const hasCached = cache.has(key) || !!sessionStorage.getItem(SESSION_PREFIX + key);
+      let hasCached = cache.has(key);
+      if (!hasCached) {
+        try {
+          hasCached = !!sessionStorage.getItem(SESSION_PREFIX + key);
+        } catch {}
+      }
+      let retrying = false;
 
       if (!hasCached && !silent) {
         setLoading(true);
@@ -204,6 +213,7 @@ export function useListCache<T = any>({
         writeCache(key, entry);
         setData([...entry.data]);
         setTotal(entry.total);
+        setError(null);
 
         // Fire onSuccess so caller can bulk-prefetch detail pages
         onSuccessRef.current?.(entry.data);
@@ -211,12 +221,16 @@ export function useListCache<T = any>({
         if (ctrl.signal.aborted) return;
         if (attempt < maxRetries) {
           const delay = Math.min(1000 * 2 ** attempt, 8000);
+          retrying = true;
           setTimeout(() => doFetch(true, attempt + 1), delay);
           return;
         }
         console.error(`[useListCache] "${cacheKeyRef.current}" failed:`, err?.message ?? err);
+        setError("Could not load this data.");
       } finally {
-        if (!ctrl.signal.aborted) {
+        // A scheduled retry keeps the loading state, so the page does not
+        // flash an empty "nothing here yet" state between attempts.
+        if (!ctrl.signal.aborted && !retrying) {
           setLoading(false);
           setRefreshing(false);
         }
@@ -323,7 +337,7 @@ export function useListCache<T = any>({
     return subscribe(cacheKey, onCacheMutated);
   }, [cacheKey]);
 
-  return { data, total, loading, refreshing, refresh };
+  return { data, total, loading, refreshing, error, refresh };
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────

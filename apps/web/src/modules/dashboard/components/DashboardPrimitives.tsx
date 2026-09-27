@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { LuCloudOff, LuRotateCw } from "react-icons/lu";
 import { toneClass, type TileTone } from "./dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
@@ -83,6 +84,52 @@ export const EmptyState: React.FC<{
       <Link to={action.to} className="sl-btn mt-2 px-4 py-2 text-sm">
         {action.label}
       </Link>
+    )}
+  </div>
+);
+
+/**
+ * A load that failed: says so plainly and offers a retry, so a failed request
+ * never reads as "nothing here yet". `role="alert"` announces it once.
+ */
+export const LoadError: React.FC<{
+  title?: string;
+  hint?: string;
+  onRetry?: () => void;
+  retrying?: boolean;
+  className?: string;
+}> = ({
+  title = "Couldn't load this",
+  hint = "Check your connection, then try again.",
+  onRetry,
+  retrying = false,
+  className = "",
+}) => (
+  <div
+    role="alert"
+    className={`flex flex-1 flex-col items-center justify-center gap-2 px-6 py-8 text-center ${className}`}
+  >
+    <span
+      aria-hidden="true"
+      className="sl-chip-danger mb-1 grid h-12 w-12 place-items-center rounded-2xl"
+    >
+      <LuCloudOff className="text-xl" />
+    </span>
+    <p className="text-sm font-semibold text-ink">{title}</p>
+    <p className="sl-muted max-w-[34ch] text-xs leading-relaxed">{hint}</p>
+    {onRetry && (
+      <button
+        type="button"
+        onClick={onRetry}
+        disabled={retrying}
+        className="sl-btn mt-2 min-h-10 px-4 py-2 text-sm"
+      >
+        <LuRotateCw
+          aria-hidden="true"
+          className={retrying ? "animate-spin motion-reduce:animate-none" : ""}
+        />
+        {retrying ? "Trying again…" : "Try again"}
+      </button>
     )}
   </div>
 );
