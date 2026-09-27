@@ -15,6 +15,15 @@ import {
   Lock,
 } from "lucide-react";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import {
+  ActionPill,
+  Chip,
+  ChipTabs,
+  EmptyState,
+  PageHeader,
+  Tile,
+} from "../../../components/ui/v2";
+import { Notice, periodLabel } from "../components/peopleUi";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import { payrollService } from "../../../services/payrollService";
 import type { ApiEmployeePayroll, ApiPayrollConfig } from "../../../services/payrollService";
@@ -35,16 +44,36 @@ const STATUSES = [
 type AttStatus = (typeof STATUSES)[number];
 
 const S: Record<AttStatus, { abbr: string; label: string; cell: string }> = {
-  PRESENT: { abbr: "P", label: "Present", cell: "bg-[var(--color-success)] text-white" },
-  ABSENT: { abbr: "A", label: "Absent", cell: "bg-[var(--color-danger)] text-white" },
-  HALF_DAY: { abbr: "HD", label: "Half Day", cell: "bg-[var(--color-warning)] text-white" },
-  WEEKLY_OFF: { abbr: "WO", label: "Weekly Off", cell: "bg-line text-white" },
-  HOLIDAY: { abbr: "H", label: "Holiday", cell: "bg-[var(--color-accent)] text-white" },
-  LEAVE_PAID: { abbr: "LP", label: "Leave (Paid)", cell: "bg-[var(--chart-series-4)] text-white" },
+  PRESENT: {
+    abbr: "P",
+    label: "Present",
+    cell: "bg-[color-mix(in_srgb,var(--color-success)_18%,transparent)] text-[color:var(--color-success)]",
+  },
+  ABSENT: {
+    abbr: "A",
+    label: "Absent",
+    cell: "bg-[color-mix(in_srgb,var(--color-danger)_18%,transparent)] text-[color:var(--color-danger)]",
+  },
+  HALF_DAY: {
+    abbr: "HD",
+    label: "Half Day",
+    cell: "bg-[color-mix(in_srgb,var(--color-warning)_18%,transparent)] text-[color:var(--color-warning)]",
+  },
+  WEEKLY_OFF: { abbr: "WO", label: "Weekly Off", cell: "bg-line-soft text-ink-muted" },
+  HOLIDAY: {
+    abbr: "H",
+    label: "Holiday",
+    cell: "bg-[color-mix(in_srgb,var(--color-accent)_18%,transparent)] text-[color:var(--color-accent)]",
+  },
+  LEAVE_PAID: {
+    abbr: "LP",
+    label: "Leave (Paid)",
+    cell: "bg-[color-mix(in_srgb,var(--chart-series-4)_18%,transparent)] text-[color:var(--chart-series-4)]",
+  },
   LEAVE_UNPAID: {
     abbr: "LU",
     label: "Leave (Unpaid)",
-    cell: "bg-[var(--color-warning)] text-white",
+    cell: "bg-[color-mix(in_srgb,var(--color-warning)_32%,transparent)] text-[color:var(--color-warning)]",
   },
 };
 
@@ -748,245 +777,224 @@ const AttendancePage: React.FC = () => {
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <CommonLoader text="Loading employees and payroll settings…" />;
 
+  const statusTotals = filteredEmployees.reduce(
+    (acc, emp) => {
+      const sm = summary(Number(emp.id));
+      return { P: acc.P + sm.P, A: acc.A + sm.A, HD: acc.HD + sm.HD, WO: acc.WO + sm.WO };
+    },
+    { P: 0, A: 0, HD: 0, WO: 0 }
+  );
+
   return (
-    <div className="min-h-screen bg-page flex flex-col">
-      {/* ── Header ── */}
-      <div className="bg-card border-b border-line-soft px-6 py-4 sticky top-0 z-30">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/payroll")}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-muted hover:text-ink transition-colors"
-            >
-              <ArrowLeft size={16} /> Back
-            </button>
-            <div className="w-px h-5 bg-line-soft" />
-            <div>
-              <h1 className="text-xl font-bold text-ink">Attendance Entry</h1>
-              <p className="text-xs text-ink-muted mt-0.5">
-                {period} · {filteredEmployees.length} employees
-                {totalCells > 0 && (
-                  <span className="ml-2 text-ink-subtle">
-                    · {totalMarked}/{totalCells} cells marked
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={loadSaved} disabled={loadingAtt} className="sl-btn sl-pill-md">
-              <RefreshCw size={14} className={loadingAtt ? "animate-spin" : ""} />
-              Load Saved
-            </button>
-            <button
-              onClick={() =>
-                navigate(`/payroll/run?type=${runType === "MONTHLY" ? "monthly" : "weekly"}`)
-              }
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold border border-primary text-primary rounded-lg hover:bg-primary/10 transition-colors"
-            >
-              <PlayCircle size={14} /> Run Payroll
-            </button>
-            {canEditAttendance && (
-              <button
-                onClick={handleSave}
-                disabled={saving || allDatesLocked}
-                className="sl-cta sl-pill-md"
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {saving
-                  ? "Saving…"
-                  : runType === "WEEKLY" && fullMonthMode
-                    ? "Save Full Month"
-                    : "Save Attendance"}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {allDatesLocked ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-[color:var(--color-danger)] bg-[color-mix(in_srgb,var(--color-danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-danger)_30%,transparent)] rounded-lg px-3 py-2 font-medium">
-            <Lock size={14} className="text-[color:var(--color-danger)] shrink-0" />
-            <span>
-              Attendance for <strong>{period}</strong> is LOCKED because payroll has been approved
-              or locked. Attendance cannot be edited for this period.
-            </span>
-          </div>
-        ) : someDatesLocked ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-[color:var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-warning)_30%,transparent)] rounded-lg px-3 py-2 font-medium">
-            <Lock size={14} className="text-[color:var(--color-warning)] shrink-0" />
-            <span>
-              Some period(s) in this view (<strong>{lockedPeriods.join(", ")}</strong>) are locked
-              (payroll approved). Locked dates cannot be edited, but unlocked dates remain editable.
-            </span>
-          </div>
-        ) : null}
-
-        {saveOk && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-[color:var(--color-success)] bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-success)_30%,transparent)] rounded-lg px-3 py-2">
-            <CheckCircle2 size={13} />
-            Attendance saved for <strong className="ml-1">{period}</strong>.
-            {runType === "WEEKLY" &&
-              fullMonthMode &&
-              " (Split across weekly periods automatically.)"}
-          </div>
-        )}
-        {error && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-[color:var(--color-danger)] bg-[color-mix(in_srgb,var(--color-danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-danger)_30%,transparent)] rounded-lg px-3 py-2">
-            <AlertCircle size={13} /> {error}
-          </div>
-        )}
-      </div>
-
-      {/* ── Controls ── */}
-      <div className="bg-card-2 border-b border-line-soft px-6 py-3 flex flex-wrap items-center gap-3">
-        {/* Period type toggle */}
-        <div className="flex gap-1 bg-card rounded-lg p-1 border border-line-soft">
-          {(["MONTHLY", "WEEKLY"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => {
-                setRunType(t);
-                setFullMonthMode(false);
-                setSaveOk(false);
-              }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                runType === t
-                  ? "bg-card-2 shadow-xs text-primary font-bold"
-                  : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              {t === "MONTHLY" ? "Monthly" : "Weekly"}
-            </button>
-          ))}
-        </div>
-
-        {/* Month + Year (both modes share these) */}
-        <div className="flex items-center gap-2">
-          <div className="w-36">
-            <SelectInput
-              name="month"
-              value={String(month)}
-              options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
-              noMargin
-              onChange={(e) => setMonth(Number(e.target.value))}
-            />
-          </div>
-          <div className="w-28">
-            <SelectInput
-              name="year"
-              value={String(year)}
-              options={[2024, 2025, 2026, 2027].map((y) => ({
-                value: String(y),
-                label: String(y),
-              }))}
-              noMargin
-              onChange={(e) => setYear(Number(e.target.value))}
-            />
-          </div>
-        </div>
-
-        {/* Weekly-only: week picker + full-month toggle */}
-        {runType === "WEEKLY" && (
+    <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 py-1 sm:py-2">
+      <PageHeader
+        className="!mb-1"
+        title="Attendance Entry"
+        back="/payroll"
+        backLabel="Back to payroll"
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Attendance" }]}
+        subtitle={
           <>
-            {/* Week of month dropdown */}
-            {!fullMonthMode && (
-              <div className="w-52">
-                <SelectInput
-                  name="weekOfMonth"
-                  value={String(weekOfMonth)}
-                  options={monthWeeks.map((w) => ({ value: String(w.num), label: w.label }))}
-                  noMargin
-                  onChange={(e) => setWeekOfMonth(Number(e.target.value))}
-                />
-              </div>
-            )}
-
-            {/* Full month toggle button */}
-            <button
-              onClick={() => {
-                setFullMonthMode((f) => !f);
-                setSaveOk(false);
-              }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                fullMonthMode
-                  ? "bg-primary text-[color:var(--color-on-primary)] border-primary"
-                  : "bg-card text-ink-muted border-line-soft hover:bg-card-2"
-              }`}
-            >
-              <CalendarDays size={13} />
-              {fullMonthMode ? "Full Month ON" : "Full Month"}
-            </button>
-
-            {fullMonthMode && (
-              <span className="text-xs text-[color:var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-warning)_30%,transparent)] px-2.5 py-1 rounded-lg">
-                Showing all {dates.length} days · Save splits into {monthWeeks.length} weekly
-                periods automatically
+            {periodLabel(period)} · {filteredEmployees.length} employees
+            {totalCells > 0 && (
+              <span className="text-ink-subtle">
+                {" "}
+                · {totalMarked}/{totalCells} cells marked
               </span>
             )}
           </>
-        )}
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              onClick={loadSaved}
+              disabled={loadingAtt}
+              icon={<RefreshCw size={15} className={loadingAtt ? "animate-spin" : ""} />}
+            >
+              Load Saved
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<PlayCircle size={15} />}
+              onClick={() =>
+                navigate(`/payroll/run?type=${runType === "MONTHLY" ? "monthly" : "weekly"}`)
+              }
+            >
+              Run Payroll
+            </ActionPill>
+          </>
+        }
+        primaryAction={
+          canEditAttendance ? (
+            <ActionPill
+              onClick={handleSave}
+              disabled={allDatesLocked}
+              loading={saving}
+              loadingText="Saving…"
+              icon={<Save size={16} />}
+            >
+              {runType === "WEEKLY" && fullMonthMode ? "Save Full Month" : "Save Attendance"}
+            </ActionPill>
+          ) : undefined
+        }
+      />
 
-        <div className="w-px h-5 bg-line-soft" />
+      {allDatesLocked ? (
+        <Notice tone="danger" title={`Attendance for ${period} is locked`}>
+          Payroll has been approved or locked, so attendance cannot be edited for this period.
+        </Notice>
+      ) : someDatesLocked ? (
+        <Notice tone="warning" title="Some dates are locked">
+          Period(s) <strong>{lockedPeriods.join(", ")}</strong> have approved payroll. Locked dates
+          cannot be edited; unlocked dates remain editable.
+        </Notice>
+      ) : null}
 
-        <button
-          onClick={applyCompanySchedule}
-          disabled={allDatesLocked}
-          className="text-xs font-semibold text-[color:var(--color-success)] bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-success)_40%,transparent)] px-3 py-1.5 rounded-lg hover:bg-[color-mix(in_srgb,var(--color-success)_20%,transparent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Auto-Fill Schedule
-        </button>
-
-        <button
-          onClick={clearAll}
-          disabled={allDatesLocked}
-          className="text-xs font-semibold text-ink-muted bg-card border border-line-soft px-3 py-1.5 rounded-lg hover:bg-card-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Clear All
-        </button>
-      </div>
-
-      {/* ── Info banners ── */}
-      {hasSavedData && (
-        <div className="bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] border-b border-[color-mix(in_srgb,var(--color-accent)_30%,transparent)] px-6 py-2 flex items-center gap-2 text-xs text-accent">
-          <Info size={13} />
-          Showing saved attendance for <strong className="mx-1">{period}</strong>. Changes will
-          overwrite on next save.
-        </div>
+      {saveOk && (
+        <Notice tone="success">
+          Attendance saved for <strong>{period}</strong>.
+          {runType === "WEEKLY" && fullMonthMode && " (Split across weekly periods automatically.)"}
+        </Notice>
       )}
+      {error && <Notice tone="danger">{error}</Notice>}
 
-      {/* ── Legend ── */}
-      <div className="bg-card border-b border-line-soft px-6 py-2 flex flex-wrap items-center gap-3">
-        <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
-          Legend:
-        </span>
-        {STATUSES.map((st) => (
-          <div key={st} className="flex items-center gap-1">
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${S[st].cell}`}>
-              {S[st].abbr}
-            </span>
-            <span className="text-[10px] text-ink-muted">{S[st].label}</span>
+      {/* ── Controls ── */}
+      <Tile padding="sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <ChipTabs
+            ariaLabel="Pay frequency"
+            value={runType}
+            onChange={(t) => {
+              setRunType(t);
+              setFullMonthMode(false);
+              setSaveOk(false);
+            }}
+            items={[
+              { key: "MONTHLY", label: "Monthly" },
+              { key: "WEEKLY", label: "Weekly" },
+            ]}
+          />
+
+          <div className="flex items-center gap-2">
+            <div className="w-36">
+              <SelectInput
+                name="month"
+                value={String(month)}
+                options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+                noMargin
+                onChange={(e) => setMonth(Number(e.target.value))}
+              />
+            </div>
+            <div className="w-28">
+              <SelectInput
+                name="year"
+                value={String(year)}
+                options={[2024, 2025, 2026, 2027].map((y) => ({
+                  value: String(y),
+                  label: String(y),
+                }))}
+                noMargin
+                onChange={(e) => setYear(Number(e.target.value))}
+              />
+            </div>
           </div>
-        ))}
-        <div className="flex items-center gap-1">
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-card-2 text-ink-muted border border-line-soft">
-            —
+
+          {runType === "WEEKLY" && (
+            <>
+              {!fullMonthMode && (
+                <div className="w-52">
+                  <SelectInput
+                    name="weekOfMonth"
+                    value={String(weekOfMonth)}
+                    options={monthWeeks.map((w) => ({ value: String(w.num), label: w.label }))}
+                    noMargin
+                    onChange={(e) => setWeekOfMonth(Number(e.target.value))}
+                  />
+                </div>
+              )}
+              <Chip
+                icon={<CalendarDays size={14} />}
+                selected={fullMonthMode}
+                onClick={() => {
+                  setFullMonthMode((f) => !f);
+                  setSaveOk(false);
+                }}
+              >
+                {fullMonthMode ? "Full Month ON" : "Full Month"}
+              </Chip>
+              {fullMonthMode && (
+                <Chip tone="warning" size="sm">
+                  All {dates.length} days · saves into {monthWeeks.length} weekly periods
+                </Chip>
+              )}
+            </>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+            <ActionPill
+              variant="secondary"
+              size="sm"
+              onClick={applyCompanySchedule}
+              disabled={allDatesLocked}
+            >
+              Auto-Fill Schedule
+            </ActionPill>
+            <ActionPill variant="ghost" size="sm" onClick={clearAll} disabled={allDatesLocked}>
+              Clear All
+            </ActionPill>
+          </div>
+        </div>
+
+        {/* Counts + legend */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line-soft pt-3">
+          <Chip tone="success" size="sm" count={statusTotals.P}>
+            Present
+          </Chip>
+          <Chip tone="danger" size="sm" count={statusTotals.A}>
+            Absent
+          </Chip>
+          <Chip tone="warning" size="sm" count={statusTotals.HD}>
+            Half-day
+          </Chip>
+          <Chip tone="muted" size="sm" count={statusTotals.WO}>
+            Weekly off
+          </Chip>
+          <span className="mx-1 hidden h-4 w-px bg-line-soft sm:block" aria-hidden="true" />
+          {STATUSES.map((st) => (
+            <span key={st} className="flex items-center gap-1">
+              <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${S[st].cell}`}>
+                {S[st].abbr}
+              </span>
+              <span className="text-[11px] text-ink-muted">{S[st].label}</span>
+            </span>
+          ))}
+          <span className="flex items-center gap-1">
+            <span className="rounded-md border border-line-soft bg-card-2 px-1.5 py-0.5 text-[10px] font-bold text-ink-muted">
+              —
+            </span>
+            <span className="text-[11px] text-ink-subtle">Unset</span>
           </span>
-          <span className="text-[10px] text-ink-subtle">Unset (not counted)</span>
-        </div>
-        <div className="flex items-center gap-1 ml-2 border-l border-line-soft pl-3">
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-card-2 text-ink-muted border border-line-soft inline-flex items-center gap-0.5">
-            <Lock size={9} /> Lock
+          <span className="flex items-center gap-1">
+            <Lock size={11} className="text-ink-subtle" aria-hidden="true" />
+            <span className="text-[11px] text-ink-subtle">Payroll approved</span>
           </span>
-          <span className="text-[10px] text-ink-subtle">Payroll Approved</span>
+          <span className="ml-auto text-[11px] text-ink-subtle">
+            Click to cycle · right-click for OT / late / permission
+          </span>
         </div>
-        <div className="ml-auto text-[10px] text-ink-subtle">
-          Left-click = cycle · Right-click = OT / Late / Perm
-        </div>
-      </div>
+      </Tile>
+
+      {hasSavedData && (
+        <Notice tone="info">
+          Showing saved attendance for <strong>{period}</strong>. Changes overwrite it on the next
+          save.
+        </Notice>
+      )}
 
       {/* ── Week divider labels in full-month mode ── */}
       {runType === "WEEKLY" && fullMonthMode && (
-        <div className="bg-card-2 border-b border-line-soft px-6 py-2 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {monthWeeks.map((w) => {
             const isWkLocked =
               lockedPeriods.includes(w.period) ||
@@ -1015,17 +1023,20 @@ const AttendancePage: React.FC = () => {
       )}
 
       {/* ── Grid ── */}
-      <div className="flex-1 p-4 overflow-hidden">
+      <div className="flex-1 overflow-hidden">
         {filteredEmployees.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-ink-subtle">
-            <Users size={36} className="mb-3 opacity-30" />
-            <p className="text-sm">
-              {employees.length === 0
-                ? "No employees found."
-                : runType === "MONTHLY"
-                  ? "No monthly employees found. Switch to Weekly tab for daily-wage employees."
-                  : "No daily-wage (DAILY_WEEKLY) employees found. Switch to Monthly tab for monthly employees."}
-            </p>
+          <div className="sl-tile">
+            <EmptyState
+              icon={<Users size={28} strokeWidth={1.75} />}
+              title={employees.length === 0 ? "No employees yet" : "Nobody on this pay frequency"}
+              description={
+                employees.length === 0
+                  ? "No employees found."
+                  : runType === "MONTHLY"
+                    ? "No monthly employees found. Switch to Weekly tab for daily-wage employees."
+                    : "No daily-wage (DAILY_WEEKLY) employees found. Switch to Monthly tab for monthly employees."
+              }
+            />
           </div>
         ) : (
           <div className="sl-tile overflow-hidden h-full">
