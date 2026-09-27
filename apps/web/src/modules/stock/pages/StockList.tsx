@@ -1,7 +1,4 @@
 import React, { useState, useCallback, useEffect } from "react";
-
-import { toast } from "react-toastify";
-
 import { useListCache } from "../../../hooks/useListCache";
 import { rawMaterialStockService } from "../../../services/rawMaterialStockService";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -12,11 +9,10 @@ import { Search } from "lucide-react";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
 import { formatLocationAddress } from "../../../utils/addressUtils";
-
-import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
-import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import { categoryService } from "../../../services/categoryService";
 import { usePermission } from "../../../hooks/usePermission";
+import { Layers } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Toolbar } from "../../../components/ui/v2";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -48,9 +44,9 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
   const [showView, setShowView] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [, setCategoryFilter] = useState("");
   const [appliedCategory, setAppliedCategory] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [, setStatusFilter] = useState("");
   const [appliedStatus, setAppliedStatus] = useState("");
   const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([]);
 
@@ -109,19 +105,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
   // Re-fetch category filter options whenever a category is created/updated/deleted
   useSocketSync("category", undefined, fetchCategoriesData);
 
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
   const hasActiveFilters = !!(appliedCategory || appliedStatus);
-  const activeFilterCount = (appliedCategory ? 1 : 0) + (appliedStatus ? 1 : 0);
-
-  const handleApplyFilters = useCallback(() => {
-    setAppliedCategory(categoryFilter);
-    setAppliedStatus(statusFilter);
-    setCurrentPage(1);
-  }, [categoryFilter, statusFilter]);
-
   const handleClearFilters = useCallback(() => {
     setCategoryFilter("");
     setAppliedCategory("");
@@ -147,7 +131,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
     const num = Number(qty) || 0;
     let primaryUom = uom ? uom.split(",")[0] : "";
     if (primaryUom.toLowerCase() === "ea") primaryUom = "PCS";
-    const displayNum = Number(num.toFixed(3)).toString();
+    const displayNum = num.toLocaleString("en-IN", { maximumFractionDigits: 3 });
     return (
       <>
         {prefix}
@@ -200,203 +184,225 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
     { header: "STATUS", accessor: (item: any) => item.status || "Active" },
   ];
 
+  const levelOf = (item: any): "low" | "reorder" | "ok" => {
+    const available = Number(item.onHandQty ?? 0) - Number(item.reservedQty ?? 0);
+    if (available <= Number(item.minimumStock || item.rawMaterial?.minimumStock || 0)) return "low";
+    if (available <= Number(item.reorderLevel || item.rawMaterial?.reorderLevel || 0))
+      return "reorder";
+    return "ok";
+  };
+  const lowOnPage = (data || []).filter((item: any) => levelOf(item) !== "ok").length;
+
   return (
     <div>
-      <div className="max-w-[1300px] xl:mr-auto bg-card rounded-sm border border-line overflow-visible">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Stock Ledger Management</h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <div className="relative w-full md:w-56">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
-                size={15}
-              />
-              <input
-                type="text"
-                data-search-input
-                className="w-full pl-9 pr-4 py-2 bg-card-2 border border-line-soft rounded-xl text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                placeholder="Search stock..."
-                value={searchTerm}
-                onChange={handleSearch}
-              />
-            </div>
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            >
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Category
-                  </label>
-                  <SelectInput
-                    name="categoryFilter"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    options={categoryOptions}
-                    defaultOptionLabel="All Categories"
-                    noMargin
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Status
-                  </label>
-                  <SelectInput
-                    name="statusFilter"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    options={[
-                      { value: "Active", label: "Active" },
-                      { value: "Inactive", label: "Inactive" },
-                    ]}
-                    defaultOptionLabel="All Statuses"
-                    noMargin
-                  />
-                </div>
-              </div>
-            </FilterPopover>
-            {can("raw_material_stocks.export") && (
+      <div className="w-full min-w-0">
+        <PageHeader
+          title="Stock Ledger Management"
+          subtitle={`${total || 0} stock lines · raw material on hand, reserved and available by store`}
+          icon={<Layers size={22} />}
+          actions={
+            can("raw_material_stocks.export") ? (
               <ExportCSVButton
                 data={data || []}
                 columns={exportColumns}
                 filename="stock_ledger_balances.csv"
               />
-            )}
-          </div>
-        </div>
+            ) : null
+          }
+        />
 
-        {/* Table */}
-        <div className="p-0 overflow-hidden rounded-b-sm">
-          <DataTable
-            data={data || []}
-            rowKey={(item) => item.rawMaterialId || item.id}
-            loading={loading}
-            emptyMessage="No stock records found."
-            pagination={
-              totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
-            }
-            columns={[
-              {
-                header: "#",
-                render: (_, index) => (
-                  <span className="text-ink-subtle">
-                    {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
-                  </span>
-                ),
-              },
-              {
-                header: "NAME",
-                render: (item) => {
-                  const matName =
-                    (item as any).materialName || item.rawMaterial?.materialName || "-";
-                  const isWastage =
-                    (item as any).itemType === "WASTAGE" ||
-                    item.rawMaterial?.itemType === "WASTAGE";
-                  return (
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-ink">{matName}</span>
-                        {isWastage && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
-                            Wastage
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-ink-subtle">ID: {item.rawMaterialId}</span>
+        <Toolbar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search stock..."
+          searchLabel="Search stock"
+          filters={[
+            { key: "", label: "All categories" },
+            ...categoryOptions.map((c) => ({ key: c.value, label: c.label })),
+          ]}
+          filterValue={appliedCategory}
+          onFilterChange={(key) => {
+            setCategoryFilter(key);
+            setAppliedCategory(key);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Category"
+          right={
+            <div className="flex flex-wrap items-center gap-2">
+              {lowOnPage > 0 && (
+                <Chip tone="warning" dot>
+                  {lowOnPage} need attention
+                </Chip>
+              )}
+              <div role="group" aria-label="Status" className="flex items-center gap-2">
+                {[
+                  { key: "", label: "Any status" },
+                  { key: "Active", label: "Active" },
+                  { key: "Inactive", label: "Inactive" },
+                ].map((f) => (
+                  <Chip
+                    key={f.key || "all"}
+                    selected={appliedStatus === f.key}
+                    onClick={() => {
+                      setStatusFilter(f.key);
+                      setAppliedStatus(f.key);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    {f.label}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          }
+        />
+
+        <DataTable
+          data={data || []}
+          rowKey={(item) => item.rawMaterialId || item.id}
+          loading={loading}
+          density="compact"
+          ariaLabel="Stock ledger"
+          emptyMessage={
+            hasActiveFilters || debouncedSearch
+              ? "No stock matches these filters."
+              : "No stock records found."
+          }
+          emptyAction={
+            hasActiveFilters || debouncedSearch ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  handleClearFilters();
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : undefined
+          }
+          pagination={
+            totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
+          }
+          columns={[
+            {
+              header: "#",
+              width: "56px",
+              align: "center",
+              render: (_, index) => (
+                <span className="text-ink-subtle">
+                  {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+                </span>
+              ),
+            },
+            {
+              header: "Material",
+              render: (item) => {
+                const matName = (item as any).materialName || item.rawMaterial?.materialName || "-";
+                const isWastage =
+                  (item as any).itemType === "WASTAGE" || item.rawMaterial?.itemType === "WASTAGE";
+                return (
+                  <div className="flex min-w-0 flex-col">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenView(item)}
+                        className="w-fit text-left font-semibold text-accent hover:underline underline-offset-4"
+                      >
+                        {matName}
+                      </button>
+                      {isWastage && (
+                        <Chip size="sm" tone="warning">
+                          Wastage
+                        </Chip>
+                      )}
                     </div>
-                  );
-                },
+                    <span className="font-mono text-xs text-ink-subtle">{item.rawMaterialId}</span>
+                  </div>
+                );
               },
-              {
-                header: "CATEGORY",
-                render: (item) => {
-                  const catName =
-                    (item as any).category?.name || item.rawMaterial?.category?.name || "-";
-                  return <span className="text-ink-muted">{catName}</span>;
-                },
+            },
+            {
+              header: "Category",
+              render: (item) => {
+                const catName =
+                  (item as any).category?.name || item.rawMaterial?.category?.name || "—";
+                return <span className="text-ink-muted">{catName}</span>;
               },
-              {
-                header: "STORE",
-                render: (item) => (
-                  <span className="font-medium text-ink-muted">
-                    {item.store?.storeName || item.storeId || "-"}
-                  </span>
-                ),
-              },
-              {
-                header: "PHYSICAL STOCK",
-                render: (item) => {
-                  const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
-                  const minStock = Number(
-                    (item as any).minimumStock || item.rawMaterial?.minimumStock || 0
-                  );
-                  return (
-                    <div className="flex flex-col">
-                      <span className="text-ink">{formatDisplayQty(item.onHandQty, baseUom)}</span>
-                      <span className="text-xs text-ink-subtle">
-                        {formatDisplayQty(minStock, baseUom, "Min: ")}
-                      </span>
-                    </div>
-                  );
-                },
-              },
-              {
-                header: "RESERVED",
-                render: (item) => {
-                  const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
-                  return (
-                    <span className="text-ink-muted">
-                      {formatDisplayQty(item.reservedQty, baseUom)}
+            },
+            {
+              header: "Store",
+              render: (item) => (
+                <Chip size="sm">{item.store?.storeName || item.storeId || "—"}</Chip>
+              ),
+            },
+            {
+              header: "Physical stock",
+              align: "right",
+              render: (item) => {
+                const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
+                const minStock = Number(
+                  (item as any).minimumStock || item.rawMaterial?.minimumStock || 0
+                );
+                return (
+                  <div className="flex flex-col items-end tabular-nums">
+                    <span className="text-ink">{formatDisplayQty(item.onHandQty, baseUom)}</span>
+                    <span className="text-xs text-ink-subtle">
+                      {formatDisplayQty(minStock, baseUom, "Min ")}
                     </span>
-                  );
-                },
+                  </div>
+                );
               },
-              {
-                header: "AVAILABLE",
-                render: (item) => {
-                  const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
-                  const minStock = Number(
-                    (item as any).minimumStock || item.rawMaterial?.minimumStock || 0
-                  );
-                  const reorderLevel = Number(
-                    (item as any).reorderLevel || item.rawMaterial?.reorderLevel || 0
-                  );
-                  const available = Number(item.onHandQty ?? 0) - Number(item.reservedQty ?? 0);
-
-                  let availColorClass = "text-[color:var(--color-success)]";
-                  if (available <= minStock) availColorClass = "text-[color:var(--color-danger)]";
-                  else if (available <= reorderLevel)
-                    availColorClass = "text-[color:var(--color-warning)]";
-
-                  return (
-                    <span className={`font-semibold ${availColorClass}`}>
+            },
+            {
+              header: "Reserved",
+              align: "right",
+              render: (item) => {
+                const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
+                return (
+                  <span className="tabular-nums text-ink-muted">
+                    {formatDisplayQty(item.reservedQty, baseUom)}
+                  </span>
+                );
+              },
+            },
+            {
+              header: "Available",
+              align: "right",
+              render: (item) => {
+                const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
+                const available = Number(item.onHandQty ?? 0) - Number(item.reservedQty ?? 0);
+                const level = levelOf(item);
+                return (
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-semibold tabular-nums text-ink">
                       {formatDisplayQty(available, baseUom)}
                     </span>
-                  );
-                },
-              },
-              {
-                header: "STATUS",
-                render: (item) => <StatusBadge status={item.status || "Active"} />,
-              },
-              {
-                header: "ACTIONS",
-                render: (item) => (
-                  <div className="flex items-center gap-2">
-                    <ViewButton onClick={() => handleOpenView(item)} />
+                    {level !== "ok" && (
+                      <Chip size="sm" tone={level === "low" ? "danger" : "warning"}>
+                        {level === "low" ? "Below min" : "Reorder"}
+                      </Chip>
+                    )}
                   </div>
-                ),
+                );
               },
-            ]}
-          />
-        </div>
+            },
+            {
+              header: "Status",
+              align: "center",
+              render: (item) => <StatusBadge status={item.status || "Active"} />,
+            },
+            {
+              header: "Actions",
+              align: "right",
+              render: (item) => (
+                <div className="table-action-group w-full justify-end">
+                  <ViewButton onClick={() => handleOpenView(item)} />
+                </div>
+              ),
+            },
+          ]}
+        />
       </div>
 
       <CommonViewModal

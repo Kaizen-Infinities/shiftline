@@ -126,7 +126,7 @@ const WastageStockList: React.FC = () => {
     const num = Number(qty) || 0;
     let primaryUom = uom ? uom.split(",")[0] : "";
     if (primaryUom.toLowerCase() === "ea") primaryUom = "PCS";
-    const displayNum = Number(num.toFixed(3)).toString();
+    const displayNum = num.toLocaleString("en-IN", { maximumFractionDigits: 3 });
     return (
       <>
         {prefix}
