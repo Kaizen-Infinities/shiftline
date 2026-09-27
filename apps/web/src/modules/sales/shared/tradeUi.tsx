@@ -80,7 +80,7 @@ export const FormFooter: React.FC<{
       className
     )}
   >
-    <div className="min-w-0 text-[13px] text-ink-subtle">{start}</div>
+    <div className="hidden min-w-0 text-[13px] text-ink-subtle sm:block">{start}</div>
     <div className="flex flex-wrap items-center justify-end gap-2.5">{children}</div>
   </div>
 );
