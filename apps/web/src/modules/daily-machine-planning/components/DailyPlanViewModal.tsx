@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
-  FaIndustry,
-  FaChartBar,
-  FaCheckCircle,
-  FaBoxOpen,
-  FaTruck,
-  FaArrowRight,
-  FaShare,
-  FaClipboardList,
-  FaCalendarAlt,
-} from "react-icons/fa";
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Cog,
+  PackageOpen,
+  Share2,
+  Truck,
+} from "lucide-react";
+import { formatDate } from "../../../utils/dateUtils";
 
 import apiClient from "../../../api/apiClient";
 import config from "../../../api/config";
@@ -187,14 +188,10 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
           const isCurrent = plan.dailyPlanId === viewPlan?.dailyPlanId;
           return (
             <span
-              className={`font-mono text-xs font-semibold ${isCurrent ? "text-indigo-400" : "text-ink-muted"}`}
+              className={`font-mono text-xs font-semibold ${isCurrent ? "text-accent" : "text-ink-muted"}`}
             >
               {plan.dailyPlanId}
-              {isCurrent && (
-                <span className="ml-1.5 text-[9px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded font-bold uppercase">
-                  Current
-                </span>
-              )}
+              {isCurrent && <span className="sl-chip sl-chip-sm ml-1.5">Current</span>}
             </span>
           );
         },
@@ -234,7 +231,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
         align: "center",
         render: (plan: any) => (
           <span className="text-xs font-semibold text-ink-muted">
-            {Number(plan.plannedQty || 0).toLocaleString()}
+            {Number(plan.plannedQty || 0).toLocaleString("en-IN")}
           </span>
         ),
       },
@@ -255,9 +252,9 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
             : 0;
           return (
             <span
-              className={`text-xs font-bold ${producedQty >= Number(plan.plannedQty || 0) ? "text-emerald-400" : producedQty > 0 ? "text-amber-400" : "text-ink-subtle"}`}
+              className={`text-xs font-bold ${producedQty >= Number(plan.plannedQty || 0) ? "text-[color:var(--color-success)]" : producedQty > 0 ? "text-[color:var(--color-warning)]" : "text-ink-subtle"}`}
             >
-              {producedQty.toLocaleString()}
+              {producedQty.toLocaleString("en-IN")}
             </span>
           );
         },
@@ -275,15 +272,15 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
 
   const modalTitle = (
     <div className="flex items-center gap-3">
-      <div className="w-8 h-8 bg-accent rounded-md flex items-center justify-center flex-shrink-0">
-        <FaIndustry className="text-white" size={14} />
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[12px] bg-chip text-accent">
+        <Cog size={17} aria-hidden="true" />
       </div>
       <div>
         <div className="text-base font-bold text-ink leading-tight">
           Daily Plan — {viewPlan?.dailyPlanId}
         </div>
         <div className="text-xs text-ink-subtle mt-0.5">
-          {viewPlan?.productionDate?.split("T")[0]} ·{" "}
+          {viewPlan?.productionDate ? formatDate(viewPlan.productionDate) : "—"} ·{" "}
           {viewPlan?.machine?.machineName || viewPlan?.machineId} ·{" "}
           {viewPlan?.shift?.shiftName || viewPlan?.shiftId}
         </div>
@@ -296,20 +293,18 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
       <div className="overflow-y-auto p-5 space-y-5">
         {/* ── Weekly Production Target Progress ── */}
         {viewPlan?.weeklyProgramId && (
-          <div className="rounded-md border border-line bg-card-2/40 p-5">
+          <div className="rounded-[16px] bg-card-2 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <FaChartBar className="text-ink-subtle" size={15} />
-              <h6 className="text-sm font-bold text-ink uppercase tracking-wider m-0">
-                Weekly Target Progress
-              </h6>
-              <span className="ml-auto text-xs text-ink-subtle font-mono bg-card px-3 py-1 rounded-md border border-line-soft">
+              <BarChart3 className="text-ink-subtle" size={15} />
+              <h6 className="sl-h2 m-0 text-[15px]">Weekly Target Progress</h6>
+              <span className="ml-auto text-xs sl-chip sl-chip-sm sl-chip-muted font-mono">
                 {viewPlan.weeklyProgramId}
               </span>
             </div>
 
             {loadingWeekly ? (
               <div className="flex items-center gap-2 text-sm text-ink-subtle">
-                <div className="w-4 h-4 border-2 border-line border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-line border-t-transparent rounded-full motion-safe:animate-spin" />
                 Loading weekly data...
               </div>
             ) : (
@@ -322,11 +317,11 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-ink-subtle">
-                        {weeklyOrderProducedQty.toLocaleString()} /{" "}
-                        {weeklyOrderTargetQty.toLocaleString()} pcs
+                        {weeklyOrderProducedQty.toLocaleString("en-IN")} /{" "}
+                        {weeklyOrderTargetQty.toLocaleString("en-IN")} pcs
                       </span>
                       <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-sm border ${weeklyOrderPct >= 100 ? "border-[color:var(--color-success)] text-[color:var(--color-success)]" : weeklyOrderPct >= 50 ? "border-line text-ink-muted" : "border-[color:var(--color-warning)] text-[color:var(--color-warning)]"}`}
+                        className={`sl-chip sl-chip-sm ${weeklyOrderPct >= 100 ? "sl-chip-success" : weeklyOrderPct >= 50 ? "sl-chip-muted" : "sl-chip-warning"}`}
                       >
                         {weeklyOrderPct}%
                       </span>
@@ -334,7 +329,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                   </div>
                   <div className="h-2.5 bg-card-2 rounded-full overflow-hidden border border-line-soft">
                     <div
-                      className={`h-full rounded-full transition-all ${weeklyOrderPct >= 100 ? "bg-[color:var(--color-success)]" : weeklyOrderPct >= 50 ? "bg-ink-subtle" : "bg-[color:var(--color-warning)]"}`}
+                      className={`h-full rounded-full transition-all ${weeklyOrderPct >= 100 ? "bg-[color:var(--color-success)]" : weeklyOrderPct >= 50 ? "bg-accent" : "bg-[color:var(--color-warning)]"}`}
                       style={{ width: `${weeklyOrderPct}%` }}
                     />
                   </div>
@@ -342,16 +337,15 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                     <span className="text-xs text-ink-subtle">
                       Produced:{" "}
                       <strong className="text-[color:var(--color-success)]">
-                        {weeklyOrderProducedQty.toLocaleString()}
+                        {weeklyOrderProducedQty.toLocaleString("en-IN")}
                       </strong>
                     </span>
                     <span className="text-xs text-ink-subtle">
                       Remaining:{" "}
                       <strong className="text-[color:var(--color-warning)]">
-                        {Math.max(
-                          0,
-                          weeklyOrderTargetQty - weeklyOrderProducedQty
-                        ).toLocaleString()}
+                        {Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty).toLocaleString(
+                          "en-IN"
+                        )}
                       </strong>
                     </span>
                   </div>
@@ -366,11 +360,11 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-ink-subtle">
-                          {weeklyOrderProducedQty.toLocaleString()} /{" "}
-                          {weeklyTargetQty.toLocaleString()} pcs
+                          {weeklyOrderProducedQty.toLocaleString("en-IN")} /{" "}
+                          {weeklyTargetQty.toLocaleString("en-IN")} pcs
                         </span>
                         <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-sm border ${weeklyProgramPct >= 100 ? "border-[color:var(--color-success)] text-[color:var(--color-success)]" : weeklyProgramPct >= 50 ? "border-line text-ink-muted" : "border-[color:var(--color-danger)] text-[color:var(--color-danger)]"}`}
+                          className={`sl-chip sl-chip-sm ${weeklyProgramPct >= 100 ? "sl-chip-success" : weeklyProgramPct >= 50 ? "sl-chip-muted" : "sl-chip-danger"}`}
                         >
                           {weeklyProgramPct}%
                         </span>
@@ -378,7 +372,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                     </div>
                     <div className="h-2.5 bg-card-2 rounded-full overflow-hidden border border-line-soft">
                       <div
-                        className={`h-full rounded-full transition-all ${weeklyProgramPct >= 100 ? "bg-[color:var(--color-success)]" : weeklyProgramPct >= 50 ? "bg-ink-subtle" : "bg-[color:var(--color-danger)]"}`}
+                        className={`h-full rounded-full transition-all ${weeklyProgramPct >= 100 ? "bg-[color:var(--color-success)]" : weeklyProgramPct >= 50 ? "bg-accent" : "bg-[color:var(--color-danger)]"}`}
                         style={{ width: `${weeklyProgramPct}%` }}
                       />
                     </div>
@@ -388,19 +382,21 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                 {/* Completion chips */}
                 <div className="flex flex-wrap gap-2 pt-2">
                   {weeklyOrderPct >= 100 ? (
-                    <span className="inline-flex items-center gap-1.5 bg-card text-[color:var(--color-success)] text-xs font-bold px-3 py-1.5 rounded-sm border border-[color:var(--color-success)]">
-                      <FaCheckCircle size={10} /> Weekly Target Complete!
+                    <span className="sl-chip sl-chip-success">
+                      <CheckCircle2 size={13} aria-hidden="true" /> Weekly Target Complete!
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 bg-card text-[color:var(--color-warning)] text-xs font-bold px-3 py-1.5 rounded-sm border border-[color:var(--color-warning)]">
-                      <FaBoxOpen size={10} />{" "}
-                      {Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty).toLocaleString()}{" "}
+                    <span className="sl-chip sl-chip-warning">
+                      <PackageOpen size={13} aria-hidden="true" />{" "}
+                      {Math.max(0, weeklyOrderTargetQty - weeklyOrderProducedQty).toLocaleString(
+                        "en-IN"
+                      )}{" "}
                       pcs remaining to complete
                     </span>
                   )}
                   {viewPlan?.productionOrder?.status === "COMPLETED" && (
-                    <span className="inline-flex items-center gap-1.5 bg-card text-ink-muted text-xs font-bold px-3 py-1.5 rounded-sm border border-line">
-                      <FaTruck size={10} /> Ready for Dispatch
+                    <span className="sl-chip sl-chip-info">
+                      <Truck size={13} aria-hidden="true" /> Ready for Dispatch
                     </span>
                   )}
                 </div>
@@ -411,10 +407,8 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
 
         {/* ── Plan Details Grid ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-md border border-line p-4 bg-card-2/40">
-            <h6 className="text-xs font-bold text-ink-subtle uppercase tracking-wider mb-3">
-              Plan Details
-            </h6>
+          <div className="rounded-[16px] bg-card-2 p-4">
+            <h6 className="sl-section-label m-0 mb-3">Plan Details</h6>
             <dl className="space-y-2.5 text-sm">
               {[
                 { label: "Production Order", value: viewPlan?.productionOrderId },
@@ -433,10 +427,8 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
               ))}
             </dl>
           </div>
-          <div className="rounded-md border border-line p-4 bg-card-2/40">
-            <h6 className="text-xs font-bold text-ink-subtle uppercase tracking-wider mb-3">
-              Quantities & Status
-            </h6>
+          <div className="rounded-[16px] bg-card-2 p-4">
+            <h6 className="sl-section-label m-0 mb-3">Quantities & Status</h6>
             <dl className="space-y-2.5 text-sm">
               <div className="flex items-start gap-2">
                 <dt className="text-ink-subtle font-medium w-36 flex-shrink-0">Planned Qty:</dt>
@@ -470,11 +462,9 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
 
         {/* ── Post Production Steps ── */}
         {viewPlan?.productionOrder?.productItem?.productionSteps?.length > 0 && (
-          <div className="border border-line rounded-md overflow-hidden">
+          <div className="rounded-[16px] border border-line-soft overflow-hidden">
             <div className="px-4 py-2.5 bg-card-2 border-b border-line">
-              <h6 className="text-xs font-bold text-ink-subtle uppercase tracking-wider m-0">
-                Post Production Steps
-              </h6>
+              <h6 className="sl-section-label m-0">Post Production Steps</h6>
             </div>
             <div className="p-4 flex flex-wrap gap-2.5 items-center">
               {viewPlan.productionOrder.productItem.productionSteps.map(
@@ -500,15 +490,15 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                       : "bg-card-2 text-ink-subtle border-line";
 
                   const dotColors = isCompleted
-                    ? "bg-[color:var(--color-success)] text-white"
+                    ? "bg-[color:var(--color-success)] text-[color:var(--color-card)]"
                     : isActive
-                      ? "bg-accent text-white"
+                      ? "bg-accent text-[color:var(--color-on-primary)]"
                       : "bg-line text-ink-subtle";
 
                   return (
                     <React.Fragment key={step.id || idx}>
                       <span
-                        className={`px-3 py-1.5 font-semibold text-sm rounded-lg border flex items-center gap-2 ${badgeColors}`}
+                        className={`px-3 py-1.5 font-semibold text-sm rounded-[14px] border flex items-center gap-2 ${badgeColors}`}
                       >
                         <span
                           className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${dotColors}`}
@@ -518,7 +508,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                         {step.stepKey}
                       </span>
                       {idx < viewPlan.productionOrder.productItem.productionSteps.length - 1 && (
-                        <FaArrowRight className="text-ink-subtle text-xs" />
+                        <ArrowRight size={14} className="text-ink-subtle" aria-hidden="true" />
                       )}
                     </React.Fragment>
                   );
@@ -530,16 +520,14 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
 
         {/* ── Hourly Production Logs ── */}
         <div>
-          <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">
-            Hourly Production Entries
-          </h6>
+          <h6 className="sl-section-label m-0 mb-3">Hourly Production Entries</h6>
           {loadingViewLogs ? (
-            <div className="flex items-center justify-center gap-2 py-8 border border-line rounded-md bg-card-2 text-ink-subtle text-sm">
-              <div className="w-5 h-5 border-2 border-line border-t-transparent rounded-full animate-spin" />
+            <div className="flex items-center justify-center gap-2 py-8 rounded-[16px] bg-card-2 text-ink-subtle text-sm">
+              <div className="w-5 h-5 border-2 border-line border-t-transparent rounded-full motion-safe:animate-spin" />
               Loading entries...
             </div>
           ) : viewHourlyLogs.length > 0 ? (
-            <div className="border border-line rounded-md overflow-hidden">
+            <div className="rounded-[16px] border border-line-soft overflow-hidden">
               <DataTable
                 columns={[
                   {
@@ -591,7 +579,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                     header: "Avail%",
                     align: "center",
                     render: (h: any) => (
-                      <span className="font-semibold text-emerald-400 text-sm">
+                      <span className="font-semibold text-[color:var(--color-success)] text-sm">
                         {h.availabilityPct !== undefined ? `${h.availabilityPct}%` : "—"}
                       </span>
                     ),
@@ -600,7 +588,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                     header: "Qual%",
                     align: "center",
                     render: (h: any) => (
-                      <span className="font-semibold text-purple-400 text-sm">
+                      <span className="font-semibold text-ink text-sm">
                         {h.qualityPct !== undefined ? `${h.qualityPct}%` : "—"}
                       </span>
                     ),
@@ -609,7 +597,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                     header: "OEE%",
                     align: "center",
                     render: (h: any) => (
-                      <span className="font-extrabold text-indigo-400 text-sm">
+                      <span className="font-extrabold text-accent text-sm">
                         {h.hourlyOEE !== undefined ? `${h.hourlyOEE}%` : "—"}
                       </span>
                     ),
@@ -717,10 +705,10 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                       <span className="text-ink-subtle uppercase tracking-wider text-xs">
                         Carried Forward To:
                       </span>
-                      <span className="text-indigo-400 font-bold bg-indigo-500/15 px-3 py-1 rounded border border-indigo-500/30 flex items-center gap-1.5 text-sm">
-                        <FaShare className="text-xs" />
+                      <span className="sl-chip">
+                        <Share2 size={13} aria-hidden="true" />
                         {viewPlan.carryForwardTo[0].dailyPlanId}
-                        <span className="text-indigo-400/60 font-normal ml-1">
+                        <span className="ml-1 font-normal opacity-80">
                           ({viewPlan.carryForwardTo[0].productionDate?.split("T")[0]})
                         </span>
                       </span>
@@ -730,8 +718,8 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 border border-line rounded-md bg-card-2 text-center">
-              <FaClipboardList className="text-ink-subtle mb-3" size={32} />
+            <div className="flex flex-col items-center justify-center py-10 rounded-[16px] bg-card-2 text-center">
+              <ClipboardList className="text-ink-subtle mb-3" size={32} />
               <span className="text-ink-subtle font-medium text-sm">
                 No hourly entries recorded yet for this plan.
               </span>
@@ -742,10 +730,8 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
         {/* ── Daily Target vs Actual Comparison ── */}
         {viewHourlyLogs.length > 0 && (
           <div>
-            <h6 className="text-sm font-bold text-ink-muted uppercase tracking-wider mb-3">
-              Target vs Actual Comparison
-            </h6>
-            <div className="border border-line rounded-md overflow-hidden bg-card">
+            <h6 className="sl-section-label m-0 mb-3">Target vs Actual Comparison</h6>
+            <div className="rounded-[16px] border border-line-soft overflow-hidden bg-card">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-card-2 border-b border-line">
@@ -812,13 +798,13 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                           {viewPlan?.productionOrder?.productItem?.productName || "—"}
                         </td>
                         <td className="px-4 py-3 text-center text-ink font-bold">{capacity}</td>
-                        <td className="px-4 py-3 text-center text-emerald-400 font-bold">
+                        <td className="px-4 py-3 text-center text-[color:var(--color-success)] font-bold">
                           {totalProduced}
                         </td>
-                        <td className="px-4 py-3 text-center text-amber-400 font-bold">
+                        <td className="px-4 py-3 text-center text-[color:var(--color-warning)] font-bold">
                           {pending}
                         </td>
-                        <td className="px-4 py-3 text-center text-indigo-400 font-bold">
+                        <td className="px-4 py-3 text-center text-accent font-bold">
                           {efficiency}%
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -838,10 +824,10 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
         )}
 
         {/* ── Production Order History ── */}
-        <div className="border border-line-soft rounded-sm overflow-hidden">
+        <div className="border border-line-soft rounded-[12px] overflow-hidden">
           <div className="px-4 py-3 bg-card-2 border-b border-line flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <FaClipboardList className="text-ink-subtle" size={14} />
+              <ClipboardList className="text-ink-subtle" size={14} />
               <h3 className="font-bold text-ink text-sm m-0">Production Order History</h3>
               <span className="text-xs text-ink-subtle font-mono bg-card px-2 py-0.5 rounded border border-line">
                 {viewPlan?.productionOrderId}
@@ -856,7 +842,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
 
           {loadingPOHistory ? (
             <div className="flex items-center justify-center gap-2 py-7 bg-card-2 text-ink-subtle text-sm">
-              <div className="w-4 h-4 border-2 border-line border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-line border-t-transparent rounded-full motion-safe:animate-spin" />
               Loading history...
             </div>
           ) : poHistoryPlans.length > 0 ? (
@@ -869,9 +855,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                 minHeightClassName="min-h-0"
                 density="compact"
                 rowClassName={(row) =>
-                  row.dailyPlanId === viewPlan?.dailyPlanId
-                    ? "bg-indigo-500/10 border-l-2 border-l-indigo-400"
-                    : ""
+                  row.dailyPlanId === viewPlan?.dailyPlanId ? "bg-nav-active" : ""
                 }
               />
               <div className="flex items-center justify-between bg-card-2 border-t border-line px-4 py-3">
@@ -881,7 +865,7 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                     Planned:{" "}
                     {poHistoryPlans
                       .reduce((s: number, p: any) => s + Number(p.plannedQty || 0), 0)
-                      .toLocaleString()}
+                      .toLocaleString("en-IN")}
                   </div>
                   <div className="text-sm font-bold text-[color:var(--color-success)]">
                     Produced:{" "}
@@ -902,14 +886,14 @@ const DailyPlanViewModal: React.FC<DailyPlanViewModalProps> = ({
                           : 0;
                         return s + produced;
                       }, 0)
-                      .toLocaleString()}
+                      .toLocaleString("en-IN")}
                   </div>
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 bg-card-2 text-center">
-              <FaCalendarAlt className="text-ink-subtle mb-2.5" size={28} />
+              <CalendarDays className="text-ink-subtle mb-2.5" size={28} />
               <span className="text-ink-subtle font-medium text-sm">
                 No other daily plans found for this production order.
               </span>
