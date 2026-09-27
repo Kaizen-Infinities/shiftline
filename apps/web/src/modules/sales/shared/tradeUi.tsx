@@ -50,6 +50,20 @@ export const formatDateIN = (value: string | Date | null | undefined): string =>
 export const errorMessage = (err: unknown, fallback = "Something went wrong"): string =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 
+/** The last `count` months, newest first, as "YYYY-MM" keys with readable labels. */
+export const monthOptions = (count: number) => {
+  const out: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    out.push({
+      value: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }),
+    });
+  }
+  return out;
+};
+
 /** Page frame for trade screens: full width with a comfortable maximum. */
 export const PAGE_CLASS = "mx-auto w-full max-w-[1600px]";
 
