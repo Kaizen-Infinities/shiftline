@@ -57,7 +57,11 @@ function notify(key: string) {
   if (!set) return;
   // Copy to array so callbacks that unsubscribe don't mutate iteration
   Array.from(set).forEach((cb) => {
-    try { cb(); } catch (err) { console.error("[useListCache] subscriber error:", err); }
+    try {
+      cb();
+    } catch (err) {
+      console.error("[useListCache] subscriber error:", err);
+    }
   });
 }
 
@@ -131,27 +135,34 @@ export function useListCache<T = any>({
   ttl = 60_000,
   maxRetries = 3,
 }: UseListCacheOptions<T>): UseListCacheResult<T> {
-
   // Restore from memory or sessionStorage synchronously — zero flash on refresh
   const hit = readCache<T>(cacheKey, ttl);
 
-  const [data,       setData]       = useState<T[]>(hit?.data  ?? []);
-  const [total,      setTotal]      = useState<number>(hit?.total ?? 0);
-  const [loading,    setLoading]    = useState<boolean>(!hit);
+  const [data, setData] = useState<T[]>(hit?.data ?? []);
+  const [total, setTotal] = useState<number>(hit?.total ?? 0);
+  const [loading, setLoading] = useState<boolean>(!hit);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  const abortRef   = useRef<AbortController | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const { socket } = useSocket();
 
-  const fetcherRef   = useRef(fetcher);
-  const enabledRef   = useRef(enabled);
-  const cacheKeyRef  = useRef(cacheKey);
+  const fetcherRef = useRef(fetcher);
+  const enabledRef = useRef(enabled);
+  const cacheKeyRef = useRef(cacheKey);
   const onSuccessRef = useRef(onSuccess);
 
-  useEffect(() => { fetcherRef.current   = fetcher;   }, [fetcher]);
-  useEffect(() => { enabledRef.current   = enabled;   }, [enabled]);
-  useEffect(() => { cacheKeyRef.current  = cacheKey;  }, [cacheKey]);
-  useEffect(() => { onSuccessRef.current = onSuccess; }, [onSuccess]);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+  useEffect(() => {
+    cacheKeyRef.current = cacheKey;
+  }, [cacheKey]);
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
 
   // ─── Core fetch ───────────────────────────────────────────────
   const doFetch = useCallback(
@@ -162,7 +173,7 @@ export function useListCache<T = any>({
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
-      const key       = cacheKeyRef.current;
+      const key = cacheKeyRef.current;
       const hasCached = cache.has(key) || !!sessionStorage.getItem(SESSION_PREFIX + key);
 
       if (!hasCached && !silent) {
@@ -185,8 +196,8 @@ export function useListCache<T = any>({
         if (ctrl.signal.aborted) return;
 
         const entry: CacheEntry<T> = {
-          data:      result.data  ?? [],
-          total:     result.total ?? 0,
+          data: result.data ?? [],
+          total: result.total ?? 0,
           timestamp: Date.now(),
         };
 
@@ -196,7 +207,6 @@ export function useListCache<T = any>({
 
         // Fire onSuccess so caller can bulk-prefetch detail pages
         onSuccessRef.current?.(entry.data);
-
       } catch (err: any) {
         if (ctrl.signal.aborted) return;
         if (attempt < maxRetries) {
@@ -224,7 +234,7 @@ export function useListCache<T = any>({
 
     // Try memory first, then sessionStorage
     const entry = readCache<T>(cacheKey, ttl);
-    const fresh = entry && (Date.now() - entry.timestamp) < ttl;
+    const fresh = entry && Date.now() - entry.timestamp < ttl;
 
     if (entry) {
       // Cached empty arrays are valid — surface them immediately so the
@@ -238,7 +248,9 @@ export function useListCache<T = any>({
     // Only fetch if no cache or stale — never background-refresh fresh data
     if (!fresh) doFetch(!entry);
 
-    return () => { abortRef.current?.abort(); };
+    return () => {
+      abortRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey, enabled]);
 
@@ -265,7 +277,10 @@ export function useListCache<T = any>({
       const entry = readCache(key, ttl);
       if (entry) writeCache(key, { ...entry, timestamp: 0 }); // force stale
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => { debounceTimer = null; doFetch(true); }, 50);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        doFetch(true);
+      }, 50);
     };
 
     socket.on(`${socketModule}:created`, onEvent);
@@ -284,7 +299,9 @@ export function useListCache<T = any>({
   const refresh = useCallback(() => {
     const key = cacheKeyRef.current;
     cache.delete(key);
-    try { sessionStorage.removeItem(SESSION_PREFIX + key); } catch {}
+    try {
+      sessionStorage.removeItem(SESSION_PREFIX + key);
+    } catch {}
     doFetch(false);
   }, [doFetch]);
 
@@ -312,7 +329,9 @@ export function useListCache<T = any>({
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 /** Read a cache entry synchronously (memory first, then sessionStorage). Returns undefined if not cached. */
-export function readCacheEntry<T = any>(key: string): { data: T[]; total: number; timestamp: number } | undefined {
+export function readCacheEntry<T = any>(
+  key: string
+): { data: T[]; total: number; timestamp: number } | undefined {
   return readCache<T>(key, Infinity);
 }
 
@@ -323,7 +342,9 @@ export function writeCacheEntry<T = any>(key: string, data: T[], total?: number)
 
 export function invalidateCache(key: string): void {
   cache.delete(key);
-  try { sessionStorage.removeItem(SESSION_PREFIX + key); } catch {}
+  try {
+    sessionStorage.removeItem(SESSION_PREFIX + key);
+  } catch {}
 }
 
 /**
@@ -342,14 +363,14 @@ export function markStaleByPrefix(prefix: string): void {
           SESSION_PREFIX + key,
           JSON.stringify({ data: stale.data, total: stale.total, timestamp: 0 })
         );
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
   // Also mark sessionStorage-only entries stale
   try {
-    const ssKeys = Object.keys(sessionStorage).filter(
-      (k) => k.startsWith(SESSION_PREFIX + prefix)
-    );
+    const ssKeys = Object.keys(sessionStorage).filter((k) => k.startsWith(SESSION_PREFIX + prefix));
     ssKeys.forEach((k) => {
       try {
         const raw = sessionStorage.getItem(k);
@@ -357,23 +378,27 @@ export function markStaleByPrefix(prefix: string): void {
         const parsed = JSON.parse(raw);
         parsed.timestamp = 0;
         sessionStorage.setItem(k, JSON.stringify(parsed));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function invalidateCacheByPrefix(prefix: string): void {
   for (const key of [...cache.keys()]) {
     if (key.startsWith(prefix)) {
       cache.delete(key);
-      try { sessionStorage.removeItem(SESSION_PREFIX + key); } catch {}
+      try {
+        sessionStorage.removeItem(SESSION_PREFIX + key);
+      } catch {}
     }
   }
   // Also sweep sessionStorage for keys that may only live there
   try {
-    const ssKeys = Object.keys(sessionStorage).filter(
-      (k) => k.startsWith(SESSION_PREFIX + prefix)
-    );
+    const ssKeys = Object.keys(sessionStorage).filter((k) => k.startsWith(SESSION_PREFIX + prefix));
     ssKeys.forEach((k) => sessionStorage.removeItem(k));
   } catch {}
 }
@@ -439,10 +464,7 @@ export function updateInListCache<T = any>(
 }
 
 /** Remove every item matching `matcher`. No-op if the cache is empty. */
-export function removeFromListCache<T = any>(
-  key: string,
-  matcher: (item: T) => boolean
-): void {
+export function removeFromListCache<T = any>(key: string, matcher: (item: T) => boolean): void {
   const entry = readCache<T>(key, Infinity);
   if (!entry) return;
   const data = entry.data.filter((it) => !matcher(it));
@@ -550,11 +572,13 @@ export async function prefetchCache<T>(
   };
   if (shouldTrack) {
     const { trackPrefetch } = await import("../providers/PrefetchProgressTracker");
-    try { await trackPrefetch(runFetch()); } catch {}
+    try {
+      await trackPrefetch(runFetch());
+    } catch {}
     return;
   }
   try {
-    const ctrl   = new AbortController();
+    const ctrl = new AbortController();
     const result = await fetcher(ctrl.signal);
     writeCache(key, { data: result.data ?? [], total: result.total ?? 0, timestamp: Date.now() });
   } catch {
