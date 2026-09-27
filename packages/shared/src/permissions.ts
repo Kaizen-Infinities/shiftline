@@ -343,6 +343,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "Customer delivery schedules and adherence",
   },
   {
+    // TN-07: advance shipping notices, packing labels and the customer part-number map.
+    module: "asn",
+    actions: ["view", "create", "edit", "export"],
+    description: "OEM ASN, packing labels and customer part numbers",
+  },
+  {
     module: "shift-execution",
     actions: ["view", "edit", "supervise"],
     description: "Shift Execution Board (supervise: unlock every hour row)",

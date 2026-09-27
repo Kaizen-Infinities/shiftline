@@ -104,6 +104,10 @@ export const AUDITED_MODELS = [
   "CustomerSchedule",
   "CustomerScheduleLine",
   "CustomerScheduleDispatch",
+  // OEM ASN and part-number cross-reference (TN-07)
+  "CustomerPartMap",
+  "Asn",
+  "AsnLine",
   // exports (TN-01): incentive claims are receivables and authorisations a legal obligation
   "ExportIncentiveClaim",
   "ExportAuthorisation",
