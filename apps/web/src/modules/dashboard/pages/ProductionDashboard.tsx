@@ -17,6 +17,7 @@ import { fetchMachines } from "../../../features/machines/machineSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import { usePermission } from "../../../hooks/usePermission";
 import { DashTile, TileHeader, EmptyState, SkeletonRows } from "../components/DashboardPrimitives";
+import { oeeChipClass, oeeTone } from "../components/dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
    PRODUCTION DASHBOARD (UI v2)
@@ -30,15 +31,8 @@ type Pct = number | null;
 const pctLabel = (v: Pct) => (v == null ? "—" : `${v.toFixed(1)}%`);
 const clampPct = (v: number) => Math.min(100, Math.max(0, v));
 
-/** Threshold colour for an OEE-style percentage, as a CSS colour token. */
-const toneVar = (v: Pct) =>
-  v == null
-    ? "var(--color-line)"
-    : v > 85
-      ? "var(--color-success)"
-      : v > 60
-        ? "var(--color-warning)"
-        : "var(--color-danger)";
+/** Threshold colour for an OEE-style percentage; an empty bar keeps its track colour. */
+const toneVar = (v: Pct) => (v == null ? "var(--color-line)" : oeeTone(v));
 
 const readDowntime = (productionOrderId: string | number | undefined) => {
   if (productionOrderId == null) return 0;
@@ -285,7 +279,7 @@ const ProductionDashboard: React.FC = () => {
                 <span className="text-[13px] font-medium text-ink-muted">{p.label}</span>
                 <span
                   aria-hidden="true"
-                  className="grid h-9 w-9 place-items-center rounded-[12px] bg-chip text-accent"
+                  className="sl-tone-production grid h-9 w-9 place-items-center rounded-[12px]"
                 >
                   <p.icon />
                 </span>
@@ -296,7 +290,7 @@ const ProductionDashboard: React.FC = () => {
               </div>
               <Meter
                 value={pct ?? 0}
-                color="var(--chart-series-1)"
+                color={toneVar(pct)}
                 label={`${p.label} output against target`}
               />
               <span className="sl-muted text-xs tabular-nums">
@@ -338,6 +332,7 @@ const ProductionDashboard: React.FC = () => {
           <TileHeader
             id="prod-oee"
             icon={LuGauge}
+            tone="production"
             title="Factory OEE"
             subtitle="Availability × performance × quality, this month"
           />
@@ -387,7 +382,7 @@ const ProductionDashboard: React.FC = () => {
                     </span>
                     <span className="font-semibold text-ink tabular-nums">{pctLabel(m.v)}</span>
                   </div>
-                  <Meter value={m.v ?? 0} color="var(--chart-series-1)" label={m.label} />
+                  <Meter value={m.v ?? 0} color={toneVar(m.v)} label={m.label} />
                 </div>
               ))}
               {stats.oee == null && (
@@ -404,6 +399,7 @@ const ProductionDashboard: React.FC = () => {
           <TileHeader
             id="prod-machines"
             icon={LuCog}
+            tone="production"
             title="Machines"
             subtitle={`${machineRows.filter((m) => m.status === "RUNNING").length} running · ${machineRows.length} total`}
           />
@@ -431,9 +427,7 @@ const ProductionDashboard: React.FC = () => {
                           ? "sl-chip-success"
                           : m.status === "STOPPED"
                             ? "sl-chip-danger"
-                            : m.status === "IDLE"
-                              ? "sl-chip-warning"
-                              : "sl-chip-muted"
+                            : "sl-chip-muted bg-card"
                       }`}
                     >
                       {m.status.toLowerCase()}
@@ -441,7 +435,13 @@ const ProductionDashboard: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between text-xs text-ink-muted">
                     <span>
-                      OEE <strong className="text-ink tabular-nums">{pctLabel(m.oee)}</strong>
+                      OEE{" "}
+                      <strong
+                        className="tabular-nums"
+                        style={{ color: m.oee == null ? "var(--color-ink)" : oeeTone(m.oee) }}
+                      >
+                        {pctLabel(m.oee)}
+                      </strong>
                     </span>
                     <span className="flex items-center gap-1">
                       <LuClock aria-hidden="true" /> {m.downtime} min down
@@ -460,6 +460,7 @@ const ProductionDashboard: React.FC = () => {
           <TileHeader
             id="prod-machine-oee"
             icon={LuFactory}
+            tone="production"
             title="Machine-wise OEE"
             subtitle="Each machine's availability, performance and quality"
           />
@@ -535,6 +536,7 @@ const ProductionDashboard: React.FC = () => {
           <TileHeader
             id="prod-shifts"
             icon={LuClock}
+            tone="production"
             title="Output by shift"
             subtitle="Produced against target"
           />
@@ -550,7 +552,9 @@ const ProductionDashboard: React.FC = () => {
                 <li key={sh.name} className="flex flex-col gap-2 rounded-[14px] bg-card-2 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-ink">{sh.name}</span>
-                    <span className="sl-chip sl-chip-success shrink-0 px-2.5 py-0 text-[11px] tabular-nums">
+                    <span
+                      className={`sl-chip ${oeeChipClass(sh.efficiency)} shrink-0 px-2.5 py-0 text-[11px] tabular-nums`}
+                    >
                       {pctLabel(sh.efficiency)}
                     </span>
                   </div>
@@ -560,7 +564,7 @@ const ProductionDashboard: React.FC = () => {
                   </div>
                   <Meter
                     value={sh.efficiency ?? 0}
-                    color="var(--chart-series-3)"
+                    color={toneVar(sh.efficiency)}
                     label={`${sh.name} efficiency`}
                     height="h-1.5"
                   />

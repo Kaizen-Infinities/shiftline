@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { toneClass, type TileTone } from "./dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
    DASHBOARD BUILDING BLOCKS (UI v2)
@@ -32,15 +33,16 @@ export const TileHeader: React.FC<{
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
+  tone?: TileTone;
   className?: string;
-}> = ({ id, icon: Icon, title, subtitle, actions, className = "" }) => (
+}> = ({ id, icon: Icon, title, subtitle, actions, tone, className = "" }) => (
   <header
     className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 pt-5 pb-3 ${className}`}
   >
     <div className="flex min-w-0 items-center gap-3">
       <span
         aria-hidden="true"
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-chip text-accent"
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-[12px] ${toneClass(tone)}`}
       >
         <Icon className="text-[18px]" />
       </span>
@@ -106,17 +108,23 @@ export const SkeletonRows: React.FC<{ rows?: number; className?: string }> = ({
 
 export type Trend = "up" | "down" | "neutral";
 
-/** Stat tile: label, big number, delta chip and an icon square. */
+/**
+ * Stat tile: label, big number, delta chip and an icon square. The delta chip
+ * is green when the move is good news: pass `upIsGood={false}` for figures
+ * such as payables, where a rise is the thing to watch.
+ */
 export const StatTile: React.FC<{
   label: string;
   value: React.ReactNode;
   icon: IconType;
+  tone?: TileTone;
   trend?: Trend;
+  upIsGood?: boolean;
   note?: string;
   onClick?: () => void;
-}> = ({ label, value, icon: Icon, trend = "neutral", note, onClick }) => {
-  const chipTone =
-    trend === "up" ? "sl-chip-success" : trend === "down" ? "sl-chip-danger" : "sl-chip-muted";
+}> = ({ label, value, icon: Icon, tone, trend = "neutral", upIsGood = true, note, onClick }) => {
+  const good = trend === "neutral" ? null : (trend === "up") === upIsGood;
+  const chipTone = good === null ? "sl-chip-muted" : good ? "sl-chip-success" : "sl-chip-danger";
   const arrow = trend === "up" ? "↑" : trend === "down" ? "↓" : null;
   return (
     <button
@@ -128,7 +136,7 @@ export const StatTile: React.FC<{
         <span className="min-w-0 text-[13px] leading-snug font-medium text-ink-muted">{label}</span>
         <span
           aria-hidden="true"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[12px] bg-chip text-accent sm:h-9 sm:w-9"
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-[12px] sm:h-9 sm:w-9 ${toneClass(tone)}`}
         >
           <Icon className="text-base" />
         </span>

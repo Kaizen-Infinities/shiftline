@@ -14,6 +14,7 @@ import { toast } from "react-toastify";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import { usePermission } from "../../../hooks/usePermission";
 import { EmptyState } from "../components/DashboardPrimitives";
+import { oeeTone } from "../components/dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
    OEE & MACHINE ACTIVITY (UI v2)
@@ -28,14 +29,7 @@ const formatLocalDateString = (d: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const thresholdColor = (value: number | null) =>
-  value == null
-    ? "var(--color-ink-subtle)"
-    : value >= 85
-      ? "var(--color-success)"
-      : value >= 60
-        ? "var(--color-warning)"
-        : "var(--color-danger)";
+const thresholdColor = oeeTone;
 
 const STATUS: Record<
   string,
@@ -254,7 +248,7 @@ const OeeDashboard: React.FC = () => {
                     <div className="flex min-w-0 items-center gap-3">
                       <span
                         aria-hidden="true"
-                        className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-chip text-accent"
+                        className={`${st.chip === "sl-chip" ? "bg-chip text-accent" : st.chip} grid h-10 w-10 shrink-0 place-items-center rounded-[12px]`}
                       >
                         <LuGauge className="text-lg" />
                       </span>
