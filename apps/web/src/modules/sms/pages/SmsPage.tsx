@@ -108,7 +108,7 @@ const SmsPage: React.FC = () => {
   return (
     <div className="space-y-4 p-4">
       <div>
-        <h1 className="text-lg font-semibold text-ink">SMS and OTP</h1>
+        <h1 className="sl-h1 m-0">SMS and OTP</h1>
         <p className="text-sm text-ink-soft">
           Templates registered on DLT, what has been sent, and the account it goes out through.
         </p>

@@ -176,10 +176,10 @@ const EmailConfigPage: React.FC = () => {
   return (
     <div className="max-w-[1024px] xl:mr-auto">
       <form onSubmit={handleSaveConfig} noValidate>
-        <div className="bg-card rounded-sm border border-line overflow-hidden">
+        <div className="sl-tile overflow-hidden">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-            <h2 className="text-xl font-bold text-ink">Email Configuration</h2>
+            <h1 className="sl-h1 m-0">Email Configuration</h1>
           </div>
 
           {/* Section 1: SMTP Settings */}

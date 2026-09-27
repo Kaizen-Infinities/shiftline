@@ -79,8 +79,8 @@ const CurrenciesPage: React.FC = () => {
   return (
     <div className="space-y-4 p-4">
       <header>
-        <h1 className="text-xl font-semibold text-ink">Currencies and Rates</h1>
-        <p className="text-sm text-ink-muted">
+        <h1 className="sl-h1 m-0">Currencies and Rates</h1>
+        <p className="sl-muted m-0 mt-1 text-sm">
           The books are kept in rupees. A foreign invoice converts at the rate published for its
           date, and that rate stays on the document.
         </p>

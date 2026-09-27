@@ -7,10 +7,10 @@ import { eInvoiceService, type EInvoiceSettings } from "../../../services/eInvoi
  * E-invoice settings (P1-11): whether it is on, from which date, the turnover band that decides
  * the 30-day window, and the GSP connection. Secrets are write-only.
  */
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-accent text-white hover:brightness-110`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const input = "w-full rounded-lg border border-line-soft bg-card-2 px-3 py-2 text-sm text-ink";
+const btn = "sl-pill-sm";
+const primary = "sl-btn-blue sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const input = "sl-input h-11 py-0 text-sm";
 const label = "block text-xs font-semibold uppercase tracking-wide text-ink-subtle mb-1";
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -99,16 +99,16 @@ const EInvoiceSettingsPage: React.FC = () => {
 
   if (!form || !settings) return <div className="p-6 text-sm text-ink-muted">Loading…</div>;
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
       <div>
-        <h2 className="text-xl font-semibold text-ink">E-invoicing</h2>
-        <p className="text-sm text-ink-muted">
+        <h1 className="sl-h1 m-0">E-invoicing</h1>
+        <p className="sl-muted m-0 mt-1 text-sm">
           B2B invoices, credit notes and debit notes are registered with the Invoice Registration
           Portal through your GST Suvidha Provider. Until a GSP is connected, the built-in fixture
           provider mimics the portal so the flow can be tried without filing anything.
         </p>
       </div>
-      <div className="grid gap-4 rounded-lg border border-line-soft bg-card p-4 md:grid-cols-2">
+      <div className="grid gap-4 sl-tile p-4 sm:p-5 md:grid-cols-2">
         <label className="flex items-center gap-2 text-sm text-ink md:col-span-2">
           <input
             type="checkbox"

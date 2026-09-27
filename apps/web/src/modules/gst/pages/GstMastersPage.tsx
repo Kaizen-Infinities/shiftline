@@ -17,11 +17,10 @@ import {
  */
 type Tab = "hsn" | "slabs";
 
-const input =
-  "w-full rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-accent";
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition";
-const primary = `${btn} bg-accent text-white hover:brightness-110 disabled:opacity-50`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
+const input = "sl-input h-11 py-0 text-sm";
+const btn = "sl-pill-sm";
+const primary = "sl-btn-blue sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
 const pct = (v: string | number) => `${Number(v)}%`;
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
@@ -189,7 +188,7 @@ const GstMastersPage: React.FC = () => {
 
   return (
     <>
-      <div className="mx-auto max-w-6xl rounded-sm border border-line bg-card">
+      <div className="mx-auto max-w-6xl sl-tile">
         <div className="border-b border-line p-6">
           <h2 className="text-2xl font-bold text-ink">GST rates and HSN/SAC codes</h2>
           <p className="mt-1 text-sm text-ink-subtle">

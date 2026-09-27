@@ -97,8 +97,8 @@ const ImportsPage: React.FC = () => {
   return (
     <div className="p-4 text-ink" data-testid="imports-page">
       <div className="mb-4">
-        <h1 className="text-xl font-bold">Data imports</h1>
-        <p className="text-sm text-ink-muted">
+        <h1 className="sl-h1 m-0">Data imports</h1>
+        <p className="sl-muted m-0 mt-1 text-sm">
           Bring masters and opening figures in from a spreadsheet. Every file is checked first;
           nothing is written until the report is clean and you press Import.
         </p>
@@ -130,7 +130,7 @@ const ImportsPage: React.FC = () => {
 
           {selected && (
             <main className="space-y-6">
-              <section className="rounded-sm border border-line-soft bg-card p-5">
+              <section className="sl-tile p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-bold">{selected.label}</h2>
@@ -174,7 +174,7 @@ const ImportsPage: React.FC = () => {
                 </div>
               </section>
 
-              <section className="rounded-sm border border-line-soft bg-card p-5">
+              <section className="sl-tile p-4 sm:p-5">
                 <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
                   CSV file
                   <input

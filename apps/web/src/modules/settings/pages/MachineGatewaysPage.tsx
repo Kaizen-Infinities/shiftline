@@ -19,13 +19,13 @@ import {
  * is connected. OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned; picking
  * one is allowed, but "Test connection" will honestly refuse until that adapter is.
  */
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
-const field = "rounded-lg border border-line-soft bg-card-2 px-3 py-1.5 text-sm text-ink";
-const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
-const td = "px-3 py-1.5 text-sm text-ink align-top";
+const btn = "sl-pill-sm";
+const primary = "sl-btn-blue sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const danger = "sl-btn-soft-danger sl-pill-sm";
+const field = "sl-input h-10 w-auto max-w-full py-0 text-sm";
+const th = "sl-th bg-card-2 px-3 py-2.5 text-left first:rounded-l-xl last:rounded-r-xl";
+const td = "px-3 py-2.5 text-sm text-ink align-top";
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   "Something went wrong";
@@ -227,10 +227,10 @@ const MachineGatewaysPage: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
       <div>
-        <h2 className="text-xl font-semibold text-ink">Machine gateways</h2>
-        <p className="text-sm text-ink-muted">
+        <h1 className="sl-h1 m-0">Machine gateways</h1>
+        <p className="sl-muted m-0 mt-1 text-sm">
           One gateway per machine connection. SIMULATOR is the only adapter that has met a real
           device today; OPCUA_EUROMAP77, EUROMAP63_FILE and MODBUS_MQTT are written but unpinned and
           will refuse to connect until they have.
@@ -238,7 +238,7 @@ const MachineGatewaysPage: React.FC = () => {
       </div>
 
       {can("machine-telemetry.configure") && (
-        <div className="grid gap-2 rounded-xl border border-line-soft bg-card p-3 sm:grid-cols-3">
+        <div className="grid gap-2 sl-tile p-4 sm:p-5 sm:grid-cols-3">
           <input
             className={field}
             placeholder="Code"
@@ -325,7 +325,7 @@ const MachineGatewaysPage: React.FC = () => {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
+      <div className="sl-tile overflow-x-auto p-2 sm:p-3">
         <table className="min-w-full divide-y divide-line-soft">
           <thead>
             <tr>

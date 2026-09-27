@@ -128,7 +128,7 @@ const PaymentLinksPage: React.FC = () => {
   return (
     <div className="space-y-4 p-4">
       <div>
-        <h1 className="text-lg font-semibold text-ink">Payment Links</h1>
+        <h1 className="sl-h1 m-0">Payment Links</h1>
         <p className="text-sm text-ink-soft">
           Links a customer can pay, and what the gateway kept out of each collection.
         </p>

@@ -6,25 +6,30 @@ import {
   accountExportService,
   type AccountExportRow,
 } from "../../../services/accountExportService";
+import { Archive, Download } from "lucide-react";
+import { ActionPill, Chip, EmptyState, PageHeader, type ChipTone } from "../../../components/ui/v2";
 
 /**
  * Account export (P1-03): everything the company holds in Shiftline as one archive, built in
  * the background and downloadable for 24 hours. Secrets never leave; the manifest says what is in.
  */
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-accent text-white hover:brightness-110`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
-const td = "px-3 py-1.5 text-sm text-ink";
-const STATUS: Record<AccountExportRow["status"], string> = {
-  QUEUED: "border border-line text-ink-muted bg-card-2",
-  RUNNING:
-    "border border-[color:var(--color-warning)]/40 text-[color:var(--color-warning)] bg-[color:var(--color-warning)]/10",
-  READY:
-    "border border-[color:var(--color-success)]/40 text-[color:var(--color-success)] bg-[color:var(--color-success)]/10",
-  FAILED:
-    "border border-[color:var(--color-danger)]/40 text-[color:var(--color-danger)] bg-[color:var(--color-danger)]/10",
-  EXPIRED: "border border-line text-ink-subtle bg-card-2",
+const btn = "sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const th = "sl-th bg-card-2 px-3 py-2.5 text-left first:rounded-l-xl last:rounded-r-xl";
+const td = "px-3 py-2.5 text-sm text-ink";
+const STATUS: Record<AccountExportRow["status"], ChipTone> = {
+  QUEUED: "muted",
+  RUNNING: "warning",
+  READY: "success",
+  FAILED: "danger",
+  EXPIRED: "muted",
+};
+const STATUS_LABEL: Record<AccountExportRow["status"], string> = {
+  QUEUED: "Queued",
+  RUNNING: "Building",
+  READY: "Ready",
+  FAILED: "Failed",
+  EXPIRED: "Expired",
 };
 const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -86,24 +91,28 @@ const AccountExportPage: React.FC = () => {
 
   const inProgress = rows.some((r) => r.status === "QUEUED" || r.status === "RUNNING");
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-ink">Account Export</h2>
-          <p className="text-sm text-ink-muted">
-            Everything your company holds in Shiftline, every table as JSON lines plus your uploaded
-            files, in one archive. Passwords, tokens and integration credentials are never included.
-            Archives can be downloaded for 24 hours.
-          </p>
-        </div>
-        {can("account-export.create") && (
-          <button type="button" className={primary} disabled={busy || inProgress} onClick={request}>
-            {inProgress ? "Building…" : busy ? "Requesting…" : "Request export"}
-          </button>
-        )}
-      </div>
-      <div className="overflow-x-auto rounded-lg border border-line-soft bg-card">
-        <table className="min-w-full divide-y divide-line-soft">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="Account Export"
+        icon={<Archive size={22} />}
+        subtitle="Everything your company holds in Shiftline, every table as JSON lines plus your uploaded files, in one archive. Passwords, tokens and integration credentials are never included. Archives can be downloaded for 24 hours."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Account Export" }]}
+        primaryAction={
+          can("account-export.create") ? (
+            <ActionPill
+              size="lg"
+              icon={<Download size={18} />}
+              disabled={busy || inProgress}
+              loading={busy}
+              onClick={request}
+            >
+              {inProgress ? "Building…" : busy ? "Requesting…" : "Request export"}
+            </ActionPill>
+          ) : undefined
+        }
+      />
+      <div className="sl-tile overflow-x-auto p-2 sm:p-3">
+        <table className="min-w-full">
           <thead>
             <tr>
               <th className={th}>Requested</th>
@@ -115,21 +124,19 @@ const AccountExportPage: React.FC = () => {
               <th className={th} />
             </tr>
           </thead>
-          <tbody className="divide-y divide-line-soft">
+          <tbody>
             {rows.map((r) => {
               const tables = r.tableCounts ? Object.keys(r.tableCounts).length : 0;
               const total = r.tableCounts
                 ? Object.values(r.tableCounts).reduce((a, b) => a + b, 0)
                 : 0;
               return (
-                <tr key={r.id}>
+                <tr key={r.id} className="border-t border-line-soft">
                   <td className={td}>{when(r.requestedAt)}</td>
                   <td className={td}>
-                    <span
-                      className={`rounded-sm px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[r.status]}`}
-                    >
-                      {r.status}
-                    </span>
+                    <Chip tone={STATUS[r.status]} size="sm" dot>
+                      {STATUS_LABEL[r.status]}
+                    </Chip>
                     {r.error && (
                       <div className="text-xs text-[color:var(--color-danger)]">{r.error}</div>
                     )}
@@ -154,8 +161,13 @@ const AccountExportPage: React.FC = () => {
             })}
             {rows.length === 0 && (
               <tr>
-                <td className={`${td} text-ink-muted`} colSpan={7}>
-                  No exports yet.
+                <td colSpan={7}>
+                  <EmptyState
+                    compact
+                    icon={<Archive size={22} />}
+                    title="No exports yet."
+                    description="Request one to get a full copy of your data."
+                  />
                 </td>
               </tr>
             )}
