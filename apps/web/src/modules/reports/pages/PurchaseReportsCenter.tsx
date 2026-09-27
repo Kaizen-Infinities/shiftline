@@ -103,6 +103,8 @@ const PurchaseReportsCenter: React.FC = () => {
     data: backendReports,
     total,
     loading: loadingBackend,
+    error: listError,
+    refresh: retryList,
   } = useListCache({
     cacheKey,
     socketModule: "purchaseOrder",
@@ -422,6 +424,8 @@ const PurchaseReportsCenter: React.FC = () => {
       <DataTable
         columns={finalColumns}
         data={backendReports}
+        error={listError}
+        onRetry={retryList}
         rowKey={(item: any) => item.id || item.poNumber}
         loading={loadingBackend}
         emptyMessage="No purchase order data found in date range."

@@ -24,6 +24,7 @@ const PermissionList: React.FC = () => {
     permissions,
     loading,
     error,
+    refresh,
     loadPermissions,
     addPermission,
     editPermission,
@@ -58,12 +59,6 @@ const PermissionList: React.FC = () => {
   useEffect(() => {
     loadPermissions();
   }, [loadPermissions]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -233,6 +228,8 @@ const PermissionList: React.FC = () => {
           <DataTable
             columns={columns}
             data={paginatedPerms}
+            error={error}
+            onRetry={refresh}
             rowKey={(row) => row.id}
             loading={loading}
             emptyMessage="No permissions found."

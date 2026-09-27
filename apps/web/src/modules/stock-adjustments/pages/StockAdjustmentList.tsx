@@ -222,7 +222,13 @@ const StockAdjustmentList: React.FC = () => {
     [debouncedSearch, status, adjustmentType, dateFrom, dateTo, currentPage]
   );
 
-  const { data, total, loading, refresh } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    refresh,
+    error: listError,
+  } = useListCache({
     cacheKey,
     socketModule: "stockAdjustment",
     fetcher,
@@ -370,6 +376,8 @@ const StockAdjustmentList: React.FC = () => {
         />
 
         <DataTable
+          error={listError}
+          onRetry={refresh}
           data={data || []}
           rowKey={(item) => item.id}
           loading={loading}

@@ -46,6 +46,7 @@ const StorageStoreList: React.FC = () => {
     data: allStores,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "stores:list",
     socketModule: "store",
@@ -222,6 +223,8 @@ const StorageStoreList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        onRetry={refresh}
         data={paginatedStores}
         rowKey={(item) => item.storeId}
         ariaLabel="Stores"

@@ -26,13 +26,19 @@ const ProductionReportsCenter: React.FC = () => {
   const { can } = usePermission();
 
   // Redux state
-  const { data: productionOrders, loading: loadingOrders } = useAppSelector(
-    (state) => state.productionOrders
-  );
+  const {
+    data: productionOrders,
+    loading: loadingOrders,
+    error: ordersError,
+  } = useAppSelector((state) => state.productionOrders);
   const { data: machines } = useAppSelector((state) => state.machines);
   const { data: shifts } = useAppSelector((state) => state.shifts);
-  const { data: hourlyProductions, loading: loadingHourly } = useAppSelector(
-    (state) => state.hourlyProductions || { data: [], loading: false }
+  const {
+    data: hourlyProductions,
+    loading: loadingHourly,
+    error: hourlyError,
+  } = useAppSelector(
+    (state) => state.hourlyProductions || { data: [], loading: false, error: null }
   );
   const { employees } = useAppSelector((state) => state.employees || { employees: [] });
 
@@ -100,7 +106,12 @@ const ProductionReportsCenter: React.FC = () => {
     [startDate, endDate]
   );
 
-  const { data: backendReports, loading: loadingBackend } = useListCache({
+  const {
+    data: backendReports,
+    loading: loadingBackend,
+    error: listError,
+    refresh: retryList,
+  } = useListCache({
     cacheKey: weeklyCacheKey,
     socketModule: "weeklyProgram",
     fetcher: weeklyFetcher,
@@ -703,6 +714,14 @@ const ProductionReportsCenter: React.FC = () => {
           )
         }
         loading={loadingOrders || loadingBackend || loadingHourly}
+        error={
+          selectedReportType === "weekly"
+            ? listError
+            : selectedReportType === "hourly"
+              ? hourlyError
+              : ordersError
+        }
+        onRetry={selectedReportType === "weekly" ? retryList : fetchAllData}
         emptyMessage="No production data found for selected filters."
         pagination={{
           currentPage: page,

@@ -27,6 +27,7 @@ const DepartmentList: React.FC = () => {
     total,
     loading,
     error,
+    refresh,
     loadDepartments,
     addDepartment,
     editDepartment,
@@ -98,12 +99,6 @@ const DepartmentList: React.FC = () => {
   useEffect(() => {
     loadDepartments(currentPage, ITEMS_PER_PAGE, debouncedSearchTerm);
   }, [loadDepartments, currentPage, debouncedSearchTerm]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -309,6 +304,8 @@ const DepartmentList: React.FC = () => {
             <DataTable
               columns={columns}
               data={paginatedDepts}
+              error={error}
+              onRetry={refresh}
               rowKey={(row) => row.id}
               loading={loading}
               emptyMessage="No departments found."

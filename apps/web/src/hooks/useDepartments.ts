@@ -33,6 +33,7 @@ export const useDepartments = () => {
     total,
     loading,
     refreshing,
+    error,
     refresh,
   } = useListCache<Department>({
     cacheKey,
@@ -80,7 +81,7 @@ export const useDepartments = () => {
     total,
     loading,
     refreshing,
-    error: null as string | null,
+    error,
     loadDepartments,
     addDepartment,
     editDepartment,

@@ -309,7 +309,13 @@ const AllSalesOrderList: React.FC = () => {
     [currentPage, debouncedSearch, fromDate, toDate, customerGradeId, customerTypeId, orderSource]
   );
 
-  const { data, total, loading, refresh } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    refresh,
+    error: listError,
+  } = useListCache({
     cacheKey,
     socketModule: "salesOrder",
     fetcher,
@@ -499,6 +505,8 @@ const AllSalesOrderList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        onRetry={refresh}
         data={data}
         rowKey={(item) => item.id}
         loading={loading}

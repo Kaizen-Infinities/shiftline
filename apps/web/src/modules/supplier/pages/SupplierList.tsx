@@ -61,6 +61,7 @@ const SupplierList: React.FC = () => {
     data: allSuppliers,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "suppliers:list",
     socketModule: "supplier",
@@ -226,6 +227,8 @@ const SupplierList: React.FC = () => {
         </Toolbar>
 
         <DataTable
+          error={listError}
+          onRetry={refresh}
           data={paginatedSuppliers}
           rowKey={(supplier) => supplier.id}
           loading={loading}

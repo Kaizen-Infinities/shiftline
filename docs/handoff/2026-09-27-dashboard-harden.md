@@ -49,8 +49,7 @@ fail in Playwright (1440 px and 390 px), and again with a normal load.
 
 ## Not done
 
-- `useListCache` has 46 callers. They all get `error` now, but only the dashboards show it; the
-  list screens still fall back to their empty states when a load fails.
-- The production slices' shared `error` field is also set by failed create, update and delete
-  calls. The dashboard only treats it as a load failure when no rows are loaded.
-- The OEE page still polls every minute while the tab is hidden.
+All three items first listed here were resolved the same day; see
+`2026-09-27-list-load-errors.md`. One of them was a wrong claim: the production-order, machine
+and hourly-production slices set `error` only from their list fetch, never from create, update or
+delete, so a dashboard reading it was already correct.

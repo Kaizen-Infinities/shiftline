@@ -25,7 +25,8 @@ import CommonModal from "../../../components/ui/Modal/CommonModal";
 const ITEMS_PER_PAGE = 15;
 
 const RoleList: React.FC = () => {
-  const { roles, total, loading, error, loadRoles, addRole, editRole, removeRole } = useRoles();
+  const { roles, total, loading, error, refresh, loadRoles, addRole, editRole, removeRole } =
+    useRoles();
   const { can } = usePermission();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -74,12 +75,6 @@ const RoleList: React.FC = () => {
       loadRoles(currentPage, ITEMS_PER_PAGE, debouncedSearchTerm);
     }
   }, [loadRoles, currentPage, debouncedSearchTerm, can]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -326,6 +321,8 @@ const RoleList: React.FC = () => {
             <DataTable
               columns={columns}
               data={paginatedRoles}
+              error={error}
+              onRetry={refresh}
               rowKey={(row) => row.id}
               loading={loading}
               emptyMessage="No roles found."

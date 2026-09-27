@@ -24,6 +24,7 @@ export const usePermissions = () => {
   const {
     data: permissions,
     loading: permLoading,
+    error: permError,
     refresh: refreshPerms,
   } = useListCache<Permission>({
     cacheKey: permCacheKey,
@@ -144,7 +145,8 @@ export const usePermissions = () => {
     permissions,
     rolePermissions,
     loading,
-    error: null as string | null,
+    error: permError,
+    refresh: refreshPerms,
     loadPermissions,
     addPermission,
     editPermission,

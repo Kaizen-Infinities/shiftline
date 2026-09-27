@@ -103,7 +103,13 @@ const SalesInvoiceList: React.FC = () => {
     [currentPage, debouncedSearch]
   );
 
-  const { data, total, loading, refresh } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    refresh,
+    error: listError,
+  } = useListCache({
     cacheKey,
     socketModule: "salesInvoice",
     fetcher,
@@ -408,6 +414,8 @@ const SalesInvoiceList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        onRetry={refresh}
         columns={columns}
         data={data}
         rowKey={(item) => item.id}

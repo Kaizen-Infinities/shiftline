@@ -78,8 +78,19 @@ const OeeDashboard: React.FC = () => {
     setLoading(true);
     setFailed(false);
     fetchMachineStatus();
-    const interval = setInterval(fetchMachineStatus, 60000); // refresh every minute
-    return () => clearInterval(interval);
+    // Refresh every minute while the tab is visible; a hidden tab skips its
+    // ticks and catches up the moment it is shown again.
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchMachineStatus();
+    }, 60000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchMachineStatus();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchMachineStatus]);
 
   // Refresh when production activity happens.

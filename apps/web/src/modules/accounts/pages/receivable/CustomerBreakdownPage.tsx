@@ -85,6 +85,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<CustomerReceivableDetail>({
     cacheKey,
     socketModule: "voucher",
@@ -592,6 +593,8 @@ export const CustomerBreakdownPage: React.FC = () => {
             data={customerDetail?.invoices || []}
             rowKey={(item: any) => item.id}
             loading={tableLoading}
+            error={listError}
+            onRetry={refresh}
             emptyMessage="No sales invoices recorded for this customer."
           />
         )}
@@ -602,6 +605,8 @@ export const CustomerBreakdownPage: React.FC = () => {
             data={customerDetail?.collectionHistory || []}
             rowKey={(item: any) => item.id}
             loading={tableLoading}
+            error={listError}
+            onRetry={refresh}
             emptyMessage="No receipt collection vouchers recorded for this customer."
           />
         )}
@@ -612,6 +617,8 @@ export const CustomerBreakdownPage: React.FC = () => {
             data={customerDetail?.statementEntries || []}
             rowKey={(item: any) => item.id}
             loading={tableLoading}
+            error={listError}
+            onRetry={refresh}
             emptyMessage="No ledger statement entries recorded for this customer."
           />
         )}

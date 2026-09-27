@@ -2,7 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSync, FaChevronRight } from "react-icons/fa";
 import { HandCoins, Plus, RefreshCw } from "lucide-react";
-import { ActionPill, PageHeader, StatTile } from "../../../../components/ui/v2";
+import {
+  ActionPill,
+  LoadError,
+  PageHeader,
+  StaleNotice,
+  StatTile,
+} from "../../../../components/ui/v2";
 import { fmtDrCr, fmtINR, fmtINRCompact } from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
@@ -149,6 +155,7 @@ export const AmountReceivablePage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<CustomerReceivableSummary>({
     cacheKey,
     socketModule: "voucher",
@@ -520,7 +527,12 @@ export const AmountReceivablePage: React.FC = () => {
             </div>
           </div>
 
-          {filteredCustomers.length === 0 ? (
+          {listError && !loading && filteredCustomers.length > 0 && (
+            <StaleNotice onRetry={refresh} className="m-3" />
+          )}
+          {listError && !loading && receivables.length === 0 ? (
+            <LoadError compact title="Couldn't load customer receivables" onRetry={refresh} />
+          ) : filteredCustomers.length === 0 ? (
             <div className="p-10 text-center text-sm text-ink-muted flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">

@@ -117,6 +117,7 @@ export const PurchaseReturnPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<PurchaseReturn>({
     cacheKey,
     socketModule: "purchaseReturn",
@@ -599,6 +600,8 @@ export const PurchaseReturnPage: React.FC = () => {
 
         {/* Table */}
         <DataTable
+          error={listError}
+          onRetry={refresh}
           columns={columns}
           data={filteredReturns}
           rowKey={(item) => item.id}

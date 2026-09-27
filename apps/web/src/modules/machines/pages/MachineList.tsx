@@ -64,6 +64,7 @@ const MachineList: React.FC = () => {
     data: machines,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "machines:list",
     socketModule: "machine",
@@ -222,6 +223,8 @@ const MachineList: React.FC = () => {
         </Toolbar>
 
         <DataTable
+          error={listError}
+          onRetry={refresh}
           ariaLabel="Machines"
           data={paginatedData}
           rowKey={(item) => item.machineId}

@@ -30,6 +30,7 @@ export const useRoles = () => {
     total,
     loading,
     refreshing,
+    error,
     refresh,
   } = useListCache<Role>({
     cacheKey,
@@ -95,7 +96,7 @@ export const useRoles = () => {
     total,
     loading,
     refreshing,
-    error: null as string | null,
+    error,
     loadRoles,
     addRole,
     editRole,
