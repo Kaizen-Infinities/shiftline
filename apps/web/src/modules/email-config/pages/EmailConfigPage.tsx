@@ -1,10 +1,10 @@
+import { Mail, Save, Send, Server } from "lucide-react";
+import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { FaSave, FaPaperPlane } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { emailConfigService } from "../../../services/emailConfigService";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import { usePermission } from "../../../hooks/usePermission";
 import { useDetailCache, invalidateDetailCache } from "../../../hooks/useDetailCache";
@@ -174,157 +174,148 @@ const EmailConfigPage: React.FC = () => {
   if (loading) return <CommonLoader text="Loading..." fullScreen={false} />;
 
   return (
-    <div className="max-w-[1024px] xl:mr-auto">
-      <form onSubmit={handleSaveConfig} noValidate>
-        <div className="sl-tile overflow-hidden">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-            <h1 className="sl-h1 m-0">Email Configuration</h1>
+    <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="Email Configuration"
+        icon={<Mail size={22} />}
+        subtitle="The mail server that invoices, reminders and invitations go out through. The password is stored encrypted and never shown again."
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Email" }]}
+      />
+      <form onSubmit={handleSaveConfig} noValidate className="space-y-5">
+        {/* Section 1: SMTP Settings */}
+        <Tile title="SMTP Settings" icon={<Server size={18} />}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <TextInput
+              label="SMTP Host"
+              name="smtpHost"
+              value={configData.smtpHost}
+              placeholder="smtp.gmail.com"
+              required
+              onChange={handleConfigChange as any}
+              error={configErrors.smtpHost}
+            />
+            <TextInput
+              label="SMTP Port"
+              name="smtpPort"
+              type="number"
+              value={configData.smtpPort}
+              placeholder="587"
+              required
+              onChange={handleConfigChange as any}
+              error={configErrors.smtpPort}
+            />
+            <SelectInput
+              label="Encryption"
+              name="encryption"
+              value={configData.encryption}
+              options={encryptionOptions}
+              onChange={handleConfigChange}
+              searchable={false}
+            />
+            <TextInput
+              label="SMTP Username"
+              name="smtpUsername"
+              value={configData.smtpUsername}
+              placeholder="user@example.com"
+              required
+              onChange={handleConfigChange as any}
+              error={configErrors.smtpUsername}
+            />
+            <TextInput
+              label="SMTP Password"
+              name="smtpPassword"
+              type="password"
+              value={configData.smtpPassword}
+              placeholder="••••••••"
+              required
+              onFocus={handlePasswordFocus}
+              onChange={handleConfigChange as any}
+              error={configErrors.smtpPassword}
+            />
+            <TextInput
+              label="From Email"
+              name="fromEmail"
+              type="email"
+              value={configData.fromEmail}
+              placeholder="noreply@example.com"
+              required
+              onChange={handleConfigChange as any}
+              error={configErrors.fromEmail}
+            />
+            <TextInput
+              label="From Name"
+              name="fromName"
+              value={configData.fromName}
+              placeholder="Company Name"
+              required
+              onChange={handleConfigChange as any}
+              error={configErrors.fromName}
+            />
           </div>
 
-          {/* Section 1: SMTP Settings */}
-          <div className="p-5 lg:p-6 space-y-5">
-            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">SMTP Settings</h6>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-              <TextInput
-                label="SMTP Host"
-                name="smtpHost"
-                value={configData.smtpHost}
-                placeholder="smtp.gmail.com"
-                required
-                horizontal
-                onChange={handleConfigChange as any}
-                error={configErrors.smtpHost}
-              />
-              <TextInput
-                label="SMTP Port"
-                name="smtpPort"
-                type="number"
-                value={configData.smtpPort}
-                placeholder="587"
-                required
-                horizontal
-                onChange={handleConfigChange as any}
-                error={configErrors.smtpPort}
-              />
-              <SelectInput
-                label="Encryption"
-                name="encryption"
-                value={configData.encryption}
-                options={encryptionOptions}
-                onChange={handleConfigChange}
-                searchable={false}
-                horizontal
-              />
-              <TextInput
-                label="SMTP Username"
-                name="smtpUsername"
-                value={configData.smtpUsername}
-                placeholder="user@example.com"
-                required
-                horizontal
-                onChange={handleConfigChange as any}
-                error={configErrors.smtpUsername}
-              />
-              <TextInput
-                label="SMTP Password"
-                name="smtpPassword"
-                type="password"
-                value={configData.smtpPassword}
-                placeholder="••••••••"
-                required
-                horizontal
-                onFocus={handlePasswordFocus}
-                onChange={handleConfigChange as any}
-                error={configErrors.smtpPassword}
-              />
-              <TextInput
-                label="From Email"
-                name="fromEmail"
-                type="email"
-                value={configData.fromEmail}
-                placeholder="noreply@example.com"
-                required
-                horizontal
-                onChange={handleConfigChange as any}
-                error={configErrors.fromEmail}
-              />
-              <TextInput
-                label="From Name"
-                name="fromName"
-                value={configData.fromName}
-                placeholder="Company Name"
-                required
-                horizontal
-                onChange={handleConfigChange as any}
-                error={configErrors.fromName}
-              />
+          {/* Save Config Button */}
+          {canEditEmail && (
+            <div className="mt-5 flex justify-end border-t border-line-soft pt-4">
+              <ActionPill
+                type="submit"
+                icon={<Save size={17} />}
+                loading={saving}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Configuration"}
+              </ActionPill>
             </div>
+          )}
+        </Tile>
 
-            {/* Save Config Button */}
-            {canEditEmail && (
-              <div className="flex justify-end pt-2">
-                <CustomButton
-                  text={saving ? "Saving..." : "Save Configuration"}
-                  icon={FaSave}
-                  type="submit"
-                  disabled={saving}
-                />
-              </div>
-            )}
+        {/* Section 2: Send Test Email */}
+        <Tile
+          title="Send Test Email"
+          icon={<Send size={18} />}
+          subtitle="Check the settings above by sending yourself a message."
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <TextInput
+              label="Recipient Email"
+              name="recipientEmail"
+              type="email"
+              value={emailData.recipientEmail}
+              placeholder="recipient@example.com"
+              required
+              onChange={handleEmailChange as any}
+              error={emailErrors.recipientEmail}
+            />
+            <TextInput
+              label="Subject"
+              name="subject"
+              value={emailData.subject}
+              required
+              onChange={handleEmailChange as any}
+              error={emailErrors.subject}
+            />
           </div>
 
-          {/* Section 2: Send Test Email */}
-          <div className="border-t border-line p-5 lg:p-6 space-y-5">
-            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">
-              Send Test Email
-            </h6>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-              <TextInput
-                label="Recipient Email"
-                name="recipientEmail"
-                type="email"
-                value={emailData.recipientEmail}
-                placeholder="recipient@example.com"
-                required
-                horizontal
-                onChange={handleEmailChange as any}
-                error={emailErrors.recipientEmail}
-              />
-              <TextInput
-                label="Subject"
-                name="subject"
-                value={emailData.subject}
-                required
-                horizontal
-                onChange={handleEmailChange as any}
-                error={emailErrors.subject}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 items-end">
-              <TextInput
-                label="Message"
-                name="message"
-                value={emailData.message}
-                placeholder="Write your email message here..."
-                required
-                horizontal
-                onChange={handleEmailChange as any}
-                error={emailErrors.message}
-              />
-              <CustomButton
-                text={sending ? "Sending..." : "Send Email"}
-                icon={FaPaperPlane}
-                type="button"
-                onClick={handleSendEmail}
-                disabled={sending || saving}
-              />
-            </div>
+          <div className="mt-4 grid grid-cols-1 items-end gap-4 md:grid-cols-[1fr_auto]">
+            <TextInput
+              label="Message"
+              name="message"
+              value={emailData.message}
+              placeholder="Write your email message here..."
+              required
+              onChange={handleEmailChange as any}
+              error={emailErrors.message}
+            />
+            <ActionPill
+              variant="secondary"
+              icon={<Send size={16} />}
+              onClick={handleSendEmail}
+              disabled={sending || saving}
+              loading={sending}
+            >
+              {sending ? "Sending..." : "Send Email"}
+            </ActionPill>
           </div>
-        </div>
+        </Tile>
       </form>
     </div>
   );
