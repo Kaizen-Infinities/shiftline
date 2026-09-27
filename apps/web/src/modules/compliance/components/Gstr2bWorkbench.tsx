@@ -8,7 +8,8 @@ import {
   type Gstr2bSummary,
   type MatchStatus,
 } from "../../../services/gstReturnsService";
-import { Card, day, danger, field, message, money, primary, secondary, td, th } from "./gstUi";
+import { Chip, EmptyState, cx, type ChipTone } from "../../../components/ui/v2";
+import { Card, TableScroll, day, field, message, money, primary, secondary, td, th } from "./gstUi";
 
 /**
  * The GSTR-2B reconciliation workbench (P1-13c, P1-13d).
@@ -18,11 +19,11 @@ import { Card, day, danger, field, message, money, primary, secondary, td, th } 
  * two one-sided buckets — the supplier did not file it, or the company did not record it — are
  * the two conversations the month actually needs.
  */
-const STATUS_STYLE: Record<MatchStatus, string> = {
-  MATCHED: "bg-emerald-100 text-emerald-800",
-  MISMATCH: "bg-amber-100 text-amber-800",
-  MISSING_IN_2B: "bg-rose-100 text-rose-800",
-  MISSING_IN_BOOKS: "bg-sky-100 text-sky-800",
+const STATUS_TONE: Record<MatchStatus, ChipTone> = {
+  MATCHED: "success",
+  MISMATCH: "warning",
+  MISSING_IN_2B: "danger",
+  MISSING_IN_BOOKS: "info",
 };
 const STATUS_LABEL: Record<MatchStatus, string> = {
   MATCHED: "Agrees",
@@ -93,33 +94,35 @@ const ToleranceSettings: React.FC = () => {
       }
     >
       {open ? (
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm text-ink-muted">
-            Days either side of the document date
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto] lg:items-end">
+          <label className="block">
+            <span className="sl-label">Days either side of the document date</span>
             <input
               type="number"
               min={0}
               max={60}
-              className={`${field} mt-1 block w-28`}
+              inputMode="numeric"
+              className="sl-input h-11 py-0 text-sm"
               value={days}
               onChange={(e) => setDays(Number(e.target.value))}
             />
           </label>
-          <label className="text-sm text-ink-muted">
-            Rupees of difference still a match
+          <label className="block">
+            <span className="sl-label">Rupees of difference still a match</span>
             <input
               type="number"
               min={0}
               step="0.01"
-              className={`${field} mt-1 block w-32`}
+              inputMode="decimal"
+              className="sl-input h-11 py-0 text-right text-sm"
               value={value}
               onChange={(e) => setValue(Number(e.target.value))}
             />
           </label>
-          <label className="text-sm text-ink-muted">
-            Follow-up channel
+          <label className="block">
+            <span className="sl-label">Follow-up channel</span>
             <select
-              className={`${field} mt-1 block w-36`}
+              className="sl-input h-11 py-0 text-sm"
               value={followUpProvider}
               onChange={(e) => setFollowUpProvider(e.target.value as "FIXTURE" | "LIVE")}
             >
@@ -127,19 +130,20 @@ const ToleranceSettings: React.FC = () => {
               <option value="LIVE">Live</option>
             </select>
           </label>
-          <label className="text-sm text-ink-muted">
-            Nudge after (days unfollowed)
+          <label className="block">
+            <span className="sl-label">Nudge after (days unfollowed)</span>
             <input
               type="number"
               min={1}
               max={60}
-              className={`${field} mt-1 block w-28`}
+              inputMode="numeric"
+              className="sl-input h-11 py-0 text-sm"
               value={nudgeAfterDays}
               onChange={(e) => setNudgeAfterDays(Number(e.target.value))}
             />
           </label>
-          <button className={primary} onClick={save} disabled={saving}>
-            Save
+          <button className="sl-btn-blue sl-pill-md" onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       ) : (
@@ -210,15 +214,24 @@ const FollowUpPanel: React.FC<{
   };
 
   return (
-    <Card title="Chase a supplier">
-      <p className="mb-2 text-xs text-ink-muted">
-        Pick the records to name, a channel, and preview the message before it goes.
-      </p>
-      <div className="overflow-x-auto">
+    <Card
+      title="Chase a supplier"
+      subtitle="Pick the records to name, a channel, and preview the message before it goes."
+      actions={
+        selected.size > 0 ? (
+          <Chip size="sm" tone="info">
+            {selected.size} selected
+          </Chip>
+        ) : undefined
+      }
+    >
+      <TableScroll>
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className={th}></th>
+              <th className={th}>
+                <span className="sr-only">Select</span>
+              </th>
               <th className={th}>Document</th>
               <th className={th}>Date</th>
               <th className={th}>Last sent</th>
@@ -232,14 +245,16 @@ const FollowUpPanel: React.FC<{
                   <td className={td}>
                     <input
                       type="checkbox"
+                      className="sl-check"
+                      aria-label={`Select ${c.docNo}`}
                       checked={selected.has(c.recordId)}
                       onChange={() => toggle(c.recordId)}
                     />
                   </td>
                   <td className={td}>
-                    {c.docNo}
+                    <div className="font-semibold">{c.docNo}</div>
                     {c.supplierName ? (
-                      <span className="ml-1 text-xs text-ink-muted">{c.supplierName}</span>
+                      <div className="text-xs text-ink-muted">{c.supplierName}</div>
                     ) : null}
                   </td>
                   <td className={td}>{day(c.docDate)}</td>
@@ -253,8 +268,8 @@ const FollowUpPanel: React.FC<{
             })}
           </tbody>
         </table>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      </TableScroll>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <select
           className={field}
           value={channel}
@@ -301,8 +316,8 @@ const FollowUpPanel: React.FC<{
         </button>
       </div>
       {preview && (
-        <div className="mt-3 whitespace-pre-wrap rounded-lg border border-line-soft bg-card-2 p-3 text-sm text-ink">
-          <p className="mb-1 text-xs uppercase tracking-wide text-ink-muted">
+        <div className="mt-4 whitespace-pre-wrap rounded-[14px] bg-card-2 p-4 text-sm text-ink">
+          <p className="sl-section-label m-0 mb-1">
             To {preview.supplierName ?? preview.supplierGstin}
           </p>
           {preview.message}
@@ -348,11 +363,18 @@ const Gstr2bWorkbench: React.FC<Props> = ({ summary, period, gstin, onChange }) 
     c.igst + c.cgst + c.sgst + c.cess;
   const gap = credit(s.bookCredit) - credit(s.portalCredit);
 
+  const buckets: [MatchStatus, number][] = [
+    ["MATCHED", s.matched],
+    ["MISMATCH", s.mismatch],
+    ["MISSING_IN_2B", s.missingIn2b],
+    ["MISSING_IN_BOOKS", s.missingInBooks],
+  ];
+
   return (
     <div className="space-y-4">
-      <ToleranceSettings />
       <Card
         title="Reconciliation"
+        subtitle="What the suppliers filed on the portal against what the books claim."
         actions={
           can("gst-returns.prepare") && (
             <div className="flex flex-wrap gap-2">
@@ -379,132 +401,152 @@ const Gstr2bWorkbench: React.FC<Props> = ({ summary, period, gstin, onChange }) 
                 onClick={() => act(() => gstReturnsService.gstr2bPull(period, gstin), "2B pulled")}
                 disabled={busy}
               >
-                Pull from the portal
+                {busy ? "Working…" : "Pull from the portal"}
               </button>
             </div>
           )
         }
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(
-            [
-              ["MATCHED", s.matched],
-              ["MISMATCH", s.mismatch],
-              ["MISSING_IN_2B", s.missingIn2b],
-              ["MISSING_IN_BOOKS", s.missingInBooks],
-            ] as [MatchStatus, number][]
-          ).map(([key, count]) => (
+        <div
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          role="group"
+          aria-label="Match status"
+        >
+          {buckets.map(([key, count]) => (
             <button
               key={key}
+              type="button"
               onClick={() => setFilter(filter === key ? "" : key)}
               aria-pressed={filter === key}
-              className={`rounded-lg border p-3 text-left transition ${
-                filter === key ? "border-blue-500 bg-blue-50" : "border-line-soft bg-card-2"
-              }`}
+              className={cx(
+                "rounded-[14px] border p-3 text-left transition",
+                filter === key
+                  ? "border-[color:var(--color-primary)] bg-nav-active"
+                  : "border-transparent bg-card-2 hover:bg-nav-active"
+              )}
             >
-              <p className="text-xs uppercase tracking-wide text-ink-muted">{STATUS_LABEL[key]}</p>
-              <p className="mt-1 text-lg font-semibold text-ink">{count}</p>
+              <Chip tone={STATUS_TONE[key]} size="sm" dot>
+                {STATUS_LABEL[key]}
+              </Chip>
+              <p className="sl-stat-value m-0 mt-2">{count}</p>
             </button>
           ))}
         </div>
-        <div className="mt-3 rounded-lg border border-line-soft bg-card-2 p-3 text-sm">
-          <p className="text-ink">
-            Credit the suppliers filed: <strong>{money(credit(s.portalCredit))}</strong> · credit
-            the books claim: <strong>{money(credit(s.bookCredit))}</strong>
-          </p>
-          <p className="mt-1 text-ink-muted">
+        <div
+          className={cx(
+            "mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[14px] p-4 text-sm",
+            gap > 0
+              ? "bg-[color:color-mix(in_srgb,var(--color-danger)_8%,var(--color-card))]"
+              : "bg-card-2"
+          )}
+        >
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-ink">
+            <span>
+              Suppliers filed{" "}
+              <strong className="tabular-nums">{money(credit(s.portalCredit))}</strong>
+            </span>
+            <span>
+              Books claim <strong className="tabular-nums">{money(credit(s.bookCredit))}</strong>
+            </span>
+          </div>
+          <Chip tone={gap === 0 ? "success" : gap > 0 ? "danger" : "info"} size="sm">
             {gap === 0
               ? "The two agree."
               : gap > 0
                 ? `The books claim ${money(gap)} more than the suppliers filed. That is the amount at risk.`
                 : `The suppliers filed ${money(-gap)} more than the books claim.`}
-          </p>
+          </Chip>
         </div>
       </Card>
 
-      <Card title={filter ? STATUS_LABEL[filter] : "Every record"}>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr>
-                <th className={th}>Supplier</th>
-                <th className={th}>Document</th>
-                <th className={th}>Date</th>
-                <th className={`${th} text-right`}>Taxable</th>
-                <th className={`${th} text-right`}>Tax</th>
-                <th className={th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <React.Fragment key={r.id}>
-                  <tr className="border-t border-line-soft">
-                    <td className={td}>
-                      <div className="font-medium">{r.supplierName ?? r.supplierGstin}</div>
-                      <div className="text-xs text-ink-muted">{r.supplierGstin}</div>
-                    </td>
-                    <td className={td}>
-                      {r.docNo}
-                      <span className="ml-1 text-xs text-ink-muted">{r.docType}</span>
-                    </td>
-                    <td className={td}>{day(r.docDate)}</td>
-                    <td className={`${td} text-right`}>{money(r.taxable)}</td>
-                    <td className={`${td} text-right`}>
-                      {money(Number(r.igst) + Number(r.cgst) + Number(r.sgst) + Number(r.cess))}
-                    </td>
-                    <td className={td}>
-                      {r.matchStatus && (
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.matchStatus]}`}
-                        >
-                          {STATUS_LABEL[r.matchStatus]}
-                        </span>
-                      )}
-                      {!r.itcAvailable && (
-                        <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                          No credit: {r.itcReason ?? "the portal says so"}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                  {r.mismatchFields?.length ? (
-                    <tr className="bg-amber-50/50">
-                      <td className={`${td} text-xs text-amber-900`} colSpan={6}>
-                        {r.mismatchFields.map((f) => (
-                          <span key={f.field} className="mr-4">
-                            <strong>{f.field}</strong>: books {String(f.inBooks)}, portal{" "}
-                            {String(f.inPortal)}
-                            {f.difference !== undefined
-                              ? ` (${f.difference > 0 ? "+" : ""}${f.difference})`
-                              : ""}
-                          </span>
-                        ))}
+      <Card
+        title={filter ? STATUS_LABEL[filter] : "Every record"}
+        actions={
+          filter ? (
+            <button className={secondary} onClick={() => setFilter("")}>
+              Show all
+            </button>
+          ) : undefined
+        }
+      >
+        {rows.length === 0 ? (
+          <EmptyState compact title="Nothing here." />
+        ) : (
+          <TableScroll>
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Supplier</th>
+                  <th className={th}>Document</th>
+                  <th className={th}>Date</th>
+                  <th className={`${th} text-right`}>Taxable</th>
+                  <th className={`${th} text-right`}>Tax</th>
+                  <th className={th}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <React.Fragment key={r.id}>
+                    <tr className="border-t border-line-soft">
+                      <td className={td}>
+                        <div className="font-semibold">{r.supplierName ?? r.supplierGstin}</div>
+                        <div className="text-xs text-ink-muted">{r.supplierGstin}</div>
+                      </td>
+                      <td className={td}>
+                        {r.docNo}
+                        <span className="ml-1 text-xs text-ink-muted">{r.docType}</span>
+                      </td>
+                      <td className={td}>{day(r.docDate)}</td>
+                      <td className={`${td} text-right`}>{money(r.taxable)}</td>
+                      <td className={`${td} text-right`}>
+                        {money(Number(r.igst) + Number(r.cgst) + Number(r.sgst) + Number(r.cess))}
+                      </td>
+                      <td className={td}>
+                        <div className="flex flex-wrap gap-1">
+                          {r.matchStatus && (
+                            <Chip tone={STATUS_TONE[r.matchStatus]} size="sm" dot>
+                              {STATUS_LABEL[r.matchStatus]}
+                            </Chip>
+                          )}
+                          {!r.itcAvailable && (
+                            <Chip tone="muted" size="sm">
+                              No credit: {r.itcReason ?? "the portal says so"}
+                            </Chip>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ) : null}
-                </React.Fragment>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td className={`${td} text-ink-muted`} colSpan={6}>
-                    Nothing here.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    {r.mismatchFields?.length ? (
+                      <tr className="bg-[color:color-mix(in_srgb,var(--color-warning)_8%,transparent)]">
+                        <td className={`${td} text-xs`} colSpan={6}>
+                          {r.mismatchFields.map((f) => (
+                            <span key={f.field} className="mr-4">
+                              <strong>{f.field}</strong>: books {String(f.inBooks)}, portal{" "}
+                              {String(f.inPortal)}
+                              {f.difference !== undefined
+                                ? ` (${f.difference > 0 ? "+" : ""}${f.difference})`
+                                : ""}
+                            </span>
+                          ))}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
+        )}
       </Card>
 
       <FollowUpPanel summary={summary} period={period} gstin={gstin} onChange={onChange} />
 
       {summary.missingIn2b.length > 0 && (
-        <Card title="In our books, not filed by the supplier">
-          <p className="mb-2 text-sm text-ink-muted">
-            Credit cannot be taken on these until the supplier files them. They are the month's
-            follow-up list.
-          </p>
-          <div className="overflow-x-auto">
+        <Card
+          title="In our books, not filed by the supplier"
+          subtitle="Credit cannot be taken on these until the supplier files them. They are the month's follow-up list."
+        >
+          <TableScroll>
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -525,10 +567,10 @@ const Gstr2bWorkbench: React.FC<Props> = ({ summary, period, gstin, onChange }) 
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         </Card>
       )}
-      {busy && <p className={`${danger} inline-block`}>Working…</p>}
+      <ToleranceSettings />
     </div>
   );
 };
