@@ -173,6 +173,8 @@ model User {
   lastLoginIp         String?
   mfaEnabled          Boolean              @default(false)
   mfaSecret           String?
+  /// UI language (TN-04): "en" or "ta"; a CHECK constraint enforces the list.
+  locale              String               @default("en") @db.VarChar(5)
   createdBy           String?
   createdOn           DateTime             @default(now()) @db.Timestamptz(6)
   updatedOn           DateTime             @updatedAt @db.Timestamptz(6)
