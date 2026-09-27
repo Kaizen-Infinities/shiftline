@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { FaPlus } from "react-icons/fa";
+import { Plus } from "lucide-react";
+import { ActionPill, PageHeader, Toolbar } from "../../../../components/ui/v2";
+import { PAGE_CLASS } from "../../../sales/shared/tradeUi";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
@@ -8,10 +10,8 @@ import { usePageShortcuts } from "../../../../hooks/usePageShortcuts";
 import CancelReasonModal from "../../../../components/ui/CancelReasonModal/CancelReasonModal";
 import HistoryLink from "../../../../components/ui/HistoryLink/HistoryLink";
 import { grnInvoiceService } from "../../../../services/grnInvoiceService";
-import CustomButton from "../../../../components/ui/Button/Button";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
 import DataTable from "../../../../components/ui/table/DataTable";
-import SearchInput from "../../../../components/ui/SearchInput/SearchInput";
 import ViewButton from "../../../../components/ui/viewbutton/ViewButton";
 import DeleteButton from "../../../../components/ui/DeleteButton/DeleteButton";
 import EditButton from "../../../../components/ui/EditButton/EditButton";
@@ -96,11 +96,6 @@ const InvoiceList: React.FC = () => {
 
   const data = filteredData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
-
   const handleDeleteClick = (id: string) => {
     setItemToDelete(id);
     setShowDeleteModal(true);
@@ -142,89 +137,130 @@ const InvoiceList: React.FC = () => {
     };
   }, []);
 
-  return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Bill & Invoice List</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 relative w-full lg:w-auto">
-            <SearchInput
-              value={searchTerm}
-              onChange={handleSearch}
-              placeholder="Search invoices..."
-            />
-            {can("invoice.export") && (
-              <ExportCSVButton
-                fetchData={fetchInvoicesForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-            {can("invoice.create") && (
-              <CustomButton
-                text="Create Invoice"
-                icon={FaPlus}
-                onClick={() => navigate("/invoice/create")}
-              />
-            )}
-          </div>
-        </div>
+  const createButton = can("invoice.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/invoice/create")}>
+      Receive Goods
+    </ActionPill>
+  ) : null;
 
-        {/* Table */}
-        <DataTable
-          data={data}
-          rowKey={(item) => item.id}
-          loading={loading}
-          emptyMessage="No invoices found."
-          pagination={{
-            currentPage,
-            totalPages,
-            onPageChange: (page) => setCurrentPage(page),
-          }}
-          columns={[
-            {
-              header: "#",
-              width: "60px",
-              render: (_item, index) => (currentPage - 1) * ITEMS_PER_PAGE + index + 1,
-            },
-            { header: "GRN NO", accessor: "grnNumber" },
-            { header: "INVOICE NO", accessor: "invoiceNo" },
-            { header: "GRN DATE", render: (item) => formatDate(item.grnDate) },
-            {
-              header: "SUPPLIER",
-              render: (item) => item.supplier?.displayName || item.supplier?.legalName || "N/A",
-            },
-            {
-              header: "NET AMOUNT",
-              render: (item) => (
-                <span className="font-semibold text-green-600">{formatMoney(item.netAmount)}</span>
+  return (
+    <div className={PAGE_CLASS}>
+      <PageHeader
+        title="Bill & Invoice List"
+        subtitle={`${(allInvoices?.length || 0).toLocaleString("en-IN")} GRN invoice${allInvoices?.length === 1 ? "" : "s"} · supplier bills booked against goods received`}
+        primaryAction={createButton}
+        actions={
+          can("invoice.export") ? (
+            <ExportCSVButton
+              fetchData={fetchInvoicesForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : null
+        }
+      />
+
+      <Toolbar
+        searchValue={searchTerm}
+        onSearchChange={(v) => {
+          setSearchTerm(v);
+          setCurrentPage(1);
+        }}
+        searchPlaceholder="Search GRN, bill no or supplier"
+        searchLabel="Search GRN invoices"
+      />
+
+      <DataTable
+        data={data}
+        rowKey={(item) => item.id}
+        loading={loading}
+        ariaLabel="GRN invoices"
+        emptyMessage={searchTerm ? `No invoices match "${searchTerm}".` : "No supplier bills yet."}
+        emptyAction={searchTerm ? undefined : createButton}
+        pagination={{
+          currentPage,
+          totalPages,
+          onPageChange: (page) => setCurrentPage(page),
+        }}
+        columns={[
+          {
+            header: "#",
+            width: "56px",
+            render: (_item, index) => (
+              <span className="tabular-nums text-ink-subtle">
+                {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
+              </span>
+            ),
+          },
+          {
+            header: "GRN no",
+            render: (item) => (
+              <button
+                type="button"
+                onClick={() => navigate(`/invoice/details/${item.id}`)}
+                className="font-semibold text-accent hover:underline underline-offset-4"
+              >
+                {item.grnNumber}
+              </button>
+            ),
+          },
+          {
+            header: "Bill no",
+            render: (item) => <span className="text-ink-muted">{item.invoiceNo || "—"}</span>,
+          },
+          {
+            header: "GRN date",
+            render: (item) => (
+              <span className="tabular-nums text-ink-muted">{formatDate(item.grnDate)}</span>
+            ),
+          },
+          {
+            header: "Supplier",
+            render: (item) => (
+              <span className="font-medium text-ink">
+                {item.supplier?.displayName || item.supplier?.legalName || "N/A"}
+              </span>
+            ),
+          },
+          {
+            header: "Net amount",
+            align: "right",
+            render: (item) => (
+              <span className="font-semibold tabular-nums text-ink">
+                {formatMoney(item.netAmount)}
+              </span>
+            ),
+          },
+          {
+            header: "Status",
+            render: (item) =>
+              String(item.status || "").toUpperCase() === "CANCELLED" ? (
+                <StatusBadge status="CANCELLED" />
+              ) : (
+                <StatusBadge status="POSTED" customText="Posted" tone="success" />
               ),
+          },
+          {
+            header: "Actions",
+            align: "right",
+            render: (item) => {
+              return (
+                <div className="flex items-center justify-end gap-1.5">
+                  <ViewButton onClick={() => navigate(`/invoice/details/${item.id}`)} />
+                  {String(item.status || "").toUpperCase() !== "CANCELLED" && (
+                    <EditButton onClick={() => navigate(`/invoice/edit/${item.id}`)} />
+                  )}
+                  {String(item.status || "").toUpperCase() !== "CANCELLED" && (
+                    <DeleteButton onClick={() => handleDeleteClick(item.id)} />
+                  )}
+                  <HistoryLink entity="grn_invoices" entityId={item.id} />
+                </div>
+              );
             },
-            {
-              header: "ACTIONS",
-              width: "160px",
-              render: (item) => {
-                return (
-                  <div className="flex items-center gap-2">
-                    <ViewButton onClick={() => navigate(`/invoice/details/${item.id}`)} />
-                    {String(item.status || "").toUpperCase() !== "CANCELLED" && (
-                      <EditButton onClick={() => navigate(`/invoice/edit/${item.id}`)} />
-                    )}
-                    {String(item.status || "").toUpperCase() !== "CANCELLED" && (
-                      <DeleteButton onClick={() => handleDeleteClick(item.id)} />
-                    )}
-                    <HistoryLink entity="grn_invoices" entityId={item.id} />
-                  </div>
-                );
-              },
-            },
-          ]}
-        />
-      </div>
+          },
+        ]}
+      />
 
       {/* Cancel with reason (P1-10d): the GRN stays in the books as CANCELLED. */}
       <CancelReasonModal
