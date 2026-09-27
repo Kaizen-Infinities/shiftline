@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { PageHeader, Tile, actionPillClass } from "../../../components/ui/v2";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { FaSave, FaEraser } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
@@ -7,7 +9,6 @@ import { useDispatch, useSelector } from "react-redux";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import TimePickerInput from "../../../components/form/TimePickerInput/TimePickerInput";
 import CustomButton from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import { createShift, updateShift, fetchShifts } from "../../../features/shifts/shiftSlice";
 import { shiftService } from "../../../services/shiftService";
 import type { RootState, AppDispatch } from "../../../app/store";
@@ -141,114 +142,110 @@ const ShiftForm: React.FC = () => {
     );
   }
   return (
-    <div className="max-w-[1024px] xl:mr-auto">
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="bg-card rounded-sm border border-line overflow-visible">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-            <h2 className="text-xl font-bold text-ink">{isEdit ? "Edit Shift" : "Create Shift"}</h2>
-            <BackButton text="Back to List" to="/shifts" />
-          </div>
-
-          <div className="p-5 lg:p-6 space-y-6">
-            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px]">Shift Details</h6>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
-              <TextInput
-                label="Shift Code"
-                name="shiftCode"
-                value={formData.shiftCode}
-                placeholder="e.g. SHF-001"
-                required
-                horizontal
-                onChange={handleChange}
-                disabled
-              />
-              <TextInput
-                label="Shift Name"
-                name="shiftName"
-                value={formData.shiftName}
-                placeholder="e.g. Morning Shift"
-                required
-                horizontal
-                onChange={handleChange}
-                error={errors.shiftName}
-              />
-              <TimePickerInput
-                label="Start Time"
-                name="startTime"
-                value={formData.startTime}
-                required
-                horizontal
-                onChange={(val) => {
-                  setFormData((prev) => ({ ...prev, startTime: val }));
-                  if (errors.startTime) setErrors((prev) => ({ ...prev, startTime: undefined }));
-                }}
-                error={errors.startTime}
-              />
-              <TimePickerInput
-                label="End Time"
-                name="endTime"
-                value={formData.endTime}
-                required
-                horizontal
-                onChange={(val) => {
-                  setFormData((prev) => ({ ...prev, endTime: val }));
-                  if (errors.endTime) setErrors((prev) => ({ ...prev, endTime: undefined }));
-                }}
-                error={errors.endTime}
-              />
-              <TextInput
-                label="Break (mins)"
-                name="breakDuration"
-                value={formData.breakDuration}
-                type="number"
-                min={0}
-                placeholder="e.g. 30"
-                horizontal
-                onChange={handleChange}
-                error={errors.breakDuration}
-              />
-              <TextInput
-                label="Grace (mins)"
-                name="gracePeriod"
-                value={formData.gracePeriod}
-                type="number"
-                min={0}
-                placeholder="e.g. 15"
-                horizontal
-                onChange={handleChange}
-                error={errors.gracePeriod}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 px-5 py-4 border-t border-line">
-            {!isEdit && (
-              <CustomButton
-                text="Clear"
-                icon={FaEraser}
-                variant="secondary"
-                onClick={() => {
-                  setFormData({ ...initialFormState, shiftCode: formData.shiftCode });
-                  setErrors({});
-                }}
-                disabled={loading}
-              />
-            )}
-            <CustomButton
-              text={
-                isSubmitting || loading
-                  ? isEdit
-                    ? "Updating..."
-                    : "Saving..."
-                  : isEdit
-                    ? "Update Shift"
-                    : "Save Shift"
-              }
-              icon={FaSave}
-              type="submit"
-              disabled={isSubmitting || loading}
+    <div className="mx-auto w-full max-w-[1100px] py-1 sm:py-2">
+      <PageHeader
+        title={isEdit ? "Edit Shift" : "Create Shift"}
+        subtitle="Timings, break and grace used by attendance and overtime."
+        back="/shifts"
+        backLabel="Back to List"
+        breadcrumbs={[{ label: "Shifts", to: "/shifts" }, { label: isEdit ? "Edit" : "New" }]}
+      />
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        <Tile title="Shift Details" subtitle="The code is assigned automatically.">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <TextInput
+              label="Shift Code"
+              name="shiftCode"
+              value={formData.shiftCode}
+              placeholder="e.g. SHF-001"
+              required
+              onChange={handleChange}
+              disabled
+            />
+            <TextInput
+              label="Shift Name"
+              name="shiftName"
+              value={formData.shiftName}
+              placeholder="e.g. Morning Shift"
+              required
+              onChange={handleChange}
+              error={errors.shiftName}
+            />
+            <TimePickerInput
+              label="Start Time"
+              name="startTime"
+              value={formData.startTime}
+              required
+              onChange={(val) => {
+                setFormData((prev) => ({ ...prev, startTime: val }));
+                if (errors.startTime) setErrors((prev) => ({ ...prev, startTime: undefined }));
+              }}
+              error={errors.startTime}
+            />
+            <TimePickerInput
+              label="End Time"
+              name="endTime"
+              value={formData.endTime}
+              required
+              onChange={(val) => {
+                setFormData((prev) => ({ ...prev, endTime: val }));
+                if (errors.endTime) setErrors((prev) => ({ ...prev, endTime: undefined }));
+              }}
+              error={errors.endTime}
+            />
+            <TextInput
+              label="Break (mins)"
+              name="breakDuration"
+              value={formData.breakDuration}
+              type="number"
+              min={0}
+              placeholder="e.g. 30"
+              onChange={handleChange}
+              error={errors.breakDuration}
+            />
+            <TextInput
+              label="Grace (mins)"
+              name="gracePeriod"
+              value={formData.gracePeriod}
+              type="number"
+              min={0}
+              placeholder="e.g. 15"
+              onChange={handleChange}
+              error={errors.gracePeriod}
             />
           </div>
+        </Tile>
+
+        <div className="sticky bottom-0 z-20 flex justify-end gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
+          <Link to="/shifts" className={actionPillClass({ variant: "secondary" })}>
+            Cancel
+          </Link>
+          {!isEdit && (
+            <CustomButton
+              text="Clear"
+              icon={FaEraser}
+              variant="secondary"
+              onClick={() => {
+                setFormData({ ...initialFormState, shiftCode: formData.shiftCode });
+                setErrors({});
+              }}
+              disabled={loading}
+            />
+          )}
+          <CustomButton
+            text={
+              isSubmitting || loading
+                ? isEdit
+                  ? "Updating..."
+                  : "Saving..."
+                : isEdit
+                  ? "Update Shift"
+                  : "Save Shift"
+            }
+            icon={FaSave}
+            type="submit"
+            disabled={isSubmitting || loading}
+          />
         </div>
       </form>
     </div>
