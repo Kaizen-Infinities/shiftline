@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useFormShortcuts } from "../../../../hooks/useFormShortcuts";
-import { FaSave, FaPaperPlane, FaPlus, FaTrash, FaUser, FaMapMarkerAlt, FaBoxOpen, FaInfoCircle } from "react-icons/fa";
+import {
+  AlertTriangle,
+  FileQuestion,
+  FileText,
+  Lock,
+  Package,
+  Plus,
+  Save,
+  Send,
+} from "lucide-react";
+import { ActionPill, Chip, EmptyState, PageHeader, Tile } from "../../../../components/ui/v2";
+import StatusBadge from "../../../../components/ui/StatusBadge/Badge";
+import { FormFooter, KeyHint, formatINR } from "../../../sales/shared/tradeUi";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
-import CustomButton from "../../../../components/ui/Button/Button";
 import CommonLoader from "../../../../components/ui/Loader/CommonLoader";
 
 import TextInput from "../../../../components/form/TextInput/TextInput";
@@ -16,7 +27,10 @@ import CityStateSelect from "../../../../components/ui/CityStateSelect/CityState
 import type { StateCityOption } from "../../../../components/ui/CityStateSelect/CityStateSelect";
 
 import { validatePurchaseOrder } from "../validations/purchaseOrderValidation";
-import type { PurchaseOrderFormData, PurchaseOrderItem } from "../../../../features/purchaseOrder/types";
+import type {
+  PurchaseOrderFormData,
+  PurchaseOrderItem,
+} from "../../../../features/purchaseOrder/types";
 import { useSuppliers } from "../../../../hooks/useSuppliers";
 import { useUOMs } from "../../../../hooks/useUOMs";
 import { rawMaterialService } from "../../../../services/rawMaterialService";
@@ -29,7 +43,6 @@ import AddressForm from "../../../../components/form/AddressFrom/AddressFrom";
 import { useAppDispatch, useAppSelector } from "../../../../hooks/reduxHooks";
 import { fetchStores } from "../../../../features/stores/storeSlice";
 import { useSocketSync } from "../../../../hooks/useSocketSync";
-
 
 const initialFormData: PurchaseOrderFormData = {
   poNumber: "",
@@ -116,23 +129,24 @@ const mapPOToFormData = (po: any): PurchaseOrderFormData => {
     shippingPincode: po.shippingPincode ?? "",
     remarks: po.remarks ?? "",
 
-    items: po.items?.map((i: any) => ({
-      id: i.id,
-      productId: i.productId ? String(i.productId) : "",
-      product: i.product,
-      uom: i.uom ?? "",
-      quantity: Number(i.quantity ?? 0),
-      unitPrice: Number(i.unitPrice ?? 0),
-      tax: Number(i.tax ?? 0),
-      taxableAmount: Number(i.taxableAmount ?? 0),
-      cgstRate: Number(i.cgstRate ?? 0),
-      cgstAmount: Number(i.cgstAmount ?? 0),
-      sgstRate: Number(i.sgstRate ?? 0),
-      sgstAmount: Number(i.sgstAmount ?? 0),
-      igstRate: Number(i.igstRate ?? 0),
-      igstAmount: Number(i.igstAmount ?? 0),
-      lineTotal: Number(i.lineTotal ?? 0),
-    })) ?? [],
+    items:
+      po.items?.map((i: any) => ({
+        id: i.id,
+        productId: i.productId ? String(i.productId) : "",
+        product: i.product,
+        uom: i.uom ?? "",
+        quantity: Number(i.quantity ?? 0),
+        unitPrice: Number(i.unitPrice ?? 0),
+        tax: Number(i.tax ?? 0),
+        taxableAmount: Number(i.taxableAmount ?? 0),
+        cgstRate: Number(i.cgstRate ?? 0),
+        cgstAmount: Number(i.cgstAmount ?? 0),
+        sgstRate: Number(i.sgstRate ?? 0),
+        sgstAmount: Number(i.sgstAmount ?? 0),
+        igstRate: Number(i.igstRate ?? 0),
+        igstAmount: Number(i.igstAmount ?? 0),
+        lineTotal: Number(i.lineTotal ?? 0),
+      })) ?? [],
 
     subtotal: Number(po.subtotal ?? 0),
     discountType: po.discountType ?? "PERCENT",
@@ -157,12 +171,11 @@ const PurchaseOrderForm: React.FC = () => {
   const user = useSelector((state: any) => state?.auth?.user);
   const { suppliers, loadSuppliers } = useSuppliers();
 
-
   const [formData, setFormData] = useState<PurchaseOrderFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const { data: company } = useSelector((state: any) => state.company);
-  const { data: stores } = useAppSelector(state => state.stores);
+  const { data: stores } = useAppSelector((state) => state.stores);
   const { activeUOMs, loadActiveUOMs } = useUOMs();
   const companyState = company?.state;
   const [loading, setLoading] = useState(isEdit);
@@ -174,9 +187,10 @@ const PurchaseOrderForm: React.FC = () => {
 
   useFormShortcuts({});
 
-  const selectedSupplier = useMemo(() => (suppliers || []).find(
-    (s) => String(s?.id) === String(formData.supplierId)
-  ), [suppliers, formData.supplierId]);
+  const selectedSupplier = useMemo(
+    () => (suppliers || []).find((s) => String(s?.id) === String(formData.supplierId)),
+    [suppliers, formData.supplierId]
+  );
 
   const isLocked = useMemo(() => {
     if (!isEdit) return false;
@@ -185,10 +199,7 @@ const PurchaseOrderForm: React.FC = () => {
 
   const isInterState = useMemo(() => {
     if (!companyState || !formData.billingState) return false;
-    return (
-      companyState.toLowerCase().trim() !==
-      formData.billingState.toLowerCase().trim()
-    );
+    return companyState.toLowerCase().trim() !== formData.billingState.toLowerCase().trim();
   }, [companyState, formData.billingState]);
 
   // Re-run GST split (CGST/SGST ↔ IGST) whenever inter-state flag changes
@@ -206,7 +217,12 @@ const PurchaseOrderForm: React.FC = () => {
         const totalGstRate = Number(item.tax) || 0;
         const totalGstAmount = (taxableAmount * totalGstRate) / 100;
 
-        let cgstRate = 0, cgstAmount = 0, sgstRate = 0, sgstAmount = 0, igstRate = 0, igstAmount = 0;
+        let cgstRate = 0,
+          cgstAmount = 0,
+          sgstRate = 0,
+          sgstAmount = 0,
+          igstRate = 0,
+          igstAmount = 0;
         if (isInterState) {
           igstRate = totalGstRate;
           igstAmount = totalGstAmount;
@@ -220,9 +236,12 @@ const PurchaseOrderForm: React.FC = () => {
         return {
           ...item,
           taxableAmount,
-          cgstRate, cgstAmount,
-          sgstRate, sgstAmount,
-          igstRate, igstAmount,
+          cgstRate,
+          cgstAmount,
+          sgstRate,
+          sgstAmount,
+          igstRate,
+          igstAmount,
           lineTotal: taxableAmount + totalGstAmount,
           discount: 0,
         };
@@ -271,8 +290,6 @@ const PurchaseOrderForm: React.FC = () => {
     });
   }, [formData.items, rawMaterials]);
 
-
-
   const refreshSuppliers = useCallback(() => {
     loadSuppliers({ limit: 1000 });
   }, [loadSuppliers]);
@@ -316,7 +333,15 @@ const PurchaseOrderForm: React.FC = () => {
     if (!isEdit) {
       fetchNextCode();
     }
-  }, [refreshSuppliers, dispatch, refreshStores, loadActiveUOMs, refreshRawMaterials, fetchNextCode, isEdit]);  
+  }, [
+    refreshSuppliers,
+    dispatch,
+    refreshStores,
+    loadActiveUOMs,
+    refreshRawMaterials,
+    fetchNextCode,
+    isEdit,
+  ]);
 
   useEffect(() => {
     if (!isEdit && user) {
@@ -359,7 +384,6 @@ const PurchaseOrderForm: React.FC = () => {
           }
           const poData = mapPOToFormData(po);
           setFormData(poData);
-
         }
       } catch {
         if (mounted) {
@@ -377,10 +401,7 @@ const PurchaseOrderForm: React.FC = () => {
     };
   }, [id, isEdit]);
 
-  const recalculateTotals = (
-    items: PurchaseOrderItem[],
-    interState: boolean = isInterState
-  ) => {
+  const recalculateTotals = (items: PurchaseOrderItem[], interState: boolean = isInterState) => {
     let subtotal = 0;
     let totalTax = 0;
     let totalCgst = 0;
@@ -464,7 +485,11 @@ const PurchaseOrderForm: React.FC = () => {
       // Store address is saved as JSON in locationDesc
       let addr: any = null;
       if (selectedStore?.locationDesc) {
-        try { addr = JSON.parse(selectedStore.locationDesc); } catch { /* not JSON */ }
+        try {
+          addr = JSON.parse(selectedStore.locationDesc);
+        } catch {
+          /* not JSON */
+        }
       }
       setFormData((prev) => ({
         ...prev,
@@ -497,16 +522,22 @@ const PurchaseOrderForm: React.FC = () => {
           const activePriceObj = supplierPrices.find((p: any) => {
             const validFromDate = p.validFrom ? p.validFrom.split("T")[0] : "";
             const validToDate = p.validTo ? p.validTo.split("T")[0] : "";
-            return String(p.rawMaterialId) === String(item.productId) &&
+            return (
+              String(p.rawMaterialId) === String(item.productId) &&
               validFromDate <= dateToCheck &&
-              (!validToDate || validToDate >= dateToCheck);
+              (!validToDate || validToDate >= dateToCheck)
+            );
           });
 
           const parsedUnitPrice = activePriceObj
-            ? (typeof activePriceObj.price === "string" ? parseFloat(activePriceObj.price) : Number(activePriceObj.price))
-            : (rawMaterial?.rate
-              ? (typeof rawMaterial.rate === "string" ? parseFloat(rawMaterial.rate) : Number(rawMaterial.rate))
-              : 0);
+            ? typeof activePriceObj.price === "string"
+              ? parseFloat(activePriceObj.price)
+              : Number(activePriceObj.price)
+            : rawMaterial?.rate
+              ? typeof rawMaterial.rate === "string"
+                ? parseFloat(rawMaterial.rate)
+                : Number(rawMaterial.rate)
+              : 0;
 
           const qty = Number(item.quantity) || 0;
           const lineSubtotal = qty * mult * parsedUnitPrice;
@@ -545,9 +576,9 @@ const PurchaseOrderForm: React.FC = () => {
             lineTotal: taxableAmount + totalGstAmount,
             product: item.product
               ? {
-                ...item.product,
-                unitPrice: parsedUnitPrice,
-              }
+                  ...item.product,
+                  unitPrice: parsedUnitPrice,
+                }
               : undefined,
           };
         });
@@ -608,18 +639,24 @@ const PurchaseOrderForm: React.FC = () => {
     setErrors((prev) => ({ ...prev, shippingCity: "" }));
   };
 
-
-
-  const handleItemChange = (index: number, field: keyof PurchaseOrderItem | "uom", value: any, selectedUom?: string) => {
+  const handleItemChange = (
+    index: number,
+    field: keyof PurchaseOrderItem | "uom",
+    value: any,
+    selectedUom?: string
+  ) => {
     setFormData((prev) => {
       const items = [...prev.items];
-      const updatedUom = selectedUom !== undefined ? selectedUom : (field === "uom" ? value : items[index].uom);
+      const updatedUom =
+        selectedUom !== undefined ? selectedUom : field === "uom" ? value : items[index].uom;
       items[index] = { ...items[index], [field]: value, uom: updatedUom };
 
       const item = items[index];
       const qty = Number(item.quantity) || 0;
       const price = Number(item.unitPrice) || 0;
-      const rawMaterial = (rawMaterials || []).find((rm: any) => String(rm.rawMaterialId) === String(item.productId));
+      const rawMaterial = (rawMaterials || []).find(
+        (rm: any) => String(rm.rawMaterialId) === String(item.productId)
+      );
       const mult = getUomMultiplier(item.uom, rawMaterial?.baseUom);
       const lineSubtotal = qty * mult * price;
 
@@ -671,9 +708,7 @@ const PurchaseOrderForm: React.FC = () => {
   };
 
   const handleItemProductChange = (index: number, productId: string) => {
-    const rawMaterial = rawMaterials.find(
-      (rm) => String(rm.rawMaterialId) === String(productId)
-    );
+    const rawMaterial = rawMaterials.find((rm) => String(rm.rawMaterialId) === String(productId));
 
     let parsedUnitPrice = 0;
     setFormData((prev) => {
@@ -683,16 +718,22 @@ const PurchaseOrderForm: React.FC = () => {
       const activePriceObj = supplierPrices.find((p: any) => {
         const validFromDate = p.validFrom ? p.validFrom.split("T")[0] : "";
         const validToDate = p.validTo ? p.validTo.split("T")[0] : "";
-        return String(p.rawMaterialId) === String(productId) &&
+        return (
+          String(p.rawMaterialId) === String(productId) &&
           validFromDate <= dateToCheck &&
-          (!validToDate || validToDate >= dateToCheck);
+          (!validToDate || validToDate >= dateToCheck)
+        );
       });
 
       parsedUnitPrice = activePriceObj
-        ? (typeof activePriceObj.price === "string" ? parseFloat(activePriceObj.price) : Number(activePriceObj.price))
-        : (rawMaterial?.rate
-          ? (typeof rawMaterial.rate === "string" ? parseFloat(rawMaterial.rate) : Number(rawMaterial.rate))
-          : 0);
+        ? typeof activePriceObj.price === "string"
+          ? parseFloat(activePriceObj.price)
+          : Number(activePriceObj.price)
+        : rawMaterial?.rate
+          ? typeof rawMaterial.rate === "string"
+            ? parseFloat(rawMaterial.rate)
+            : Number(rawMaterial.rate)
+          : 0;
 
       const defaultTaxRate = 0;
 
@@ -730,12 +771,12 @@ const PurchaseOrderForm: React.FC = () => {
         productId,
         product: rawMaterial
           ? {
-            id: rawMaterial.rawMaterialId,
-            productCode: rawMaterial.rawMaterialId,
-            productName: rawMaterial.materialName,
-            unit: rawMaterial.baseUom,
-            unitPrice: parsedUnitPrice,
-          }
+              id: rawMaterial.rawMaterialId,
+              productCode: rawMaterial.rawMaterialId,
+              productName: rawMaterial.materialName,
+              unit: rawMaterial.baseUom,
+              unitPrice: parsedUnitPrice,
+            }
           : undefined,
         unitPrice: parsedUnitPrice,
         uom: rawMaterial?.baseUom ? rawMaterial.baseUom.split(",")[0].trim() : "",
@@ -806,10 +847,7 @@ const PurchaseOrderForm: React.FC = () => {
     });
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent,
-    submitStatus: "DRAFT" | "APPROVED"
-  ) => {
+  const handleSubmit = async (e: React.FormEvent, submitStatus: "DRAFT" | "APPROVED") => {
     e.preventDefault();
 
     if (isLocked) {
@@ -900,24 +938,34 @@ const PurchaseOrderForm: React.FC = () => {
 
   if (poNotFound) {
     return (
-      <div className="w-full mx-auto p-6 bg-white rounded-lg shadow-sm border border-gray-200 text-center my-8 max-w-lg">
-        <h2 className="text-xl font-bold text-red-600 mb-2">Purchase Order Not Found</h2>
-        <p className="text-gray-600 mb-6">The purchase order you are trying to edit does not exist or has been deleted.</p>
-        <BackButton text="Back to Purchase Orders" />
-      </div>
+      <Tile className="mx-auto my-8 max-w-lg">
+        <EmptyState
+          icon={<FileQuestion size={28} />}
+          title="Purchase Order Not Found"
+          description="The purchase order you are trying to edit does not exist or has been deleted."
+          action={<BackButton text="Back to Purchase Orders" to="/purchase-orders" />}
+        />
+      </Tile>
     );
   }
 
   if (fetchError) {
     return (
-      <div className="w-full mx-auto p-6 bg-white rounded-lg shadow-sm border border-gray-200 text-center my-8 max-w-lg">
-        <h2 className="text-xl font-bold text-red-600 mb-2">Failed to Load Purchase Order</h2>
-        <p className="text-gray-600 mb-6">Something went wrong while retrieving the purchase order data.</p>
-        <div className="flex justify-center gap-4">
-          <BackButton text="Back" />
-          <CustomButton text="Retry" onClick={() => window.location.reload()} />
-        </div>
-      </div>
+      <Tile className="mx-auto my-8 max-w-lg">
+        <EmptyState
+          icon={<AlertTriangle size={28} />}
+          title="Failed to Load Purchase Order"
+          description="Something went wrong while retrieving the purchase order data."
+          action={
+            <>
+              <BackButton text="Back" />
+              <ActionPill variant="blue" onClick={() => window.location.reload()}>
+                Retry
+              </ActionPill>
+            </>
+          }
+        />
+      </Tile>
     );
   }
 
@@ -939,200 +987,399 @@ const PurchaseOrderForm: React.FC = () => {
     : [];
 
   const safeRawMaterials = Array.isArray(rawMaterials) ? rawMaterials : [];
-  const filteredRawMaterials = supplierMaterialIds.length > 0
-    ? safeRawMaterials.filter((rm) => supplierMaterialIds.includes(String(rm.rawMaterialId)) || formData.items.some((item) => item.productId === rm.rawMaterialId))
-    : safeRawMaterials;
+  const filteredRawMaterials =
+    supplierMaterialIds.length > 0
+      ? safeRawMaterials.filter(
+          (rm) =>
+            supplierMaterialIds.includes(String(rm.rawMaterialId)) ||
+            formData.items.some((item) => item.productId === rm.rawMaterialId)
+        )
+      : safeRawMaterials;
 
   const productOptions = filteredRawMaterials.map((rm) => ({
     value: String(rm.rawMaterialId || ""),
     label: `${rm.rawMaterialId || ""} - ${rm.materialName || ""}`,
   }));
 
-
+  const title = isEdit
+    ? isLocked
+      ? "View Purchase Order"
+      : "Edit Purchase Order"
+    : "Create Purchase Order";
 
   return (
-    <div className="w-full max-w-[1200px] mr-auto po-form-compact">
-      <style>{`
-        .po-form-compact label { margin-bottom: 2px !important; font-size: 11px !important; }
-        .po-form-compact input, .po-form-compact select,
-        .po-form-compact button[role="combobox"],
-        .po-form-compact .react-datepicker-wrapper input,
-        .po-form-compact input[type="date"] { height: 32px !important; min-height: 32px !important; font-size: 12px !important; padding-top: 0 !important; padding-bottom: 0 !important; }
-        .po-form-compact .group { margin-bottom: 0 !important; }
-      `}</style>
-      <div className="bg-card rounded-xl border border-line-soft shadow-xs overflow-visible">
+    <div className="mx-auto w-full max-w-[1400px]">
+      <PageHeader
+        title={title}
+        meta={
+          <>
+            {formData.poNumber && (
+              <Chip size="sm" tone="muted" className="tabular-nums">
+                {formData.poNumber}
+              </Chip>
+            )}
+            {isEdit && formData.status && <StatusBadge status={formData.status} />}
+          </>
+        }
+        subtitle="Raw material ordered from a supplier into a store. Approved orders are received on a GRN invoice."
+        back={() => navigate(-1)}
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Purchase orders", to: "/purchase-orders" },
+          { label: isEdit ? formData.poNumber || "Edit" : "New" },
+        ]}
+      />
 
-        {/* Header */}
-        <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
-          <h2 className="text-base font-bold text-ink">
-            {isEdit ? (isLocked ? "View Purchase Order" : "Edit Purchase Order") : "Create Purchase Order"}
-          </h2>
-          <BackButton text="Back to List" />
+      {isLocked && (
+        <div
+          role="status"
+          className="sl-tile mb-4 flex items-start gap-3 border-l-4 !border-l-[color:var(--color-warning)] px-4 py-3 text-sm text-ink"
+        >
+          <Lock
+            size={16}
+            className="mt-0.5 shrink-0 text-[color:var(--color-warning)]"
+            aria-hidden="true"
+          />
+          <span>
+            <span className="font-semibold">View only.</span> This PO is in '{formData.status}'
+            status. Only Draft orders can be modified.
+          </span>
+        </div>
+      )}
+
+      <form noValidate className="space-y-4">
+        <Tile title="PO Details" icon={<FileText size={18} />}>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
+            <TextInput
+              label="PO Number"
+              name="poNumber"
+              value={formData.poNumber}
+              onChange={handleChange}
+              disabled
+            />
+            <DatePickerCalendar
+              label="PO Date"
+              name="poDate"
+              value={formData.poDate}
+              onChange={(e) => handleChange(e as any)}
+              required
+              error={errors.poDate}
+              disabled={isLocked || isEdit}
+            />
+            <SelectInput
+              label="Supplier"
+              name="supplierId"
+              value={formData.supplierId}
+              options={[{ value: "", label: "-- Select Supplier --" }, ...supplierOptions]}
+              onChange={handleChange}
+              required
+              searchable
+              error={errors.supplierId}
+              disabled={isLocked || isEdit}
+            />
+            <SelectInput
+              label="Store"
+              name="storeId"
+              value={formData.storeId || ""}
+              options={[
+                { label: "-- Select Store --", value: "" },
+                ...(stores || [])
+                  .filter((s: any) => s.isActive)
+                  .map((s: any) => ({ label: s.storeName, value: s.storeId })),
+              ]}
+              required
+              onChange={handleChange}
+              searchable
+              error={errors.storeId}
+              disabled={isLocked}
+            />
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="rounded-[14px] bg-card-2 p-3">
+              <div className="sl-section-label">Billing address · company</div>
+              <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink">
+                {[
+                  formData.billingAddressLine1,
+                  formData.billingCity,
+                  formData.billingState,
+                  formData.billingCountry,
+                  formData.billingPincode,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || <span className="text-ink-subtle">No address configured</span>}
+              </p>
+            </div>
+            <div className="rounded-[14px] bg-card-2 p-3">
+              <div className="sl-section-label">Shipping address · store</div>
+              <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink">
+                {[
+                  formData.shippingAddressLine1,
+                  formData.shippingCity,
+                  formData.shippingState,
+                  formData.shippingCountry,
+                  formData.shippingPincode,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || (
+                  <span className="text-ink-subtle">Select a store to see address</span>
+                )}
+              </p>
+            </div>
+          </div>
+        </Tile>
+
+        <Tile
+          title="Order Items"
+          subtitle="Materials are limited to the ones priced for this supplier, when it has a price list."
+          icon={<Package size={18} />}
+          actions={
+            <ActionPill
+              size="sm"
+              variant="secondary"
+              icon={<Plus size={15} />}
+              onClick={addItem}
+              disabled={isLocked}
+            >
+              Add Item
+            </ActionPill>
+          }
+        >
+          <div className="overflow-x-auto rounded-[14px] border border-line-soft [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0">
+            <table className="min-w-full">
+              <caption className="sr-only">Purchase order lines</caption>
+              <thead className="bg-card-2">
+                <tr className="border-b border-line-soft">
+                  <th scope="col" className="sl-th px-2 py-2.5 w-10 text-center">
+                    #
+                  </th>
+                  <th scope="col" className="sl-th px-2 py-2.5 min-w-[220px] text-left">
+                    Raw Material
+                  </th>
+                  <th scope="col" className="sl-th px-2 py-2.5 min-w-[180px] text-left">
+                    Qty & UOM
+                  </th>
+                  <th scope="col" className="sl-th px-2 py-2.5 min-w-[120px] text-left">
+                    Unit Price (₹)
+                  </th>
+                  <th scope="col" className="sl-th px-2 py-2.5 w-24 text-left">
+                    Tax %
+                  </th>
+                  <th scope="col" className="sl-th px-2 py-2.5 text-right">
+                    Total
+                  </th>
+                  <th scope="col" className="sl-th px-2 py-2.5 w-12">
+                    <span className="sr-only">Remove</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line-soft">
+                {formData.items.map((item, index) => {
+                  const qty = Number(item.quantity) || 0;
+                  const price = Number(item.unitPrice) || 0;
+                  const taxPercent = Number(item.tax) || 0;
+                  const rawMaterial = rawMaterials.find(
+                    (rm) => String(rm.rawMaterialId) === String(item.productId)
+                  );
+                  const mult = getUomMultiplier(item.uom, rawMaterial?.baseUom);
+                  const taxableAmount = qty * mult * price;
+                  const gstAmount = taxableAmount * (taxPercent / 100);
+                  const lineTotal = taxableAmount + gstAmount;
+                  return (
+                    <tr key={index} className="align-top">
+                      <td className="px-3 py-3 text-center text-[13px] tabular-nums text-ink-subtle">
+                        {index + 1}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <SelectInput
+                          noMargin={true}
+                          name={`items[${index}].productId`}
+                          value={item.productId ? String(item.productId) : ""}
+                          options={[
+                            { value: "", label: "-- Select Material --" },
+                            ...productOptions,
+                          ]}
+                          onChange={(e) => handleItemProductChange(index, e.target.value)}
+                          error={errors[`items.${index}.productId`]}
+                          hideLabel
+                          disabled={isLocked}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <QuantityInput
+                          name={`items[${index}].quantity`}
+                          value={item.quantity}
+                          baseUoms={rawMaterial?.baseUom || item.uom || "KG"}
+                          uom={item.uom}
+                          onUomChange={(newUom) => handleItemChange(index, "uom", newUom)}
+                          onChange={(e) =>
+                            handleItemChange(
+                              index,
+                              "quantity",
+                              Number(e.target.value),
+                              e.target.uom
+                            )
+                          }
+                          error={errors[`items.${index}.quantity`]}
+                          step="0.01"
+                          hideLabel
+                          disabled={isLocked}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <TextInput
+                          label=""
+                          name={`items[${index}].unitPrice`}
+                          type="number"
+                          value={String(item.unitPrice)}
+                          onChange={(e) =>
+                            handleItemChange(index, "unitPrice", Number(e.target.value))
+                          }
+                          error={errors[`items.${index}.unitPrice`]}
+                          min={0}
+                          step={0.01}
+                          placeholder="0.00"
+                          disabled={isLocked}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <TextInput
+                          name={`items[${index}].tax`}
+                          type="number"
+                          value={String(item.tax || 0)}
+                          onChange={(e) => handleItemChange(index, "tax", Number(e.target.value))}
+                          min={0}
+                          max={100}
+                          step={0.01}
+                          placeholder="0"
+                          disabled={isLocked}
+                        />
+                      </td>
+                      <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums text-ink">
+                        {formatINR(lineTotal)}
+                      </td>
+                      <td className="px-2 py-1.5 text-center">
+                        <DeleteButton onClick={() => removeItem(index)} disabled={isLocked} />
+                      </td>
+                    </tr>
+                  );
+                })}
+                {formData.items.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-8 text-center text-sm text-ink-subtle">
+                      No items added — click "Add Item" to begin
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Tile>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <Tile>
+            <TextInput
+              label="Remarks"
+              name="remarks"
+              value={formData.remarks}
+              onChange={handleChange}
+              disabled={isLocked}
+            />
+          </Tile>
+          <Tile>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[13px] font-medium text-ink-subtle">Net amount</span>
+              <span className="text-[26px] font-bold leading-tight tracking-tight tabular-nums text-ink">
+                {formatINR(formData.netAmount)}
+              </span>
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex justify-between text-[13px] text-ink-muted">
+                <span>Subtotal</span>
+                <span className="tabular-nums text-ink">{formatINR(formData.subtotal)}</span>
+              </div>
+              {isInterState ? (
+                gstRateBreakdown.length === 0 ? (
+                  <div className="flex justify-between text-[13px] text-ink-muted">
+                    <span>Total IGST:</span>
+                    <span className="tabular-nums text-ink">
+                      {formatINR(formData.totalIgst ?? 0)}
+                    </span>
+                  </div>
+                ) : (
+                  gstRateBreakdown.map((group) => (
+                    <div
+                      key={`igst-${group.gstRate}`}
+                      className="flex justify-between text-[13px] text-ink-muted"
+                    >
+                      <span>IGST {group.gstRate}%:</span>
+                      <span className="tabular-nums text-ink">{formatINR(group.igstAmount)}</span>
+                    </div>
+                  ))
+                )
+              ) : gstRateBreakdown.length === 0 ? (
+                <>
+                  <div className="flex justify-between text-[13px] text-ink-muted">
+                    <span>Total CGST:</span>
+                    <span className="tabular-nums text-ink">
+                      {formatINR(formData.totalCgst ?? 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[13px] text-ink-muted">
+                    <span>Total SGST:</span>
+                    <span className="tabular-nums text-ink">
+                      {formatINR(formData.totalSgst ?? 0)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                gstRateBreakdown.map((group) => (
+                  <React.Fragment key={`gst-${group.gstRate}`}>
+                    <div className="flex justify-between text-[13px] text-ink-muted">
+                      <span>CGST {group.cgstRate}%:</span>
+                      <span className="tabular-nums text-ink">{formatINR(group.cgstAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-[13px] text-ink-muted">
+                      <span>SGST {group.sgstRate}%:</span>
+                      <span className="tabular-nums text-ink">{formatINR(group.sgstAmount)}</span>
+                    </div>
+                  </React.Fragment>
+                ))
+              )}
+            </div>
+            <p className="m-0 mt-3 text-[12px] text-ink-subtle">
+              {isInterState ? "Inter-state: IGST applies." : "Intra-state: CGST + SGST apply."}
+            </p>
+          </Tile>
         </div>
 
-        {isLocked && (
-          <div className="px-5 py-1.5 bg-amber-500/15 border-b border-amber-500/30 text-amber-300 flex items-center gap-2 text-[11px] font-semibold">
-            <span className="font-bold">View Only:</span>
-            This PO is in '{formData.status}' status. Only Draft orders can be modified.
-          </div>
+        {!isLocked && (
+          <FormFooter start={<KeyHint keys={["F2"]}>saves a draft</KeyHint>}>
+            <ActionPill variant="secondary" onClick={() => navigate(-1)}>
+              Cancel
+            </ActionPill>
+            <ActionPill
+              data-submit-btn
+              variant="secondary"
+              icon={<Save size={16} />}
+              loading={isSubmitting}
+              loadingText="Saving..."
+              disabled={isSubmittingForApproval}
+              onClick={(e: any) => handleSubmit(e, "DRAFT")}
+            >
+              Save as Draft
+            </ActionPill>
+            <ActionPill
+              icon={<Send size={16} />}
+              loading={isSubmittingForApproval}
+              loadingText="Approving..."
+              disabled={isSubmitting}
+              onClick={(e: any) => handleSubmit(e, "APPROVED")}
+            >
+              Approve Order
+            </ActionPill>
+          </FormFooter>
         )}
-
-        <form noValidate>
-          <div className="px-5 py-3 space-y-3">
-
-            {/* ── Section 1: PO Details ── */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">PO Details</h3>
-              </div>
-              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
-                <TextInput label="PO Number" name="poNumber" value={formData.poNumber} onChange={handleChange} disabled />
-                <DatePickerCalendar label="PO Date" name="poDate" value={formData.poDate} onChange={(e) => handleChange(e as any)} required error={errors.poDate} disabled={isLocked || isEdit} />
-                <SelectInput label="Supplier" name="supplierId" value={formData.supplierId} options={[{ value: "", label: "-- Select Supplier --" }, ...supplierOptions]} onChange={handleChange} required searchable error={errors.supplierId} disabled={isLocked || isEdit} />
-                <SelectInput label="Store" name="storeId" value={formData.storeId || ""} options={[{ label: "-- Select Store --", value: "" }, ...(stores || []).filter((s: any) => s.isActive).map((s: any) => ({ label: s.storeName, value: s.storeId }))]} required onChange={handleChange} searchable error={errors.storeId} disabled={isLocked} />
-              </div>
-            </div>
-
-            {/* ── Section 2: Billing & Shipping Address (Info Row) ── */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Billing Address - Company Address */}
-              <div className="bg-card-2 rounded-lg border border-line-soft px-4 py-2.5">
-                <h3 className="text-[11px] font-bold text-ink uppercase tracking-wide mb-1.5">Billing Address <span className="text-ink-subtle font-medium normal-case">(Company)</span></h3>
-                <p className="text-xs text-ink leading-relaxed">
-                  {[formData.billingAddressLine1, formData.billingCity, formData.billingState, formData.billingCountry, formData.billingPincode].filter(Boolean).join(", ") || <span className="text-ink-subtle italic">No address configured</span>}
-                </p>
-              </div>
-
-              {/* Shipping Address - Store Address */}
-              <div className="bg-card-2 rounded-lg border border-line-soft px-4 py-2.5">
-                <h3 className="text-[11px] font-bold text-ink uppercase tracking-wide mb-1.5">Shipping Address <span className="text-ink-subtle font-medium normal-case">(Store)</span></h3>
-                <p className="text-xs text-ink leading-relaxed">
-                  {[formData.shippingAddressLine1, formData.shippingCity, formData.shippingState, formData.shippingCountry, formData.shippingPincode].filter(Boolean).join(", ") || <span className="text-ink-subtle italic">Select a store to see address</span>}
-                </p>
-              </div>
-            </div>
-
-            {/* ── Section 4: Order Items ── */}
-            <div>
-              <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-line-soft">
-                <h3 className="text-xs font-bold text-ink uppercase tracking-wide">Order Items</h3>
-                <CustomButton text="Add Item" icon={FaPlus} onClick={addItem} type="button" size="sm" disabled={isLocked} />
-              </div>
-              <div className="rounded-lg border border-line-soft bg-card-2 overflow-visible [&_.mb-\[18px\]]:!mb-0 [&_.select-input-group]:!mb-0">
-                <table className="min-w-full divide-y divide-line-soft">
-                  <thead className="bg-card-2 border-b border-line-soft">
-                    <tr>
-                      <th className="px-2 py-1.5 text-center text-[10px] font-extrabold text-ink-subtle uppercase w-8">#</th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">Raw Material</th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase min-w-[160px]">Qty & UOM</th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">Unit Price (₹)</th>
-                      <th className="px-2 py-1.5 text-left text-[10px] font-extrabold text-ink-subtle uppercase">Tax %</th>
-                      <th className="px-2 py-1.5 text-right text-[10px] font-extrabold text-ink-subtle uppercase">Total (₹)</th>
-                      <th className="px-2 py-1.5 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line-soft">
-                    {formData.items.map((item, index) => {
-                      const qty = Number(item.quantity) || 0;
-                      const price = Number(item.unitPrice) || 0;
-                      const taxPercent = Number(item.tax) || 0;
-                      const rawMaterial = rawMaterials.find((rm) => String(rm.rawMaterialId) === String(item.productId));
-                      const mult = getUomMultiplier(item.uom, rawMaterial?.baseUom);
-                      const taxableAmount = qty * mult * price;
-                      const gstAmount = taxableAmount * (taxPercent / 100);
-                      const lineTotal = taxableAmount + gstAmount;
-                      return (
-                        <tr key={index} className="hover:bg-card/60 transition-colors">
-                          <td className="px-2 py-1 text-[11px] font-bold text-ink-subtle text-center">{index + 1}</td>
-                          <td className="px-2 py-1">
-                            <SelectInput noMargin={true} name={`items[${index}].productId`} value={item.productId ? String(item.productId) : ""} options={[{ value: "", label: "-- Select Material --" }, ...productOptions]} onChange={(e) => handleItemProductChange(index, e.target.value)} error={errors[`items.${index}.productId`]} hideLabel disabled={isLocked} />
-                          </td>
-                          <td className="px-2 py-1">
-                            <QuantityInput name={`items[${index}].quantity`} value={item.quantity} baseUoms={rawMaterial?.baseUom || item.uom || "KG"} uom={item.uom} onUomChange={(newUom) => handleItemChange(index, "uom", newUom)} onChange={(e) => handleItemChange(index, "quantity", Number(e.target.value), e.target.uom)} error={errors[`items.${index}.quantity`]} step="0.01" hideLabel disabled={isLocked} />
-                          </td>
-                          <td className="px-2 py-1">
-                            <TextInput label="" name={`items[${index}].unitPrice`} type="number" value={String(item.unitPrice)} onChange={(e) => handleItemChange(index, "unitPrice", Number(e.target.value))} error={errors[`items.${index}.unitPrice`]} min={0} step={0.01} placeholder="0.00" disabled={isLocked} />
-                          </td>
-                          <td className="px-2 py-1">
-                            <TextInput name={`items[${index}].tax`} type="number" value={String(item.tax || 0)} onChange={(e) => handleItemChange(index, "tax", Number(e.target.value))} min={0} max={100} step={0.01} placeholder="0" disabled={isLocked} />
-                          </td>
-                          <td className="px-2 py-1 text-right text-[11px] font-extrabold text-ink">₹{lineTotal.toFixed(2)}</td>
-                          <td className="px-2 py-1 text-center">
-                            <DeleteButton onClick={() => removeItem(index)} disabled={isLocked} />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {formData.items.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="px-3 py-4 text-center text-ink-subtle text-[11px] font-semibold">
-                          No items added — click "Add Item" to begin
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* ── Section 5: Remarks + Order Summary ── */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <TextInput label="Remarks" name="remarks" value={formData.remarks} onChange={handleChange} disabled={isLocked} />
-              </div>
-              <div className="bg-card-2 rounded-lg border border-line-soft px-3 py-2.5 shadow-xs">
-                <h6 className="mb-1.5 font-extrabold text-primary text-xs">Order Summary</h6>
-                <div className="flex justify-between mb-1 text-ink-subtle text-[11px] font-semibold">
-                  <span>Subtotal:</span><span className="text-ink font-extrabold">₹{formData.subtotal.toFixed(2)}</span>
-                </div>
-                {isInterState ? (
-                  gstRateBreakdown.length === 0 ? (
-                    <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]"><span>Total IGST:</span><span>+₹{(formData.totalIgst ?? 0).toFixed(2)}</span></div>
-                  ) : (
-                    gstRateBreakdown.map((group) => (
-                      <div key={`igst-${group.gstRate}`} className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
-                        <span>IGST {group.gstRate}%:</span><span>+₹{group.igstAmount.toFixed(2)}</span>
-                      </div>
-                    ))
-                  )
-                ) : (
-                  gstRateBreakdown.length === 0 ? (
-                    <>
-                      <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]"><span>Total CGST:</span><span>+₹{(formData.totalCgst ?? 0).toFixed(2)}</span></div>
-                      <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]"><span>Total SGST:</span><span>+₹{(formData.totalSgst ?? 0).toFixed(2)}</span></div>
-                    </>
-                  ) : (
-                    gstRateBreakdown.map((group) => (
-                      <React.Fragment key={`gst-${group.gstRate}`}>
-                        <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
-                          <span>CGST {group.cgstRate}%:</span><span>+₹{group.cgstAmount.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between mb-1 text-emerald-400 font-semibold text-[11px]">
-                          <span>SGST {group.sgstRate}%:</span><span>+₹{group.sgstAmount.toFixed(2)}</span>
-                        </div>
-                      </React.Fragment>
-                    ))
-                  )
-                )}
-                <hr className="my-1.5 border-line-soft" />
-                <div className="flex justify-between text-xs font-extrabold text-ink">
-                  <span>Net Amount:</span><span className="text-primary font-black">₹{formData.netAmount.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Buttons */}
-          <div className="flex justify-end gap-3 px-5 py-2.5 border-t border-line-soft bg-card-2">
-            {!isLocked && (
-              <>
-                <CustomButton text={isSubmitting ? "Saving..." : "Save as Draft"} icon={isSubmitting ? undefined : FaSave} onClick={(e: any) => handleSubmit(e, "DRAFT")} type="button" disabled={isSubmitting || isSubmittingForApproval} />
-                <CustomButton text={isSubmittingForApproval ? "Approving..." : "Approved"} icon={isSubmittingForApproval ? undefined : FaPaperPlane} onClick={(e: any) => handleSubmit(e, "APPROVED")} type="button" disabled={isSubmitting || isSubmittingForApproval} />
-              </>
-            )}
-          </div>
-        </form>
-      </div>
+      </form>
     </div>
   );
 };
