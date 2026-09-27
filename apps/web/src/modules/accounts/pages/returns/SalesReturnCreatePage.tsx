@@ -12,7 +12,7 @@ import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import QuantityInput from "../../../../components/form/QuantityInput/QuantityInput";
 import CommonLoader from "../../../../components/ui/Loader/CommonLoader";
 import CustomButton from "../../../../components/ui/Button/Button";
-import BackButton from "../../../../components/ui/BackButton/BackButton";
+import { Chip, PageHeader } from "../../../../components/ui/v2";
 import TextArea from "../../../../components/form/TextArea/TextArea";
 import DeleteButton from "../../../../components/ui/DeleteButton/DeleteButton";
 import TextInput from "../../../../components/form/TextInput/TextInput";
@@ -562,20 +562,22 @@ export const SalesReturnCreatePage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1400px] xl:mr-auto">
-      <div className="bg-card rounded-2xl shadow-sm border border-line overflow-visible">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h3 className="text-lg font-bold text-ink">
-            {isEditMode ? `Edit Sales Return` : "New Sales Return (Credit Note)"}
-            {isEditMode && originalReturnNo && (
-              <span className="text-accent text-sm ml-1">*{originalReturnNo}</span>
-            )}
-          </h3>
-          <BackButton text="Back to List" to="/sales-returns" />
-        </div>
-
-        <div className="p-5 space-y-5">
+    <div className="w-full">
+      <PageHeader
+        back="/sales-returns"
+        backLabel="Back to list"
+        breadcrumbs={[
+          { label: "Sales Returns", to: "/sales-returns" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+        title={isEditMode ? "Edit Sales Return" : "New Sales Return (Credit Note)"}
+        meta={
+          isEditMode && originalReturnNo ? <Chip size="sm">{originalReturnNo}</Chip> : undefined
+        }
+        subtitle="Returned goods raise a credit note against the customer"
+      />
+      <div className="sl-tile overflow-visible">
+        <div className="p-5 sm:p-6 space-y-5">
           {/* Customer + Refund Mode */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 md:gap-x-8 lg:gap-x-10 gap-y-3 md:gap-y-4">
             <div>
@@ -849,8 +851,13 @@ export const SalesReturnCreatePage: React.FC = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="flex justify-end gap-3 px-5 py-4 border-t border-line">
-          <CustomButton text="Clear" variant="danger" onClick={handleReset} disabled={submitting} />
+        <div className="flex justify-end gap-3 rounded-b-[18px] border-t border-line-soft bg-card-2/60 px-5 py-4">
+          <CustomButton
+            text="Clear"
+            variant="secondary"
+            onClick={handleReset}
+            disabled={submitting}
+          />
           <CustomButton
             text={submitting ? "Saving..." : isEditMode ? "Update Return" : "Confirm Return"}
             onClick={handleSubmit}

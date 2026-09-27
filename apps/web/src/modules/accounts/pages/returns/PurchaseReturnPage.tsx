@@ -494,10 +494,15 @@ export const PurchaseReturnPage: React.FC = () => {
 
   return (
     <div>
-      <div className="max-w-[1400px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-hidden">
+      <div className="w-full">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-6 border-b border-line">
-          <h2 className="text-2xl font-bold text-ink flex items-center gap-2">Purchase Returns</h2>
+        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="sl-h1 m-0 leading-tight">Purchase Returns</h1>
+            <p className="sl-muted m-0 mt-1 text-sm">
+              Goods you send back to suppliers; each return raises a debit note.
+            </p>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
             <SearchInput
@@ -515,9 +520,7 @@ export const PurchaseReturnPage: React.FC = () => {
             >
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Supplier
-                  </label>
+                  <label className="sl-label">Supplier</label>
                   <SelectInput
                     name="filterSupplier"
                     value={draftFilters.supplierId}
@@ -530,9 +533,7 @@ export const PurchaseReturnPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Status
-                  </label>
+                  <label className="sl-label">Status</label>
                   <SelectInput
                     name="filterStatus"
                     value={draftFilters.status}
@@ -571,24 +572,24 @@ export const PurchaseReturnPage: React.FC = () => {
 
         {/* Active filter chips */}
         {hasActiveFilters && (
-          <div className="flex items-center gap-2 px-6 py-2 border-b border-line flex-wrap">
+          <div className="mb-3 flex items-center gap-2 flex-wrap">
             <span className="text-xs text-ink-subtle">Active filters:</span>
 
             {appliedFilters.supplierId && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-nav-active text-accent border border-accent rounded-full text-xs font-medium">
+              <span className="sl-chip">
                 Supplier: {activeSupplierName || appliedFilters.supplierId}
                 <FaTimes
-                  className="cursor-pointer hover:text-indigo-200 ml-0.5"
+                  className="cursor-pointer hover:text-ink ml-0.5"
                   onClick={() => handleRemoveFilter("supplierId")}
                 />
               </span>
             )}
 
             {appliedFilters.status && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-nav-active text-accent border border-accent rounded-full text-xs font-medium">
+              <span className="sl-chip">
                 Status: {appliedFilters.status}
                 <FaTimes
-                  className="cursor-pointer hover:text-indigo-200 ml-0.5"
+                  className="cursor-pointer hover:text-ink ml-0.5"
                   onClick={() => handleRemoveFilter("status")}
                 />
               </span>
