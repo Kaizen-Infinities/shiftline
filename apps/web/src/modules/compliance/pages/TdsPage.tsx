@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
+import { AlertTriangle, Download, Percent, Receipt, Send } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -12,6 +13,7 @@ import {
 } from "../../../services/tdsService";
 import {
   Card,
+  TableScroll,
   day,
   field,
   fyOptions,
@@ -19,10 +21,19 @@ import {
   money,
   primary,
   secondary,
-  success,
   td,
   th,
 } from "../components/gstUi";
+import {
+  ActionPill,
+  Chip,
+  ChipTabs,
+  Field,
+  PageHeader,
+  SkeletonRows,
+  Tile,
+  type ChipTone,
+} from "../../../components/ui/v2";
 
 /**
  * TDS and TCS (P1-15).
@@ -39,12 +50,24 @@ const QUARTERS: { value: Quarter; label: string }[] = [
   { value: "Q3", label: "Q3 · Oct–Dec" },
   { value: "Q4", label: "Q4 · Jan–Mar" },
 ];
-const STATUS_STYLE: Record<TdsDeductionRow["status"], string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  CHALLAN_PAID: "bg-sky-100 text-sky-800",
-  RETURN_FILED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+const STATUS_TONE: Record<TdsDeductionRow["status"], ChipTone> = {
+  PENDING: "warning",
+  CHALLAN_PAID: "info",
+  RETURN_FILED: "success",
+  CANCELLED: "muted",
 };
+const STATUS_LABEL: Record<TdsDeductionRow["status"], string> = {
+  PENDING: "Challan due",
+  CHALLAN_PAID: "Challan paid",
+  RETURN_FILED: "Return filed",
+  CANCELLED: "Cancelled",
+};
+const TABS: { key: Tab; label: string }[] = [
+  { key: "deductions", label: "Deductions" },
+  { key: "challans", label: "Challans" },
+  { key: "returns", label: "Quarterly return" },
+  { key: "sections", label: "Sections and rates" },
+];
 /** The quarter a date falls in, the Indian way: April starts the year. */
 const currentQuarter = (): Quarter => {
   const m = new Date().getUTCMonth();
@@ -92,108 +115,160 @@ const TdsPage: React.FC = () => {
   const pickedRows = deductions.filter((d) => picked.includes(d.id));
   const pickedTotal = pickedRows.reduce((s, d) => s + Number(d.tdsAmount), 0);
 
+  const sendForApproval = async () => {
+    setBusy(true);
+    try {
+      await tdsService.registerReturn(form, fyCode, quarter);
+      toast.success("Sent for approval");
+      await load();
+    } catch (err) {
+      toast.error(message(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const primaryAction =
+    tab === "deductions" && can("tds.pay") ? (
+      <ActionPill
+        size="lg"
+        icon={<Receipt size={18} />}
+        disabled={picked.length === 0}
+        onClick={() => setPaying(true)}
+        title={picked.length === 0 ? "Tick the deductions this challan pays" : undefined}
+      >
+        Pay challan{picked.length > 0 ? ` · ${money(pickedTotal)}` : ""}
+      </ActionPill>
+    ) : tab === "returns" && ret && can("tds.prepare") ? (
+      <ActionPill
+        size="lg"
+        icon={<Send size={18} />}
+        loading={busy}
+        disabled={busy}
+        onClick={() => void sendForApproval()}
+      >
+        Send for approval
+      </ActionPill>
+    ) : undefined;
+
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">TDS and TCS</h1>
-          <p className="text-sm text-ink-muted">
-            Tax held back from what you pay, and collected on what you sell. It has to reach the
-            government by the 7th of the next month and be reported every quarter.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            className={field}
-            value={fyCode}
-            onChange={(e) => setFyCode(e.target.value)}
-            aria-label="Financial year"
-          >
-            {years.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={field}
-            value={quarter}
-            onChange={(e) => setQuarter(e.target.value as Quarter)}
-            aria-label="Quarter"
-          >
-            {QUARTERS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {tab === "returns" && (
-            <select
-              className={field}
-              value={form}
-              onChange={(e) => setForm(e.target.value as "26Q" | "27Q")}
-              aria-label="Form"
-            >
-              <option value="26Q">26Q · residents</option>
-              <option value="27Q">27Q · non-residents</option>
-            </select>
-          )}
-        </div>
-      </header>
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="TDS and TCS"
+        icon={<Percent size={22} />}
+        subtitle="Tax held back from what you pay, and collected on what you sell. It has to reach the government by the 7th of the next month and be reported every quarter."
+        meta={
+          tab === "deductions" && !loading ? (
+            unchallaned.length > 0 ? (
+              <Chip tone="warning" dot>
+                {unchallaned.length} challan{unchallaned.length === 1 ? "" : "s"} due
+              </Chip>
+            ) : deductions.length > 0 ? (
+              <Chip tone="success" dot>
+                All paid
+              </Chip>
+            ) : undefined
+          ) : undefined
+        }
+        primaryAction={primaryAction}
+      />
 
-      <nav className="flex gap-1 border-b border-line-soft" role="tablist">
-        {(
-          [
-            ["deductions", "Deductions"],
-            ["challans", "Challans"],
-            ["returns", "Quarterly return"],
-            ["sections", "Sections and rates"],
-          ] as [Tab, string][]
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            onClick={() => setTab(key)}
-            className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      <Tile padding="sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <ChipTabs<Tab>
+            ariaLabel="TDS area"
+            value={tab}
+            onChange={setTab}
+            size="lg"
+            items={TABS.map((t) => ({
+              key: t.key,
+              label: t.label,
+              count:
+                t.key === "deductions" && unchallaned.length > 0 ? unchallaned.length : undefined,
+            }))}
+          />
+          <div className="grid grid-cols-2 gap-3 lg:flex lg:items-end">
+            <Field label="Financial year" className="lg:w-40">
+              <select
+                className="sl-input h-11 py-0 text-sm"
+                value={fyCode}
+                onChange={(e) => setFyCode(e.target.value)}
+              >
+                {years.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Quarter" className="lg:w-44">
+              <select
+                className="sl-input h-11 py-0 text-sm"
+                value={quarter}
+                onChange={(e) => setQuarter(e.target.value as Quarter)}
+              >
+                {QUARTERS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {tab === "returns" && (
+              <Field label="Form" className="col-span-2 lg:w-52">
+                <select
+                  className="sl-input h-11 py-0 text-sm"
+                  value={form}
+                  onChange={(e) => setForm(e.target.value as "26Q" | "27Q")}
+                >
+                  <option value="26Q">26Q · residents</option>
+                  <option value="27Q">27Q · non-residents</option>
+                </select>
+              </Field>
+            )}
+          </div>
+        </div>
+      </Tile>
 
-      {loading && <p className="text-sm text-ink-muted">Loading…</p>}
+      {loading && (
+        <Tile padding="none" className="overflow-hidden">
+          <SkeletonRows rows={6} columns={6} label="Loading…" />
+        </Tile>
+      )}
 
       {tab === "deductions" && (
         <>
           {unchallaned.length > 0 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              <strong>
-                {unchallaned.length} deduction{unchallaned.length === 1 ? "" : "s"} not yet paid to
-                the government.
-              </strong>{" "}
-              The return cannot be filed while any of them is outstanding.
+            <div
+              role="status"
+              className="flex items-start gap-2 rounded-[16px] bg-[color:color-mix(in_srgb,var(--color-warning)_12%,var(--color-card))] p-4 text-sm text-ink"
+            >
+              <AlertTriangle
+                size={18}
+                aria-hidden="true"
+                className="mt-0.5 shrink-0 text-[color:var(--color-warning)]"
+              />
+              <span>
+                <strong>
+                  {unchallaned.length} deduction{unchallaned.length === 1 ? "" : "s"} not yet paid
+                  to the government.
+                </strong>{" "}
+                The return cannot be filed while any of them is outstanding. Tick them below and pay
+                the challan.
+              </span>
             </div>
           )}
           <Card
             title="Deductions"
             actions={
-              can("tds.pay") && (
-                <button
-                  className={primary}
-                  disabled={picked.length === 0}
-                  onClick={() => setPaying(true)}
-                >
-                  Pay challan{picked.length > 0 ? ` · ${money(pickedTotal)}` : ""}
-                </button>
-              )
+              picked.length > 0 ? (
+                <Chip tone="info" size="sm">
+                  {picked.length} selected · {money(pickedTotal)}
+                </Chip>
+              ) : undefined
             }
           >
-            <div className="overflow-x-auto">
+            <TableScroll>
               <table className="min-w-full">
                 <thead>
                   <tr>
@@ -214,6 +289,7 @@ const TdsPage: React.FC = () => {
                       <td className={td}>
                         <input
                           type="checkbox"
+                          className="sl-check"
                           aria-label={`Select ${d.docNo}`}
                           disabled={!!d.challanId || d.status === "CANCELLED"}
                           checked={picked.includes(d.id)}
@@ -235,7 +311,9 @@ const TdsPage: React.FC = () => {
                       <td className={td}>
                         {d.section.code}
                         {d.section.isTcs && (
-                          <span className="ml-1 text-xs text-ink-muted">TCS</span>
+                          <Chip size="sm" className="ml-1">
+                            TCS
+                          </Chip>
                         )}
                       </td>
                       <td className={`${td} text-right`}>{money(d.amountPaid)}</td>
@@ -247,11 +325,9 @@ const TdsPage: React.FC = () => {
                       </td>
                       <td className={`${td} text-right font-semibold`}>{money(d.tdsAmount)}</td>
                       <td className={td}>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[d.status]}`}
-                        >
-                          {d.status.replace(/_/g, " ").toLowerCase()}
-                        </span>
+                        <Chip tone={STATUS_TONE[d.status]} size="sm" dot>
+                          {STATUS_LABEL[d.status]}
+                        </Chip>
                       </td>
                     </tr>
                   ))}
@@ -264,14 +340,14 @@ const TdsPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           </Card>
         </>
       )}
 
       {tab === "challans" && (
         <Card title="Challans paid">
-          <div className="overflow-x-auto">
+          <TableScroll>
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -294,7 +370,11 @@ const TdsPage: React.FC = () => {
                     <td className={td}>{c.challanSerial}</td>
                     <td className={td}>
                       {c.periodKey}
-                      {c.isTcs && <span className="ml-1 text-xs text-ink-muted">TCS</span>}
+                      {c.isTcs && (
+                        <Chip size="sm" className="ml-1">
+                          TCS
+                        </Chip>
+                      )}
                     </td>
                     <td className={`${td} text-right`}>{money(c.tdsAmount)}</td>
                     <td className={`${td} text-right`}>{money(c.interest)}</td>
@@ -312,15 +392,26 @@ const TdsPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         </Card>
       )}
 
       {tab === "returns" && ret && (
         <>
           {ret.warnings.length > 0 && (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
-              <ul className="list-inside list-disc space-y-0.5">
+            <div
+              role="status"
+              className="rounded-[16px] bg-[color:color-mix(in_srgb,var(--color-danger)_8%,var(--color-card))] p-4 text-sm text-ink"
+            >
+              <p className="m-0 mb-1 flex items-center gap-2 font-semibold">
+                <AlertTriangle
+                  size={16}
+                  aria-hidden="true"
+                  className="text-[color:var(--color-danger)]"
+                />
+                Fix before filing
+              </p>
+              <ul className="m-0 list-inside list-disc space-y-0.5">
                 {ret.warnings.map((w) => (
                   <li key={w}>{w}</li>
                 ))}
@@ -328,37 +419,23 @@ const TdsPage: React.FC = () => {
             </div>
           )}
           <Card
-            title={`Form ${ret.formType} · ${ret.fyCode} ${ret.quarter}`}
+            title={`Form ${ret.formType} · FY ${ret.fyCode} ${ret.quarter}`}
             actions={
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {ret.filing && (
+                  <Chip size="sm" dot>
+                    Filing {ret.filing.status.toLowerCase()}
+                  </Chip>
+                )}
                 <a
                   className={secondary}
                   href={`/api${tdsService.fileUrl(form, fyCode, quarter)}`}
                   target="_blank"
                   rel="noreferrer"
                 >
+                  <Download size={15} aria-hidden="true" />
                   Download e-TDS file
                 </a>
-                {can("tds.prepare") && (
-                  <button
-                    className={success}
-                    disabled={busy}
-                    onClick={async () => {
-                      setBusy(true);
-                      try {
-                        await tdsService.registerReturn(form, fyCode, quarter);
-                        toast.success("Sent for approval");
-                        await load();
-                      } catch (err) {
-                        toast.error(message(err));
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    Send for approval
-                  </button>
-                )}
               </div>
             }
           >
@@ -368,14 +445,13 @@ const TdsPage: React.FC = () => {
               <Stat label="Tax deducted" value={money(ret.totals.tdsDeducted)} />
               <Stat label="Challans total" value={money(ret.totals.challanTotal)} />
             </div>
-            <p className="mt-3 text-xs text-ink-muted">
+            <p className="m-0 mt-4 text-xs text-ink-muted">
               Deductor {ret.deductor.name} · TAN {ret.deductor.tan ?? "not set"} · PAN{" "}
               {ret.deductor.pan ?? "not set"}
-              {ret.filing && ` · filing ${ret.filing.status.toLowerCase()}`}
             </p>
           </Card>
           <Card title="Deductee rows">
-            <div className="overflow-x-auto">
+            <TableScroll>
               <table className="min-w-full">
                 <thead>
                   <tr>
@@ -405,7 +481,9 @@ const TdsPage: React.FC = () => {
                         {l.challan ? (
                           `${l.challan.bsrCode}/${l.challan.serial}`
                         ) : (
-                          <span className="font-semibold text-rose-700">Not paid</span>
+                          <Chip tone="danger" size="sm">
+                            Not paid
+                          </Chip>
                         )}
                       </td>
                     </tr>
@@ -419,19 +497,17 @@ const TdsPage: React.FC = () => {
                   )}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
           </Card>
         </>
       )}
 
       {tab === "sections" && (
-        <Card title="Sections and rates">
-          <p className="mb-3 text-xs text-ink-muted">
-            Rates move with every Finance Act, so these belong to your company and can be edited.
-            The familiar number is what the return carries; the Act reference says where it now
-            sits.
-          </p>
-          <div className="overflow-x-auto">
+        <Card
+          title="Sections and rates"
+          subtitle="Rates move with every Finance Act, so these belong to your company and can be edited. The familiar number is what the return carries; the Act reference says where it now sits."
+        >
+          <TableScroll>
             <table className="min-w-full">
               <thead>
                 <tr>
@@ -456,7 +532,11 @@ const TdsPage: React.FC = () => {
                     <tr key={s.id} className="border-t border-line-soft">
                       <td className={td}>
                         {s.code}
-                        {s.isTcs && <span className="ml-1 text-xs text-ink-muted">TCS</span>}
+                        {s.isTcs && (
+                          <Chip size="sm" className="ml-1">
+                            TCS
+                          </Chip>
+                        )}
                         <div className="text-xs text-ink-muted">{s.actCode ?? "—"}</div>
                       </td>
                       <td className={td}>{s.name}</td>
@@ -473,7 +553,9 @@ const TdsPage: React.FC = () => {
                               }
                             />
                             {!(sectionDraft.ledgerCode ?? s.ledgerCode) && (
-                              <div className="text-xs text-rose-600 mt-0.5">Required</div>
+                              <div className="mt-0.5 text-xs text-[color:var(--color-danger)]">
+                                Required
+                              </div>
                             )}
                           </td>
                           <td className={`${td} text-right`}>
@@ -599,7 +681,9 @@ const TdsPage: React.FC = () => {
                             {s.ledgerCode ? (
                               s.ledgerCode
                             ) : (
-                              <span className="text-rose-700 font-semibold">Missing</span>
+                              <Chip tone="danger" size="sm">
+                                Missing
+                              </Chip>
                             )}
                           </td>
                           <td className={`${td} text-right`}>{Number(s.rateCompany)}%</td>
@@ -611,7 +695,11 @@ const TdsPage: React.FC = () => {
                           <td className={`${td} text-right`}>
                             {Number(s.thresholdAnnual) > 0 ? money(s.thresholdAnnual) : "—"}
                           </td>
-                          <td className={td}>{s.isActive ? "Yes" : "No"}</td>
+                          <td className={td}>
+                            <Chip tone={s.isActive ? "success" : "muted"} size="sm">
+                              {s.isActive ? "Active" : "Off"}
+                            </Chip>
+                          </td>
                           {can("tds.manage") && (
                             <td className={td}>
                               <button
@@ -640,7 +728,7 @@ const TdsPage: React.FC = () => {
                 )}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
         </Card>
       )}
 
@@ -670,9 +758,9 @@ const TdsPage: React.FC = () => {
 };
 
 const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-lg border border-line-soft bg-card-2 p-3">
-    <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
-    <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+  <div className="rounded-[14px] bg-card-2 p-3 sm:p-4">
+    <p className="m-0 text-[13px] font-medium text-ink-muted">{label}</p>
+    <p className="m-0 mt-1 text-xl font-bold tabular-nums text-ink">{value}</p>
   </div>
 );
 
@@ -708,79 +796,86 @@ const ChallanDialog: React.FC<{
   const months = [...new Set(rows.map((r) => monthOf(r.deductionDate)))];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-line-soft bg-card p-4">
-        <h2 className="text-lg font-semibold text-ink">Record a challan</h2>
-        <p className="mt-1 text-sm text-ink-muted">
+    <div className="sl-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tds-challan-title"
+        className="sl-dialog w-full max-w-lg p-5 sm:p-6"
+      >
+        <h2 id="tds-challan-title" className="sl-h2 m-0">
+          Record a challan
+        </h2>
+        <p className="m-0 mt-1 text-sm text-ink-muted">
           {rows.length} deduction{rows.length === 1 ? "" : "s"} totalling {money(total)}.
         </p>
         {months.length > 1 && (
-          <p className="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-2 text-sm text-rose-900">
+          <p className="m-0 mt-3 rounded-[12px] bg-[color:color-mix(in_srgb,var(--color-danger)_10%,var(--color-card))] p-3 text-sm text-ink">
             These deductions fall in {months.join(", ")}. One challan covers one month — pay them
             separately.
           </p>
         )}
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <label className="text-sm text-ink-muted">
-            BSR code
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="sl-label">BSR code</span>
             <input
-              className={`${field} mt-1 w-full`}
+              className="sl-input h-11 py-0 text-sm"
               value={bsrCode}
               maxLength={7}
               onChange={(e) => setBsrCode(e.target.value.replace(/\D/g, ""))}
               placeholder="7 digits"
             />
           </label>
-          <label className="text-sm text-ink-muted">
-            Challan serial
+          <label className="block">
+            <span className="sl-label">Challan serial</span>
             <input
-              className={`${field} mt-1 w-full`}
+              className="sl-input h-11 py-0 text-sm"
               value={challanSerial}
               maxLength={10}
               onChange={(e) => setChallanSerial(e.target.value)}
             />
           </label>
-          <label className="text-sm text-ink-muted">
-            Paid on
+          <label className="block">
+            <span className="sl-label">Paid on</span>
             <input
               type="date"
-              className={`${field} mt-1 w-full`}
+              className="sl-input h-11 py-0 text-sm"
               value={challanDate}
               onChange={(e) => setChallanDate(e.target.value)}
             />
           </label>
-          <label className="text-sm text-ink-muted">
-            For the month
+          <label className="block">
+            <span className="sl-label">For the month</span>
             <input
               type="month"
-              className={`${field} mt-1 w-full`}
+              className="sl-input h-11 py-0 text-sm"
               value={periodKey}
               onChange={(e) => setPeriodKey(e.target.value)}
             />
           </label>
-          <label className="text-sm text-ink-muted">
-            Interest
+          <label className="block">
+            <span className="sl-label">Interest</span>
             <input
-              className={`${field} mt-1 w-full`}
+              className="sl-input h-11 py-0 text-sm"
               value={interest}
               onChange={(e) => setInterest(e.target.value)}
             />
           </label>
-          <label className="text-sm text-ink-muted">
-            Late fee
+          <label className="block">
+            <span className="sl-label">Late fee</span>
             <input
-              className={`${field} mt-1 w-full`}
+              className="sl-input h-11 py-0 text-sm"
               value={lateFee}
               onChange={(e) => setLateFee(e.target.value)}
             />
           </label>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <button className={secondary} onClick={onCancel} disabled={busy}>
+        <div className="mt-5 flex justify-end gap-2">
+          <button className="sl-btn sl-pill-md" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
           <button
-            className={primary}
+            className="sl-cta sl-pill-md"
             disabled={busy || bsrCode.length !== 7 || !challanSerial || months.length > 1}
             onClick={() =>
               onDone({
