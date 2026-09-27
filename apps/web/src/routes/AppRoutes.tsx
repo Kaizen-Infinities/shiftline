@@ -318,6 +318,7 @@ const AmountPayablePage = lazy(() => import("../modules/accounts/pages/payable/A
 const AmountReceivablePage = lazy(
   () => import("../modules/accounts/pages/receivable/AmountReceivablePage")
 );
+const MsmeClaimsPage = lazy(() => import("../modules/accounts/pages/receivable/MsmeClaimsPage"));
 const SupplierBreakdownPage = lazy(
   () => import("../modules/accounts/pages/payable/SupplierBreakdownPage")
 );
@@ -558,6 +559,9 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="production-wastages.view" />}>
                 <Route path="/production-wastages" element={<WastageList />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="msme-claims.view" />}>
+                <Route path="/accounts/msme-claims" element={<MsmeClaimsPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="order-tna.view" />}>
                 <Route path="/production/order-tna" element={<OrderTnaPage />} />

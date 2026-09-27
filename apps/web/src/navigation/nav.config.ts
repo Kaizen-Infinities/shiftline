@@ -1157,6 +1157,22 @@ export const NAV_AREAS: NavArea[] = [
             keywords: ["debtors", "outstanding", "ageing", "amount receivable"],
           },
           {
+            id: "accounts.msme-claims",
+            title: "MSME claims",
+            path: "/accounts/msme-claims",
+            permission: "msme-claims.view",
+            icon: Scale,
+            description: "Section 16 interest on late-paying buyers; Samadhaan claims.",
+            keywords: [
+              "msme samadhaan",
+              "msefc",
+              "delayed payment",
+              "section 16",
+              "interest",
+              "treds",
+            ],
+          },
+          {
             id: "accounts.payable",
             title: "Payables",
             path: "/accounts/payable",
