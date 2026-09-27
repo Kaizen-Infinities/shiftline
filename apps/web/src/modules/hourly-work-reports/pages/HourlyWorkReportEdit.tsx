@@ -1,27 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import {
-  FaSave,
-  FaEraser,
-  FaCheckCircle,
-  FaInfoCircle,
-  FaCalendarAlt,
-  FaCogs,
-  FaClock,
-  FaUsers,
-  FaTrophy,
-  FaCrown,
-} from "react-icons/fa";
+import { CalendarDays, Clock, Cog, Crown, Info, Lock, Save, Trophy, Users } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Tile } from "../../../components/ui/v2";
+import { InfoItem, PageBody, StickyFormFooter } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import QuantityInput from "../../../components/form/QuantityInput/QuantityInput";
 
 import { useAppDispatch } from "../../../hooks/reduxHooks";
 import { updateHourlyProduction } from "../../../features/hourly-productions/hourlyProductionSlice";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import CommonModal from "../../../components/ui/Modal/CommonModal";
 
 const HourlyWorkReportEdit: React.FC = () => {
@@ -134,212 +124,198 @@ const HourlyWorkReportEdit: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-6 min-h-screen">
-      <div className="bg-card rounded-sm border border-line-soft">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-6 border-b border-line-soft">
-          <div>
-            <h2 className="text-2xl font-bold text-ink m-0">Edit Hourly Production Log</h2>
+    <PageBody className="max-w-[1180px]">
+      <PageHeader
+        title="Edit Hourly Production Log"
+        subtitle={`${productionOrderId || "—"} · Hour ${hourIndex}`}
+        back="/hourly-work-reports"
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Hourly logs", to: "/hourly-work-reports" },
+          { label: "Edit entry" },
+        ]}
+        meta={
+          isEditDisabled ? (
+            <Chip tone="muted" icon={<Lock size={13} />}>
+              Locked
+            </Chip>
+          ) : undefined
+        }
+      />
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+        {isEditDisabled && (
+          <div
+            role="status"
+            className="sl-tile flex items-center gap-3 p-4 text-sm font-medium text-[color:var(--color-danger)]"
+          >
+            <Info size={18} className="shrink-0" aria-hidden="true" />
+            This log is locked (shift completed, stopped, or final hour logged).
           </div>
-          <div className="flex justify-end">
-            <BackButton text="Back to List" to="/hourly-work-reports" />
-          </div>
+        )}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+          <Tile
+            title="Reference Plan Info"
+            subtitle="Locked for editing"
+            className="self-start lg:col-span-2"
+          >
+            <dl className="m-0 grid grid-cols-2 gap-4 rounded-[14px] bg-card-2 p-4 lg:grid-cols-1">
+              <InfoItem label="Machine" value={machineName} />
+              <InfoItem
+                label="Production Date"
+                value={productionDate ? formatDate(productionDate) : "—"}
+              />
+              <InfoItem label="Shift" value={shiftName} />
+              <InfoItem label="Production Order" value={productionOrderId} mono />
+              <InfoItem label="Product" value={productName} className="col-span-2 lg:col-span-1" />
+            </dl>
+          </Tile>
+
+          <Tile title="Log Parameters" className="lg:col-span-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <SelectInput
+                label="Hour Index of Shift"
+                name="hourIndex"
+                value={hourIndex}
+                options={Array.from({ length: 24 }, (_, i) => ({
+                  label: `Hour ${i + 1}`,
+                  value: String(i + 1),
+                }))}
+                required
+                disabled={isEditDisabled}
+                onChange={(e) => setHourIndex(e.target.value)}
+              />
+              <TextInput
+                label="Operator"
+                name="operatorName"
+                value={operatorName || operatorId || "—"}
+                disabled
+              />
+              <QuantityInput
+                label="Produced Qty"
+                name="qtyProduced"
+                value={qtyProduced}
+                baseUoms={uom}
+                disabled={isEditDisabled}
+                onChange={(e) => setQtyProduced(e.target.value)}
+              />
+              <QuantityInput
+                label="Reject Qty"
+                name="rejectQty"
+                value={rejectQty}
+                baseUoms={uom}
+                disabled={isEditDisabled}
+                onChange={(e) => setRejectQty(e.target.value)}
+              />
+              <QuantityInput
+                label="Scrap Qty"
+                name="scrapQty"
+                value={scrapQty}
+                baseUoms={uom}
+                disabled={isEditDisabled}
+                onChange={(e) => setScrapQty(e.target.value)}
+              />
+              <QuantityInput
+                label="Downtime"
+                name="downtime"
+                value={downtime}
+                baseUoms="mins,hrs"
+                disabled={isEditDisabled}
+                onChange={(e) => setDowntime(e.target.value)}
+              />
+
+              {Number(downtime) > 0 && (
+                <SelectInput
+                  label="Downtime Reason"
+                  name="downtimeReason"
+                  value={downtimeReason}
+                  disabled={isEditDisabled}
+                  onChange={(e) => setDowntimeReason(e.target.value)}
+                  options={[
+                    { label: "Machine Breakdown", value: "Machine Breakdown" },
+                    { label: "Power Failure", value: "Power Failure" },
+                    { label: "Material Shortage", value: "Material Shortage" },
+                    { label: "Tool/Mould Change", value: "Tool/Mould Change" },
+                    { label: "Operator Unavailable", value: "Operator Unavailable" },
+                    { label: "Quality Issue", value: "Quality Issue" },
+                    { label: "Preventative Maintenance", value: "Preventative Maintenance" },
+                    { label: "Others", value: "Others" },
+                  ]}
+                />
+              )}
+              {Number(rejectQty) > 0 && (
+                <SelectInput
+                  label="Reject Reason"
+                  name="rejectReason"
+                  value={rejectReason}
+                  disabled={isEditDisabled}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  options={[
+                    { value: "Quality Issue", label: "Quality Issue" },
+                    { value: "Machine Defect", label: "Machine Defect" },
+                    { value: "Material Defect", label: "Material Defect" },
+                    { value: "Operator Error", label: "Operator Error" },
+                    { value: "Others", label: "Others" },
+                  ]}
+                />
+              )}
+              {Number(scrapQty) > 0 && (
+                <SelectInput
+                  label="Scrap Reason"
+                  name="scrapReason"
+                  value={scrapReason}
+                  disabled={isEditDisabled}
+                  onChange={(e) => setScrapReason(e.target.value)}
+                  options={[
+                    { value: "Startup Scrap", label: "Startup Scrap" },
+                    { value: "Process Setting", label: "Process Setting" },
+                    { value: "Material Purging", label: "Material Purging" },
+                    { value: "Others", label: "Others" },
+                  ]}
+                />
+              )}
+              {(downtimeReason === "Others" ||
+                rejectReason === "Others" ||
+                scrapReason === "Others") && (
+                <div className="md:col-span-2">
+                  <TextInput
+                    label="Remarks (Reason for Others)"
+                    name="remarks"
+                    value={remarks}
+                    required
+                    placeholder="Enter specific reason"
+                    disabled={isEditDisabled}
+                    onChange={(e) => setRemarks(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          </Tile>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-6 space-y-6" noValidate>
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Left Card: Read-Only Reference Info */}
-            <div className="lg:col-span-2">
-              <div className="bg-card-2 border border-line-soft rounded-lg p-5 h-full">
-                {isEditDisabled && (
-                  <div className="bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/30 text-[color:var(--color-danger)] px-4 py-3 rounded-sm flex items-center gap-2 text-xs font-semibold mb-4">
-                    <FaInfoCircle size={14} className="shrink-0 text-[color:var(--color-danger)]" />
-                    <span>
-                      This log is locked (shift completed, stopped, or final hour logged).
-                    </span>
-                  </div>
-                )}
-                <h6 className="text-base font-semibold text-ink mb-4 border-b border-line-soft pb-2">
-                  Reference Plan Info
-                </h6>
-
-                <div className="bg-card rounded-lg p-4 border border-line-soft space-y-4">
-                  <div className="flex items-center gap-2 mb-1 text-sm font-semibold text-ink-muted">
-                    <FaCheckCircle size={13} />
-                    <span>LOCKED FOR EDITING</span>
-                  </div>
-
-                  <div>
-                    <span className="text-xs text-ink-subtle block mb-0.5">Machine</span>
-                    <strong className="text-ink text-base">{machineName}</strong>
-                  </div>
-                  <div>
-                    <span className="text-xs text-ink-subtle block mb-0.5">Production Date</span>
-                    <strong className="text-ink text-base">{productionDate}</strong>
-                  </div>
-                  <div>
-                    <span className="text-xs text-ink-subtle block mb-0.5">Shift</span>
-                    <strong className="text-ink text-base">{shiftName}</strong>
-                  </div>
-                  <div>
-                    <span className="text-xs text-ink-subtle block mb-0.5">Production Order</span>
-                    <strong className="text-lg text-ink">{productionOrderId}</strong>
-                  </div>
-                  <div>
-                    <span className="text-xs text-ink-subtle block mb-0.5">Product</span>
-                    <strong className="text-ink">{productName}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Section: Editable Log Parameters */}
-            <div className="lg:col-span-3">
-              <h6 className="text-base font-semibold text-ink mb-4 border-b border-line-soft pb-2">
-                Log Parameters
-              </h6>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <SelectInput
-                  label="Hour Index of Shift"
-                  name="hourIndex"
-                  value={hourIndex}
-                  options={Array.from({ length: 24 }, (_, i) => ({
-                    label: `Hour ${i + 1}`,
-                    value: String(i + 1),
-                  }))}
-                  required
-                  disabled={isEditDisabled}
-                  onChange={(e) => setHourIndex(e.target.value)}
-                />
-                <TextInput
-                  label="Operator"
-                  name="operatorName"
-                  value={operatorName || operatorId || "—"}
-                  disabled
-                />
-                <QuantityInput
-                  label="Produced Qty"
-                  name="qtyProduced"
-                  value={qtyProduced}
-                  baseUoms={uom}
-                  disabled={isEditDisabled}
-                  onChange={(e) => setQtyProduced(e.target.value)}
-                />
-                <QuantityInput
-                  label="Reject Qty"
-                  name="rejectQty"
-                  value={rejectQty}
-                  baseUoms={uom}
-                  disabled={isEditDisabled}
-                  onChange={(e) => setRejectQty(e.target.value)}
-                />
-                <QuantityInput
-                  label="Scrap Qty"
-                  name="scrapQty"
-                  value={scrapQty}
-                  baseUoms={uom}
-                  disabled={isEditDisabled}
-                  onChange={(e) => setScrapQty(e.target.value)}
-                />
-                <QuantityInput
-                  label="Downtime"
-                  name="downtime"
-                  value={downtime}
-                  baseUoms="mins,hrs"
-                  disabled={isEditDisabled}
-                  onChange={(e) => setDowntime(e.target.value)}
-                />
-
-                {Number(downtime) > 0 && (
-                  <SelectInput
-                    label="Downtime Reason"
-                    name="downtimeReason"
-                    value={downtimeReason}
-                    disabled={isEditDisabled}
-                    onChange={(e) => setDowntimeReason(e.target.value)}
-                    options={[
-                      { label: "Machine Breakdown", value: "Machine Breakdown" },
-                      { label: "Power Failure", value: "Power Failure" },
-                      { label: "Material Shortage", value: "Material Shortage" },
-                      { label: "Tool/Mould Change", value: "Tool/Mould Change" },
-                      { label: "Operator Unavailable", value: "Operator Unavailable" },
-                      { label: "Quality Issue", value: "Quality Issue" },
-                      { label: "Preventative Maintenance", value: "Preventative Maintenance" },
-                      { label: "Others", value: "Others" },
-                    ]}
-                  />
-                )}
-                {Number(rejectQty) > 0 && (
-                  <SelectInput
-                    label="Reject Reason"
-                    name="rejectReason"
-                    value={rejectReason}
-                    disabled={isEditDisabled}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    options={[
-                      { value: "Quality Issue", label: "Quality Issue" },
-                      { value: "Machine Defect", label: "Machine Defect" },
-                      { value: "Material Defect", label: "Material Defect" },
-                      { value: "Operator Error", label: "Operator Error" },
-                      { value: "Others", label: "Others" },
-                    ]}
-                  />
-                )}
-                {Number(scrapQty) > 0 && (
-                  <SelectInput
-                    label="Scrap Reason"
-                    name="scrapReason"
-                    value={scrapReason}
-                    disabled={isEditDisabled}
-                    onChange={(e) => setScrapReason(e.target.value)}
-                    options={[
-                      { value: "Startup Scrap", label: "Startup Scrap" },
-                      { value: "Process Setting", label: "Process Setting" },
-                      { value: "Material Purging", label: "Material Purging" },
-                      { value: "Others", label: "Others" },
-                    ]}
-                  />
-                )}
-                {(downtimeReason === "Others" ||
-                  rejectReason === "Others" ||
-                  scrapReason === "Others") && (
-                  <div className="md:col-span-2">
-                    <TextInput
-                      label="Remarks (Reason for Others)"
-                      name="remarks"
-                      value={remarks}
-                      required
-                      placeholder="Enter specific reason"
-                      disabled={isEditDisabled}
-                      onChange={(e) => setRemarks(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end items-center gap-3 pt-4 border-t border-line-soft">
-            <CustomButton
-              text="Cancel"
-              icon={FaEraser}
-              onClick={() => navigate("/hourly-work-reports")}
-              disabled={isSubmitting}
-              variant="secondary"
-            />
-            {!isEditDisabled && (
-              <CustomButton
-                text={isSubmitting ? "Updating..." : "Update Log"}
-                icon={FaSave}
-                type="submit"
-                disabled={isSubmitting}
-              />
-            )}
-          </div>
-        </form>
-      </div>
+        <StickyFormFooter
+          hint={isEditDisabled ? "This entry can no longer be changed." : "F2 saves"}
+        >
+          <ActionPill
+            variant="secondary"
+            onClick={() => navigate("/hourly-work-reports")}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </ActionPill>
+          {!isEditDisabled && (
+            <ActionPill
+              type="submit"
+              size="lg"
+              icon={<Save size={18} />}
+              loading={isSubmitting}
+              loadingText="Updating..."
+            >
+              Update Log
+            </ActionPill>
+          )}
+        </StickyFormFooter>
+      </form>
 
       {/* ─────── New High Reached Modal ─────── */}
       <CommonModal
@@ -349,25 +325,26 @@ const HourlyWorkReportEdit: React.FC = () => {
           navigate("/hourly-work-reports");
         }}
         title={
-          <div className="flex items-center gap-2 text-ink font-bold">
-            <FaTrophy className="text-xl text-ink-muted animate-pulse" />
+          <div className="flex items-center gap-2 font-bold text-ink">
+            <Trophy size={20} className="text-accent" aria-hidden="true" />
             <span>New Production High Reached!</span>
           </div>
         }
         footer={
-          <CustomButton
-            text="Awesome!"
+          <ActionPill
             onClick={() => {
               setShowNewHighModal(false);
               navigate("/hourly-work-reports");
             }}
-          />
+          >
+            Awesome!
+          </ActionPill>
         }
       >
         <div className="text-center py-4">
           <div className="flex justify-center mb-5">
-            <div className="p-4 bg-card-2 rounded-full text-ink-muted animate-bounce">
-              <FaCrown size={44} />
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-chip text-accent motion-safe:animate-bounce">
+              <Crown size={40} aria-hidden="true" />
             </div>
           </div>
           <h3 className="text-2xl font-bold text-ink mb-2">Congratulations!</h3>
@@ -375,7 +352,7 @@ const HourlyWorkReportEdit: React.FC = () => {
             You have recorded a new highest production capacity for this product on this machine!
           </p>
 
-          <div className="inline-block bg-card-2 border border-line rounded-sm p-6 mb-6 min-w-60">
+          <div className="mb-6 inline-block min-w-60 rounded-[18px] bg-card-2 p-6">
             <div className="text-xs uppercase tracking-wider text-ink-subtle font-semibold mb-1">
               New Capacity High
             </div>
@@ -384,7 +361,7 @@ const HourlyWorkReportEdit: React.FC = () => {
               <span className="text-lg font-normal text-ink-muted">{uom || "units"}</span>
             </div>
             {newHighDetails?.previousCapacity > 0 && (
-              <div className="text-xs text-ink-subtle mt-2 bg-card py-1 px-3 rounded-full border border-line-soft inline-block">
+              <div className="mt-2 inline-block rounded-full bg-card px-3 py-1 text-xs text-ink-subtle">
                 Previous High:{" "}
                 <span className="font-semibold text-ink-muted">
                   {newHighDetails.previousCapacity} {uom || "units"}
@@ -393,16 +370,20 @@ const HourlyWorkReportEdit: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-left max-w-md mx-auto bg-card-2 p-5 rounded-sm border border-line-soft text-sm">
+          <div className="mx-auto grid max-w-md grid-cols-2 gap-4 rounded-[16px] bg-card-2 p-5 text-left text-sm">
             <div className="flex items-start gap-2.5">
-              <FaCalendarAlt className="text-ink-muted mt-0.5 text-base shrink-0" />
+              <CalendarDays
+                size={16}
+                className="mt-0.5 shrink-0 text-ink-muted"
+                aria-hidden="true"
+              />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Date</span>
                 <strong className="text-ink-muted font-semibold">{newHighDetails?.date}</strong>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <FaCogs className="text-ink-muted mt-0.5 text-base shrink-0" />
+              <Cog size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Machine</span>
                 <strong
@@ -414,7 +395,7 @@ const HourlyWorkReportEdit: React.FC = () => {
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <FaClock className="text-ink-muted mt-0.5 text-base shrink-0" />
+              <Clock size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Shift</span>
                 <strong className="text-ink-muted font-semibold">
@@ -423,7 +404,7 @@ const HourlyWorkReportEdit: React.FC = () => {
               </div>
             </div>
             <div className="flex items-start gap-2.5">
-              <FaUsers className="text-ink-muted mt-0.5 text-base shrink-0" />
+              <Users size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
                 <span className="text-ink-subtle text-xs block font-medium">Operators</span>
                 <strong
@@ -437,7 +418,7 @@ const HourlyWorkReportEdit: React.FC = () => {
           </div>
         </div>
       </CommonModal>
-    </div>
+    </PageBody>
   );
 };
 
