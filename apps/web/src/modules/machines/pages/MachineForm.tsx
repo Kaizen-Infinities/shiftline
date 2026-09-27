@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { FaSave, FaEraser } from "react-icons/fa";
+import { Eraser, Save } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { z } from "zod";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import CustomButton from "../../../components/ui/Button/Button";
 import { useAppDispatch } from "../../../hooks/reduxHooks";
 import { createMachine, updateMachine } from "../../../features/machines/machineSlice";
 import { machineService } from "../../../services/machineService";
 import { machineOperationAssignmentService } from "../../../services/machineOperationAssignmentService";
-import BackButton from "../../../components/ui/BackButton/BackButton";
+import { ActionPill, Chip, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import { PageBody, StickyFormFooter } from "../../production/ui";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import MachineTelemetryHealthStrip from "../components/MachineTelemetryHealthStrip";
 
@@ -241,33 +241,53 @@ const MachineForm: React.FC = () => {
     }
   };
 
+  const title = isEdit ? "Edit Machine" : "Create Machine";
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-      </div>
+      <PageBody>
+        <PageHeader
+          title={title}
+          back="/machines"
+          backLabel="Back to List"
+          breadcrumbs={[{ label: "Machines", to: "/machines" }, { label: title }]}
+        />
+        <SkeletonTile lines={4} />
+        <SkeletonTile lines={3} />
+      </PageBody>
     );
   }
 
   return (
-    <div className="max-w-[1024px] xl:mr-auto">
-      <div className="bg-card rounded-sm border border-line overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h2 className="text-xl font-bold text-ink">
-            {isEdit ? "Edit Machine" : "Create Machine"}
-          </h2>
-          <BackButton text="Back to List" to="/machines" />
-        </div>
+    <PageBody className="max-w-[1100px]">
+      <PageHeader
+        title={title}
+        subtitle={
+          isEdit
+            ? `${formData.machineName || "Machine"} · ${formData.machineId}`
+            : "Register a machine so it can be scheduled, planned and tracked on the floor."
+        }
+        back="/machines"
+        backLabel="Back to List"
+        breadcrumbs={[{ label: "Machines", to: "/machines" }, { label: title }]}
+        meta={
+          isEdit ? (
+            <Chip tone={formData.isActive ? "success" : "muted"} dot>
+              {formData.isActive ? "Active" : "Inactive"}
+            </Chip>
+          ) : undefined
+        }
+      />
 
-        <form onSubmit={handleSubmit} className="p-5 lg:p-6 space-y-4" noValidate>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 md:gap-x-10 lg:gap-x-16 xl:gap-x-24 gap-y-3 md:gap-y-4 lg:gap-y-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+        <Tile title="Machine" subtitle="How the machine is identified across plans and reports.">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
             <TextInput
               label="Machine ID"
               name="machineId"
               value={formData.machineId}
               placeholder="e.g. MAC-01"
               required
-              horizontal
               disabled={isEdit}
               error={errors.machineId}
               onChange={handleChange}
@@ -278,10 +298,14 @@ const MachineForm: React.FC = () => {
               value={formData.machineName}
               placeholder="e.g. Extruder A"
               required
-              horizontal
               error={errors.machineName}
               onChange={handleChange}
             />
+          </div>
+        </Tile>
+
+        <Tile title="Technology" subtitle="Used to match products and moulds to the right machine.">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
             <SelectInput
               label="Technology Type"
               name="technologyType"
@@ -300,7 +324,6 @@ const MachineForm: React.FC = () => {
                 { label: "Recycling", value: "RECYCLING" },
               ]}
               required
-              horizontal
               error={errors.technologyType}
               onChange={handleChange}
             />
@@ -314,10 +337,27 @@ const MachineForm: React.FC = () => {
                 { label: "Utility", value: "UTILITY" },
               ]}
               required
-              horizontal
               error={errors.machineType}
               onChange={handleChange}
             />
+            <TextInput
+              label="Target Temp (°C)"
+              name="targetTemperature"
+              type="number"
+              inputMode="decimal"
+              value={formData.targetTemperature}
+              placeholder="e.g. 220"
+              error={errors.targetTemperature}
+              onChange={handleChange}
+            />
+          </div>
+        </Tile>
+
+        <Tile
+          title="Incharge & status"
+          subtitle="Pick a role first, then the person from that role who looks after this machine."
+        >
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
             <SelectInput
               label="Incharge Role"
               name="inchargeRoleId"
@@ -330,7 +370,6 @@ const MachineForm: React.FC = () => {
                 if (errors.inchargeRoleId) setErrors((prev) => ({ ...prev, inchargeRoleId: "" }));
               }}
               required
-              horizontal
               error={errors.inchargeRoleId}
             />
             <SelectInput
@@ -339,7 +378,6 @@ const MachineForm: React.FC = () => {
               value={formData.operatorId}
               defaultOptionLabel={!inchargeRoleId ? "Select Role First" : "-- Select Incharge --"}
               required
-              horizontal
               disabled={!inchargeRoleId}
               options={employees.map((emp) => {
                 const roleName = emp.user?.role?.name || emp.role?.name;
@@ -351,16 +389,6 @@ const MachineForm: React.FC = () => {
               error={errors.operatorId}
               onChange={handleChange}
             />
-            <TextInput
-              label="Target Temp (°C)"
-              name="targetTemperature"
-              type="number"
-              value={formData.targetTemperature}
-              placeholder="e.g. 220"
-              horizontal
-              error={errors.targetTemperature}
-              onChange={handleChange}
-            />
             <SelectInput
               label="Active Status"
               name="isActive"
@@ -370,7 +398,6 @@ const MachineForm: React.FC = () => {
                 { label: "Active", value: "true" },
                 { label: "Inactive", value: "false" },
               ]}
-              horizontal
               error={errors.isActive}
               onChange={handleChange}
             />
@@ -378,39 +405,36 @@ const MachineForm: React.FC = () => {
           {isEdit && formData.machineId && (
             <MachineTelemetryHealthStrip machineId={formData.machineId} />
           )}
-        </form>
+        </Tile>
 
-        <div className="flex justify-end gap-3 px-5 py-4 border-t border-line">
+        <StickyFormFooter hint="F2 saves">
+          <ActionPill variant="secondary" onClick={() => navigate("/machines")}>
+            Cancel
+          </ActionPill>
           {!isEdit && (
-            <CustomButton
-              text="Clear"
-              icon={FaEraser}
+            <ActionPill
               variant="secondary"
+              icon={<Eraser size={16} />}
               onClick={() => {
                 setFormData(initialFormState);
                 setErrors({});
               }}
               disabled={isSubmitting}
-            />
+            >
+              Clear
+            </ActionPill>
           )}
-          <CustomButton
-            text={
-              isSubmitting
-                ? isEdit
-                  ? "Updating..."
-                  : "Saving..."
-                : isEdit
-                  ? "Update Machine"
-                  : "Save Machine"
-            }
-            icon={FaSave}
+          <ActionPill
             type="submit"
-            disabled={isSubmitting}
-            onClick={handleSubmit}
-          />
-        </div>
-      </div>
-    </div>
+            icon={<Save size={17} />}
+            loading={isSubmitting}
+            loadingText={isEdit ? "Updating..." : "Saving..."}
+          >
+            {isEdit ? "Update Machine" : "Save Machine"}
+          </ActionPill>
+        </StickyFormFooter>
+      </form>
+    </PageBody>
   );
 };
 

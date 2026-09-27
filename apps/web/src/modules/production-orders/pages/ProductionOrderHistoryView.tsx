@@ -1,13 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { useLocation, useParams } from "react-router-dom";
-import { FaInfoCircle } from "react-icons/fa";
+import { AlertTriangle, Info } from "lucide-react";
+import {
+  Chip,
+  ChipTabs,
+  EmptyState,
+  PageHeader,
+  SectionLabel,
+  SkeletonTile,
+  Tile,
+} from "../../../components/ui/v2";
+import { Figure, InfoItem, PageBody, formatQty } from "../../production/ui";
 import { productionOrderService } from "../../../services/productionOrderService";
 import { rawMaterialService } from "../../../services/rawMaterialService";
 import { stockAdjustmentService } from "../../../services/stockAdjustmentService";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
-import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 
@@ -162,6 +170,7 @@ const RawMaterialsTable: React.FC<RmTableProps> = ({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const ProductionOrderHistoryView: React.FC = () => {
+  const [activeTab, setActiveTab] = useState("products");
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
 
@@ -468,9 +477,13 @@ const ProductionOrderHistoryView: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <StatusBadge status={plan.status} />
             {plan.stopReason && plan.status !== "COMPLETED" && (
-              <div className="group relative flex items-center cursor-pointer">
-                <FaInfoCircle className="text-[color:var(--color-danger)] text-[13px]" />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-2.5 bg-card border border-line text-ink text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 shadow-md pointer-events-none">
+              <div
+                className="group relative flex cursor-pointer items-center"
+                tabIndex={0}
+                aria-label="Stop reason"
+              >
+                <Info size={15} className="text-[color:var(--color-danger)]" aria-hidden="true" />
+                <div className="sl-popover pointer-events-none invisible absolute bottom-full left-1/2 z-20 mb-2 w-56 -translate-x-1/2 p-3 text-xs text-ink opacity-0 transition-all group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
                   <span className="font-bold text-[color:var(--color-warning)] block mb-1">
                     Stop Reason:
                   </span>
@@ -581,20 +594,20 @@ const ProductionOrderHistoryView: React.FC = () => {
         render: (r) => {
           if (r._dispatchStatus === "dispatched")
             return (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+              <Chip size="sm" tone="success" dot>
                 Dispatched
-              </span>
+              </Chip>
             );
           if (r._dispatchStatus === "ready")
             return (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+              <Chip size="sm" tone="info" dot>
                 Ready for Dispatch
-              </span>
+              </Chip>
             );
           return (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+            <Chip size="sm" tone="muted" dot>
               Not Dispatched
-            </span>
+            </Chip>
           );
         },
       },
@@ -617,13 +630,7 @@ const ProductionOrderHistoryView: React.FC = () => {
         width: "110px",
         render: (item) => (
           <span className="text-ink-muted">
-            {item.dispatch?.dispatchDate
-              ? new Date(item.dispatch.dispatchDate).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })
-              : "-"}
+            {item.dispatch?.dispatchDate ? formatDate(item.dispatch.dispatchDate) : "-"}
           </span>
         ),
       },
@@ -668,375 +675,338 @@ const ProductionOrderHistoryView: React.FC = () => {
     []
   );
 
-  // ── Status history columns ────────────────────────────────────────────────
-  const historyColumns: DataTableColumn<any>[] = useMemo(
-    () => [
-      {
-        header: "#",
-        width: "48px",
-        render: (_, idx) => <span className="text-ink-subtle font-medium">{idx + 1}</span>,
-      },
-      {
-        header: "DATE & TIME",
-        width: "160px",
-        render: (rec) => (
-          <span className="text-ink-muted whitespace-nowrap">{formatDateTime(rec.changedAt)}</span>
-        ),
-      },
-      {
-        header: "ACTION",
-        width: "160px",
-        render: (rec) => <span className="font-medium text-ink">{rec.action || "-"}</span>,
-      },
-      {
-        header: "FROM STATUS",
-        width: "170px",
-        render: (rec) =>
-          rec.fromStatus ? (
-            <StatusBadge status={rec.fromStatus} />
-          ) : (
-            <span className="text-ink-subtle italic">—</span>
-          ),
-      },
-      {
-        header: "TO STATUS",
-        width: "170px",
-        render: (rec) => <StatusBadge status={rec.toStatus} />,
-      },
-      {
-        header: "CHANGED BY",
-        render: (rec) => (
-          <span className="text-ink-muted">{rec.changedByName || rec.changedBy || "-"}</span>
-        ),
-      },
-      {
-        header: "REMARKS",
-        render: (rec) => <span className="text-ink-muted">{rec.remarks || "-"}</span>,
-      },
-    ],
-    []
-  );
-
   // ── Render ────────────────────────────────────────────────────────────────
+  const rawStatus = displayOrder?.status || fullOrder?.status;
+  const targetForStatus = Number(fullOrder?.targetQty || displayOrder?.targetQty || 0);
+  const producedForStatus = Number(fullOrder?.producedQty || displayOrder?.producedQty || 0);
+  // If DB has COMPLETED_WITH_SHORTFALL but produced >= target, it was set incorrectly — show correct status
+  const resolvedStatus =
+    rawStatus === "COMPLETED_WITH_SHORTFALL" &&
+    targetForStatus > 0 &&
+    producedForStatus >= targetForStatus
+      ? "READY_FOR_DISPATCH"
+      : rawStatus;
+  const statusShortfall = targetForStatus - producedForStatus;
+
+  const tabs = [
+    { key: "products", label: "Products & materials", count: fullOrder?.products?.length },
+    { key: "shifts", label: "Shifts & dispatch" },
+    ...(rmIssues.length > 0
+      ? [{ key: "issues", label: "Material issues", count: rmIssues.length }]
+      : []),
+    ...(historyRecords.length > 0
+      ? [{ key: "activity", label: "Activity", count: historyRecords.length }]
+      : []),
+  ];
+  const tab = tabs.some((t) => t.key === activeTab) ? activeTab : "products";
+
   return (
-    <div className="w-full">
-      <div className="bg-card rounded-sm border border-line overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
-          <h2 className="text-xl font-bold text-ink">
-            Production Order Details
-            <span className="text-primary text-sm font-semibold ml-2">{id}</span>
-          </h2>
-          <BackButton text="Back to List" to="/production-orders" />
+    <PageBody>
+      <PageHeader
+        title="Production Order Details"
+        meta={
+          <>
+            <Chip size="sm" tone="muted" className="font-mono">
+              {id}
+            </Chip>
+            {!loading && resolvedStatus && <StatusBadge status={resolvedStatus} />}
+          </>
+        }
+        subtitle="Products, raw materials, shift output, dispatches and every status change."
+        back="/production-orders"
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Production orders", to: "/production-orders" },
+          { label: "History", to: "/allproduction-orders" },
+          { label: String(id ?? "") },
+        ]}
+      />
+
+      {hasInsufficientStock && (
+        <div
+          role="alert"
+          className="sl-tile flex items-start gap-3 p-4 text-sm font-medium text-[color:var(--color-danger)]"
+          style={{ boxShadow: "inset 4px 0 0 var(--color-danger)" }}
+        >
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+          One or more required raw materials have insufficient stock. Please create a Raw Material
+          Order before proceeding to Weekly Machine Assignment.
         </div>
+      )}
 
-        <div className="p-5 lg:p-6 space-y-6">
-          {/* Insufficient stock alert */}
-          {hasInsufficientStock && (
-            <div className="border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] px-4 py-3 rounded-lg flex items-center gap-2 text-sm font-medium">
-              One or more required raw materials have insufficient stock. Please create a Raw
-              Material Order before proceeding to Weekly Machine Assignment.
-            </div>
-          )}
-
-          {loading ? (
-            <CommonLoader text="Loading order details..." fullScreen={false} />
-          ) : (
-            <>
-              {/* ── General Info ──────────────────────────────── */}
-              <div className="bg-card-2 rounded-lg border border-line p-5">
-                <h3 className="text-xs font-extrabold text-ink uppercase tracking-wider mb-4">
-                  Order Information
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
-                  <div>
-                    <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
-                      Order No
-                    </div>
-                    <div className="font-semibold text-ink">
-                      {displayOrder?.productionOrderId || "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
-                      Order Date
-                    </div>
-                    <div className="font-semibold text-ink">
-                      {formatDate(displayOrder?.orderDate)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
-                      Due Date
-                    </div>
-                    <div className="font-semibold text-ink">
-                      {formatDate(displayOrder?.dueDate)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">Status</div>
-                    <div className="flex flex-col gap-1 items-start">
-                      {(() => {
-                        const rawStatus = displayOrder?.status || fullOrder?.status;
-                        const target = Number(fullOrder?.targetQty || displayOrder?.targetQty || 0);
-                        const produced = Number(
-                          fullOrder?.producedQty || displayOrder?.producedQty || 0
-                        );
-                        // If DB has COMPLETED_WITH_SHORTFALL but produced >= target, it was set incorrectly — show correct status
-                        const resolvedStatus =
-                          rawStatus === "COMPLETED_WITH_SHORTFALL" &&
-                          target > 0 &&
-                          produced >= target
-                            ? "READY_FOR_DISPATCH"
-                            : rawStatus;
-                        const shortfall = target - produced;
-                        return (
-                          <>
-                            <StatusBadge status={resolvedStatus} />
-                            {resolvedStatus === "COMPLETED_WITH_SHORTFALL" && shortfall > 0 && (
-                              <span className="text-[10px] text-[color:var(--color-danger)] font-bold uppercase whitespace-nowrap">
-                                Shortfall: {shortfall} pcs
-                              </span>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
+      {loading ? (
+        <>
+          <SkeletonTile lines={3} label="Loading order details..." />
+          <SkeletonTile lines={5} />
+        </>
+      ) : (
+        <>
+          {/* ── Summary ──────────────────────────────── */}
+          <Tile>
+            <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+              <InfoItem label="Order No" value={displayOrder?.productionOrderId} mono />
+              <InfoItem label="Order Date" value={formatDate(displayOrder?.orderDate)} />
+              <InfoItem label="Due Date" value={formatDate(displayOrder?.dueDate)} />
+              <div>
+                <InfoItem label="Status" value={<StatusBadge status={resolvedStatus} />} />
+                {resolvedStatus === "COMPLETED_WITH_SHORTFALL" && statusShortfall > 0 && (
+                  <Chip size="sm" tone="danger" className="mt-1">
+                    Shortfall: {formatQty(statusShortfall)} pcs
+                  </Chip>
+                )}
               </div>
+            </div>
+            <div className="mt-5 grid grid-cols-3 gap-3 rounded-[16px] bg-card-2 p-4">
+              <Figure size="lg" label="Target" value={formatQty(targetVal)} />
+              <Figure size="lg" label="Produced" tone="success" value={formatQty(producedVal)} />
+              <Figure
+                size="lg"
+                label="Dispatched"
+                tone="accent"
+                value={formatQty(totalDispatchedQty)}
+              />
+            </div>
+          </Tile>
 
-              {/* ── Products & Raw Materials ──────────────────── */}
-              {fullOrder?.products?.map((prod: any, idx: number) => (
-                <div key={idx} className="border border-line rounded-lg overflow-hidden">
-                  {/* Product header */}
-                  <div className="bg-card-2 border-b border-line px-5 py-4">
-                    <h4 className="text-sm font-bold text-ink mb-3">
-                      Product {idx + 1}: <span className="text-primary">{prod.productName}</span>{" "}
-                      <span className="text-ink-subtle font-normal text-xs">
-                        ({prod.productCode})
-                      </span>
-                    </h4>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
-                          Production Qty
-                        </div>
-                        <div className="font-semibold text-ink">
-                          {prod.quantity} {normalizeUom(prod.uom)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
-                          Weight Used
-                        </div>
-                        <div className="font-semibold text-ink">
-                          {Number(prod.weightPerPieceUsed || 0).toFixed(3)} KG
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
-                          Unit (UOM)
-                        </div>
-                        <div className="font-semibold text-ink">{normalizeUom(prod.uom)}</div>
-                      </div>
-                    </div>
-                  </div>
+          <ChipTabs
+            items={tabs}
+            value={tab}
+            onChange={setActiveTab}
+            ariaLabel="Order sections"
+            idPrefix="po-history"
+          />
 
-                  {/* Raw materials table */}
-                  <div className="p-5">
-                    <div className="text-xs font-extrabold text-ink uppercase tracking-wider mb-3">
-                      Required Raw Materials
+          <div
+            role="tabpanel"
+            id={`po-history-panel-${tab}`}
+            aria-labelledby={`po-history-tab-${tab}`}
+            className="flex flex-col gap-5"
+          >
+            {/* ── Products & Raw Materials ──────────────────── */}
+            {tab === "products" &&
+              (fullOrder?.products?.length ? (
+                fullOrder.products.map((prod: any, idx: number) => (
+                  <Tile
+                    key={idx}
+                    title={
+                      <>
+                        Product {idx + 1}: {prod.productName}{" "}
+                        <span className="text-[13px] font-normal text-ink-subtle">
+                          ({prod.productCode})
+                        </span>
+                      </>
+                    }
+                  >
+                    <div className="mb-4 grid grid-cols-3 gap-3 rounded-[16px] bg-card-2 p-4">
+                      <Figure
+                        label="Production Qty"
+                        value={formatQty(prod.quantity)}
+                        hint={normalizeUom(prod.uom)}
+                      />
+                      <Figure
+                        label="Weight Used"
+                        value={Number(prod.weightPerPieceUsed || 0).toFixed(3)}
+                        hint="KG per piece"
+                      />
+                      <Figure label="Unit (UOM)" value={normalizeUom(prod.uom)} />
                     </div>
+                    <SectionLabel as="h3">Required Raw Materials</SectionLabel>
                     <RawMaterialsTable
                       rawMaterials={prod.rawMaterials || []}
                       rawMaterialsMap={rawMaterialsMap}
                       orderStatus={fullOrder?.status || ""}
                       productionHasStarted={productionHasStarted}
                     />
-                  </div>
-                </div>
+                  </Tile>
+                ))
+              ) : (
+                <Tile>
+                  <EmptyState compact title="No products recorded on this order." />
+                </Tile>
               ))}
 
-              {/* ── Shift-wise Production & Dispatch ─────────── */}
-              <div className="border border-line rounded-lg overflow-hidden">
-                <div className="flex flex-wrap justify-between items-center gap-3 px-5 py-4 border-b border-line bg-card">
-                  <h4 className="text-sm font-bold text-ink">
-                    Shift-wise Production &amp; Dispatch Details
-                  </h4>
-                  <div className="flex items-center gap-3 flex-wrap text-xs font-semibold text-ink-subtle uppercase tracking-wider">
-                    <span>
-                      Target: <span className="text-ink font-bold text-sm">{targetVal}</span>
-                    </span>
-                    <span className="text-line-soft">|</span>
-                    <span>
-                      Produced:{" "}
-                      <span className="text-[color:var(--color-success)] font-bold text-sm">
-                        {producedVal}
-                      </span>
-                    </span>
-                    <span className="text-line-soft">|</span>
-                    <span>
-                      Dispatched:{" "}
-                      <span className="text-[color:var(--color-info)] font-bold text-sm">
-                        {totalDispatchedQty}
-                      </span>
-                    </span>
-                    {fullOrder?.status === "COMPLETED_WITH_SHORTFALL" &&
-                      producedVal < targetVal && (
-                        <span className="bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/30 px-3 py-1 rounded-sm text-xs font-bold uppercase whitespace-nowrap">
-                          Permanently Stopped (Shortfall: {targetVal - producedVal} pcs)
-                        </span>
-                      )}
-                  </div>
-                </div>
-                <div className="p-4">
+            {/* ── Shift-wise Production & Dispatch ─────────── */}
+            {tab === "shifts" && (
+              <>
+                <Tile
+                  padding="sm"
+                  title="Shift-wise Production & Dispatch Details"
+                  actions={
+                    fullOrder?.status === "COMPLETED_WITH_SHORTFALL" && producedVal < targetVal ? (
+                      <Chip tone="danger" size="sm">
+                        Permanently Stopped (Shortfall: {formatQty(targetVal - producedVal)} pcs)
+                      </Chip>
+                    ) : undefined
+                  }
+                >
                   <DataTable
+                    ariaLabel="Shift-wise production"
                     columns={plansWithDispatch.length > 0 ? shiftColumns : fallbackShiftColumns}
                     data={plansWithDispatch.length > 0 ? plansWithDispatch : fallbackShiftData}
                     rowKey={(r) => r.id}
                     emptyMessage="No shift plans recorded yet."
                     minHeightClassName="min-h-0"
                     density="compact"
+                    className="!shadow-none border border-line-soft"
                   />
-                </div>
-              </div>
+                </Tile>
 
-              {/* ── Dispatch History ──────────────────────────── */}
-              {fullOrder?.goodsDispatchItems?.length > 0 && (
-                <div className="border border-line rounded-lg overflow-hidden">
-                  <div className="px-5 py-4 border-b border-line bg-card">
-                    <h4 className="text-sm font-bold text-ink">Dispatch History</h4>
-                  </div>
-                  <div className="p-4">
+                {fullOrder?.goodsDispatchItems?.length > 0 && (
+                  <Tile padding="sm" title="Dispatch History">
                     <DataTable
+                      ariaLabel="Dispatch history"
                       columns={dispatchColumns}
                       data={fullOrder.goodsDispatchItems}
                       rowKey={(item) => item.id}
                       emptyMessage="No dispatches recorded."
                       minHeightClassName="min-h-0"
                       density="compact"
+                      className="!shadow-none border border-line-soft"
                     />
-                  </div>
-                </div>
-              )}
+                  </Tile>
+                )}
+              </>
+            )}
 
-              {/* ── Raw Material Issues ───────────────────────── */}
-              {rmIssues.length > 0 && (
-                <div className="border border-line rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-line bg-card">
-                    <h4 className="text-sm font-bold text-ink">Raw Material Issues</h4>
-                    <span className="text-xs font-semibold text-ink-subtle bg-card-2 border border-line px-2.5 py-1 rounded-full">
-                      {rmIssues.length} adjustment{rmIssues.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    {rmIssues.map((adj: any) => (
-                      <div
-                        key={adj.adjId}
-                        className="border border-line rounded-lg overflow-hidden"
-                      >
-                        {/* Adjustment header */}
-                        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 py-2.5 bg-card-2 border-b border-line-soft">
-                          <span className="font-mono text-xs font-bold text-primary">
-                            {adj.adjustmentNumber}
-                          </span>
-                          <span className="text-xs text-ink-muted">{formatDate(adj.date)}</span>
-                          {adj.reason && adj.reason !== "-" && (
-                            <span className="text-xs text-ink-subtle italic">{adj.reason}</span>
-                          )}
-                          <span className="ml-auto text-xs text-ink-subtle font-medium">
-                            {adj.items.length} material{adj.items.length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        {/* Items */}
-                        <div className="divide-y divide-line-soft">
-                          {/* Column headers */}
-                          <div className="grid grid-cols-[1fr_140px_110px_110px_110px_1fr] gap-3 px-4 py-2 bg-card-2/40">
-                            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
-                              Raw Material
-                            </span>
-                            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
-                              Store
-                            </span>
-                            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-right">
-                              Before
-                            </span>
-                            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-right">
-                              After
-                            </span>
-                            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-right">
-                              Issued
-                            </span>
-                            <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
-                              Remarks
-                            </span>
-                          </div>
-                          {adj.items.map((item: any, idx: number) => (
-                            <div
-                              key={idx}
-                              className="grid grid-cols-[1fr_140px_110px_110px_110px_1fr] gap-3 px-4 py-2.5 hover:bg-card-2/30 transition-colors"
-                            >
-                              <div>
-                                <div className="font-semibold text-sm text-ink">
-                                  {item.rawMaterialName}
-                                </div>
-                                {item.rawMaterialCode && item.rawMaterialCode !== "-" && (
-                                  <div className="text-xs text-ink-subtle">
-                                    {item.rawMaterialCode}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-xs text-ink-muted self-center">
-                                {item.store}
-                              </span>
-                              <span className="text-xs text-ink-muted text-right self-center tabular-nums">
-                                {item.currentQty.toFixed(3)} {item.uom}
-                              </span>
-                              <span className="text-xs text-ink-muted text-right self-center tabular-nums">
-                                {item.adjustedQty.toFixed(3)} {item.uom}
-                              </span>
-                              <span
-                                className={`text-xs font-bold text-right self-center tabular-nums whitespace-nowrap ${item.difference < 0 ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
-                              >
-                                {item.difference < 0 ? "" : "+"}
-                                {item.difference.toFixed(3)} {item.uom}
-                              </span>
-                              <span className="text-xs text-ink-muted self-center">
-                                {item.remarks}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+            {/* ── Raw Material Issues ───────────────────────── */}
+            {tab === "issues" && (
+              <Tile
+                title="Raw Material Issues"
+                actions={
+                  <Chip size="sm" tone="muted">
+                    {rmIssues.length} adjustment{rmIssues.length !== 1 ? "s" : ""}
+                  </Chip>
+                }
+              >
+                <div className="flex flex-col gap-3">
+                  {rmIssues.map((adj: any) => (
+                    <div
+                      key={adj.adjId}
+                      className="overflow-hidden rounded-[14px] border border-line-soft"
+                    >
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 bg-card-2 px-4 py-2.5">
+                        <span className="font-mono text-xs font-bold text-accent">
+                          {adj.adjustmentNumber}
+                        </span>
+                        <span className="text-xs text-ink-muted">{formatDate(adj.date)}</span>
+                        {adj.reason && adj.reason !== "-" && (
+                          <span className="text-xs italic text-ink-subtle">{adj.reason}</span>
+                        )}
+                        <span className="ml-auto text-xs font-medium text-ink-subtle">
+                          {adj.items.length} material{adj.items.length !== 1 ? "s" : ""}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[640px] text-sm">
+                          <thead>
+                            <tr className="border-b border-line-soft">
+                              {[
+                                "Raw Material",
+                                "Store",
+                                "Before",
+                                "After",
+                                "Issued",
+                                "Remarks",
+                              ].map((h, i) => (
+                                <th
+                                  key={h}
+                                  scope="col"
+                                  className={`sl-th px-4 py-2 ${i >= 2 && i <= 4 ? "text-right" : "text-left"}`}
+                                >
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-line-soft">
+                            {adj.items.map((item: any, idx: number) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-2.5">
+                                  <div className="font-semibold text-ink">
+                                    {item.rawMaterialName}
+                                  </div>
+                                  {item.rawMaterialCode && item.rawMaterialCode !== "-" && (
+                                    <div className="font-mono text-xs text-ink-subtle">
+                                      {item.rawMaterialCode}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2.5 text-xs text-ink-muted">{item.store}</td>
+                                <td className="px-4 py-2.5 text-right text-xs text-ink-muted tabular-nums">
+                                  {item.currentQty.toFixed(3)} {item.uom}
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-xs text-ink-muted tabular-nums">
+                                  {item.adjustedQty.toFixed(3)} {item.uom}
+                                </td>
+                                <td
+                                  className={`whitespace-nowrap px-4 py-2.5 text-right text-xs font-bold tabular-nums ${item.difference < 0 ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
+                                >
+                                  {item.difference < 0 ? "" : "+"}
+                                  {item.difference.toFixed(3)} {item.uom}
+                                </td>
+                                <td className="px-4 py-2.5 text-xs text-ink-muted">
+                                  {item.remarks}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </Tile>
+            )}
 
-              {/* ── Status Change History ─────────────────────── */}
-              {historyRecords.length > 0 && (
-                <div className="border border-line rounded-lg overflow-hidden">
-                  <div className="px-5 py-4 border-b border-line bg-card">
-                    <h4 className="text-sm font-bold text-ink">Status Change History</h4>
-                  </div>
-                  <div className="p-4">
-                    <DataTable
-                      columns={historyColumns}
-                      data={historyRecords}
-                      rowKey={(rec) => rec.id ?? rec.changedAt ?? Math.random()}
-                      emptyMessage="No history available."
-                      minHeightClassName="min-h-0"
-                      density="compact"
-                    />
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+            {/* ── Status Change History ─────────────────────── */}
+            {tab === "activity" && (
+              <Tile title="Status Change History">
+                <ol className="m-0 flex list-none flex-col p-0">
+                  {historyRecords.map((rec: any, idx: number) => (
+                    <li
+                      key={rec.id ?? rec.changedAt ?? idx}
+                      className="relative flex gap-4 pb-5 last:pb-0"
+                    >
+                      {idx < historyRecords.length - 1 && (
+                        <span
+                          className="absolute left-[7px] top-5 h-[calc(100%-12px)] w-0.5 bg-line-soft"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span
+                        className="mt-1.5 h-4 w-4 shrink-0 rounded-full border-[3px] border-card bg-accent ring-2 ring-chip"
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-ink">{rec.action || "-"}</span>
+                          {rec.fromStatus && (
+                            <>
+                              <StatusBadge status={rec.fromStatus} />
+                              <span className="text-ink-subtle" aria-label="to">
+                                →
+                              </span>
+                            </>
+                          )}
+                          <StatusBadge status={rec.toStatus} />
+                        </div>
+                        <div className="sl-muted mt-0.5 text-[13px]">
+                          {formatDateTime(rec.changedAt)} ·{" "}
+                          {rec.changedByName || rec.changedBy || "-"}
+                        </div>
+                        {rec.remarks && (
+                          <p className="m-0 mt-1 text-[13px] text-ink-muted">{rec.remarks}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </Tile>
+            )}
+          </div>
+        </>
+      )}
+    </PageBody>
   );
 };
 

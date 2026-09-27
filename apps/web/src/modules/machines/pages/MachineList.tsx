@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { useListCache } from "../../../hooks/useListCache";
@@ -9,13 +8,21 @@ import { machineService } from "../../../services/machineService";
 
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
-import CustomButton from "../../../components/ui/Button/Button";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import DataTable from "../../../components/ui/table/DataTable";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import MachineViewModal from "../components/MachineViewModal";
-import { Search } from "lucide-react";
+import { Cog, Plus, Users } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  PageHeader,
+  SearchField,
+  Toolbar,
+  actionPillClass,
+} from "../../../components/ui/v2";
+import { PageBody, RowActions, humanize } from "../../production/ui";
 import { useEmployees } from "../../../hooks/useEmployees";
 import { usePermission } from "../../../hooks/usePermission";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
@@ -32,6 +39,7 @@ const MachineList: React.FC = () => {
   const canExportMachine = can("machines.export");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -65,16 +73,20 @@ const MachineList: React.FC = () => {
   usePageShortcuts({ onRefresh: () => refresh(), onDelete: () => setShowDeleteModal(true) });
 
   const filteredData = useMemo(() => {
-    if (!searchTerm) return machines;
+    const byStatus =
+      statusFilter === "all"
+        ? machines
+        : machines.filter((m: any) => (statusFilter === "active" ? m.isActive : !m.isActive));
+    if (!searchTerm) return byStatus;
     const term = searchTerm.toLowerCase();
-    return machines.filter(
+    return byStatus.filter(
       (m: any) =>
         m.machineId?.toLowerCase().includes(term) ||
         m.machineName?.toLowerCase().includes(term) ||
         m.technologyType?.toLowerCase().includes(term) ||
         m.machineType?.toLowerCase().includes(term)
     );
-  }, [machines, searchTerm]);
+  }, [machines, searchTerm, statusFilter]);
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -85,11 +97,6 @@ const MachineList: React.FC = () => {
       loadEmployees({ limit: 500 });
     }
   }, [loadEmployees, can]);
-
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
 
   const handleOpenEdit = useCallback(
     (item: any) => {
@@ -145,28 +152,40 @@ const MachineList: React.FC = () => {
     };
   }, [employees]);
 
+  const activeCount = machines.filter((m: any) => m.isActive).length;
+  const statusFilters = [
+    { key: "all" as const, label: "All", count: machines.length },
+    { key: "active" as const, label: "Active", count: activeCount },
+    { key: "inactive" as const, label: "Inactive", count: machines.length - activeCount },
+  ];
+
+  const addMachineButton = canCreateMachine ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/machines/create")}>
+      Add Machine
+    </ActionPill>
+  ) : null;
+
   return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Machine Management</h2>
-          </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-64">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
-                size={15}
-              />
-              <input
-                type="text"
-                data-search-input
-                className="w-full pl-10 pr-4 py-2 bg-card-2 border border-line-soft rounded-sm text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                placeholder="Search machines..."
-                value={searchTerm}
-                onChange={handleSearch}
-              />
-            </div>
+    <PageBody>
+      <PageHeader
+        title="Machines"
+        icon={<Cog size={22} />}
+        subtitle={
+          loading && machines.length === 0
+            ? "Machine Management · loading…"
+            : `Machine Management · ${machines.length} machine${machines.length === 1 ? "" : "s"}, ${activeCount} active`
+        }
+        actions={
+          <>
+            {can("machine-assignments.view") && (
+              <Link
+                to="/machines/assignments"
+                className={actionPillClass({ variant: "secondary" })}
+              >
+                <Users size={17} aria-hidden="true" />
+                Operator assignments
+              </Link>
+            )}
             {canExportMachine && (
               <ExportCSVButton
                 fetchData={fetchMachinesForExport}
@@ -175,122 +194,157 @@ const MachineList: React.FC = () => {
                 text="Export"
               />
             )}
-            {canCreateMachine && (
-              <CustomButton
-                text="Add Machine"
-                icon={FaPlus}
-                onClick={() => navigate("/machines/create")}
-              />
-            )}
-          </div>
-        </div>
+          </>
+        }
+        primaryAction={addMachineButton}
+      />
 
-        <div className="p-0 overflow-hidden rounded-b-sm">
-          <DataTable
-            data={paginatedData}
-            rowKey={(item) => item.machineId}
-            loading={loading}
-            emptyMessage="No machines found."
-            pagination={
-              totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
-            }
-            columns={[
-              {
-                header: "#",
-                width: "60px",
-                align: "center",
-                render: (_item, index) => (
-                  <span className="text-ink-subtle font-mono text-xs">
-                    {String(startIndex + index + 1).padStart(2, "0")}
-                  </span>
-                ),
-              },
-              { header: "MACHINE ID", accessor: "machineId", width: "110px" },
-              { header: "MACHINE NAME", accessor: "machineName", width: "160px" },
-              {
-                header: "TECH TYPE",
-                width: "150px",
-                render: (item) => {
-                  const val = item.technologyType || "—";
-                  return (
-                    <span className="block truncate" title={val}>
-                      {val}
-                    </span>
-                  );
-                },
-              },
-              {
-                header: "MACHINE TYPE",
-                width: "120px",
-                render: (item) => {
-                  const val = item.machineType || "—";
-                  return (
-                    <span className="block truncate" title={val}>
-                      {val}
-                    </span>
-                  );
-                },
-              },
-              {
-                header: "MACHINE INCHARGE",
-                render: (item) => {
-                  if (!item.operatorId) return "—";
-                  const emp = employees.find((e) => e.id === item.operatorId);
-                  const val = emp ? emp.fullName : item.operatorId;
-                  return (
-                    <span className="block truncate" title={val}>
-                      {val}
-                    </span>
-                  );
-                },
-              },
-              {
-                header: "STATUS",
-                width: "110px",
-                align: "center",
-                render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} />,
-              },
-              {
-                header: "ACTIONS",
-                width: "120px",
-                align: "center",
-                render: (item) => (
-                  <div className="flex items-center gap-2">
-                    <ViewButton
-                      onClick={() => {
-                        setSelectedMachine(item);
-                        setShowViewModal(true);
-                      }}
-                    />
-                    {canEditMachine && <EditButton onClick={() => handleOpenEdit(item)} />}
-                    {canDeleteMachine && (
-                      <DeleteButton onClick={() => triggerDelete(item.machineId)} />
-                    )}
-                  </div>
-                ),
-              },
-            ]}
+      <div>
+        <Toolbar
+          filters={statusFilters}
+          filterValue={statusFilter}
+          onFilterChange={(key) => {
+            setStatusFilter(key);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Machine status"
+        >
+          <SearchField
+            data-search-input
+            value={searchTerm}
+            onValueChange={(v) => {
+              setSearchTerm(v);
+              setCurrentPage(1);
+            }}
+            placeholder="Search machines..."
+            label="Search machines"
           />
-        </div>
+        </Toolbar>
 
-        <CommonConfirmModal
-          show={showDeleteModal}
-          onHide={() => setShowDeleteModal(false)}
-          onConfirm={handleDeleteConfirm}
-          title="Confirm Delete"
-          message="Are you sure you want to delete this machine? This action cannot be undone."
-          confirmText={isDeleting ? "Deleting..." : "Delete"}
-          confirmVariant="danger"
-          isDangerous={true}
-        />
-
-        <MachineViewModal
-          show={showViewModal}
-          onHide={() => setShowViewModal(false)}
-          machine={selectedMachine}
+        <DataTable
+          ariaLabel="Machines"
+          data={paginatedData}
+          rowKey={(item) => item.machineId}
+          loading={loading}
+          emptyMessage={
+            searchTerm || statusFilter !== "all"
+              ? "No machines match these filters."
+              : "No machines yet. Add your first machine to start planning production."
+          }
+          emptyAction={
+            searchTerm || statusFilter !== "all" ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : (
+              addMachineButton
+            )
+          }
+          pagination={
+            totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
+          }
+          columns={[
+            {
+              header: "Machine",
+              render: (item) => (
+                <div className="min-w-0 py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMachine(item);
+                      setShowViewModal(true);
+                    }}
+                    className="block text-left font-semibold text-accent hover:underline underline-offset-4"
+                  >
+                    {item.machineName || item.machineId}
+                  </button>
+                  <span className="sl-muted font-mono text-[12px]">{item.machineId}</span>
+                </div>
+              ),
+            },
+            {
+              header: "Technology",
+              render: (item) => (
+                <span className="block max-w-[220px] truncate" title={item.technologyType || ""}>
+                  {humanize(item.technologyType)}
+                </span>
+              ),
+            },
+            {
+              header: "Type",
+              render: (item) =>
+                item.machineType ? (
+                  <Chip size="sm" tone="muted">
+                    {humanize(item.machineType)}
+                  </Chip>
+                ) : (
+                  <span className="text-ink-subtle">—</span>
+                ),
+            },
+            {
+              header: "Machine incharge",
+              render: (item) => {
+                if (!item.operatorId) return <span className="text-ink-subtle">—</span>;
+                const emp = employees.find((e) => e.id === item.operatorId);
+                const val = emp ? emp.fullName : item.operatorId;
+                return (
+                  <span className="block max-w-[220px] truncate" title={val}>
+                    {val}
+                  </span>
+                );
+              },
+            },
+            {
+              header: "Status",
+              width: "120px",
+              render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} />,
+            },
+            {
+              header: "Actions",
+              width: "140px",
+              align: "right",
+              render: (item) => (
+                <RowActions>
+                  <ViewButton
+                    onClick={() => {
+                      setSelectedMachine(item);
+                      setShowViewModal(true);
+                    }}
+                  />
+                  {canEditMachine && <EditButton onClick={() => handleOpenEdit(item)} />}
+                  {canDeleteMachine && (
+                    <DeleteButton onClick={() => triggerDelete(item.machineId)} />
+                  )}
+                </RowActions>
+              ),
+            },
+          ]}
         />
       </div>
-    </div>
+
+      <CommonConfirmModal
+        show={showDeleteModal}
+        onHide={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Confirm Delete"
+        message="Are you sure you want to delete this machine? This action cannot be undone."
+        confirmText={isDeleting ? "Deleting..." : "Delete"}
+        confirmVariant="danger"
+        isDangerous={true}
+      />
+
+      <MachineViewModal
+        show={showViewModal}
+        onHide={() => setShowViewModal(false)}
+        machine={selectedMachine}
+      />
+    </PageBody>
   );
 };
 

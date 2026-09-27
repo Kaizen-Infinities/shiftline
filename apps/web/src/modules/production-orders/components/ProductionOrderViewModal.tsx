@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { FaTimes } from "react-icons/fa";
+import { PackageMinus, X } from "lucide-react";
+import { ActionPill, Chip, Skeleton } from "../../../components/ui/v2";
+import { formatDate as formatDisplayDate } from "../../../utils/dateUtils";
 import { toast } from "react-toastify";
 import { productionOrderService } from "../../../services/productionOrderService";
 import type { ProductionOrder } from "../../../services/productionOrderService";
@@ -80,14 +82,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
 
   if (!order) return null;
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
+  const formatDate = (dateString?: string) => (dateString ? formatDisplayDate(dateString) : "-");
 
   const hasInsufficientStock = fullOrder?.products?.some((p: any) =>
     p.rawMaterials?.some((rm: any) => {
@@ -113,41 +108,57 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
   if (!show) return null;
   return (
     <>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-        <div className="bg-card border border-line rounded-sm shadow-md w-full max-w-5xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4">
+        <div className="sl-backdrop" aria-hidden="true" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="po-view-modal-title"
+          className="sl-dialog flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden"
+        >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-line flex justify-between items-center">
-            <h3 className="text-xl font-bold text-ink m-0">Production Order Details</h3>
+          <div className="sl-dialog-header border-b border-line-soft pb-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h3 id="po-view-modal-title" className="sl-dialog-title">
+                Production Order Details
+              </h3>
+              <Chip size="sm" tone="muted" className="font-mono">
+                {fullOrder?.productionOrderId || order.productionOrderId}
+              </Chip>
+            </div>
             <button
               type="button"
               onClick={onHide}
-              className="text-ink-subtle hover:text-ink transition-colors p-2 rounded-md hover:bg-card-2"
+              aria-label="Close"
+              className="sl-icon-btn sl-icon-btn-ghost"
             >
-              <FaTimes />
+              <X size={18} aria-hidden="true" />
             </button>
           </div>
 
           {/* Body */}
           <div className="p-6 overflow-y-auto flex-1">
             {hasInsufficientStock && (
-              <div className="border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] px-4 py-3 rounded-sm flex items-center gap-2 mb-4 text-sm font-medium">
+              <div className="rounded-[14px] bg-card-2 text-[color:var(--color-danger)] px-4 py-3 shadow-[inset_4px_0_0_var(--color-danger)] flex items-center gap-2 mb-4 text-sm font-medium">
                 One or more required raw materials have insufficient stock. Please create a Raw
                 Material Order before proceeding to Weekly Machine Assignment.
               </div>
             )}
 
             {loading ? (
-              <div className="text-center p-8 flex flex-col items-center justify-center text-ink-muted">
-                <div className="animate-spin rounded-full border-b-2 border-accent h-8 w-8 mb-4"></div>
-                Loading details...
+              <div className="flex flex-col gap-3" role="status">
+                <span className="sr-only">Loading details...</span>
+                <Skeleton height={96} />
+                <Skeleton height={160} />
+                <Skeleton height={120} />
               </div>
             ) : (
               <div className="space-y-6">
                 {/* General Details Grid */}
-                <div className="bg-card-2 p-4 rounded-lg border border-line-soft">
+                <div className="bg-card-2 p-4 rounded-[16px]">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6">
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Order No
                       </div>
                       <div className="font-semibold text-ink">
@@ -155,7 +166,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Sales Order No
                       </div>
                       <div className="font-semibold text-ink">
@@ -166,14 +177,12 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                           order.salesOrderDetails?.orderNo ||
                           order.sourceSalesOrderId
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card text-ink-muted text-[11px] font-semibold">
-                            Direct Order
-                          </span>
+                          <span className="sl-chip sl-chip-sm sl-chip-muted">Direct Order</span>
                         )}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Customer
                       </div>
                       <div className="font-semibold text-ink">
@@ -187,7 +196,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Order Date
                       </div>
                       <div className="font-semibold text-ink">
@@ -195,7 +204,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Due Date
                       </div>
                       <div className="font-semibold text-ink">
@@ -203,7 +212,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Priority
                       </div>
                       <div className="font-semibold text-ink">
@@ -211,7 +220,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Order Type
                       </div>
                       <div className="font-semibold text-ink">
@@ -219,7 +228,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Status
                       </div>
                       <div className="flex flex-col gap-1">
@@ -236,10 +245,10 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                       </div>
                     </div>
                     <div className="col-span-1 md:col-span-3 pt-2 border-t border-line-soft mt-2">
-                      <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                      <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                         Remarks / Notes
                       </div>
-                      <div className="font-medium text-ink bg-card p-3 rounded-lg border border-line-soft text-sm whitespace-pre-wrap">
+                      <div className="font-medium text-ink bg-card p-3 rounded-[14px] border border-line-soft text-sm whitespace-pre-wrap">
                         {fullOrder?.remarks || order.remarks || (
                           <span className="text-ink-subtle font-normal italic">
                             No remarks provided
@@ -252,10 +261,10 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
 
                 {/* Products List */}
                 {fullOrder?.products?.map((prod: any, idx: number) => (
-                  <div key={idx} className="border border-line rounded-lg overflow-hidden">
+                  <div key={idx} className="rounded-[16px] border border-line-soft overflow-hidden">
                     <div className="bg-card border-b border-line p-4">
-                      <h4 className="text-lg font-bold text-ink">
-                        Product {idx + 1}: <span className="text-primary">{prod.productName}</span>{" "}
+                      <h4 className="sl-h2 m-0">
+                        Product {idx + 1}: {prod.productName}{" "}
                         <span className="text-ink-subtle text-sm font-normal">
                           ({prod.productCode})
                         </span>
@@ -263,7 +272,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                         <div>
-                          <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                          <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                             Production Qty
                           </div>
                           <div className="font-semibold text-ink">
@@ -274,7 +283,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                          <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                             Weight Used
                           </div>
                           <div className="font-semibold text-ink">
@@ -282,7 +291,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-ink-subtle font-medium mb-1 uppercase">
+                          <div className="text-[12px] font-medium uppercase tracking-[0.04em] text-ink-subtle mb-0.5">
                             Unit (UOM)
                           </div>
                           <div className="font-semibold text-ink">
@@ -295,18 +304,26 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                     </div>
 
                     <div className="p-4 bg-card-2">
-                      <div className="text-sm font-bold text-ink-muted mb-3 uppercase tracking-wider">
-                        Required Raw Materials
-                      </div>
-                      <div className="bg-card border border-line rounded-lg overflow-hidden">
+                      <div className="sl-section-label mb-2">Required Raw Materials</div>
+                      <div className="bg-card rounded-[14px] border border-line-soft overflow-hidden">
                         <table className="w-full text-left text-sm text-ink-muted">
-                          <thead className="bg-card-2 border-b border-line text-ink-muted font-semibold text-xs uppercase">
+                          <thead className="bg-card-2 border-b border-line-soft">
                             <tr>
-                              <th className="px-4 py-3">Raw Material Code</th>
-                              <th className="px-4 py-3">Raw Material Name</th>
-                              <th className="px-4 py-3">Required Qty</th>
-                              <th className="px-4 py-3">Available Stock</th>
-                              <th className="px-4 py-3">Stock Status</th>
+                              <th scope="col" className="sl-th px-4 py-3">
+                                Raw Material Code
+                              </th>
+                              <th scope="col" className="sl-th px-4 py-3">
+                                Raw Material Name
+                              </th>
+                              <th scope="col" className="sl-th px-4 py-3">
+                                Required Qty
+                              </th>
+                              <th scope="col" className="sl-th px-4 py-3">
+                                Available Stock
+                              </th>
+                              <th scope="col" className="sl-th px-4 py-3">
+                                Stock Status
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-line-soft">
@@ -343,10 +360,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                               }
 
                               return (
-                                <tr
-                                  key={rm.rawMaterialId}
-                                  className="hover:bg-card-2 transition-colors"
-                                >
+                                <tr key={rm.rawMaterialId} className="sl-row-hover">
                                   <td className="px-4 py-3 font-medium text-ink">
                                     {rm.rawMaterialId}
                                   </td>
@@ -380,15 +394,15 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                         prod.status || fullOrder?.status
                       ) && (
                         <div className="flex justify-end mt-4">
-                          <button
-                            className="px-4 py-2 bg-accent hover:brightness-110 text-white rounded-sm font-medium transition-colors text-sm"
+                          <ActionPill
+                            icon={<PackageMinus size={17} />}
                             onClick={() => {
                               setSelectedProdForIssue(prod);
                               setShowIssueModal(true);
                             }}
                           >
                             Issue Raw Materials
-                          </button>
+                          </ActionPill>
                         </div>
                       )}
                     </div>
@@ -421,9 +435,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                             : 0;
                       plans.push({
                         id: plan.dailyPlanId,
-                        date: plan.productionDate
-                          ? new Date(plan.productionDate).toLocaleDateString()
-                          : "-",
+                        date: plan.productionDate ? formatDisplayDate(plan.productionDate) : "-",
                         shiftName: plan.shift?.shiftName || plan.shiftId || "-",
                         machineName:
                           plan.machine?.machineName ||
@@ -448,11 +460,9 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
 
                   return (
                     <>
-                      <div className="border border-line rounded-lg overflow-hidden mt-6">
+                      <div className="rounded-[16px] border border-line-soft overflow-hidden mt-6">
                         <div className="bg-card border-b border-line p-4 flex justify-between items-center flex-wrap gap-2">
-                          <h4 className="text-lg font-bold text-ink">
-                            Shift-wise Production & Dispatch Details
-                          </h4>
+                          <h4 className="sl-h2 m-0">Shift-wise Production & Dispatch Details</h4>
                           {(() => {
                             const targetVal = Number(fullOrder?.targetQty || order.targetQty || 0);
                             const producedVal = Number(
@@ -483,7 +493,7 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                                 {hasShortfallStop && (
                                   <>
                                     <span>|</span>
-                                    <span className="bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/30 px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase whitespace-nowrap ">
+                                    <span className="sl-chip sl-chip-sm sl-chip-danger whitespace-nowrap">
                                       Permanently Stopped (Shortfall:{" "}
                                       {Math.max(0, targetVal - producedVal)} pcs)
                                     </span>
@@ -494,17 +504,32 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                           })()}
                         </div>
                         <div className="p-4 bg-card-2 overflow-x-auto">
-                          <div className="bg-card border border-line rounded-lg overflow-hidden min-w-[750px]">
+                          <div className="bg-card rounded-[14px] border border-line-soft overflow-hidden min-w-[750px]">
                             <table className="w-full text-left text-sm text-ink-muted">
-                              <thead className="bg-card-2 border-b border-line text-ink-muted font-semibold text-xs uppercase">
+                              <thead className="bg-card-2 border-b border-line-soft">
                                 <tr>
-                                  <th className="px-4 py-3">Date</th>
-                                  <th className="px-4 py-3">Shift</th>
-                                  <th className="px-4 py-3">Machine</th>
-                                  <th className="px-4 py-3">Planned Qty</th>
-                                  <th className="px-4 py-3">Produced Qty</th>
-                                  <th className="px-4 py-3 whitespace-nowrap">Production Status</th>
-                                  <th className="px-4 py-3 whitespace-nowrap text-center">
+                                  <th scope="col" className="sl-th px-4 py-3">
+                                    Date
+                                  </th>
+                                  <th scope="col" className="sl-th px-4 py-3">
+                                    Shift
+                                  </th>
+                                  <th scope="col" className="sl-th px-4 py-3">
+                                    Machine
+                                  </th>
+                                  <th scope="col" className="sl-th px-4 py-3">
+                                    Planned Qty
+                                  </th>
+                                  <th scope="col" className="sl-th px-4 py-3">
+                                    Produced Qty
+                                  </th>
+                                  <th scope="col" className="sl-th px-4 py-3 whitespace-nowrap">
+                                    Production Status
+                                  </th>
+                                  <th
+                                    scope="col"
+                                    className="sl-th px-4 py-3 whitespace-nowrap text-center"
+                                  >
                                     Dispatch Status
                                   </th>
                                 </tr>
@@ -522,29 +547,26 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                                       fullOrder?.status === "COMPLETED";
 
                                     let dispatchBadge = (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+                                      <span className="sl-chip sl-chip-sm sl-chip-muted">
                                         Not Dispatched
                                       </span>
                                     );
                                     if (isPlanDispatched) {
                                       dispatchBadge = (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+                                        <span className="sl-chip sl-chip-sm sl-chip-muted">
                                           Dispatched
                                         </span>
                                       );
                                     } else if (isReadyForDispatch) {
                                       dispatchBadge = (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+                                        <span className="sl-chip sl-chip-sm sl-chip-muted">
                                           Ready for Dispatch
                                         </span>
                                       );
                                     }
 
                                     return (
-                                      <tr
-                                        key={plan.id || idx}
-                                        className="hover:bg-card-2 transition-colors"
-                                      >
+                                      <tr key={plan.id || idx} className="sl-row-hover">
                                         <td className="px-4 py-3 font-medium text-ink">
                                           {plan.date}
                                         </td>
@@ -568,11 +590,9 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                                     );
                                   })
                                 ) : (
-                                  <tr className="hover:bg-card-2 transition-colors">
+                                  <tr className="sl-row-hover">
                                     <td className="px-4 py-3 font-medium text-ink">
-                                      {new Date(
-                                        fullOrder?.orderDate || order.orderDate
-                                      ).toLocaleDateString()}
+                                      {formatDisplayDate(fullOrder?.orderDate || order.orderDate)}
                                     </td>
                                     <td className="px-4 py-3 text-ink-muted">General Shift</td>
                                     <td className="px-4 py-3 text-ink-muted">
@@ -597,16 +617,16 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                       {fullOrder?.status === "DISPATCHED" ? (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+                                        <span className="sl-chip sl-chip-sm sl-chip-muted">
                                           Dispatched
                                         </span>
                                       ) : fullOrder?.status === "READY_FOR_DISPATCH" ||
                                         fullOrder?.status === "COMPLETED" ? (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+                                        <span className="sl-chip sl-chip-sm sl-chip-muted">
                                           Ready for Dispatch
                                         </span>
                                       ) : (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-sm border border-line bg-card-2 text-ink-muted text-[11px] font-semibold">
+                                        <span className="sl-chip sl-chip-sm sl-chip-muted">
                                           Not Dispatched
                                         </span>
                                       )}
@@ -621,22 +641,36 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
 
                       {/* Dispatch History Section */}
                       {fullOrder?.goodsDispatchItems && fullOrder.goodsDispatchItems.length > 0 && (
-                        <div className="border border-line rounded-lg overflow-hidden mt-6">
+                        <div className="rounded-[16px] border border-line-soft overflow-hidden mt-6">
                           <div className="bg-card border-b border-line p-4">
-                            <h4 className="text-lg font-bold text-ink">Dispatch History</h4>
+                            <h4 className="sl-h2 m-0">Dispatch History</h4>
                           </div>
                           <div className="p-4 bg-card-2 overflow-x-auto">
-                            <div className="bg-card border border-line rounded-lg overflow-hidden min-w-[700px]">
+                            <div className="bg-card rounded-[14px] border border-line-soft overflow-hidden min-w-[700px]">
                               <table className="w-full text-left text-sm text-ink-muted">
-                                <thead className="bg-card-2 border-b border-line text-ink-muted font-semibold text-xs uppercase">
+                                <thead className="bg-card-2 border-b border-line-soft">
                                   <tr>
-                                    <th className="px-4 py-3">Dispatch No</th>
-                                    <th className="px-4 py-3">Date</th>
-                                    <th className="px-4 py-3">Vehicle</th>
-                                    <th className="px-4 py-3">Driver</th>
-                                    <th className="px-4 py-3">Dispatch Qty</th>
-                                    <th className="px-4 py-3">Received Qty</th>
-                                    <th className="px-4 py-3">Status</th>
+                                    <th scope="col" className="sl-th px-4 py-3">
+                                      Dispatch No
+                                    </th>
+                                    <th scope="col" className="sl-th px-4 py-3">
+                                      Date
+                                    </th>
+                                    <th scope="col" className="sl-th px-4 py-3">
+                                      Vehicle
+                                    </th>
+                                    <th scope="col" className="sl-th px-4 py-3">
+                                      Driver
+                                    </th>
+                                    <th scope="col" className="sl-th px-4 py-3">
+                                      Dispatch Qty
+                                    </th>
+                                    <th scope="col" className="sl-th px-4 py-3">
+                                      Received Qty
+                                    </th>
+                                    <th scope="col" className="sl-th px-4 py-3">
+                                      Status
+                                    </th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-line-soft">
@@ -644,16 +678,10 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
                                     const dispatch = item?.dispatch || {};
                                     const status = dispatch?.status || "PENDING_GATE_APPROVAL";
                                     const dispatchDate = dispatch.dispatchDate
-                                      ? new Date(dispatch.dispatchDate).toLocaleDateString(
-                                          "en-IN",
-                                          { day: "2-digit", month: "2-digit", year: "numeric" }
-                                        )
+                                      ? formatDisplayDate(dispatch.dispatchDate)
                                       : "-";
                                     return (
-                                      <tr
-                                        key={item.id}
-                                        className="hover:bg-card-2 transition-colors"
-                                      >
+                                      <tr key={item.id} className="sl-row-hover">
                                         <td className="px-4 py-3 font-semibold text-ink">
                                           {dispatch.dispatchNumber || "-"}
                                         </td>
@@ -693,14 +721,10 @@ export const ProductionOrderViewModal: React.FC<ProductionOrderViewModalProps> =
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-line bg-card-2 flex justify-end gap-3 rounded-b-sm">
-            <button
-              type="button"
-              onClick={onHide}
-              className="px-4 py-2 border border-line rounded-sm text-ink bg-card hover:bg-card-2 font-medium transition-colors"
-            >
+          <div className="sl-dialog-footer">
+            <ActionPill variant="secondary" onClick={onHide}>
               Close
-            </button>
+            </ActionPill>
           </div>
         </div>
       </div>

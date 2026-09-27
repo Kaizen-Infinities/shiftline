@@ -4,16 +4,17 @@ import { z } from "zod";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
-  FaSave,
-  FaArrowLeft,
-  FaInfoCircle,
-  FaExclamationTriangle,
-  FaIndustry,
-  FaCalendarAlt,
-  FaClock,
-  FaBoxes,
-  FaCheckCircle,
-} from "react-icons/fa";
+  AlertTriangle,
+  CalendarCheck,
+  CheckCircle2,
+  Clock,
+  CornerDownRight,
+  Info,
+  Save,
+} from "lucide-react";
+import { ActionPill, Chip, PageHeader, Skeleton, Tile } from "../../../components/ui/v2";
+import { Figure, InlineAlert, PageBody, StickyFormFooter, formatQty } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { fetchMachines } from "../../../features/machines/machineSlice";
@@ -33,9 +34,7 @@ import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import TextArea from "../../../components/form/TextArea/TextArea";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 
-import CustomButton from "../../../components/ui/Button/Button";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import { usePermission } from "../../../hooks/usePermission";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -818,476 +817,401 @@ const DailyPlanCreate: React.FC = () => {
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
-  return (
-    <div className="w-full max-w-[1024px] xl:mr-auto">
-      <form
-        onSubmit={(e) => e.preventDefault()}
-        className="bg-card rounded-sm border border-line overflow-hidden"
-      >
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <div>
-            <h2 className="text-xl font-bold text-ink">
-              {isEdit ? "Edit Daily Production Plan" : "New Daily Production Plan"}
-            </h2>
-          </div>
-          <BackButton text="Back to Daily Planning" />
-        </div>
+  const title = isEdit ? "Edit Daily Production Plan" : "New Daily Production Plan";
+  const poForBanner = selectedWeeklyProg?.productionOrder;
+  const poTargetForBanner = Number(poForBanner?.targetQty || 0);
+  const poNetProducedForBanner = Math.max(
+    0,
+    Number(poForBanner?.producedQty || 0) -
+      Number(poForBanner?.rejectedQty || 0) -
+      Number(poForBanner?.scrapQty || 0)
+  );
+  const poRemainingForBanner = Math.max(0, poTargetForBanner - poNetProducedForBanner);
+  const selectedShiftForHint = shifts.find((s: any) => s.shiftCode === shiftId);
 
+  return (
+    <PageBody className="max-w-[1100px]">
+      <PageHeader
+        title={title}
+        subtitle="Pick the week's program, then the date, machine, shift, operators and quantity."
+        back="/daily-machine-planning"
+        backLabel="Back to Daily Planning"
+        breadcrumbs={[
+          { label: "Daily planning", to: "/daily-machine-planning" },
+          { label: isEdit ? "Edit plan" : "New plan" },
+        ]}
+        meta={isEdit && status ? <StatusBadge status={status} /> : undefined}
+      />
+
+      <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-5">
         {submitError && (
-          <div className="mx-6 mt-4 p-4 rounded-md bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/20 flex items-center gap-3">
-            <FaExclamationTriangle className="text-[color:var(--color-danger)]" size={20} />
-            <div>
-              <p className="font-bold text-[color:var(--color-danger)] text-sm">
-                Failed to Save Plan
-              </p>
-              <p className="text-[color:var(--color-danger)] text-xs opacity-80">{submitError}</p>
-            </div>
-          </div>
+          <InlineAlert tone="danger" icon={<AlertTriangle size={18} />} title="Failed to Save Plan">
+            {submitError}
+          </InlineAlert>
         )}
 
         {assignmentError && (
-          <div className="mx-6 mt-4 p-4 rounded-md bg-[color:var(--color-danger)]/10 border border-[color:var(--color-danger)]/20 flex items-center gap-3">
-            <FaExclamationTriangle className="text-[color:var(--color-danger)]" size={20} />
-            <div>
-              <p className="font-bold text-[color:var(--color-danger)] text-sm">
-                Assignment Validation Failed
-              </p>
-              <p className="text-[color:var(--color-danger)] text-xs opacity-80">
-                {assignmentError}
-              </p>
-            </div>
-          </div>
+          <InlineAlert
+            tone="danger"
+            icon={<AlertTriangle size={18} />}
+            title="Assignment Validation Failed"
+          >
+            {assignmentError}
+          </InlineAlert>
         )}
 
         {/* ── Carry Forward Banner ──────────────────────────── */}
         {carryForwardFromPlanId && (
-          <div className="mx-6 mt-4 p-4 rounded-md bg-[color:var(--color-warning)]/10 border border-[color:var(--color-warning)]/20 flex items-center gap-3">
-            <FaArrowLeft className="text-[color:var(--color-warning)] rotate-180" size={18} />
-            <div>
-              <p className="font-bold text-[color:var(--color-warning)] text-sm">
-                Carry Forward from {carryForwardFromPlanId}
+          <InlineAlert
+            tone="warning"
+            icon={<CornerDownRight size={18} />}
+            title={`Carry Forward from ${carryForwardFromPlanId}`}
+          >
+            {carryForwardFromInfo && (
+              <p className="m-0">
+                {carryForwardFromInfo.shiftName || carryForwardFromInfo.shiftId} —{" "}
+                {carryForwardFromInfo.productionDate
+                  ? formatDate(carryForwardFromInfo.productionDate)
+                  : ""}
               </p>
-              {carryForwardFromInfo && (
-                <p className="text-[color:var(--color-warning)] text-xs opacity-80">
-                  {carryForwardFromInfo.shiftName || carryForwardFromInfo.shiftId} —{" "}
-                  {carryForwardFromInfo.productionDate
-                    ? new Date(carryForwardFromInfo.productionDate).toLocaleDateString()
-                    : ""}
-                </p>
-              )}
-              <p className="text-[color:var(--color-warning)] text-xs opacity-80 mt-0.5">
-                The remaining quantity from plan <strong>{carryForwardFromPlanId}</strong> has been
-                pre-filled below.
-              </p>
-            </div>
-          </div>
+            )}
+            <p className="m-0 mt-0.5">
+              The remaining quantity from plan <strong>{carryForwardFromPlanId}</strong> has been
+              pre-filled below.
+            </p>
+          </InlineAlert>
         )}
 
-        {/* ─── Form Body ─── */}
-        <div className="p-5 lg:p-6 space-y-5">
-          {/* Section 1: Weekly Program */}
-          <div>
-            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">
-              Weekly Program
-            </h6>
-            <SelectInput
-              label="Weekly Program"
-              required
-              disabled={isEdit || !!(location.state as any)?.weeklyProgramId}
-              value={weeklyProgramId}
-              onChange={(e: any) => setWeeklyProgramId(e.target.value)}
-              error={formErrors.weeklyProgramId}
-              defaultOptionLabel="— Select Weekly Program —"
-              horizontal
-              options={weeklyPrograms.map((wp: any) => {
-                const po = wp.productionOrder;
-                const poTargetQty = Number(wp.poTargetQty ?? po?.targetQty ?? 0);
-                const poProducedRaw = Number(wp.poProducedQty ?? po?.producedQty ?? 0);
-                const poRejectedQty = Number(po?.rejectedQty ?? 0);
-                const poScrapQty = Number(po?.scrapQty ?? 0);
-                const poNetProduced = Math.max(0, poProducedRaw - poRejectedQty - poScrapQty);
-                const poRemaining = Math.max(0, poTargetQty - poNetProduced);
-                const displayQty = poRemaining;
-                const productName = po?.productItem?.productName || "";
-                let tagNode: React.ReactNode = null;
-                if (wp._poRemaining !== undefined) {
-                  tagNode = (
-                    <span className="text-[color:var(--color-warning)] font-semibold">
-                      REMAINING: {wp._poRemaining} pcs
-                    </span>
-                  );
-                } else if (wp._isBacklog) {
-                  tagNode = (
-                    <span className="text-[color:var(--color-warning)] font-semibold">
-                      PENDING FROM PREVIOUS WEEK
-                    </span>
-                  );
-                }
-                return {
-                  value: wp.weeklyProgramId,
-                  selectedLabel: `${productName} — ${displayQty} pcs`,
-                  label: (
-                    <span>
-                      {productName} — {displayQty} pcs
-                      {tagNode ? <span className="ml-2">{tagNode}</span> : null}
-                    </span>
-                  ),
-                };
-              })}
-            />
+        {/* Section 1: Weekly Program */}
+        <Tile title="Weekly Program" subtitle="The order this shift will produce against.">
+          <SelectInput
+            label="Weekly Program"
+            required
+            disabled={isEdit || !!(location.state as any)?.weeklyProgramId}
+            value={weeklyProgramId}
+            onChange={(e: any) => setWeeklyProgramId(e.target.value)}
+            error={formErrors.weeklyProgramId}
+            defaultOptionLabel="— Select Weekly Program —"
+            options={weeklyPrograms.map((wp: any) => {
+              const po = wp.productionOrder;
+              const poTargetQty = Number(wp.poTargetQty ?? po?.targetQty ?? 0);
+              const poProducedRaw = Number(wp.poProducedQty ?? po?.producedQty ?? 0);
+              const poRejectedQty = Number(po?.rejectedQty ?? 0);
+              const poScrapQty = Number(po?.scrapQty ?? 0);
+              const poNetProduced = Math.max(0, poProducedRaw - poRejectedQty - poScrapQty);
+              const poRemaining = Math.max(0, poTargetQty - poNetProduced);
+              const displayQty = poRemaining;
+              const productName = po?.productItem?.productName || "";
+              let tagNode: React.ReactNode = null;
+              if (wp._poRemaining !== undefined) {
+                tagNode = (
+                  <span className="font-semibold text-[color:var(--color-warning)]">
+                    REMAINING: {wp._poRemaining} pcs
+                  </span>
+                );
+              } else if (wp._isBacklog) {
+                tagNode = (
+                  <span className="font-semibold text-[color:var(--color-warning)]">
+                    PENDING FROM PREVIOUS WEEK
+                  </span>
+                );
+              }
+              return {
+                value: wp.weeklyProgramId,
+                selectedLabel: `${productName} — ${displayQty} pcs`,
+                label: (
+                  <span>
+                    {productName} — {displayQty} pcs
+                    {tagNode ? <span className="ml-2">{tagNode}</span> : null}
+                  </span>
+                ),
+              };
+            })}
+          />
 
-            {/* Auto-filled info banner */}
-            {selectedWeeklyProg && (
-              <div className="rounded-md p-3 mt-3 bg-[color:var(--color-success)]/10 border border-[color:var(--color-success)]/20 text-ink">
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-                  <div>
-                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
-                      Production Order
-                    </div>
-                    <div className="font-bold text-ink text-sm">
-                      {selectedWeeklyProg.productionOrderId}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
-                      Product
-                    </div>
-                    <div className="text-sm font-bold text-ink">
-                      {selectedWeeklyProg.productionOrder?.productItem?.productName || "—"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
-                      PO Target Qty
-                    </div>
-                    <div className="font-bold text-ink text-sm">
-                      {selectedWeeklyProg.productionOrder?.targetQty || "—"} pcs
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
-                      Remaining
-                    </div>
-                    {(() => {
-                      const tgt = Number(selectedWeeklyProg.productionOrder?.targetQty || 0);
-                      const produced = Math.max(
-                        0,
-                        Number(selectedWeeklyProg.productionOrder?.producedQty || 0) -
-                          Number(selectedWeeklyProg.productionOrder?.rejectedQty || 0) -
-                          Number(selectedWeeklyProg.productionOrder?.scrapQty || 0)
-                      );
-                      const rem = Math.max(0, tgt - produced);
-                      return (
-                        <div
-                          className={`font-bold text-sm ${rem <= 0 ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
-                        >
-                          {rem} pcs
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  <div>
-                    <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
-                      Produced
-                    </div>
-                    <div className="font-bold text-ink text-sm">
-                      {Math.max(
-                        0,
-                        Number(selectedWeeklyProg.productionOrder?.producedQty || 0) -
-                          Number(selectedWeeklyProg.productionOrder?.rejectedQty || 0) -
-                          Number(selectedWeeklyProg.productionOrder?.scrapQty || 0)
-                      )}{" "}
-                      pcs
-                    </div>
-                  </div>
-                  {machineId && machineProductCapacity != null && (
-                    <div>
-                      <div className="text-ink-subtle text-[10px] font-bold uppercase mb-0.5">
-                        Capacity/Shift
-                      </div>
-                      <div className="font-bold text-ink text-sm">
-                        {machineProductCapacity.toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-                </div>
+          {/* Auto-filled info banner */}
+          {selectedWeeklyProg && (
+            <div className="mt-4 rounded-[16px] bg-card-2 p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <Chip size="sm" tone="success" icon={<CheckCircle2 size={13} />}>
+                  {selectedWeeklyProg.productionOrderId}
+                </Chip>
+                <span className="text-[15px] font-semibold text-ink">
+                  {poForBanner?.productItem?.productName || "—"}
+                </span>
               </div>
-            )}
-          </div>
-
-          <div className="border-t border-line-soft" />
-
-          {/* Section 2: Schedule Details */}
-          <div>
-            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">
-              Schedule Details
-            </h6>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 xl:gap-x-10 gap-y-3 md:gap-y-4">
-              <DatePickerCalendar
-                label="Production Date"
-                name="productionDate"
-                required
-                horizontal
-                value={productionDate}
-                error={formErrors.productionDate}
-                onChange={(e: any) => setProductionDate(e.target.value)}
-              />
-
-              <SelectInput
-                label="Machine"
-                required
-                horizontal
-                value={machineId}
-                onChange={(e: any) => setMachineId(e.target.value)}
-                error={formErrors.machineId}
-                defaultOptionLabel="— Select Machine —"
-                options={allowedMachines.map((m: any) => ({
-                  value: m.machineId,
-                  label: `${m.machineName} (${m.machineId})`,
-                }))}
-              />
-
-              <div>
-                <SelectInput
-                  label="Shift"
-                  required
-                  horizontal
-                  value={shiftId}
-                  onChange={(e: any) => setShiftId(e.target.value)}
-                  error={formErrors.shiftId}
-                  defaultOptionLabel="— Select Shift —"
-                  options={shifts.map((s: any) => {
-                    const totalHrs = computeShiftHours(s.startTime, s.endTime);
-                    const remainingHrs = remainingShiftsHours[s.shiftCode] ?? totalHrs;
-                    return {
-                      value: s.shiftCode,
-                      label:
-                        remainingHrs > 0
-                          ? `${s.shiftName} (${s.startTime} – ${s.endTime}) — ${remainingHrs}h available`
-                          : `${s.shiftName} (${s.startTime} – ${s.endTime}) — Full`,
-                      disabled: remainingHrs === 0,
-                    };
-                  })}
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                <Figure
+                  label="PO Target Qty"
+                  value={poForBanner?.targetQty ? formatQty(poForBanner.targetQty) : "—"}
+                  hint="pcs"
                 />
-                {shiftId &&
-                  (() => {
-                    const sel = shifts.find((s: any) => s.shiftCode === shiftId);
-                    if (!sel) return null;
-                    const hrs = computeShiftHours(sel.startTime, sel.endTime);
-                    return (
-                      <div className="mt-1.5 ml-[148px] flex items-center gap-2 text-ink-subtle text-xs">
-                        <FaClock size={11} />
-                        {sel.startTime} → {sel.endTime} |{" "}
-                        <strong className="text-ink">{hrs} hrs</strong>
-                      </div>
-                    );
-                  })()}
-              </div>
-
-              <div>
-                {loadingAssignment ? (
-                  <div className="flex items-center gap-3">
-                    <span className="shrink-0 w-[140px] text-[12px] font-extrabold uppercase tracking-[0.5px] text-ink">
-                      Operators <span className="text-[color:var(--color-danger)]">*</span>
-                    </span>
-                    <div className="flex-1 p-2.5 bg-card-2 border border-line-soft rounded-lg">
-                      <div className="animate-pulse flex gap-2 items-center">
-                        <div className="w-4 h-4 bg-card rounded-full"></div>
-                        <div className="h-2 bg-card rounded w-24"></div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <MultiSelect
-                    label="Operators"
-                    name="operators"
-                    required={true}
-                    options={availableOperators.map((op: any) => ({
-                      value: (op.id || op.employeeId)?.toString(),
-                      label:
-                        op.fullName +
-                        (op.empCode ? ` (${op.empCode})` : "") +
-                        (op.role?.name ? ` • ${op.role.name}` : ""),
-                    }))}
-                    value={selectedOperators}
-                    onChange={(_name, vals) => {
-                      setSelectedOperators(vals);
-                      setAssignmentError(null);
-                    }}
-                    placeholder={
-                      availableOperators.length === 0
-                        ? "No operators assigned to this machine..."
-                        : "-- Select Assigned Operators --"
-                    }
-                    error={
-                      formErrors.selectedOperators ||
-                      (selectedOperators.length === 0 && assignmentError
-                        ? assignmentError
-                        : undefined)
-                    }
-                  />
-                )}
-                {availableOperators.length === 0 && !loadingAssignment && (
-                  <div className="mt-1.5 px-2.5 py-1.5 bg-[color:var(--color-warning)]/10 border border-[color:var(--color-warning)]/30 rounded-md text-[color:var(--color-warning)] text-[11px] font-medium flex items-center gap-1.5">
-                    <FaExclamationTriangle className="shrink-0" size={11} />
-                    <span>No operator assigned to this machine in Weekly Assignment.</span>
-                  </div>
-                )}
-              </div>
-
-              {isEdit && status !== "DRAFT" && (
-                <SelectInput
-                  label="Status"
-                  horizontal
-                  value={status}
-                  onChange={(e: any) => setStatus(e.target.value)}
-                  options={[
-                    { value: "DRAFT", label: "Draft" },
-                    { value: "PLANNED", label: "Planned" },
-                    { value: "IN_PROGRESS", label: "In Progress" },
-                    { value: "COMPLETED", label: "Completed" },
-                    { value: "CANCELLED", label: "Cancelled" },
-                  ]}
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="border-t border-line-soft" />
-
-          {/* Section 3: Quantity & Time */}
-          <div>
-            <h6 className="text-xs font-bold text-ink uppercase tracking-[1.5px] mb-3">
-              Quantity & Time
-            </h6>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-8 xl:gap-x-10 gap-y-3 md:gap-y-4">
-              <div>
-                <TextInput
-                  label="Planned Qty (pcs)"
-                  name="plannedQty"
-                  type="number"
-                  required
-                  horizontal
-                  value={plannedQty}
-                  error={formErrors.plannedQty}
-                  placeholder={remainingQty !== null ? `Max: ${remainingQty}` : "e.g. 500"}
-                  onChange={(e) => setPlannedQty(e.target.value)}
+                <Figure label="Produced" value={formatQty(poNetProducedForBanner)} hint="pcs" />
+                <Figure
+                  label="Remaining"
+                  tone={poRemainingForBanner <= 0 ? "danger" : "success"}
+                  value={formatQty(poRemainingForBanner)}
+                  hint="pcs"
                 />
                 {machineId && machineProductCapacity != null && (
-                  <div className="text-[11px] text-primary font-semibold mt-1 ml-[148px]">
-                    Capacity: {machineProductCapacity.toLocaleString()} / Shift
-                    {Number(plannedQty) < machineProductCapacity &&
-                      ` · ${machineProductCapacity - Number(plannedQty)} pcs remaining`}
-                  </div>
+                  <Figure
+                    label="Capacity/Shift"
+                    tone="accent"
+                    value={formatQty(machineProductCapacity)}
+                    hint="pcs"
+                  />
                 )}
-                {noCapacityWarning && machineId && weeklyProgramId && (
-                  <div className="mt-1.5 ml-[148px] flex items-center gap-1.5 text-[color:var(--color-warning)] text-[11px] font-medium">
-                    <FaExclamationTriangle size={11} />
-                    <span>
-                      Machine capacity not set for this product. Please enter planned quantity
-                      manually.
-                    </span>
-                  </div>
-                )}
-                {overCapacity && (
-                  <div className="text-[color:var(--color-warning)] text-xs flex items-center mt-1 ml-[148px]">
-                    <FaExclamationTriangle className="mr-1" />
-                    Exceeds remaining ({remainingQty} pcs) — Overproduction allowed
-                  </div>
-                )}
-                {remainingQty !== null && !overCapacity && Number(plannedQty) > 0 && (
-                  <div className="text-ink-subtle text-xs mt-1 ml-[148px]">
-                    Remaining after this plan: {remainingQty - Number(plannedQty)} pcs
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <TextInput
-                  label="Planned Hours"
-                  name="plannedHours"
-                  type="number"
-                  horizontal
-                  value={plannedHours}
-                  error={formErrors.plannedHours}
-                  placeholder="Auto-filled from shift"
-                  onChange={(e) => setPlannedHours(e.target.value)}
-                />
-                <div className="flex items-center gap-1.5 mt-1.5 ml-[148px] text-xs text-ink-muted font-medium">
-                  <FaInfoCircle className="text-primary text-xs" />
-                  Max: {availableShiftHours}/{totalShiftHours}h available
-                </div>
-              </div>
-
-              <SelectInput
-                label={
-                  selectedWeeklyProg?.productionOrder?.priority ? "Priority (auto)" : "Priority"
-                }
-                horizontal
-                value={priority}
-                onChange={(e: any) => setPriority(e.target.value)}
-                options={[
-                  { value: "LOW", label: "LOW" },
-                  { value: "MEDIUM", label: "MEDIUM" },
-                  { value: "HIGH", label: "HIGH" },
-                  { value: "URGENT", label: "URGENT" },
-                ]}
-              />
-
-              <div className="md:col-span-2">
-                <TextArea
-                  label="Narration"
-                  name="remarks"
-                  rows={2}
-                  value={remarks}
-                  onChange={(e: any) => setRemarks(e.target.value)}
-                  placeholder="Optional notes for this daily production plan..."
-                />
               </div>
             </div>
+          )}
+        </Tile>
+
+        {/* Section 2: Schedule Details */}
+        <Tile title="Schedule Details">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <DatePickerCalendar
+              label="Production Date"
+              name="productionDate"
+              required
+              value={productionDate}
+              error={formErrors.productionDate}
+              onChange={(e: any) => setProductionDate(e.target.value)}
+            />
+
+            <SelectInput
+              label="Machine"
+              required
+              value={machineId}
+              onChange={(e: any) => setMachineId(e.target.value)}
+              error={formErrors.machineId}
+              defaultOptionLabel="— Select Machine —"
+              options={allowedMachines.map((m: any) => ({
+                value: m.machineId,
+                label: `${m.machineName} (${m.machineId})`,
+              }))}
+            />
+
+            <div>
+              <SelectInput
+                label="Shift"
+                required
+                value={shiftId}
+                onChange={(e: any) => setShiftId(e.target.value)}
+                error={formErrors.shiftId}
+                defaultOptionLabel="— Select Shift —"
+                options={shifts.map((s: any) => {
+                  const totalHrs = computeShiftHours(s.startTime, s.endTime);
+                  const remainingHrs = remainingShiftsHours[s.shiftCode] ?? totalHrs;
+                  return {
+                    value: s.shiftCode,
+                    label:
+                      remainingHrs > 0
+                        ? `${s.shiftName} (${s.startTime} – ${s.endTime}) — ${remainingHrs}h available`
+                        : `${s.shiftName} (${s.startTime} – ${s.endTime}) — Full`,
+                    disabled: remainingHrs === 0,
+                  };
+                })}
+              />
+              {selectedShiftForHint && (
+                <p className="sl-field-hint m-0 flex items-center gap-1.5">
+                  <Clock size={12} aria-hidden="true" />
+                  {selectedShiftForHint.startTime} → {selectedShiftForHint.endTime} ·{" "}
+                  <strong className="text-ink">
+                    {computeShiftHours(
+                      selectedShiftForHint.startTime,
+                      selectedShiftForHint.endTime
+                    )}{" "}
+                    hrs
+                  </strong>
+                </p>
+              )}
+            </div>
+
+            <div>
+              {loadingAssignment ? (
+                <div>
+                  <span className="sl-label">
+                    Operators
+                    <span className="sl-required" aria-hidden="true">
+                      *
+                    </span>
+                  </span>
+                  <Skeleton height={44} />
+                </div>
+              ) : (
+                <MultiSelect
+                  label="Operators"
+                  name="operators"
+                  required={true}
+                  options={availableOperators.map((op: any) => ({
+                    value: (op.id || op.employeeId)?.toString(),
+                    label:
+                      op.fullName +
+                      (op.empCode ? ` (${op.empCode})` : "") +
+                      (op.role?.name ? ` • ${op.role.name}` : ""),
+                  }))}
+                  value={selectedOperators}
+                  onChange={(_name, vals) => {
+                    setSelectedOperators(vals);
+                    setAssignmentError(null);
+                  }}
+                  placeholder={
+                    availableOperators.length === 0
+                      ? "No operators assigned to this machine..."
+                      : "-- Select Assigned Operators --"
+                  }
+                  error={
+                    formErrors.selectedOperators ||
+                    (selectedOperators.length === 0 && assignmentError
+                      ? assignmentError
+                      : undefined)
+                  }
+                />
+              )}
+              {availableOperators.length === 0 && !loadingAssignment && (
+                <p className="sl-field-hint m-0 flex items-center gap-1.5 !text-[color:var(--color-warning)]">
+                  <AlertTriangle size={12} className="shrink-0" aria-hidden="true" />
+                  No operator assigned to this machine in Weekly Assignment.
+                </p>
+              )}
+            </div>
+
+            {isEdit && status !== "DRAFT" && (
+              <SelectInput
+                label="Status"
+                value={status}
+                onChange={(e: any) => setStatus(e.target.value)}
+                options={[
+                  { value: "DRAFT", label: "Draft" },
+                  { value: "PLANNED", label: "Planned" },
+                  { value: "IN_PROGRESS", label: "In Progress" },
+                  { value: "COMPLETED", label: "Completed" },
+                  { value: "CANCELLED", label: "Cancelled" },
+                ]}
+              />
+            )}
           </div>
-        </div>
+        </Tile>
+
+        {/* Section 3: Quantity & Time */}
+        <Tile title="Quantity & Time">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <div>
+              <TextInput
+                label="Planned Qty (pcs)"
+                name="plannedQty"
+                type="number"
+                inputMode="numeric"
+                required
+                value={plannedQty}
+                error={formErrors.plannedQty}
+                placeholder={remainingQty !== null ? `Max: ${remainingQty}` : "e.g. 500"}
+                inputClassName="text-[17px] font-semibold tabular-nums"
+                onChange={(e) => setPlannedQty(e.target.value)}
+              />
+              {machineId && machineProductCapacity != null && (
+                <p className="sl-field-hint m-0 font-semibold !text-accent">
+                  Capacity: {formatQty(machineProductCapacity)} / Shift
+                  {Number(plannedQty) < machineProductCapacity &&
+                    ` · ${formatQty(machineProductCapacity - Number(plannedQty))} pcs remaining`}
+                </p>
+              )}
+              {noCapacityWarning && machineId && weeklyProgramId && (
+                <p className="sl-field-hint m-0 flex items-center gap-1.5 !text-[color:var(--color-warning)]">
+                  <AlertTriangle size={12} aria-hidden="true" />
+                  Machine capacity not set for this product. Please enter planned quantity manually.
+                </p>
+              )}
+              {overCapacity && (
+                <p className="sl-field-hint m-0 flex items-center gap-1.5 !text-[color:var(--color-warning)]">
+                  <AlertTriangle size={12} aria-hidden="true" />
+                  Exceeds remaining ({remainingQty} pcs) — Overproduction allowed
+                </p>
+              )}
+              {remainingQty !== null && !overCapacity && Number(plannedQty) > 0 && (
+                <p className="sl-field-hint m-0">
+                  Remaining after this plan: {formatQty(remainingQty - Number(plannedQty))} pcs
+                </p>
+              )}
+            </div>
+
+            <div>
+              <TextInput
+                label="Planned Hours"
+                name="plannedHours"
+                type="number"
+                inputMode="numeric"
+                value={plannedHours}
+                error={formErrors.plannedHours}
+                placeholder="Auto-filled from shift"
+                onChange={(e) => setPlannedHours(e.target.value)}
+              />
+              <p className="sl-field-hint m-0 flex items-center gap-1.5">
+                <Info size={12} className="text-accent" aria-hidden="true" />
+                Max: {availableShiftHours}/{totalShiftHours}h available
+              </p>
+            </div>
+
+            <SelectInput
+              label={selectedWeeklyProg?.productionOrder?.priority ? "Priority (auto)" : "Priority"}
+              value={priority}
+              onChange={(e: any) => setPriority(e.target.value)}
+              options={[
+                { value: "LOW", label: "LOW" },
+                { value: "MEDIUM", label: "MEDIUM" },
+                { value: "HIGH", label: "HIGH" },
+                { value: "URGENT", label: "URGENT" },
+              ]}
+            />
+
+            <div className="md:col-span-2">
+              <TextArea
+                label="Narration"
+                name="remarks"
+                rows={2}
+                value={remarks}
+                onChange={(e: any) => setRemarks(e.target.value)}
+                placeholder="Optional notes for this daily production plan..."
+              />
+            </div>
+          </div>
+        </Tile>
 
         {/* ─── Action Buttons ─── */}
-        <div className="flex justify-end items-center gap-3 px-5 py-4 border-t border-line bg-card-2">
-          <CustomButton
-            text="Cancel"
+        <StickyFormFooter>
+          <ActionPill
             variant="secondary"
             onClick={() => navigate("/daily-machine-planning")}
             disabled={isSubmitting}
-          />
+          >
+            Cancel
+          </ActionPill>
           {(isEdit ? can("daily-machine-planning.edit") : can("daily-machine-planning.create")) && (
             <>
               {/* Show Save as Draft + Create Plan when creating, or when editing a DRAFT plan */}
               {(!isEdit || (isEdit && status === "DRAFT")) && (
-                <CustomButton
-                  text={isSubmitting ? "Saving..." : "Save as Draft"}
-                  icon={isSubmitting ? undefined : FaSave}
+                <ActionPill
                   variant="secondary"
-                  type="button"
+                  icon={<Save size={16} />}
                   disabled={isSubmitting}
                   onClick={() => handleSubmit("DRAFT")}
-                />
+                >
+                  {isSubmitting ? "Saving..." : "Save as Draft"}
+                </ActionPill>
               )}
-              <CustomButton
-                text={
-                  isSubmitting
-                    ? "Saving..."
-                    : isEdit && status !== "DRAFT"
-                      ? "Update Plan"
-                      : "Create Plan"
-                }
-                icon={isSubmitting ? undefined : FaSave}
-                type="button"
-                disabled={isSubmitting}
+              <ActionPill
+                icon={<CalendarCheck size={17} />}
+                loading={isSubmitting}
+                loadingText="Saving..."
                 onClick={() => handleSubmit(isEdit && status !== "DRAFT" ? status : "PLANNED")}
-              />
+              >
+                {isEdit && status !== "DRAFT" ? "Update Plan" : "Create Plan"}
+              </ActionPill>
             </>
           )}
-        </div>
+        </StickyFormFooter>
       </form>
-    </div>
+    </PageBody>
   );
 };
 

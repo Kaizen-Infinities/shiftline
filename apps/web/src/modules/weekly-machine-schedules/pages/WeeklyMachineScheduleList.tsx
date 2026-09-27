@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
+import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
-  FaChevronLeft,
-  FaChevronRight,
-  FaChevronDown,
-  FaChevronRight as FaCaretRight,
-  FaPlus,
-} from "react-icons/fa";
+  ActionPill,
+  Chip,
+  PageHeader,
+  SearchField,
+  SectionLabel,
+  Toolbar,
+} from "../../../components/ui/v2";
+import { PageBody, formatQty } from "../../production/ui";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -19,7 +22,6 @@ import {
   weeklyProgramDeleted,
 } from "../../../features/weekly-programs/weeklyProgramSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
-import CustomButton from "../../../components/ui/Button/Button";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { weeklyProgramService } from "../../../services/weeklyProgramService";
 
@@ -27,10 +29,8 @@ import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
-import TextInput from "../../../components/form/TextInput/TextInput";
 
 import { fetchMachines } from "../../../features/machines/machineSlice";
-import SearchInput from "../../../components/ui/SearchInput/SearchInput";
 import DataTable from "../../../components/ui/table/DataTable";
 import type { DataTableColumn } from "../../../components/ui/table/DataTable";
 
@@ -186,11 +186,6 @@ const WeeklyMachineScheduleList: React.FC = () => {
     deleted: weeklyProgramDeleted,
   });
 
-  const handleSearch = (e: React.ChangeEvent<any>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
-
   const handleDateChange = (e: React.ChangeEvent<any>) => {
     const val = e.target.value;
     if (val) {
@@ -310,44 +305,60 @@ const WeeklyMachineScheduleList: React.FC = () => {
     }
   };
 
+  const uomLabel = (uom?: string) =>
+    uom?.toLowerCase() === "ea" || uom?.toLowerCase() === "each" ? "pcs" : uom || "";
+
+  const shiftWeek = (deltaDays: number) => {
+    const base = filterWeekStartDate ? new Date(filterWeekStartDate) : new Date(getMondayDateStr());
+    base.setDate(base.getDate() + deltaDays);
+    const yyyy = base.getFullYear();
+    const mm = String(base.getMonth() + 1).padStart(2, "0");
+    const dd = String(base.getDate()).padStart(2, "0");
+    setFilterWeekStartDate(`${yyyy}-${mm}-${dd}`);
+    setCurrentPage(1);
+  };
+  const isThisWeek = filterWeekStartDate === getMondayDateStr();
+
   const columns: DataTableColumn<any>[] = [
     {
       header: "",
-      accessor: "expand",
+      width: "44px",
       align: "center",
       render: (row) => (
-        <div className="text-ink-subtle">
-          {expandedGroups[row.weekKey] ? <FaChevronDown size={12} /> : <FaCaretRight size={12} />}
-        </div>
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-card-2 text-ink-muted"
+          aria-hidden="true"
+        >
+          {expandedGroups[row.weekKey] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        </span>
       ),
     },
     {
-      header: "WEEK PERIOD",
+      header: "Week",
       accessor: "weekKey",
       render: (row) => (
-        <span className="font-bold text-ink">
+        <span className="font-semibold text-ink tabular-nums">
           {getFormattedWeekLabel(row.weekStartDate, row.weekEndDate)}
         </span>
       ),
     },
     {
-      header: "TOTAL PRODUCTION ORDERS",
+      header: "Production orders",
       accessor: "totalOrders",
       render: (row) => (
-        <StatusBadge
-          status="UNKNOWN"
-          customText={`${row.totalOrders} Production Order(s)`}
-          customColor={{ bg: "#e9ecef", text: "#0f766e" }}
-        />
+        <Chip size="sm">
+          {row.totalOrders} Production Order{row.totalOrders === 1 ? "" : "s"}
+        </Chip>
       ),
     },
     {
-      header: "TOTAL WEEKLY QUANTITY",
+      header: "Weekly quantity",
       accessor: "totalPlannedQty",
+      align: "right",
       render: (row) => (
-        <span className="font-bold text-emerald-600">
-          {row.totalPlannedQty}{" "}
-          {row.uom?.toLowerCase() === "ea" || row.uom?.toLowerCase() === "each" ? "pcs" : row.uom}
+        <span className="text-[16px] font-bold text-ink tabular-nums">
+          {formatQty(row.totalPlannedQty)}{" "}
+          <span className="text-[13px] font-normal text-ink-subtle">{uomLabel(row.uom)}</span>
         </span>
       ),
     },
@@ -356,41 +367,36 @@ const WeeklyMachineScheduleList: React.FC = () => {
   const renderSubRow = (row: any) => {
     if (!expandedGroups[row.weekKey]) return null;
     return (
-      <div className="bg-card/80 px-6 py-5">
-        <div className="text-xs font-bold text-ink-subtle uppercase tracking-widest mb-4">
-          Production Orders Scheduled for this Week
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="border-b border-line-soft bg-card-2 px-3 py-4 sm:px-5">
+        <SectionLabel>Production orders scheduled for this week</SectionLabel>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {row.ordersList.map((order: any) => (
-            <div
-              key={order.productionOrderId}
-              className="bg-card rounded-md p-4 border border-line hover:border-line-soft transition-colors relative group"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-bold text-ink text-sm">{order.productionOrderNumber}</h4>
-                  <p className="text-xs text-ink-subtle">{order.productName}</p>
+            <div key={order.productionOrderId} className="rounded-[16px] bg-card p-4">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="m-0 font-mono text-[13px] font-semibold text-accent">
+                    {order.productionOrderNumber || order.productionOrderId}
+                  </p>
+                  <p className="m-0 truncate text-[15px] font-semibold text-ink">
+                    {order.productName}
+                  </p>
                 </div>
                 <StatusBadge status={order.status} />
               </div>
 
-              <div className="mt-3 space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-ink-subtle">Planned Qty:</span>
-                  <span className="font-medium text-ink-muted">
-                    {order.plannedQty}{" "}
-                    {order.uom?.toLowerCase() === "ea" || order.uom?.toLowerCase() === "each"
-                      ? "pcs"
-                      : order.uom}
+              <div className="flex items-baseline justify-between text-[13px]">
+                <span className="text-ink-subtle">Planned qty</span>
+                <span className="text-[16px] font-bold text-ink tabular-nums">
+                  {formatQty(order.plannedQty)}{" "}
+                  <span className="text-[12px] font-normal text-ink-subtle">
+                    {uomLabel(order.uom)}
                   </span>
-                </div>
+                </span>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-line-soft">
-                <div className="text-[11px] font-semibold text-ink-subtle mb-2 uppercase">
-                  Scheduled Machines
-                </div>
-                <div className="space-y-2">
+              <div className="mt-3 border-t border-line-soft pt-3">
+                <div className="sl-section-label mb-2">Scheduled machines</div>
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
                   {order.schedules
                     .filter((schedule: any) => Number(schedule.plannedQty) > 0)
                     .map((schedule: any) => {
@@ -406,40 +412,33 @@ const WeeklyMachineScheduleList: React.FC = () => {
                       const assignedShiftId = schedule.shiftId || linkedDailyPlan?.shiftId;
 
                       return (
-                        <div
+                        <li
                           key={schedule.weeklyProgramId}
-                          className="flex items-center justify-between bg-card-2 p-2 rounded-lg border border-line-soft"
+                          className="flex items-center justify-between gap-2 rounded-[12px] bg-card-2 px-3 py-2"
                         >
-                          <div className="flex flex-col">
-                            <span className="text-xs font-medium text-indigo-700">
+                          <div className="flex min-w-0 flex-col">
+                            <span className="truncate text-[13px] font-semibold text-ink">
                               {assignedMachine?.machineName ||
                                 schedule.machineName ||
                                 (assignedMachineId
                                   ? `Machine ${assignedMachineId}`
                                   : "Machine Not Assigned")}
                             </span>
-                            <div className="flex items-center gap-1 mt-0.5">
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                               {assignedMachineId && (
-                                <span className="text-[10px] text-ink-subtle">
-                                  ID: {assignedMachineId}
+                                <span className="font-mono text-[11px] text-ink-subtle">
+                                  {assignedMachineId}
                                 </span>
                               )}
                               {(assignedShift?.shiftName || assignedShiftId) && (
-                                <>
-                                  <span className="text-[10px] text-ink-subtle mx-1">|</span>
-                                  <span className="text-[10px] text-ink-subtle bg-line/60 px-1 rounded">
-                                    Shift: {assignedShift?.shiftName || assignedShiftId}
-                                  </span>
-                                </>
+                                <Chip size="sm">{assignedShift?.shiftName || assignedShiftId}</Chip>
                               )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="text-right">
-                              <div className="text-xs font-bold text-emerald-600">
-                                {schedule.plannedQty} {schedule.uom}
-                              </div>
-                            </div>
+                            <span className="text-[13px] font-bold text-ink tabular-nums">
+                              {formatQty(schedule.plannedQty)} {schedule.uom}
+                            </span>
                             {canDeleteSchedule(schedule, order.status) && (
                               <DeleteButton
                                 onClick={(e: any) => {
@@ -449,117 +448,122 @@ const WeeklyMachineScheduleList: React.FC = () => {
                               />
                             )}
                           </div>
-                        </div>
+                        </li>
                       );
                     })}
-                </div>
+                </ul>
               </div>
             </div>
           ))}
         </div>
-        {/* <div className="mt-4 flex justify-end">
-                    <button
-                        className="text-xs font-semibold text-red-500 hover:text-red-700 hover:underline transition-colors flex items-center gap-1"
-                        onClick={(e) => { e.stopPropagation(); triggerGroupDelete(row); }}
-                    >
-                        Delete Entire Week Schedule
-                    </button>
-                </div> */}
       </div>
     );
   };
 
+  const planButton = can("weekly_programs.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={handleOpenAdd}>
+      Plan Week
+    </ActionPill>
+  ) : null;
+
   return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border-b border-line">
-          <div>
-            <h2 className="text-2xl font-bold text-ink">Weekly Machine Schedules</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="w-[160px]">
+    <PageBody>
+      <PageHeader
+        title="Weekly Machine Schedules"
+        icon={<CalendarRange size={22} />}
+        subtitle="Which orders run on which machine each week. Tap a week to see its orders."
+        actions={
+          can("weekly_programs.export") ? (
+            <ExportCSVButton
+              fetchData={fetchSchedulesForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : undefined
+        }
+        primaryAction={planButton}
+      />
+
+      <div>
+        <Toolbar>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => shiftWeek(-7)}
+              aria-label="Previous week"
+              className="sl-icon-btn sl-icon-btn-md"
+            >
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+            <div className="w-[170px]">
               <DatePickerCalendar
                 name="filterWeek"
                 value={filterWeekStartDate}
                 onChange={(e) => handleDateChange(e as any)}
               />
             </div>
-            <SearchInput value={searchTerm} onChange={handleSearch} placeholder="Search..." />
-            {can("weekly_programs.export") && (
-              <ExportCSVButton
-                fetchData={fetchSchedulesForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-            {can("weekly_programs.create") && (
-              <CustomButton text="Add Schedule" icon={FaPlus} onClick={handleOpenAdd} />
-            )}
+            <button
+              type="button"
+              onClick={() => shiftWeek(7)}
+              aria-label="Next week"
+              className="sl-icon-btn sl-icon-btn-md"
+            >
+              <ChevronRight size={18} aria-hidden="true" />
+            </button>
           </div>
-        </div>
-
-        {/* Table */}
-        <div className="p-0">
-          <DataTable
-            columns={columns}
-            data={paginatedGroups}
-            rowKey={(row) => row.weekKey}
-            loading={loading}
-            onRowClick={(row) => toggleGroup(row.weekKey)}
-            renderSubRow={renderSubRow}
-            emptyMessage="No weekly schedules found."
+          <Chip
+            size="lg"
+            selected={isThisWeek}
+            onClick={() => {
+              setFilterWeekStartDate(getMondayDateStr());
+              setCurrentPage(1);
+            }}
+          >
+            This week
+          </Chip>
+          <Chip
+            size="lg"
+            selected={!filterWeekStartDate}
+            onClick={() => {
+              setFilterWeekStartDate("");
+              setCurrentPage(1);
+            }}
+          >
+            All weeks
+          </Chip>
+          <SearchField
+            data-search-input
+            value={searchTerm}
+            onValueChange={(v) => {
+              setSearchTerm(v);
+              setCurrentPage(1);
+            }}
+            placeholder="Search..."
+            label="Search schedules"
           />
-        </div>
+        </Toolbar>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 py-4 border-t border-line">
-            <button
-              className="p-2 rounded-lg border border-line hover:bg-card-2 disabled:opacity-40"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => prev - 1)}
-            >
-              <svg
-                className="w-4 h-4 text-ink-muted"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <span className="text-sm text-ink-muted">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              className="p-2 rounded-lg border border-line hover:bg-card-2 disabled:opacity-40"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-            >
-              <svg
-                className="w-4 h-4 text-ink-muted"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
+        <DataTable
+          ariaLabel="Weekly machine schedules"
+          columns={columns}
+          data={paginatedGroups}
+          rowKey={(row) => row.weekKey}
+          loading={loading}
+          onRowClick={(row) => toggleGroup(row.weekKey)}
+          renderSubRow={renderSubRow}
+          emptyMessage={
+            searchTerm
+              ? "No weekly schedules match this search."
+              : "No weekly schedules for this week yet."
+          }
+          emptyAction={searchTerm ? undefined : planButton}
+          pagination={
+            totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
+          }
+        />
       </div>
+
       <CommonConfirmModal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -575,7 +579,7 @@ const WeeklyMachineScheduleList: React.FC = () => {
         confirmText="Delete"
         confirmVariant="danger"
       />
-    </div>
+    </PageBody>
   );
 };
 
