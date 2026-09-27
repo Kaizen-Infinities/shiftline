@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  FaArrowLeft,
   FaFileInvoice,
   FaHistory,
   FaList,
@@ -11,6 +10,8 @@ import {
   FaCheckCircle,
   FaExclamationTriangle,
 } from "react-icons/fa";
+import { FileText, Plus, RefreshCw } from "lucide-react";
+import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
 import { toast } from "react-toastify";
 import StatementPanel from "../../components/StatementPanel";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
@@ -334,55 +335,59 @@ export const CustomerBreakdownPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-3 space-y-3 min-h-screen font-sans text-ink">
-      {/* COMPACT HEADER + FILTERS */}
-      <div className="sl-tile">
-        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-line">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => navigate("/accounts/receivable")}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted font-semibold rounded text-[12.5px] transition-colors border border-line shrink-0"
-            >
-              <FaArrowLeft size={9} /> Back
-            </button>
-            <h1 className="text-sm font-bold text-ink flex items-center gap-2 min-w-0 truncate">
-              <FaUserFriends className="text-accent text-sm shrink-0" />
-              <span className="truncate">
-                {customerDetail?.customer.firmName || "Customer Breakdown"}
-              </span>
-              {refreshing && <FaSync className="animate-spin text-accent text-[11.5px]" />}
-            </h1>
-            {customerDetail?.customer.customerCode && (
-              <span className="text-[11.5px] font-semibold px-1.5 py-0.5 bg-nav-active text-accent border border-accent rounded tabular-nums uppercase tracking-wide shrink-0">
-                {customerDetail.customer.customerCode}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
+    <div className="w-full space-y-4 text-ink">
+      <PageHeader
+        className="!mb-0"
+        back="/accounts/receivable"
+        backLabel="Back to receivables"
+        breadcrumbs={[
+          { label: "Amount Receivable", to: "/accounts/receivable" },
+          { label: customerDetail?.customer.firmName || "Customer" },
+        ]}
+        title={customerDetail?.customer.firmName || "Customer Breakdown"}
+        subtitle="Invoices, receipts and the running balance for this customer"
+        meta={
+          customerDetail?.customer.customerCode ? (
+            <Chip size="sm">{customerDetail.customer.customerCode}</Chip>
+          ) : undefined
+        }
+        primaryAction={
+          <ActionPill
+            icon={<Plus size={18} />}
+            onClick={() => navigate("/accounts/receipt-voucher/add")}
+          >
+            Record Receipt
+          </ActionPill>
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
               onClick={refresh}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line"
               title="Refresh"
             >
-              <FaSync className={refreshing ? "animate-spin text-accent" : ""} /> Refresh
-            </button>
-            <button
-              type="button"
+              Refresh
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<FileText size={16} />}
               onClick={() => setShowStatement((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line"
+              aria-pressed={showStatement}
               title="Statement of account"
             >
-              <FaFileInvoice /> Statement
-            </button>
+              Statement
+            </ActionPill>
             <ExportCSVButton
               data={csvData}
               columns={csvColumns}
               filename={csvFilename}
               text="Export"
             />
-          </div>
-        </div>
+          </>
+        }
+      />
+      <div className="sl-tile overflow-hidden">
         {showStatement && customerId && (
           <div className="px-3 py-2 border-b border-line">
             <StatementPanel
@@ -394,8 +399,8 @@ export const CustomerBreakdownPage: React.FC = () => {
         )}
 
         {/* Filter Row - single compact row */}
-        <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
-          <div className="w-[140px]">
+        <div className="p-4 sm:p-5 flex flex-wrap items-end gap-3">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">Range</label>
             <SelectInput
               name="dateRangePreset"
@@ -406,7 +411,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[130px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">From</label>
             <DatePickerCalendar
               name="draftStartDate"
@@ -418,7 +423,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[130px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">To</label>
             <DatePickerCalendar
               name="draftEndDate"
@@ -440,10 +445,7 @@ export const CustomerBreakdownPage: React.FC = () => {
                 setVisibleColumns={setVisibleColumns}
               />
             )}
-            <button
-              onClick={handleClearFilters}
-              className="px-2.5 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card rounded transition-colors border border-line"
-            >
+            <button onClick={handleClearFilters} className="sl-btn sl-pill-sm">
               Clear
             </button>
             <button
@@ -458,8 +460,8 @@ export const CustomerBreakdownPage: React.FC = () => {
 
       {/* COMPACT KPI CARDS */}
       {customerDetail && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <div className="sl-tile p-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Opening
@@ -476,7 +478,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             <div className="text-[11.5px] text-ink-subtle mt-0.5">Starting receivable</div>
           </div>
 
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Invoiced
@@ -493,7 +495,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             <div className="text-[11.5px] text-ink-subtle mt-0.5">Sales invoices</div>
           </div>
 
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Received
@@ -510,7 +512,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             <div className="text-[11.5px] text-ink-subtle mt-0.5">Receipts settled</div>
           </div>
 
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Returned
@@ -527,7 +529,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             <div className="text-[11.5px] text-ink-subtle mt-0.5">Credit notes</div>
           </div>
 
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Outstanding

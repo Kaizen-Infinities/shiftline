@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  FaArrowLeft,
   FaFileInvoice,
   FaHistory,
   FaList,
@@ -12,6 +11,8 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { FileText, Plus, RefreshCw } from "lucide-react";
+import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
 import StatementPanel from "../../components/StatementPanel";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
@@ -341,60 +342,59 @@ export const SupplierBreakdownPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-3 space-y-3 min-h-screen font-sans text-ink">
-      {/* COMPACT HEADER + FILTERS */}
-      <div className="sl-tile">
-        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-line">
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              onClick={() => navigate("/accounts/payable")}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted font-semibold rounded text-[12.5px] transition-colors border border-line shrink-0"
-            >
-              <FaArrowLeft size={9} /> Back
-            </button>
-            <h1 className="text-sm font-bold text-ink flex items-center gap-2 min-w-0 truncate">
-              <FaBuilding className="text-[color:var(--color-warning)] text-sm shrink-0" />
-              <span className="truncate">
-                {supplierDetail?.supplier.legalName || "Supplier Breakdown"}
-              </span>
-              {refreshing && (
-                <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
-              )}
-            </h1>
-            {supplierDetail?.supplier.supplierCode && (
-              <span className="text-[11.5px] font-semibold px-1.5 py-0.5 bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 rounded tabular-nums uppercase tracking-wide shrink-0">
-                {supplierDetail.supplier.supplierCode}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
+    <div className="w-full space-y-4 text-ink">
+      <PageHeader
+        className="!mb-0"
+        back="/accounts/payable"
+        backLabel="Back to payables"
+        breadcrumbs={[
+          { label: "Amount Payable", to: "/accounts/payable" },
+          { label: supplierDetail?.supplier.legalName || "Supplier" },
+        ]}
+        title={supplierDetail?.supplier.legalName || "Supplier Breakdown"}
+        subtitle="Bills, payments and the running balance for this supplier"
+        meta={
+          supplierDetail?.supplier.supplierCode ? (
+            <Chip size="sm">{supplierDetail.supplier.supplierCode}</Chip>
+          ) : undefined
+        }
+        primaryAction={
+          <ActionPill
+            icon={<Plus size={18} />}
+            onClick={() => navigate("/accounts/payment-voucher/add")}
+          >
+            Record Payment
+          </ActionPill>
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
               onClick={refresh}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line"
               title="Refresh"
             >
-              <FaSync
-                className={refreshing ? "animate-spin text-[color:var(--color-warning)]" : ""}
-              />{" "}
               Refresh
-            </button>
-            <button
-              type="button"
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<FileText size={16} />}
               onClick={() => setShowStatement((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line"
+              aria-pressed={showStatement}
               title="Statement of account"
             >
-              <FaFileInvoice /> Statement
-            </button>
+              Statement
+            </ActionPill>
             <ExportCSVButton
               data={csvData}
               columns={csvColumns}
               filename={csvFilename}
               text="Export"
             />
-          </div>
-        </div>
+          </>
+        }
+      />
+      <div className="sl-tile overflow-hidden">
         {showStatement && supplierId && (
           <div className="px-3 py-2 border-b border-line">
             <StatementPanel
@@ -406,8 +406,8 @@ export const SupplierBreakdownPage: React.FC = () => {
         )}
 
         {/* Filter Row - single compact row */}
-        <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
-          <div className="w-[140px]">
+        <div className="p-4 sm:p-5 flex flex-wrap items-end gap-3">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">Range</label>
             <SelectInput
               name="dateRangePreset"
@@ -418,7 +418,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[130px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">From</label>
             <DatePickerCalendar
               name="draftStartDate"
@@ -430,7 +430,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[130px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">To</label>
             <DatePickerCalendar
               name="draftEndDate"
@@ -468,7 +468,7 @@ export const SupplierBreakdownPage: React.FC = () => {
       {/* COMPACT KPI CARDS */}
       {supplierDetail && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Opening
@@ -485,7 +485,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             <div className="text-[11.5px] text-ink-subtle mt-0.5">Starting liability</div>
           </div>
 
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Invoiced
@@ -502,7 +502,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             <div className="text-[11.5px] text-ink-subtle mt-0.5">GRN bills posted</div>
           </div>
 
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Paid
@@ -519,7 +519,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             <div className="text-[11.5px] text-ink-subtle mt-0.5">Payments settled</div>
           </div>
 
-          <div className="sl-tile p-3">
+          <div className="sl-tile p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Outstanding
