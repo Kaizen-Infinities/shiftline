@@ -595,7 +595,7 @@ export const ta: Messages = {
   "dispatch.col.vehicle": "வாகனம்",
   "dispatch.col.driver": "ஓட்டுநர்",
   "dispatch.col.items": "பொருட்கள்",
-  "dispatch.poCount": "{count} PO",
+  "dispatch.poCount": "{count} ஆர்டர்கள்",
   "dispatch.createTitle": "சரக்கு அனுப்புதலை உருவாக்கு",
   "dispatch.createSubtitle": "கிடங்குக்கு அனுப்ப, முடிந்த உற்பத்தி ஆர்டர்களைத் தேர்ந்தெடுங்கள்",
   "dispatch.back": "அனுப்புதல்களுக்குத் திரும்பு",
