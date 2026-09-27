@@ -10,18 +10,21 @@ import {
   type OvertimeRow,
   type WagesRow,
 } from "../../../services/registersService";
+import { BookOpen, Download, FileText } from "lucide-react";
+import { ChipTabs, PageHeader, SkeletonRows } from "../../../components/ui/v2";
 import {
   Card,
+  PageShell,
+  num,
   day,
   field,
   message,
   money,
   monthOptions,
-  primary,
   secondary,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/peopleUi";
 
 /**
  * The inspector's registers (P2-03): muster roll, wages, overtime, fines, deductions and
@@ -109,85 +112,83 @@ const RegistersPage: React.FC = () => {
   const isRange = REGISTERS.find((r) => r.value === register)?.range ?? false;
 
   return (
-    <div className="space-y-4 p-4">
-      <h1 className="text-lg font-semibold text-ink">Statutory Registers</h1>
-
-      <Card
-        title="Filters"
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="Statutory Registers"
+        icon={<BookOpen size={20} />}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Registers" }]}
+        subtitle="Muster roll, wages, overtime, fines, deductions and advances in the form the Labour Codes ask a company to keep."
         actions={
-          <div className="flex gap-2">
+          <>
             <button className={secondary} disabled={busy} onClick={() => void exportAs("csv")}>
-              Export CSV
+              <Download size={15} aria-hidden="true" /> Export CSV
             </button>
-            <button className={primary} disabled={busy} onClick={() => void exportAs("pdf")}>
-              Export PDF
+            <button className={secondary} disabled={busy} onClick={() => void exportAs("pdf")}>
+              <FileText size={15} aria-hidden="true" /> Export PDF
             </button>
-          </div>
+          </>
         }
       >
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs text-ink-muted">
-            Register
-            <select
-              className={field}
-              value={register}
-              onChange={(e) => setRegister(e.target.value as Register)}
-            >
-              {REGISTERS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <ChipTabs
+          ariaLabel="Register"
+          value={register}
+          onChange={(k) => setRegister(k as Register)}
+          items={REGISTERS.map((r) => ({
+            key: r.value,
+            label: r.label.replace("Register of ", ""),
+          }))}
+        />
+      </PageHeader>
 
-          {isRange ? (
-            <>
-              <label className="flex flex-col gap-1 text-xs text-ink-muted">
-                From
-                <input
-                  type="date"
-                  className={field}
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-ink-muted">
-                To
-                <input
-                  type="date"
-                  className={field}
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                />
-              </label>
-            </>
-          ) : (
-            <label className="flex flex-col gap-1 text-xs text-ink-muted">
-              Month
+      <div className="sl-tile flex flex-wrap items-end gap-4 p-4 sm:p-5">
+        {isRange ? (
+          <>
+            <label className="flex flex-col gap-1">
+              <span className="sl-label">From</span>
               <input
-                type="month"
+                type="date"
                 className={field}
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
               />
             </label>
-          )}
-
-          <label className="flex flex-col gap-1 text-xs text-ink-muted">
-            Business place (optional)
+            <label className="flex flex-col gap-1">
+              <span className="sl-label">To</span>
+              <input
+                type="date"
+                className={field}
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </label>
+          </>
+        ) : (
+          <label className="flex flex-col gap-1">
+            <span className="sl-label">Month</span>
             <input
+              type="month"
               className={field}
-              placeholder="Business place id"
-              value={businessPlaceId}
-              onChange={(e) => setBusinessPlaceId(e.target.value)}
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
             />
           </label>
-        </div>
-      </Card>
+        )}
+
+        <label className="flex flex-col gap-1">
+          <span className="sl-label">Business place (optional)</span>
+          <input
+            className={field}
+            placeholder="Business place id"
+            value={businessPlaceId}
+            onChange={(e) => setBusinessPlaceId(e.target.value)}
+          />
+        </label>
+      </div>
 
       {loading ? (
-        <p className="text-sm text-ink-muted">Loading…</p>
+        <div className="sl-tile overflow-hidden">
+          <SkeletonRows rows={6} columns={7} label="Loading register" />
+        </div>
       ) : (
         <>
           {register === "muster-roll" && muster && <MusterRollTable data={muster} />}
@@ -202,16 +203,16 @@ const RegistersPage: React.FC = () => {
           {register === "advances" && <AdvancesTable rows={advanceRows} />}
         </>
       )}
-    </div>
+    </PageShell>
   );
 };
 
 const MusterRollTable: React.FC<{ data: MusterRoll }> = ({ data }) => (
   <Card title={`Muster Roll — ${data.month}`}>
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-[14px] border border-line-soft">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="border-b border-line-soft">
+          <tr>
             <th className={th}>Code</th>
             <th className={th}>Name</th>
             {Array.from({ length: data.totalDays }, (_, i) => (
@@ -230,8 +231,8 @@ const MusterRollTable: React.FC<{ data: MusterRoll }> = ({ data }) => (
         <tbody>
           {data.rows.map((r) => (
             <tr key={r.employeeId} className="border-t border-line-soft">
-              <td className={td}>{r.employeeCode}</td>
-              <td className={td}>{r.employeeName}</td>
+              <td className={`${td} text-ink-muted`}>{r.employeeCode}</td>
+              <td className={`${td} whitespace-nowrap font-medium`}>{r.employeeName}</td>
               {r.days.map((d, i) => (
                 <td key={i} className={`${td} text-center`}>
                   {d.code ?? "-"}
@@ -261,10 +262,10 @@ const MusterRollTable: React.FC<{ data: MusterRoll }> = ({ data }) => (
 
 const WagesTable: React.FC<{ rows: WagesRow[] }> = ({ rows }) => (
   <Card title="Register of Wages">
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-[14px] border border-line-soft">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="border-b border-line-soft">
+          <tr>
             {[
               "Code",
               "Name",
@@ -294,22 +295,22 @@ const WagesTable: React.FC<{ rows: WagesRow[] }> = ({ rows }) => (
         <tbody>
           {rows.map((r) => (
             <tr key={r.employeeId} className="border-t border-line-soft">
-              <td className={td}>{r.employeeCode}</td>
-              <td className={td}>{r.employeeName}</td>
-              <td className={`${td} text-right`}>{r.daysWorked}</td>
-              <td className={`${td} text-right`}>{money(r.rate)}</td>
-              <td className={`${td} text-right`}>{money(r.basic)}</td>
-              <td className={`${td} text-right`}>{money(r.allowances)}</td>
-              <td className={`${td} text-right`}>{money(r.otWages)}</td>
-              <td className={`${td} text-right`}>{money(r.gross)}</td>
-              <td className={`${td} text-right`}>{money(r.pf)}</td>
-              <td className={`${td} text-right`}>{money(r.esi)}</td>
-              <td className={`${td} text-right`}>{money(r.professionalTax)}</td>
-              <td className={`${td} text-right`}>{money(r.tds)}</td>
-              <td className={`${td} text-right`}>{money(r.fines)}</td>
-              <td className={`${td} text-right`}>{money(r.advancesRecovered)}</td>
-              <td className={`${td} text-right`}>{money(r.others)}</td>
-              <td className={`${td} text-right`}>{money(r.net)}</td>
+              <td className={`${td} text-ink-muted`}>{r.employeeCode}</td>
+              <td className={`${td} whitespace-nowrap font-medium`}>{r.employeeName}</td>
+              <td className={`${td} ${num}`}>{r.daysWorked}</td>
+              <td className={`${td} ${num}`}>{money(r.rate)}</td>
+              <td className={`${td} ${num}`}>{money(r.basic)}</td>
+              <td className={`${td} ${num}`}>{money(r.allowances)}</td>
+              <td className={`${td} ${num}`}>{money(r.otWages)}</td>
+              <td className={`${td} ${num}`}>{money(r.gross)}</td>
+              <td className={`${td} ${num}`}>{money(r.pf)}</td>
+              <td className={`${td} ${num}`}>{money(r.esi)}</td>
+              <td className={`${td} ${num}`}>{money(r.professionalTax)}</td>
+              <td className={`${td} ${num}`}>{money(r.tds)}</td>
+              <td className={`${td} ${num}`}>{money(r.fines)}</td>
+              <td className={`${td} ${num}`}>{money(r.advancesRecovered)}</td>
+              <td className={`${td} ${num}`}>{money(r.others)}</td>
+              <td className={`${td} ${num}`}>{money(r.net)}</td>
               <td className={td}>{r.paymentMode}</td>
               <td className={td}>{day(r.paymentDate)}</td>
             </tr>
@@ -329,10 +330,10 @@ const WagesTable: React.FC<{ rows: WagesRow[] }> = ({ rows }) => (
 
 const OvertimeTable: React.FC<{ rows: OvertimeRow[] }> = ({ rows }) => (
   <Card title="Register of Overtime">
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-[14px] border border-line-soft">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="border-b border-line-soft">
+          <tr>
             {[
               "Code",
               "Name",
@@ -355,15 +356,15 @@ const OvertimeTable: React.FC<{ rows: OvertimeRow[] }> = ({ rows }) => (
         <tbody>
           {rows.map((r, i) => (
             <tr key={`${r.employeeId}-${r.date}-${i}`} className="border-t border-line-soft">
-              <td className={td}>{r.employeeCode}</td>
-              <td className={td}>{r.employeeName}</td>
+              <td className={`${td} text-ink-muted`}>{r.employeeCode}</td>
+              <td className={`${td} whitespace-nowrap font-medium`}>{r.employeeName}</td>
               <td className={td}>{day(r.date)}</td>
-              <td className={`${td} text-right`}>{r.otHours}</td>
-              <td className={`${td} text-right`}>{money(r.normalRate)}</td>
-              <td className={`${td} text-right`}>{money(r.otRate)}</td>
-              <td className={`${td} text-right`}>{money(r.otWages)}</td>
-              <td className={`${td} text-right`}>{r.cumulativeQuarterHours}</td>
-              <td className={`${td} text-right`}>{r.quarterlyCap}</td>
+              <td className={`${td} ${num}`}>{r.otHours}</td>
+              <td className={`${td} ${num}`}>{money(r.normalRate)}</td>
+              <td className={`${td} ${num}`}>{money(r.otRate)}</td>
+              <td className={`${td} ${num}`}>{money(r.otWages)}</td>
+              <td className={`${td} ${num}`}>{r.cumulativeQuarterHours}</td>
+              <td className={`${td} ${num}`}>{r.quarterlyCap}</td>
               <td className={`${td} text-center`}>{r.overCap ? "Yes" : ""}</td>
               <td
                 className={`${td} text-center ${
@@ -396,10 +397,10 @@ const FineDeductionTable: React.FC<{
 }> = ({ rows, ceilingChecks }) => (
   <>
     <Card title="Entries">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-[14px] border border-line-soft">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-line-soft">
+            <tr>
               {["Code", "Name", "Date", "Act/Omission", "Amount", "Shown Cause"].map((h) => (
                 <th key={h} className={th}>
                   {h}
@@ -410,11 +411,11 @@ const FineDeductionTable: React.FC<{
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-line-soft">
-                <td className={td}>{r.employeeCode}</td>
-                <td className={td}>{r.employeeName}</td>
+                <td className={`${td} text-ink-muted`}>{r.employeeCode}</td>
+                <td className={`${td} whitespace-nowrap font-medium`}>{r.employeeName}</td>
                 <td className={td}>{day(r.date)}</td>
                 <td className={td}>{r.cause}</td>
-                <td className={`${td} text-right`}>{money(r.amount)}</td>
+                <td className={`${td} ${num}`}>{money(r.amount)}</td>
                 <td className={`${td} text-center`}>{r.shownCauseGiven ? "Yes" : "No"}</td>
               </tr>
             ))}
@@ -431,10 +432,10 @@ const FineDeductionTable: React.FC<{
     </Card>
     {ceilingChecks && ceilingChecks.length > 0 && (
       <Card title="3% Ceiling Check (Payment of Wages Act s.8)">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-[14px] border border-line-soft">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-line-soft">
+              <tr>
                 {["Code", "Month", "Total Fines", "3% Ceiling", "Breach"].map((h) => (
                   <th key={h} className={th}>
                     {h}
@@ -450,8 +451,8 @@ const FineDeductionTable: React.FC<{
                 >
                   <td className={td}>{c.employeeCode}</td>
                   <td className={td}>{c.month}</td>
-                  <td className={`${td} text-right`}>{money(c.totalFines)}</td>
-                  <td className={`${td} text-right`}>
+                  <td className={`${td} ${num}`}>{money(c.totalFines)}</td>
+                  <td className={`${td} ${num}`}>
                     {c.wageCeiling === null ? "—" : money(c.wageCeiling)}
                   </td>
                   <td className={`${td} text-center`}>
@@ -469,10 +470,10 @@ const FineDeductionTable: React.FC<{
 
 const AdvancesTable: React.FC<{ rows: AdvanceRow[] }> = ({ rows }) => (
   <Card title="Register of Advances">
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-[14px] border border-line-soft">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="border-b border-line-soft">
+          <tr>
             {["Code", "Name", "Date", "Amount", "Purpose", "Recovered", "Balance", "Status"].map(
               (h) => (
                 <th key={h} className={th}>
@@ -485,13 +486,13 @@ const AdvancesTable: React.FC<{ rows: AdvanceRow[] }> = ({ rows }) => (
         <tbody>
           {rows.map((r) => (
             <tr key={r.id} className="border-t border-line-soft">
-              <td className={td}>{r.employeeCode}</td>
-              <td className={td}>{r.employeeName}</td>
+              <td className={`${td} text-ink-muted`}>{r.employeeCode}</td>
+              <td className={`${td} whitespace-nowrap font-medium`}>{r.employeeName}</td>
               <td className={td}>{day(r.date)}</td>
-              <td className={`${td} text-right`}>{money(r.amount)}</td>
+              <td className={`${td} ${num}`}>{money(r.amount)}</td>
               <td className={td}>{r.purpose}</td>
-              <td className={`${td} text-right`}>{money(r.recoveredToDate)}</td>
-              <td className={`${td} text-right`}>{money(r.balance)}</td>
+              <td className={`${td} ${num}`}>{money(r.recoveredToDate)}</td>
+              <td className={`${td} ${num}`}>{money(r.balance)}</td>
               <td className={td}>{r.status}</td>
             </tr>
           ))}

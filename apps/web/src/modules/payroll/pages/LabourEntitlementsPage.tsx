@@ -23,7 +23,7 @@ import {
   success,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../components/peopleUi";
 
 /**
  * Leave, gratuity, bonus and settlements (P1-17b).

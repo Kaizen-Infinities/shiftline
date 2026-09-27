@@ -20,7 +20,7 @@ import {
   secondary,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../../payroll/components/peopleUi";
 
 /**
  * Leave requests, approval and the calendar (P2-09) — the manager's view of what

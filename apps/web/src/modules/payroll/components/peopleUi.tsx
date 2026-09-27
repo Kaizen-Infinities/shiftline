@@ -90,6 +90,17 @@ export const monthOptions = (count: number) => {
   return out;
 };
 
+/** The last `count` Indian financial years, newest first. */
+export const fyOptions = (count: number) => {
+  const now = new Date();
+  const current = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  return Array.from({ length: count }, (_, i) => {
+    const start = current - i;
+    const key = `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
+    return { value: key, label: `FY ${key}` };
+  });
+};
+
 /** Plain-table classes that match DataTable's header band and rows. */
 export const th = "sl-th bg-card-2 px-4 py-3 text-left text-[12px] font-semibold text-ink-muted";
 export const td = "px-4 py-3 text-sm text-ink";
@@ -192,3 +203,48 @@ export const PageShell: React.FC<{ children: React.ReactNode; className?: string
   children,
   className,
 }) => <div className={cx("mx-auto w-full max-w-[1480px] py-1 sm:py-2", className)}>{children}</div>;
+
+/* ── Drop-in v2 replacements for the old GST-screen helpers ─────────────────── */
+
+/** Native select / input. */
+export const field = "sl-input h-10 w-auto text-sm";
+export const primary = "sl-cta sl-pill-sm";
+export const secondary = "sl-btn sl-pill-sm";
+export const success = "sl-btn-blue sl-pill-sm";
+export const danger = "sl-btn-danger sl-pill-sm";
+/** Row action rendered as a small text-ish pill. */
+export const linkBtn = "sl-btn-ghost sl-pill-sm !px-2.5";
+/** Rupees with two decimals, en-IN. */
+export const money = (n: number | string | null | undefined) => formatINR(n ?? 0);
+export const day = (iso: string | null | undefined) => formatDay(iso);
+export const message = (err: unknown) => errorMessage(err);
+
+/** A titled content tile (an `.sl-tile` with an `.sl-h2` header). */
+export const Card: React.FC<{
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  className?: string;
+}> = ({ title, subtitle, children, actions, className }) => (
+  <section className={cx("sl-tile", className)}>
+    <header className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-5 sm:pt-5">
+      <div className="min-w-0">
+        <h2 className="sl-h2 m-0">{title}</h2>
+        {subtitle && <p className="sl-muted m-0 mt-0.5 text-sm">{subtitle}</p>}
+      </div>
+      {actions}
+    </header>
+    <div className="p-4 pt-3 sm:p-5 sm:pt-4">{children}</div>
+  </section>
+);
+
+/** A hairline-bordered table frame that scrolls sideways inside a tile. */
+export const TableWrap: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className,
+}) => (
+  <div className={cx("overflow-x-auto rounded-[14px] border border-line-soft", className)}>
+    {children}
+  </div>
+);

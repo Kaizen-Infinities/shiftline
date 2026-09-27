@@ -16,7 +16,7 @@ import {
   secondary,
   td,
   th,
-} from "../../compliance/components/gstUi";
+} from "../../payroll/components/peopleUi";
 
 /** Self-service: the calling user's own leave balances and requests (P2-09). */
 const STATUS_STYLE: Record<LeaveRequestStatus, string> = {
