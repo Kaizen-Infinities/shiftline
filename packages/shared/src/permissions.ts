@@ -333,6 +333,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "Export order time-and-action calendar",
   },
   {
+    // TN-09: per-job costing for body builders and fabricators (quote vs actual).
+    module: "project-jobs",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Job / project costing",
+  },
+  {
     module: "goods-dispatch",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Goods Dispatch",

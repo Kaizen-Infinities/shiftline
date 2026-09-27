@@ -518,6 +518,7 @@ model Customer {
   cheques               Cheque[]
   tdsDeductions         TdsDeduction[]      @relation("CustomerTdsDeduction")
   orderTnas             OrderTna[]          @relation("CustomerOrderTna")
+  projectJobs           ProjectJob[]        @relation("CustomerProjectJob")
   deliverySchedules     CustomerSchedule[]  @relation("CustomerDeliverySchedule")
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
@@ -741,6 +742,10 @@ model Company {
   leaveRequests          LeaveRequest[]           @relation("CompanyLeaveRequest")
   orderTnas              OrderTna[]               @relation("CompanyOrderTna")
   orderTnaMilestones     OrderTnaMilestone[]      @relation("CompanyOrderTnaMilestone")
+  projectJobs            ProjectJob[]             @relation("CompanyProjectJob")
+  projectJobStages       ProjectJobStage[]        @relation("CompanyProjectJobStage")
+  projectJobCosts        ProjectJobCost[]         @relation("CompanyProjectJobCost")
+  projectJobBillings     ProjectJobBilling[]      @relation("CompanyProjectJobBilling")
   paymentGateway         PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
   paymentLinks           PaymentLink[]            @relation("CompanyPaymentLink")
   paymentCaptures        PaymentCapture[]         @relation("CompanyPaymentCapture")
@@ -6502,4 +6507,160 @@ model ExportObligationEntry {
 
   @@unique([companyId, authorisationId, shippingBillNo])
   @@map("export_obligation_entries")
+}
+
+/// TN-09: lifecycle of a body-building or fabrication job.
+enum ProjectJobStatus {
+  QUOTED
+  IN_PROGRESS
+  COMPLETED
+  DELIVERED
+  CANCELLED
+}
+
+/// TN-09: a stage on a job's plan.
+enum ProjectJobStageStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  SKIPPED
+}
+
+/// TN-09: what a cost line is.
+enum ProjectJobCostType {
+  MATERIAL
+  LABOUR
+  SUBCONTRACT
+  OVERHEAD
+}
+
+/// TN-09: a DRAFT cost line can be removed; a POSTED one is locked.
+enum ProjectJobCostStatus {
+  DRAFT
+  POSTED
+}
+
+/// TN-09: advances received and invoices raised against a job.
+enum ProjectJobBillingKind {
+  ADVANCE
+  STAGE_INVOICE
+  FINAL
+}
+
+/// TN-09: one customer job (a truck body on the customer's chassis, a fabrication order) costed
+/// on its own and compared with its quote.
+model ProjectJob {
+  id                String           @id @default(uuid()) @db.Uuid
+  companyId         String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobNo             String           @map("job_no") @db.VarChar(30)
+  customerId        String           @map("customer_id") @db.Uuid
+  title             String           @db.VarChar(120)
+  description       String?          @db.VarChar(500)
+  quotedAmount      Decimal          @map("quoted_amount") @db.Decimal(14, 2)
+  quoteDate         DateTime         @map("quote_date") @db.Date
+  targetDate        DateTime?        @map("target_date") @db.Date
+  /// Customer-owned chassis or material held in custody while the job runs.
+  chassisNo         String?          @map("chassis_no") @db.VarChar(40)
+  chassisMake       String?          @map("chassis_make") @db.VarChar(80)
+  chassisReceivedOn DateTime?        @map("chassis_received_on") @db.Date
+  conditionNotes    String?          @map("condition_notes") @db.VarChar(500)
+  status            ProjectJobStatus @default(QUOTED)
+  createdBy         String?          @map("created_by") @db.VarChar(36)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company             @relation("CompanyProjectJob", fields: [companyId], references: [id], onDelete: Restrict)
+  customer Customer            @relation("CustomerProjectJob", fields: [customerId], references: [id], onDelete: Restrict)
+  stages   ProjectJobStage[]
+  costs    ProjectJobCost[]
+  billings ProjectJobBilling[]
+
+  @@unique([companyId, jobNo])
+  @@index([companyId, status])
+  @@map("project_jobs")
+}
+
+/// TN-09: an ordered stage of a job's plan (chassis inward, fabrication, paneling ...).
+model ProjectJobStage {
+  id           String                @id @default(uuid()) @db.Uuid
+  companyId    String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobId        String                @map("job_id") @db.Uuid
+  seq          Int
+  name         String                @db.VarChar(80)
+  /// Relative weight for % complete (default 1).
+  weight       Int                   @default(1)
+  plannedStart DateTime?             @map("planned_start") @db.Date
+  plannedEnd   DateTime?             @map("planned_end") @db.Date
+  actualStart  DateTime?             @map("actual_start") @db.Date
+  actualEnd    DateTime?             @map("actual_end") @db.Date
+  status       ProjectJobStageStatus @default(PENDING)
+  remarks      String?               @db.VarChar(300)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company             @relation("CompanyProjectJobStage", fields: [companyId], references: [id], onDelete: Restrict)
+  job      ProjectJob          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  billings ProjectJobBilling[]
+
+  @@unique([jobId, seq])
+  @@index([companyId])
+  @@map("project_job_stages")
+}
+
+/// TN-09: a cost booked to a job. Amount = qty x rate (labour: hours x rate per hour).
+model ProjectJobCost {
+  id            String               @id @default(uuid()) @db.Uuid
+  companyId     String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobId         String               @map("job_id") @db.Uuid
+  type          ProjectJobCostType
+  costDate      DateTime             @map("cost_date") @db.Date
+  description   String               @db.VarChar(200)
+  qty           Decimal              @db.Decimal(14, 3)
+  uom           String?              @db.VarChar(20)
+  rate          Decimal              @db.Decimal(14, 2)
+  amount        Decimal              @db.Decimal(14, 2)
+  /// RawMaterial.id, checked tenant-scoped by the service.
+  rawMaterialId String?              @map("raw_material_id") @db.Uuid
+  /// RawMaterialTransaction.rmTxnId of an issue, checked tenant-scoped; costed once.
+  stockIssueId  BigInt?              @map("stock_issue_id")
+  /// Employee.id for labour, checked tenant-scoped.
+  employeeId    BigInt?              @map("employee_id")
+  vendorName    String?              @map("vendor_name") @db.VarChar(120)
+  status        ProjectJobCostStatus @default(DRAFT)
+  createdBy     String?              @map("created_by") @db.VarChar(36)
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company    @relation("CompanyProjectJobCost", fields: [companyId], references: [id], onDelete: Restrict)
+  job     ProjectJob @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, stockIssueId])
+  @@index([companyId, jobId, type])
+  @@map("project_job_costs")
+}
+
+/// TN-09: an advance received or an invoice raised against a job.
+model ProjectJobBilling {
+  id              String                @id @default(uuid()) @db.Uuid
+  companyId       String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobId           String                @map("job_id") @db.Uuid
+  kind            ProjectJobBillingKind
+  billDate        DateTime              @map("bill_date") @db.Date
+  amount          Decimal               @db.Decimal(14, 2)
+  /// On an invoice: the part of it settled from advances already received.
+  advanceAdjusted Decimal               @default(0) @map("advance_adjusted") @db.Decimal(14, 2)
+  stageId         String?               @map("stage_id") @db.Uuid
+  /// SalesInvoice.id, checked tenant-scoped by the service.
+  salesInvoiceId  String?               @map("sales_invoice_id") @db.Uuid
+  reference       String?               @db.VarChar(60)
+  remarks         String?               @db.VarChar(300)
+  createdBy       String?               @map("created_by") @db.VarChar(36)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company          @relation("CompanyProjectJobBilling", fields: [companyId], references: [id], onDelete: Restrict)
+  job     ProjectJob       @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  stage   ProjectJobStage? @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, jobId])
+  @@map("project_job_billings")
 }

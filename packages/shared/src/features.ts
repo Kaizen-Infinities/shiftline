@@ -125,6 +125,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "production-reports",
       "dash-machines",
       "order-tna",
+      "project-jobs",
     ],
   },
   {
