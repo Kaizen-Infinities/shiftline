@@ -85,8 +85,8 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
       className="sl-tile overflow-hidden flex flex-col"
       style={{ maxHeight: "calc(100vh - 240px)" }}
     >
-      <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between gap-2 shrink-0">
-        <h2 className="text-xs font-semibold text-ink">
+      <div className="px-4 py-3 border-b border-line-soft flex items-center justify-between gap-2 shrink-0">
+        <h2 className="sl-h2 m-0 text-[15px] flex items-center gap-2">
           {kind === "receivable" ? "Receivables" : "Payables"} ageing as on{" "}
           {formatDate(report?.asOnDate ?? asOnDate)}
         </h2>

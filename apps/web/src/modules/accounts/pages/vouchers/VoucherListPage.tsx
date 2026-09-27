@@ -363,7 +363,7 @@ export const VoucherListPage: React.FC = () => {
       {/* Table */}
       <div className="sl-tile overflow-hidden">
         <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between">
-          <h2 className="text-xs font-semibold text-ink">
+          <h2 className="sl-h2 m-0 text-[15px] flex items-center gap-2">
             {typeFilter === "ALL" ? "All Registered Vouchers" : `${typeFilter} Vouchers`}
           </h2>
           <span className="text-[12.5px] text-ink-subtle tabular-nums">Total: {total}</span>

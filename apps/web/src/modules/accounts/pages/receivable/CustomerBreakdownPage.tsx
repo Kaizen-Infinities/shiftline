@@ -448,7 +448,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             </button>
             <button
               onClick={handleApplyFilters}
-              className="px-3 py-1.5 text-xs font-semibold sl-btn-blue rounded transition-colors"
+              className="sl-btn-blue sl-pill-sm transition-colors"
             >
               Apply
             </button>

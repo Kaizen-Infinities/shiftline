@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FaBuilding,
-  FaSync,
-  FaChevronRight,
-  FaMoneyBillWave,
-  FaExclamationTriangle,
-  FaCheckCircle,
-} from "react-icons/fa";
+import { FaSync, FaChevronRight } from "react-icons/fa";
+import { Landmark, Plus, RefreshCw } from "lucide-react";
+import { ActionPill, PageHeader, StatTile } from "../../../../components/ui/v2";
+import { fmtINR, fmtINRCompact } from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
@@ -296,12 +292,76 @@ export const AmountPayablePage: React.FC = () => {
     };
   }, [filteredSuppliers, asOnDate]);
 
+  const netBal = Number(totals.totalNetBalance || 0);
   return (
-    <div className="p-3 flex gap-3 w-full items-start font-sans text-ink">
-      <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
-        {/* Single-row header — filters + actions */}
-        <div className="sl-tile shadow-sm px-3 py-2 flex flex-wrap items-end gap-2">
-          <div className="w-[120px]">
+    <div className="w-full text-ink">
+      <PageHeader
+        title="Amount Payable"
+        subtitle="What you owe suppliers, with ageing and the MSME clock"
+        icon={<Landmark size={20} />}
+        primaryAction={
+          <ActionPill
+            icon={<Plus size={18} />}
+            onClick={() => navigate("/accounts/payment-voucher/add")}
+          >
+            Record Payment
+          </ActionPill>
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+              onClick={refresh}
+              title="Refresh"
+            >
+              Refresh
+            </ActionPill>
+            {(can("payable.export") || can("accounts.export")) && (
+              <ExportCSVButton
+                data={csvData}
+                columns={csvColumns}
+                filename={csvFilename}
+                text="Export"
+              />
+            )}
+          </>
+        }
+      />
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile
+          label="Total payable"
+          value={
+            Math.abs(netBal) < 0.005 ? (
+              "₹0"
+            ) : (
+              <span title={fmtINR(Math.abs(netBal))}>
+                {fmtINRCompact(Math.abs(netBal))}{" "}
+                <span className="text-base font-semibold text-ink-subtle">
+                  {netBal >= 0 ? "Cr" : "Dr"}
+                </span>
+              </span>
+            )
+          }
+        />
+        <StatTile label="Suppliers" value={filteredSuppliers.length} />
+        <StatTile
+          label="Overdue"
+          value={totals.overdueCount}
+          delta={totals.overdueCount > 0 ? "Needs follow-up" : undefined}
+          deltaTone="warning"
+        />
+        <StatTile
+          label="Total credit"
+          value={
+            <span title={fmtINR(totals.totalCredit)}>{fmtINRCompact(totals.totalCredit)}</span>
+          }
+        />
+      </div>
+      <div className="w-full space-y-4">
+        {/* Filter bar */}
+        <div className="sl-tile flex flex-wrap items-end gap-3 p-4 sm:p-5">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">As On</label>
             <DatePickerCalendar
               name="draftAsOnDate"
@@ -310,7 +370,7 @@ export const AmountPayablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">Range</label>
             <SelectInput
               name="dateRangePreset"
@@ -322,7 +382,7 @@ export const AmountPayablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">From</label>
             <DatePickerCalendar
               name="draftStartDate"
@@ -334,7 +394,7 @@ export const AmountPayablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">To</label>
             <DatePickerCalendar
               name="draftEndDate"
@@ -384,26 +444,12 @@ export const AmountPayablePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setView(view === "ageing" ? "balances" : "ageing")}
-              className={`sl-chip sl-chip-lg ${view === "ageing" ? "" : "sl-chip-ghost"}`}
+              className="sl-chip sl-chip-lg"
               aria-pressed={view === "ageing"}
               title="Unpaid documents by days past due"
             >
-              {view === "ageing" ? "Balances" : "Ageing"}
+              Ageing
             </button>
-            <button onClick={refresh} className="sl-btn sl-pill-sm" title="Refresh">
-              <FaSync
-                className={refreshing ? "animate-spin text-[color:var(--color-warning)]" : ""}
-              />{" "}
-              Refresh
-            </button>
-            {(can("payable.export") || can("accounts.export")) && (
-              <ExportCSVButton
-                data={csvData}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
           </div>
         </div>
 
@@ -423,8 +469,8 @@ export const AmountPayablePage: React.FC = () => {
           hidden={view === "ageing"}
         >
           {/* Table toolbar row */}
-          <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between gap-2 shrink-0">
-            <h2 className="text-xs font-semibold text-ink">Supplier Payables</h2>
+          <div className="px-4 py-3 border-b border-line-soft flex items-center justify-between gap-2 shrink-0">
+            <h2 className="sl-h2 m-0 text-[15px] flex items-center gap-2">Supplier Payables</h2>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
                 <label className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-subtle">
@@ -433,7 +479,7 @@ export const AmountPayablePage: React.FC = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-2 py-1 border border-line rounded text-[12.5px] bg-card text-ink focus:outline-none focus:ring-1 focus:ring-accent/30 cursor-pointer"
+                  className="sl-input h-9 !w-auto text-[13px] cursor-pointer"
                 >
                   <option value="activity">Recent Activity</option>
                   <option value="balance">Highest Balance</option>
@@ -442,10 +488,7 @@ export const AmountPayablePage: React.FC = () => {
                 </select>
               </div>
               <div className="relative">
-                <button
-                  onClick={() => setColsMenuOpen((o) => !o)}
-                  className="px-2 py-1 border border-line rounded text-[12.5px] bg-card text-ink hover:bg-card-2 cursor-pointer"
-                >
+                <button onClick={() => setColsMenuOpen((o) => !o)} className="sl-btn sl-pill-sm">
                   Columns ▾
                 </button>
                 {colsMenuOpen && (
@@ -761,77 +804,6 @@ export const AmountPayablePage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Right sidebar — 4 summary stats. Amounts render on their own row so
-         crores-scale values never squeeze the label or overflow the card. */}
-      <aside className="sl-tile w-[240px] shrink-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-line-soft text-[15px] font-semibold text-ink flex items-center gap-2">
-          <FaBuilding className="text-[color:var(--color-warning)] text-xs" /> Summary
-        </div>
-        <div className="divide-y divide-line-soft">
-          <div className="px-3 py-2 bg-[color:var(--color-warning)]/10">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaMoneyBillWave className="text-[color:var(--color-warning)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Total Payable</span>
-            </div>
-            {(() => {
-              const bal = Number(totals.totalNetBalance || 0);
-              const abs = Math.abs(bal).toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-              if (Math.abs(bal) < 0.005) {
-                return (
-                  <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
-                    ₹0.00
-                  </div>
-                );
-              }
-              return (
-                <div
-                  className={`text-sm tabular-nums font-bold break-all leading-tight ${bal >= 0 ? "text-[color:var(--color-warning)]" : "text-[color:var(--color-success)]"}`}
-                >
-                  ₹{abs} <span className="text-[12.5px] font-sans">{bal >= 0 ? "Cr" : "Dr"}</span>
-                </div>
-              );
-            })()}
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaBuilding className="text-accent text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Suppliers</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
-              {filteredSuppliers.length}
-            </div>
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaExclamationTriangle className="text-[color:var(--color-warning)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Overdue</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-[color:var(--color-warning)] break-all leading-tight">
-              {totals.overdueCount}
-            </div>
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaCheckCircle className="text-[color:var(--color-success)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Total Credit</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
-              ₹
-              {totals.totalCredit.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-          </div>
-        </div>
-      </aside>
     </div>
   );
 };

@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FaUserFriends,
-  FaSync,
-  FaChevronRight,
-  FaMoneyBillWave,
-  FaExclamationTriangle,
-  FaCheckCircle,
-} from "react-icons/fa";
+import { FaSync, FaChevronRight } from "react-icons/fa";
+import { HandCoins, Plus, RefreshCw } from "lucide-react";
+import { ActionPill, PageHeader, StatTile } from "../../../../components/ui/v2";
+import { fmtDrCr, fmtINR, fmtINRCompact } from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
@@ -298,12 +294,74 @@ export const AmountReceivablePage: React.FC = () => {
     };
   }, [filteredCustomers, asOnDate]);
 
+  const netBal = Number(totals.totalNetBalance || 0);
   return (
-    <div className="p-3 flex gap-3 w-full items-start font-sans text-ink">
-      <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
-        {/* Single-row header — filters + actions */}
-        <div className="sl-tile shadow-sm px-3 py-2 flex flex-wrap items-end gap-2">
-          <div className="w-[130px]">
+    <div className="w-full text-ink">
+      <PageHeader
+        title="Amount Receivable"
+        subtitle="What customers owe you, with ageing and overdue bills"
+        icon={<HandCoins size={20} />}
+        primaryAction={
+          <ActionPill
+            icon={<Plus size={18} />}
+            onClick={() => navigate("/accounts/receipt-voucher/add")}
+          >
+            Record Receipt
+          </ActionPill>
+        }
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+              onClick={refresh}
+              title="Refresh"
+            >
+              Refresh
+            </ActionPill>
+            {(can("receivable.export") || can("accounts.export")) && (
+              <ExportCSVButton
+                data={csvData}
+                columns={csvColumns}
+                filename={csvFilename}
+                text="Export"
+              />
+            )}
+          </>
+        }
+      />
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile
+          label="Total receivable"
+          value={
+            Math.abs(netBal) < 0.005 ? (
+              "₹0"
+            ) : (
+              <span title={fmtDrCr(netBal)}>
+                {fmtINRCompact(Math.abs(netBal))}{" "}
+                <span className="text-base font-semibold text-ink-subtle">
+                  {netBal >= 0 ? "Dr" : "Cr"}
+                </span>
+              </span>
+            )
+          }
+        />
+        <StatTile label="Customers" value={filteredCustomers.length} />
+        <StatTile
+          label="Overdue"
+          value={totals.overdueCount}
+          delta={totals.overdueCount > 0 ? "Needs follow-up" : undefined}
+          deltaTone="warning"
+        />
+        <StatTile
+          label="Total debit"
+          value={<span title={fmtINR(totals.totalDebit)}>{fmtINRCompact(totals.totalDebit)}</span>}
+        />
+      </div>
+      <div className="w-full space-y-4">
+        {/* Filter bar */}
+        <div className="sl-tile flex flex-wrap items-end gap-3 p-4 sm:p-5">
+          <div className="w-full sm:w-[160px]">
             <label className="sl-label">Range</label>
             <SelectInput
               name="dateRangePreset"
@@ -315,7 +373,7 @@ export const AmountReceivablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">From</label>
             <DatePickerCalendar
               name="draftStartDate"
@@ -327,7 +385,7 @@ export const AmountReceivablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[120px]">
+          <div className="w-full sm:w-[170px]">
             <label className="sl-label">To</label>
             <DatePickerCalendar
               name="draftEndDate"
@@ -339,7 +397,7 @@ export const AmountReceivablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[220px]">
+          <div className="w-full sm:w-[220px]">
             <label className="sl-label">Search</label>
             <input
               type="text"
@@ -350,7 +408,7 @@ export const AmountReceivablePage: React.FC = () => {
             />
           </div>
 
-          <div className="w-[160px]">
+          <div className="w-full sm:w-[190px]">
             <label className="sl-label">Customer</label>
             <SelectInput
               name="draftCustomerId"
@@ -369,10 +427,7 @@ export const AmountReceivablePage: React.FC = () => {
           <button onClick={handleClearFilters} className="sl-btn sl-pill-sm">
             Clear
           </button>
-          <button
-            onClick={handleApplyFilters}
-            className="px-3 py-1.5 text-xs font-semibold sl-btn-blue rounded"
-          >
+          <button onClick={handleApplyFilters} className="sl-btn-blue sl-pill-sm">
             Apply
           </button>
 
@@ -380,23 +435,12 @@ export const AmountReceivablePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setView(view === "ageing" ? "balances" : "ageing")}
-              className={`sl-chip sl-chip-lg ${view === "ageing" ? "" : "sl-chip-ghost"}`}
+              className="sl-chip sl-chip-lg"
               aria-pressed={view === "ageing"}
               title="Unpaid documents by days past due"
             >
-              {view === "ageing" ? "Balances" : "Ageing"}
+              Ageing
             </button>
-            <button onClick={refresh} className="sl-btn sl-pill-sm" title="Refresh">
-              <FaSync className={refreshing ? "animate-spin text-accent" : ""} /> Refresh
-            </button>
-            {(can("receivable.export") || can("accounts.export")) && (
-              <ExportCSVButton
-                data={csvData}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
           </div>
         </div>
 
@@ -416,8 +460,8 @@ export const AmountReceivablePage: React.FC = () => {
           hidden={view === "ageing"}
         >
           {/* Table toolbar row */}
-          <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between gap-2 shrink-0">
-            <h2 className="text-xs font-semibold text-ink">Customer Receivables</h2>
+          <div className="px-4 py-3 border-b border-line-soft flex items-center justify-between gap-2 shrink-0">
+            <h2 className="sl-h2 m-0 text-[15px] flex items-center gap-2">Customer Receivables</h2>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
                 <label className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-subtle">
@@ -426,7 +470,7 @@ export const AmountReceivablePage: React.FC = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-2 py-1 border border-line rounded text-[12.5px] bg-card text-ink focus:outline-none focus:ring-1 focus:ring-accent/30 cursor-pointer"
+                  className="sl-input h-9 !w-auto text-[13px] cursor-pointer"
                 >
                   <option value="activity">Recent Activity</option>
                   <option value="balance">Highest Balance</option>
@@ -435,10 +479,7 @@ export const AmountReceivablePage: React.FC = () => {
                 </select>
               </div>
               <div className="relative">
-                <button
-                  onClick={() => setColsMenuOpen((o) => !o)}
-                  className="px-2 py-1 border border-line rounded text-[12.5px] bg-card text-ink hover:bg-card-2 cursor-pointer"
-                >
+                <button onClick={() => setColsMenuOpen((o) => !o)} className="sl-btn sl-pill-sm">
                   Columns ▾
                 </button>
                 {colsMenuOpen && (
@@ -742,77 +783,6 @@ export const AmountReceivablePage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Right sidebar — 4 summary stats. Amounts render on their own row so
-         crores-scale values never squeeze the label or overflow the card. */}
-      <aside className="sl-tile w-[240px] shrink-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-line-soft text-[15px] font-semibold text-ink flex items-center gap-2">
-          <FaUserFriends className="text-accent text-xs" /> Summary
-        </div>
-        <div className="divide-y divide-line-soft">
-          <div className="px-3 py-2 bg-nav-active">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaMoneyBillWave className="text-accent text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Total Receivable</span>
-            </div>
-            {(() => {
-              const bal = Number(totals.totalNetBalance || 0);
-              const abs = Math.abs(bal).toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-              if (Math.abs(bal) < 0.005) {
-                return (
-                  <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
-                    ₹0.00
-                  </div>
-                );
-              }
-              return (
-                <div
-                  className={`text-sm tabular-nums font-bold break-all leading-tight ${bal >= 0 ? "text-accent" : "text-[color:var(--color-success)]"}`}
-                >
-                  ₹{abs} <span className="text-[12.5px] font-sans">{bal >= 0 ? "Dr" : "Cr"}</span>
-                </div>
-              );
-            })()}
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaUserFriends className="text-accent text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Customers</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
-              {filteredCustomers.length}
-            </div>
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaExclamationTriangle className="text-[color:var(--color-warning)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Overdue</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-[color:var(--color-warning)] break-all leading-tight">
-              {totals.overdueCount}
-            </div>
-          </div>
-
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-1.5 mb-1">
-              <FaCheckCircle className="text-[color:var(--color-success)] text-[11.5px]" />
-              <span className="text-[12.5px] font-semibold text-ink-muted">Total Debit</span>
-            </div>
-            <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
-              ₹
-              {totals.totalDebit.toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </div>
-          </div>
-        </div>
-      </aside>
     </div>
   );
 };
