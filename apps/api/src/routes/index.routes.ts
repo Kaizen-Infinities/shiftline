@@ -66,6 +66,7 @@ import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
 import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
 import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
+import msmeClaimsRoutes from "../modules/msme-claims/msme-claims.routes";
 import deliveryScheduleRoutes from "../modules/delivery-schedules/delivery-schedules.routes";
 import exportIncentivesRoutes from "../modules/export-incentives/export-incentives.routes";
 import smsRoutes from "../modules/sms/sms.routes";
@@ -173,6 +174,8 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/job-work", router: jobWorkRoutes },
   { path: "/tds", router: tdsRoutes },
   { path: "/tally", router: tallyRoutes },
+  // TN-05: mounted before /msme so the payable router never sees these paths.
+  { path: "/msme/receivable-claims", router: msmeClaimsRoutes },
   { path: "/msme", router: msmeRoutes },
   { path: "/assets", router: assetRoutes },
   { path: "/fx", router: fxRoutes },

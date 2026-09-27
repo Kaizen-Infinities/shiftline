@@ -108,6 +108,10 @@ export const AUDITED_MODELS = [
   "ExportIncentiveClaim",
   "ExportAuthorisation",
   "ExportObligationEntry",
+  // MSME delayed-payment claims (TN-05): a legal demand on a buyer, and the rate behind it
+  "MsmeClaimSetting",
+  "MsmeRecoveryClaim",
+  "MsmeRecoveryClaimLine",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

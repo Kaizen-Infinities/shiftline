@@ -434,6 +434,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "Accounts Receivable",
   },
   {
+    // TN-05: section 16 interest and Samadhaan / MSEFC claims against late-paying buyers.
+    module: "msme-claims",
+    actions: ["view", "create", "edit", "export"],
+    description: "MSME delayed-payment claims (receivable side)",
+  },
+  {
     module: "vouchers",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Vouchers",

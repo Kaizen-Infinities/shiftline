@@ -356,6 +356,11 @@ export const API_PATHS = {
   inventory: {
     eodStock: "/inventory/eod-stock",
   },
+  msmeClaims: {
+    base: "/msme/receivable-claims", // ← service appends /:id, /:id/status, /:id/recompute, /:id/pdf
+    eligible: "/msme/receivable-claims/eligible",
+    settings: "/msme/receivable-claims/settings",
+  },
   orderTna: {
     base: "/order-tna", // ← service appends /:id, /:id/milestones[/:milestoneId]
     templates: "/order-tna/templates",

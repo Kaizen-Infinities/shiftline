@@ -185,6 +185,10 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "ExportIncentiveClaim",
   "ExportAuthorisation",
   "ExportObligationEntry",
+  // MSME claims (TN-05): msme-claims.spec proves a foreign company sees none
+  "MsmeClaimSetting",
+  "MsmeRecoveryClaim",
+  "MsmeRecoveryClaimLine",
 ]);
 
 describe("cross-tenant leak suite", () => {
