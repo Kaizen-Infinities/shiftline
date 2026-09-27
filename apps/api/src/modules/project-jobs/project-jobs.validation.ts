@@ -131,10 +131,13 @@ export const addCostBody = z
     message: "Enter the hours worked",
     path: ["qty"],
   })
-  .refine((b) => b.rate !== undefined || b.rawMaterialId !== undefined, {
-    message: "Enter the rate",
-    path: ["rate"],
-  });
+  .refine(
+    (b) => b.rate !== undefined || b.rawMaterialId !== undefined || b.stockIssueId !== undefined,
+    {
+      message: "Enter the rate",
+      path: ["rate"],
+    }
+  );
 
 export const postCostsBody = z.object({
   costIds: z.array(z.string().uuid()).max(500).optional(),
