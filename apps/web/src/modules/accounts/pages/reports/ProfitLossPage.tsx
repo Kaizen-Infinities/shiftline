@@ -1,24 +1,28 @@
 import React, { useState, useCallback, useMemo } from "react";
-import {
-  FaSync,
-  FaDownload,
-  FaArrowUp,
-  FaArrowDown,
-  FaChartLine,
-  FaPrint,
-  FaChevronRight,
-  FaChevronDown,
-  FaFolderOpen,
-  FaListUl,
-  FaSortAlphaDown,
-  FaSitemap,
-  FaFileAlt,
-  FaCalendarAlt,
-} from "react-icons/fa";
+import { ArrowDown, ArrowUp, Download, Printer, RefreshCw, TrendingUp } from "lucide-react";
 import apiClient from "../../../../api/apiClient";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import { useDetailCache } from "../../../../hooks/useDetailCache";
 import { ScheduleIIIProfitLoss, type ProfitLossScheduleIII } from "../../components/ScheduleIII";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SkeletonRows,
+  StatTile,
+} from "../../../../components/ui/v2";
+import {
+  FilterGroup,
+  ReportFilterBar,
+  fmtDate,
+  fmtINR,
+  fmtINRCompact,
+  rptGroupRowClass,
+  rptTdClass,
+  signTone,
+  thClass,
+} from "../../components/accountsUi";
 
 interface PLAccount {
   ledgerId: number;
@@ -108,7 +112,6 @@ export const ProfitLossPage: React.FC = () => {
   const [endDate, setEndDate] = useState<string>(today);
   const [showZeroBalance, setShowZeroBalance] = useState<boolean>(false);
   const [variant, setVariant] = useState<PLVariant>("grouped-summary");
-  const [expandSection, setExpandSection] = useState(true);
   const activeConfig = VARIANT_MAP[variant];
 
   const isPeriodMode = activeConfig.layout === "monthly" || activeConfig.layout === "quarterly";
@@ -218,36 +221,20 @@ export const ProfitLossPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const menuItem = (v: PLVariant, icon: React.ReactNode) => (
-    <button
-      key={v}
-      onClick={() => handleVariantClick(v)}
-      className={`w-full text-left px-2 py-1 text-[11px] flex items-center gap-2 rounded transition-colors ${
-        variant === v
-          ? "bg-emerald-500/15 text-emerald-400 font-semibold"
-          : "text-ink-muted hover:bg-card-2/60"
-      }`}
-    >
-      <span className="text-[9px] opacity-70">{icon}</span>
-      {VARIANT_MAP[v].label}
-    </button>
-  );
+  const colSpanAll = activeConfig.detailed ? 4 : 2;
+  const labelSpan = activeConfig.detailed ? 3 : 1;
 
   const renderRow = (a: PLAccount, isIncome: boolean, indent = false) => (
     <tr
       key={`${isIncome ? "inc" : "exp"}-${a.ledgerId}`}
-      className="hover:bg-card-2 border-b border-line-soft"
+      className="sl-row-hover border-b border-line-soft"
     >
       {activeConfig.detailed && (
-        <td className="px-3 py-1 text-[11px] font-mono text-ink-subtle">{a.code}</td>
+        <td className={rptTdClass("left", "tabular-nums text-ink-muted")}>{a.code}</td>
       )}
-      <td className={`px-3 py-1 text-xs text-ink ${indent ? "pl-6" : ""}`}>{a.name}</td>
-      {activeConfig.detailed && <td className="px-3 py-1 text-[11px] text-ink-muted">{a.group}</td>}
-      <td
-        className={`px-3 py-1 text-right text-xs font-mono ${isIncome ? "text-emerald-500" : "text-red-500"}`}
-      >
-        {fmt(a.netAmount)}
-      </td>
+      <td className={rptTdClass("left", indent ? "pl-9" : "")}>{a.name}</td>
+      {activeConfig.detailed && <td className={rptTdClass("left", "text-ink-muted")}>{a.group}</td>}
+      <td className={rptTdClass("right")}>{fmt(a.netAmount)}</td>
     </tr>
   );
 
@@ -263,502 +250,406 @@ export const ProfitLossPage: React.FC = () => {
     return groups.flatMap(([gname, gitems]) => {
       const gtotal = gitems.reduce((s, i) => s + i.netAmount, 0);
       return [
-        <tr key={`grp-${isIncome ? "i" : "e"}-${gname}`} className="bg-card-2/60">
-          <td
-            colSpan={activeConfig.detailed ? 3 : 1}
-            className="px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-ink"
-          >
-            {activeConfig.layout === "hierarchical" && (
-              <FaSitemap className="inline mr-1 text-[9px]" />
-            )}
+        <tr key={`grp-${isIncome ? "i" : "e"}-${gname}`} className="border-b border-line-soft">
+          <td colSpan={labelSpan} className={rptTdClass("left", "font-semibold")}>
             {gname}
           </td>
-          <td className="px-3 py-1 text-right text-[11px] font-mono font-bold text-ink">
-            {fmt(gtotal)}
-          </td>
+          <td className={rptTdClass("right", "font-semibold")}>{fmt(gtotal)}</td>
         </tr>,
         ...gitems.map((a) => renderRow(a, isIncome, true)),
       ];
     });
   };
 
+  const sectionHead = (label: string, icon: React.ReactNode, span: number) => (
+    <tr className={rptGroupRowClass}>
+      <th
+        scope="rowgroup"
+        colSpan={span}
+        className="px-4 py-2.5 text-left text-[13px] font-semibold text-ink"
+      >
+        <span className="inline-flex items-center gap-2">
+          <span className="text-ink-subtle" aria-hidden="true">
+            {icon}
+          </span>
+          {label}
+        </span>
+      </th>
+    </tr>
+  );
+
+  const summary = filteredData ?? periodData;
+  const netTone = summary && summary.isProfit ? "success" : "danger";
+
   return (
-    <div className="p-3 font-sans text-ink flex gap-3" style={{ minHeight: "calc(100vh - 100px)" }}>
-      {/* LEFT SIDEBAR */}
-      <aside className="w-[240px] shrink-0 bg-card rounded-lg border border-line overflow-hidden">
-        <div className="px-3 py-2 border-b border-line bg-card-2 flex items-center gap-2">
-          <FaChartLine className="text-emerald-500 text-xs" />
-          <h2 className="text-xs font-bold text-ink">Profit & Loss</h2>
-        </div>
-        <div
-          className="p-2 space-y-2 text-xs overflow-auto"
-          style={{ maxHeight: "calc(100vh - 160px)" }}
-        >
-          <div>
-            <button
-              onClick={() => setExpandSection((x) => !x)}
-              className="w-full flex items-center gap-1.5 text-[11px] font-bold text-ink px-1 py-1 hover:bg-card-2/60 rounded"
-            >
-              {expandSection ? (
-                <FaChevronDown className="text-[9px] text-ink-subtle" />
-              ) : (
-                <FaChevronRight className="text-[9px] text-ink-subtle" />
-              )}
-              <FaFolderOpen className="text-[10px] text-emerald-400" />
-              Report Variants
-            </button>
-            {expandSection && (
-              <div className="ml-2 mt-1 space-y-0.5 border-l border-line-soft pl-2">
-                {menuItem("alpha-summary", <FaSortAlphaDown />)}
-                {menuItem("alpha-detailed", <FaListUl />)}
-                {menuItem("grouped-summary", <FaFolderOpen />)}
-                {menuItem("grouped-detailed", <FaListUl />)}
-                {menuItem("hierarchical", <FaSitemap />)}
-                <div className="pt-1 border-t border-line-soft mt-1"></div>
-                {menuItem("monthly", <FaCalendarAlt />)}
-                {menuItem("quarterly", <FaCalendarAlt />)}
-                {menuItem("schedule-iii-summary", <FaFileAlt />)}
-                {menuItem("schedule-iii-detailed", <FaFileAlt />)}
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-line-soft my-2"></div>
-
-          <div className="text-[10px] text-ink-subtle italic px-1">
-            <FaFileAlt className="inline mr-1" /> Click a variant to load
-          </div>
-        </div>
-      </aside>
-
-      {/* RIGHT PANEL */}
-      <div className="flex-1 min-w-0 space-y-3">
-        {/* Options bar */}
-        <div className="bg-card rounded-lg border border-line px-3 py-2 flex flex-wrap items-center gap-3 sticky top-0 z-20">
-          <h3 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-            <FaChartLine className="text-emerald-500 text-sm" /> P&amp;L
-            <span className="text-[10px] font-medium text-ink-subtle uppercase tracking-wide">
-              · {activeConfig.label}
-            </span>
-          </h3>
-
-          <div className="flex items-center gap-1.5">
-            <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              From
-            </label>
-            <div className="w-[130px]">
-              <DatePickerCalendar
-                name="startDate"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                placeholder="Start"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              To
-            </label>
-            <div className="w-[130px]">
-              <DatePickerCalendar
-                name="endDate"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                placeholder="End"
-              />
-            </div>
-          </div>
-
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={showZeroBalance}
-              onChange={(e) => setShowZeroBalance(e.target.checked)}
-              className="w-3.5 h-3.5 accent-emerald-500"
-            />
-            <span className="text-xs text-ink-muted">Show Zero Balance</span>
-          </label>
-
-          {refreshing && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-              <FaSync className="animate-spin" /> Syncing…
-            </span>
-          )}
-
-          <div className="flex items-center gap-1.5 ml-auto">
-            <button
+    <div className="w-full">
+      <PageHeader
+        title="Profit & Loss"
+        subtitle={`${activeConfig.label} · ${fmtDate(startDate)} to ${fmtDate(endDate)}`}
+        icon={<TrendingUp size={20} />}
+        actions={
+          <>
+            <ActionPill
+              variant="secondary"
+              icon={<Printer size={16} />}
               onClick={handlePrint}
               disabled={!cached}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
             >
-              <FaPrint /> Print
-            </button>
-            <button
+              Print
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<Download size={16} />}
               onClick={exportCSV}
               disabled={!cached}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
             >
-              <FaDownload /> Export
-            </button>
-            <button
+              Export
+            </ActionPill>
+            <ActionPill
+              variant="secondary"
+              icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
               onClick={refresh}
               disabled={refreshing}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
             >
-              <FaSync className={refreshing ? "animate-spin text-emerald-500" : ""} /> Refresh
-            </button>
+              Refresh
+            </ActionPill>
+          </>
+        }
+      />
+
+      <ReportFilterBar className="print:hidden">
+        <FilterGroup label="From" className="lg:w-[190px]">
+          <DatePickerCalendar
+            name="startDate"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            placeholder="Start"
+          />
+        </FilterGroup>
+        <FilterGroup label="To" className="lg:w-[190px]">
+          <DatePickerCalendar
+            name="endDate"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            placeholder="End"
+          />
+        </FilterGroup>
+        <label className="flex h-11 items-center gap-2 text-sm text-ink-muted">
+          <input
+            type="checkbox"
+            className="sl-check"
+            checked={showZeroBalance}
+            onChange={(e) => setShowZeroBalance(e.target.checked)}
+          />
+          Show zero balance
+        </label>
+        <FilterGroup label="View" className="w-full">
+          <div role="group" aria-label="Report view" className="flex flex-wrap gap-2">
+            {(Object.keys(VARIANT_MAP) as PLVariant[]).map((v) => (
+              <Chip key={v} selected={variant === v} onClick={() => handleVariantClick(v)}>
+                {VARIANT_MAP[v].label}
+              </Chip>
+            ))}
           </div>
-        </div>
+        </FilterGroup>
+      </ReportFilterBar>
 
-        {/* Body — cache-first render (no full-page loading blocker). */}
-        {!filteredData && !periodData && !loading && (
-          <div className="bg-card border border-line rounded-lg p-12 text-center text-xs text-ink-subtle">
-            <FaChartLine className="text-emerald-500/40 text-3xl mx-auto mb-2" />
-            <div className="text-sm text-ink-muted font-semibold mb-1">
-              No data for the selected variant
-            </div>
-            <div className="text-[11px]">
-              Selected: <b>{activeConfig.label}</b> · {startDate} to {endDate}
-            </div>
-          </div>
-        )}
-
-        {(activeConfig.layout === "monthly" || activeConfig.layout === "quarterly") &&
-          periodData && (
-            <>
-              <div className="text-[11px] text-ink-muted px-1">
-                Period: <b className="text-ink">{startDate}</b> to{" "}
-                <b className="text-ink">{endDate}</b> ·{" "}
-                <b className="text-ink">{activeConfig.label}</b> · {periodData.periods.length}{" "}
-                periods
-              </div>
-
-              <div
-                className="bg-card border border-line rounded-lg overflow-hidden flex flex-col"
-                style={{ maxHeight: "calc(100vh - 200px)" }}
-              >
-                <div className="overflow-auto flex-1 min-h-0">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead className="bg-head text-ink text-[10px] uppercase tracking-wide font-bold border-b-2 border-line sticky top-0 z-10">
-                      <tr>
-                        <th className="px-3 py-1.5 bg-head sticky left-0 z-20 min-w-[200px]">
-                          Account
-                        </th>
-                        {periodData.periods.map((p) => (
-                          <th key={p.key} className="px-2 py-1.5 bg-head text-right min-w-[100px]">
-                            {p.label}
-                          </th>
-                        ))}
-                        <th className="px-3 py-1.5 bg-head text-right min-w-[120px] font-bold">
-                          Total
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* Income section */}
-                      <tr className="bg-card-2">
-                        <td
-                          colSpan={periodData.periods.length + 2}
-                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-500"
-                        >
-                          <FaArrowUp className="inline mr-1.5 text-[10px]" /> Revenue / Income
-                        </td>
-                      </tr>
-                      {periodData.incomeAccounts.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={periodData.periods.length + 2}
-                            className="p-4 text-center text-[11px] text-ink-subtle"
-                          >
-                            No income
-                          </td>
-                        </tr>
-                      ) : (
-                        periodData.incomeAccounts.map((a) => (
-                          <tr
-                            key={`inc-${a.ledgerId}`}
-                            className="hover:bg-card-2/50 border-b border-line-soft"
-                          >
-                            <td className="px-3 py-1 text-ink sticky left-0 bg-card">{a.name}</td>
-                            {a.perPeriod.map((v, i) => (
-                              <td
-                                key={i}
-                                className="px-2 py-1 text-right font-mono text-emerald-500"
-                              >
-                                {Math.abs(v) < 0.01 ? "" : fmt(v)}
-                              </td>
-                            ))}
-                            <td className="px-3 py-1 text-right font-mono font-semibold text-emerald-500">
-                              {fmt(a.total)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                      <tr className="bg-card-2 font-semibold border-t border-line">
-                        <td className="px-3 py-1.5 text-emerald-500 uppercase tracking-wide text-xs sticky left-0 bg-card-2">
-                          Total Revenue
-                        </td>
-                        {periodData.totalIncomePerPeriod.map((v, i) => (
-                          <td
-                            key={i}
-                            className="px-2 py-1.5 text-right font-mono text-emerald-500 text-xs"
-                          >
-                            {Math.abs(v) < 0.01 ? "" : fmt(v)}
-                          </td>
-                        ))}
-                        <td className="px-3 py-1.5 text-right font-mono font-bold text-emerald-500 text-sm">
-                          ₹{fmt(periodData.totalIncome)}
-                        </td>
-                      </tr>
-
-                      {/* Expense section */}
-                      <tr className="bg-card-2">
-                        <td
-                          colSpan={periodData.periods.length + 2}
-                          className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-red-500"
-                        >
-                          <FaArrowDown className="inline mr-1.5 text-[10px]" /> Expenses
-                        </td>
-                      </tr>
-                      {periodData.expenseAccounts.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={periodData.periods.length + 2}
-                            className="p-4 text-center text-[11px] text-ink-subtle"
-                          >
-                            No expenses
-                          </td>
-                        </tr>
-                      ) : (
-                        periodData.expenseAccounts.map((a) => (
-                          <tr
-                            key={`exp-${a.ledgerId}`}
-                            className="hover:bg-card-2/50 border-b border-line-soft"
-                          >
-                            <td className="px-3 py-1 text-ink sticky left-0 bg-card">{a.name}</td>
-                            {a.perPeriod.map((v, i) => (
-                              <td key={i} className="px-2 py-1 text-right font-mono text-red-400">
-                                {Math.abs(v) < 0.01 ? "" : fmt(v)}
-                              </td>
-                            ))}
-                            <td className="px-3 py-1 text-right font-mono font-semibold text-red-500">
-                              {fmt(a.total)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                      <tr className="bg-card-2 font-semibold border-t border-line">
-                        <td className="px-3 py-1.5 text-red-500 uppercase tracking-wide text-xs sticky left-0 bg-card-2">
-                          Total Expenses
-                        </td>
-                        {periodData.totalExpensePerPeriod.map((v, i) => (
-                          <td
-                            key={i}
-                            className="px-2 py-1.5 text-right font-mono text-red-500 text-xs"
-                          >
-                            {Math.abs(v) < 0.01 ? "" : fmt(v)}
-                          </td>
-                        ))}
-                        <td className="px-3 py-1.5 text-right font-mono font-bold text-red-500 text-sm">
-                          ₹{fmt(periodData.totalExpense)}
-                        </td>
-                      </tr>
-
-                      {/* Net P&L per period */}
-                      <tr className="bg-card-2 border-t-2 border-line font-bold">
-                        <td className="px-3 py-2 uppercase tracking-wide text-xs sticky left-0 bg-card-2 text-ink">
-                          Net Profit / (Loss)
-                        </td>
-                        {periodData.netPerPeriod.map((v, i) => (
-                          <td
-                            key={i}
-                            className={`px-2 py-2 text-right font-mono text-xs ${v >= 0 ? "text-emerald-500" : "text-red-500"}`}
-                          >
-                            {Math.abs(v) < 0.01 ? "" : `${v >= 0 ? "+" : "-"}${fmt(Math.abs(v))}`}
-                          </td>
-                        ))}
-                        <td
-                          className={`px-3 py-2 text-right font-mono text-sm ${periodData.isProfit ? "text-emerald-500" : "text-red-500"}`}
-                        >
-                          {periodData.isProfit ? "+" : "-"}₹{fmt(Math.abs(periodData.netProfit))}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-
-        {filteredData &&
-          activeConfig.layout !== "monthly" &&
-          activeConfig.layout !== "quarterly" && (
-            <>
-              <div className="text-[11px] text-ink-muted px-1">
-                Period: <b className="text-ink">{startDate}</b> to{" "}
-                <b className="text-ink">{endDate}</b> ·{" "}
-                <b className="text-ink">{activeConfig.label}</b>
-              </div>
-
-              {activeConfig.layout === "schedule" && data?.scheduleIII ? (
-                <ScheduleIIIProfitLoss
-                  data={data.scheduleIII}
-                  startDate={startDate}
-                  endDate={endDate}
-                  detailed={activeConfig.detailed}
-                />
-              ) : (
-                <div
-                  className="bg-card border border-line rounded-lg overflow-hidden flex flex-col"
-                  style={{ maxHeight: "calc(100vh - 200px)" }}
-                >
-                  <div className="overflow-auto flex-1 min-h-0">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-head text-ink text-[10px] uppercase tracking-wide font-bold border-b-2 border-line sticky top-0 z-10">
-                        <tr>
-                          {activeConfig.detailed && (
-                            <th className="px-3 py-1.5 bg-head w-[80px]">Code</th>
-                          )}
-                          <th className="px-3 py-1.5 bg-head">Account</th>
-                          {activeConfig.detailed && <th className="px-3 py-1.5 bg-head">Group</th>}
-                          <th className="px-3 py-1.5 bg-head text-right w-[140px]">Amount (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Revenue */}
-                        <tr className="bg-card-2">
-                          <td
-                            colSpan={activeConfig.detailed ? 4 : 2}
-                            className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-500"
-                          >
-                            <FaArrowUp className="inline mr-1.5 text-[10px]" /> Revenue / Income
-                          </td>
-                        </tr>
-                        {filteredData.incomeAccounts.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={activeConfig.detailed ? 4 : 2}
-                              className="p-4 text-center text-xs text-ink-subtle"
-                            >
-                              No income entries
-                            </td>
-                          </tr>
-                        ) : (
-                          renderSection(filteredData.incomeAccounts, true)
-                        )}
-                        <tr className="bg-card-2 font-semibold border-t border-line">
-                          <td
-                            colSpan={activeConfig.detailed ? 3 : 1}
-                            className="px-3 py-1.5 text-emerald-500 uppercase tracking-wide text-xs"
-                          >
-                            Total Revenue
-                          </td>
-                          <td className="px-3 py-1.5 text-right font-mono text-emerald-500 text-sm">
-                            ₹{fmt(filteredData.totalIncome)}
-                          </td>
-                        </tr>
-
-                        {/* Expenses */}
-                        <tr className="bg-card-2">
-                          <td
-                            colSpan={activeConfig.detailed ? 4 : 2}
-                            className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-red-500"
-                          >
-                            <FaArrowDown className="inline mr-1.5 text-[10px]" /> Expenses
-                          </td>
-                        </tr>
-                        {filteredData.expenseAccounts.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={activeConfig.detailed ? 4 : 2}
-                              className="p-4 text-center text-xs text-ink-subtle"
-                            >
-                              No expense entries
-                            </td>
-                          </tr>
-                        ) : (
-                          renderSection(filteredData.expenseAccounts, false)
-                        )}
-                        <tr className="bg-card-2 font-semibold border-t border-line">
-                          <td
-                            colSpan={activeConfig.detailed ? 3 : 1}
-                            className="px-3 py-1.5 text-red-500 uppercase tracking-wide text-xs"
-                          >
-                            Total Expenses
-                          </td>
-                          <td className="px-3 py-1.5 text-right font-mono text-red-500 text-sm">
-                            ₹{fmt(filteredData.totalExpense)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Sticky footer */}
-                  <div className="shrink-0 border-t-2 border-line bg-card-2 px-3 py-2 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wide text-ink">
-                      {filteredData.isProfit ? "Net Profit" : "Net Loss"}
-                      <span className="ml-2 text-[10px] font-normal text-ink-subtle normal-case tracking-normal">
-                        ({startDate} to {endDate})
-                      </span>
-                    </span>
-                    <span
-                      className={`text-sm font-mono font-bold ${filteredData.isProfit ? "text-emerald-500" : "text-red-500"}`}
-                    >
-                      {filteredData.isProfit ? "+" : "-"}₹{fmt(Math.abs(filteredData.netProfit))}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+        <StatTile
+          label="Total income"
+          value={
+            <span title={summary ? fmtINR(summary.totalIncome) : undefined}>
+              {fmtINRCompact(summary?.totalIncome ?? 0)}
+            </span>
+          }
+          loading={loading && !summary}
+        />
+        <StatTile
+          label="Total expenses"
+          value={
+            <span title={summary ? fmtINR(summary.totalExpense) : undefined}>
+              {fmtINRCompact(summary?.totalExpense ?? 0)}
+            </span>
+          }
+          loading={loading && !summary}
+        />
+        <StatTile
+          className="col-span-2 lg:col-span-1"
+          label={summary && !summary.isProfit ? "Net loss" : "Net profit"}
+          value={
+            <span title={summary ? fmtINR(Math.abs(summary.netProfit)) : undefined}>
+              {fmtINRCompact(Math.abs(summary?.netProfit ?? 0))}
+            </span>
+          }
+          delta={summary ? (summary.isProfit ? "Profit" : "Loss") : undefined}
+          deltaDirection={summary ? (summary.isProfit ? "up" : "down") : undefined}
+          deltaTone={netTone}
+          loading={loading && !summary}
+        />
       </div>
 
-      {/* Right sidebar — Summary. Amounts render on their own row so
-         crores-scale values never squeeze the label or overflow the card. */}
-      {filteredData && (
-        <aside className="w-[220px] shrink-0 bg-card border border-line rounded-md shadow-sm overflow-hidden self-start">
-          <div className="px-3 py-1.5 bg-card-2 border-b border-line text-[11px] font-bold uppercase tracking-wide text-ink flex items-center gap-1.5">
-            <FaChartLine className="text-emerald-500 text-xs" /> Summary
+      {!cached && loading && (
+        <div className="sl-tile overflow-hidden">
+          <SkeletonRows rows={8} columns={2} rowHeight={40} label="Loading profit and loss" />
+        </div>
+      )}
+
+      {!filteredData && !periodData && !loading && (
+        <div className="sl-tile">
+          <EmptyState
+            icon={<TrendingUp size={28} />}
+            title="No data for the selected variant"
+            description={`Selected: ${activeConfig.label} · ${fmtDate(startDate)} to ${fmtDate(endDate)}`}
+          />
+        </div>
+      )}
+
+      {(activeConfig.layout === "monthly" || activeConfig.layout === "quarterly") && periodData && (
+        <section
+          aria-label={`Profit and loss, ${activeConfig.label}`}
+          className="sl-tile flex flex-col overflow-hidden"
+          style={{ maxHeight: "calc(100vh - 160px)" }}
+        >
+          <div className="border-b border-line-soft px-4 py-3 text-[13px] text-ink-muted">
+            {activeConfig.label} · {periodData.periods.length} periods
           </div>
-          <div className="divide-y divide-line-soft">
-            <div className="px-3 py-2">
-              <div className="text-[11px] font-semibold text-ink-muted mb-1">Total Income</div>
-              <div className="text-sm font-mono font-bold text-emerald-500 break-all leading-tight">
-                ₹{fmt(filteredData.totalIncome)}
-              </div>
-            </div>
-            <div className="px-3 py-2">
-              <div className="text-[11px] font-semibold text-ink-muted mb-1">Total Expenses</div>
-              <div className="text-sm font-mono font-bold text-red-500 break-all leading-tight">
-                ₹{fmt(filteredData.totalExpense)}
-              </div>
-            </div>
-            <div
-              className={`px-3 py-2 ${filteredData.isProfit ? "bg-emerald-500/5" : "bg-red-500/5"}`}
+          <div className="min-h-0 flex-1 overflow-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr>
+                  <th scope="col" className={thClass("left", "left-0 z-[2] min-w-[220px]")}>
+                    Account
+                  </th>
+                  {periodData.periods.map((p) => (
+                    <th key={p.key} scope="col" className={thClass("right", "min-w-[110px]")}>
+                      {p.label}
+                    </th>
+                  ))}
+                  <th scope="col" className={thClass("right", "min-w-[130px]")}>
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectionHead(
+                  "Revenue / income",
+                  <ArrowUp size={14} />,
+                  periodData.periods.length + 2
+                )}
+                {periodData.incomeAccounts.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={periodData.periods.length + 2}
+                      className="p-4 text-center text-[13px] text-ink-subtle"
+                    >
+                      No income
+                    </td>
+                  </tr>
+                ) : (
+                  periodData.incomeAccounts.map((a) => (
+                    <tr
+                      key={`inc-${a.ledgerId}`}
+                      className="sl-row-hover border-b border-line-soft"
+                    >
+                      <td className={rptTdClass("left", "sticky left-0 bg-card")}>{a.name}</td>
+                      {a.perPeriod.map((v, i) => (
+                        <td key={i} className={rptTdClass("right")}>
+                          {Math.abs(v) < 0.01 ? "—" : fmt(v)}
+                        </td>
+                      ))}
+                      <td className={rptTdClass("right", "font-semibold")}>{fmt(a.total)}</td>
+                    </tr>
+                  ))
+                )}
+                <tr className="border-y border-line bg-card-2 font-semibold">
+                  <td className={rptTdClass("left", "sticky left-0 bg-card-2 font-semibold")}>
+                    Total revenue
+                  </td>
+                  {periodData.totalIncomePerPeriod.map((v, i) => (
+                    <td key={i} className={rptTdClass("right", "font-semibold")}>
+                      {Math.abs(v) < 0.01 ? "—" : fmt(v)}
+                    </td>
+                  ))}
+                  <td className={rptTdClass("right", "font-bold")}>
+                    ₹{fmt(periodData.totalIncome)}
+                  </td>
+                </tr>
+
+                {sectionHead("Expenses", <ArrowDown size={14} />, periodData.periods.length + 2)}
+                {periodData.expenseAccounts.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={periodData.periods.length + 2}
+                      className="p-4 text-center text-[13px] text-ink-subtle"
+                    >
+                      No expenses
+                    </td>
+                  </tr>
+                ) : (
+                  periodData.expenseAccounts.map((a) => (
+                    <tr
+                      key={`exp-${a.ledgerId}`}
+                      className="sl-row-hover border-b border-line-soft"
+                    >
+                      <td className={rptTdClass("left", "sticky left-0 bg-card")}>{a.name}</td>
+                      {a.perPeriod.map((v, i) => (
+                        <td key={i} className={rptTdClass("right")}>
+                          {Math.abs(v) < 0.01 ? "—" : fmt(v)}
+                        </td>
+                      ))}
+                      <td className={rptTdClass("right", "font-semibold")}>{fmt(a.total)}</td>
+                    </tr>
+                  ))
+                )}
+                <tr className="border-y border-line bg-card-2 font-semibold">
+                  <td className={rptTdClass("left", "sticky left-0 bg-card-2 font-semibold")}>
+                    Total expenses
+                  </td>
+                  {periodData.totalExpensePerPeriod.map((v, i) => (
+                    <td key={i} className={rptTdClass("right", "font-semibold")}>
+                      {Math.abs(v) < 0.01 ? "—" : fmt(v)}
+                    </td>
+                  ))}
+                  <td className={rptTdClass("right", "font-bold")}>
+                    ₹{fmt(periodData.totalExpense)}
+                  </td>
+                </tr>
+
+                {/* Net P&L per period */}
+                <tr className="border-t-2 border-line bg-card-2">
+                  <td className={rptTdClass("left", "sticky left-0 bg-card-2 font-bold")}>
+                    Net profit / (loss)
+                  </td>
+                  {periodData.netPerPeriod.map((v, i) => (
+                    <td key={i} className={rptTdClass("right", `font-semibold ${signTone(v)}`)}>
+                      {Math.abs(v) < 0.01 ? "—" : v >= 0 ? fmt(v) : `(${fmt(Math.abs(v))})`}
+                    </td>
+                  ))}
+                  <td
+                    className={rptTdClass(
+                      "right",
+                      `font-bold ${periodData.isProfit ? signTone(1) : signTone(-1)}`
+                    )}
+                  >
+                    {periodData.isProfit
+                      ? `₹${fmt(Math.abs(periodData.netProfit))}`
+                      : `(₹${fmt(Math.abs(periodData.netProfit))})`}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {filteredData && activeConfig.layout !== "monthly" && activeConfig.layout !== "quarterly" && (
+        <>
+          {activeConfig.layout === "schedule" && data?.scheduleIII ? (
+            <ScheduleIIIProfitLoss
+              data={data.scheduleIII}
+              startDate={startDate}
+              endDate={endDate}
+              detailed={activeConfig.detailed}
+            />
+          ) : (
+            <section
+              aria-label="Profit and loss statement"
+              className="sl-tile flex flex-col overflow-hidden"
+              style={{ maxHeight: "calc(100vh - 160px)" }}
             >
-              <div className="text-[11px] font-semibold text-ink-muted mb-1">
-                Net {filteredData.isProfit ? "Profit" : "Loss"}
+              <div className="min-h-0 flex-1 overflow-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr>
+                      {activeConfig.detailed && (
+                        <th scope="col" className={thClass("left", "w-[110px]")}>
+                          Code
+                        </th>
+                      )}
+                      <th scope="col" className={thClass()}>
+                        Account
+                      </th>
+                      {activeConfig.detailed && (
+                        <th scope="col" className={thClass()}>
+                          Group
+                        </th>
+                      )}
+                      <th scope="col" className={thClass("right", "w-[170px]")}>
+                        Amount (₹)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sectionHead("Revenue / income", <ArrowUp size={14} />, colSpanAll)}
+                    {filteredData.incomeAccounts.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={colSpanAll}
+                          className="p-4 text-center text-[13px] text-ink-subtle"
+                        >
+                          No income entries
+                        </td>
+                      </tr>
+                    ) : (
+                      renderSection(filteredData.incomeAccounts, true)
+                    )}
+                    <tr className="border-y border-line bg-card-2">
+                      <td colSpan={labelSpan} className={rptTdClass("left", "font-semibold")}>
+                        Total revenue
+                      </td>
+                      <td className={rptTdClass("right", "font-bold")}>
+                        ₹{fmt(filteredData.totalIncome)}
+                      </td>
+                    </tr>
+
+                    {sectionHead("Expenses", <ArrowDown size={14} />, colSpanAll)}
+                    {filteredData.expenseAccounts.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={colSpanAll}
+                          className="p-4 text-center text-[13px] text-ink-subtle"
+                        >
+                          No expense entries
+                        </td>
+                      </tr>
+                    ) : (
+                      renderSection(filteredData.expenseAccounts, false)
+                    )}
+                    <tr className="border-y border-line bg-card-2">
+                      <td colSpan={labelSpan} className={rptTdClass("left", "font-semibold")}>
+                        Total expenses
+                      </td>
+                      <td className={rptTdClass("right", "font-bold")}>
+                        ₹{fmt(filteredData.totalExpense)}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot className="sticky bottom-0 z-[1]">
+                    <tr className="border-t-2 border-line bg-card-2">
+                      <th
+                        scope="row"
+                        colSpan={labelSpan}
+                        className="px-4 py-3 text-left text-[14px] font-bold text-ink"
+                      >
+                        {filteredData.isProfit ? "Net Profit" : "Net Loss"}
+                        <span className="ml-2 text-[12.5px] font-normal text-ink-subtle">
+                          {fmtDate(startDate)} to {fmtDate(endDate)}
+                        </span>
+                      </th>
+                      <td
+                        className={`px-4 py-3 text-right text-[15px] font-bold tabular-nums ${filteredData.isProfit ? signTone(1) : signTone(-1)}`}
+                      >
+                        {filteredData.isProfit
+                          ? `₹${fmt(Math.abs(filteredData.netProfit))}`
+                          : `(₹${fmt(Math.abs(filteredData.netProfit))})`}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-              <div
-                className={`text-sm font-mono font-bold break-all leading-tight ${filteredData.isProfit ? "text-emerald-500" : "text-red-500"}`}
-              >
-                {filteredData.isProfit ? "+" : "-"}₹{fmt(Math.abs(filteredData.netProfit))}
-              </div>
-            </div>
-            <div className="px-3 py-2">
-              <div className="text-[11px] font-semibold text-ink-muted mb-1">Period</div>
-              <div className="text-[11px] font-mono text-ink break-all leading-tight">
-                {startDate}
-              </div>
-              <div className="text-[10px] text-ink-subtle">to</div>
-              <div className="text-[11px] font-mono text-ink break-all leading-tight">
-                {endDate}
-              </div>
-            </div>
-          </div>
-        </aside>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
