@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { FaSave, FaArrowLeft } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { z } from "zod";
-
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { createStore, updateStore } from "../../../features/stores/storeSlice";
 import { fetchEmployees } from "../../../features/employee/employeeSlice";
@@ -12,13 +10,12 @@ import { storeService } from "../../../services/storeService";
 import { storeTypeService } from "../../../services/storeTypeService";
 import { STORE_CATEGORY_OPTIONS } from "../../../features/stores/types";
 import { useRoles } from "../../../hooks/useRoles";
-
-import Button from "../../../components/ui/Button/Button";
-import BackButton from "../../../components/ui/BackButton/BackButton";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
 import TextInput from "../../../components/form/TextInput/TextInput";
 import CityStateSelect from "../../../components/ui/CityStateSelect/CityStateSelect";
-import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import { Save } from "lucide-react";
+import { ActionPill, PageHeader, SkeletonTile, Tile } from "../../../components/ui/v2";
+import FormFooter from "../../stock/lib/FormFooter";
 
 const initialFormState = {
   storeId: "",
@@ -277,193 +274,185 @@ const StorageStoreForm: React.FC = () => {
     ...dbStoreTypes.filter((st) => !STORE_CATEGORY_OPTIONS.some((o) => o.value === st.value)),
   ];
 
+  const header = (
+    <PageHeader
+      title={isEditMode ? "Edit Storage Store" : "Create Storage Store"}
+      subtitle={
+        isEditMode
+          ? `Editing details for Store ID: ${formData.storeId}`
+          : "Enter details to create a new storage store location."
+      }
+      back="/storage-stores"
+      backLabel="Back to stores"
+      breadcrumbs={[
+        { label: "Inventory" },
+        { label: "Stores", to: "/storage-stores" },
+        { label: isEditMode ? "Edit" : "New" },
+      ]}
+    />
+  );
+
   if (pageLoading) {
     return (
-      <CommonLoader
-        text={isEditMode ? "Loading Store Details..." : "Initializing Store Form..."}
-        fullScreen={false}
-      />
+      <div className="w-full min-w-0">
+        {header}
+        <div className="flex flex-col gap-4">
+          <SkeletonTile lines={4} />
+          <SkeletonTile lines={3} />
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[1024px] xl:mr-auto flex-1 flex flex-col">
-      <div className="bg-card rounded-sm border border-line-soft overflow-visible flex-1 flex flex-col">
-        {/* Page Header */}
-        <div className="px-6 py-5 border-b border-line-soft">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="w-full min-w-0 max-w-[1100px]">
+      {header}
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        {/* Section 1: Basic Information */}
+        <Tile title="Basic store details" subtitle="Name, category and who is responsible">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
+            <TextInput
+              label="Store ID"
+              name="storeId"
+              value={formData.storeId}
+              placeholder="e.g. STR001"
+              required
+              disabled={true}
+              onChange={handleChange}
+            />
+
+            <TextInput
+              label="Store Name"
+              name="storeName"
+              value={formData.storeName}
+              placeholder="e.g. Main Warehouse"
+              required
+              error={errors.storeName}
+              onChange={handleChange}
+            />
+
+            <SelectInput
+              label="Store Category"
+              name="storeCategory"
+              value={formData.storeCategory}
+              options={categoryOptions}
+              required
+              error={errors.storeCategory}
+              onChange={handleChange}
+            />
+
+            <SelectInput
+              label="Filter Incharge by Role"
+              name="selectedRoleId"
+              value={selectedRoleId}
+              options={[
+                { label: "Select a role", value: "" },
+                ...(roles || []).map((r) => ({ label: r.name, value: String(r.id) })),
+              ]}
+              onChange={(e) => {
+                setSelectedRoleId(e.target.value);
+                setFormData((prev) => ({ ...prev, inchargeId: "" }));
+              }}
+            />
+
+            <SelectInput
+              label="Store Incharge"
+              name="inchargeId"
+              value={formData.inchargeId}
+              options={[
+                { label: "Select an incharge", value: "" },
+                ...(employees || [])
+                  .filter(
+                    (emp: any) =>
+                      !selectedRoleId ||
+                      String(emp.roleId || emp.user?.roleId || emp.role?.id) === selectedRoleId
+                  )
+                  .map((emp: any) => ({
+                    label: `${emp.fullName} (${emp.empCode})`,
+                    value: emp.id?.toString() || "",
+                  })),
+              ]}
+              required
+              error={errors.inchargeId}
+              onChange={handleChange}
+            />
+
+            <SelectInput
+              label="Status"
+              name="isActive"
+              value={formData.isActive.toString()}
+              options={[
+                { label: "Active", value: "true" },
+                { label: "Inactive", value: "false" },
+              ]}
+              required
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, isActive: e.target.value === "true" }))
+              }
+            />
+          </div>
+        </Tile>
+
+        {/* Section 2: Location & Address Information */}
+        <Tile title="Location & address" subtitle="Where the store physically sits">
+          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="md:col-span-2 lg:col-span-3">
+              <TextInput
+                label="Street Address / Building"
+                name="addressLine"
+                value={formData.addressLine}
+                placeholder="e.g. Door No. 12, Industrial Estate, Main Road"
+                onChange={handleChange}
+              />
+            </div>
+
+            <CityStateSelect
+              countryLabel="Country"
+              countryValue={formData.country || "India"}
+              onCountryChange={(cData) =>
+                setFormData((prev) => ({ ...prev, country: cData.name || "India" }))
+              }
+              stateLabel="State"
+              stateValue={formData.state || ""}
+              onStateChange={(sData) =>
+                setFormData((prev) => ({ ...prev, state: sData.name || "", city: "" }))
+              }
+              cityLabel="City"
+              cityValue={formData.city || ""}
+              onCityChange={(cData) => setFormData((prev) => ({ ...prev, city: cData.name || "" }))}
+            />
+
             <div>
-              <h2 className="text-xl font-bold text-ink">
-                {isEditMode ? "Edit Storage Store" : "Create Storage Store"}
-              </h2>
-              <p className="text-sm text-ink-subtle mt-1">
-                {isEditMode
-                  ? `Editing details for Store ID: ${formData.storeId}`
-                  : "Enter details to create a new storage store location."}
-              </p>
-            </div>
-            <BackButton to="/storage-stores" />
-          </div>
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="px-6 py-5 space-y-8 flex-1 flex flex-col"
-          noValidate
-        >
-          {/* Section 1: Basic Information */}
-          <div>
-            <div className="flex items-center gap-2 mb-6 pb-2 border-b border-line-soft">
-              <h3 className="text-lg font-bold text-ink">Basic Store Details</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <TextInput
-                label="Store ID"
-                name="storeId"
-                value={formData.storeId}
-                placeholder="e.g. STR001"
-                required
-                disabled={true}
+                label="Zipcode / Pincode"
+                name="zipcode"
+                value={formData.zipcode}
+                placeholder="e.g. 600001"
                 onChange={handleChange}
-              />
-
-              <TextInput
-                label="Store Name"
-                name="storeName"
-                value={formData.storeName}
-                placeholder="e.g. Main Warehouse"
-                required
-                error={errors.storeName}
-                onChange={handleChange}
-              />
-
-              <SelectInput
-                label="Store Category"
-                name="storeCategory"
-                value={formData.storeCategory}
-                options={categoryOptions}
-                required
-                error={errors.storeCategory}
-                onChange={handleChange}
-              />
-
-              <SelectInput
-                label="Filter Incharge by Role"
-                name="selectedRoleId"
-                value={selectedRoleId}
-                options={[
-                  { label: "Select a role", value: "" },
-                  ...(roles || []).map((r) => ({ label: r.name, value: String(r.id) })),
-                ]}
-                onChange={(e) => {
-                  setSelectedRoleId(e.target.value);
-                  setFormData((prev) => ({ ...prev, inchargeId: "" }));
-                }}
-              />
-
-              <SelectInput
-                label="Store Incharge"
-                name="inchargeId"
-                value={formData.inchargeId}
-                options={[
-                  { label: "Select an incharge", value: "" },
-                  ...(employees || [])
-                    .filter(
-                      (emp: any) =>
-                        !selectedRoleId ||
-                        String(emp.roleId || emp.user?.roleId || emp.role?.id) === selectedRoleId
-                    )
-                    .map((emp: any) => ({
-                      label: `${emp.fullName} (${emp.empCode})`,
-                      value: emp.id?.toString() || "",
-                    })),
-                ]}
-                required
-                error={errors.inchargeId}
-                onChange={handleChange}
-              />
-
-              <SelectInput
-                label="Status"
-                name="isActive"
-                value={formData.isActive.toString()}
-                options={[
-                  { label: "Active", value: "true" },
-                  { label: "Inactive", value: "false" },
-                ]}
-                required
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, isActive: e.target.value === "true" }))
-                }
               />
             </div>
           </div>
+        </Tile>
 
-          {/* Section 2: Location & Address Information */}
-          <div>
-            <div className="flex items-center gap-2 mb-6 pb-2 border-b border-line-soft">
-              <h3 className="text-lg font-bold text-ink">Location & Address Information</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="md:col-span-2 lg:col-span-3">
-                <TextInput
-                  label="Street Address / Building"
-                  name="addressLine"
-                  value={formData.addressLine}
-                  placeholder="e.g. Door No. 12, Industrial Estate, Main Road"
-                  onChange={handleChange}
-                />
-              </div>
-
-              <CityStateSelect
-                countryLabel="Country"
-                countryValue={formData.country || "India"}
-                onCountryChange={(cData) =>
-                  setFormData((prev) => ({ ...prev, country: cData.name || "India" }))
-                }
-                stateLabel="State"
-                stateValue={formData.state || ""}
-                onStateChange={(sData) =>
-                  setFormData((prev) => ({ ...prev, state: sData.name || "", city: "" }))
-                }
-                cityLabel="City"
-                cityValue={formData.city || ""}
-                onCityChange={(cData) =>
-                  setFormData((prev) => ({ ...prev, city: cData.name || "" }))
-                }
-              />
-
-              <div>
-                <TextInput
-                  label="Zipcode / Pincode"
-                  name="zipcode"
-                  value={formData.zipcode}
-                  placeholder="e.g. 600001"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Form Footer Action Buttons */}
-          <div className="flex flex-wrap justify-end gap-3 mt-auto pt-4 border-t border-line-soft">
-            <Button
-              text="Cancel"
-              icon={FaArrowLeft}
-              variant="secondary"
-              onClick={() => navigate("/storage-stores")}
-              disabled={isSubmitting}
-            />
-            <Button
-              type="submit"
-              text={isEditMode ? "Update Store" : "Save Store"}
-              icon={FaSave}
-              variant="primary"
-              disabled={isSubmitting}
-            />
-          </div>
-        </form>
-      </div>
+        <FormFooter hint="F2 saves">
+          <ActionPill
+            variant="secondary"
+            onClick={() => navigate("/storage-stores")}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </ActionPill>
+          <ActionPill
+            type="submit"
+            icon={<Save size={17} />}
+            loading={isSubmitting}
+            loadingText="Saving…"
+          >
+            {isEditMode ? "Update Store" : "Save Store"}
+          </ActionPill>
+        </FormFooter>
+      </form>
     </div>
   );
 };
