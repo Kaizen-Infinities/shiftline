@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { FaArrowLeft, FaPlus } from "react-icons/fa";
+import { Building2, MapPin, Phone, Plus, Truck, Wallet } from "lucide-react";
+import { ActionPill, Chip, PageHeader, Tile } from "../../../components/ui/v2";
+import { FormFooter, KeyHint } from "../../sales/shared/tradeUi";
+import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { z } from "zod";
@@ -171,6 +174,7 @@ const CtrlText = ({
 
 const CustomerFormPage: React.FC = () => {
   const navigate = useNavigate();
+  useFormShortcuts({});
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const isEditMode = !!id;
@@ -331,270 +335,299 @@ const CustomerFormPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-[1400px] xl:mr-auto">
-      <div className="bg-card rounded-sm border border-line overflow-visible">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-line">
-          <h3 className="text-lg font-bold text-ink flex items-start">
-            {isEditMode ? "Edit Customer" : "Create Customer"}
-            <span className="text-ink-muted text-sm ml-1 mt-0.5 leading-none">
-              *{watch("customerId")}
-            </span>
-          </h3>
-          <CustomButton
-            text="Back to List"
-            icon={FaArrowLeft}
-            variant="secondary"
-            onClick={() => navigate("/customers")}
-          />
-        </div>
+    <div className="mx-auto w-full max-w-[1200px]">
+      <PageHeader
+        title={isEditMode ? "Edit Customer" : "Create Customer"}
+        meta={
+          watch("customerId") ? (
+            <Chip size="sm" tone="muted" className="tabular-nums">
+              {watch("customerId")}
+            </Chip>
+          ) : null
+        }
+        subtitle={
+          isEditMode
+            ? "Changes apply to new documents; posted invoices keep their copy."
+            : "A new party you sell to. Only the name, mobile and billing address are required."
+        }
+        back="/customers"
+        backLabel="Back to List"
+        breadcrumbs={[
+          { label: "Customers", to: "/customers" },
+          { label: isEditMode ? "Edit" : "New" },
+        ]}
+      />
+      <div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <Tile
+            title="Customer"
+            subtitle="How the party appears on invoices and in reports."
+            icon={<Building2 size={18} />}
+          >
+            <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+              <Controller
+                name="firmName"
+                control={control}
+                render={({ field }) => (
+                  <CtrlText
+                    field={field}
+                    label="Firm / Legal Name"
+                    placeholder="e.g. Murugan Plastics"
+                    required
+                    error={errors.firmName?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="displayName"
+                control={control}
+                render={({ field }) => (
+                  <CtrlText
+                    field={field}
+                    label="Display Name"
+                    placeholder="Murugan"
+                    error={errors.displayName?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="isActive"
+                control={control}
+                render={({ field }) => (
+                  <SelectInput
+                    label="Status"
+                    searchable={false}
+                    name={field.name}
+                    value={field.value}
+                    options={[
+                      { value: "true", label: "Active" },
+                      { value: "false", label: "Inactive" },
+                    ]}
+                    onChange={(e: any) => field.onChange(e.target.value)}
+                    error={errors.isActive?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="customerGradeId"
+                control={control}
+                render={({ field }) => (
+                  <CreatableSelectInput
+                    label="Customer Grade"
+                    name="customerGradeId"
+                    value={field.value as number | null}
+                    options={customerGrades.map((g) => ({ label: g.name, value: g.id }))}
+                    isLoading={isGradesLoading}
+                    onChange={field.onChange}
+                    onCreateOption={async (val) => {
+                      try {
+                        await createCustomerGrade({ name: val });
+                      } catch (e) {
+                        /* Error handled in hook */
+                      }
+                    }}
+                    onEditOption={async (id, newLabel) => {
+                      try {
+                        await updateCustomerGrade({ id: id as number, data: { name: newLabel } });
+                      } catch (e) {
+                        /* Error handled in hook */
+                      }
+                    }}
+                    onDeleteOption={(id) => {
+                      setDeleteGradeModalState({ isOpen: true, idToDelete: id as number });
+                    }}
+                    error={errors.customerGradeId?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="customerTypeId"
+                control={control}
+                render={({ field }) => (
+                  <CreatableSelectInput
+                    label="Customer Type"
+                    name="customerTypeId"
+                    value={field.value as number | null}
+                    options={customerTypes.map((t) => ({ label: t.name, value: t.id }))}
+                    isLoading={isTypesLoading}
+                    onChange={field.onChange}
+                    onCreateOption={async (val) => {
+                      try {
+                        await createCustomerType({ name: val });
+                      } catch (e) {
+                        /* Error handled in hook */
+                      }
+                    }}
+                    onEditOption={async (id, newLabel) => {
+                      try {
+                        await updateCustomerType({ id: id as number, data: { name: newLabel } });
+                      } catch (e) {
+                        /* Error handled in hook */
+                      }
+                    }}
+                    onDeleteOption={(id) => {
+                      setDeleteModalState({ isOpen: true, idToDelete: id as number });
+                    }}
+                    error={errors.customerTypeId?.message}
+                  />
+                )}
+              />
+            </div>
+          </Tile>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-5" noValidate>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 md:gap-x-8 lg:gap-x-10 gap-y-3 md:gap-y-4">
-            <Controller
-              name="firmName"
-              control={control}
-              render={({ field }) => (
-                <CtrlText
-                  field={field}
-                  label="Firm / Legal Name"
-                  placeholder="e.g. Murugan Plastics"
-                  required
-                  error={errors.firmName?.message}
-                />
-              )}
-            />
-            <Controller
-              name="displayName"
-              control={control}
-              render={({ field }) => (
-                <CtrlText
-                  field={field}
-                  label="Display Name"
-                  placeholder="Murugan"
-                  error={errors.displayName?.message}
-                />
-              )}
-            />
-            <Controller
-              name="customerGradeId"
-              control={control}
-              render={({ field }) => (
-                <CreatableSelectInput
-                  label="Customer Grade"
-                  name="customerGradeId"
-                  value={field.value as number | null}
-                  options={customerGrades.map((g) => ({ label: g.name, value: g.id }))}
-                  isLoading={isGradesLoading}
-                  onChange={field.onChange}
-                  onCreateOption={async (val) => {
-                    try {
-                      await createCustomerGrade({ name: val });
-                    } catch (e) {
-                      /* Error handled in hook */
-                    }
-                  }}
-                  onEditOption={async (id, newLabel) => {
-                    try {
-                      await updateCustomerGrade({ id: id as number, data: { name: newLabel } });
-                    } catch (e) {
-                      /* Error handled in hook */
-                    }
-                  }}
-                  onDeleteOption={(id) => {
-                    setDeleteGradeModalState({ isOpen: true, idToDelete: id as number });
-                  }}
-                  error={errors.customerGradeId?.message}
-                />
-              )}
-            />
-            <Controller
-              name="customerTypeId"
-              control={control}
-              render={({ field }) => (
-                <CreatableSelectInput
-                  label="Customer Type"
-                  name="customerTypeId"
-                  value={field.value as number | null}
-                  options={customerTypes.map((t) => ({ label: t.name, value: t.id }))}
-                  isLoading={isTypesLoading}
-                  onChange={field.onChange}
-                  onCreateOption={async (val) => {
-                    try {
-                      await createCustomerType({ name: val });
-                    } catch (e) {
-                      /* Error handled in hook */
-                    }
-                  }}
-                  onEditOption={async (id, newLabel) => {
-                    try {
-                      await updateCustomerType({ id: id as number, data: { name: newLabel } });
-                    } catch (e) {
-                      /* Error handled in hook */
-                    }
-                  }}
-                  onDeleteOption={(id) => {
-                    setDeleteModalState({ isOpen: true, idToDelete: id as number });
-                  }}
-                  error={errors.customerTypeId?.message}
-                />
-              )}
-            />
-            <Controller
-              name="isActive"
-              control={control}
-              render={({ field }) => (
-                <SelectInput
-                  label="Status"
-                  searchable={false}
-                  name={field.name}
-                  value={field.value}
-                  options={[
-                    { value: "true", label: "Active" },
-                    { value: "false", label: "Inactive" },
-                  ]}
-                  onChange={(e: any) => field.onChange(e.target.value)}
-                  error={errors.isActive?.message}
-                />
-              )}
-            />
-            <Controller
-              name="phones"
-              control={control}
-              render={({ field }) => (
-                <IndiaPhoneInput
-                  multi
-                  label="Mobile Numbers"
-                  name="phones"
-                  value={field.value}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  maxNumbers={5}
-                  error={errors.phones?.message as string}
-                />
-              )}
-            />
-            <Controller
-              name="email"
-              control={control}
-              render={({ field }) => (
-                <CtrlText
-                  field={field}
-                  label="Email"
-                  type="email"
-                  placeholder="x@y.com"
-                  error={errors.email?.message}
-                />
-              )}
-            />
-            <Controller
-              name="gstin"
-              control={control}
-              render={({ field }) => (
-                <CtrlText
-                  field={field}
-                  label="GSTIN (15 CHAR)"
-                  placeholder="33AABC1234D1Z5"
-                  error={errors.gstin?.message}
-                />
-              )}
-            />
-            <Controller
-              name="openingBalance"
-              control={control}
-              render={({ field }) => (
-                <CtrlText
-                  field={field}
-                  label="Opening Balance ₹"
-                  type="number"
-                  placeholder="0.00"
-                  preventNegative
-                  error={errors.openingBalance?.message}
-                  disabled={isEditMode}
-                />
-              )}
-            />
-            <Controller
-              name="openingBalanceType"
-              control={control}
-              render={({ field }) => (
-                <SelectInput
-                  searchable={false}
-                  label="Opening Balance Type"
-                  name={field.name}
-                  value={field.value}
-                  options={[
-                    { value: "DEBIT", label: "Debit (Customer owes us)" },
-                    { value: "CREDIT", label: "Credit (Advance received from customer)" },
-                  ]}
-                  onChange={(e: any) => field.onChange(e.target.value)}
-                  disabled={isEditMode}
-                  error={errors.openingBalanceType?.message}
-                />
-              )}
-            />
-            <Controller
-              name="creditLimit"
-              control={control}
-              render={({ field }) => (
-                <CtrlText
-                  field={field}
-                  label="Credit Limit ₹"
-                  type="number"
-                  placeholder="30000"
-                  preventNegative
-                  error={errors.creditLimit?.message}
-                />
-              )}
-            />
-            <Controller
-              name="creditDays"
-              control={control}
-              render={({ field }) => (
-                <SelectInput
-                  label="Credit Days"
-                  searchable={false}
-                  name={field.name}
-                  value={field.value ?? ""}
-                  options={[
-                    { value: "7", label: "7 Days" },
-                    { value: "14", label: "14 Days" },
-                    { value: "21", label: "21 Days" },
-                    { value: "30", label: "30 Days" },
-                  ]}
-                  defaultOptionLabel="Select Credit Days"
-                  onChange={(e: any) => field.onChange(e.target.value)}
-                  error={errors.creditDays?.message}
-                />
-              )}
-            />
-            <Controller
-              name="overdueInterestRate"
-              control={control}
-              render={({ field }) => (
-                <CtrlText
-                  field={field}
-                  label="Overdue interest % p.a."
-                  type="number"
-                  placeholder="e.g. 18"
-                  preventNegative
-                  error={errors.overdueInterestRate?.message}
-                />
-              )}
-            />
-          </div>
+          <Tile
+            title="Contact and GST"
+            subtitle="The GSTIN decides the place of supply and the tax split."
+            icon={<Phone size={18} />}
+          >
+            <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+              <Controller
+                name="phones"
+                control={control}
+                render={({ field }) => (
+                  <IndiaPhoneInput
+                    multi
+                    label="Mobile Numbers"
+                    name="phones"
+                    value={field.value}
+                    onChange={(e) => field.onChange(e.target.value)}
+                    maxNumbers={5}
+                    error={errors.phones?.message as string}
+                  />
+                )}
+              />
+              <Controller
+                name="email"
+                control={control}
+                render={({ field }) => (
+                  <CtrlText
+                    field={field}
+                    label="Email"
+                    type="email"
+                    placeholder="x@y.com"
+                    error={errors.email?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="gstin"
+                control={control}
+                render={({ field }) => (
+                  <CtrlText
+                    field={field}
+                    label="GSTIN (15 CHAR)"
+                    placeholder="33AABC1234D1Z5"
+                    error={errors.gstin?.message}
+                  />
+                )}
+              />
+            </div>
+          </Tile>
+
+          <Tile
+            title="Credit terms"
+            subtitle="The opening balance can only be set when the customer is created."
+            icon={<Wallet size={18} />}
+          >
+            <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+              <Controller
+                name="openingBalance"
+                control={control}
+                render={({ field }) => (
+                  <CtrlText
+                    field={field}
+                    label="Opening Balance ₹"
+                    type="number"
+                    placeholder="0.00"
+                    preventNegative
+                    error={errors.openingBalance?.message}
+                    disabled={isEditMode}
+                  />
+                )}
+              />
+              <Controller
+                name="openingBalanceType"
+                control={control}
+                render={({ field }) => (
+                  <SelectInput
+                    searchable={false}
+                    label="Opening Balance Type"
+                    name={field.name}
+                    value={field.value}
+                    options={[
+                      { value: "DEBIT", label: "Debit (Customer owes us)" },
+                      { value: "CREDIT", label: "Credit (Advance received from customer)" },
+                    ]}
+                    onChange={(e: any) => field.onChange(e.target.value)}
+                    disabled={isEditMode}
+                    error={errors.openingBalanceType?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="creditLimit"
+                control={control}
+                render={({ field }) => (
+                  <CtrlText
+                    field={field}
+                    label="Credit Limit ₹"
+                    type="number"
+                    placeholder="30000"
+                    preventNegative
+                    error={errors.creditLimit?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="creditDays"
+                control={control}
+                render={({ field }) => (
+                  <SelectInput
+                    label="Credit Days"
+                    searchable={false}
+                    name={field.name}
+                    value={field.value ?? ""}
+                    options={[
+                      { value: "7", label: "7 Days" },
+                      { value: "14", label: "14 Days" },
+                      { value: "21", label: "21 Days" },
+                      { value: "30", label: "30 Days" },
+                    ]}
+                    defaultOptionLabel="Select Credit Days"
+                    onChange={(e: any) => field.onChange(e.target.value)}
+                    error={errors.creditDays?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="overdueInterestRate"
+                control={control}
+                render={({ field }) => (
+                  <CtrlText
+                    field={field}
+                    label="Overdue interest % p.a."
+                    type="number"
+                    placeholder="e.g. 18"
+                    preventNegative
+                    error={errors.overdueInterestRate?.message}
+                  />
+                )}
+              />
+            </div>
+          </Tile>
 
           {/* Transport Details */}
 
           {/* Billing Address */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-ink uppercase tracking-wide">
-                Billing Address
-              </h4>
-              <CustomButton
-                type="button"
-                text="Add Address"
-                icon={FaPlus}
+          <Tile
+            title="Billing Address"
+            subtitle="The first address is the billing address; add more for delivery points."
+            icon={<MapPin size={18} />}
+            actions={
+              <ActionPill
+                size="sm"
                 variant="secondary"
+                icon={<Plus size={15} />}
                 onClick={() =>
                   append({
                     address: {
@@ -606,178 +639,189 @@ const CustomerFormPage: React.FC = () => {
                     },
                   })
                 }
-              />
-            </div>
+              >
+                Add Address
+              </ActionPill>
+            }
+          >
+            <div className="space-y-4">
+              {/* Billing Address Form (always index 0) */}
+              {fields.length > 0 &&
+                (() => {
+                  const fieldErrors = errors.addresses?.[0]?.address;
+                  return (
+                    <AddressForm
+                      addressValue={watch(`addresses.0.address.addressLine1`)}
+                      onAddressChange={(v) =>
+                        setValue(`addresses.0.address.addressLine1`, v, { shouldValidate: true })
+                      }
+                      addressError={fieldErrors?.addressLine1?.message}
+                      countryValue="India"
+                      stateValue={watch(`addresses.0.address.state`)}
+                      onStateChange={(v) => {
+                        setValue(`addresses.0.address.state`, v, { shouldValidate: true });
+                        setValue(`addresses.0.address.city`, "", { shouldValidate: true });
+                      }}
+                      stateError={fieldErrors?.state?.message}
+                      cityValue={watch(`addresses.0.address.city`)}
+                      onCityChange={(v) =>
+                        setValue(`addresses.0.address.city`, v, { shouldValidate: true })
+                      }
+                      cityError={fieldErrors?.city?.message}
+                      pincodeValue={watch(`addresses.0.address.pincode`)}
+                      onPincodeChange={(v) =>
+                        setValue(`addresses.0.address.pincode`, v, { shouldValidate: true })
+                      }
+                      pincodeError={fieldErrors?.pincode?.message}
+                      required
+                    />
+                  );
+                })()}
 
-            {/* Billing Address Form (always index 0) */}
-            {fields.length > 0 &&
-              (() => {
-                const fieldErrors = errors.addresses?.[0]?.address;
+              {/* Additional Addresses */}
+              {fields.map((field, index) => {
+                if (index === 0) return null;
+                const fieldErrors = errors.addresses?.[index]?.address;
                 return (
-                  <AddressForm
-                    addressValue={watch(`addresses.0.address.addressLine1`)}
-                    onAddressChange={(v) =>
-                      setValue(`addresses.0.address.addressLine1`, v, { shouldValidate: true })
-                    }
-                    addressError={fieldErrors?.addressLine1?.message}
-                    countryValue="India"
-                    stateValue={watch(`addresses.0.address.state`)}
-                    onStateChange={(v) => {
-                      setValue(`addresses.0.address.state`, v, { shouldValidate: true });
-                      setValue(`addresses.0.address.city`, "", { shouldValidate: true });
-                    }}
-                    stateError={fieldErrors?.state?.message}
-                    cityValue={watch(`addresses.0.address.city`)}
-                    onCityChange={(v) =>
-                      setValue(`addresses.0.address.city`, v, { shouldValidate: true })
-                    }
-                    cityError={fieldErrors?.city?.message}
-                    pincodeValue={watch(`addresses.0.address.pincode`)}
-                    onPincodeChange={(v) =>
-                      setValue(`addresses.0.address.pincode`, v, { shouldValidate: true })
-                    }
-                    pincodeError={fieldErrors?.pincode?.message}
-                    required
-                  />
-                );
-              })()}
-
-            {/* Additional Addresses */}
-            {fields.map((field, index) => {
-              if (index === 0) return null;
-              const fieldErrors = errors.addresses?.[index]?.address;
-              return (
-                <div key={field.id} className="p-4 border border-line rounded-md relative">
-                  <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
-                    <h4 className="text-sm font-semibold text-ink uppercase">
-                      Address {index + 1}
-                    </h4>
-                    <DeleteButton onClick={() => handleRemoveAddress(index)} />
+                  <div
+                    key={field.id}
+                    className="relative rounded-[14px] border border-line-soft bg-card-2/60 p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="sl-section-label m-0">Address {index + 1}</h3>
+                      <DeleteButton onClick={() => handleRemoveAddress(index)} />
+                    </div>
+                    <AddressForm
+                      addressValue={watch(`addresses.${index}.address.addressLine1`)}
+                      onAddressChange={(v) =>
+                        setValue(`addresses.${index}.address.addressLine1`, v, {
+                          shouldValidate: true,
+                        })
+                      }
+                      addressError={fieldErrors?.addressLine1?.message}
+                      countryValue="India"
+                      stateValue={watch(`addresses.${index}.address.state`)}
+                      onStateChange={(v) => {
+                        setValue(`addresses.${index}.address.state`, v, { shouldValidate: true });
+                        setValue(`addresses.${index}.address.city`, "", { shouldValidate: true });
+                      }}
+                      stateError={fieldErrors?.state?.message}
+                      cityValue={watch(`addresses.${index}.address.city`)}
+                      onCityChange={(v) =>
+                        setValue(`addresses.${index}.address.city`, v, { shouldValidate: true })
+                      }
+                      cityError={fieldErrors?.city?.message}
+                      pincodeValue={watch(`addresses.${index}.address.pincode`)}
+                      onPincodeChange={(v) =>
+                        setValue(`addresses.${index}.address.pincode`, v, { shouldValidate: true })
+                      }
+                      pincodeError={fieldErrors?.pincode?.message}
+                      required
+                    />
                   </div>
-                  <AddressForm
-                    addressValue={watch(`addresses.${index}.address.addressLine1`)}
-                    onAddressChange={(v) =>
-                      setValue(`addresses.${index}.address.addressLine1`, v, {
-                        shouldValidate: true,
-                      })
-                    }
-                    addressError={fieldErrors?.addressLine1?.message}
-                    countryValue="India"
-                    stateValue={watch(`addresses.${index}.address.state`)}
-                    onStateChange={(v) => {
-                      setValue(`addresses.${index}.address.state`, v, { shouldValidate: true });
-                      setValue(`addresses.${index}.address.city`, "", { shouldValidate: true });
-                    }}
-                    stateError={fieldErrors?.state?.message}
-                    cityValue={watch(`addresses.${index}.address.city`)}
-                    onCityChange={(v) =>
-                      setValue(`addresses.${index}.address.city`, v, { shouldValidate: true })
-                    }
-                    cityError={fieldErrors?.city?.message}
-                    pincodeValue={watch(`addresses.${index}.address.pincode`)}
-                    onPincodeChange={(v) =>
-                      setValue(`addresses.${index}.address.pincode`, v, { shouldValidate: true })
-                    }
-                    pincodeError={fieldErrors?.pincode?.message}
-                    required
-                  />
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </Tile>
 
           {/* Transport Details */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-ink uppercase tracking-wide">
-                Transport Details
-              </h4>
-              <CustomButton
-                type="button"
-                text="Add Transport"
-                icon={FaPlus}
+          <Tile
+            title="Transport Details"
+            subtitle="Transporters this customer usually books; picked on sales invoices."
+            icon={<Truck size={18} />}
+            actions={
+              <ActionPill
+                size="sm"
                 variant="secondary"
+                icon={<Plus size={15} />}
                 onClick={() => appendTransport({ name: "", address: "", phone: "" })}
-              />
-            </div>
+              >
+                Add Transport
+              </ActionPill>
+            }
+          >
+            <div className="space-y-4">
+              {transportFields.length === 0 && (
+                <p className="m-0 text-sm text-ink-subtle">
+                  No transport added yet. Click "Add Transport" to add one.
+                </p>
+              )}
 
-            {transportFields.length === 0 && (
-              <p className="text-xs text-ink-muted italic">
-                No transport added yet. Click "Add Transport" to add one.
-              </p>
-            )}
-
-            {transportFields.map((tf, index) => {
-              const fieldErrors = errors.transports?.[index];
-              return (
-                <div key={tf.id} className="p-4 border border-line rounded-md relative">
-                  <div className="flex items-center justify-between mb-3 border-b border-line pb-2">
-                    <h4 className="text-sm font-semibold text-ink uppercase">
-                      Transport {index + 1}
-                    </h4>
-                    <DeleteButton onClick={() => removeTransport(index)} />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 md:gap-x-8 lg:gap-x-10 gap-y-3 md:gap-y-4">
-                    <Controller
-                      name={`transports.${index}.name`}
-                      control={control}
-                      render={({ field }) => (
-                        <CtrlText
-                          field={field}
-                          label="Transport Name"
-                          placeholder="e.g. Sri Balaji Transport"
-                          required
-                          error={fieldErrors?.name?.message}
-                        />
-                      )}
-                    />
-                    <Controller
-                      name={`transports.${index}.address`}
-                      control={control}
-                      render={({ field }) => (
-                        <CtrlText
-                          field={field}
-                          label="Transport Address"
-                          placeholder="e.g. 12, Main Road, Coimbatore"
-                          error={fieldErrors?.address?.message}
-                        />
-                      )}
-                    />
-                    <Controller
-                      name={`transports.${index}.phone`}
-                      control={control}
-                      render={({ field }) => (
-                        <div>
-                          <label className="block text-xs font-semibold text-ink-muted mb-1.5">
-                            Transport Phone
-                          </label>
-                          <SinglePhoneField
-                            name={field.name}
-                            value={field.value ?? ""}
-                            placeholder="98765 43210"
-                            onChange={(val) => field.onChange(val)}
-                            onBlur={field.onBlur}
-                            error={fieldErrors?.phone?.message}
+              {transportFields.map((tf, index) => {
+                const fieldErrors = errors.transports?.[index];
+                return (
+                  <div
+                    key={tf.id}
+                    className="relative rounded-[14px] border border-line-soft bg-card-2/60 p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="sl-section-label m-0">Transport {index + 1}</h3>
+                      <DeleteButton onClick={() => removeTransport(index)} />
+                    </div>
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+                      <Controller
+                        name={`transports.${index}.name`}
+                        control={control}
+                        render={({ field }) => (
+                          <CtrlText
+                            field={field}
+                            label="Transport Name"
+                            placeholder="e.g. Sri Balaji Transport"
+                            required
+                            error={fieldErrors?.name?.message}
                           />
-                        </div>
-                      )}
-                    />
+                        )}
+                      />
+                      <Controller
+                        name={`transports.${index}.address`}
+                        control={control}
+                        render={({ field }) => (
+                          <CtrlText
+                            field={field}
+                            label="Transport Address"
+                            placeholder="e.g. 12, Main Road, Coimbatore"
+                            error={fieldErrors?.address?.message}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name={`transports.${index}.phone`}
+                        control={control}
+                        render={({ field }) => (
+                          <div>
+                            <label className="sl-label">Transport Phone</label>
+                            <SinglePhoneField
+                              name={field.name}
+                              value={field.value ?? ""}
+                              placeholder="98765 43210"
+                              onChange={(val) => field.onChange(val)}
+                              onBlur={field.onBlur}
+                              error={fieldErrors?.phone?.message}
+                            />
+                          </div>
+                        )}
+                      />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </form>
+                );
+              })}
+            </div>
+          </Tile>
 
-        <div className="flex justify-end gap-3 px-5 py-4 border-t border-line">
-          {!isEditMode && <CustomButton text="Clear Form" onClick={handleClear} type="button" />}
-          <CustomButton
-            text={isSubmitting ? "Saving..." : "Save Customer"}
-            type="submit"
-            disabled={isSubmitting}
-            onClick={handleSubmit(onSubmit)}
-          />
-        </div>
+          <FormFooter start={<KeyHint keys={["F2"]}>saves the customer</KeyHint>}>
+            <ActionPill variant="secondary" onClick={() => navigate("/customers")}>
+              Cancel
+            </ActionPill>
+            {!isEditMode && (
+              <ActionPill variant="secondary" onClick={handleClear}>
+                Clear Form
+              </ActionPill>
+            )}
+            <ActionPill type="submit" loading={isSubmitting} loadingText="Saving...">
+              Save Customer
+            </ActionPill>
+          </FormFooter>
+        </form>
       </div>
 
       <CommonConfirmModal
