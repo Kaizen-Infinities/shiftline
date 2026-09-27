@@ -47,30 +47,27 @@ const BankStatementPage: React.FC = () => {
   return (
     <div className="p-3 space-y-3 min-h-screen">
       {/* Compact merged header + filters */}
-      <div className="bg-card rounded-lg border border-line">
+      <div className="sl-tile">
         <div className="px-3 py-2 border-b border-line flex items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-ink flex items-center gap-2">
             <FaUniversity className="text-accent text-sm" />
             {data?.ledger?.name || "Bank Statement"}
             {data?.ledger && (
-              <span className="text-[10px] uppercase tracking-wide tabular-nums text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide tabular-nums text-ink-subtle">
                 · {data.ledger.code} · {data.ledger.group}
               </span>
             )}
-            {refreshing && <FaSync className="animate-spin text-accent text-[10px]" />}
+            {refreshing && <FaSync className="animate-spin text-accent text-[11.5px]" />}
           </h2>
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={refresh}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
-            >
+            <button onClick={refresh} className="sl-btn sl-pill-sm">
               <FaSync className={refreshing ? "animate-spin text-accent" : ""} /> Refresh
             </button>
             <button
               onClick={() => navigate("/accounts/bank-accounts")}
               className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line cursor-pointer"
             >
-              <FaArrowLeft className="text-[10px]" /> Back
+              <FaArrowLeft className="text-[11.5px]" /> Back
             </button>
           </div>
         </div>
@@ -78,25 +75,21 @@ const BankStatementPage: React.FC = () => {
         {/* Filter row */}
         <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
           <div className="w-[140px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
-              From
-            </label>
+            <label className="sl-label">From</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
+              className="sl-input h-11 w-full text-sm"
             />
           </div>
           <div className="w-[140px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
-              To
-            </label>
+            <label className="sl-label">To</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent"
+              className="sl-input h-11 w-full text-sm"
             />
           </div>
           {(startDate || endDate) && (
@@ -116,16 +109,16 @@ const BankStatementPage: React.FC = () => {
       {/* Balance Summary - compact 3-up */}
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <div className="bg-card rounded-lg border border-line px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+          <div className="sl-tile px-3 py-2">
+            <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
               Opening Balance
             </p>
             <p className="text-base tabular-nums font-bold text-ink mt-0.5">
               ₹{Math.abs(data.openingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="bg-card rounded-lg border border-line px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+          <div className="sl-tile px-3 py-2">
+            <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
               Closing Balance
             </p>
             <p
@@ -134,8 +127,8 @@ const BankStatementPage: React.FC = () => {
               ₹{Math.abs(data.closingBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="bg-card rounded-lg border border-line px-3 py-2">
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+          <div className="sl-tile px-3 py-2">
+            <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
               Transactions
             </p>
             <p className="text-base tabular-nums font-bold text-ink mt-0.5">
@@ -146,10 +139,10 @@ const BankStatementPage: React.FC = () => {
       )}
 
       {/* Statement Table - compact */}
-      <div className="bg-card rounded-lg border border-line overflow-hidden">
+      <div className="sl-tile overflow-hidden">
         <div className="px-3 py-2 border-b border-line bg-card-2 flex items-center justify-between">
           <h2 className="text-sm font-bold text-ink">Transaction Statement</h2>
-          <span className="text-[11px] text-ink-subtle tabular-nums">
+          <span className="text-[12.5px] text-ink-subtle tabular-nums">
             {data?.entries.length || 0} entries
           </span>
         </div>
@@ -161,7 +154,7 @@ const BankStatementPage: React.FC = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-ink-muted border-collapse">
-              <thead className="bg-card-2 text-ink text-[10px] uppercase font-bold tracking-wide border-b border-line">
+              <thead className="bg-card-2 text-ink text-[11.5px] uppercase font-bold tracking-wide border-b border-line">
                 <tr>
                   <th className="px-3 py-1.5 text-xs">Date</th>
                   <th className="px-3 py-1.5 text-xs">Voucher No</th>
@@ -183,7 +176,7 @@ const BankStatementPage: React.FC = () => {
                     </td>
                     <td className="px-3 py-1.5 text-xs">
                       <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        className={`px-1.5 py-0.5 rounded text-[11.5px] font-bold uppercase ${
                           entry.voucherType === "RECEIPT"
                             ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]"
                             : entry.voucherType === "PAYMENT"
@@ -229,7 +222,7 @@ const BankStatementPage: React.FC = () => {
                           cash shortage). Show "Cr" so the sign matches accounting
                           convention — old code wrote "Dr" here which was inverted. */}
                       {entry.runningBalance < 0 && (
-                        <span className="text-[10px] text-[color:var(--color-danger)] ml-1">
+                        <span className="text-[11.5px] text-[color:var(--color-danger)] ml-1">
                           Cr
                         </span>
                       )}

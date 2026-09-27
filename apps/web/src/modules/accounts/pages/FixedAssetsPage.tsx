@@ -609,8 +609,8 @@ const RunDetailDialog: React.FC<{ runId: string; onClose: () => void }> = ({ run
   }, [runId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">
           Depreciation run {detail?.periodKey ?? ""}
         </h2>
@@ -701,8 +701,8 @@ const AddAssetDialog: React.FC<{
   }, [list.length]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-lg sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Add an asset</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Depreciation runs from the day it was put to use, not the day it was bought.
@@ -813,8 +813,8 @@ const DisposeDialog: React.FC<{
   const result = Number(proceeds || 0) - asset.wdv;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-md sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Dispose of {asset.name}</h2>
         <p className="mt-1 text-sm text-ink-muted">
           Written down to {money(asset.wdv)}. The profit or loss is measured against that, not
@@ -921,8 +921,8 @@ const OpeningImportDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Import opening balances</h2>
         <p className="mt-1 text-sm text-ink-muted">
           One row per asset already part-depreciated: class code, asset code, name, business place
@@ -1010,8 +1010,8 @@ const ClassEditDialog: React.FC<{
   const [isActive, setIsActive] = useState(value?.isActive ?? true);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-lg sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">{value ? "Edit class" : "Add a class"}</h2>
         <p className="mt-1 text-sm text-ink-muted">
           The Schedule II life and method for the accounts, and the income-tax block and rate for

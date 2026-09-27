@@ -237,7 +237,7 @@ export const CustomerBreakdownPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <span className="tabular-nums font-bold text-ink">{item.voucherNo}</span>
           {item.postedToLedger === false && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40">
+            <span className="px-1.5 py-0.5 rounded text-[11.5px] font-semibold bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40">
               Not posted
             </span>
           )}
@@ -251,7 +251,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     {
       header: "PAYMENT MODE",
       render: (item: any) => (
-        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-card-2 text-ink-muted border border-line">
+        <span className="px-1.5 py-0.5 rounded text-[11.5px] font-semibold bg-card-2 text-ink-muted border border-line">
           {item.paymentMode || "General"}
         </span>
       ),
@@ -271,7 +271,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     {
       header: "NARRATION",
       render: (item: any) => (
-        <span className="text-ink-muted text-[11px]">{item.narration || "-"}</span>
+        <span className="text-ink-muted text-[12.5px]">{item.narration || "-"}</span>
       ),
     },
   ];
@@ -296,7 +296,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     {
       header: "PARTICULARS",
       render: (item: any) => (
-        <span className="text-ink text-[11px] font-medium">{item.particulars}</span>
+        <span className="text-ink text-[12.5px] font-medium">{item.particulars}</span>
       ),
     },
     {
@@ -336,12 +336,12 @@ export const CustomerBreakdownPage: React.FC = () => {
   return (
     <div className="p-3 space-y-3 min-h-screen font-sans text-ink">
       {/* COMPACT HEADER + FILTERS */}
-      <div className="bg-card rounded-lg border border-line">
+      <div className="sl-tile">
         <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-line">
           <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => navigate("/accounts/receivable")}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted font-semibold rounded text-[11px] transition-colors border border-line shrink-0"
+              className="inline-flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted font-semibold rounded text-[12.5px] transition-colors border border-line shrink-0"
             >
               <FaArrowLeft size={9} /> Back
             </button>
@@ -350,10 +350,10 @@ export const CustomerBreakdownPage: React.FC = () => {
               <span className="truncate">
                 {customerDetail?.customer.firmName || "Customer Breakdown"}
               </span>
-              {refreshing && <FaSync className="animate-spin text-accent text-[10px]" />}
+              {refreshing && <FaSync className="animate-spin text-accent text-[11.5px]" />}
             </h1>
             {customerDetail?.customer.customerCode && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-nav-active text-accent border border-accent rounded tabular-nums uppercase tracking-wide shrink-0">
+              <span className="text-[11.5px] font-semibold px-1.5 py-0.5 bg-nav-active text-accent border border-accent rounded tabular-nums uppercase tracking-wide shrink-0">
                 {customerDetail.customer.customerCode}
               </span>
             )}
@@ -396,9 +396,7 @@ export const CustomerBreakdownPage: React.FC = () => {
         {/* Filter Row - single compact row */}
         <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
           <div className="w-[140px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              Range
-            </label>
+            <label className="sl-label">Range</label>
             <SelectInput
               name="dateRangePreset"
               value={dateRangePreset}
@@ -409,9 +407,7 @@ export const CustomerBreakdownPage: React.FC = () => {
           </div>
 
           <div className="w-[130px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              From
-            </label>
+            <label className="sl-label">From</label>
             <DatePickerCalendar
               name="draftStartDate"
               value={draftStartDate}
@@ -423,9 +419,7 @@ export const CustomerBreakdownPage: React.FC = () => {
           </div>
 
           <div className="w-[130px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              To
-            </label>
+            <label className="sl-label">To</label>
             <DatePickerCalendar
               name="draftEndDate"
               value={draftEndDate}
@@ -465,9 +459,9 @@ export const CustomerBreakdownPage: React.FC = () => {
       {/* COMPACT KPI CARDS */}
       {customerDetail && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Opening
               </span>
               <FaMoneyBillWave className="text-ink-muted text-xs" />
@@ -479,12 +473,12 @@ export const CustomerBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Starting receivable</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Starting receivable</div>
           </div>
 
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Invoiced
               </span>
               <FaUserFriends className="text-accent text-xs" />
@@ -496,12 +490,12 @@ export const CustomerBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Sales invoices</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Sales invoices</div>
           </div>
 
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Received
               </span>
               <FaCheckCircle className="text-[color:var(--color-success)] text-xs" />
@@ -513,12 +507,12 @@ export const CustomerBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Receipts settled</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Receipts settled</div>
           </div>
 
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Returned
               </span>
               <FaMoneyBillWave className="text-[color:var(--color-danger)] text-xs" />
@@ -530,12 +524,12 @@ export const CustomerBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Credit notes</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Credit notes</div>
           </div>
 
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Outstanding
               </span>
               <FaExclamationTriangle className="text-[color:var(--color-warning)] text-xs" />
@@ -547,13 +541,13 @@ export const CustomerBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Net balance</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Net balance</div>
           </div>
         </div>
       )}
 
       {/* TABS & TABLE */}
-      <div className="bg-card rounded-lg border border-line overflow-hidden">
+      <div className="sl-tile overflow-hidden">
         <div className="flex items-center gap-1 border-b border-line bg-card-2 px-2">
           <button
             onClick={() => setActiveTab("invoices")}
@@ -563,7 +557,7 @@ export const CustomerBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaFileInvoice className="text-[10px]" /> Invoices (
+            <FaFileInvoice className="text-[11.5px]" /> Invoices (
             {customerDetail?.invoices?.length || 0})
           </button>
           <button
@@ -574,7 +568,7 @@ export const CustomerBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaHistory className="text-[10px]" /> Collections (
+            <FaHistory className="text-[11.5px]" /> Collections (
             {customerDetail?.collectionHistory?.length || 0})
           </button>
           <button
@@ -585,7 +579,7 @@ export const CustomerBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaList className="text-[10px]" /> Ledger (
+            <FaList className="text-[11.5px]" /> Ledger (
             {customerDetail?.statementEntries?.length || 0})
           </button>
         </div>

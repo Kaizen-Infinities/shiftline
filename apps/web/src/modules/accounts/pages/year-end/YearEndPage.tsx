@@ -16,12 +16,10 @@ import { formatDate, formatDateTime } from "../../../../utils/dateUtils";
  * an approver post it (which also closes the year's periods, opens the next year and freezes
  * the books), or reverse a closing after moving the freeze date back.
  */
-const input =
-  "rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-accent";
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const danger = `${btn} border border-[color:var(--color-danger)]/40 text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10`;
+const input = "sl-input h-11 text-sm";
+const primary = "sl-cta sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const danger = "sl-btn-danger sl-pill-sm";
 
 const STATUS_STYLE: Record<string, string> = {
   PREPARED: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
@@ -118,7 +116,7 @@ const YearEndPage: React.FC = () => {
         </p>
       </div>
 
-      <section className="rounded-xl border border-line-soft bg-card p-4">
+      <section className="sl-tile p-4">
         <h3 className="text-sm font-semibold text-ink">Books frozen up to</h3>
         <p className="mb-3 text-xs text-ink-muted">
           Nothing dated on or before this day can be posted or changed. It moves forward on its own
@@ -152,7 +150,7 @@ const YearEndPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="rounded-xl border border-line-soft bg-card p-4 space-y-3">
+      <section className="sl-tile p-4 space-y-3">
         <form
           className="flex flex-wrap items-end gap-3"
           onSubmit={(e) => {
@@ -319,7 +317,7 @@ const YearEndPage: React.FC = () => {
         )}
       </section>
 
-      <section className="rounded-xl border border-line-soft bg-card p-4">
+      <section className="sl-tile p-4">
         <h3 className="mb-2 text-sm font-semibold text-ink">History</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

@@ -622,14 +622,11 @@ export const PurchaseReturnPage: React.FC = () => {
             `}</style>
 
             {/* Header */}
-            <div className="px-4 py-2.5 bg-primary text-white flex items-center justify-between shrink-0">
+            <div className="px-4 py-2.5 bg-card text-ink border-b border-line-soft flex items-center justify-between shrink-0">
               <h2 className="text-sm font-bold flex items-center gap-2">
                 <FaBoxes className="text-sm" /> New Purchase Return (Debit Note)
               </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-white/80 hover:text-white"
-              >
+              <button onClick={() => setShowModal(false)} className="text-ink-muted hover:text-ink">
                 <FaTimes className="text-sm" />
               </button>
             </div>
@@ -639,7 +636,7 @@ export const PurchaseReturnPage: React.FC = () => {
                 {/* ── Return Details ── */}
                 <div className="grid grid-cols-3 gap-x-3 gap-y-2">
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                    <label className="sl-label">
                       Supplier <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
@@ -657,7 +654,7 @@ export const PurchaseReturnPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                    <label className="sl-label">
                       Store / Warehouse <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
@@ -679,7 +676,7 @@ export const PurchaseReturnPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                    <label className="sl-label">
                       Kind <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
@@ -696,7 +693,7 @@ export const PurchaseReturnPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                    <label className="sl-label">
                       Refund Mode <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
@@ -711,7 +708,7 @@ export const PurchaseReturnPage: React.FC = () => {
                     </select>
                   </div>
                   <div className="col-span-3">
-                    <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                    <label className="sl-label">
                       Reason for Return <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <input
@@ -728,26 +725,26 @@ export const PurchaseReturnPage: React.FC = () => {
                 {/* ── Return Items ── */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-semibold text-ink uppercase tracking-wide">
+                    <label className="text-[11.5px] font-semibold text-ink uppercase tracking-wide">
                       Return Raw Materials
                     </label>
                     <button
                       type="button"
                       onClick={handleAddManualRow}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 cursor-pointer"
+                      className="flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:text-primary/80 cursor-pointer"
                     >
                       <FaPlus className="w-2.5 h-2.5" /> Add Row
                     </button>
                   </div>
 
                   {returnRows.length === 0 ? (
-                    <div className="p-3 border border-dashed border-line rounded text-center text-[11px] text-ink-subtle">
+                    <div className="p-3 border border-dashed border-line rounded text-center text-[12.5px] text-ink-subtle">
                       Click Add Row to select raw materials.
                     </div>
                   ) : (
                     <div className="border border-line rounded overflow-hidden">
                       <table className="w-full text-left text-xs">
-                        <thead className="bg-card-2 text-ink-subtle uppercase text-[10px] tracking-wide font-bold border-b border-line">
+                        <thead className="bg-card-2 text-ink-subtle uppercase text-[11.5px] tracking-wide font-bold border-b border-line">
                           <tr>
                             <th className="px-2 py-1.5 w-8 text-center">#</th>
                             <th className="px-2 py-1.5">Raw Material</th>
@@ -770,19 +767,19 @@ export const PurchaseReturnPage: React.FC = () => {
                               .filter(Boolean);
                             return (
                               <tr key={idx} className="hover:bg-card-2/50 transition-colors">
-                                <td className="px-2 py-1 text-center text-[11px] font-bold text-ink-subtle">
+                                <td className="px-2 py-1 text-center text-[12.5px] font-bold text-ink-subtle">
                                   {idx + 1}
                                 </td>
                                 <td className="px-2 py-1">
                                   {row.isGrnLinked ? (
-                                    <div className="font-semibold text-ink text-[11px]">
+                                    <div className="font-semibold text-ink text-[12.5px]">
                                       {row.materialName}
                                     </div>
                                   ) : (
                                     <select
                                       value={row.rawMaterialId}
                                       onChange={(e) => handleRowMaterialChange(idx, e.target.value)}
-                                      className="w-full px-1 border border-line rounded text-[11px] bg-card text-ink focus:outline-none focus:border-primary"
+                                      className="w-full px-1 border border-line rounded text-[12.5px] bg-card text-ink focus:outline-none focus:border-primary"
                                     >
                                       {materials.map((m) => {
                                         const rmId = String(m.rawMaterialId || m.id);
@@ -806,7 +803,7 @@ export const PurchaseReturnPage: React.FC = () => {
                                           return u;
                                         })
                                       }
-                                      className="w-full px-1 border border-line rounded text-[11px] tabular-nums bg-card text-ink focus:outline-none focus:border-primary"
+                                      className="w-full px-1 border border-line rounded text-[12.5px] tabular-nums bg-card text-ink focus:outline-none focus:border-primary"
                                     >
                                       {uomList.map((u: string) => (
                                         <option key={u} value={u}>
@@ -815,7 +812,7 @@ export const PurchaseReturnPage: React.FC = () => {
                                       ))}
                                     </select>
                                   ) : (
-                                    <span className="block text-center text-[11px] tabular-nums text-ink-muted">
+                                    <span className="block text-center text-[12.5px] tabular-nums text-ink-muted">
                                       {row.uom || "—"}
                                     </span>
                                   )}
@@ -848,7 +845,7 @@ export const PurchaseReturnPage: React.FC = () => {
                                     className="w-full px-1 border border-line rounded text-right tabular-nums bg-card text-ink focus:outline-none focus:border-primary disabled:opacity-60"
                                   />
                                 </td>
-                                <td className="px-2 py-1 text-right tabular-nums font-semibold text-ink text-[11px]">
+                                <td className="px-2 py-1 text-right tabular-nums font-semibold text-ink text-[12.5px]">
                                   ₹{lineTot.toFixed(2)}
                                 </td>
                                 <td className="px-2 py-1 text-center">
@@ -868,7 +865,7 @@ export const PurchaseReturnPage: React.FC = () => {
                           <tr>
                             <td
                               colSpan={5}
-                              className="px-2 py-1.5 text-right text-[10px] font-bold text-ink uppercase tracking-wide"
+                              className="px-2 py-1.5 text-right text-[11.5px] font-bold text-ink uppercase tracking-wide"
                             >
                               Grand Total:
                             </td>
@@ -885,9 +882,7 @@ export const PurchaseReturnPage: React.FC = () => {
 
                 {/* ── Narration ── */}
                 <div>
-                  <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                    Narration / Internal Notes
-                  </label>
+                  <label className="sl-label">Narration / Internal Notes</label>
                   <textarea
                     value={narration}
                     rows={2}
@@ -904,15 +899,11 @@ export const PurchaseReturnPage: React.FC = () => {
                   type="button"
                   onClick={resetForm}
                   disabled={submitting}
-                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded border border-line"
+                  className="sl-btn sl-pill-sm"
                 >
                   Clear
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded disabled:opacity-50"
-                >
+                <button type="submit" disabled={submitting} className="sl-cta sl-pill-sm">
                   {submitting ? "Processing..." : "Submit Return"}
                 </button>
               </div>
@@ -988,12 +979,12 @@ export const PurchaseReturnPage: React.FC = () => {
           selectedViewReturn && (
             <div className="space-y-3">
               <div>
-                <h4 className="font-semibold text-ink mb-1.5 text-[10px] uppercase tracking-wide">
+                <h4 className="font-semibold text-ink mb-1.5 text-[11.5px] uppercase tracking-wide">
                   Returned Raw Materials
                 </h4>
                 <div className="border border-line rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                    <thead className="bg-card-2 text-ink-muted font-semibold text-[12px] border-b border-line-soft">
                       <tr>
                         <th className="px-3 py-1.5">Material ID</th>
                         <th className="px-3 py-1.5">Material Name</th>
@@ -1043,7 +1034,7 @@ export const PurchaseReturnPage: React.FC = () => {
 
               {selectedViewReturn.narration && (
                 <div className="bg-card-2 p-2 rounded border border-line text-xs">
-                  <span className="font-semibold text-ink block mb-0.5 text-[10px] uppercase tracking-wide">
+                  <span className="font-semibold text-ink block mb-0.5 text-[11.5px] uppercase tracking-wide">
                     Narration / Notes
                   </span>
                   <p className="text-ink-muted leading-relaxed">{selectedViewReturn.narration}</p>

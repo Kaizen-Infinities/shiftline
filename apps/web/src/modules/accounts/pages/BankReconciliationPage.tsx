@@ -574,8 +574,8 @@ const MatchDialog: React.FC<{
   onPick: (voucherId: number) => void;
   onIgnore: (note: string) => void;
 }> = ({ line, options, busy, onCancel, onPick, onIgnore }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-    <div className="w-full max-w-2xl rounded-xl border border-line-soft bg-card p-4">
+  <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="w-full max-w-2xl sl-tile p-4">
       <h2 className="text-lg font-semibold text-ink">
         {day(line.txnDate)} · {line.description}
       </h2>

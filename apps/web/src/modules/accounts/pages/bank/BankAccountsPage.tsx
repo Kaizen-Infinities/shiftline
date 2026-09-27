@@ -174,7 +174,7 @@ const BankAccountsPage: React.FC = () => {
   return (
     <div className="p-3 space-y-3 min-h-screen">
       {/* Compact merged header */}
-      <div className="bg-card rounded-lg border border-line">
+      <div className="sl-tile">
         <div className="px-3 py-2 border-b border-line flex items-center justify-between gap-2">
           <h2 className="text-sm font-bold text-ink flex items-center gap-2">
             {filterType === "cash" ? (
@@ -189,7 +189,7 @@ const BankAccountsPage: React.FC = () => {
               : filterType === "bank"
                 ? "Bank Accounts"
                 : "Bank & Cash Accounts"}
-            {refreshing && <FaSync className="animate-spin text-ink-muted text-[10px]" />}
+            {refreshing && <FaSync className="animate-spin text-ink-muted text-[11.5px]" />}
           </h2>
           <div className="flex items-center gap-1.5">
             <button
@@ -217,17 +217,11 @@ const BankAccountsPage: React.FC = () => {
             >
               <FaTools className={repairRunning ? "animate-spin" : ""} /> Repair
             </button>
-            <button
-              onClick={refresh}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded-sm text-xs font-semibold border border-line"
-            >
+            <button onClick={refresh} className="sl-btn sl-pill-sm">
               <FaSync className={refreshing ? "animate-spin" : ""} /> Refresh
             </button>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-accent hover:brightness-110 text-white rounded-sm text-xs font-semibold transition cursor-pointer"
-            >
-              <FaPlus className="text-[10px]" /> Add Account
+            <button onClick={() => setShowAddForm(true)} className="sl-cta sl-pill-md">
+              <FaPlus className="text-[11.5px]" /> Add Account
             </button>
           </div>
         </div>
@@ -237,7 +231,7 @@ const BankAccountsPage: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setSearchParams({})}
-              className={`px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wide border transition-colors ${
+              className={`px-2 py-1 rounded-sm text-[11.5px] font-bold uppercase tracking-wide border transition-colors ${
                 !filterType
                   ? "bg-accent/10 text-accent border-accent"
                   : "bg-card text-ink-muted border-line hover:border-accent/50"
@@ -247,27 +241,27 @@ const BankAccountsPage: React.FC = () => {
             </button>
             <button
               onClick={() => setSearchParams({ filter: "cash" })}
-              className={`px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-sm text-[11.5px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
                 filterType === "cash"
                   ? "bg-accent/10 text-accent border-accent"
                   : "bg-card text-ink-muted border-line hover:border-accent/50"
               }`}
             >
-              <FaMoneyBillWave className="text-[9px]" /> Cash
+              <FaMoneyBillWave className="text-[12.5px]" /> Cash
             </button>
             <button
               onClick={() => setSearchParams({ filter: "bank" })}
-              className={`px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-sm text-[11.5px] font-bold uppercase tracking-wide border transition-colors flex items-center gap-1 ${
                 filterType === "bank"
                   ? "bg-accent/10 text-accent border-accent"
                   : "bg-card text-ink-muted border-line hover:border-accent/50"
               }`}
             >
-              <FaUniversity className="text-[9px]" /> Bank
+              <FaUniversity className="text-[12.5px]" /> Bank
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+            <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
               {filterType === "cash"
                 ? "Cash Balance"
                 : filterType === "bank"
@@ -285,7 +279,7 @@ const BankAccountsPage: React.FC = () => {
 
       {/* Account Cards */}
       {filteredAccounts.length === 0 && !loading ? (
-        <div className="bg-card rounded-lg border border-line p-8 text-center text-xs text-ink-subtle">
+        <div className="sl-tile p-8 text-center text-xs text-ink-subtle">
           {filterType === "cash"
             ? "No cash accounts found."
             : filterType === "bank"
@@ -299,12 +293,12 @@ const BankAccountsPage: React.FC = () => {
             <div
               key={acc.id}
               onClick={() => navigate(`/accounts/bank-accounts/${acc.id}`)}
-              className="bg-card rounded-lg border border-line p-3 hover:border-accent/50 transition-all cursor-pointer group"
+              className="sl-tile p-3 hover:border-accent/50 transition-all cursor-pointer group"
             >
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-ink truncate">{acc.name}</h3>
-                  <p className="text-[10px] uppercase tracking-wide tabular-nums text-ink-subtle mt-0.5">
+                  <p className="text-[11.5px] uppercase tracking-wide tabular-nums text-ink-subtle mt-0.5">
                     {acc.code}
                   </p>
                 </div>
@@ -320,16 +314,16 @@ const BankAccountsPage: React.FC = () => {
                       title="Set opening balance (one-time only)"
                       className="p-1 rounded-sm border border-line text-ink-subtle hover:text-accent hover:border-accent/40 transition-colors"
                     >
-                      <FaPen className="text-[9px]" />
+                      <FaPen className="text-[12.5px]" />
                     </button>
                   )}
-                  <span className="px-1.5 py-0.5 rounded-sm text-[10px] font-bold uppercase border border-line bg-card-2 text-ink-muted">
+                  <span className="px-1.5 py-0.5 rounded-sm text-[11.5px] font-bold uppercase border border-line bg-card-2 text-ink-muted">
                     {isCashAccount(acc.group, acc.name) ? "Cash" : "Bank"}
                   </span>
                 </div>
               </div>
               <div className="border-t border-line pt-2">
-                <p className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                <p className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                   Current Balance
                 </p>
                 <p
@@ -343,13 +337,13 @@ const BankAccountsPage: React.FC = () => {
                   {Math.abs(acc.currentBalance).toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
                   })}
-                  <span className="text-[10px] ml-1">
+                  <span className="text-[11.5px] ml-1">
                     {acc.currentBalance >= 0 ? "(Cr)" : "(Dr)"}
                   </span>
                 </p>
               </div>
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-line-soft">
-                <div className="text-[11px] text-ink-subtle">
+                <div className="text-[12.5px] text-ink-subtle">
                   <span className="text-[color:var(--color-success)] font-semibold">
                     ↑ ₹{acc.totalDebit.toLocaleString("en-IN")}
                   </span>
@@ -386,7 +380,7 @@ const BankAccountsPage: React.FC = () => {
             <form onSubmit={handleAddBank} className="p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Account Name <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <input
@@ -401,7 +395,7 @@ const BankAccountsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Account Code <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <input
@@ -415,7 +409,7 @@ const BankAccountsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Type
                   </label>
                   <select
@@ -429,7 +423,7 @@ const BankAccountsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                  <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                     Opening Balance (₹)
                   </label>
                   <div className="flex gap-1">
@@ -451,7 +445,7 @@ const BankAccountsPage: React.FC = () => {
                       className="flex-1 px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
                     />
                   </div>
-                  <p className="mt-1 text-[9px] text-ink-subtle">
+                  <p className="mt-1 text-[12.5px] text-ink-subtle">
                     <span className="text-[color:var(--color-danger)] font-bold">Dr</span> = Minus
                     (↓) &nbsp;·&nbsp;
                     <span className="text-[color:var(--color-success)] font-bold">Cr</span> = Add
@@ -460,7 +454,7 @@ const BankAccountsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="text-[10px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
+              <div className="text-[11.5px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
                 💡 <b>Tip:</b> Enter the actual bank balance shown in your bank statement/passbook.
                 A JV will auto-post: <b>Debit</b> {newName || "this account"} ₹
                 {parseFloat(newOpeningBalance) || 0}
@@ -476,22 +470,18 @@ const BankAccountsPage: React.FC = () => {
                     setShowAddForm(false);
                     resetForm();
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded-sm border border-line"
+                  className="sl-btn sl-pill-sm"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-accent hover:brightness-110 rounded-sm disabled:opacity-50 flex items-center gap-1.5"
-                >
+                <button type="submit" disabled={submitting} className="sl-cta sl-pill-sm">
                   {submitting ? (
                     <>
-                      <FaSync className="animate-spin text-[10px]" /> Creating...
+                      <FaSync className="animate-spin text-[11.5px]" /> Creating...
                     </>
                   ) : (
                     <>
-                      <FaPlus className="text-[10px]" /> Create Account
+                      <FaPlus className="text-[11.5px]" /> Create Account
                     </>
                   )}
                 </button>
@@ -550,7 +540,7 @@ const BankAccountsPage: React.FC = () => {
               className="p-4 space-y-3"
             >
               <div>
-                <label className="block mb-1 text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+                <label className="block mb-1 text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                   Actual Opening Balance (₹)
                 </label>
                 <input
@@ -565,7 +555,7 @@ const BankAccountsPage: React.FC = () => {
                 />
               </div>
 
-              <div className="text-[10px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
+              <div className="text-[11.5px] text-ink-subtle bg-card-2 border border-line rounded-sm p-2 leading-relaxed">
                 💡 A JV will auto-post: <b>Debit</b> {editingBank.name} ₹
                 {parseFloat(editOpeningBalance) || 0}
                 {" · "}
@@ -580,18 +570,14 @@ const BankAccountsPage: React.FC = () => {
                     setEditingBank(null);
                     setEditOpeningBalance("");
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold text-ink-muted hover:text-ink hover:bg-card-2 rounded-sm border border-line"
+                  className="sl-btn sl-pill-sm"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={editSubmitting}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-accent hover:brightness-110 rounded-sm disabled:opacity-50 flex items-center gap-1.5"
-                >
+                <button type="submit" disabled={editSubmitting} className="sl-cta sl-pill-sm">
                   {editSubmitting ? (
                     <>
-                      <FaSync className="animate-spin text-[10px]" /> Saving...
+                      <FaSync className="animate-spin text-[11.5px]" /> Saving...
                     </>
                   ) : (
                     "Save Opening Balance"

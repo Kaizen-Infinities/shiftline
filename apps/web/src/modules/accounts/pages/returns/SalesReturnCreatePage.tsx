@@ -640,25 +640,25 @@ export const SalesReturnCreatePage: React.FC = () => {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="bg-card-2 border-b border-line-soft">
-                    <th className="py-2 pl-3 pr-1 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wide w-8">
+                    <th className="py-2 pl-3 pr-1 text-left text-[12.5px] font-bold text-ink-muted uppercase tracking-wide w-8">
                       #
                     </th>
-                    <th className="py-2 px-1 text-left text-[11px] font-bold text-ink-muted uppercase tracking-wide">
+                    <th className="py-2 px-1 text-left text-[12.5px] font-bold text-ink-muted uppercase tracking-wide">
                       Sales Product
                     </th>
-                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-20">
+                    <th className="py-2 px-1 text-center text-[12.5px] font-bold text-ink-muted uppercase tracking-wide w-20">
                       Qty
                     </th>
-                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-40">
+                    <th className="py-2 px-1 text-center text-[12.5px] font-bold text-ink-muted uppercase tracking-wide w-40">
                       Weight / UOM
                     </th>
-                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-28">
+                    <th className="py-2 px-1 text-center text-[12.5px] font-bold text-ink-muted uppercase tracking-wide w-28">
                       Unit Price
                     </th>
-                    <th className="py-2 px-1 text-right text-[11px] font-bold text-ink-muted uppercase tracking-wide w-28">
+                    <th className="py-2 px-1 text-right text-[12.5px] font-bold text-ink-muted uppercase tracking-wide w-28">
                       Total
                     </th>
-                    <th className="py-2 px-1 text-center text-[11px] font-bold text-ink-muted uppercase tracking-wide w-10"></th>
+                    <th className="py-2 px-1 text-center text-[12.5px] font-bold text-ink-muted uppercase tracking-wide w-10"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -775,13 +775,13 @@ export const SalesReturnCreatePage: React.FC = () => {
                               <div className="ml-6 rounded-md border border-line-soft overflow-hidden">
                                 <div className="grid grid-cols-[auto_1fr_auto_80px] gap-2 px-3 py-1.5 bg-card-2 border-b border-line-soft">
                                   <div className="w-4" />
-                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider">
+                                  <span className="text-[11.5px] font-bold text-ink-subtle uppercase tracking-wider">
                                     Component
                                   </span>
-                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">
+                                  <span className="text-[11.5px] font-bold text-ink-subtle uppercase tracking-wider text-center w-12">
                                     Per Unit
                                   </span>
-                                  <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-wider text-center">
+                                  <span className="text-[11.5px] font-bold text-ink-subtle uppercase tracking-wider text-center">
                                     Qty
                                   </span>
                                 </div>
@@ -801,7 +801,7 @@ export const SalesReturnCreatePage: React.FC = () => {
                                     >
                                       {comp.productName}
                                     </span>
-                                    <span className="text-[11px] text-ink-subtle text-center w-12">
+                                    <span className="text-[12.5px] text-ink-subtle text-center w-12">
                                       x{comp.perUnit}
                                     </span>
                                     <span className="text-xs text-ink font-medium text-center">
@@ -823,9 +823,7 @@ export const SalesReturnCreatePage: React.FC = () => {
 
           {/* Kind (P1-08): goods return or price adjustment */}
           <div className="w-full sm:w-1/3 mt-3">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              Kind
-            </label>
+            <label className="sl-label">Kind</label>
             <select
               value={kind}
               onChange={(e) => setKind(e.target.value as "GOODS_RETURN" | "PRICE_ADJUSTMENT")}

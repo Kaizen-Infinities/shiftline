@@ -238,7 +238,7 @@ export const SupplierBreakdownPage: React.FC = () => {
         <div className="flex items-center gap-2">
           <span className="tabular-nums font-bold text-ink">{item.voucherNo}</span>
           {item.postedToLedger === false && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40">
+            <span className="px-1.5 py-0.5 rounded text-[11.5px] font-semibold bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40">
               Not posted
             </span>
           )}
@@ -252,7 +252,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "PAYMENT MODE",
       render: (item: any) => (
-        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-card-2 text-ink-muted border border-line">
+        <span className="px-1.5 py-0.5 rounded text-[11.5px] font-semibold bg-card-2 text-ink-muted border border-line">
           {item.paymentMode || "General"}
         </span>
       ),
@@ -272,13 +272,13 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "REFERENCE NO",
       render: (item: any) => (
-        <span className="text-ink-muted tabular-nums text-[11px]">{item.referenceNo || "-"}</span>
+        <span className="text-ink-muted tabular-nums text-[12.5px]">{item.referenceNo || "-"}</span>
       ),
     },
     {
       header: "NARRATION",
       render: (item: any) => (
-        <span className="text-ink-muted text-[11px]">{item.narration || "-"}</span>
+        <span className="text-ink-muted text-[12.5px]">{item.narration || "-"}</span>
       ),
     },
   ];
@@ -303,7 +303,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "PARTICULARS",
       render: (item: any) => (
-        <span className="text-ink text-[11px] font-medium">{item.particulars}</span>
+        <span className="text-ink text-[12.5px] font-medium">{item.particulars}</span>
       ),
     },
     {
@@ -343,12 +343,12 @@ export const SupplierBreakdownPage: React.FC = () => {
   return (
     <div className="p-3 space-y-3 min-h-screen font-sans text-ink">
       {/* COMPACT HEADER + FILTERS */}
-      <div className="bg-card rounded-lg border border-line">
+      <div className="sl-tile">
         <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-line">
           <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={() => navigate("/accounts/payable")}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted font-semibold rounded text-[11px] transition-colors border border-line shrink-0"
+              className="inline-flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted font-semibold rounded text-[12.5px] transition-colors border border-line shrink-0"
             >
               <FaArrowLeft size={9} /> Back
             </button>
@@ -358,11 +358,11 @@ export const SupplierBreakdownPage: React.FC = () => {
                 {supplierDetail?.supplier.legalName || "Supplier Breakdown"}
               </span>
               {refreshing && (
-                <FaSync className="animate-spin text-[color:var(--color-warning)] text-[10px]" />
+                <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
               )}
             </h1>
             {supplierDetail?.supplier.supplierCode && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 rounded tabular-nums uppercase tracking-wide shrink-0">
+              <span className="text-[11.5px] font-semibold px-1.5 py-0.5 bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 rounded tabular-nums uppercase tracking-wide shrink-0">
                 {supplierDetail.supplier.supplierCode}
               </span>
             )}
@@ -408,9 +408,7 @@ export const SupplierBreakdownPage: React.FC = () => {
         {/* Filter Row - single compact row */}
         <div className="px-3 py-2 bg-card-2 flex flex-wrap items-end gap-2">
           <div className="w-[140px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              Range
-            </label>
+            <label className="sl-label">Range</label>
             <SelectInput
               name="dateRangePreset"
               value={dateRangePreset}
@@ -421,9 +419,7 @@ export const SupplierBreakdownPage: React.FC = () => {
           </div>
 
           <div className="w-[130px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              From
-            </label>
+            <label className="sl-label">From</label>
             <DatePickerCalendar
               name="draftStartDate"
               value={draftStartDate}
@@ -435,9 +431,7 @@ export const SupplierBreakdownPage: React.FC = () => {
           </div>
 
           <div className="w-[130px]">
-            <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-              To
-            </label>
+            <label className="sl-label">To</label>
             <DatePickerCalendar
               name="draftEndDate"
               value={draftEndDate}
@@ -464,10 +458,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             >
               Clear
             </button>
-            <button
-              onClick={handleApplyFilters}
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded transition-colors"
-            >
+            <button onClick={handleApplyFilters} className="sl-btn-blue sl-pill-sm">
               Apply
             </button>
           </div>
@@ -477,9 +468,9 @@ export const SupplierBreakdownPage: React.FC = () => {
       {/* COMPACT KPI CARDS */}
       {supplierDetail && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Opening
               </span>
               <FaMoneyBillWave className="text-ink-muted text-xs" />
@@ -491,12 +482,12 @@ export const SupplierBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Starting liability</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Starting liability</div>
           </div>
 
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Invoiced
               </span>
               <FaBuilding className="text-[color:var(--color-warning)] text-xs" />
@@ -508,12 +499,12 @@ export const SupplierBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">GRN bills posted</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">GRN bills posted</div>
           </div>
 
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Paid
               </span>
               <FaCheckCircle className="text-[color:var(--color-success)] text-xs" />
@@ -525,12 +516,12 @@ export const SupplierBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Payments settled</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Payments settled</div>
           </div>
 
-          <div className="bg-card border border-line rounded-lg p-3">
+          <div className="sl-tile p-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
+              <span className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Outstanding
               </span>
               <FaExclamationTriangle className="text-[color:var(--color-warning)] text-xs" />
@@ -542,13 +533,13 @@ export const SupplierBreakdownPage: React.FC = () => {
                 maximumFractionDigits: 2,
               })}
             </div>
-            <div className="text-[10px] text-ink-subtle mt-0.5">Net balance due</div>
+            <div className="text-[11.5px] text-ink-subtle mt-0.5">Net balance due</div>
           </div>
         </div>
       )}
 
       {/* TABS & TABLE */}
-      <div className="bg-card rounded-lg border border-line overflow-hidden">
+      <div className="sl-tile overflow-hidden">
         <div className="flex items-center gap-1 border-b border-line bg-card-2 px-2">
           <button
             onClick={() => setActiveTab("invoices")}
@@ -558,7 +549,7 @@ export const SupplierBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaFileInvoice className="text-[10px]" /> Invoices (
+            <FaFileInvoice className="text-[11.5px]" /> Invoices (
             {supplierDetail?.invoices?.length || 0})
           </button>
           <button
@@ -569,7 +560,7 @@ export const SupplierBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaHistory className="text-[10px]" /> Payments (
+            <FaHistory className="text-[11.5px]" /> Payments (
             {supplierDetail?.paymentHistory?.length || 0})
           </button>
           <button
@@ -580,7 +571,7 @@ export const SupplierBreakdownPage: React.FC = () => {
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
-            <FaList className="text-[10px]" /> Ledger (
+            <FaList className="text-[11.5px]" /> Ledger (
             {supplierDetail?.statementEntries?.length || 0})
           </button>
         </div>

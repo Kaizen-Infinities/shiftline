@@ -31,8 +31,8 @@ const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   "Something went wrong";
 
-const th = "px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-subtle";
-const td = "px-2 py-1 text-[11px] text-ink";
+const th = "px-2 py-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-ink-subtle";
+const td = "px-2 py-1 text-[12.5px] text-ink";
 const num = `${td} text-right tabular-nums`;
 
 const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenParty }) => {
@@ -82,7 +82,7 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
 
   return (
     <div
-      className="bg-card border border-line rounded-md overflow-hidden shadow-sm flex flex-col"
+      className="sl-tile overflow-hidden flex flex-col"
       style={{ height: "calc(100vh - 240px)" }}
     >
       <div className="px-3 py-1.5 border-b border-line bg-card-2 flex items-center justify-between gap-2 shrink-0">
@@ -90,7 +90,7 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
           {kind === "receivable" ? "Receivables" : "Payables"} ageing as on{" "}
           {formatDate(report?.asOnDate ?? asOnDate)}
         </h2>
-        <span className="text-[10px] text-ink-muted">
+        <span className="text-[11.5px] text-ink-muted">
           Days past due date (document date plus the party&apos;s credit days). Click a row for the
           documents.
         </span>
@@ -139,7 +139,7 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
                         <span className="text-ink-muted mr-1">
                           {open === row.partyId ? "▾" : "▸"}
                         </span>
-                        <span className="tabular-nums text-[10px] text-ink-muted mr-1">
+                        <span className="tabular-nums text-[11.5px] text-ink-muted mr-1">
                           {row.code}
                         </span>
                         {onOpenParty ? (
@@ -185,10 +185,10 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
                       <tr className="border-t border-line bg-card-2/60">
                         <td colSpan={colSpan} className="px-4 py-2">
                           {!detail ? (
-                            <span className="text-[11px] text-ink-muted">Loading documents…</span>
+                            <span className="text-[12.5px] text-ink-muted">Loading documents…</span>
                           ) : (
-                            <table className="min-w-[60%] text-[11px]">
-                              <thead className="text-left text-[10px] uppercase tracking-wide text-ink-subtle">
+                            <table className="min-w-[60%] text-[12.5px]">
+                              <thead className="text-left text-[11.5px] uppercase tracking-wide text-ink-subtle">
                                 <tr>
                                   <th className="py-0.5 pr-3">Document</th>
                                   <th className="py-0.5 pr-3">Date</th>

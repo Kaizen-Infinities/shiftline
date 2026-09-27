@@ -86,15 +86,12 @@ export const StatementPanel: React.FC<{
     : 0;
 
   return (
-    <div
-      className="bg-card border border-line rounded-lg p-3 space-y-3"
-      data-testid="statement-panel"
-    >
+    <div className="sl-tile p-3 space-y-3" data-testid="statement-panel">
       <div className="flex flex-wrap items-end gap-2">
         <h3 className="text-xs font-bold uppercase tracking-wide text-ink mr-auto">
           Statement of account
         </h3>
-        <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+        <label className="text-[11.5px] uppercase tracking-wide text-ink-subtle font-semibold">
           From
           <input
             type="date"
@@ -103,7 +100,7 @@ export const StatementPanel: React.FC<{
             onChange={(e) => setStartDate(e.target.value)}
           />
         </label>
-        <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+        <label className="text-[11.5px] uppercase tracking-wide text-ink-subtle font-semibold">
           To
           <input
             type="date"
@@ -120,23 +117,23 @@ export const StatementPanel: React.FC<{
       {statement && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div className="rounded border border-line-soft p-2">
-            <div className="text-[10px] uppercase text-ink-subtle">Opening</div>
+            <div className="text-[11.5px] uppercase text-ink-subtle">Opening</div>
             <div className="tabular-nums text-ink">
               {inr(statement.openingBalance)} {statement.openingBalance < 0 ? "Cr" : "Dr"}
             </div>
           </div>
           <div className="rounded border border-line-soft p-2">
-            <div className="text-[10px] uppercase text-ink-subtle">Entries</div>
+            <div className="text-[11.5px] uppercase text-ink-subtle">Entries</div>
             <div className="tabular-nums text-ink">{statement.entries.length}</div>
           </div>
           <div className="rounded border border-line-soft p-2">
-            <div className="text-[10px] uppercase text-ink-subtle">Closing</div>
+            <div className="text-[11.5px] uppercase text-ink-subtle">Closing</div>
             <div className="tabular-nums text-ink">
               {inr(statement.closingBalance)} {statement.closingBalance < 0 ? "Cr" : "Dr"}
             </div>
           </div>
           <div className="rounded border border-line-soft p-2">
-            <div className="text-[10px] uppercase text-ink-subtle">
+            <div className="text-[11.5px] uppercase text-ink-subtle">
               {partyType === "customer" ? "Receivable" : "Payable"} · overdue
             </div>
             <div className="tabular-nums text-ink">
@@ -159,7 +156,7 @@ export const StatementPanel: React.FC<{
           <FaFilePdf className="text-[color:var(--color-danger)]" />{" "}
           {busy === "pdf" ? "Preparing…" : "Open PDF"}
         </button>
-        <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+        <label className="text-[11.5px] uppercase tracking-wide text-ink-subtle font-semibold">
           Email
           <input
             type="email"
@@ -177,7 +174,7 @@ export const StatementPanel: React.FC<{
         >
           <FaEnvelope className="text-accent" /> {busy === "email" ? "Sending…" : "Email"}
         </button>
-        <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+        <label className="text-[11.5px] uppercase tracking-wide text-ink-subtle font-semibold">
           WhatsApp
           <input
             className={`${input} block w-40`}

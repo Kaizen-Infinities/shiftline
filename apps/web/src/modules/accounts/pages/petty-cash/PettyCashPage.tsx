@@ -212,11 +212,11 @@ export const PettyCashPage: React.FC = () => {
     return (
       <div className="p-3">
         <div className="w-full lg:w-[420px]">
-          <div className="bg-card border border-line rounded-md overflow-hidden shadow-sm">
-            <div className="bg-[color:var(--color-warning)]/10 text-white text-[11px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
+          <div className="sl-tile overflow-hidden">
+            <div className="bg-card-2 text-ink text-[12.5px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
               List of Petty Cash Entries
             </div>
-            <div className="p-4 space-y-2.5 text-[11px]">
+            <div className="p-4 space-y-2.5 text-[12.5px]">
               <FilterRow label="Starting Date">
                 <DatePickerCalendar
                   name="startDate"
@@ -279,15 +279,14 @@ export const PettyCashPage: React.FC = () => {
                     setApplied(pending);
                     setPanelOpen(false);
                   }}
-                  className="px-6 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-semibold text-[11px] transition cursor-pointer"
+                  className="sl-btn-blue sl-pill-md"
                 >
                   OK (F2)
                 </button>
               </div>
-              <div className="text-center text-[10px] text-ink-subtle italic pt-1">
-                <kbd className="px-1 border border-line rounded bg-card text-[10px]">Esc</kbd> to
-                quit · <kbd className="px-1 border border-line rounded bg-card text-[10px]">F2</kbd>{" "}
-                to submit
+              <div className="text-center text-[11.5px] text-ink-subtle italic pt-1">
+                <kbd className="sl-kbd">Esc</kbd> to quit · <kbd className="sl-kbd">F2</kbd> to
+                submit
               </div>
             </div>
           </div>
@@ -300,14 +299,14 @@ export const PettyCashPage: React.FC = () => {
     <div className="p-3 flex gap-3 w-full items-start">
       <div className="flex-1 space-y-2 min-w-0 max-w-7xl">
         {/* Header — title + inline search + Change Filters + Refresh + Record */}
-        <div className="bg-card rounded-md border border-line px-3 py-1.5 flex flex-wrap items-center gap-2 shrink-0 shadow-sm">
+        <div className="sl-tile flex flex-wrap items-center gap-3 px-4 py-3">
           <h1 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
             <FaCoins className="text-[color:var(--color-warning)] text-sm" /> Petty Cash Register
             {refreshing && (
-              <FaSync className="animate-spin text-[color:var(--color-warning)] text-[10px]" />
+              <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
             )}
           </h1>
-          <span className="text-[10px] text-ink-subtle italic">
+          <span className="text-[11.5px] text-ink-subtle italic">
             From <b className="text-ink">{applied.startDate}</b> to{" "}
             <b className="text-ink">{applied.endDate}</b> · Type{" "}
             <b className="text-ink">{applied.entryType}</b>
@@ -321,7 +320,7 @@ export const PettyCashPage: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
             />
-            <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[10px]" />
+            <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[11.5px]" />
           </div>
 
           <div className="flex items-center gap-1.5 ml-auto">
@@ -330,15 +329,12 @@ export const PettyCashPage: React.FC = () => {
                 setPending(applied);
                 setPanelOpen(true);
               }}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line cursor-pointer"
+              className="sl-btn sl-pill-sm cursor-pointer"
               title="Change filters"
             >
-              <FaFilter className="text-[10px]" /> Change Filters
+              <FaFilter className="text-[11.5px]" /> Change Filters
             </button>
-            <button
-              onClick={refresh}
-              className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
-            >
+            <button onClick={refresh} className="sl-btn sl-pill-sm">
               <FaSync
                 className={refreshing ? "animate-spin text-[color:var(--color-warning)]" : ""}
               />{" "}
@@ -349,23 +345,23 @@ export const PettyCashPage: React.FC = () => {
                 resetForm();
                 setShowModal(true);
               }}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-semibold transition cursor-pointer"
+              className="sl-cta sl-pill-md"
             >
-              <FaPlus className="text-[10px]" /> Record Cash Entry
+              <FaPlus className="text-[11.5px]" /> Record Cash Entry
             </button>
           </div>
         </div>
 
         {/* Spreadsheet-style table (Busy density) */}
         <div
-          className="bg-card border border-line rounded-md overflow-hidden shadow-sm flex flex-col"
+          className="sl-tile overflow-hidden flex flex-col"
           style={{ height: "calc(100vh - 240px)" }}
         >
           {filteredEntries.length === 0 ? (
             <div className="p-8 text-center text-xs text-ink-subtle flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <FaSync className="animate-spin text-[color:var(--color-warning)] text-[10px]" />
+                  <FaSync className="animate-spin text-[color:var(--color-warning)] text-[11.5px]" />
                   Loading petty cash entries…
                 </span>
               ) : (
@@ -374,25 +370,19 @@ export const PettyCashPage: React.FC = () => {
             </div>
           ) : (
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left text-[11px] text-ink-muted border-collapse">
+              <table className="w-full text-left text-[12.5px] text-ink-muted border-collapse">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
-                    <th className="px-2 py-1.5 border-r border-line w-28">Date</th>
-                    <th className="px-2 py-1.5 border-r border-line w-24 text-center">Entry No</th>
-                    <th className="px-2 py-1.5 border-r border-line w-20 text-center">Type</th>
-                    {applied.showCategory && (
-                      <th className="px-2 py-1.5 border-r border-line w-40">Category</th>
-                    )}
-                    {applied.showDescription && (
-                      <th className="px-2 py-1.5 border-r border-line">Description</th>
-                    )}
-                    <th className="px-2 py-1.5 border-r border-line w-40">Paid To / From</th>
+                  <tr className="bg-card-2 text-ink-muted font-semibold text-[12px] border-b border-line-soft">
+                    <th className="px-3 py-2.5 w-28">Date</th>
+                    <th className="px-3 py-2.5 w-24 text-center">Entry No</th>
+                    <th className="px-3 py-2.5 w-20 text-center">Type</th>
+                    {applied.showCategory && <th className="px-3 py-2.5 w-40">Category</th>}
+                    {applied.showDescription && <th className="px-3 py-2.5">Description</th>}
+                    <th className="px-3 py-2.5 w-40">Paid To / From</th>
                     {applied.showReceiptNo && (
-                      <th className="px-2 py-1.5 border-r border-line w-24 text-center">
-                        Receipt No
-                      </th>
+                      <th className="px-3 py-2.5 w-24 text-center">Receipt No</th>
                     )}
-                    <th className="px-2 py-1.5 border-r border-line w-28 text-right">Amount (₹)</th>
+                    <th className="px-3 py-2.5 w-28 text-right">Amount (₹)</th>
                     {applied.showBalance && (
                       <th className="px-2 py-1.5 w-28 text-right">Balance (₹)</th>
                     )}
@@ -414,15 +404,15 @@ export const PettyCashPage: React.FC = () => {
                               : "bg-card-2/20 hover:bg-card-2/70"
                         }`}
                       >
-                        <td className="px-2 py-1 border-r border-line-soft tabular-nums text-[11px]">
+                        <td className="px-3 py-2 tabular-nums text-[12.5px]">
                           {new Date(item.entryDate).toLocaleDateString("en-GB")}
                         </td>
-                        <td className="px-2 py-1 border-r border-line-soft tabular-nums font-semibold text-[color:var(--color-warning)] text-center">
+                        <td className="px-3 py-2 tabular-nums font-semibold text-[color:var(--color-warning)] text-center">
                           {item.entryNo || "-"}
                         </td>
-                        <td className="px-2 py-1 border-r border-line-soft text-center">
+                        <td className="px-3 py-2 text-center">
                           <span
-                            className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            className={`inline-block px-1.5 py-0.5 rounded text-[11.5px] font-bold ${
                               isIn
                                 ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border border-[color:var(--color-success)]/40"
                                 : "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/40"
@@ -432,24 +422,24 @@ export const PettyCashPage: React.FC = () => {
                           </span>
                         </td>
                         {applied.showCategory && (
-                          <td className="px-2 py-1 border-r border-line-soft font-semibold text-ink uppercase">
+                          <td className="px-3 py-2 font-semibold text-ink uppercase">
                             {item.category || "-"}
                           </td>
                         )}
                         {applied.showDescription && (
-                          <td className="px-2 py-1 border-r border-line-soft text-ink-muted max-w-xs truncate">
+                          <td className="px-3 py-2 text-ink-muted max-w-xs truncate">
                             {item.description || "-"}
                           </td>
                         )}
-                        <td className="px-2 py-1 border-r border-line-soft text-ink-subtle uppercase">
+                        <td className="px-3 py-2 text-ink-subtle uppercase">
                           {item.paidTo || "-"}
                         </td>
                         {applied.showReceiptNo && (
-                          <td className="px-2 py-1 border-r border-line-soft tabular-nums text-[11px] text-ink-subtle text-center">
+                          <td className="px-3 py-2 tabular-nums text-[12.5px] text-ink-subtle text-center">
                             {item.receiptNo || "-"}
                           </td>
                         )}
-                        <td className="px-2 py-1 border-r border-line-soft text-right tabular-nums font-semibold whitespace-nowrap">
+                        <td className="px-3 py-2 text-right tabular-nums font-semibold whitespace-nowrap">
                           <span
                             className={
                               isIn
@@ -478,20 +468,14 @@ export const PettyCashPage: React.FC = () => {
                   {/* Busy-style empty filler rows */}
                   {Array.from({ length: Math.max(0, 25 - filteredEntries.length) }).map((_, i) => (
                     <tr key={`empty-${i}`} className="border-b border-line-soft">
-                      <td className="px-2 py-1 border-r border-line-soft">&nbsp;</td>
-                      <td className="px-2 py-1 border-r border-line-soft"></td>
-                      <td className="px-2 py-1 border-r border-line-soft"></td>
-                      {applied.showCategory && (
-                        <td className="px-2 py-1 border-r border-line-soft"></td>
-                      )}
-                      {applied.showDescription && (
-                        <td className="px-2 py-1 border-r border-line-soft"></td>
-                      )}
-                      <td className="px-2 py-1 border-r border-line-soft"></td>
-                      {applied.showReceiptNo && (
-                        <td className="px-2 py-1 border-r border-line-soft"></td>
-                      )}
-                      <td className="px-2 py-1 border-r border-line-soft"></td>
+                      <td className="px-3 py-2">&nbsp;</td>
+                      <td className="px-3 py-2"></td>
+                      <td className="px-3 py-2"></td>
+                      {applied.showCategory && <td className="px-3 py-2"></td>}
+                      {applied.showDescription && <td className="px-3 py-2"></td>}
+                      <td className="px-3 py-2"></td>
+                      {applied.showReceiptNo && <td className="px-3 py-2"></td>}
+                      <td className="px-3 py-2"></td>
                       {applied.showBalance && <td className="px-2 py-1"></td>}
                     </tr>
                   ))}
@@ -506,7 +490,7 @@ export const PettyCashPage: React.FC = () => {
                         1 /* Paid To/From */ +
                         (applied.showReceiptNo ? 1 : 0)
                       }
-                      className="px-2 py-1.5 text-right text-[10px] font-bold text-ink uppercase tracking-wide border-r border-line"
+                      className="px-2 py-1.5 text-right text-[11.5px] font-bold text-ink uppercase tracking-wide border-r border-line"
                     >
                       Page Total ({filteredEntries.length})
                       <span className="ml-3 normal-case text-ink-subtle">
@@ -550,7 +534,7 @@ export const PettyCashPage: React.FC = () => {
           )}
 
           {/* Busy-style status bar */}
-          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] tabular-nums text-ink-subtle shrink-0">
+          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[11.5px] tabular-nums text-ink-subtle shrink-0">
             <div className="flex gap-4">
               <span>
                 Entry No:{" "}
@@ -592,15 +576,15 @@ export const PettyCashPage: React.FC = () => {
 
       {/* Right sidebar — 3 summary stats. Amounts render on their own row so
          crores-scale values never squeeze the label or overflow the card. */}
-      <aside className="w-[240px] shrink-0 bg-card border border-line rounded-md shadow-sm overflow-hidden">
-        <div className="px-3 py-1.5 bg-card-2 border-b border-line text-[11px] font-bold uppercase tracking-wide text-ink flex items-center gap-1.5">
+      <aside className="sl-tile w-[240px] shrink-0 overflow-hidden">
+        <div className="px-4 py-3 border-b border-line-soft text-[15px] font-semibold text-ink flex items-center gap-2">
           <FaCoins className="text-[color:var(--color-warning)] text-xs" /> Summary
         </div>
         <div className="divide-y divide-line-soft">
           <div className="px-3 py-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaArrowDown className="text-[color:var(--color-success)] text-[10px]" />
-              <span className="text-[11px] font-semibold text-ink-muted">Total Cash IN</span>
+              <FaArrowDown className="text-[color:var(--color-success)] text-[11.5px]" />
+              <span className="text-[12.5px] font-semibold text-ink-muted">Total Cash IN</span>
             </div>
             <div className="text-sm tabular-nums font-bold text-[color:var(--color-success)] break-all leading-tight">
               ₹{summary.totalIn.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -608,8 +592,8 @@ export const PettyCashPage: React.FC = () => {
           </div>
           <div className="px-3 py-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaArrowUp className="text-[color:var(--color-danger)] text-[10px]" />
-              <span className="text-[11px] font-semibold text-ink-muted">Total Cash OUT</span>
+              <FaArrowUp className="text-[color:var(--color-danger)] text-[11.5px]" />
+              <span className="text-[12.5px] font-semibold text-ink-muted">Total Cash OUT</span>
             </div>
             <div className="text-sm tabular-nums font-bold text-[color:var(--color-danger)] break-all leading-tight">
               ₹{summary.totalOut.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -617,8 +601,10 @@ export const PettyCashPage: React.FC = () => {
           </div>
           <div className="px-3 py-2 bg-[color:var(--color-warning)]/10">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaWallet className="text-[color:var(--color-warning)] text-[10px]" />
-              <span className="text-[11px] font-semibold text-ink-muted">Cash Balance on Hand</span>
+              <FaWallet className="text-[color:var(--color-warning)] text-[11.5px]" />
+              <span className="text-[12.5px] font-semibold text-ink-muted">
+                Cash Balance on Hand
+              </span>
             </div>
             <div className="text-sm tabular-nums font-bold text-[color:var(--color-warning)] break-all leading-tight">
               ₹{summary.currentBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -629,15 +615,15 @@ export const PettyCashPage: React.FC = () => {
 
       {/* Record Cash Entry Modal — Busy-compact */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3">
-          <div className="bg-card rounded-md border border-line w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="px-3 py-1.5 border-b border-line bg-[color:var(--color-warning)]/10 text-white flex items-center justify-between">
-              <h2 className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-2">
+        <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="sl-dialog w-full max-w-lg overflow-hidden">
+            <div className="px-3 py-1.5 border-b border-line bg-card-2 text-ink flex items-center justify-between">
+              <h2 className="text-[12.5px] font-bold uppercase tracking-wide flex items-center gap-2">
                 <FaCoins className="text-xs" /> New Petty Cash Entry
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1 text-white/80 hover:text-white hover:bg-card/10 rounded cursor-pointer"
+                className="p-1 text-ink-muted hover:text-ink hover:bg-nav-hover rounded cursor-pointer"
               >
                 <FaTimes className="text-xs" />
               </button>
@@ -646,7 +632,7 @@ export const PettyCashPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="p-3 space-y-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                  <label className="sl-label">
                     Transaction Type <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <SelectInput
@@ -665,7 +651,7 @@ export const PettyCashPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                  <label className="sl-label">
                     Entry Date <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <DatePickerCalendar
@@ -678,7 +664,7 @@ export const PettyCashPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                <label className="sl-label">
                   Category <span className="text-[color:var(--color-danger)]">*</span>
                 </label>
                 <input
@@ -687,7 +673,7 @@ export const PettyCashPage: React.FC = () => {
                   required
                   placeholder="Type or select a category..."
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
+                  className="sl-input h-11 w-full text-sm"
                 />
                 <datalist id="petty-cash-categories">
                   {Array.from(new Set(entries.map((e) => e.category).filter(Boolean)))
@@ -699,7 +685,7 @@ export const PettyCashPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                <label className="sl-label">
                   Amount (₹) <span className="text-[color:var(--color-danger)]">*</span>
                 </label>
                 <input
@@ -709,12 +695,12 @@ export const PettyCashPage: React.FC = () => {
                   required
                   placeholder="0.00"
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink tabular-nums focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
+                  className="sl-input h-11 w-full text-sm tabular-nums"
                 />
               </div>
 
               <div>
-                <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
+                <label className="sl-label">
                   Description <span className="text-[color:var(--color-danger)]">*</span>
                 </label>
                 <input
@@ -723,34 +709,30 @@ export const PettyCashPage: React.FC = () => {
                   required
                   placeholder="e.g. Purchased office stationery"
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
+                  className="sl-input h-11 w-full text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                    Paid To / From
-                  </label>
+                  <label className="sl-label">Paid To / From</label>
                   <input
                     type="text"
                     value={paidTo}
                     placeholder="e.g. Local Vendor / John"
                     onChange={(e) => setPaidTo(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
+                    className="sl-input h-11 w-full text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                    Receipt No
-                  </label>
+                  <label className="sl-label">Receipt No</label>
                   <input
                     type="text"
                     value={receiptNo}
                     placeholder="e.g. REC-102"
                     onChange={(e) => setReceiptNo(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
+                    className="sl-input h-11 w-full text-sm"
                   />
                 </div>
               </div>
@@ -760,15 +742,11 @@ export const PettyCashPage: React.FC = () => {
                   type="button"
                   onClick={resetForm}
                   disabled={submitting}
-                  className="px-3 py-1.5 text-ink-muted bg-card-2 hover:bg-card border border-line rounded font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+                  className="sl-btn sl-pill-sm cursor-pointer disabled:opacity-50"
                 >
                   Clear
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded font-semibold text-xs transition disabled:opacity-50 cursor-pointer"
-                >
+                <button type="submit" disabled={submitting} className="sl-cta sl-pill-sm">
                   {submitting ? "Saving..." : "Save Entry"}
                 </button>
               </div>
@@ -799,9 +777,9 @@ const ToggleRow: React.FC<{ label: string; value: boolean; onChange: (v: boolean
       <button
         type="button"
         onClick={() => onChange(true)}
-        className={`px-3 py-0.5 rounded text-[11px] tabular-nums font-bold border cursor-pointer ${
+        className={`px-3 py-0.5 rounded text-[12.5px] tabular-nums font-bold border cursor-pointer ${
           value
-            ? "bg-amber-500 text-white border-[color:var(--color-warning)]/40"
+            ? "bg-accent text-[color:var(--color-on-primary)] border-accent"
             : "bg-card text-ink-muted border-line hover:bg-card-2"
         }`}
       >
@@ -810,7 +788,7 @@ const ToggleRow: React.FC<{ label: string; value: boolean; onChange: (v: boolean
       <button
         type="button"
         onClick={() => onChange(false)}
-        className={`px-3 py-0.5 rounded text-[11px] tabular-nums font-bold border cursor-pointer ${
+        className={`px-3 py-0.5 rounded text-[12.5px] tabular-nums font-bold border cursor-pointer ${
           !value
             ? "bg-card-2 text-ink border-line"
             : "bg-card text-ink-muted border-line hover:bg-card-2"

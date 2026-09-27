@@ -198,7 +198,7 @@ export const SalesReturnPage: React.FC = () => {
         return (
           <div className="flex flex-col">
             <span className="font-semibold text-ink">{item.customer?.firmName || "—"}</span>
-            {gradeName && <span className="text-[11px] text-ink-subtle">Grade: {gradeName}</span>}
+            {gradeName && <span className="text-[12.5px] text-ink-subtle">Grade: {gradeName}</span>}
           </div>
         );
       },
@@ -415,12 +415,12 @@ export const SalesReturnPage: React.FC = () => {
           selectedViewReturn && (
             <div className="space-y-3">
               <div>
-                <h4 className="font-semibold text-ink mb-1.5 text-[10px] uppercase tracking-wide">
+                <h4 className="font-semibold text-ink mb-1.5 text-[11.5px] uppercase tracking-wide">
                   Returned Items List
                 </h4>
                 <div className="border border-line rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                    <thead className="bg-card-2 text-ink-muted font-semibold text-[12px] border-b border-line-soft">
                       <tr>
                         <th className="px-3 py-1.5">Product / Item</th>
                         <th className="px-3 py-1.5 text-center">Qty</th>
@@ -472,7 +472,7 @@ export const SalesReturnPage: React.FC = () => {
 
               {selectedViewReturn.narration && (
                 <div className="bg-card-2 p-2 rounded border border-line text-xs">
-                  <span className="font-semibold text-ink block mb-0.5 text-[10px] uppercase tracking-wide">
+                  <span className="font-semibold text-ink block mb-0.5 text-[11.5px] uppercase tracking-wide">
                     Narration / Notes
                   </span>
                   <p className="text-ink-muted leading-relaxed">{selectedViewReturn.narration}</p>

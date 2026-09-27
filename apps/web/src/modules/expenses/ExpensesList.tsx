@@ -332,7 +332,7 @@ const ExpensesList: React.FC = () => {
                     {(s === "Draft" || s === "Rejected") && can("expenses.edit") && (
                       <button
                         type="button"
-                        className="rounded border border-line px-2 py-1 text-[11px] font-semibold text-ink hover:bg-card-2"
+                        className="rounded border border-line px-2 py-1 text-[12.5px] font-semibold text-ink hover:bg-card-2"
                         onClick={() => transition(item.id, "submit", "Sent for approval")}
                       >
                         Submit
@@ -342,14 +342,14 @@ const ExpensesList: React.FC = () => {
                       <>
                         <button
                           type="button"
-                          className="rounded border border-[color:var(--color-success)]/40 px-2 py-1 text-[11px] font-semibold text-[color:var(--color-success)] hover:bg-[color:var(--color-success)]/10"
+                          className="rounded border border-[color:var(--color-success)]/40 px-2 py-1 text-[12.5px] font-semibold text-[color:var(--color-success)] hover:bg-[color:var(--color-success)]/10"
                           onClick={() => transition(item.id, "approve", "Approved and posted")}
                         >
                           Approve
                         </button>
                         <button
                           type="button"
-                          className="rounded border border-[color:var(--color-danger)]/40 px-2 py-1 text-[11px] font-semibold text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10"
+                          className="rounded border border-[color:var(--color-danger)]/40 px-2 py-1 text-[12.5px] font-semibold text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10"
                           onClick={() => setRejecting(item.id)}
                         >
                           Reject
@@ -359,7 +359,7 @@ const ExpensesList: React.FC = () => {
                     {s === "Approved" && can("assets.create") && (
                       <button
                         type="button"
-                        className="rounded border border-line px-2 py-1 text-[11px] font-semibold text-ink hover:bg-card-2"
+                        className="rounded border border-line px-2 py-1 text-[12.5px] font-semibold text-ink hover:bg-card-2"
                         onClick={() => setCapitalising(item)}
                         title="Put this expense on the fixed-asset register instead of the P&L"
                       >
@@ -597,8 +597,8 @@ const CapitaliseExpenseDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-md sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Capitalise as an asset</h2>
         <p className="mt-1 text-sm text-ink-muted">
           {expense.expense} — ₹
@@ -648,7 +648,7 @@ const CapitaliseExpenseDialog: React.FC<{
             Cancel
           </button>
           <button
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+            className="sl-cta sl-pill-sm"
             disabled={busy || !classId || !code.trim() || !name.trim()}
             onClick={submit}
           >

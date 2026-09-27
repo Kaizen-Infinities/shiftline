@@ -405,8 +405,8 @@ const BillOfEntryDialog: React.FC<{
   const landed = assessable + Number(basicDuty || 0) + Number(swc || 0) + Number(otherCharges || 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-xl rounded-xl border border-line-soft bg-card p-4">
+    <div className="sl-backdrop z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-xl sl-tile p-4">
         <h2 className="text-lg font-semibold text-ink">Record a bill of entry</h2>
         <p className="mt-1 text-sm text-ink-muted">
           The customs exchange rate is notified fortnightly and is not the day&apos;s market rate —
