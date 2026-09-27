@@ -1,5 +1,17 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { FaPrint, FaEye, FaDownload, FaTrash, FaArrowLeft, FaFilePdf } from "react-icons/fa";
+import { FaFilePdf } from "react-icons/fa";
+import { ArrowLeft, Download, FileText, Printer } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  EmptyState,
+  PageHeader,
+  SearchField,
+  SkeletonRows,
+  SkeletonTile,
+  Tile,
+} from "../../../../components/ui/v2";
+import { KeyFigure } from "../../../sales/shared/tradeUi";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useSelector, useDispatch } from "react-redux";
@@ -7,8 +19,6 @@ import { useSelector, useDispatch } from "react-redux";
 import CancelReasonModal from "../../../../components/ui/CancelReasonModal/CancelReasonModal";
 import { grnInvoiceService } from "../../../../services/grnInvoiceService";
 import { useSocketSync } from "../../../../hooks/useSocketSync";
-import CustomButton from "../../../../components/ui/Button/Button";
-import SearchInput from "../../../../components/ui/SearchInput/SearchInput";
 import { fetchCompany } from "../../../../features/company/companySlice";
 import CommonLoader from "../../../../components/ui/Loader/CommonLoader";
 import { usePermission } from "../../../../hooks/usePermission";
@@ -354,122 +364,163 @@ const GrnInvoiceViewPage: React.FC = () => {
     }
   };
 
+  const payStatus = String(selectedItem?.paymentStatus || "").toUpperCase();
+  const grnCancelled = String(selectedItem?.status || "").toUpperCase() === "CANCELLED";
+
   return (
-    <div className="flex bg-gray-100 overflow-hidden h-[calc(100vh-115px)] print:block print:h-auto print:overflow-visible print:bg-white">
-      {/* ── Left Sidebar ── */}
-      <div className="hidden md:flex w-72 md:w-80 flex-shrink-0 bg-white border-r border-gray-200 flex-col h-full no-print">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex flex-col gap-3">
+    <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] print:block">
+      {/* ── Left rail ── */}
+      <aside
+        aria-label="Bills and invoices"
+        className="sl-tile no-print hidden h-[calc(100vh-140px)] flex-col overflow-hidden lg:sticky lg:top-4 lg:flex"
+      >
+        <div className="flex flex-col gap-3 border-b border-line-soft p-4">
           <button
+            type="button"
             onClick={() => navigate("/invoice")}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 font-bold text-lg bg-transparent border-none outline-none cursor-pointer text-left"
+            className="flex items-center gap-2 text-left text-base font-semibold text-ink hover:text-accent"
           >
-            <FaArrowLeft className="text-sm" /> Bill & Invoice
+            <ArrowLeft size={16} aria-hidden="true" /> Bill & Invoice
           </button>
-          <SearchInput
+          <SearchField
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search Invoice or customer..."
-            fullWidthOnMobileOnly={false}
+            onValueChange={setSearchTerm}
+            placeholder="Search bill or supplier"
+            label="Search bills"
+            className="sm:w-full"
           />
         </div>
 
-        {/* List Content */}
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+        <div className="flex-1 overflow-y-auto p-2">
           {loadingList ? (
-            <CommonLoader text="Loading invoices..." fullScreen={false} />
+            <SkeletonRows
+              rows={6}
+              columns={2}
+              header={false}
+              rowHeight={64}
+              label="Loading invoices"
+            />
           ) : (
             filteredInvoices.map((inv) => {
               const isSelected = String(inv.id) === String(idParam);
+              const paid = inv.paymentStatus?.toUpperCase() === "PAID";
               return (
-                <div
+                <button
+                  type="button"
                   key={inv.id}
                   onClick={() => navigate(`/invoice/details/${inv.id}`)}
-                  className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? "bg-primary/10 border-l-4 border-primary" : ""}`}
+                  aria-current={isSelected ? "page" : undefined}
+                  className={`mb-1 block w-full rounded-[14px] px-3 py-2.5 text-left transition-colors ${isSelected ? "bg-nav-active" : "hover:bg-card-2"}`}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-bold text-gray-900">
-                      {inv.invoiceNo || inv.grnNumber}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                        inv.paymentStatus?.toUpperCase() === "PAID"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
+                  <div className="mb-0.5 flex items-start justify-between gap-2">
+                    <span className="font-semibold text-ink">{inv.invoiceNo || inv.grnNumber}</span>
+                    <Chip size="sm" tone={paid ? "success" : "warning"}>
                       {inv.paymentStatus || "Unpaid"}
-                    </span>
+                    </Chip>
                   </div>
-                  <div className="text-sm text-gray-600 mb-2 truncate">
+                  <div className="truncate text-[13px] text-ink-muted">
                     {inv.supplier?.displayName || inv.supplier?.legalName || "N/A"}
                   </div>
-                  <div className="flex justify-between items-center text-xs text-gray-400">
-                    <span>{formatDate(inv.grnDate)}</span>
-                    <span className="font-bold text-gray-900">₹{formatMoney(inv.netAmount)}</span>
+                  <div className="mt-1 flex items-center justify-between text-[12px] text-ink-subtle">
+                    <span className="tabular-nums">{formatDate(inv.grnDate)}</span>
+                    <span className="font-semibold tabular-nums text-ink">
+                      ₹{formatMoney(inv.netAmount)}
+                    </span>
                   </div>
-                </div>
+                </button>
               );
             })
           )}
           {!loadingList && filteredInvoices.length === 0 && (
-            <div className="p-8 text-center text-gray-500 text-sm">No invoices found.</div>
+            <div className="p-6 text-center text-sm text-ink-muted">No invoices found.</div>
           )}
         </div>
-      </div>
+      </aside>
 
       {/* ── Right Content Panel ── */}
-      <div className="flex-1 overflow-y-auto p-6 lg:p-8 print:overflow-visible print:h-auto print:p-0 print:block">
+      <div className="min-w-0 print:block print:h-auto print:overflow-visible print:p-0">
         {loadingDetail ? (
-          <CommonLoader text="Loading invoice details..." fullScreen={false} />
-        ) : !selectedItem ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-slate-400">
-            <p className="text-base font-semibold">
-              Select an invoice from the sidebar to view details.
-            </p>
+          <div className="flex flex-col gap-4" role="status">
+            <span className="sr-only">Loading invoice details...</span>
+            <SkeletonTile lines={2} />
+            <SkeletonTile lines={4} height={320} />
           </div>
+        ) : !selectedItem ? (
+          <Tile>
+            <EmptyState
+              icon={<FileText size={28} />}
+              title="Select an invoice from the sidebar to view details."
+              action={
+                <ActionPill variant="secondary" onClick={() => navigate("/invoice")}>
+                  Back to Bill & Invoice
+                </ActionPill>
+              }
+            />
+          </Tile>
         ) : (
-          <div className="max-w-5xl mx-auto">
-            {/* Action buttons */}
-            <div className="flex items-center justify-between gap-4 mb-6 no-print">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigate("/invoice")}
-                  className="md:hidden flex items-center gap-1.5 text-gray-600 hover:text-gray-900 font-semibold bg-transparent border-none outline-none cursor-pointer"
-                >
-                  <FaArrowLeft className="text-xs" /> Back
-                </button>
-                <h2 className="text-xl font-bold text-gray-800 m-0">
-                  Purchase Invoice #{selectedItem.invoiceNo || selectedItem.grnNumber}
-                </h2>
-              </div>
-              <div className="flex items-center gap-3">
-                <CustomButton
-                  text="Print"
-                  icon={FaPrint}
-                  variant="primary"
-                  onClick={() => window.print()}
-                />
-                <CustomButton
-                  text="Download PDF"
-                  icon={FaDownload}
-                  variant="secondary"
-                  onClick={handleDownloadPdf}
-                />
-              </div>
+          <div className="mx-auto max-w-5xl">
+            <div className="no-print">
+              <PageHeader
+                title={`Purchase Invoice #${selectedItem.invoiceNo || selectedItem.grnNumber}`}
+                meta={
+                  <>
+                    {grnCancelled ? (
+                      <Chip dot tone="danger">
+                        Cancelled
+                      </Chip>
+                    ) : (
+                      <Chip dot tone={payStatus === "PAID" ? "success" : "warning"}>
+                        {selectedItem.paymentStatus || "Unpaid"}
+                      </Chip>
+                    )}
+                    {selectedItem.reverseCharge && <Chip size="sm">Reverse charge</Chip>}
+                  </>
+                }
+                subtitle={`${selectedItem.supplier?.displayName || selectedItem.supplier?.legalName || "Supplier"} · GRN ${selectedItem.grnNumber || "—"} · ${formatDate(selectedItem.grnDate)}`}
+                back="/invoice"
+                backLabel="Back to Bill & Invoice"
+                actions={
+                  <>
+                    <ActionPill
+                      variant="secondary"
+                      icon={<Printer size={16} />}
+                      onClick={() => window.print()}
+                    >
+                      Print
+                    </ActionPill>
+                    <ActionPill
+                      variant="secondary"
+                      icon={<Download size={16} />}
+                      onClick={handleDownloadPdf}
+                    >
+                      Download PDF
+                    </ActionPill>
+                  </>
+                }
+              />
+              <Tile className="mb-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <KeyFigure
+                    label="Net amount"
+                    value={`₹${formatMoney(selectedItem.netAmount)}`}
+                    emphasis
+                  />
+                  <KeyFigure label="Supplier bill no" value={selectedItem.invoiceNo || "—"} />
+                  <KeyFigure label="GRN date" value={formatDate(selectedItem.grnDate)} />
+                  <KeyFigure label="Payment" value={selectedItem.paymentStatus || "Unpaid"} />
+                </div>
+              </Tile>
             </div>
 
             {/* Currency / TDS / Payments summary (P2-11) */}
             {(selectedItem.currencyCode && selectedItem.currencyCode !== "INR") ||
             Number(selectedItem.tdsAmount) > 0 ||
             (Array.isArray(selectedItem.payments) && selectedItem.payments.length > 0) ? (
-              <div className="mb-6 no-print rounded-lg border border-gray-200 bg-white px-4 py-3 space-y-2 text-sm">
+              <div className="sl-tile no-print mb-4 space-y-3 p-4 text-sm sm:p-5">
                 {selectedItem.currencyCode && selectedItem.currencyCode !== "INR" && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold text-xs">
-                      {selectedItem.currencyCode}
-                    </span>
-                    <span className="text-gray-700">
+                    <span className="sl-chip sl-chip-sm">{selectedItem.currencyCode}</span>
+                    <span className="text-ink">
                       {selectedItem.currencyCode}{" "}
                       {Number(selectedItem.foreignTotal ?? 0).toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
@@ -482,17 +533,17 @@ const GrnInvoiceViewPage: React.FC = () => {
                 )}
                 {Number(selectedItem.tdsAmount) > 0 && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-bold text-xs">
+                    <span className="sl-chip sl-chip-sm sl-chip-warning">
                       TDS {selectedItem.tdsSectionCode}
                     </span>
-                    <span className="text-gray-700">
+                    <span className="text-ink">
                       ₹{formatMoney(selectedItem.tdsAmount)} deducted — net payable ₹
                       {formatMoney(Number(selectedItem.netAmount) - Number(selectedItem.tdsAmount))}
                     </span>
                     <button
                       type="button"
                       onClick={() => navigate("/compliance/tds")}
-                      className="text-blue-600 hover:underline bg-transparent border-none p-0 cursor-pointer text-xs font-semibold"
+                      className="text-[13px] font-semibold text-accent hover:underline"
                     >
                       View deduction →
                     </button>
@@ -500,9 +551,7 @@ const GrnInvoiceViewPage: React.FC = () => {
                 )}
                 {Array.isArray(selectedItem.payments) && selectedItem.payments.length > 0 && (
                   <div>
-                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">
-                      Payments
-                    </div>
+                    <div className="sl-section-label mb-1">Payments</div>
                     <div className="space-y-1">
                       {(selectedItem.payments as any[]).map((p: any, idx: number) => {
                         const isCheque =
@@ -532,27 +581,25 @@ const GrnInvoiceViewPage: React.FC = () => {
                             key={p.id || idx}
                             className="flex flex-wrap items-center gap-2 text-xs"
                           >
-                            <span className="text-gray-500">{formatDate(p.paymentDate)}</span>
-                            <span className="font-semibold text-gray-800">{p.paymentMethod}</span>
-                            <span className="font-bold text-gray-900">
+                            <span className="text-ink-subtle">{formatDate(p.paymentDate)}</span>
+                            <span className="font-semibold text-ink">{p.paymentMethod}</span>
+                            <span className="font-semibold tabular-nums text-ink">
                               ₹{formatMoney(p.amount)}
                             </span>
                             {isCheque && p.chequeNo && (
-                              <span className="text-gray-500">Cheque #{p.chequeNo}</span>
+                              <span className="text-ink-subtle">Cheque #{p.chequeNo}</span>
                             )}
                             {postDated && (
-                              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-bold">
-                                POST-DATED
-                              </span>
+                              <span className="sl-chip sl-chip-sm sl-chip-warning">Post-dated</span>
                             )}
                             {cheque && (
                               <span
-                                className={`px-1.5 py-0.5 rounded font-bold ${
+                                className={`sl-chip sl-chip-sm ${
                                   cheque.status === "CLEARED"
-                                    ? "bg-green-100 text-green-700"
+                                    ? "sl-chip-success"
                                     : cheque.status === "BOUNCED"
-                                      ? "bg-rose-100 text-rose-700"
-                                      : "bg-blue-100 text-blue-700"
+                                      ? "sl-chip-danger"
+                                      : ""
                                 }`}
                               >
                                 {cheque.status}
@@ -866,16 +913,14 @@ const GrnInvoiceViewPage: React.FC = () => {
 
             {/* Attachment Section */}
             {selectedItem.invoiceImage && (
-              <div className="mt-6 pt-6 border-t border-gray-200 no-print">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  Invoice Attachment
-                </div>
+              <div className="sl-tile no-print mt-4 p-4 sm:p-5">
+                <div className="sl-section-label mb-3">Invoice Attachment</div>
                 {selectedItem.invoiceImage.toLowerCase().endsWith(".pdf") ? (
                   <a
                     href={selectedItem.invoiceImage}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-decoration-none"
+                    className="sl-btn sl-pill-md"
                   >
                     <FaFilePdf size={14} /> View PDF Document
                   </a>
@@ -884,13 +929,13 @@ const GrnInvoiceViewPage: React.FC = () => {
                     <img
                       src={selectedItem.invoiceImage}
                       alt="Invoice Copy"
-                      className="max-h-60 object-contain border border-gray-300 rounded-lg max-w-sm"
+                      className="max-h-60 max-w-sm rounded-[14px] border border-line-soft object-contain"
                     />
                     <a
                       href={selectedItem.invoiceImage}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-sm font-semibold text-blue-600 hover:underline"
+                      className="text-sm font-semibold text-accent hover:underline"
                     >
                       Open in New Tab
                     </a>
@@ -901,15 +946,13 @@ const GrnInvoiceViewPage: React.FC = () => {
 
             {/* Capitalise a line as a fixed asset (P2-07) */}
             {can("assets.create") && itemsWithTax.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-200 no-print">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  Capitalise as a fixed asset
-                </div>
+              <div className="sl-tile no-print mt-4 p-4 sm:p-5">
+                <div className="sl-section-label mb-3">Capitalise as a fixed asset</div>
                 <div className="flex flex-col gap-2">
                   {itemsWithTax.map((item: any, idx: number) => (
                     <div
                       key={item.id || idx}
-                      className="flex items-center justify-between gap-3 rounded border border-gray-200 px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-3 rounded-[14px] bg-card-2 px-3 py-2 text-sm text-ink"
                     >
                       <span>
                         {item.rawMaterial?.materialName || item.description || "Line " + (idx + 1)}
@@ -918,7 +961,7 @@ const GrnInvoiceViewPage: React.FC = () => {
                       </span>
                       <button
                         type="button"
-                        className="rounded border border-blue-300 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+                        className="sl-btn sl-pill-sm"
                         disabled={!item.id}
                         onClick={() =>
                           setCapitalisingLine({
@@ -1037,17 +1080,25 @@ const CapitaliseGrnLineDialog: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-4">
-        <h2 className="text-lg font-semibold text-gray-900">Capitalise as an asset</h2>
-        <p className="mt-1 text-sm text-gray-500">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="sl-backdrop" aria-hidden="true" onClick={onCancel} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="capitalise-title"
+        className="sl-dialog w-full max-w-md p-5"
+      >
+        <h2 id="capitalise-title" className="sl-h2 m-0">
+          Capitalise as an asset
+        </h2>
+        <p className="sl-muted m-0 mt-1 text-sm">
           {label}. The cost moves off the purchase ledger and onto the asset ledger.
         </p>
         <div className="mt-3 grid grid-cols-1 gap-3">
-          <label className="text-sm text-gray-500">
+          <label className="sl-label flex-col items-start gap-1">
             Asset class
             <select
-              className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="sl-input h-11 w-full text-sm font-normal"
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
             >
@@ -1058,40 +1109,40 @@ const CapitaliseGrnLineDialog: React.FC<{
               ))}
             </select>
           </label>
-          <label className="text-sm text-gray-500">
+          <label className="sl-label flex-col items-start gap-1">
             Asset code
             <input
-              className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="sl-input h-11 w-full text-sm font-normal"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="FA-0001"
             />
           </label>
-          <label className="text-sm text-gray-500">
+          <label className="sl-label flex-col items-start gap-1">
             Asset name
             <input
-              className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="sl-input h-11 w-full text-sm font-normal"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </label>
         </div>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" className="sl-field-error m-0 mt-2">
+            {error}
+          </p>
+        )}
         <div className="mt-4 flex justify-end gap-2">
-          <button
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700"
-            onClick={onCancel}
-            disabled={busy}
-          >
+          <ActionPill variant="secondary" onClick={onCancel} disabled={busy}>
             Cancel
-          </button>
-          <button
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
-            disabled={busy || !classId || !code.trim() || !name.trim()}
+          </ActionPill>
+          <ActionPill
+            loading={busy}
+            disabled={!classId || !code.trim() || !name.trim()}
             onClick={submit}
           >
             Capitalise
-          </button>
+          </ActionPill>
         </div>
       </div>
     </div>
