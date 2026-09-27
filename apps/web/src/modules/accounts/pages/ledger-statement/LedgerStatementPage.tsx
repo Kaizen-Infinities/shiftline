@@ -15,6 +15,9 @@ import {
   FaPlay,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { BookOpen, RefreshCw } from "lucide-react";
+import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
+import { fmtDate } from "../../components/accountsUi";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import LedgerSearchInput from "../../../../components/form/LedgerSearchInput/LedgerSearchInput";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
@@ -517,18 +520,18 @@ export const LedgerStatementPage: React.FC = () => {
   }, [statement, filteredEntries]);
 
   return (
-    <div className="p-3 font-sans text-ink relative" style={{ minHeight: "calc(100vh - 100px)" }}>
+    <div className="relative w-full text-ink" style={{ minHeight: "calc(100vh - 160px)" }}>
       {/* Merged Ledger picker — Busy's "Merged Ledger !" modal. Only shown
          when navigating to /accounts/ledger-statement/merged. Skips the
          Format + Mode dialogs and offers Group / Selected only. */}
       {showMergedDialog && (
-        <div className="fixed top-[80px] left-4 z-30 w-[420px] max-w-[95vw]">
-          <div className="bg-card border border-line rounded-md shadow-2xl w-full overflow-hidden">
-            <div className="text-white text-[11px] font-bold uppercase tracking-wide px-2 py-1 border-b border-line bg-red-600/90 text-center">
+        <div className="fixed left-1/2 top-[96px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
+          <div className="sl-dialog w-full overflow-hidden">
+            <div className="sl-h2 m-0 border-b border-line-soft px-5 py-4 text-[16px]">
               Merged Ledger !
             </div>
             <div className="p-4 text-center">
-              <FaBook className="text-blue-500/60 text-3xl mx-auto mb-2" />
+              <FaBook className="text-accent/60 text-3xl mx-auto mb-2" />
               <div className="text-sm font-semibold text-ink mb-3">Merged Ledger for ?</div>
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -569,16 +572,16 @@ export const LedgerStatementPage: React.FC = () => {
                         endDate,
                       });
                     }}
-                    className="p-3 rounded border border-line bg-card-2 hover:border-blue-500 hover:bg-blue-500/10 text-left transition-colors group"
+                    className="rounded-[14px] p-3.5 border border-line-soft bg-card-2 hover:border-accent hover:bg-nav-hover text-left transition-colors group"
                   >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-ink group-hover:text-blue-400">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-ink group-hover:text-accent">
                       {m.icon} {m.label}
                     </div>
                   </button>
                 ))}
               </div>
-              <div className="text-[10px] text-ink-subtle italic pt-3">
-                Press <kbd className="px-1 border border-line rounded bg-card">Esc</kbd> to cancel
+              <div className="text-[11.5px] text-ink-subtle italic pt-3">
+                Press <kbd className="sl-kbd">Esc</kbd> to cancel
               </div>
             </div>
           </div>
@@ -589,15 +592,15 @@ export const LedgerStatementPage: React.FC = () => {
          Standard / T-Format". Appears first when the page opens. Once
          chosen, closes and hands off to the Mode picker. */}
       {showFormatDialog && (
-        <div className="fixed top-[80px] left-4 z-30 w-[380px] max-w-[95vw]">
-          <div className="bg-card border border-line rounded-lg shadow-2xl w-full overflow-hidden">
-            <div className="px-4 py-2 bg-red-600/90 text-white flex items-center gap-2 border-b border-line">
+        <div className="fixed left-1/2 top-[96px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
+          <div className="sl-dialog w-full overflow-hidden">
+            <div className="flex items-center gap-2.5 border-b border-line-soft px-5 py-4 text-ink">
               <FaBook className="text-sm" />
-              <h2 className="text-xs font-bold uppercase tracking-wide flex-1">Select Format !</h2>
+              <h2 className="sl-h2 m-0 flex-1 text-[16px]">Select format</h2>
             </div>
             <div className="p-5">
               <div className="text-center mb-3">
-                <FaBook className="text-blue-500/60 text-3xl mx-auto mb-2" />
+                <FaBook className="text-accent/60 text-3xl mx-auto mb-2" />
                 <div className="text-sm font-semibold text-ink">Ledger to be shown in</div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -648,14 +651,14 @@ export const LedgerStatementPage: React.FC = () => {
                         setShowModeDialog(true);
                       }
                     }}
-                    className="px-3 py-2 bg-card-2 hover:bg-blue-500/10 hover:border-blue-500 border border-line rounded text-xs font-bold text-ink transition-colors cursor-pointer"
+                    className="h-12 rounded-[14px] border border-line-soft bg-card-2 px-3 text-sm font-semibold text-ink transition-colors hover:border-accent hover:bg-nav-hover cursor-pointer"
                   >
                     {f.label}
                   </button>
                 ))}
               </div>
-              <div className="text-center text-[10px] text-ink-subtle italic pt-3">
-                Press <kbd className="px-1 border border-line rounded bg-card">Esc</kbd> to cancel
+              <div className="text-center text-[11.5px] text-ink-subtle italic pt-3">
+                Press <kbd className="sl-kbd">Esc</kbd> to cancel
               </div>
             </div>
           </div>
@@ -665,17 +668,17 @@ export const LedgerStatementPage: React.FC = () => {
       {/* Step 2: Busy-style Mode selection — "Ledger to be shown for".
          Appears after Format is chosen. Left-side panel (no backdrop). */}
       {showModeDialog && (
-        <div className="fixed top-[80px] left-4 z-30 w-[380px] max-w-[95vw]">
-          <div className="bg-card border border-line rounded-lg shadow-2xl w-full overflow-hidden">
-            <div className="px-4 py-2.5 bg-blue-600/90 text-white flex items-center gap-2">
+        <div className="fixed left-1/2 top-[96px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
+          <div className="sl-dialog w-full overflow-hidden">
+            <div className="flex items-center gap-2.5 border-b border-line-soft px-5 py-4 text-ink">
               <FaBook className="text-sm" />
-              <h2 className="text-sm font-bold flex-1">Account Ledger</h2>
+              <h2 className="sl-h2 m-0 flex-1 text-[16px]">Account Ledger</h2>
               <button
                 onClick={() => {
                   setShowModeDialog(false);
                   setShowFormatDialog(true);
                 }}
-                className="text-white/80 hover:text-white text-[11px] px-2 py-0.5 rounded border border-white/30"
+                className="sl-btn sl-pill-sm"
                 title="Back to format selection"
               >
                 ← Back
@@ -683,9 +686,9 @@ export const LedgerStatementPage: React.FC = () => {
             </div>
             <div className="p-5">
               <div className="text-center mb-4">
-                <FaBook className="text-blue-500/60 text-3xl mx-auto mb-2" />
+                <FaBook className="text-accent/60 text-3xl mx-auto mb-2" />
                 <div className="text-sm font-semibold text-ink">Ledger to be shown for</div>
-                <div className="text-[11px] text-ink-subtle mt-1">
+                <div className="text-[12.5px] text-ink-subtle mt-1">
                   Choose how you want to view the ledger data
                 </div>
               </div>
@@ -763,18 +766,18 @@ export const LedgerStatementPage: React.FC = () => {
                         endDate,
                       });
                     }}
-                    className="p-3 rounded border border-line bg-card-2 hover:border-blue-500 hover:bg-blue-500/10 text-left transition-colors group"
+                    className="rounded-[14px] p-3.5 border border-line-soft bg-card-2 hover:border-accent hover:bg-nav-hover text-left transition-colors group"
                   >
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-ink group-hover:text-blue-400">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-ink group-hover:text-accent">
                       {m.icon} {m.label}
                     </div>
-                    <div className="text-[10px] text-ink-subtle mt-1">{m.desc}</div>
+                    <div className="text-[11.5px] text-ink-subtle mt-1">{m.desc}</div>
                   </button>
                 ))}
               </div>
             </div>
             <div className="px-4 py-2 border-t border-line bg-card-2/50 flex items-center justify-between">
-              <span className="text-[10px] text-ink-subtle italic">
+              <span className="text-[11.5px] text-ink-subtle italic">
                 You can change the mode later from the sidebar
               </span>
             </div>
@@ -783,19 +786,19 @@ export const LedgerStatementPage: React.FC = () => {
       )}
 
       {/* Step 2: Busy-compact Options Dialog. Density matches Payment /
-         Receipt add pages: text-[11px], 12-col grid, px-2 py-1 inputs,
+         Receipt add pages: text-[12.5px], 12-col grid, px-2 py-1 inputs,
          tight vertical rhythm. */}
       {showOptionsDialog && (
         <div
-          className="fixed top-[80px] left-4 z-30 w-2xl max-w-2xl"
+          className="fixed left-1/2 top-[96px] z-30 w-2xl max-w-[calc(100vw-32px)] -translate-x-1/2"
           style={{ maxHeight: "calc(100vh - 100px)" }}
         >
           <div
-            className="bg-card border border-line rounded-md shadow-sm w-full overflow-hidden flex flex-col"
+            className="sl-dialog w-full overflow-hidden flex flex-col"
             style={{ maxHeight: "calc(100vh - 100px)" }}
           >
             {/* Busy-style header bar (red, centered, uppercase, tight) */}
-            <div className="text-white text-[11px] font-bold uppercase tracking-wide flex items-center justify-between px-2 py-1 border-b border-line bg-red-600/90 shrink-0">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line-soft px-5 py-3.5 text-[15px] font-semibold text-ink">
               <span className="flex-1 text-center">
                 {format === "t-format"
                   ? "Account Ledger — T-Format"
@@ -810,17 +813,17 @@ export const LedgerStatementPage: React.FC = () => {
                   else if (format === "t-format") setShowFormatDialog(true);
                   else setShowModeDialog(true);
                 }}
-                className="text-white/80 hover:text-white text-[10px] px-1.5 py-0.5 rounded border border-white/30"
+                className="sl-btn sl-pill-sm"
               >
                 ← Back
               </button>
             </div>
 
             {/* Body — 12-col grid, col-span-4 label + col-span-8 value */}
-            <div className="px-3 py-2 overflow-auto grid grid-cols-12 gap-x-2 gap-y-1 text-[11px] items-center">
+            <div className="px-5 py-4 overflow-auto grid grid-cols-12 gap-x-3 gap-y-2.5 text-[13px] items-center">
               {viewMode === "one" && (
                 <>
-                  <label className="col-span-4 text-ink-subtle font-semibold">
+                  <label className="col-span-4 text-ink-muted font-semibold">
                     Select Account *
                   </label>
                   <div className="col-span-8">
@@ -838,8 +841,8 @@ export const LedgerStatementPage: React.FC = () => {
                       const l = ledgers.find((x) => x.id === draftLedgerId);
                       if (!l) return null;
                       return (
-                        <div className="col-span-12 text-[10px] px-2 py-1 bg-card-2/40 border border-line-soft rounded flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-blue-400">{l.code}</span>
+                        <div className="col-span-12 text-[11.5px] px-2 py-1 bg-card-2/40 border border-line-soft rounded flex items-center gap-2 flex-wrap">
+                          <span className="tabular-nums text-accent">{l.code}</span>
                           <span className="text-ink-subtle">·</span>
                           <span className="text-ink-muted">{l.group}</span>
                           <span className="text-ink-subtle">·</span>
@@ -864,7 +867,7 @@ export const LedgerStatementPage: React.FC = () => {
 
               {viewMode === "group" && (
                 <>
-                  <label className="col-span-4 text-ink-subtle font-semibold">Select Group *</label>
+                  <label className="col-span-4 text-ink-muted font-semibold">Select Group *</label>
                   <div className="col-span-8">
                     {/* Searchable dropdown, mirroring LedgerSearchInput's UX:
                        focus opens the list, typing filters, click outside
@@ -889,7 +892,7 @@ export const LedgerStatementPage: React.FC = () => {
                             (e.target as HTMLInputElement).blur();
                           }
                         }}
-                        className="w-full px-2 py-1 pr-6 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                        className="w-full sl-input h-10 !rounded-[10px] px-3 pr-6 text-[13px]"
                         autoComplete="off"
                       />
                       {draftGroup && !groupPickerOpen && (
@@ -899,14 +902,14 @@ export const LedgerStatementPage: React.FC = () => {
                             e.preventDefault();
                             setDraftGroup(null);
                           }}
-                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-[11px]"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-[12.5px]"
                           title="Clear"
                         >
                           ×
                         </button>
                       )}
                       {groupPickerOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-line rounded shadow-2xl max-h-[220px] overflow-auto z-[9999]">
+                        <div className="absolute top-full left-0 right-0 mt-1 sl-popover !p-1 max-h-[220px] overflow-auto z-[9999]">
                           {(() => {
                             const q = groupPickerQuery.trim().toLowerCase();
                             const list = groupedLedgers.filter(
@@ -914,7 +917,7 @@ export const LedgerStatementPage: React.FC = () => {
                             );
                             if (list.length === 0) {
                               return (
-                                <div className="px-2 py-3 text-center text-[10px] text-ink-subtle italic">
+                                <div className="px-2 py-3 text-center text-[11.5px] text-ink-subtle italic">
                                   No groups found
                                 </div>
                               );
@@ -929,14 +932,14 @@ export const LedgerStatementPage: React.FC = () => {
                                   setGroupPickerOpen(false);
                                   setGroupPickerQuery("");
                                 }}
-                                className={`w-full text-left px-2 py-1 text-[11px] flex items-center justify-between border-b border-line-soft last:border-b-0 hover:bg-card-2 ${
+                                className={`w-full text-left px-2 py-1 text-[12.5px] flex items-center justify-between border-b border-line-soft last:border-b-0 hover:bg-card-2 ${
                                   draftGroup === g.group
-                                    ? "bg-blue-500/10 text-blue-400"
+                                    ? "bg-nav-active text-accent"
                                     : "text-ink-muted"
                                 }`}
                               >
                                 <span className="truncate">{g.group}</span>
-                                <span className="text-[9px] text-ink-subtle font-mono ml-2 shrink-0">
+                                <span className="text-[12.5px] text-ink-subtle tabular-nums ml-2 shrink-0">
                                   {g.ledgers.length}
                                 </span>
                               </button>
@@ -951,7 +954,7 @@ export const LedgerStatementPage: React.FC = () => {
                       const g = groupedLedgers.find((x) => x.group === draftGroup);
                       if (!g) return null;
                       return (
-                        <div className="col-span-12 text-[10px] px-2 py-1 bg-card-2/40 border border-line-soft rounded text-ink-muted">
+                        <div className="col-span-12 text-[11.5px] px-2 py-1 bg-card-2/40 border border-line-soft rounded text-ink-muted">
                           <span className="font-semibold text-ink">{g.group}</span>
                           <span className="text-ink-subtle">
                             {" "}
@@ -977,12 +980,12 @@ export const LedgerStatementPage: React.FC = () => {
                       {/* Busy Selection Panel — radio + searchable group +
                        Show List button. Kept minimal (no dates / toggles)
                        exactly like Busy screenshots 1-2. */}
-                      <div className="col-span-12 border border-line rounded p-2 bg-card-2/30">
-                        <div className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle mb-1">
+                      <div className="col-span-12 rounded-[14px] border border-line-soft p-2 bg-card-2/60">
+                        <div className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle mb-1">
                           Select Accounts ({draftLedgerIds.size} ticked)
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
-                          <label className="flex items-center gap-1.5 text-[11px] text-ink cursor-pointer">
+                          <label className="flex items-center gap-1.5 text-[12.5px] text-ink cursor-pointer">
                             <input
                               type="radio"
                               name="selFilter"
@@ -992,11 +995,11 @@ export const LedgerStatementPage: React.FC = () => {
                                 setSelFilterGroup(null);
                                 setSelListShown(false);
                               }}
-                              className="accent-blue-500"
+                              className="accent-[color:var(--color-primary)]"
                             />
                             All Accounts
                           </label>
-                          <label className="flex items-center gap-1.5 text-[11px] text-ink cursor-pointer">
+                          <label className="flex items-center gap-1.5 text-[12.5px] text-ink cursor-pointer">
                             <input
                               type="radio"
                               name="selFilter"
@@ -1005,7 +1008,7 @@ export const LedgerStatementPage: React.FC = () => {
                                 setSelFilter("group");
                                 setSelListShown(false);
                               }}
-                              className="accent-blue-500"
+                              className="accent-[color:var(--color-primary)]"
                             />
                             Account Group
                           </label>
@@ -1032,7 +1035,7 @@ export const LedgerStatementPage: React.FC = () => {
                                     (e.target as HTMLInputElement).blur();
                                   }
                                 }}
-                                className="w-full px-2 py-1 pr-6 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                                className="w-full sl-input h-10 !rounded-[10px] px-3 pr-6 text-[13px]"
                                 autoComplete="off"
                               />
                               {selFilterGroup && !selGroupPickerOpen && (
@@ -1043,14 +1046,14 @@ export const LedgerStatementPage: React.FC = () => {
                                     setSelFilterGroup(null);
                                     setSelListShown(false);
                                   }}
-                                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-[11px]"
+                                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-ink-subtle hover:text-ink text-[12.5px]"
                                   title="Clear"
                                 >
                                   ×
                                 </button>
                               )}
                               {selGroupPickerOpen && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-line rounded shadow-2xl max-h-[220px] overflow-auto z-[9999]">
+                                <div className="absolute top-full left-0 right-0 mt-1 sl-popover !p-1 max-h-[220px] overflow-auto z-[9999]">
                                   {(() => {
                                     const q = selGroupPickerQuery.trim().toLowerCase();
                                     const list = groupedLedgers.filter(
@@ -1058,7 +1061,7 @@ export const LedgerStatementPage: React.FC = () => {
                                     );
                                     if (list.length === 0) {
                                       return (
-                                        <div className="px-2 py-3 text-center text-[10px] text-ink-subtle italic">
+                                        <div className="px-2 py-3 text-center text-[11.5px] text-ink-subtle italic">
                                           No groups found
                                         </div>
                                       );
@@ -1074,14 +1077,14 @@ export const LedgerStatementPage: React.FC = () => {
                                           setSelGroupPickerQuery("");
                                           setSelListShown(false);
                                         }}
-                                        className={`w-full text-left px-2 py-1 text-[11px] flex items-center justify-between border-b border-line-soft last:border-b-0 hover:bg-card-2 ${
+                                        className={`w-full text-left px-2 py-1 text-[12.5px] flex items-center justify-between border-b border-line-soft last:border-b-0 hover:bg-card-2 ${
                                           selFilterGroup === g.group
-                                            ? "bg-blue-500/10 text-blue-400"
+                                            ? "bg-nav-active text-accent"
                                             : "text-ink-muted"
                                         }`}
                                       >
                                         <span className="truncate">{g.group}</span>
-                                        <span className="text-[9px] text-ink-subtle font-mono ml-2 shrink-0">
+                                        <span className="text-[12.5px] text-ink-subtle tabular-nums ml-2 shrink-0">
                                           {g.ledgers.length}
                                         </span>
                                       </button>
@@ -1100,7 +1103,7 @@ export const LedgerStatementPage: React.FC = () => {
                               }
                               setSelListShown(true);
                             }}
-                            className="ml-auto px-3 py-0.5 text-[11px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded"
+                            className="sl-btn-blue sl-pill-sm ml-auto"
                           >
                             Show List
                           </button>
@@ -1112,7 +1115,7 @@ export const LedgerStatementPage: React.FC = () => {
                        renders at least 15 rows so the panel doesn't collapse
                        when the list is empty / short. */}
                       <div className="col-span-12">
-                        <div className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle mb-1">
+                        <div className="text-[11.5px] uppercase tracking-wide font-semibold text-ink-subtle mb-1">
                           List of Accounts
                         </div>
                         <div
@@ -1127,7 +1130,7 @@ export const LedgerStatementPage: React.FC = () => {
                                 {visible.map((l, i) => (
                                   <label
                                     key={l.id}
-                                    className={`flex items-center gap-2 px-2 py-0.5 text-[10px] border-b border-line-soft cursor-pointer ${
+                                    className={`flex items-center gap-2 px-2 py-0.5 text-[11.5px] border-b border-line-soft cursor-pointer ${
                                       i % 2 === 1 ? "bg-card-2/20" : ""
                                     } hover:bg-card-2`}
                                   >
@@ -1140,10 +1143,10 @@ export const LedgerStatementPage: React.FC = () => {
                                         else next.add(l.id);
                                         setDraftLedgerIds(next);
                                       }}
-                                      className="w-3 h-3 accent-blue-500"
+                                      className="w-3 h-3 accent-[color:var(--color-primary)]"
                                     />
                                     <span className="flex-1 truncate text-ink-muted">{l.name}</span>
-                                    <span className="text-[9px] text-ink-subtle font-mono">
+                                    <span className="text-[12.5px] text-ink-subtle tabular-nums">
                                       {l.code}
                                     </span>
                                   </label>
@@ -1151,12 +1154,12 @@ export const LedgerStatementPage: React.FC = () => {
                                 {/* Empty status message overlays the first blank
                                  row so panel doesn't look broken. */}
                                 {!selListShown && (
-                                  <div className="px-2 py-2 text-center text-[10px] text-ink-subtle italic border-b border-line-soft">
+                                  <div className="px-2 py-2 text-center text-[11.5px] text-ink-subtle italic border-b border-line-soft">
                                     Click <b>Show List</b> above to load accounts
                                   </div>
                                 )}
                                 {selListShown && pool.length === 0 && (
-                                  <div className="px-2 py-2 text-center text-[10px] text-ink-subtle italic border-b border-line-soft">
+                                  <div className="px-2 py-2 text-center text-[11.5px] text-ink-subtle italic border-b border-line-soft">
                                     No accounts in this filter
                                   </div>
                                 )}
@@ -1164,7 +1167,7 @@ export const LedgerStatementPage: React.FC = () => {
                                 {Array.from({ length: fillerCount }).map((_, i) => (
                                   <div
                                     key={`empty-${i}`}
-                                    className={`px-2 py-0.5 text-[10px] border-b border-line-soft ${
+                                    className={`px-2 py-0.5 text-[11.5px] border-b border-line-soft ${
                                       (visible.length + i) % 2 === 1 ? "bg-card-2/20" : ""
                                     }`}
                                   >
@@ -1179,7 +1182,7 @@ export const LedgerStatementPage: React.FC = () => {
 
                       {/* Select All footer — only shown once list is loaded */}
                       {selListShown && (
-                        <div className="col-span-12 flex items-center gap-3 text-[11px]">
+                        <div className="col-span-12 flex items-center gap-3 text-[12.5px]">
                           <label className="flex items-center gap-1.5 text-ink cursor-pointer">
                             <input
                               type="checkbox"
@@ -1190,14 +1193,14 @@ export const LedgerStatementPage: React.FC = () => {
                                 else pool.forEach((l) => next.delete(l.id));
                                 setDraftLedgerIds(next);
                               }}
-                              className="w-3 h-3 accent-blue-500"
+                              className="w-3 h-3 accent-[color:var(--color-primary)]"
                             />
                             Select All
                           </label>
                           <button
                             type="button"
                             onClick={() => setDraftLedgerIds(new Set())}
-                            className="text-[10px] text-ink-muted hover:text-ink border border-line px-2 py-0.5 rounded"
+                            className="text-[11.5px] text-ink-muted hover:text-ink border border-line px-2 py-0.5 rounded"
                           >
                             Clear
                           </button>
@@ -1210,13 +1213,13 @@ export const LedgerStatementPage: React.FC = () => {
               {/* Selected mode: mini header shown on the config step so user
                  knows how many accounts they picked in step 1. */}
               {viewMode === "selected" && selectedStep === "config" && (
-                <div className="col-span-12 border border-line rounded px-2 py-1 bg-card-2/30 text-[11px] flex items-center gap-2">
+                <div className="col-span-12 rounded-[14px] border border-line-soft px-2 py-1 bg-card-2/60 text-[12.5px] flex items-center gap-2">
                   <span className="text-ink-subtle font-semibold">Selected:</span>
                   <span className="text-ink font-bold">{draftLedgerIds.size} accounts</span>
                   <button
                     type="button"
                     onClick={() => setSelectedStep("panel")}
-                    className="ml-auto text-[10px] text-blue-500 hover:text-blue-400 font-semibold px-2 py-0.5 border border-blue-500/30 rounded"
+                    className="ml-auto text-[11.5px] text-accent hover:text-accent font-semibold px-2 py-0.5 border border-line-soft rounded"
                   >
                     ← Change
                   </button>
@@ -1224,7 +1227,7 @@ export const LedgerStatementPage: React.FC = () => {
               )}
 
               {viewMode === "all" && (
-                <div className="col-span-12 text-[10px] text-ink-subtle italic text-center py-1">
+                <div className="col-span-12 text-[11.5px] text-ink-subtle italic text-center py-1">
                   Combined statement across every ledger
                 </div>
               )}
@@ -1235,7 +1238,7 @@ export const LedgerStatementPage: React.FC = () => {
               {!(viewMode === "selected" && selectedStep === "panel") && (
                 <>
                   {/* Dates — use the shared DatePickerCalendar component */}
-                  <label className="col-span-4 text-ink-subtle font-semibold">Starting Date</label>
+                  <label className="col-span-4 text-ink-muted font-semibold">Starting Date</label>
                   <div className="col-span-8">
                     <DatePickerCalendar
                       name="draftStartDate"
@@ -1243,7 +1246,7 @@ export const LedgerStatementPage: React.FC = () => {
                       onChange={(e) => setDraftStartDate(e.target.value)}
                     />
                   </div>
-                  <label className="col-span-4 text-ink-subtle font-semibold">Ending Date</label>
+                  <label className="col-span-4 text-ink-muted font-semibold">Ending Date</label>
                   <div className="col-span-8">
                     <DatePickerCalendar
                       name="draftEndDate"
@@ -1261,7 +1264,7 @@ export const LedgerStatementPage: React.FC = () => {
                          is minimal: Account to be shown by + Show Actual
                          Account Name. Group/Selected picker + dates are
                          handled above. */}
-                      <label className="col-span-4 text-ink-subtle font-semibold">
+                      <label className="col-span-4 text-ink-muted font-semibold">
                         Account to be shown by
                       </label>
                       <div className="col-span-8">
@@ -1273,7 +1276,7 @@ export const LedgerStatementPage: React.FC = () => {
                               accountBy: e.target.value as AccountBy,
                             }))
                           }
-                          className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                          className="w-full sl-input h-10 !rounded-[10px] px-3 text-[13px]"
                         >
                           <option value="name">Name</option>
                           <option value="code">Code</option>
@@ -1291,7 +1294,7 @@ export const LedgerStatementPage: React.FC = () => {
                               showActualName: e.target.value === "Y",
                             }))
                           }
-                          className="w-[50px] px-1 py-0.5 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                          className="w-[50px] sl-input h-10 !rounded-[10px] px-2 text-center text-[13px]"
                         >
                           <option value="Y">Y</option>
                           <option value="N">N</option>
@@ -1300,7 +1303,7 @@ export const LedgerStatementPage: React.FC = () => {
                     </>
                   ) : format === "t-format" ? (
                     <>
-                      <label className="col-span-4 text-ink-subtle font-semibold">
+                      <label className="col-span-4 text-ink-muted font-semibold">
                         Balances to be shown as
                       </label>
                       <div className="col-span-8">
@@ -1312,14 +1315,14 @@ export const LedgerStatementPage: React.FC = () => {
                               balanceShownAs: e.target.value as BalanceShown,
                             }))
                           }
-                          className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                          className="w-full sl-input h-10 !rounded-[10px] px-3 text-[13px]"
                         >
                           <option value="daily">Daily</option>
                           <option value="monthly">Monthly</option>
                           <option value="final">Final</option>
                         </select>
                       </div>
-                      <label className="col-span-4 text-ink-subtle font-semibold">
+                      <label className="col-span-4 text-ink-muted font-semibold">
                         Account to be shown by
                       </label>
                       <div className="col-span-8">
@@ -1331,7 +1334,7 @@ export const LedgerStatementPage: React.FC = () => {
                               accountBy: e.target.value as AccountBy,
                             }))
                           }
-                          className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                          className="w-full sl-input h-10 !rounded-[10px] px-3 text-[13px]"
                         >
                           <option value="name">Name</option>
                           <option value="code">Code</option>
@@ -1349,7 +1352,7 @@ export const LedgerStatementPage: React.FC = () => {
                               shortNarration: e.target.value === "Y",
                             }))
                           }
-                          className="w-[50px] px-1 py-0.5 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                          className="w-[50px] sl-input h-10 !rounded-[10px] px-2 text-center text-[13px]"
                         >
                           <option value="Y">Y</option>
                           <option value="N">N</option>
@@ -1359,7 +1362,7 @@ export const LedgerStatementPage: React.FC = () => {
                   ) : (
                     <>
                       {/* Standard: full Busy field set */}
-                      <label className="col-span-4 text-ink-subtle font-semibold">
+                      <label className="col-span-4 text-ink-muted font-semibold">
                         Details to be shown
                       </label>
                       <div className="col-span-8">
@@ -1371,7 +1374,7 @@ export const LedgerStatementPage: React.FC = () => {
                               detailLevel: e.target.value as DetailLevel,
                             }))
                           }
-                          className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                          className="w-full sl-input h-10 !rounded-[10px] px-3 text-[13px]"
                         >
                           <option value="single-auto">Single Account (Auto)</option>
                           <option value="other-auto">Other Accounts (Auto)</option>
@@ -1380,7 +1383,7 @@ export const LedgerStatementPage: React.FC = () => {
                           <option value="single-first">Single Account (First)</option>
                         </select>
                       </div>
-                      <label className="col-span-4 text-ink-subtle font-semibold">
+                      <label className="col-span-4 text-ink-muted font-semibold">
                         Account to be shown by
                       </label>
                       <div className="col-span-8">
@@ -1392,7 +1395,7 @@ export const LedgerStatementPage: React.FC = () => {
                               accountBy: e.target.value as AccountBy,
                             }))
                           }
-                          className="w-full px-2 py-1 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none"
+                          className="w-full sl-input h-10 !rounded-[10px] px-3 text-[13px]"
                         >
                           <option value="name">Name</option>
                           <option value="code">Code</option>
@@ -1431,14 +1434,16 @@ export const LedgerStatementPage: React.FC = () => {
                               className={`col-span-9 font-semibold ${r.disabled ? "text-ink-subtle/70" : "text-ink-subtle"}`}
                             >
                               {r.label}
-                              {r.disabled && <span className="text-[9px] italic ml-1">(N/A)</span>}
+                              {r.disabled && (
+                                <span className="text-[12.5px] italic ml-1">(N/A)</span>
+                              )}
                             </label>
                             <div className="col-span-3">
                               <select
                                 value={(draftOptions[r.key] as boolean) ? "Y" : "N"}
                                 onChange={(e) => setOpt(r.key, (e.target.value === "Y") as any)}
                                 disabled={r.disabled}
-                                className="w-[50px] px-1 py-0.5 border border-line bg-card rounded text-[11px] text-ink focus:ring-1 focus:ring-red-500/40 focus:border-red-500 focus:outline-none disabled:opacity-40"
+                                className="w-[50px] sl-input h-10 !rounded-[10px] px-2 text-center text-[13px] disabled:opacity-40"
                               >
                                 <option value="Y">Y</option>
                                 <option value="N">N</option>
@@ -1449,9 +1454,9 @@ export const LedgerStatementPage: React.FC = () => {
                       })()}
                       <label className="col-span-9 text-ink-subtle/70 font-semibold">
                         Show Year-wise Opening &amp; Closing Bal. ?
-                        <span className="text-[9px] italic ml-1">(N/A)</span>
+                        <span className="text-[12.5px] italic ml-1">(N/A)</span>
                       </label>
-                      <div className="col-span-3 text-[10px] text-ink-subtle italic">—</div>
+                      <div className="col-span-3 text-[11.5px] text-ink-subtle italic">—</div>
                     </>
                   )}
                 </>
@@ -1459,14 +1464,12 @@ export const LedgerStatementPage: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-3 py-1.5 border-t border-line bg-card-2 flex items-center justify-between shrink-0 text-[10px]">
+            <div className="px-3 py-1.5 border-t border-line bg-card-2 flex items-center justify-between shrink-0 text-[11.5px]">
               <span className="text-ink-subtle italic flex items-center gap-1.5">
                 {prefetching ? (
                   <>
-                    <FaSync className="animate-spin text-blue-500 text-[10px]" />
-                    <span className="text-blue-400 not-italic">
-                      Pre-loading data in background…
-                    </span>
+                    <FaSync className="animate-spin text-accent text-[11.5px]" />
+                    <span className="text-accent not-italic">Pre-loading data in background…</span>
                   </>
                 ) : (
                   <>
@@ -1480,7 +1483,7 @@ export const LedgerStatementPage: React.FC = () => {
                     setShowOptionsDialog(false);
                     setShowModeDialog(true);
                   }}
-                  className="px-2 py-0.5 text-[11px] font-semibold text-ink-muted hover:text-ink hover:bg-card rounded border border-line"
+                  className="sl-btn sl-pill-sm"
                 >
                   Cancel
                 </button>
@@ -1530,19 +1533,19 @@ export const LedgerStatementPage: React.FC = () => {
                       to: draftEndDate || null,
                     });
                   }}
-                  className="px-3 py-0.5 text-[11px] font-semibold text-white bg-red-600 hover:bg-red-700 rounded flex items-center gap-1"
+                  className="sl-cta sl-pill-sm"
                 >
                   {viewMode === "selected" && selectedStep === "panel" ? (
                     <>
-                      <FaPlay className="text-[9px]" /> Next →
+                      <FaPlay className="text-[12.5px]" /> Next →
                     </>
                   ) : prefetching ? (
                     <>
-                      <FaSync className="animate-spin text-[9px]" /> OK
+                      <FaSync className="animate-spin text-[12.5px]" /> OK
                     </>
                   ) : (
                     <>
-                      <FaPlay className="text-[9px]" /> OK{" "}
+                      <FaPlay className="text-[12.5px]" /> OK{" "}
                     </>
                   )}
                 </button>
@@ -1555,17 +1558,17 @@ export const LedgerStatementPage: React.FC = () => {
       {/* LEFT SIDEBAR — hidden; ledger selection is handled by the Busy-style options dialog above */}
       {false && (
         <aside
-          className="w-[280px] shrink-0 bg-card rounded-lg border border-line overflow-hidden flex flex-col"
+          className="w-[280px] shrink-0 sl-tile overflow-hidden flex flex-col"
           style={{ maxHeight: "calc(100vh - 120px)" }}
         >
           <div className="px-3 py-2 border-b border-line bg-card-2 flex items-center gap-2 shrink-0">
-            <FaBook className="text-blue-500 text-xs" />
+            <FaBook className="text-accent text-xs" />
             <h2 className="text-xs font-bold text-ink">Ledger Statement</h2>
           </div>
 
           {/* Busy-style mode selector */}
           <div className="p-2 border-b border-line bg-card-2/40 shrink-0">
-            <div className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold mb-1">
+            <div className="text-[11.5px] uppercase tracking-wide text-ink-subtle font-semibold mb-1">
               Ledger to be shown for
             </div>
             <div className="grid grid-cols-2 gap-1">
@@ -1580,9 +1583,9 @@ export const LedgerStatementPage: React.FC = () => {
                   onClick={() => {
                     setViewMode(m.key);
                   }}
-                  className={`px-2 py-1 text-[10px] font-semibold rounded flex items-center justify-center gap-1 border transition-colors ${
+                  className={`px-2 py-1 text-[11.5px] font-semibold rounded flex items-center justify-center gap-1 border transition-colors ${
                     viewMode === m.key
-                      ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
+                      ? "bg-nav-active text-accent border-line-soft"
                       : "bg-card border-line text-ink-muted hover:bg-card-2/60"
                   }`}
                 >
@@ -1596,9 +1599,9 @@ export const LedgerStatementPage: React.FC = () => {
               <button
                 onClick={refresh}
                 disabled={refreshing}
-                className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-semibold disabled:opacity-50"
+                className="sl-btn-blue sl-pill-sm mt-2 w-full"
               >
-                <FaPlay className="text-[9px]" />{" "}
+                <FaPlay className="text-[12.5px]" />{" "}
                 {refreshing ? "Refreshing..." : "Reload Combined Statement"}
               </button>
             )}
@@ -1607,13 +1610,13 @@ export const LedgerStatementPage: React.FC = () => {
                 <button
                   onClick={refresh}
                   disabled={refreshing}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-semibold disabled:opacity-50"
+                  className="sl-btn-blue sl-pill-sm flex-1"
                 >
-                  <FaPlay className="text-[9px]" /> Reload ({selectedLedgerIds.size})
+                  <FaPlay className="text-[12.5px]" /> Reload ({selectedLedgerIds.size})
                 </button>
                 <button
                   onClick={() => setSelectedLedgerIds(new Set())}
-                  className="px-2 py-1 border border-line rounded text-[10px] text-ink-muted hover:bg-card-2"
+                  className="sl-btn sl-pill-sm"
                 >
                   Clear
                 </button>
@@ -1630,9 +1633,9 @@ export const LedgerStatementPage: React.FC = () => {
                   value={sidebarSearch}
                   onChange={(e) => setSidebarSearch(e.target.value)}
                   placeholder="Search ledgers..."
-                  className="w-full border border-line rounded pl-7 pr-2 py-1 text-xs bg-card text-ink focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500"
+                  className="w-full sl-input h-10 pl-8 pr-2 text-[13px]"
                 />
-                <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[10px]" />
+                <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[11.5px]" />
               </div>
             </div>
           )}
@@ -1640,20 +1643,20 @@ export const LedgerStatementPage: React.FC = () => {
           {/* Ledger tree — behaviour depends on mode */}
           {viewMode === "all" ? (
             <div className="overflow-auto flex-1 min-h-0 p-3 text-center">
-              <FaGlobe className="text-blue-500/40 text-2xl mx-auto mb-2 mt-6" />
-              <div className="text-[11px] text-ink-muted font-semibold">All Accounts mode</div>
-              <div className="text-[10px] text-ink-subtle mt-1">
+              <FaGlobe className="text-accent/40 text-2xl mx-auto mb-2 mt-6" />
+              <div className="text-[12.5px] text-ink-muted font-semibold">All Accounts mode</div>
+              <div className="text-[11.5px] text-ink-subtle mt-1">
                 Click "Show Combined Statement" to load a merged ledger for every account.
               </div>
             </div>
           ) : (
             <div className="overflow-auto flex-1 min-h-0 p-2">
               {ledgers.length === 0 ? (
-                <div className="text-[11px] text-ink-subtle italic px-2 py-4 text-center">
+                <div className="text-[12.5px] text-ink-subtle italic px-2 py-4 text-center">
                   Loading ledgers...
                 </div>
               ) : groupedLedgers.length === 0 ? (
-                <div className="text-[11px] text-ink-subtle italic px-2 py-4 text-center">
+                <div className="text-[12.5px] text-ink-subtle italic px-2 py-4 text-center">
                   No ledgers match
                 </div>
               ) : (
@@ -1675,14 +1678,14 @@ export const LedgerStatementPage: React.FC = () => {
                             toggleGroup(gname);
                           }
                         }}
-                        className={`w-full flex items-center gap-1.5 text-[11px] font-bold px-1 py-1 hover:bg-card-2/60 rounded ${
-                          groupSelected ? "bg-blue-500/15 text-blue-400" : "text-ink"
+                        className={`w-full flex items-center gap-1.5 text-[12.5px] font-bold px-1 py-1 hover:bg-card-2/60 rounded ${
+                          groupSelected ? "bg-nav-active text-accent" : "text-ink"
                         }`}
                       >
                         {isCollapsed ? (
-                          <FaChevronRight className="text-[9px] text-ink-subtle" />
+                          <FaChevronRight className="text-[12.5px] text-ink-subtle" />
                         ) : (
-                          <FaChevronDown className="text-[9px] text-ink-subtle" />
+                          <FaChevronDown className="text-[12.5px] text-ink-subtle" />
                         )}
                         {viewMode === "selected" && (
                           <input
@@ -1701,12 +1704,12 @@ export const LedgerStatementPage: React.FC = () => {
                               });
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-3 h-3 accent-blue-500"
+                            className="w-3 h-3 accent-[color:var(--color-primary)]"
                           />
                         )}
-                        <FaFolderOpen className="text-[10px] text-blue-400" />
+                        <FaFolderOpen className="text-[11.5px] text-accent" />
                         <span className="truncate flex-1 text-left">{gname}</span>
-                        <span className="text-[9px] text-ink-subtle font-mono">
+                        <span className="text-[12.5px] text-ink-subtle tabular-nums">
                           {gledgers.length}
                         </span>
                       </button>
@@ -1715,10 +1718,10 @@ export const LedgerStatementPage: React.FC = () => {
                           {gledgers.map((l) => (
                             <div
                               key={l.id}
-                              className={`flex items-center gap-1.5 px-2 py-1 text-[11px] rounded transition-colors ${
+                              className={`flex items-center gap-1.5 px-2 py-1 text-[12.5px] rounded transition-colors ${
                                 (viewMode === "one" && selectedLedgerId === l.id) ||
                                 (viewMode === "selected" && selectedLedgerIds.has(l.id))
-                                  ? "bg-blue-500/15 text-blue-400 font-semibold"
+                                  ? "bg-nav-active text-accent font-semibold"
                                   : "text-ink-muted hover:bg-card-2/60"
                               }`}
                             >
@@ -1734,7 +1737,7 @@ export const LedgerStatementPage: React.FC = () => {
                                       return next;
                                     })
                                   }
-                                  className="w-3 h-3 accent-blue-500"
+                                  className="w-3 h-3 accent-[color:var(--color-primary)]"
                                 />
                               )}
                               <button
@@ -1753,7 +1756,9 @@ export const LedgerStatementPage: React.FC = () => {
                                 className="flex-1 text-left"
                               >
                                 <div className="truncate">{l.name}</div>
-                                <div className="text-[9px] text-ink-subtle font-mono">{l.code}</div>
+                                <div className="text-[12.5px] text-ink-subtle tabular-nums">
+                                  {l.code}
+                                </div>
                               </button>
                             </div>
                           ))}
@@ -1766,7 +1771,7 @@ export const LedgerStatementPage: React.FC = () => {
             </div>
           )}
 
-          <div className="px-3 py-1.5 border-t border-line text-[10px] text-ink-subtle italic shrink-0">
+          <div className="px-3 py-1.5 border-t border-line text-[11.5px] text-ink-subtle italic shrink-0">
             <FaFileAlt className="inline mr-1" />
             {viewMode === "one" && "Click any ledger to view"}
             {viewMode === "group" && "Click a group header to view combined"}
@@ -1781,78 +1786,83 @@ export const LedgerStatementPage: React.FC = () => {
          "one thing on screen at a time" flow. The table only appears after
          the final OK closes both dialogs. */}
       {!showFormatDialog && !showMergedDialog && !showModeDialog && !showOptionsDialog && (
-        <div className="flex-1 min-w-0 space-y-2 w-full max-w-7xl">
-          {/* Filter bar — matches Payment/Receipt list style: minimal, one line.
-           Selection changes live in the Account Ledger modal (Change Account
-           button), so date pickers / search / preset are removed here. */}
-          <div className="bg-card rounded-md border border-line px-3 py-1.5 flex flex-wrap items-center gap-2 shadow-sm sticky top-0 z-20">
-            <h3 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-              <FaBook className="text-blue-500 text-sm" /> Ledger Statement
-              {statement && (
-                <span className="text-[10px] font-medium text-ink-subtle uppercase tracking-wide">
-                  · {statement.mode === "multi" ? statement.label : statement.ledger.name}
-                  <span className="ml-2 px-1.5 py-0.5 bg-card border border-line rounded font-mono text-[9px] uppercase tracking-wide">
-                    {format === "t-format" ? "T-Format" : "Standard"}
+        <div className="flex-1 min-w-0 space-y-4 w-full">
+          {/* Header — selection changes live in the Account Ledger dialog
+           (Change Account button), so there are no date pickers here. */}
+          <PageHeader
+            title="Ledger Statement"
+            icon={<BookOpen size={20} />}
+            meta={
+              <Chip tone="muted" size="sm">
+                {format === "t-format" ? "T-Format" : "Standard"}
+              </Chip>
+            }
+            subtitle={
+              <>
+                {statement && (
+                  <span className="font-medium text-ink">
+                    {statement.mode === "multi" ? statement.label : statement.ledger.name}
+                    {" · "}
                   </span>
-                </span>
-              )}
-            </h3>
-            <span className="text-[10px] text-ink-subtle italic">
-              From <b className="text-ink">{startDate}</b> to <b className="text-ink">{endDate}</b>
-            </span>
-
-            <div className="flex items-center gap-1.5 ml-auto">
-              <button
-                onClick={() => {
-                  // Route back to the picker appropriate for this page:
-                  //   Merged  → Merged Ledger dialog
-                  //   T-Fmt   → directly to Options
-                  //   Std     → Mode dialog
-                  if (isMerged) {
-                    setShowMergedDialog(true);
-                  } else if (format === "t-format") {
-                    setDraftLedgerId(selectedLedgerId);
-                    setDraftStartDate(startDate);
-                    setDraftEndDate(endDate);
-                    setDraftOptions(options);
-                    setShowOptionsDialog(true);
-                  } else {
-                    setShowModeDialog(true);
-                  }
-                }}
-                className="flex items-center gap-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold"
-                title="Change account / group selection"
-              >
-                <FaBook className="text-[10px]" /> Change Account
-              </button>
-              <button
-                onClick={refresh}
-                disabled={refreshing}
-                className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line disabled:opacity-50"
-              >
-                <FaSync className={refreshing ? "animate-spin text-blue-500" : ""} /> Refresh
-              </button>
-              <ExportCSVButton
-                data={csvData}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            </div>
-          </div>
+                )}
+                {fmtDate(startDate)} to {fmtDate(endDate)}
+              </>
+            }
+            actions={
+              <>
+                <ActionPill
+                  variant="secondary"
+                  icon={<RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}
+                  onClick={refresh}
+                  disabled={refreshing}
+                >
+                  Refresh
+                </ActionPill>
+                <ExportCSVButton
+                  data={csvData}
+                  columns={csvColumns}
+                  filename={csvFilename}
+                  text="Export"
+                />
+                <button
+                  onClick={() => {
+                    // Route back to the picker appropriate for this page:
+                    //   Merged  → Merged Ledger dialog
+                    //   T-Fmt   → directly to Options
+                    //   Std     → Mode dialog
+                    if (isMerged) {
+                      setShowMergedDialog(true);
+                    } else if (format === "t-format") {
+                      setDraftLedgerId(selectedLedgerId);
+                      setDraftStartDate(startDate);
+                      setDraftEndDate(endDate);
+                      setDraftOptions(options);
+                      setShowOptionsDialog(true);
+                    } else {
+                      setShowModeDialog(true);
+                    }
+                  }}
+                  className="sl-btn-blue sl-pill-md"
+                  title="Change account / group selection"
+                >
+                  <BookOpen size={16} aria-hidden="true" /> Change Account
+                </button>
+              </>
+            }
+          />
 
           {/* Statement — always show placeholder when no data, whether fetching
             or genuinely empty. Footer progress bar communicates load state so
             users see "something happening" instead of a blank page. */}
           {!statement && (
-            <div className="bg-card border border-line rounded-lg p-12 text-center text-xs text-ink-subtle">
+            <div className="sl-tile p-12 text-center text-xs text-ink-subtle">
               <FaBook
-                className={`text-blue-500/40 text-3xl mx-auto mb-2 ${loading ? "animate-pulse" : ""}`}
+                className={`text-accent/40 text-3xl mx-auto mb-2 ${loading ? "animate-pulse" : ""}`}
               />
               <div className="text-sm text-ink-muted font-semibold mb-1">
                 {loading ? "Fetching statement…" : "Select a ledger from the sidebar"}
               </div>
-              <div className="text-[11px]">
+              <div className="text-[12.5px]">
                 {loading
                   ? viewMode === "all"
                     ? "Combining every ledger — this can take a moment on first load"
@@ -1864,7 +1874,7 @@ export const LedgerStatementPage: React.FC = () => {
 
           {statement && (
             <div
-              className="bg-card border border-line rounded-lg overflow-hidden flex flex-col"
+              className="sl-tile overflow-hidden flex flex-col"
               style={{ maxHeight: "calc(100vh - 200px)" }}
             >
               {/* Summary Banner */}
@@ -1872,23 +1882,23 @@ export const LedgerStatementPage: React.FC = () => {
                 <div className="flex items-center gap-2 min-w-0">
                   {statement.mode === "multi" ? (
                     <>
-                      <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded font-mono font-bold text-[10px] uppercase tracking-wide border border-blue-500/20 shrink-0">
+                      <span className="px-1.5 py-0.5 bg-nav-active text-accent rounded tabular-nums font-bold text-[11.5px] uppercase tracking-wide border border-line-soft shrink-0">
                         {viewMode === "all" ? "ALL" : viewMode === "group" ? "GRP" : "SEL"}
                       </span>
                       <span className="text-sm font-bold text-ink truncate">{statement.label}</span>
-                      <span className="text-[11px] text-ink-subtle whitespace-nowrap">
+                      <span className="text-[12.5px] text-ink-subtle whitespace-nowrap">
                         · {statement.ledgerCount} accounts merged
                       </span>
                     </>
                   ) : (
                     <>
-                      <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded font-mono font-bold text-[10px] uppercase tracking-wide border border-blue-500/20 shrink-0">
+                      <span className="px-1.5 py-0.5 bg-nav-active text-accent rounded tabular-nums font-bold text-[11.5px] uppercase tracking-wide border border-line-soft shrink-0">
                         {statement.ledger.code}
                       </span>
                       <span className="text-sm font-bold text-ink truncate">
                         {statement.ledger.name}
                       </span>
-                      <span className="text-[11px] text-ink-subtle whitespace-nowrap">
+                      <span className="text-[12.5px] text-ink-subtle whitespace-nowrap">
                         · {statement.ledger.group} · {statement.ledger.type}
                       </span>
                     </>
@@ -1897,31 +1907,31 @@ export const LedgerStatementPage: React.FC = () => {
 
                 <div className="flex items-center gap-4 text-right shrink-0">
                   <div>
-                    <span className="text-[10px] text-ink-subtle font-semibold uppercase tracking-wide block leading-tight">
+                    <span className="text-[11.5px] text-ink-subtle font-semibold uppercase tracking-wide block leading-tight">
                       Opening
                     </span>
-                    <span className="text-sm font-mono font-bold text-ink">
+                    <span className="text-sm tabular-nums font-bold text-ink">
                       ₹{" "}
                       {Math.abs(statement.openingBalance).toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
-                      <span className="ml-1 text-[10px]">
+                      <span className="ml-1 text-[11.5px]">
                         {statement.openingBalance >= 0 ? "Dr" : "Cr"}
                       </span>
                     </span>
                   </div>
                   <div className="border-l border-line pl-4">
-                    <span className="text-[10px] text-blue-500 font-semibold uppercase tracking-wide block leading-tight">
+                    <span className="text-[11.5px] text-accent font-semibold uppercase tracking-wide block leading-tight">
                       Closing
                     </span>
-                    <span className="text-sm font-mono font-black text-blue-500">
+                    <span className="text-sm tabular-nums font-bold text-accent">
                       ₹{" "}
                       {Math.abs(statement.closingBalance).toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
-                      <span className="ml-1 text-[10px]">
+                      <span className="ml-1 text-[11.5px]">
                         {statement.closingBalance >= 0 ? "Dr" : "Cr"}
                       </span>
                     </span>
@@ -1949,7 +1959,7 @@ export const LedgerStatementPage: React.FC = () => {
 
                     const cell = "px-2 py-1 border-r border-line-soft";
                     const hdrCell =
-                      "py-1.5 px-2 bg-head text-ink-muted font-bold text-[10px] uppercase tracking-wide border-r border-line";
+                      "py-1.5 px-2 bg-card-2 text-ink-muted font-bold text-[11.5px] uppercase tracking-wide border-r border-line";
 
                     const renderSide = (entries: any[], kind: "dr" | "cr") => {
                       const total = kind === "dr" ? sumDr : sumCr;
@@ -1966,12 +1976,12 @@ export const LedgerStatementPage: React.FC = () => {
                       return (
                         <table className="w-full text-left text-xs border-collapse">
                           <thead className="sticky top-0 z-10">
-                            <tr className="bg-head text-ink-muted font-bold border-b border-line">
+                            <tr className="bg-card-2 text-ink-muted font-bold border-b border-line">
                               <th className={hdrCell}>Date</th>
                               <th className={hdrCell}>Type</th>
                               <th className={hdrCell}>Vch No</th>
                               <th className={hdrCell}>Particulars</th>
-                              <th className="py-1.5 px-2 bg-head text-ink-muted font-bold text-[10px] uppercase tracking-wide text-right">
+                              <th className="py-1.5 px-2 bg-card-2 text-ink-muted font-bold text-[11.5px] uppercase tracking-wide text-right">
                                 Amount ({kind === "dr" ? "Dr" : "Cr"})
                               </th>
                             </tr>
@@ -1979,14 +1989,12 @@ export const LedgerStatementPage: React.FC = () => {
                           <tbody>
                             {/* Opening Balance row — Dr side only */}
                             {showOpening && (
-                              <tr className="border-b border-line-soft bg-blue-500/10">
+                              <tr className="border-b border-line-soft bg-nav-active">
                                 <td className={cell}></td>
                                 <td className={cell}></td>
                                 <td className={cell}></td>
-                                <td className={`${cell} font-bold text-blue-400`}>
-                                  Opening Balance
-                                </td>
-                                <td className="px-2 py-1 text-right font-mono font-bold text-blue-400">
+                                <td className={`${cell} font-bold text-accent`}>Opening Balance</td>
+                                <td className="px-2 py-1 text-right tabular-nums font-bold text-accent">
                                   {openingBal.toLocaleString("en-IN", {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
@@ -2000,16 +2008,18 @@ export const LedgerStatementPage: React.FC = () => {
                                 key={row.id}
                                 className={`border-b border-line-soft ${i % 2 === 1 ? "bg-card-2/20" : ""} hover:bg-card-2/70`}
                               >
-                                <td className={`${cell} font-mono text-[11px] whitespace-nowrap`}>
+                                <td
+                                  className={`${cell} tabular-nums text-[12.5px] whitespace-nowrap`}
+                                >
                                   {row.date}
                                 </td>
                                 <td className={`${cell} whitespace-nowrap`}>
-                                  <span className="px-1 py-0.5 rounded text-[10px] font-semibold bg-card-2 text-ink-muted border border-line">
+                                  <span className="px-1 py-0.5 rounded text-[11.5px] font-semibold bg-card-2 text-ink-muted border border-line">
                                     {shortVoucherType(row.voucherType)}
                                   </span>
                                 </td>
                                 <td
-                                  className={`${cell} font-mono font-bold whitespace-nowrap text-ink`}
+                                  className={`${cell} tabular-nums font-bold whitespace-nowrap text-ink`}
                                 >
                                   {row.voucherNo}
                                 </td>
@@ -2018,7 +2028,7 @@ export const LedgerStatementPage: React.FC = () => {
                                 >
                                   {row.particulars}
                                 </td>
-                                <td className="px-2 py-1 text-right font-mono text-ink whitespace-nowrap">
+                                <td className="px-2 py-1 text-right tabular-nums text-ink whitespace-nowrap">
                                   {(kind === "dr" ? row.debit : row.credit).toLocaleString(
                                     "en-IN",
                                     { minimumFractionDigits: 2, maximumFractionDigits: 2 }
@@ -2031,10 +2041,8 @@ export const LedgerStatementPage: React.FC = () => {
                               <td className={cell}></td>
                               <td className={cell}></td>
                               <td className={cell}></td>
-                              <td className={`${cell} font-bold text-blue-500 text-right`}>
-                                Total
-                              </td>
-                              <td className="px-2 py-1 text-right font-mono font-bold text-blue-500">
+                              <td className={`${cell} font-bold text-accent text-right`}>Total</td>
+                              <td className="px-2 py-1 text-right tabular-nums font-bold text-accent">
                                 {(total + (showOpening ? openingBal : 0)).toLocaleString("en-IN", {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
@@ -2044,14 +2052,12 @@ export const LedgerStatementPage: React.FC = () => {
                             {/* Closing Balance row — Cr or Dr side based on
                              which side needs the balancing figure. */}
                             {showClosing && (
-                              <tr className="border-b border-line-soft bg-blue-500/10">
+                              <tr className="border-b border-line-soft bg-nav-active">
                                 <td className={cell}></td>
                                 <td className={cell}></td>
                                 <td className={cell}></td>
-                                <td className={`${cell} font-bold text-blue-400`}>
-                                  Closing Balance
-                                </td>
-                                <td className="px-2 py-1 text-right font-mono font-bold text-blue-400">
+                                <td className={`${cell} font-bold text-accent`}>Closing Balance</td>
+                                <td className="px-2 py-1 text-right tabular-nums font-bold text-accent">
                                   {Math.abs(closingBal).toLocaleString("en-IN", {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
@@ -2091,21 +2097,21 @@ export const LedgerStatementPage: React.FC = () => {
                 <div className="overflow-auto flex-1 min-h-0">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="sticky top-0 z-10">
-                      <tr className="bg-head text-ink-muted font-bold border-b border-line text-[10px] uppercase tracking-wide">
-                        <th className="py-2 px-3 bg-head">Date</th>
-                        <th className="py-2 px-3 bg-head">Type</th>
-                        <th className="py-2 px-3 bg-head">Vch/Bill No</th>
+                      <tr className="bg-card-2 text-ink-muted font-bold border-b border-line text-[11.5px] uppercase tracking-wide">
+                        <th className="py-2 px-3 bg-card-2">Date</th>
+                        <th className="py-2 px-3 bg-card-2">Type</th>
+                        <th className="py-2 px-3 bg-card-2">Vch/Bill No</th>
                         {/* Merged Ledger's Particulars column is really the contra
                        account — Busy labels it "Account" in that view. */}
-                        <th className="py-2 px-3 bg-head">
+                        <th className="py-2 px-3 bg-card-2">
                           {isMerged ? "Account" : "Particulars"}
                         </th>
                         {(options.longNarration || options.shortNarration) && (
-                          <th className="py-2 px-3 bg-head">Narration</th>
+                          <th className="py-2 px-3 bg-card-2">Narration</th>
                         )}
-                        <th className="py-2 px-3 bg-head text-right">Debit (Rs.)</th>
-                        <th className="py-2 px-3 bg-head text-right">Credit (Rs.)</th>
-                        <th className="py-2 px-3 bg-head text-right">
+                        <th className="py-2 px-3 bg-card-2 text-right">Debit (Rs.)</th>
+                        <th className="py-2 px-3 bg-card-2 text-right">Credit (Rs.)</th>
+                        <th className="py-2 px-3 bg-card-2 text-right">
                           {options.dailyBal ? "Daily Bal." : "Balance (Rs.)"}
                         </th>
                       </tr>
@@ -2134,16 +2140,18 @@ export const LedgerStatementPage: React.FC = () => {
                             key={row.id}
                             className={`border-b border-line-soft ${absIdx % 2 === 1 ? "bg-card-2/20" : ""} hover:bg-card-2/70`}
                           >
-                            <td className={`${cellBase} font-mono text-[11px] whitespace-nowrap`}>
+                            <td
+                              className={`${cellBase} tabular-nums text-[12.5px] whitespace-nowrap`}
+                            >
                               {row.date}
                             </td>
                             <td className={`${cellBase} whitespace-nowrap`}>
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-card-2 text-ink-muted border border-line">
+                              <span className="px-1.5 py-0.5 rounded text-[11.5px] font-semibold bg-card-2 text-ink-muted border border-line">
                                 {shortVoucherType(row.voucherType)}
                               </span>
                             </td>
                             <td
-                              className={`${cellBase} font-mono font-bold whitespace-nowrap text-ink`}
+                              className={`${cellBase} tabular-nums font-bold whitespace-nowrap text-ink`}
                             >
                               {row.voucherNo}
                             </td>
@@ -2152,26 +2160,26 @@ export const LedgerStatementPage: React.FC = () => {
                             </td>
                             {narrCol > 0 && (
                               <td
-                                className={`${cellBase} text-ink-subtle text-[11px] ${options.longNarration ? "" : "max-w-xs truncate"}`}
+                                className={`${cellBase} text-ink-subtle text-[12.5px] ${options.longNarration ? "" : "max-w-xs truncate"}`}
                               >
                                 {row.narration || "-"}
                               </td>
                             )}
                             <td
-                              className={`${cellBase} text-right font-mono text-ink whitespace-nowrap`}
+                              className={`${cellBase} text-right tabular-nums text-ink whitespace-nowrap`}
                             >
                               {row.debit > 0
                                 ? `₹ ${row.debit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                 : "-"}
                             </td>
                             <td
-                              className={`${cellBase} text-right font-mono text-amber-500 font-semibold whitespace-nowrap`}
+                              className={`${cellBase} text-right tabular-nums text-[color:var(--color-warning)] font-semibold whitespace-nowrap`}
                             >
                               {row.credit > 0
                                 ? `₹ ${row.credit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                 : "-"}
                             </td>
-                            <td className="px-2 py-1 text-right font-mono font-bold text-ink whitespace-nowrap">
+                            <td className="px-2 py-1 text-right tabular-nums font-bold text-ink whitespace-nowrap">
                               {Math.abs(row.runningBalance) < 0.005 ? (
                                 <>₹ 0.00</>
                               ) : (
@@ -2181,7 +2189,7 @@ export const LedgerStatementPage: React.FC = () => {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
-                                  <span className="ml-1 text-[10px] text-ink-subtle">
+                                  <span className="ml-1 text-[11.5px] text-ink-subtle">
                                     {row.runningBalance >= 0 ? "Dr" : "Cr"}
                                   </span>
                                 </>
@@ -2281,10 +2289,10 @@ export const LedgerStatementPage: React.FC = () => {
                             { closing: number; closingSide: "Dr" | "Cr" } | undefined;
                           return (
                             <React.Fragment key={`grp-${gi}-${g.name}`}>
-                              <tr className="bg-blue-500/10">
+                              <tr className="bg-nav-active">
                                 <td
                                   colSpan={totalCols}
-                                  className="py-1 px-3 text-[11px] font-bold text-blue-400 uppercase tracking-wide border-b border-line-soft"
+                                  className="py-1 px-3 text-[12.5px] font-bold text-accent uppercase tracking-wide border-b border-line-soft"
                                 >
                                   *** {g.name} ***
                                 </td>
@@ -2293,11 +2301,11 @@ export const LedgerStatementPage: React.FC = () => {
                               <tr className="bg-card-2/50 border-b border-line-soft">
                                 <td
                                   colSpan={6 + narrCol}
-                                  className={`${cellBase} text-[11px] font-bold text-blue-400 text-right`}
+                                  className={`${cellBase} text-[12.5px] font-bold text-accent text-right`}
                                 >
                                   Closing Balance
                                 </td>
-                                <td className="px-2 py-1 text-right font-mono font-bold text-blue-500 text-[11px] whitespace-nowrap">
+                                <td className="px-2 py-1 text-right tabular-nums font-bold text-accent text-[12.5px] whitespace-nowrap">
                                   {bal ? (
                                     <>
                                       ₹{" "}
@@ -2334,7 +2342,7 @@ export const LedgerStatementPage: React.FC = () => {
                   {filteredEntries.length} entries · Filtered Totals
                 </span>
                 <div className="flex items-center gap-4">
-                  <span className="font-mono text-ink">
+                  <span className="tabular-nums text-ink">
                     Dr ₹{" "}
                     {filteredEntries
                       .reduce((s, e) => s + e.debit, 0)
@@ -2343,7 +2351,7 @@ export const LedgerStatementPage: React.FC = () => {
                         maximumFractionDigits: 2,
                       })}
                   </span>
-                  <span className="font-mono text-amber-500 font-semibold">
+                  <span className="tabular-nums text-[color:var(--color-warning)] font-semibold">
                     Cr ₹{" "}
                     {filteredEntries
                       .reduce((s, e) => s + e.credit, 0)
@@ -2352,13 +2360,13 @@ export const LedgerStatementPage: React.FC = () => {
                         maximumFractionDigits: 2,
                       })}
                   </span>
-                  <span className="font-mono font-black text-blue-500">
+                  <span className="tabular-nums font-bold text-accent">
                     Closing ₹{" "}
                     {Math.abs(statement.closingBalance).toLocaleString("en-IN", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
-                    <span className="ml-1 text-[10px] font-semibold">
+                    <span className="ml-1 text-[11.5px] font-semibold">
                       {statement.closingBalance >= 0 ? "Dr" : "Cr"}
                     </span>
                   </span>
