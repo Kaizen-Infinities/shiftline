@@ -12,6 +12,8 @@ import {
   type DayBook,
 } from "../../../../services/booksService";
 import { formatDate } from "../../../../utils/dateUtils";
+import { BookOpen } from "lucide-react";
+import { ChipTabs, PageHeader } from "../../../../components/ui/v2";
 
 /**
  * Day book, cash book and bank book (P1-10b): the books of prime entry, drawn from the same
@@ -35,12 +37,10 @@ const VOUCHER_TYPES = [
   "EXPENSE",
 ];
 
-const input =
-  "rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-blue-500";
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
-const td = "px-3 py-1.5 text-sm text-ink";
+const input = "sl-input h-11 text-sm";
+const th =
+  "bg-card-2 px-4 py-2.5 text-left text-[12px] font-semibold text-ink-muted whitespace-nowrap";
+const td = "px-4 py-2 text-[13.5px] text-ink";
 const num = `${td} text-right tabular-nums`;
 
 const fmt = (n: number) =>
@@ -165,41 +165,35 @@ const BooksPage: React.FC = () => {
     });
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-ink">{TABS.find((t) => t.key === tab)?.title}</h2>
-        <p className="text-sm text-ink-muted">
-          {tab === "day" && "Every voucher of the period, day by day, with its ledger lines."}
-          {tab === "cash" && "All cash-in-hand ledgers as one running statement."}
-          {tab === "bank" && "One bank account or overdraft as a running statement."}
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2 border-b border-line-soft">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => navigate(t.path)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
-              t.key === tab
-                ? "border-blue-600 text-blue-700"
-                : "border-transparent text-ink-muted hover:text-ink"
-            }`}
-          >
-            {t.title}
-          </button>
-        ))}
-      </div>
+    <div className="w-full space-y-4">
+      <PageHeader
+        title={TABS.find((t) => t.key === tab)?.title}
+        subtitle={
+          tab === "day"
+            ? "Every voucher of the period, day by day, with its ledger lines."
+            : tab === "cash"
+              ? "All cash-in-hand ledgers as one running statement."
+              : "One bank account or overdraft as a running statement."
+        }
+        icon={<BookOpen size={20} />}
+        className="!mb-0"
+      >
+        <ChipTabs
+          ariaLabel="Books"
+          items={TABS.map((t) => ({ key: t.key, label: t.title }))}
+          value={tab}
+          onChange={(key) => navigate(TABS.find((t) => t.key === key)!.path)}
+        />
+      </PageHeader>
 
       <form
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-line-soft bg-card p-4"
+        className="sl-tile flex flex-wrap items-end gap-4 p-4 sm:p-5"
         onSubmit={(e) => {
           e.preventDefault();
           setApplied((n) => n + 1);
         }}
       >
-        <label className="text-xs font-medium text-ink-muted">
+        <label className="sl-label !mb-0 flex-col items-start gap-1.5">
           From
           <input
             type="date"
@@ -208,7 +202,7 @@ const BooksPage: React.FC = () => {
             onChange={(e) => setStartDate(e.target.value)}
           />
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className="sl-label !mb-0 flex-col items-start gap-1.5">
           To
           <input
             type="date"
@@ -218,7 +212,7 @@ const BooksPage: React.FC = () => {
           />
         </label>
         {tab === "day" && (
-          <label className="text-xs font-medium text-ink-muted">
+          <label className="sl-label !mb-0 flex-col items-start gap-1.5">
             Voucher type
             <select
               className={`${input} block`}
@@ -235,7 +229,7 @@ const BooksPage: React.FC = () => {
           </label>
         )}
         {tab === "bank" && (
-          <label className="text-xs font-medium text-ink-muted">
+          <label className="sl-label !mb-0 flex-col items-start gap-1.5">
             Bank ledger
             <select
               className={`${input} block min-w-48`}
@@ -250,7 +244,7 @@ const BooksPage: React.FC = () => {
             </select>
           </label>
         )}
-        <label className="text-xs font-medium text-ink-muted">
+        <label className="sl-label !mb-0 flex-col items-start gap-1.5">
           Search
           <input
             className={`${input} block`}
@@ -260,22 +254,23 @@ const BooksPage: React.FC = () => {
           />
         </label>
         {tab === "day" && (
-          <label className="flex items-center gap-2 pb-2 text-sm text-ink">
+          <label className="flex h-11 items-center gap-2 text-sm text-ink-muted">
             <input
               type="checkbox"
+              className="sl-check"
               checked={includeCancelled}
               onChange={(e) => setIncludeCancelled(e.target.checked)}
             />
             Show cancelled
           </label>
         )}
-        <button type="submit" className={secondary} disabled={loading}>
-          {loading ? "Loading…" : "Apply"}
+        <button type="submit" className="sl-btn-blue sl-pill-md" disabled={loading}>
+          {loading ? "Loading…" : "Run report"}
         </button>
       </form>
 
       {tab === "day" && dayBook && (
-        <section className="rounded-xl border border-line-soft bg-card">
+        <section className="sl-tile overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft px-4 py-3 text-sm">
             <span className="text-ink-muted">
               {dayBook.voucherCount} voucher{dayBook.voucherCount === 1 ? "" : "s"}
@@ -307,9 +302,9 @@ const BooksPage: React.FC = () => {
                         <td className={`${td} w-8 text-ink-muted`}>{open.has(v.id) ? "▾" : "▸"}</td>
                         <td className={`${td} font-medium`}>{v.voucherNo}</td>
                         <td className={td}>
-                          <span className="rounded bg-card-2 px-1.5 py-0.5 text-xs">{v.type}</span>
+                          <span className="sl-chip sl-chip-sm">{v.type}</span>
                           {v.status !== "POSTED" && (
-                            <span className="ml-1 rounded bg-rose-100 px-1.5 py-0.5 text-xs text-rose-800">
+                            <span className="sl-chip sl-chip-sm sl-chip-danger ml-1">
                               {v.status}
                             </span>
                           )}
@@ -325,7 +320,7 @@ const BooksPage: React.FC = () => {
                               {l.ledgerId ? (
                                 <Link
                                   to={`/accounts/ledger-statement?mode=one&acc=${l.ledgerId}`}
-                                  className="text-blue-700 hover:underline"
+                                  className="text-accent hover:underline"
                                 >
                                   {l.code} · {l.name}
                                 </Link>
@@ -349,7 +344,7 @@ const BooksPage: React.FC = () => {
       )}
 
       {tab === "cash" && cashBook && (
-        <section className="rounded-xl border border-line-soft bg-card">
+        <section className="sl-tile overflow-hidden">
           <div className="border-b border-line-soft px-4 py-3 text-sm text-ink-muted">
             Ledgers: {cashBook.ledgers.map((l) => `${l.code} ${l.name}`).join(", ")}
           </div>
@@ -362,7 +357,7 @@ const BooksPage: React.FC = () => {
       )}
 
       {tab === "bank" && bankBook && (
-        <section className="rounded-xl border border-line-soft bg-card">
+        <section className="sl-tile overflow-hidden">
           {bankBook.ledgers.length === 0 ? (
             <p className="px-4 py-6 text-sm text-ink-muted">
               No bank ledger yet. Add one under Bank Accounts in the Chart of Accounts.

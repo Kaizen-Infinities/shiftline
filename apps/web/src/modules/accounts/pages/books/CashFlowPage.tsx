@@ -9,16 +9,16 @@ import {
   type CashFlowGroupLine,
   type CashFlowStatement,
 } from "../../../../services/booksService";
+import { Printer, Waves } from "lucide-react";
+import { ActionPill, PageHeader, SkeletonTile, StatTile } from "../../../../components/ui/v2";
+import { fmtINRCompact } from "../../components/accountsUi";
 
 /**
  * Cash flow statement, indirect method (P1-10b): profit adjusted for depreciation and working
  * capital, then investing and financing movements, reconciled to the change in cash and bank.
  */
-const input =
-  "rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-blue-500";
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const row = "flex items-center justify-between gap-4 px-4 py-1.5 text-sm";
+const input = "sl-input h-11 text-sm";
+const row = "flex items-center justify-between gap-4 px-4 py-2 text-[13.5px] text-ink";
 
 const fmt = (n: number) => {
   const s = Math.abs(n).toLocaleString("en-IN", {
@@ -41,7 +41,7 @@ const GroupLines: React.FC<{
       <React.Fragment key={l.groupCode}>
         <button
           type="button"
-          className={`${row} w-full text-left hover:bg-card-2`}
+          className={`${row} sl-row-hover w-full text-left`}
           onClick={() => toggle(l.groupCode)}
         >
           <span className="text-ink">
@@ -55,7 +55,7 @@ const GroupLines: React.FC<{
             <div key={g.ledgerId} className={`${row} bg-card-2/50 pl-10 text-xs`}>
               <Link
                 to={`/accounts/ledger-statement?mode=one&acc=${g.ledgerId}`}
-                className="text-blue-700 hover:underline"
+                className="text-accent hover:underline"
               >
                 {g.code} · {g.name}
               </Link>
@@ -72,8 +72,8 @@ const Section: React.FC<{ title: string; total: number; children: React.ReactNod
   total,
   children,
 }) => (
-  <section className="rounded-xl border border-line-soft bg-card">
-    <h3 className="border-b border-line-soft px-4 py-2 text-sm font-semibold text-ink">{title}</h3>
+  <section className="sl-tile overflow-hidden">
+    <h3 className="sl-h2 m-0 border-b border-line-soft px-4 py-3 text-[15px]">{title}</h3>
     <div className="divide-y divide-line-soft/60 py-1">{children}</div>
     <div className={`${row} border-t border-line-soft font-semibold`}>
       <span>Net cash from {title.toLowerCase()}</span>
@@ -114,23 +114,46 @@ const CashFlowPage: React.FC = () => {
     });
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-ink">Cash Flow Statement</h2>
-        <p className="text-sm text-ink-muted">
-          Indirect method. Figures in brackets are outflows. Depreciation is assumed to be posted
-          against a Fixed Assets ledger.
-        </p>
-      </div>
+    <div className="flex w-full flex-col gap-4">
+      <PageHeader
+        title="Cash Flow Statement"
+        subtitle="Indirect method. Figures in brackets are outflows. Depreciation is assumed to be posted against a Fixed Assets ledger."
+        icon={<Waves size={20} />}
+        className="!mb-0"
+        actions={
+          <ActionPill
+            variant="secondary"
+            icon={<Printer size={16} />}
+            onClick={() => window.print()}
+            disabled={!data}
+          >
+            Print
+          </ActionPill>
+        }
+      />
+      {data && (
+        <div className="order-3 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <StatTile label="Operating" value={fmtINRCompact(data.operating.total)} />
+          <StatTile label="Investing" value={fmtINRCompact(data.investing.total)} />
+          <StatTile label="Financing" value={fmtINRCompact(data.financing.total)} />
+          <StatTile
+            label="Closing cash and bank"
+            value={fmtINRCompact(data.closingCash)}
+            delta={data.reconciles ? "Ties" : "Off"}
+            deltaTone={data.reconciles ? "success" : "danger"}
+          />
+        </div>
+      )}
+      {!data && loading && <SkeletonTile className="order-3" lines={6} label="Loading cash flow" />}
 
       <form
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-line-soft bg-card p-4"
+        className="order-2 sl-tile flex flex-wrap items-end gap-4 p-4 sm:p-5"
         onSubmit={(e) => {
           e.preventDefault();
           setApplied({ startDate, endDate });
         }}
       >
-        <label className="text-xs font-medium text-ink-muted">
+        <label className="sl-label !mb-0 flex-col items-start gap-1.5">
           From
           <input
             type="date"
@@ -140,7 +163,7 @@ const CashFlowPage: React.FC = () => {
             required
           />
         </label>
-        <label className="text-xs font-medium text-ink-muted">
+        <label className="sl-label !mb-0 flex-col items-start gap-1.5">
           To
           <input
             type="date"
@@ -150,13 +173,13 @@ const CashFlowPage: React.FC = () => {
             required
           />
         </label>
-        <button type="submit" className={secondary} disabled={loading}>
-          {loading ? "Loading…" : "Apply"}
+        <button type="submit" className="sl-btn-blue sl-pill-md" disabled={loading}>
+          {loading ? "Loading…" : "Run report"}
         </button>
       </form>
 
       {data && (
-        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+        <div className="order-4 grid gap-4 lg:grid-cols-[2fr_1fr]">
           <div className="space-y-4">
             <Section title="Operating activities" total={data.operating.total}>
               <div className={row}>
@@ -168,7 +191,7 @@ const CashFlowPage: React.FC = () => {
                 <span className="tabular-nums">{fmt(data.operating.depreciation)}</span>
               </div>
               {data.operating.workingCapital.length > 0 && (
-                <div className={`${row} text-xs uppercase tracking-wide text-ink-muted`}>
+                <div className={`${row} text-[12px] font-semibold text-ink-muted`}>
                   Changes in working capital
                 </div>
               )}
@@ -189,8 +212,8 @@ const CashFlowPage: React.FC = () => {
           </div>
 
           <aside className="space-y-4">
-            <section className="rounded-xl border border-line-soft bg-card">
-              <h3 className="border-b border-line-soft px-4 py-2 text-sm font-semibold text-ink">
+            <section className="sl-tile overflow-hidden">
+              <h3 className="sl-h2 m-0 border-b border-line-soft px-4 py-3 text-[15px]">
                 Cash and cash equivalents
               </h3>
               <div className="py-1">
@@ -208,17 +231,19 @@ const CashFlowPage: React.FC = () => {
                 </div>
                 <div className={`${row} text-xs`}>
                   {data.reconciles ? (
-                    <span className="text-emerald-700">Ties to the balance sheet</span>
+                    <span className="sl-chip sl-chip-success sl-chip-sm">
+                      Ties to the balance sheet
+                    </span>
                   ) : (
-                    <span className="text-rose-700">
+                    <span className="sl-chip sl-chip-danger sl-chip-sm !whitespace-normal">
                       Off by {fmt(data.difference)}: an unclassified ledger or an unbalanced voucher
                     </span>
                   )}
                 </div>
               </div>
             </section>
-            <section className="rounded-xl border border-line-soft bg-card">
-              <h3 className="border-b border-line-soft px-4 py-2 text-sm font-semibold text-ink">
+            <section className="sl-tile overflow-hidden">
+              <h3 className="sl-h2 m-0 border-b border-line-soft px-4 py-3 text-[15px]">
                 Movement by cash ledger
               </h3>
               <div className="py-1">
@@ -229,7 +254,7 @@ const CashFlowPage: React.FC = () => {
                   <div key={l.ledgerId} className={`${row} text-xs`}>
                     <Link
                       to={`/accounts/ledger-statement?mode=one&acc=${l.ledgerId}`}
-                      className="text-blue-700 hover:underline"
+                      className="text-accent hover:underline"
                     >
                       {l.code} · {l.name}
                     </Link>
