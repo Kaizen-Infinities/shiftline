@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { Itc04Registered } from "../../../services/jobWorkService";
+import { Chip } from "../../../components/ui/v2";
 import ApprovalPanel from "./ApprovalPanel";
 import { Card, day, money, secondary, td, th } from "./gstUi";
 
@@ -9,9 +10,9 @@ import { Card, day, money, secondary, td, th } from "./gstUi";
  * ITC-04 tab (P2-18) — previously duplicated markup, one per screen.
  */
 const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="rounded-lg border border-line-soft bg-card-2 p-3">
-    <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
-    <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+  <div className="rounded-[14px] bg-card-2 p-3 sm:p-4">
+    <p className="m-0 text-[13px] font-medium text-ink-muted">{label}</p>
+    <p className="m-0 mt-1 text-xl font-bold tabular-nums text-ink">{value}</p>
   </div>
 );
 
@@ -22,16 +23,16 @@ const Itc04Tables: React.FC<{
   onRegister: () => void | Promise<void>;
   onFilingChange: (filing: NonNullable<Itc04Registered["filing"]>) => void;
 }> = ({ itc, canManage, busy, onRegister, onFilingChange }) => (
-  <>
+  <div className="space-y-4">
     <Card
-      title={`ITC-04 · ${itc.from} to ${itc.to}`}
+      title={`ITC-04 · ${day(itc.from)} to ${day(itc.to)}`}
       actions={
         canManage && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {itc.json && (
-              <span className="text-xs text-ink-muted">
+              <Chip tone="success" size="sm" dot>
                 JSON ready ({(itc.json as { version?: string }).version ?? "GST-ITC04-2.1"})
-              </span>
+              </Chip>
             )}
             <button className={secondary} disabled={busy} onClick={() => void onRegister()}>
               Register / refresh
@@ -61,7 +62,7 @@ const Itc04Tables: React.FC<{
         <Stat label="Received back" value={String(itc.totals.challansReceived)} />
       </div>
       {itc.filing && (
-        <div className="mt-3">
+        <div className="mt-4 border-t border-line-soft pt-4">
           <ApprovalPanel row={itc.filing} onChange={onFilingChange} />
         </div>
       )}
@@ -87,13 +88,17 @@ const Itc04Tables: React.FC<{
                 <td className={td}>
                   {r.jobWorkerName ?? "—"}
                   {!r.registered && (
-                    <span className="ml-1 text-xs text-ink-muted">(unregistered)</span>
+                    <Chip tone="muted" size="sm" className="ml-1">
+                      Unregistered
+                    </Chip>
                   )}
                 </td>
                 <td className={td}>
                   {r.description}
                   {r.capitalGoods && (
-                    <span className="ml-1 text-xs text-ink-muted">capital goods</span>
+                    <Chip size="sm" className="ml-1">
+                      Capital goods
+                    </Chip>
                   )}
                 </td>
                 <td className={`${td} text-right`}>
@@ -216,7 +221,7 @@ const Itc04Tables: React.FC<{
         </table>
       </div>
     </Card>
-  </>
+  </div>
 );
 
 export default Itc04Tables;

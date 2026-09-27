@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { Clock3, Route, Truck } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
 import {
@@ -9,20 +10,33 @@ import {
   type EwbStatus,
   type TripSheetRow,
 } from "../../../services/ewayBillService";
+import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
+import {
+  ActionPill,
+  Chip,
+  PageHeader,
+  Tile,
+  Toolbar,
+  actionPillClass,
+  type ChipTone,
+} from "../../../components/ui/v2";
 
 /** E-way bill register (P1-12): every bill with validity, the ones about to lapse, and trip sheets. */
-const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted";
-const td = "px-3 py-1.5 text-sm text-ink";
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const field = "rounded-lg border border-line-soft bg-card px-3 py-1.5 text-sm text-ink";
-const STATUS: Record<EwbStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
-  EXPIRED: "bg-rose-100 text-rose-800",
-  FAILED: "bg-rose-100 text-rose-800",
+const STATUS_TONE: Record<EwbStatus, ChipTone> = {
+  PENDING: "warning",
+  ACTIVE: "success",
+  CANCELLED: "muted",
+  EXPIRED: "danger",
+  FAILED: "danger",
 };
+const STATUS_LABEL: Record<EwbStatus, string> = {
+  PENDING: "Pending",
+  ACTIVE: "Active",
+  CANCELLED: "Cancelled",
+  EXPIRED: "Expired",
+  FAILED: "Failed",
+};
+const HOUR = 3600 * 1000;
 const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
 const linkFor = (r: EwayBillRow) =>
@@ -30,6 +44,8 @@ const linkFor = (r: EwayBillRow) =>
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   "Something went wrong";
+
+type Filter = EwbStatus | "" | "EXPIRING";
 
 const EwayBillsPage: React.FC = () => {
   const { can } = usePermission();
@@ -89,168 +105,242 @@ const EwayBillsPage: React.FC = () => {
     (r) =>
       r.status === "ACTIVE" &&
       r.validUpto &&
-      new Date(r.validUpto).getTime() - Date.now() < 12 * 3600 * 1000
+      new Date(r.validUpto).getTime() - Date.now() < 12 * HOUR
   ).length;
-  return (
-    <div className="p-4 md:p-6 space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-ink">E-way Bills</h2>
-          <p className="text-sm text-ink-muted">
-            Every e-way bill raised for invoices and dispatch challans, with validity. Tick live
-            bills on one vehicle to make a trip sheet.
-          </p>
-        </div>
-        {lapsing > 0 && (
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-            {lapsing} expiring within 12 h
-          </span>
+
+  const filter: Filter = expiring ? "EXPIRING" : status;
+  const onFilter = (f: Filter) => {
+    if (f === "EXPIRING") {
+      setStatus("ACTIVE");
+      setExpiring(true);
+    } else {
+      setExpiring(false);
+      setStatus(f);
+    }
+  };
+
+  const validity = (r: EwayBillRow) => {
+    if (!r.validUpto) return <span className="text-ink-subtle">—</span>;
+    const left = new Date(r.validUpto).getTime() - Date.now();
+    const soon = r.status === "ACTIVE" && left > 0 && left < 24 * HOUR;
+    return (
+      <div className="text-xs">
+        <div className="tabular-nums text-ink">{when(r.validUpto)}</div>
+        {soon && (
+          <Chip tone="warning" size="sm" icon={<Clock3 size={12} />} className="mt-1">
+            {Math.max(1, Math.round(left / HOUR))} h left
+          </Chip>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className={field}
-          value={status}
-          onChange={(e) => setStatus(e.target.value as EwbStatus | "")}
-          aria-label="Status"
-        >
-          <option value="">All statuses</option>
-          {(Object.keys(STATUS) as EwbStatus[]).map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <label className="flex items-center gap-1 text-sm text-ink">
+    );
+  };
+
+  const columns: DataTableColumn<EwayBillRow>[] = [
+    {
+      header: "",
+      headerNode: <span className="sr-only">Select</span>,
+      width: "48px",
+      render: (r) =>
+        r.status === "ACTIVE" && !r.consolidatedNo ? (
           <input
             type="checkbox"
-            checked={expiring}
-            onChange={(e) => setExpiring(e.target.checked)}
-          />{" "}
-          Expiring within 12 hours
-        </label>
-      </div>
+            className="sl-check"
+            aria-label={`Select ${r.ewbNo ?? r.docNo}`}
+            checked={selected.includes(r.id)}
+            onChange={(e) =>
+              setSelected((s) => (e.target.checked ? [...s, r.id] : s.filter((x) => x !== r.id)))
+            }
+          />
+        ) : null,
+    },
+    {
+      header: "Document",
+      render: (r) => (
+        <Link className="font-semibold text-accent hover:underline" to={linkFor(r)}>
+          {r.docType === "INV" ? "Invoice" : "Challan"} {r.docNo}
+        </Link>
+      ),
+    },
+    {
+      header: "EWB No.",
+      render: (r) => <span className="font-mono text-xs">{r.ewbNo ?? "—"}</span>,
+    },
+    {
+      header: "Status",
+      render: (r) => (
+        <div className="py-1">
+          <Chip tone={STATUS_TONE[r.status]} size="sm" dot>
+            {STATUS_LABEL[r.status]}
+          </Chip>
+          {r.error && r.status === "FAILED" && (
+            <div
+              className="mt-1 max-w-xs truncate text-xs text-[color:var(--color-danger)]"
+              title={r.error}
+            >
+              {r.error}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Vehicle",
+      render: (r) => (
+        <div>
+          <div className="font-medium">{r.vehicleNo ?? "—"}</div>
+          <div className="text-xs text-ink-muted">{r.distanceKm} km</div>
+        </div>
+      ),
+    },
+    { header: "Valid until", render: validity },
+    {
+      header: "Trip sheet",
+      render: (r) => <span className="font-mono text-xs">{r.consolidatedNo ?? ""}</span>,
+    },
+  ];
+
+  const sheetColumns: DataTableColumn<TripSheetRow>[] = [
+    {
+      header: "Trip sheet",
+      render: (s) => <span className="font-mono text-xs font-semibold">{s.cewbNo}</span>,
+    },
+    { header: "Vehicle", render: (s) => s.vehicleNo },
+    { header: "From", render: (s) => s.fromPlace },
+    {
+      header: "Bills",
+      render: (s) => <span className="font-mono text-xs">{s.ewbNos.join(", ")}</span>,
+    },
+    {
+      header: "Generated",
+      render: (s) => <span className="text-xs text-ink-muted">{when(s.cewbDate)}</span>,
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <PageHeader
+        title="E-way Bills"
+        icon={<Truck size={22} />}
+        subtitle="Every e-way bill raised for invoices and dispatch challans, with validity. Tick live bills on one vehicle to make a trip sheet."
+        meta={
+          lapsing > 0 ? (
+            <Chip tone="warning" dot>
+              {lapsing} expiring within 12 h
+            </Chip>
+          ) : undefined
+        }
+        actions={
+          can("transporters.view") ? (
+            <Link to="/settings/transporters" className={actionPillClass({ variant: "secondary" })}>
+              Transporters
+            </Link>
+          ) : undefined
+        }
+        primaryAction={
+          <Link to="/sales-invoices" className={actionPillClass({ size: "lg" })}>
+            Generate E-way Bill
+          </Link>
+        }
+      />
+
+      <Toolbar<Filter>
+        filters={[
+          { key: "", label: "All" },
+          { key: "EXPIRING", label: "Expiring < 12h", count: lapsing > 0 ? lapsing : undefined },
+          ...(Object.keys(STATUS_LABEL) as EwbStatus[]).map((s) => ({
+            key: s as Filter,
+            label: STATUS_LABEL[s],
+          })),
+        ]}
+        filterValue={filter}
+        onFilterChange={onFilter}
+        filtersLabel="Status"
+      />
+
       {selected.length > 0 && can("eway-bill.generate") && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line-soft bg-card p-3">
-          <span className="text-sm text-ink">Trip sheet for {selected.length} bill(s):</span>
-          <input
-            className={field}
-            placeholder="From place"
-            value={trip.fromPlace}
-            onChange={(e) => setTrip({ ...trip, fromPlace: e.target.value })}
-          />
-          <input
-            className={field}
-            placeholder="State code"
-            value={trip.fromState}
-            onChange={(e) => setTrip({ ...trip, fromState: e.target.value })}
-          />
-          <input
-            className={field}
-            placeholder="Vehicle no."
-            value={trip.vehicleNo}
-            onChange={(e) => setTrip({ ...trip, vehicleNo: e.target.value.toUpperCase() })}
-          />
-          <button
-            type="button"
-            className={primary}
-            disabled={busy || !trip.fromPlace || !trip.fromState || !trip.vehicleNo}
-            onClick={consolidate}
-          >
-            Generate trip sheet
-          </button>
-        </div>
+        <Tile
+          title={`Trip sheet for ${selected.length} bill(s)`}
+          icon={<Route size={18} />}
+          subtitle="One vehicle, one consolidated e-way bill."
+          actions={
+            <ActionPill variant="secondary" size="sm" onClick={() => setSelected([])}>
+              Clear selection
+            </ActionPill>
+          }
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_140px_1fr_auto] lg:items-end">
+            <label className="block">
+              <span className="sl-label">From place</span>
+              <input
+                className="sl-input h-11 py-0 text-sm"
+                placeholder="From place"
+                value={trip.fromPlace}
+                onChange={(e) => setTrip({ ...trip, fromPlace: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="sl-label">State code</span>
+              <input
+                className="sl-input h-11 py-0 text-sm"
+                placeholder="State code"
+                inputMode="numeric"
+                value={trip.fromState}
+                onChange={(e) => setTrip({ ...trip, fromState: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="sl-label">Vehicle no.</span>
+              <input
+                className="sl-input h-11 py-0 text-sm uppercase"
+                placeholder="Vehicle no."
+                value={trip.vehicleNo}
+                onChange={(e) => setTrip({ ...trip, vehicleNo: e.target.value.toUpperCase() })}
+              />
+            </label>
+            <ActionPill
+              variant="blue"
+              loading={busy}
+              disabled={busy || !trip.fromPlace || !trip.fromState || !trip.vehicleNo}
+              onClick={consolidate}
+            >
+              Generate trip sheet
+            </ActionPill>
+          </div>
+        </Tile>
       )}
-      <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
-        <table className="min-w-full divide-y divide-line-soft">
-          <thead>
-            <tr>
-              <th className={th} />
-              <th className={th}>Document</th>
-              <th className={th}>EWB No.</th>
-              <th className={th}>Status</th>
-              <th className={th}>Vehicle</th>
-              <th className={th}>Valid until</th>
-              <th className={th}>Trip sheet</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line-soft">
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className={td}>
-                  {r.status === "ACTIVE" && !r.consolidatedNo && (
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(r.id)}
-                      onChange={(e) =>
-                        setSelected((s) =>
-                          e.target.checked ? [...s, r.id] : s.filter((x) => x !== r.id)
-                        )
-                      }
-                    />
-                  )}
-                </td>
-                <td className={td}>
-                  <Link className="font-medium text-blue-600 hover:underline" to={linkFor(r)}>
-                    {r.docType === "INV" ? "Invoice" : "Challan"} {r.docNo}
-                  </Link>
-                </td>
-                <td className={`${td} font-mono text-xs`}>{r.ewbNo ?? "—"}</td>
-                <td className={td}>
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[r.status]}`}
-                  >
-                    {r.status}
-                  </span>
-                  {r.error && r.status === "FAILED" && (
-                    <div className="max-w-xs truncate text-xs text-rose-700" title={r.error}>
-                      {r.error}
-                    </div>
-                  )}
-                </td>
-                <td className={td}>
-                  {r.vehicleNo ?? "—"}{" "}
-                  <span className="text-xs text-ink-muted">{r.distanceKm} km</span>
-                </td>
-                <td className={`${td} text-xs`}>{when(r.validUpto)}</td>
-                <td className={`${td} font-mono text-xs`}>{r.consolidatedNo ?? ""}</td>
-              </tr>
-            ))}
-            {!loading && rows.length === 0 && (
-              <tr>
-                <td className={`${td} text-ink-muted`} colSpan={7}>
-                  No e-way bills yet. Raise one from an invoice or a goods dispatch.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+
+      <Tile padding="none" className="overflow-hidden">
+        <DataTable
+          ariaLabel="E-way bills"
+          columns={columns}
+          data={rows}
+          rowKey={(r) => r.id}
+          loading={loading}
+          emptyMessage={
+            filter
+              ? "No e-way bills match this filter."
+              : "No e-way bills yet. Raise one from an invoice or a goods dispatch."
+          }
+          emptyAction={
+            filter ? (
+              <ActionPill variant="secondary" size="sm" onClick={() => onFilter("")}>
+                Clear filters
+              </ActionPill>
+            ) : undefined
+          }
+        />
+      </Tile>
+
       {sheets.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-line-soft bg-card">
-          <table className="min-w-full divide-y divide-line-soft">
-            <thead>
-              <tr>
-                <th className={th}>Trip sheet</th>
-                <th className={th}>Vehicle</th>
-                <th className={th}>From</th>
-                <th className={th}>Bills</th>
-                <th className={th}>Generated</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-soft">
-              {sheets.map((s) => (
-                <tr key={s.id}>
-                  <td className={`${td} font-mono text-xs`}>{s.cewbNo}</td>
-                  <td className={td}>{s.vehicleNo}</td>
-                  <td className={td}>{s.fromPlace}</td>
-                  <td className={`${td} font-mono text-xs`}>{s.ewbNos.join(", ")}</td>
-                  <td className={`${td} text-xs`}>{when(s.cewbDate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Tile title="Trip sheets" icon={<Route size={18} />} padding="none" divider>
+          <DataTable
+            ariaLabel="Trip sheets"
+            density="compact"
+            columns={sheetColumns}
+            data={sheets}
+            rowKey={(s) => s.id}
+          />
+        </Tile>
       )}
     </div>
   );
