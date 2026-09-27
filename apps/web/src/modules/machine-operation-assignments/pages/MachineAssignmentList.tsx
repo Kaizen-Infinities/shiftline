@@ -1,9 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  FaPlus,
-  FaToggleOn,
-  FaToggleOff,
-} from "react-icons/fa";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -11,15 +6,16 @@ import { usePermission } from "../../../hooks/usePermission";
 import { useListCache } from "../../../hooks/useListCache";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
 
-import CustomButton from "../../../components/ui/Button/Button";
 import DataTable from "../../../components/ui/table/DataTable";
-import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import { Search } from "lucide-react";
+import { Plus, ToggleLeft, ToggleRight, UserCog } from "lucide-react";
+import { ActionPill, Chip, PageHeader, SearchField, Toolbar } from "../../../components/ui/v2";
+import { PageBody, RowActions } from "../../production/ui";
+import { formatDate } from "../../../utils/dateUtils";
 
 import {
   machineOperationAssignmentService,
@@ -41,6 +37,7 @@ const MachineAssignmentList: React.FC = () => {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "closed">("all");
 
   // View modal state
   const [viewModalData, setViewModalData] = useState<any>(null);
@@ -67,7 +64,7 @@ const MachineAssignmentList: React.FC = () => {
   const loadFiltersData = useCallback(async () => {
     try {
       const mRes = await machineService.getAll();
-      setMachines(Array.isArray(mRes) ? mRes : (mRes.machines || mRes.data || []));
+      setMachines(Array.isArray(mRes) ? mRes : mRes.machines || mRes.data || []);
     } catch (_err) {
       console.error("Failed to load filter references:", _err);
     }
@@ -79,11 +76,6 @@ const MachineAssignmentList: React.FC = () => {
     loadFiltersData();
   }, [loadFiltersData]);
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
-
   // Load assignments (cached)
   const fetcher = useCallback(async (_signal: AbortSignal) => {
     const res = await machineOperationAssignmentService.getAssignments({ limit: 10000 });
@@ -91,7 +83,11 @@ const MachineAssignmentList: React.FC = () => {
     return { data: list, total: res.pagination?.total || list.length };
   }, []);
 
-  const { data: allAssignments, loading, refresh } = useListCache<MachineOperationAssignment>({
+  const {
+    data: allAssignments,
+    loading,
+    refresh,
+  } = useListCache<MachineOperationAssignment>({
     cacheKey: "machineAssignments:list",
     socketModule: "machineOperationAssignment",
     fetcher,
@@ -103,12 +99,15 @@ const MachineAssignmentList: React.FC = () => {
     return allAssignments.filter((item: any) => {
       const matchesMachine = !filterMachineId || item.machineId === filterMachineId;
       const matchesWeek = !filterWeekDate || item.weekStartDate?.split("T")[0] === filterWeekDate;
-      const matchesSearch = !searchTerm ||
+      const matchesSearch =
+        !searchTerm ||
         item.machineId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.machine?.machineName?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesMachine && matchesWeek && matchesSearch;
+      const matchesStatus =
+        statusFilter === "all" || (statusFilter === "active" ? item.isActive : !item.isActive);
+      return matchesMachine && matchesWeek && matchesSearch && matchesStatus;
     });
-  }, [allAssignments, filterMachineId, filterWeekDate, searchTerm]);
+  }, [allAssignments, filterMachineId, filterWeekDate, searchTerm, statusFilter]);
 
   // Apply filters from popover
   const handleApplyFilters = () => {
@@ -194,29 +193,50 @@ const MachineAssignmentList: React.FC = () => {
     };
   }, []);
 
-  return (
-    <div>
-      <div className="max-w-[1024px] xl:mr-auto bg-card rounded-2xl shadow-sm border border-line overflow-visible">
-        {/* Top Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Machine Assignments</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* Search */}
-            <div className="relative w-full md:w-52">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" size={15} />
-              <input
-                type="text"
-                className="w-full pl-9 pr-4 py-2 bg-card-2 border border-line-soft rounded-xl text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={handleSearch}
-                data-search-input
-              />
-            </div>
+  const activeCount = allAssignments.filter((a: any) => a.isActive).length;
+  const statusFilters = [
+    { key: "all" as const, label: "All", count: allAssignments.length },
+    { key: "active" as const, label: "Active week", count: activeCount },
+    { key: "closed" as const, label: "Closed", count: allAssignments.length - activeCount },
+  ];
+  const isFiltered = Boolean(searchTerm) || hasActiveFilters || statusFilter !== "all";
 
-            {/* Filter Popover */}
+  const assignButton = canCreateAssignment ? (
+    <ActionPill icon={<Plus size={18} />} onClick={handleOpenCreate}>
+      Assign Operator
+    </ActionPill>
+  ) : null;
+
+  return (
+    <PageBody>
+      <PageHeader
+        title="Machine Assignments"
+        icon={<UserCog size={22} />}
+        subtitle="Who runs which machine, per shift and week."
+        breadcrumbs={[{ label: "Machines", to: "/machines" }, { label: "Assignments" }]}
+        actions={
+          canExportAssignment ? (
+            <ExportCSVButton
+              fetchData={fetchAssignmentsForExport}
+              columns={csvColumns}
+              filename={csvFilename}
+              text="Export"
+            />
+          ) : undefined
+        }
+        primaryAction={assignButton}
+      />
+
+      <div>
+        <Toolbar
+          filters={statusFilters}
+          filterValue={statusFilter}
+          onFilterChange={(key) => {
+            setStatusFilter(key);
+            setCurrentPage(1);
+          }}
+          filtersLabel="Assignment status"
+          right={
             <FilterPopover
               activeFilterCount={activeFilterCount}
               hasActiveFilters={hasActiveFilters}
@@ -225,9 +245,7 @@ const MachineAssignmentList: React.FC = () => {
             >
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Machine
-                  </label>
+                  <label className="sl-label">Machine</label>
                   <SelectInput
                     name="draftMachineId"
                     value={draftMachineId}
@@ -241,9 +259,7 @@ const MachineAssignmentList: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-ink-muted mb-1.5 uppercase tracking-wider">
-                    Week Date
-                  </label>
+                  <label className="sl-label">Week Date</label>
                   <DatePickerCalendar
                     name="draftWeekDate"
                     value={draftWeekDate}
@@ -253,156 +269,155 @@ const MachineAssignmentList: React.FC = () => {
                 </div>
               </div>
             </FilterPopover>
-
-            {canExportAssignment && (
-              <ExportCSVButton
-                fetchData={fetchAssignmentsForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
-              />
-            )}
-
-            {canCreateAssignment && (
-              <CustomButton
-                text="Assign Operator"
-                icon={FaPlus}
-                onClick={handleOpenCreate}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Table Content */}
-        <div className="p-0 overflow-hidden rounded-b-2xl">
-          <DataTable
-            data={paginatedData}
-            rowKey={(item: any) => item.id}
-            loading={loading}
-            emptyMessage="No machine operation assignments found."
-            pagination={{
-              currentPage,
-              totalPages,
-              onPageChange: (page) => setCurrentPage(page),
+          }
+        >
+          <SearchField
+            data-search-input
+            value={searchTerm}
+            onValueChange={(v) => {
+              setSearchTerm(v);
+              setCurrentPage(1);
             }}
-            columns={[
-              {
-                header: "#",
-                width: "60px",
-                render: (_item, index) => startIndex + index + 1,
-              },
-              {
-                header: "WEEK PERIOD",
-                render: (item) => (
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-ink text-sm">
-                      {item.weekStartDate ? item.weekStartDate.split("T")[0] : "—"} to{" "}
-                      {item.weekEndDate ? item.weekEndDate.split("T")[0] : "—"}
-                    </span>
-                    <span className="text-[11px] text-ink-subtle">
-                      ID: {item.id}
-                    </span>
-                  </div>
-                ),
-              },
-              {
-                header: "MACHINE",
-                render: (item) => (
-                  <div>
-                    <div className="font-bold text-ink text-sm">
-                      {(item as any).machine?.machineName || item.machineId}
-                    </div>
-                    <div className="text-xs text-blue-600 font-mono mt-0.5">
-                      {item.machineId}
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                header: "SHIFT",
-                render: (item) => (
-                  <div>
-                    {(item as any).shift ? (
-                      <div>
-                        <div className="font-semibold text-ink text-sm">{(item as any).shift.shiftName}</div>
-                        <div className="text-[11px] text-ink-subtle mt-0.5">
-                          {(item as any).shift.startTime} - {(item as any).shift.endTime}
-                        </div>
-                      </div>
-                    ) : (item as any).shiftId ? (
-                      <span className="font-semibold text-ink text-sm">{(item as any).shiftId}</span>
-                    ) : (
-                      <span className="text-ink-subtle text-sm">—</span>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                header: "OPERATORS",
-                render: (item) => (
-                  <div>
-                    {(item as any).operators && (item as any).operators.length > 0 ? (
-                      <div className="flex flex-col gap-2">
-                        {(item as any).operators.map((op: any, i: number) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">
-                              {op.employee?.fullName?.charAt(0)?.toUpperCase() || "O"}
-                            </div>
-                            <span className="font-semibold text-ink-muted text-[13px]">{op.employee?.fullName}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-ink-subtle text-sm">— Not Assigned —</span>
-                    )}
-                  </div>
-                ),
-              },
-              {
-                header: "STATUS",
-                render: (item) => (
-                  <StatusBadge
-                    status={item.isActive ? "Active" : "Closed"}
-                    customText={item.isActive ? "Active Week" : "Closed / Expired"}
-                  />
-                ),
-              },
-
-              {
-                header: "ACTIONS",
-                render: (item) => (
-                  <div className="flex items-center gap-2">
-                    <ViewButton onClick={() => setViewModalData(item)} />
-                    {canEditAssignment && <EditButton onClick={() => handleOpenEdit(item)} />}
-                    {canDeleteAssignment && (
-                      <button
-                        type="button"
-                        title={item.isActive ? "Close Assignment" : "Activate Assignment"}
-                        onClick={() => handleToggleStatus(item)}
-                        className={`p-2 rounded-lg transition-colors ${item.isActive
-                          ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                          : "bg-card-2 text-ink-subtle hover:bg-line"
-                          }`}
-                      >
-                        {item.isActive ? <FaToggleOn size={18} /> : <FaToggleOff size={18} />}
-                      </button>
-                    )}
-                  </div>
-                ),
-              },
-            ]}
+            placeholder="Search machine..."
+            label="Search assignments"
           />
+        </Toolbar>
 
-        </div>
+        <DataTable
+          ariaLabel="Machine assignments"
+          data={paginatedData}
+          rowKey={(item: any) => item.id}
+          loading={loading}
+          emptyMessage={
+            isFiltered
+              ? "No assignments match these filters."
+              : "No operators assigned yet. Assign operators to machines for the week."
+          }
+          emptyAction={
+            isFiltered ? (
+              <ActionPill
+                variant="secondary"
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  handleClearFilters();
+                }}
+              >
+                Clear filters
+              </ActionPill>
+            ) : (
+              assignButton
+            )
+          }
+          pagination={{
+            currentPage,
+            totalPages,
+            onPageChange: (page) => setCurrentPage(page),
+          }}
+          columns={[
+            {
+              header: "Machine",
+              render: (item) => (
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewModalData(item)}
+                    className="block text-left font-semibold text-accent underline-offset-4 hover:underline"
+                  >
+                    {(item as any).machine?.machineName || item.machineId}
+                  </button>
+                  <span className="sl-muted font-mono text-[12px]">{item.machineId}</span>
+                </div>
+              ),
+            },
+            {
+              header: "Week",
+              render: (item) => (
+                <span className="font-medium text-ink tabular-nums">
+                  {formatDate(item.weekStartDate)} – {formatDate(item.weekEndDate)}
+                </span>
+              ),
+            },
+            {
+              header: "Shift",
+              render: (item) =>
+                (item as any).shift ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Chip size="sm">{(item as any).shift.shiftName}</Chip>
+                    <span className="sl-muted text-[12px] tabular-nums">
+                      {(item as any).shift.startTime}–{(item as any).shift.endTime}
+                    </span>
+                  </div>
+                ) : (item as any).shiftId ? (
+                  <Chip size="sm">{(item as any).shiftId}</Chip>
+                ) : (
+                  <span className="text-ink-subtle">—</span>
+                ),
+            },
+            {
+              header: "Operators",
+              render: (item) =>
+                (item as any).operators && (item as any).operators.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 py-1">
+                    {(item as any).operators.map((op: any, i: number) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-card-2 py-0.5 pl-0.5 pr-2.5 text-[13px] font-medium text-ink"
+                      >
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-chip text-[11px] font-bold text-chip-fg">
+                          {op.employee?.fullName?.charAt(0)?.toUpperCase() || "O"}
+                        </span>
+                        {op.employee?.fullName}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-ink-subtle">Not assigned</span>
+                ),
+            },
+            {
+              header: "Status",
+              render: (item) => (
+                <Chip size="sm" dot tone={item.isActive ? "success" : "muted"}>
+                  {item.isActive ? "Active Week" : "Closed / Expired"}
+                </Chip>
+              ),
+            },
+            {
+              header: "Actions",
+              align: "right",
+              render: (item) => (
+                <RowActions>
+                  <ViewButton onClick={() => setViewModalData(item)} />
+                  {canEditAssignment && <EditButton onClick={() => handleOpenEdit(item)} />}
+                  {canDeleteAssignment && (
+                    <button
+                      type="button"
+                      title={item.isActive ? "Close Assignment" : "Activate Assignment"}
+                      aria-label={item.isActive ? "Close Assignment" : "Activate Assignment"}
+                      onClick={() => handleToggleStatus(item)}
+                      className={`sl-icon-btn ${item.isActive ? "sl-icon-btn-tone-success" : ""}`}
+                    >
+                      {item.isActive ? (
+                        <ToggleRight size={18} aria-hidden="true" />
+                      ) : (
+                        <ToggleLeft size={18} aria-hidden="true" />
+                      )}
+                    </button>
+                  )}
+                </RowActions>
+              ),
+            },
+          ]}
+        />
       </div>
 
-      {/* View Modal */}
       <MachineAssignmentViewModal
         show={!!viewModalData}
         onHide={() => setViewModalData(null)}
         assignment={viewModalData}
       />
-    </div>
+    </PageBody>
   );
 };
 
