@@ -178,7 +178,7 @@ const InvoiceList: React.FC = () => {
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="text-center p-4">
-                      <div className="animate-spin rounded-full border-b-2 border-indigo-600 h-4 w-4 border-b-2 mr-2"></div>
+                      <div className="animate-spin rounded-full border-b-2 border-accent h-4 w-4 border-b-2 mr-2"></div>
                       Loading purchase orders...
                     </td>
                   </tr>

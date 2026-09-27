@@ -5,6 +5,8 @@ import { fetchRawMaterials } from "../../../../features/raw-materials/rawMateria
 import type { AppDispatch } from "../../../../app/store";
 import CommonViewModal from "../../../../components/ui/CommonViewModal/CommonViewModal";
 import StatusBadge from "../../../../components/ui/StatusBadge/Badge";
+import { Chip } from "../../../../components/ui/v2";
+import { formatINR } from "../../../sales/shared/tradeUi";
 import { useUsers } from "../../../../hooks/useUsers";
 
 import { getUomMultiplier } from "../pages/PurchaseOrderForm";
@@ -50,12 +52,17 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
 
   if (!purchaseOrder) return null;
 
-  const createdByUser = users.find((u: any) => u.userId === purchaseOrder.createdBy || u.id === purchaseOrder.createdBy);
-  const createdByName = createdByUser?.username || (purchaseOrder.createdBy?.startsWith("admin_") ? "admin" : (purchaseOrder.createdBy || "NA"));
+  const createdByUser = users.find(
+    (u: any) => u.userId === purchaseOrder.createdBy || u.id === purchaseOrder.createdBy
+  );
+  const createdByName =
+    createdByUser?.username ||
+    (purchaseOrder.createdBy?.startsWith("admin_") ? "admin" : purchaseOrder.createdBy || "NA");
 
-  const isInterState = companyState && purchaseOrder.billingState
-    ? companyState.toLowerCase().trim() !== purchaseOrder.billingState.toLowerCase().trim()
-    : (Number(purchaseOrder.totalIgst) > 0);
+  const isInterState =
+    companyState && purchaseOrder.billingState
+      ? companyState.toLowerCase().trim() !== purchaseOrder.billingState.toLowerCase().trim()
+      : Number(purchaseOrder.totalIgst) > 0;
 
   const sections = [
     {
@@ -88,13 +95,17 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
               {purchaseOrder.shippingCity || "-"}, {purchaseOrder.shippingState || "-"} <br />
               {purchaseOrder.shippingPincode || "-"}
               {purchaseOrder.sameAsBilling && (
-                <div className="mt-1"><span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Same as billing</span></div>
+                <div className="mt-1">
+                  <Chip size="sm" tone="muted">
+                    Same as billing
+                  </Chip>
+                </div>
               )}
             </>
           ),
         },
       ],
-    }
+    },
   ];
 
   if (purchaseOrder.remarks) {
@@ -107,7 +118,16 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
   if (purchaseOrder.status === "REJECTED" && purchaseOrder.rejectReason) {
     sections.push({
       title: "Rejection Reason",
-      fields: [{ label: "Reason", value: <span className="text-red-600 font-semibold">{purchaseOrder.rejectReason}</span> }],
+      fields: [
+        {
+          label: "Reason",
+          value: (
+            <span className="font-semibold text-[color:var(--color-danger)]">
+              {purchaseOrder.rejectReason}
+            </span>
+          ),
+        },
+      ],
     });
   }
 
@@ -120,31 +140,49 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
   });
 
   const customContent = (
-    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 bg-slate-50 border-b border-slate-100">
-        <h6 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Items</h6>
+    <div className="sl-tile overflow-hidden">
+      <div className="border-b border-line-soft px-5 py-3">
+        <h3 className="sl-h2 m-0">Items</h3>
       </div>
       <div className="p-0 overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50/50 border-b border-slate-100 text-xs uppercase tracking-wider text-slate-500 font-semibold">
-              <th className="p-4">S.No</th>
-              <th className="p-4">Product</th>
-              <th className="p-4 text-right">Qty</th>
-              <th className="p-4 text-right">Unit Price</th>
-              <th className="p-4 text-right">Tax %</th>
+            <tr className="border-b border-line-soft bg-card-2">
+              <th scope="col" className="sl-th px-4 py-2.5 text-left">
+                S.No
+              </th>
+              <th scope="col" className="sl-th px-4 py-2.5 text-left">
+                Product
+              </th>
+              <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                Qty
+              </th>
+              <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                Unit Price
+              </th>
+              <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                Tax %
+              </th>
               {isInterState ? (
-                <th className="p-4 text-right">IGST</th>
+                <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                  IGST
+                </th>
               ) : (
                 <>
-                  <th className="p-4 text-right">CGST</th>
-                  <th className="p-4 text-right">SGST</th>
+                  <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                    CGST
+                  </th>
+                  <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                    SGST
+                  </th>
                 </>
               )}
-              <th className="p-4 text-right">Total</th>
+              <th scope="col" className="sl-th px-4 py-2.5 text-right">
+                Total
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+          <tbody className="divide-y divide-line-soft text-sm text-ink">
             {(purchaseOrder.items || []).length > 0 ? (
               purchaseOrder.items.map((item, index) => {
                 const qty = safeNumber(item.quantity);
@@ -155,43 +193,43 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
                 const taxAmt = (base * tax) / 100;
                 const total = item.lineTotal ? safeNumber(item.lineTotal) : base + taxAmt;
 
-                const cgstAmt = item.cgstAmount !== undefined
-                  ? safeNumber(item.cgstAmount)
-                  : taxAmt / 2;
-                const sgstAmt = item.sgstAmount !== undefined
-                  ? safeNumber(item.sgstAmount)
-                  : taxAmt / 2;
-                const igstAmt = item.igstAmount !== undefined
-                  ? safeNumber(item.igstAmount)
-                  : taxAmt;
+                const cgstAmt =
+                  item.cgstAmount !== undefined ? safeNumber(item.cgstAmount) : taxAmt / 2;
+                const sgstAmt =
+                  item.sgstAmount !== undefined ? safeNumber(item.sgstAmount) : taxAmt / 2;
+                const igstAmt =
+                  item.igstAmount !== undefined ? safeNumber(item.igstAmount) : taxAmt;
 
                 const matchedMaterial = rawMaterials.find(
                   (rm: any) => String(rm.rawMaterialId) === String(item.productId)
                 );
-                const productName = matchedMaterial?.materialName || `Product #${item.productId || "-"}`;
+                const productName =
+                  matchedMaterial?.materialName || `Product #${item.productId || "-"}`;
 
                 return (
-                  <tr key={item.id || index} className="hover:bg-slate-50 transition-colors">
+                  <tr key={item.id || index}>
                     <td className="p-4">{index + 1}</td>
-                    <td className="p-4 font-medium text-slate-900">{productName}</td>
-                    <td className="p-4 text-right">{qty}</td>
-                    <td className="p-4 text-right">₹{price.toFixed(2)}</td>
-                    <td className="p-4 text-right">{tax}%</td>
+                    <td className="p-4 font-medium text-ink">{productName}</td>
+                    <td className="p-4 text-right tabular-nums">{qty}</td>
+                    <td className="p-4 text-right tabular-nums">{formatINR(price)}</td>
+                    <td className="p-4 text-right tabular-nums">{tax}%</td>
                     {isInterState ? (
-                      <td className="p-4 text-right text-blue-600">₹{igstAmt.toFixed(2)}</td>
+                      <td className="p-4 text-right tabular-nums">{formatINR(igstAmt)}</td>
                     ) : (
                       <>
-                        <td className="p-4 text-right text-blue-600">₹{cgstAmt.toFixed(2)}</td>
-                        <td className="p-4 text-right text-purple-600">₹{sgstAmt.toFixed(2)}</td>
+                        <td className="p-4 text-right tabular-nums">{formatINR(cgstAmt)}</td>
+                        <td className="p-4 text-right tabular-nums">{formatINR(sgstAmt)}</td>
                       </>
                     )}
-                    <td className="p-4 text-right font-medium">₹{total.toFixed(2)}</td>
+                    <td className="p-4 text-right font-semibold tabular-nums">
+                      {formatINR(total)}
+                    </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-slate-500">
+                <td colSpan={8} className="p-8 text-center text-ink-subtle">
                   No items found
                 </td>
               </tr>
@@ -200,46 +238,49 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
         </table>
       </div>
 
-      <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end">
+      <div className="flex justify-end border-t border-line-soft bg-card-2 p-5">
         <div className="w-full sm:w-1/2 lg:w-1/3 space-y-2 text-sm">
-          <div className="flex justify-between text-slate-600">
+          <div className="flex justify-between text-ink-muted">
             <span>Subtotal:</span>
-            <span>₹{safeNumber(purchaseOrder.subtotal).toFixed(2)}</span>
+            <span>{formatINR(safeNumber(purchaseOrder.subtotal))}</span>
           </div>
-          <div className="flex justify-between text-red-600">
+          <div className="flex justify-between text-ink-muted">
             <span>Discount:</span>
-            <span>-₹{safeNumber(purchaseOrder.totalDiscount).toFixed(2)}</span>
+            <span>-{formatINR(safeNumber(purchaseOrder.totalDiscount))}</span>
           </div>
-          {/* <div className="flex justify-between text-green-600">
+          {/* <div className="flex justify-between text-ink-muted">
             <span>Tax:</span>
-            <span>+₹{safeNumber(purchaseOrder.totalTax).toFixed(2)}</span>
+            <span>+{formatINR(safeNumber(purchaseOrder.totalTax))}</span>
           </div> */}
           {isInterState ? (
-            <div className="flex justify-between text-green-600">
+            <div className="flex justify-between text-ink-muted">
               <span>IGST:</span>
-              <span>+₹{safeNumber(purchaseOrder.totalIgst).toFixed(2)}</span>
+              <span>+{formatINR(safeNumber(purchaseOrder.totalIgst))}</span>
             </div>
           ) : (
             <>
-              <div className="flex justify-between text-blue-600">
+              <div className="flex justify-between text-ink-muted">
                 <span>CGST:</span>
-                <span>+₹{safeNumber(purchaseOrder.totalCgst).toFixed(2)}</span>
+                <span>+{formatINR(safeNumber(purchaseOrder.totalCgst))}</span>
               </div>
-              <div className="flex justify-between text-purple-600">
+              <div className="flex justify-between text-ink-muted">
                 <span>SGST:</span>
-                <span>+₹{safeNumber(purchaseOrder.totalSgst).toFixed(2)}</span>
+                <span>+{formatINR(safeNumber(purchaseOrder.totalSgst))}</span>
               </div>
             </>
           )}
           {Number((purchaseOrder as any).roundingAdjust || 0) !== 0 && (
-            <div className="flex justify-between text-slate-600">
+            <div className="flex justify-between text-ink-muted">
               <span>Round Off:</span>
-              <span>{Number((purchaseOrder as any).roundingAdjust) > 0 ? "+" : ""}₹{safeNumber((purchaseOrder as any).roundingAdjust).toFixed(2)}</span>
+              <span>
+                {Number((purchaseOrder as any).roundingAdjust) > 0 ? "+" : ""}
+                {formatINR(safeNumber((purchaseOrder as any).roundingAdjust))}
+              </span>
             </div>
           )}
-          <div className="border-t border-slate-200 pt-2 mt-2 flex justify-between font-bold text-slate-900 text-base">
+          <div className="mt-2 flex justify-between border-t border-line pt-2 text-base font-bold text-ink">
             <span>Net Amount:</span>
-            <span>₹{safeNumber(purchaseOrder.netAmount).toFixed(2)}</span>
+            <span>{formatINR(safeNumber(purchaseOrder.netAmount))}</span>
           </div>
         </div>
       </div>
