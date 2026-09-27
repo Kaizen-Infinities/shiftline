@@ -10,22 +10,29 @@ import {
   type EwbDocType,
   type TransporterRow,
 } from "../../../services/ewayBillService";
+import { Chip, type ChipTone } from "../../../components/ui/v2";
 
 /**
  * The e-way bill strip on a document (P1-12): raise one with the transport details, see its
  * number and validity, update the vehicle (Part B), extend near expiry, cancel within 24 hours.
  */
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const field = "rounded-lg border border-line-soft bg-card-2 px-2 py-1.5 text-sm text-ink";
-const STATUS: Record<EwayBillRow["status"], string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
-  EXPIRED: "bg-rose-100 text-rose-800",
-  FAILED: "bg-rose-100 text-rose-800",
+const primary = "sl-btn-blue sl-pill-sm";
+const danger = "sl-btn-soft-danger sl-pill-sm";
+const secondary = "sl-btn sl-pill-sm";
+const field = "sl-input h-10 py-0 text-sm";
+const STATUS_TONE: Record<EwayBillRow["status"], ChipTone> = {
+  PENDING: "warning",
+  ACTIVE: "success",
+  CANCELLED: "muted",
+  EXPIRED: "danger",
+  FAILED: "danger",
+};
+const STATUS_LABEL: Record<EwayBillRow["status"], string> = {
+  PENDING: "Pending",
+  ACTIVE: "Active",
+  CANCELLED: "Cancelled",
+  EXPIRED: "Expired",
+  FAILED: "Failed",
 };
 export const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -160,21 +167,18 @@ const EwayBillPanel: React.FC<EwayBillPanelProps> = ({
   };
 
   return (
-    <div
-      className="rounded-xl border border-line-soft bg-card p-3 space-y-2 no-print"
-      data-testid="eway-bill-panel"
-    >
+    <div className="sl-tile space-y-3 p-4 no-print" data-testid="eway-bill-panel">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-ink">E-way bill</span>
+        <span className="sl-h2 m-0 text-base">E-way bill</span>
         {latest && (
-          <span
-            className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS[latest.status]}`}
-          >
-            {latest.status}
-          </span>
+          <Chip tone={STATUS_TONE[latest.status]} size="sm" dot>
+            {STATUS_LABEL[latest.status]}
+          </Chip>
         )}
         {live && validMs !== null && validMs < 12 * HOUR && validMs > 0 && (
-          <span className="text-xs text-amber-700">Expires {when(live.validUpto)}</span>
+          <Chip tone="warning" size="sm">
+            Expires {when(live.validUpto)}
+          </Chip>
         )}
         <span className="flex-1" />
         {!live && !documentCancelled && can("eway-bill.generate") && mode === "none" && (
@@ -206,7 +210,7 @@ const EwayBillPanel: React.FC<EwayBillPanelProps> = ({
       </div>
 
       {live && (
-        <dl className="grid gap-x-4 gap-y-0.5 text-xs text-ink-muted sm:grid-cols-[auto_1fr]">
+        <dl className="m-0 grid gap-x-4 gap-y-1 rounded-[12px] bg-card-2 p-3 text-xs text-ink-muted sm:grid-cols-[auto_1fr]">
           <dt>EWB No.</dt>
           <dd className="font-mono text-ink">{live.ewbNo}</dd>
           <dt>Valid until</dt>
@@ -227,7 +231,7 @@ const EwayBillPanel: React.FC<EwayBillPanelProps> = ({
         </dl>
       )}
       {!live && latest && latest.status === "FAILED" && (
-        <p className="text-xs text-rose-700">{latest.error}</p>
+        <p className="m-0 text-xs text-[color:var(--color-danger)]">{latest.error}</p>
       )}
       {!live && latest && latest.status === "CANCELLED" && (
         <p className="text-xs text-ink-muted">
@@ -235,14 +239,14 @@ const EwayBillPanel: React.FC<EwayBillPanelProps> = ({
         </p>
       )}
       {!live && latest && latest.status === "EXPIRED" && (
-        <p className="text-xs text-rose-700">
+        <p className="m-0 text-xs text-[color:var(--color-danger)]">
           {latest.ewbNo} expired {when(latest.validUpto)}; raise a new bill for the remaining
           movement.
         </p>
       )}
 
       {mode === "generate" && (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-[14px] bg-card-2 p-3 sm:grid-cols-3">
           <input
             className={field}
             placeholder="Distance (km)"
@@ -304,7 +308,7 @@ const EwayBillPanel: React.FC<EwayBillPanelProps> = ({
         </div>
       )}
       {mode === "partB" && live && (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-[14px] bg-card-2 p-3 sm:grid-cols-3">
           <input
             className={field}
             placeholder="New vehicle no."
@@ -369,7 +373,7 @@ const EwayBillPanel: React.FC<EwayBillPanelProps> = ({
         </div>
       )}
       {mode === "extend" && live && (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-[14px] bg-card-2 p-3 sm:grid-cols-3">
           <input
             className={field}
             placeholder="Current place"

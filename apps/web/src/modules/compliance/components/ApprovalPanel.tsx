@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
+import { Check, CheckCircle2, Circle, Send, X } from "lucide-react";
 
 import CancelReasonModal from "../../../components/ui/CancelReasonModal/CancelReasonModal";
+import { ActionPill, Chip, chipClass, cx, type ChipTone } from "../../../components/ui/v2";
 import { usePermission } from "../../../hooks/usePermission";
 import { filingService, type FilingApprovalRow } from "../../../services/filingService";
 
@@ -11,12 +13,20 @@ import { filingService, type FilingApprovalRow } from "../../../services/filingS
  * and the actions the signed-in user may take. The API enforces every rule; the panel only
  * hides what cannot be done.
  */
+export const STATUS_TONE: Record<FilingApprovalRow["status"], ChipTone> = {
+  DRAFT: "muted",
+  PENDING: "warning",
+  APPROVED: "success",
+  REJECTED: "danger",
+  SUBMITTED: "info",
+};
+/** Chip classes per status (kept for callers that style their own element). */
 export const STATUS_STYLE: Record<FilingApprovalRow["status"], string> = {
-  DRAFT: "bg-slate-100 text-slate-700",
-  PENDING: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  REJECTED: "bg-rose-100 text-rose-800",
-  SUBMITTED: "bg-sky-100 text-sky-800",
+  DRAFT: chipClass({ tone: "muted", size: "sm" }),
+  PENDING: chipClass({ tone: "warning", size: "sm" }),
+  APPROVED: chipClass({ tone: "success", size: "sm" }),
+  REJECTED: chipClass({ tone: "danger", size: "sm" }),
+  SUBMITTED: chipClass({ tone: "info", size: "sm" }),
 };
 export const STATUS_LABEL: Record<FilingApprovalRow["status"], string> = {
   DRAFT: "Draft",
@@ -25,16 +35,21 @@ export const STATUS_LABEL: Record<FilingApprovalRow["status"], string> = {
   REJECTED: "Rejected",
   SUBMITTED: "Submitted",
 };
-const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
-const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
-const success = `${btn} bg-emerald-600 text-white hover:bg-emerald-700`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
-const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
 export const when = (iso: string | null | undefined) =>
   iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "—";
 const message = (err: unknown) =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
   "Something went wrong";
+
+/** A filing status as a chip with a dot: text plus colour, never colour alone. */
+export const FilingStatusChip: React.FC<{
+  status: FilingApprovalRow["status"];
+  size?: "sm" | "md";
+}> = ({ status, size = "sm" }) => (
+  <Chip tone={STATUS_TONE[status]} size={size} dot>
+    {STATUS_LABEL[status]}
+  </Chip>
+);
 
 export interface ApprovalPanelProps {
   row: FilingApprovalRow;
@@ -75,74 +90,87 @@ const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
     can("filings.approve") && row.status === "PENDING" && (!userId || userId !== row.preparedBy);
   const canSubmit = can("filings.submit") && row.status === "APPROVED";
 
+  const steps: { label: string; at: string | null }[] = [
+    { label: "Prepared", at: row.preparedAt },
+    { label: "Sent", at: row.sentForApprovalAt },
+    { label: "Approved", at: row.approvedAt },
+    { label: "Submitted", at: row.submittedAt },
+  ];
+
   return (
-    <div className="space-y-2" data-testid={`approval-panel-${row.id}`}>
+    <div className="space-y-3" data-testid={`approval-panel-${row.id}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[row.status]}`}
-        >
-          {STATUS_LABEL[row.status]}
-        </span>
+        <FilingStatusChip status={row.status} size="md" />
         {row.status === "REJECTED" && row.rejectReason && (
-          <span className="text-xs text-rose-700">{row.rejectReason}</span>
+          <span className="text-sm text-[color:var(--color-danger)]">{row.rejectReason}</span>
         )}
         {row.status === "SUBMITTED" && row.submissionRef && (
-          <span className="text-xs text-ink-muted">Ref {row.submissionRef}</span>
+          <Chip tone="muted" size="sm">
+            Ref {row.submissionRef}
+          </Chip>
         )}
         <span className="flex-1" />
         {canSend && (
-          <button
-            type="button"
-            className={primary}
+          <ActionPill
+            size="sm"
+            variant="blue"
+            icon={<Send size={15} />}
+            loading={busy === "send"}
             disabled={busy !== null}
             onClick={() => run("send", () => filingService.send(row.id), "Sent for approval")}
           >
             {row.status === "REJECTED" ? "Send again" : "Send for approval"}
-          </button>
+          </ActionPill>
         )}
         {canDecide && (
           <>
-            <button
-              type="button"
-              className={success}
-              disabled={busy !== null}
-              onClick={() => run("approve", () => filingService.approve(row.id), "Approved")}
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              className={danger}
+            <ActionPill
+              size="sm"
+              variant="secondary"
+              className="sl-btn-soft-danger"
+              icon={<X size={15} />}
               disabled={busy !== null}
               onClick={() => setRejecting(true)}
             >
               Reject
-            </button>
+            </ActionPill>
+            <ActionPill
+              size="sm"
+              variant="cta"
+              icon={<Check size={15} />}
+              loading={busy === "approve"}
+              disabled={busy !== null}
+              onClick={() => run("approve", () => filingService.approve(row.id), "Approved")}
+            >
+              Approve
+            </ActionPill>
           </>
         )}
         {canSubmit && !submitting && (
-          <button
-            type="button"
-            className={secondary}
+          <ActionPill
+            size="sm"
+            variant="cta"
             disabled={busy !== null}
             onClick={() => setSubmitting(true)}
           >
             Mark submitted
-          </button>
+          </ActionPill>
         )}
       </div>
       {submitting && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-[14px] bg-card-2 p-3">
           <input
-            className="rounded-lg border border-line-soft bg-card-2 px-3 py-1.5 text-sm text-ink"
+            className="sl-input h-10 w-full py-0 text-sm sm:w-80"
             placeholder="Acknowledgement / ARN (optional)"
+            aria-label="Acknowledgement / ARN (optional)"
             value={ref}
             onChange={(e) => setRef(e.target.value)}
             maxLength={120}
           />
-          <button
-            type="button"
-            className={primary}
+          <ActionPill
+            size="sm"
+            variant="cta"
+            loading={busy === "submit"}
             disabled={busy !== null}
             onClick={() =>
               run(
@@ -153,23 +181,38 @@ const ApprovalPanel: React.FC<ApprovalPanelProps> = ({
             }
           >
             Confirm
-          </button>
-          <button type="button" className={secondary} onClick={() => setSubmitting(false)}>
+          </ActionPill>
+          <ActionPill size="sm" variant="secondary" onClick={() => setSubmitting(false)}>
             Back
-          </button>
+          </ActionPill>
         </div>
       )}
       {detailed && (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-ink-muted md:grid-cols-4">
-          <dt>Prepared</dt>
-          <dd className="text-ink">{when(row.preparedAt)}</dd>
-          <dt>Sent</dt>
-          <dd className="text-ink">{when(row.sentForApprovalAt)}</dd>
-          <dt>Approved</dt>
-          <dd className="text-ink">{when(row.approvedAt)}</dd>
-          <dt>Submitted</dt>
-          <dd className="text-ink">{when(row.submittedAt)}</dd>
-        </dl>
+        <ol className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label="Approval steps">
+          {steps.map((s) => (
+            <li
+              key={s.label}
+              className={cx(
+                "flex items-start gap-2 rounded-[14px] px-3 py-2",
+                s.at ? "bg-nav-active" : "bg-card-2"
+              )}
+            >
+              {s.at ? (
+                <CheckCircle2
+                  size={16}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0 text-[color:var(--color-success)]"
+                />
+              ) : (
+                <Circle size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-ink-subtle" />
+              )}
+              <div className="min-w-0">
+                <div className="text-xs font-semibold text-ink">{s.label}</div>
+                <div className="text-xs text-ink-muted">{when(s.at)}</div>
+              </div>
+            </li>
+          ))}
+        </ol>
       )}
       <CancelReasonModal
         show={rejecting}
