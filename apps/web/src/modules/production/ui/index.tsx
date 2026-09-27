@@ -173,6 +173,37 @@ export const InlineAlert: React.FC<{
   </div>
 );
 
+/** Progress bar: green at 100%, blue from 50%, warning/danger below. */
+export const ProgressBar: React.FC<{
+  pct: number;
+  low?: "warning" | "danger";
+  label?: string;
+  className?: string;
+}> = ({ pct, low = "warning", label, className }) => (
+  <div
+    className={cx("h-2.5 overflow-hidden rounded-full bg-card-2", className)}
+    role="progressbar"
+    aria-label={label}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-valuenow={Math.round(pct)}
+  >
+    <div
+      className={cx(
+        "h-full rounded-full transition-all",
+        pct >= 100
+          ? "bg-[color:var(--color-success)]"
+          : pct >= 50
+            ? "bg-accent"
+            : low === "danger"
+              ? "bg-[color:var(--color-danger)]"
+              : "bg-[color:var(--color-warning)]"
+      )}
+      style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+    />
+  </div>
+);
+
 /** Row of icon-pill actions in a table cell. */
 export const RowActions: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
