@@ -401,7 +401,7 @@ const DepartmentList: React.FC = () => {
                       {
                         label: "Department ID",
                         value: (
-                          <span className="text-ink-subtle font-mono text-sm">
+                          <span className="text-ink-subtle tabular-nums text-sm">
                             {String(selectedDept.id)}
                           </span>
                         ),

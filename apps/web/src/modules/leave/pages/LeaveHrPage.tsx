@@ -28,10 +28,13 @@ import {
  */
 type Tab = "requests" | "calendar";
 const STATUS_STYLE: Record<LeaveRequestStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  REJECTED: "bg-rose-100 text-rose-700",
-  CANCELLED: "bg-slate-100 text-slate-700",
+  PENDING:
+    "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]",
+  APPROVED:
+    "bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]",
+  REJECTED:
+    "bg-[color-mix(in_srgb,var(--color-danger)_14%,transparent)] text-[color:var(--color-danger)]",
+  CANCELLED: "bg-card-2 text-ink",
 };
 
 const daysInMonth = (month: string): number => {
@@ -327,14 +330,14 @@ const LeaveHrPage: React.FC = () => {
                       {r.status === "PENDING" && can("leave.approve") && (
                         <>
                           <button
-                            className="text-xs font-semibold text-emerald-700 hover:underline"
+                            className="text-xs font-semibold text-[color:var(--color-success)] hover:underline"
                             disabled={busy}
                             onClick={() => act(() => leaveService.approve(r.id), "Approved")}
                           >
                             Approve
                           </button>
                           <button
-                            className="text-xs font-semibold text-rose-700 hover:underline"
+                            className="text-xs font-semibold text-[color:var(--color-danger)] hover:underline"
                             disabled={busy}
                             onClick={() => act(() => leaveService.reject(r.id), "Rejected")}
                           >
@@ -402,7 +405,7 @@ const LeaveHrPage: React.FC = () => {
                       {row.cells.map((c, i) => (
                         <td
                           key={i}
-                          className={`${td} text-center ${c ? "bg-amber-50 font-semibold text-amber-800" : ""}`}
+                          className={`${td} text-center ${c ? "bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)] font-semibold text-[color:var(--color-warning)]" : ""}`}
                         >
                           {c ?? ""}
                         </td>

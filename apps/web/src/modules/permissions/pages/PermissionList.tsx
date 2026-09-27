@@ -174,7 +174,7 @@ const PermissionList: React.FC = () => {
       width: "60px",
       align: "center",
       render: (_, index) => (
-        <span className="text-ink-subtle font-mono text-xs">
+        <span className="text-ink-subtle tabular-nums text-xs">
           {String(startIndex + index + 1).padStart(2, "0")}
         </span>
       ),
@@ -374,7 +374,7 @@ const PermissionList: React.FC = () => {
                     {
                       label: "Permission ID",
                       value: (
-                        <span className="text-ink-subtle font-mono text-xs">
+                        <span className="text-ink-subtle tabular-nums text-xs">
                           {String(selectedPerm.id)}
                         </span>
                       ),

@@ -35,10 +35,11 @@ import {
  */
 type Tab = "leave" | "gratuity" | "bonus" | "settlements" | "holidays";
 const STATUS_STYLE: Record<SettlementRow["status"], string> = {
-  DRAFT: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-sky-100 text-sky-800",
-  PAID: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+  DRAFT:
+    "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]",
+  APPROVED: "bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)] text-accent",
+  PAID: "bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]",
+  CANCELLED: "bg-card-2 text-ink",
 };
 
 const LabourEntitlementsPage: React.FC = () => {
@@ -163,7 +164,7 @@ const LabourEntitlementsPage: React.FC = () => {
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
               tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
+                ? "border-b-2 border-[var(--color-accent)] text-accent"
                 : "text-ink-muted hover:text-ink"
             }`}
           >
@@ -398,7 +399,7 @@ const LabourEntitlementsPage: React.FC = () => {
                     </td>
                     <td
                       className={`${td} text-right font-semibold ${
-                        Number(s.netPayable) < 0 ? "text-rose-700" : ""
+                        Number(s.netPayable) < 0 ? "text-[color:var(--color-danger)]" : ""
                       }`}
                     >
                       {money(s.netPayable)}

@@ -334,7 +334,7 @@ const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) =
         className={`block w-14 h-8 rounded-full transition-colors duration-300 ${value ? "bg-accent" : "bg-line"}`}
       />
       <div
-        className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ${value ? "transform translate-x-6" : ""}`}
+        className={`dot absolute left-1 top-1 bg-card w-6 h-6 rounded-full transition-transform duration-300 ${value ? "transform translate-x-6" : ""}`}
       />
     </label>
     <span className="text-sm font-medium text-ink-muted">{value ? "YES" : "NO"}</span>

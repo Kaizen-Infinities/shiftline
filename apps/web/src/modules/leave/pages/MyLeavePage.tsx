@@ -20,10 +20,13 @@ import {
 
 /** Self-service: the calling user's own leave balances and requests (P2-09). */
 const STATUS_STYLE: Record<LeaveRequestStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  REJECTED: "bg-rose-100 text-rose-700",
-  CANCELLED: "bg-slate-100 text-slate-700",
+  PENDING:
+    "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]",
+  APPROVED:
+    "bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]",
+  REJECTED:
+    "bg-[color-mix(in_srgb,var(--color-danger)_14%,transparent)] text-[color:var(--color-danger)]",
+  CANCELLED: "bg-card-2 text-ink",
 };
 
 const emptyForm = {

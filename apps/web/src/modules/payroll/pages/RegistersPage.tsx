@@ -367,7 +367,9 @@ const OvertimeTable: React.FC<{ rows: OvertimeRow[] }> = ({ rows }) => (
               <td className={`${td} text-center`}>{r.overCap ? "Yes" : ""}</td>
               <td
                 className={`${td} text-center ${
-                  r.payrollBreach ? "bg-red-50 font-semibold text-red-700" : ""
+                  r.payrollBreach
+                    ? "bg-[color-mix(in_srgb,var(--color-danger)_9%,transparent)] font-semibold text-[color:var(--color-danger)]"
+                    : ""
                 }`}
                 title={r.payrollBreach ? "Quarterly cap of 125 hours exceeded" : undefined}
               >
@@ -442,7 +444,10 @@ const FineDeductionTable: React.FC<{
             </thead>
             <tbody>
               {ceilingChecks.map((c, i) => (
-                <tr key={i} className={`border-t border-line-soft ${c.breach ? "bg-rose-50" : ""}`}>
+                <tr
+                  key={i}
+                  className={`border-t border-line-soft ${c.breach ? "bg-[color-mix(in_srgb,var(--color-danger)_9%,transparent)]" : ""}`}
+                >
                   <td className={td}>{c.employeeCode}</td>
                   <td className={td}>{c.month}</td>
                   <td className={`${td} text-right`}>{money(c.totalFines)}</td>

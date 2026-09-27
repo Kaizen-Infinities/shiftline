@@ -1,19 +1,22 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Wallet, Plus, Trash2, X, Loader2, AlertTriangle } from 'lucide-react';
-import CommonLoader from '../../../components/ui/Loader/CommonLoader';
-import { toast } from 'react-toastify';
-import { payrollService } from '../../../services/payrollService';
-import type { ApiSalaryAdvance, ApiEmployeePayroll } from '../../../services/payrollService';
-import { usePermission } from '../../../hooks/usePermission';
+import React, { useEffect, useState, useCallback } from "react";
+import { Wallet, Plus, Trash2, X, Loader2, AlertTriangle } from "lucide-react";
+import CommonLoader from "../../../components/ui/Loader/CommonLoader";
+import { toast } from "react-toastify";
+import { payrollService } from "../../../services/payrollService";
+import type { ApiSalaryAdvance, ApiEmployeePayroll } from "../../../services/payrollService";
+import { usePermission } from "../../../hooks/usePermission";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmtRs = (n: number) => `₹${Number(n).toLocaleString('en-IN')}`;
-const fmtDate = (s: string) => new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtRs = (n: number) => `₹${Number(n).toLocaleString("en-IN")}`;
+const fmtDate = (s: string) =>
+  new Date(s).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
 const STATUS_STYLE: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-700',
-  PARTIAL: 'bg-blue-100  text-blue-700',
-  CLEARED: 'bg-green-100 text-green-700',
+  PENDING:
+    "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]",
+  PARTIAL: "bg-[color-mix(in_srgb,var(--color-accent)_14%,transparent)]  text-accent",
+  CLEARED:
+    "bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]",
 };
 
 // ─── Add-Advance slide-in panel ────────────────────────────────────────────────
@@ -24,16 +27,16 @@ interface AddPanelProps {
 }
 
 const AddPanel: React.FC<AddPanelProps> = ({ employees, onClose, onSaved }) => {
-  const [employeeId, setEmployeeId] = useState('');
-  const [amount, setAmount]         = useState('');
-  const [date, setDate]             = useState(new Date().toISOString().slice(0, 10));
-  const [reason, setReason]         = useState('');
-  const [saving, setSaving]         = useState(false);
+  const [employeeId, setEmployeeId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!employeeId || !amount || !date) {
-      toast.error('Employee, amount and date are required.');
+      toast.error("Employee, amount and date are required.");
       return;
     }
     try {
@@ -44,10 +47,10 @@ const AddPanel: React.FC<AddPanelProps> = ({ employees, onClose, onSaved }) => {
         disbursedDate: date,
         reason: reason.trim() || undefined,
       });
-      toast.success('Salary advance recorded.');
+      toast.success("Salary advance recorded.");
       onSaved();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? 'Failed to save advance.');
+      toast.error(err?.response?.data?.message ?? "Failed to save advance.");
     } finally {
       setSaving(false);
     }
@@ -69,18 +72,23 @@ const AddPanel: React.FC<AddPanelProps> = ({ employees, onClose, onSaved }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-card">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto px-6 py-5 space-y-4 bg-card"
+        >
           {/* Employee */}
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1">Employee <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-semibold text-ink-muted mb-1">
+              Employee <span className="text-[color:var(--color-danger)]">*</span>
+            </label>
             <select
               value={employeeId}
-              onChange={e => setEmployeeId(e.target.value)}
+              onChange={(e) => setEmployeeId(e.target.value)}
               className="w-full border border-line-soft rounded-xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30 bg-card-2"
               required
             >
               <option value="">Select employee…</option>
-              {employees.map(emp => (
+              {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.empCode} – {emp.fullName}
                 </option>
@@ -90,13 +98,15 @@ const AddPanel: React.FC<AddPanelProps> = ({ employees, onClose, onSaved }) => {
 
           {/* Amount */}
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1">Amount (₹) <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-semibold text-ink-muted mb-1">
+              Amount (₹) <span className="text-[color:var(--color-danger)]">*</span>
+            </label>
             <input
               type="number"
               min="1"
               step="0.01"
               value={amount}
-              onChange={e => setAmount(e.target.value)}
+              onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               className="w-full border border-line-soft rounded-xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30 bg-card-2"
               required
@@ -105,11 +115,13 @@ const AddPanel: React.FC<AddPanelProps> = ({ employees, onClose, onSaved }) => {
 
           {/* Date */}
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1">Disbursed Date <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-semibold text-ink-muted mb-1">
+              Disbursed Date <span className="text-[color:var(--color-danger)]">*</span>
+            </label>
             <input
               type="date"
               value={date}
-              onChange={e => setDate(e.target.value)}
+              onChange={(e) => setDate(e.target.value)}
               className="w-full border border-line-soft rounded-xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30 bg-card-2"
               required
             />
@@ -117,12 +129,14 @@ const AddPanel: React.FC<AddPanelProps> = ({ employees, onClose, onSaved }) => {
 
           {/* Reason */}
           <div>
-            <label className="block text-xs font-semibold text-ink-muted mb-1">Reason <span className="text-ink-subtle">(optional)</span></label>
+            <label className="block text-xs font-semibold text-ink-muted mb-1">
+              Reason <span className="text-ink-subtle">(optional)</span>
+            </label>
             <input
               type="text"
               maxLength={200}
               value={reason}
-              onChange={e => setReason(e.target.value)}
+              onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Medical emergency"
               className="w-full border border-line-soft rounded-xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30 bg-card-2"
             />
@@ -137,13 +151,9 @@ const AddPanel: React.FC<AddPanelProps> = ({ employees, onClose, onSaved }) => {
           >
             Cancel
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-60 transition-colors"
-          >
+          <button onClick={handleSubmit} disabled={saving} className="sl-cta sl-pill-md">
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-            {saving ? 'Saving…' : 'Save Advance'}
+            {saving ? "Saving…" : "Save Advance"}
           </button>
         </div>
       </div>
@@ -157,13 +167,13 @@ const SalaryAdvancePage: React.FC = () => {
   const canCreateAdvance = can("payroll-advance.create");
   const canDeleteAdvance = can("payroll-advance.delete");
 
-  const [advances,  setAdvances]  = useState<ApiSalaryAdvance[]>([]);
+  const [advances, setAdvances] = useState<ApiSalaryAdvance[]>([]);
   const [employees, setEmployees] = useState<ApiEmployeePayroll[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
-  const [deleteId,  setDeleteId]  = useState<number | null>(null);
-  const [deleting,  setDeleting]  = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -176,24 +186,26 @@ const SalaryAdvancePage: React.FC = () => {
       setAdvances(adv);
       setEmployees(emps);
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load data.');
+      setError(e?.response?.data?.message ?? "Failed to load data.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleDelete = async () => {
     if (deleteId == null) return;
     try {
       setDeleting(true);
       await payrollService.deleteAdvance(deleteId);
-      toast.success('Advance deleted.');
+      toast.success("Advance deleted.");
       setDeleteId(null);
       load();
     } catch (e: any) {
-      toast.error(e?.response?.data?.message ?? 'Failed to delete advance.');
+      toast.error(e?.response?.data?.message ?? "Failed to delete advance.");
     } finally {
       setDeleting(false);
     }
@@ -213,10 +225,7 @@ const SalaryAdvancePage: React.FC = () => {
           </div>
         </div>
         {canCreateAdvance && (
-          <button
-            onClick={() => setShowPanel(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm"
-          >
+          <button onClick={() => setShowPanel(true)} className="sl-cta sl-pill-md">
             <Plus size={16} />
             Add Advance
           </button>
@@ -225,14 +234,14 @@ const SalaryAdvancePage: React.FC = () => {
 
       {/* ── Error banner ── */}
       {error && (
-        <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-2xl text-sm text-red-500">
+        <div className="flex items-center gap-2 px-4 py-3 bg-[color-mix(in_srgb,var(--color-danger)_10%,transparent)] border border-[color-mix(in_srgb,var(--color-danger)_40%,transparent)] rounded-2xl text-sm text-[color:var(--color-danger)]">
           <AlertTriangle size={16} />
           {error}
         </div>
       )}
 
       {/* ── Table card ── */}
-      <div className="bg-card rounded-2xl border border-line-soft shadow-xs overflow-hidden">
+      <div className="sl-tile overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-line-soft">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-ink">All Advances</h2>
@@ -245,7 +254,7 @@ const SalaryAdvancePage: React.FC = () => {
         {loading ? (
           <CommonLoader text="Loading advances…" fullScreen={false} />
         ) : advances.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+          <div className="flex flex-col items-center justify-center py-16 text-ink-subtle">
             <Wallet size={36} className="mb-2 opacity-30" />
             <p className="text-sm font-medium">No salary advances recorded yet.</p>
             {canCreateAdvance && (
@@ -273,16 +282,19 @@ const SalaryAdvancePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-soft">
-                {advances.map(adv => {
+                {advances.map((adv) => {
                   const pending = Number(adv.amount) - Number(adv.recoveredAmount);
-                  const canDelete = canDeleteAdvance && adv.status === 'PENDING' && Number(adv.recoveredAmount) === 0;
+                  const canDelete =
+                    canDeleteAdvance &&
+                    adv.status === "PENDING" &&
+                    Number(adv.recoveredAmount) === 0;
                   return (
                     <tr key={adv.id} className="hover:bg-card-2/60 transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="font-semibold text-ink">{adv.employee.fullName}</div>
                         <div className="text-xs text-ink-subtle">{adv.employee.empCode}</div>
                       </td>
-                      <td className="px-5 py-3.5 text-right font-semibold text-ink font-mono">
+                      <td className="px-5 py-3.5 text-right font-semibold text-ink tabular-nums">
                         {fmtRs(Number(adv.amount))}
                       </td>
                       <td className="px-5 py-3.5 text-ink-muted whitespace-nowrap">
@@ -291,14 +303,16 @@ const SalaryAdvancePage: React.FC = () => {
                       <td className="px-5 py-3.5 text-ink-muted max-w-[180px] truncate">
                         {adv.reason ?? <span className="text-ink-subtle">—</span>}
                       </td>
-                      <td className="px-5 py-3.5 text-right text-ink-muted font-mono">
+                      <td className="px-5 py-3.5 text-right text-ink-muted tabular-nums">
                         {fmtRs(Number(adv.recoveredAmount))}
                       </td>
-                      <td className="px-5 py-3.5 text-right font-semibold text-ink font-mono">
+                      <td className="px-5 py-3.5 text-right font-semibold text-ink tabular-nums">
                         {fmtRs(pending)}
                       </td>
                       <td className="px-5 py-3.5 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${STATUS_STYLE[adv.status] ?? 'bg-card-2 text-ink-muted'}`}>
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${STATUS_STYLE[adv.status] ?? "bg-card-2 text-ink-muted"}`}
+                        >
                           {adv.status}
                         </span>
                       </td>
@@ -306,7 +320,7 @@ const SalaryAdvancePage: React.FC = () => {
                         {canDelete ? (
                           <button
                             onClick={() => setDeleteId(adv.id)}
-                            className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-500/10 transition-colors"
+                            className="p-1.5 rounded-lg text-[color:var(--color-danger)] hover:text-[color:var(--color-danger)] hover:bg-[color-mix(in_srgb,var(--color-danger)_10%,transparent)] transition-colors"
                             title="Delete advance"
                           >
                             <Trash2 size={15} />
@@ -329,7 +343,10 @@ const SalaryAdvancePage: React.FC = () => {
         <AddPanel
           employees={employees}
           onClose={() => setShowPanel(false)}
-          onSaved={() => { setShowPanel(false); load(); }}
+          onSaved={() => {
+            setShowPanel(false);
+            load();
+          }}
         />
       )}
 
@@ -338,8 +355,8 @@ const SalaryAdvancePage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
           <div className="bg-card rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4 border border-line-soft">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <Trash2 size={18} className="text-red-500" />
+              <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--color-danger)_10%,transparent)] flex items-center justify-center">
+                <Trash2 size={18} className="text-[color:var(--color-danger)]" />
               </div>
               <h3 className="text-base font-bold text-ink">Delete Advance?</h3>
             </div>
@@ -357,10 +374,10 @@ const SalaryAdvancePage: React.FC = () => {
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
+                className="sl-btn-danger sl-pill-md"
               >
                 {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                {deleting ? 'Deleting…' : 'Delete'}
+                {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>

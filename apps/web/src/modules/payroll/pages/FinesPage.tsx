@@ -26,9 +26,11 @@ import {
  * 3% ceiling, and the recovery status left by a payroll run.
  */
 const STATUS_STYLE: Record<FineStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+  PENDING:
+    "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]",
+  APPROVED:
+    "bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]",
+  CANCELLED: "bg-card-2 text-ink",
 };
 
 const emptyForm = {
@@ -420,7 +422,7 @@ const FinesPage: React.FC = () => {
                   <td className={`${td} space-x-2`}>
                     {r.status === "PENDING" && !r.shownCauseGiven && can("fines.manage") && (
                       <button
-                        className="text-xs font-semibold text-slate-700 hover:underline"
+                        className="text-xs font-semibold text-ink hover:underline"
                         disabled={busy}
                         onClick={() => {
                           setEditId(r.id);
@@ -440,7 +442,7 @@ const FinesPage: React.FC = () => {
                       !r.shownCauseGiven &&
                       can("fines.manage") && (
                         <button
-                          className="text-xs font-semibold text-blue-700 hover:underline"
+                          className="text-xs font-semibold text-accent hover:underline"
                           disabled={busy}
                           onClick={() => {
                             setShowCauseId(r.id);
@@ -453,7 +455,7 @@ const FinesPage: React.FC = () => {
                       )}
                     {r.status === "PENDING" && can("fines.approve") && (
                       <button
-                        className="text-xs font-semibold text-emerald-700 hover:underline"
+                        className="text-xs font-semibold text-[color:var(--color-success)] hover:underline"
                         disabled={busy}
                         onClick={() => act(() => finesService.approve(r.id), "Approved")}
                       >
@@ -462,7 +464,7 @@ const FinesPage: React.FC = () => {
                     )}
                     {r.status !== "CANCELLED" && !r.recovered && can("fines.manage") && (
                       <button
-                        className="text-xs font-semibold text-rose-700 hover:underline"
+                        className="text-xs font-semibold text-[color:var(--color-danger)] hover:underline"
                         disabled={busy}
                         onClick={() => {
                           setCancelId(r.id);

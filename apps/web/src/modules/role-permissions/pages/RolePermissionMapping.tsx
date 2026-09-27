@@ -57,7 +57,7 @@ const SECTION_STYLE: Record<
   const neutral = {
     activeBg: "bg-accent",
     activeShadow: "",
-    badgeActive: "bg-white/20 text-white",
+    badgeActive: "bg-card/20 text-white",
     badgeInactive: "bg-card-2 text-ink-subtle",
     iconClass: "text-ink-subtle",
     hex: "var(--color-accent)",
@@ -885,7 +885,7 @@ const RolePermissionMapping: React.FC = () => {
                                 <div className="font-semibold text-ink text-[12px]">
                                   {mod.label}
                                 </div>
-                                <div className="text-[9px] text-ink-subtle/60 font-mono mt-0.5">
+                                <div className="text-[9px] text-ink-subtle/60 tabular-nums mt-0.5">
                                   {mod.key}
                                 </div>
                               </td>
@@ -953,7 +953,7 @@ const RolePermissionMapping: React.FC = () => {
                                       {mod.label} Special Access
                                     </div>
                                   </div>
-                                  <div className="text-[10px] text-accent/80 font-mono mt-0.5">
+                                  <div className="text-[10px] text-accent/80 tabular-nums mt-0.5">
                                     {mod.key} (special permissions)
                                   </div>
                                 </td>
@@ -1014,7 +1014,7 @@ const RolePermissionMapping: React.FC = () => {
                                           {/* Tooltip on conflict */}
                                           {isBlocked && (
                                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block z-20 pointer-events-none">
-                                              <div className="bg-slate-900 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                                              <div className="bg-ink text-page text-[10px] rounded px-2 py-1 whitespace-nowrap shadow-lg">
                                                 Conflicts with{" "}
                                                 <span className="font-bold">
                                                   {formatActionLabel(conflictAction!)}

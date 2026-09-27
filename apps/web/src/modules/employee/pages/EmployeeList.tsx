@@ -224,7 +224,7 @@ const Employeelist: React.FC = () => {
       width: "50px",
       align: "center",
       render: (_, index) => (
-        <span className="text-ink-subtle font-mono text-xs">
+        <span className="text-ink-subtle tabular-nums text-xs">
           {String(startIndex + index + 1).padStart(2, "0")}
         </span>
       ),
@@ -266,7 +266,7 @@ const Employeelist: React.FC = () => {
               {isActive ? "Enabled" : emp.user.status?.toUpperCase() || "Disabled"}
             </span>
             {emp.user.username && (
-              <span className="text-[11px] font-mono text-ink-subtle">@{emp.user.username}</span>
+              <span className="text-[11px] tabular-nums text-ink-subtle">@{emp.user.username}</span>
             )}
           </div>
         );

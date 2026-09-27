@@ -158,7 +158,7 @@ const StatutoryPayrollPage: React.FC = () => {
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
               tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
+                ? "border-b-2 border-[var(--color-accent)] text-accent"
                 : "text-ink-muted hover:text-ink"
             }`}
           >
@@ -170,7 +170,7 @@ const StatutoryPayrollPage: React.FC = () => {
       {loading && <p className="text-sm text-ink-muted">Loading…</p>}
 
       {notComputed && tab !== "rules" && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_32%,transparent)] bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)] p-3 text-sm text-[color:var(--color-warning)]">
           The statutory figures have not been worked out for this run yet. Use “Work out the month”
           above — nothing is posted or filed by it.
         </div>
@@ -179,7 +179,7 @@ const StatutoryPayrollPage: React.FC = () => {
       {tab === "summary" && summary && (
         <>
           {summary.wageCheckFailures > 0 && (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+            <div className="rounded-lg border border-[color-mix(in_srgb,var(--color-danger)_32%,transparent)] bg-[color-mix(in_srgb,var(--color-danger)_9%,transparent)] p-3 text-sm text-[color:var(--color-danger)]">
               {summary.wageCheckFailures} employee(s) have a basic under half of gross. The Code on
               Wages puts a floor there, and provident fund, gratuity and bonus all follow that wage
               — so all three are being understated.

@@ -238,7 +238,7 @@ const RoleList: React.FC = () => {
     {
       header: "#",
       render: (_, index) => (
-        <span className="text-ink-subtle font-mono text-xs">
+        <span className="text-ink-subtle tabular-nums text-xs">
           {String(startIndex + index + 1).padStart(2, "0")}
         </span>
       ),
@@ -256,7 +256,7 @@ const RoleList: React.FC = () => {
     {
       header: "Code",
       render: (role) => (
-        <span className="font-mono text-xs font-bold text-accent bg-accent/10 border border-accent/20 px-2.5 py-1 rounded-md">
+        <span className="tabular-nums text-xs font-bold text-accent bg-accent/10 border border-accent/20 px-2.5 py-1 rounded-md">
           {role.code}
         </span>
       ),
@@ -446,7 +446,7 @@ const RoleList: React.FC = () => {
                       {
                         label: "Role ID",
                         value: (
-                          <span className="text-ink-subtle font-mono text-sm">
+                          <span className="text-ink-subtle tabular-nums text-sm">
                             {String(selectedRole.id)}
                           </span>
                         ),

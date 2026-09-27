@@ -39,7 +39,7 @@ const EmployeeViewModal: React.FC<EmployeeViewModalProps> = ({ show, onHide, emp
             {
               label: "Employee ID",
               value: (
-                <span className="text-ink-subtle font-mono text-xs">{String(employee.id)}</span>
+                <span className="text-ink-subtle tabular-nums text-xs">{String(employee.id)}</span>
               ),
               xs: 12,
             },
