@@ -5,7 +5,6 @@ import { toast } from "react-toastify";
 import { useListCache, markStaleByPrefix } from "../../../hooks/useListCache";
 import { stockAdjustmentService } from "../../../services/stockAdjustmentService";
 import { usePermission } from "../../../hooks/usePermission";
-import { Search } from "lucide-react";
 import DataTable from "../../../components/ui/table/DataTable";
 import FilterPopover from "../../../components/ui/FilterPopover/FilterPopover";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";

@@ -12,8 +12,8 @@ import {
   DispatchPlaceholder,
   StatusTimeline,
   VehicleTile,
-  fmtQty,
 } from "../components/DispatchParts";
+import { fmtQty } from "../components/dispatchFormat";
 
 const GoodsDispatchDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();

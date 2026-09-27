@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Check, Truck, X } from "lucide-react";
 
+import { fmtQty, formatUOM } from "./dispatchFormat";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import { formatDate, formatDateTime } from "../../../utils/dateUtils";
@@ -17,14 +18,6 @@ import {
 } from "../../../components/ui/v2";
 
 /** Shared building blocks for the goods-dispatch view, gate and store screens. */
-
-export const formatUOM = (code: string | null | undefined) => {
-  if (!code) return "PCS";
-  const upper = code.toUpperCase();
-  return upper === "EA" || upper === "EACH" ? "PCS" : upper;
-};
-
-export const fmtQty = (v: unknown) => Number(v || 0).toLocaleString("en-IN");
 
 export const InfoField = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="min-w-0">

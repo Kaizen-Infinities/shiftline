@@ -7,7 +7,6 @@ import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import DataTable from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
-import { Search } from "lucide-react";
 import { categoryService } from "../../../services/categoryService";
 import { usePermission } from "../../../hooks/usePermission";
 import { PackageCheck } from "lucide-react";

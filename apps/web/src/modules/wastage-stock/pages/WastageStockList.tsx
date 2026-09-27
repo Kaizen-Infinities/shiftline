@@ -6,7 +6,6 @@ import { useSocketSync } from "../../../hooks/useSocketSync";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import DataTable from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
-import { Search } from "lucide-react";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import CommonViewModal from "../../../components/ui/CommonViewModal/CommonViewModal";
 import { formatLocationAddress } from "../../../utils/addressUtils";

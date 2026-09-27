@@ -22,6 +22,14 @@ import { ActionPill, Chip, PageHeader, StatTile, Toolbar } from "../../../compon
 
 const ITEMS_PER_PAGE = 15;
 
+const availableOf = (item: any) => Number(item.onHandQty ?? 0) - Number(item.reservedQty ?? 0);
+const stockLevel = (item: any): "low" | "reorder" | "ok" => {
+  const available = availableOf(item);
+  if (available <= Number(item.minimumStock ?? 0)) return "low";
+  if (available <= Number(item.reorderLevel ?? 0)) return "reorder";
+  return "ok";
+};
+
 const RawMaterialList: React.FC = () => {
   const navigate = useNavigate();
   const { can } = usePermission();
@@ -170,14 +178,6 @@ const RawMaterialList: React.FC = () => {
       csvFilename: `Raw_Materials_List_${new Date().toISOString().split("T")[0]}.csv`,
     };
   }, []);
-
-  const availableOf = (item: any) => Number(item.onHandQty ?? 0) - Number(item.reservedQty ?? 0);
-  const stockLevel = (item: any): "low" | "reorder" | "ok" => {
-    const available = availableOf(item);
-    if (available <= Number(item.minimumStock ?? 0)) return "low";
-    if (available <= Number(item.reorderLevel ?? 0)) return "reorder";
-    return "ok";
-  };
 
   const stats = useMemo(() => {
     let low = 0;
