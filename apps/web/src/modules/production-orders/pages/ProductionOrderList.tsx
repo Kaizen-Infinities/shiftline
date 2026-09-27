@@ -1,13 +1,31 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { usePageShortcuts } from "../../../hooks/usePageShortcuts";
-import { FaPlus, FaCalendarAlt, FaCheckCircle, FaEye, FaSyncAlt } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import {
+  AlertTriangle,
+  CalendarPlus,
+  CalendarRange,
+  Eye,
+  Factory,
+  History,
+  PackageCheck,
+  Plus,
+  RefreshCw,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ActionPill,
+  PageHeader,
+  SectionLabel,
+  Skeleton,
+  actionPillClass,
+} from "../../../components/ui/v2";
+import { Figure, PageBody, RowActions, formatQty } from "../../production/ui";
+import { formatDate as formatDisplayDate } from "../../../utils/dateUtils";
 import { toast } from "react-toastify";
 
 import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import StatusBadge from "../../../components/ui/StatusBadge/Badge";
-import CustomButton from "../../../components/ui/Button/Button";
 import DataTable from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import IconButton from "../../../components/ui/IconButton/IconButton";
@@ -463,51 +481,46 @@ const ProductionOrderList: React.FC = () => {
     setShowDeleteModal(true);
   }, []);
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "N/A";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
-  };
+  const formatDate = (dateStr: string) => (dateStr ? formatDisplayDate(dateStr) : "N/A");
 
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   const columns = useMemo(
     () => [
       {
-        header: "#",
-        width: "48px",
-        render: (_: any, index: number) => (
-          <span className="text-ink-subtle">{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</span>
+        header: "PO no",
+        render: (item: any) => (
+          <div className="py-1">
+            <span className="font-mono text-[13px] font-semibold text-accent">
+              {item.primaryPO ? item.primaryPO.productionOrderId : item.orderNo}
+            </span>
+            <span className="sl-muted block max-w-[200px] truncate text-[12px]">
+              {item.isDirect
+                ? "Direct order"
+                : item.customer?.firmName || item.customerName || `SO ${item.orderNo}`}
+            </span>
+          </div>
         ),
       },
       {
-        header: "PO NO",
-        width: "110px",
+        header: "Order date",
         render: (item: any) => (
-          <span className="font-semibold text-ink">
-            {item.primaryPO ? item.primaryPO.productionOrderId : item.orderNo}
+          <span className="text-ink-muted tabular-nums">{formatDate(item.orderDate)}</span>
+        ),
+      },
+      {
+        header: "Expected",
+        render: (item: any) => (
+          <span className="text-ink-muted tabular-nums">
+            {item.expectedCompletionDate ? formatDate(item.expectedCompletionDate) : "—"}
           </span>
         ),
       },
       {
-        header: "ORDER DATE",
-        width: "100px",
-        render: (item: any) => <span className="text-ink-muted">{formatDate(item.orderDate)}</span>,
-      },
-      {
-        header: "EXPECTED DATE",
-        width: "110px",
+        header: "Products",
+        width: "minmax(180px, 1fr)",
         render: (item: any) => (
-          <span className="text-ink-muted">
-            {item.expectedCompletionDate ? formatDate(item.expectedCompletionDate) : "-"}
-          </span>
-        ),
-      },
-      {
-        header: "PRODUCTS",
-        width: "minmax(0, 1fr)",
-        render: (item: any) => (
-          <span className="text-ink-muted">
+          <span className="line-clamp-2 text-ink">
             {item.productionOrders && item.productionOrders.length > 0
               ? item.productionOrders
                   .map((po: any) => po.productItem?.productName || "Unknown Product")
@@ -519,15 +532,14 @@ const ProductionOrderList: React.FC = () => {
         ),
       },
       {
-        header: "STATUS",
-        width: "165px",
+        header: "Status",
         render: (item: any) => <StatusBadge status={item.status} />,
       },
       {
-        header: "ACTIONS",
-        width: "160px",
+        header: "Actions",
+        align: "right" as const,
         render: (item: any) => (
-          <div className="flex items-center gap-2 justify-start">
+          <RowActions>
             {/* PENDING_PLANNING with no PO yet → Create Production Order */}
             {item.status === "PENDING_PLANNING" &&
               !item.primaryPO &&
@@ -535,7 +547,7 @@ const ProductionOrderList: React.FC = () => {
                 <IconButton
                   variant="primary"
                   title="Create Production Order"
-                  icon={FaPlus}
+                  icon={Plus}
                   onClick={() => handleCreateProductionOrder(item)}
                 />
               )}
@@ -549,7 +561,7 @@ const ProductionOrderList: React.FC = () => {
                 <IconButton
                   variant="success"
                   title="Assign to Weekly Scheduling (Verifies Material)"
-                  icon={FaCalendarAlt}
+                  icon={CalendarPlus}
                   onClick={() => handleAssignWeekly(item)}
                 />
               )}
@@ -562,7 +574,7 @@ const ProductionOrderList: React.FC = () => {
                   <IconButton
                     variant="info"
                     title="Re-Check Raw Material Stock Availability"
-                    icon={FaSyncAlt}
+                    icon={RefreshCw}
                     onClick={() => handleRecheckMaterials(item)}
                   />
                 </>
@@ -573,7 +585,7 @@ const ProductionOrderList: React.FC = () => {
               <IconButton
                 variant="success"
                 title="Allocate & Reserve Raw Materials"
-                icon={FaCheckCircle}
+                icon={PackageCheck}
                 onClick={() => handleAllocateRM(item)}
               />
             )}
@@ -583,7 +595,7 @@ const ProductionOrderList: React.FC = () => {
               <IconButton
                 variant="info"
                 title="View Details"
-                icon={FaEye}
+                icon={Eye}
                 onClick={() => {
                   setSelectedItem(item.primaryPO);
                   setFullOrder(null);
@@ -611,7 +623,7 @@ const ProductionOrderList: React.FC = () => {
                   }
                 />
               )}
-          </div>
+          </RowActions>
         ),
       },
     ],
@@ -679,9 +691,11 @@ const ProductionOrderList: React.FC = () => {
     <div>
       {hasInsufficientStock && (
         <div
-          className="flex items-center gap-2 mb-4 px-4 py-3 rounded-sm border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] text-sm font-medium"
+          className="mb-4 flex items-start gap-2 rounded-[14px] bg-card-2 px-4 py-3 text-sm font-medium text-[color:var(--color-danger)]"
+          style={{ boxShadow: "inset 4px 0 0 var(--color-danger)" }}
           role="alert"
         >
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
             One or more required raw materials have insufficient stock. Please create a Raw Material
             Order before proceeding to Weekly Machine Assignment.
@@ -690,64 +704,67 @@ const ProductionOrderList: React.FC = () => {
       )}
 
       {loadingDetails ? (
-        <div className="text-center p-4">
-          <div className="animate-spin rounded-full border-b-2 border-accent h-6 w-6 inline-block mr-2"></div>{" "}
-          Loading details...
+        <div className="flex flex-col gap-2 p-2" role="status">
+          <span className="sr-only">Loading details...</span>
+          <Skeleton height={16} width="40%" />
+          <Skeleton height={64} />
+          <Skeleton height={120} />
         </div>
       ) : (
         fullOrder?.products?.map((prod: any, idx: number) => (
-          <div key={idx} className="mt-4 border-t border-line pt-4">
-            <h6 className="text-base font-bold text-ink mb-3">
+          <div key={idx} className="mt-4 border-t border-line-soft pt-4">
+            <h6 className="sl-h2 m-0 mb-3 text-[16px]">
               Product {idx + 1}: {prod.productName} ({prod.productCode})
             </h6>
 
-            <div className="grid grid-cols-3 gap-4 mb-4 bg-card-2 p-4 rounded-lg border border-line-soft">
-              <div>
-                <div className="text-xs font-semibold text-ink-subtle uppercase tracking-wide">
-                  Production Qty
-                </div>
-                <div className="text-sm font-bold text-ink mt-1">
-                  {prod.quantity}{" "}
-                  {prod.uom?.toLowerCase() === "ea" || prod.uom?.toLowerCase() === "each"
+            <div className="mb-4 grid grid-cols-3 gap-4 rounded-[16px] bg-card-2 p-4">
+              <Figure
+                label="Production Qty"
+                value={formatQty(prod.quantity)}
+                hint={
+                  prod.uom?.toLowerCase() === "ea" || prod.uom?.toLowerCase() === "each"
                     ? "pcs"
-                    : prod.uom}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-ink-subtle uppercase tracking-wide">
-                  Weight Used
-                </div>
-                <div className="text-sm font-bold text-ink mt-1">
-                  {Number(prod.weightPerPieceUsed || 0).toFixed(3)} KG
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-ink-subtle uppercase tracking-wide">
-                  Unit (UOM)
-                </div>
-                <div className="text-sm font-bold text-ink mt-1">
-                  {prod.uom?.toLowerCase() === "ea" || prod.uom?.toLowerCase() === "each"
+                    : prod.uom
+                }
+              />
+              <Figure
+                label="Weight Used"
+                value={Number(prod.weightPerPieceUsed || 0).toFixed(3)}
+                hint="KG per piece"
+              />
+              <Figure
+                label="Unit (UOM)"
+                value={
+                  prod.uom?.toLowerCase() === "ea" || prod.uom?.toLowerCase() === "each"
                     ? "pcs"
-                    : prod.uom}
-                </div>
-              </div>
+                    : prod.uom
+                }
+              />
             </div>
 
-            <div className="text-sm font-semibold text-ink-muted mb-2 mt-4">
-              Required Raw Materials
-            </div>
-            <div className="w-full border border-line rounded-lg overflow-hidden mb-3">
-              <table className="w-full text-left border-collapse text-sm">
-                <thead className="bg-card-2 border-b border-line text-ink-muted">
-                  <tr>
-                    <th className="p-2 font-semibold">RAW MATERIAL CODE</th>
-                    <th className="p-2 font-semibold">RAW MATERIAL NAME</th>
-                    <th className="p-2 font-semibold text-right">REQUIRED QTY</th>
-                    <th className="p-2 font-semibold text-right">AVAILABLE STOCK</th>
-                    <th className="p-2 font-semibold text-center">STOCK STATUS</th>
+            <SectionLabel as="h3">Required Raw Materials</SectionLabel>
+            <div className="mb-3 w-full overflow-x-auto rounded-[14px] border border-line-soft">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="bg-card-2">
+                  <tr className="border-b border-line-soft">
+                    <th scope="col" className="sl-th px-3 py-2.5">
+                      Code
+                    </th>
+                    <th scope="col" className="sl-th px-3 py-2.5">
+                      Raw material
+                    </th>
+                    <th scope="col" className="sl-th px-3 py-2.5 text-right">
+                      Required
+                    </th>
+                    <th scope="col" className="sl-th px-3 py-2.5 text-right">
+                      Available
+                    </th>
+                    <th scope="col" className="sl-th px-3 py-2.5 text-center">
+                      Stock
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line bg-card">
+                <tbody className="divide-y divide-line-soft bg-card">
                   {prod.rawMaterials?.map((rm: any) => {
                     const stockRm = rawMaterialsMap.get(rm.rawMaterialId?.toString());
                     const required = Number(rm.requiredQty || 0);
@@ -778,16 +795,18 @@ const ProductionOrderList: React.FC = () => {
                     }
 
                     return (
-                      <tr key={rm.rawMaterialId} className="hover:bg-card-2 transition-colors">
-                        <td className="p-2 font-semibold text-ink-muted">{rm.rawMaterialId}</td>
-                        <td className="p-2 text-ink-muted">{materialName}</td>
-                        <td className="p-2 text-right text-ink-muted">
+                      <tr key={rm.rawMaterialId}>
+                        <td className="px-3 py-2.5 font-mono text-[12px] text-ink-muted">
+                          {rm.rawMaterialId}
+                        </td>
+                        <td className="px-3 py-2.5 font-medium text-ink">{materialName}</td>
+                        <td className="px-3 py-2.5 text-right text-ink tabular-nums">
                           {required.toFixed(2)} {displayUom}
                         </td>
-                        <td className="p-2 text-right text-ink-muted">
+                        <td className="px-3 py-2.5 text-right text-ink tabular-nums">
                           {available.toFixed(2)} {displayUom}
                         </td>
-                        <td className="p-2 text-center">
+                        <td className="px-3 py-2.5 text-center">
                           <StatusBadge status={isAvailable ? "AVAILABLE" : "INSUFFICIENT"} />
                         </td>
                       </tr>
@@ -809,15 +828,33 @@ const ProductionOrderList: React.FC = () => {
     </div>
   );
 
+  const newOrderButton = can("production_orders.create") ? (
+    <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/production-orders/create")}>
+      New Production Order
+    </ActionPill>
+  ) : null;
+
   return (
-    <div>
-      <div className="max-w-[1100px] xl:mr-auto bg-card rounded-sm border border-line overflow-hidden">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 px-5 py-3 border-b border-line">
-          <div>
-            <h2 className="text-base font-bold text-ink">Production Order Management</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+    <PageBody>
+      <PageHeader
+        title="Production Orders"
+        icon={<Factory size={22} />}
+        subtitle={`Production Order Management · ${totalItems} active order${totalItems === 1 ? "" : "s"}, from sales orders and direct orders.`}
+        actions={
+          <>
+            <Link to="/allproduction-orders" className={actionPillClass({ variant: "secondary" })}>
+              <History size={17} aria-hidden="true" />
+              All orders
+            </Link>
+            {(can("weekly_programs.create") || can("weekly_programs.view")) && (
+              <ActionPill
+                variant="secondary"
+                icon={<CalendarRange size={17} />}
+                onClick={() => navigate("/weekly-machine-schedules/create")}
+              >
+                Weekly Scheduling
+              </ActionPill>
+            )}
             {can("production_orders.export") && (
               <ExportCSVButton
                 fetchData={fetchProductionOrdersForExport}
@@ -826,38 +863,25 @@ const ProductionOrderList: React.FC = () => {
                 text="Export"
               />
             )}
-            {(can("weekly_programs.create") || can("weekly_programs.view")) && (
-              <CustomButton
-                text="Weekly Scheduling"
-                icon={FaCalendarAlt}
-                onClick={() => navigate("/weekly-machine-schedules/create")}
-                variant="secondary"
-              />
-            )}
-            {can("production_orders.create") && (
-              <CustomButton
-                text="Add Production Order"
-                icon={FaPlus}
-                onClick={() => navigate("/production-orders/create")}
-              />
-            )}
-          </div>
-        </div>
+          </>
+        }
+        primaryAction={newOrderButton}
+      />
 
-        {/* Table */}
-        <DataTable
-          columns={columns}
-          data={combinedData}
-          rowKey={(item) => item.id}
-          loading={loading}
-          emptyMessage="No orders found."
-          pagination={{
-            currentPage,
-            totalPages,
-            onPageChange: (page) => setCurrentPage(page),
-          }}
-        />
-      </div>
+      <DataTable
+        ariaLabel="Active production orders"
+        columns={columns}
+        data={combinedData}
+        rowKey={(item) => item.id}
+        loading={loading}
+        emptyMessage="No orders found. Sales orders sent to production and direct orders show up here."
+        emptyAction={newOrderButton}
+        pagination={{
+          currentPage,
+          totalPages,
+          onPageChange: (page) => setCurrentPage(page),
+        }}
+      />
 
       {/* VIEW PO MODAL */}
       <CommonViewModal
@@ -906,7 +930,7 @@ const ProductionOrderList: React.FC = () => {
         confirmText="Delete"
         confirmVariant="danger"
       />
-    </div>
+    </PageBody>
   );
 };
 
