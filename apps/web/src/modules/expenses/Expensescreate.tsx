@@ -379,7 +379,9 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
                   onChange={handleChange}
                 />
                 {errors.date && (
-                  <span className="text-red-500 text-sm mt-1 block">{errors.date}</span>
+                  <span className="text-[color:var(--color-danger)] text-sm mt-1 block">
+                    {errors.date}
+                  </span>
                 )}
               </div>
 
@@ -459,7 +461,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
                   checked={deductTds}
                   disabled={saving || (isEdit && existingTdsAmount !== null)}
                   onChange={(e) => setDeductTds(e.target.checked)}
-                  className="w-4 h-4 accent-blue-600"
+                  className="w-4 h-4 accent-[color:var(--color-primary)]"
                 />
                 Deduct TDS
               </label>
@@ -502,7 +504,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
                         </div>
                         <div className="flex justify-between">
                           <span className="text-ink-subtle">TDS Amount</span>
-                          <span className="font-semibold text-rose-500">
+                          <span className="font-semibold text-[color:var(--color-danger)]">
                             ₹
                             {((tdsPreview.base * tdsPreview.rate) / 100).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,

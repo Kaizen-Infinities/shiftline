@@ -40,9 +40,9 @@ import {
  */
 type Tab = "register" | "depreciation" | "yearEnd" | "tax" | "classes";
 const STATUS_STYLE: Record<AssetRow["status"], string> = {
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  DISPOSED: "bg-slate-100 text-slate-700",
-  WRITTEN_OFF: "bg-amber-100 text-amber-800",
+  ACTIVE: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
+  DISPOSED: "bg-card-2 text-ink-muted",
+  WRITTEN_OFF: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
 };
 
 const FixedAssetsPage: React.FC = () => {
@@ -175,9 +175,7 @@ const FixedAssetsPage: React.FC = () => {
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
+              tab === key ? "border-b-2 border-accent text-accent" : "text-ink-muted hover:text-ink"
             }`}
           >
             {label}
@@ -429,7 +427,7 @@ const FixedAssetsPage: React.FC = () => {
 
       {tab === "tax" && blocks && (
         <Card title={`Income-tax depreciation · FY ${blocks.fyCode}`}>
-          <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="mb-3 rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-3 text-sm text-[color:var(--color-warning)]">
             {blocks.note} A block is a pool, the rate is the Act&apos;s, an asset used for under 180
             days gets half of it, and sale proceeds come off the block instead of producing a
             profit. This figure goes on the return; the Schedule II tab goes in the accounts.
@@ -842,7 +840,7 @@ const DisposeDialog: React.FC<{
           </label>
         </div>
         <p
-          className={`mt-3 text-sm font-semibold ${result >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+          className={`mt-3 text-sm font-semibold ${result >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
         >
           {result >= 0 ? "Profit" : "Loss"} on sale: {money(Math.abs(result))}
         </p>
@@ -944,16 +942,16 @@ const OpeningImportDialog: React.FC<{
           </button>
         </div>
         <textarea
-          className={`${field} mt-3 h-40 w-full font-mono text-xs`}
+          className={`${field} mt-3 h-40 w-full tabular-nums text-xs`}
           value={csv}
           onChange={(e) => setCsv(e.target.value)}
           placeholder={OPENING_TEMPLATE}
         />
-        {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+        {error && <p className="mt-2 text-sm text-[color:var(--color-danger)]">{error}</p>}
         {rowErrors.length > 0 && (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-rose-300">
+          <div className="mt-3 overflow-x-auto rounded-lg border border-[color:var(--color-danger)]/40">
             <table className="min-w-full text-sm">
-              <thead className="bg-rose-50">
+              <thead className="bg-[color:var(--color-danger)]/10">
                 <tr>
                   <th className={th}>Row</th>
                   <th className={th}>Problem</th>
@@ -961,9 +959,9 @@ const OpeningImportDialog: React.FC<{
               </thead>
               <tbody>
                 {rowErrors.map((e, i) => (
-                  <tr key={i} className="border-t border-rose-200">
+                  <tr key={i} className="border-t border-[color:var(--color-danger)]/40">
                     <td className={td}>{e.row}</td>
-                    <td className={`${td} text-rose-800`}>{e.message}</td>
+                    <td className={`${td} text-[color:var(--color-danger)]`}>{e.message}</td>
                   </tr>
                 ))}
               </tbody>

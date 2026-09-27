@@ -17,17 +17,17 @@ import { formatDate, formatDateTime } from "../../../../utils/dateUtils";
  * the books), or reverse a closing after moving the freeze date back.
  */
 const input =
-  "rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-blue-500";
+  "rounded-lg border border-line-soft bg-card px-3 py-2 text-sm text-ink outline-none focus:border-accent";
 const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50";
 const primary = `${btn} bg-blue-600 text-white hover:bg-blue-700`;
 const secondary = `${btn} border border-line-soft text-ink hover:bg-card-2`;
-const danger = `${btn} border border-rose-300 text-rose-700 hover:bg-rose-50`;
+const danger = `${btn} border border-[color:var(--color-danger)]/40 text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10`;
 
 const STATUS_STYLE: Record<string, string> = {
-  PREPARED: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  REVERSED: "bg-rose-100 text-rose-800",
-  DISCARDED: "bg-slate-100 text-slate-700",
+  PREPARED: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
+  APPROVED: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
+  REVERSED: "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]",
+  DISCARDED: "bg-card-2 text-ink-muted",
 };
 
 const inr = (n: number) =>
@@ -193,14 +193,14 @@ const YearEndPage: React.FC = () => {
               )}
             </div>
             {preview.blockers.length > 0 && (
-              <ul className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <ul className="rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 px-3 py-2 text-sm text-[color:var(--color-warning)]">
                 {preview.blockers.map((b) => (
                   <li key={b}>{b}</li>
                 ))}
               </ul>
             )}
             {preview.stale && (
-              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+              <p className="rounded-lg border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 px-3 py-2 text-sm text-[color:var(--color-danger)]">
                 The books changed since this closing was prepared. Discard it and prepare again.
               </p>
             )}
@@ -225,7 +225,8 @@ const YearEndPage: React.FC = () => {
                   {preview.lines.map((l) => (
                     <tr key={`${l.ledgerId}-${l.side}`} className="border-t border-line-soft">
                       <td className="py-1 pr-4 text-ink">
-                        <span className="font-mono text-xs text-ink-muted">{l.code}</span> {l.name}
+                        <span className="tabular-nums text-xs text-ink-muted">{l.code}</span>{" "}
+                        {l.name}
                       </td>
                       <td className="py-1 pr-4 text-ink-muted">{l.type}</td>
                       <td className="py-1 pr-4 text-right text-ink">
@@ -355,7 +356,7 @@ const YearEndPage: React.FC = () => {
                     {c.netProfit >= 0 ? "" : "−"}
                     {inr(Math.abs(c.netProfit))}
                   </td>
-                  <td className="py-1 pr-4 font-mono text-xs text-ink">
+                  <td className="py-1 pr-4 tabular-nums text-xs text-ink">
                     {c.closingVoucher?.voucherNo ?? "—"}
                   </td>
                   <td className="py-1 pr-4 text-ink-muted">{formatDateTime(c.preparedAt)}</td>

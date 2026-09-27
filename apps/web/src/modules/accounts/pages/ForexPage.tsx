@@ -31,9 +31,9 @@ import {
  */
 type Tab = "exposure" | "revaluations" | "imports";
 const STATUS_STYLE: Record<FxRevaluationRow["status"], string> = {
-  DRAFT: "bg-amber-100 text-amber-800",
-  POSTED: "bg-emerald-100 text-emerald-800",
-  REVERSED: "bg-slate-100 text-slate-700",
+  DRAFT: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
+  POSTED: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
+  REVERSED: "bg-card-2 text-ink-muted",
 };
 
 const ForexPage: React.FC = () => {
@@ -150,9 +150,7 @@ const ForexPage: React.FC = () => {
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
+              tab === key ? "border-b-2 border-accent text-accent" : "text-ink-muted hover:text-ink"
             }`}
           >
             {label}
@@ -166,7 +164,7 @@ const ForexPage: React.FC = () => {
         <>
           <Card title="If everything were settled at today's rate">
             <p
-              className={`text-2xl font-semibold ${net >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+              className={`text-2xl font-semibold ${net >= 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}
             >
               {net >= 0 ? "Gain" : "Loss"} of {money(Math.abs(net))}
             </p>
@@ -206,7 +204,9 @@ const ForexPage: React.FC = () => {
                       <td className={`${td} text-right`}>{money(l.restatedInr)}</td>
                       <td
                         className={`${td} text-right font-semibold ${
-                          l.difference >= 0 ? "text-emerald-700" : "text-rose-700"
+                          l.difference >= 0
+                            ? "text-[color:var(--color-success)]"
+                            : "text-[color:var(--color-danger)]"
                         }`}
                       >
                         {money(l.difference)}
@@ -244,7 +244,7 @@ const ForexPage: React.FC = () => {
               )
             }
           >
-            <div className="rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+            <div className="rounded-lg border border-accent bg-nav-active p-3 text-sm text-accent">
               An unrealised difference is an opinion about a rate, not a transaction. The entry
               posts on the last day of the period and{" "}
               <strong>reverses on the first day of the next one</strong>, so the month the money

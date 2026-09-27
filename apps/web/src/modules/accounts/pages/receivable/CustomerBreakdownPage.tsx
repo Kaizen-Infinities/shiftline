@@ -196,22 +196,24 @@ export const CustomerBreakdownPage: React.FC = () => {
     },
     {
       header: "INVOICE NO",
-      render: (item: any) => <span className="font-mono font-bold text-ink">{item.invoiceNo}</span>,
+      render: (item: any) => (
+        <span className="tabular-nums font-bold text-ink">{item.invoiceNo}</span>
+      ),
     },
     {
       header: "DATE",
-      render: (item: any) => <span className="text-ink-muted font-mono">{item.date}</span>,
+      render: (item: any) => <span className="text-ink-muted tabular-nums">{item.date}</span>,
     },
     {
       header: "DUE DATE",
       render: (item: any) => (
-        <span className="text-ink-subtle font-mono">{item.dueDate || "-"}</span>
+        <span className="text-ink-subtle tabular-nums">{item.dueDate || "-"}</span>
       ),
     },
     {
       header: "INVOICE AMOUNT",
       render: (item: any) => (
-        <div className="text-right font-mono font-semibold text-ink">
+        <div className="text-right tabular-nums font-semibold text-ink">
           ₹{" "}
           {item.amount.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
@@ -233,9 +235,9 @@ export const CustomerBreakdownPage: React.FC = () => {
       header: "VOUCHER / REF NO",
       render: (item: any) => (
         <div className="flex items-center gap-2">
-          <span className="font-mono font-bold text-ink">{item.voucherNo}</span>
+          <span className="tabular-nums font-bold text-ink">{item.voucherNo}</span>
           {item.postedToLedger === false && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40">
               Not posted
             </span>
           )}
@@ -244,7 +246,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     },
     {
       header: "DATE",
-      render: (item: any) => <span className="text-ink-muted font-mono">{item.date}</span>,
+      render: (item: any) => <span className="text-ink-muted tabular-nums">{item.date}</span>,
     },
     {
       header: "PAYMENT MODE",
@@ -257,7 +259,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     {
       header: "AMOUNT RECEIVED",
       render: (item: any) => (
-        <div className="text-right font-mono font-semibold text-emerald-600">
+        <div className="text-right tabular-nums font-semibold text-[color:var(--color-success)]">
           ₹{" "}
           {item.amount.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
@@ -283,11 +285,13 @@ export const CustomerBreakdownPage: React.FC = () => {
     },
     {
       header: "DATE",
-      render: (item: any) => <span className="text-ink-muted font-mono">{item.date}</span>,
+      render: (item: any) => <span className="text-ink-muted tabular-nums">{item.date}</span>,
     },
     {
       header: "VOUCHER NO",
-      render: (item: any) => <span className="font-mono font-bold text-ink">{item.voucherNo}</span>,
+      render: (item: any) => (
+        <span className="tabular-nums font-bold text-ink">{item.voucherNo}</span>
+      ),
     },
     {
       header: "PARTICULARS",
@@ -298,7 +302,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     {
       header: "DEBIT (DR)",
       render: (item: any) => (
-        <div className="text-right font-mono text-ink-muted">
+        <div className="text-right tabular-nums text-ink-muted">
           {item.debit > 0
             ? `₹ ${item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "-"}
@@ -308,7 +312,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     {
       header: "CREDIT (CR)",
       render: (item: any) => (
-        <div className="text-right font-mono text-ink-muted">
+        <div className="text-right tabular-nums text-ink-muted">
           {item.credit > 0
             ? `₹ ${item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "-"}
@@ -318,7 +322,7 @@ export const CustomerBreakdownPage: React.FC = () => {
     {
       header: "RUNNING BALANCE",
       render: (item: any) => (
-        <div className="text-right font-mono font-semibold text-blue-600">
+        <div className="text-right tabular-nums font-semibold text-accent">
           ₹{" "}
           {item.runningBalance.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
@@ -342,14 +346,14 @@ export const CustomerBreakdownPage: React.FC = () => {
               <FaArrowLeft size={9} /> Back
             </button>
             <h1 className="text-sm font-bold text-ink flex items-center gap-2 min-w-0 truncate">
-              <FaUserFriends className="text-blue-600 text-sm shrink-0" />
+              <FaUserFriends className="text-accent text-sm shrink-0" />
               <span className="truncate">
                 {customerDetail?.customer.firmName || "Customer Breakdown"}
               </span>
-              {refreshing && <FaSync className="animate-spin text-blue-600 text-[10px]" />}
+              {refreshing && <FaSync className="animate-spin text-accent text-[10px]" />}
             </h1>
             {customerDetail?.customer.customerCode && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded font-mono uppercase tracking-wide shrink-0">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-nav-active text-accent border border-accent rounded tabular-nums uppercase tracking-wide shrink-0">
                 {customerDetail.customer.customerCode}
               </span>
             )}
@@ -361,7 +365,7 @@ export const CustomerBreakdownPage: React.FC = () => {
               className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line"
               title="Refresh"
             >
-              <FaSync className={refreshing ? "animate-spin text-blue-600" : ""} /> Refresh
+              <FaSync className={refreshing ? "animate-spin text-accent" : ""} /> Refresh
             </button>
             <button
               type="button"
@@ -450,7 +454,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             </button>
             <button
               onClick={handleApplyFilters}
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+              className="px-3 py-1.5 text-xs font-semibold sl-btn-blue rounded transition-colors"
             >
               Apply
             </button>
@@ -468,7 +472,7 @@ export const CustomerBreakdownPage: React.FC = () => {
               </span>
               <FaMoneyBillWave className="text-ink-muted text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-ink mt-1">
+            <div className="text-lg tabular-nums font-bold text-ink mt-1">
               ₹{" "}
               {customerDetail.summary.openingBalance.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -483,9 +487,9 @@ export const CustomerBreakdownPage: React.FC = () => {
               <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Invoiced
               </span>
-              <FaUserFriends className="text-blue-600 text-xs" />
+              <FaUserFriends className="text-accent text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-ink mt-1">
+            <div className="text-lg tabular-nums font-bold text-ink mt-1">
               ₹{" "}
               {customerDetail.summary.totalBilled.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -500,9 +504,9 @@ export const CustomerBreakdownPage: React.FC = () => {
               <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Received
               </span>
-              <FaCheckCircle className="text-emerald-600 text-xs" />
+              <FaCheckCircle className="text-[color:var(--color-success)] text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-emerald-600 mt-1">
+            <div className="text-lg tabular-nums font-bold text-[color:var(--color-success)] mt-1">
               ₹{" "}
               {customerDetail.summary.totalPaid.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -517,9 +521,9 @@ export const CustomerBreakdownPage: React.FC = () => {
               <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Returned
               </span>
-              <FaMoneyBillWave className="text-rose-600 text-xs" />
+              <FaMoneyBillWave className="text-[color:var(--color-danger)] text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-rose-600 mt-1">
+            <div className="text-lg tabular-nums font-bold text-[color:var(--color-danger)] mt-1">
               ₹{" "}
               {(customerDetail.summary.totalReturned || 0).toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -534,9 +538,9 @@ export const CustomerBreakdownPage: React.FC = () => {
               <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Outstanding
               </span>
-              <FaExclamationTriangle className="text-amber-600 text-xs" />
+              <FaExclamationTriangle className="text-[color:var(--color-warning)] text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-blue-600 mt-1">
+            <div className="text-lg tabular-nums font-bold text-accent mt-1">
               ₹{" "}
               {customerDetail.summary.closingBalance.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -555,7 +559,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             onClick={() => setActiveTab("invoices")}
             className={`flex items-center gap-1.5 px-3 py-2 font-semibold text-xs border-b-2 transition-colors ${
               activeTab === "invoices"
-                ? "border-blue-600 text-blue-600"
+                ? "border-accent text-accent"
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
@@ -566,7 +570,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             onClick={() => setActiveTab("collections")}
             className={`flex items-center gap-1.5 px-3 py-2 font-semibold text-xs border-b-2 transition-colors ${
               activeTab === "collections"
-                ? "border-blue-600 text-blue-600"
+                ? "border-accent text-accent"
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
@@ -577,7 +581,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             onClick={() => setActiveTab("statement")}
             className={`flex items-center gap-1.5 px-3 py-2 font-semibold text-xs border-b-2 transition-colors ${
               activeTab === "statement"
-                ? "border-blue-600 text-blue-600"
+                ? "border-accent text-accent"
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >

@@ -235,7 +235,7 @@ const ExpensesList: React.FC = () => {
               placeholder="Search expenses..."
             />
             <select
-              className="border border-line rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500"
+              className="border border-line rounded-lg px-3 py-2 text-sm outline-none focus:border-accent"
               value={filterCategory}
               onChange={(e) => {
                 setFilterCategory(e.target.value);
@@ -284,7 +284,7 @@ const ExpensesList: React.FC = () => {
             {
               header: "AMOUNT",
               render: (item) => (
-                <span className="font-semibold text-blue-600">
+                <span className="font-semibold text-accent">
                   ₹{parseFloat(item.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </span>
               ),
@@ -300,13 +300,13 @@ const ExpensesList: React.FC = () => {
                 const s = String(item.status || "Draft");
                 const cls =
                   s === "Approved"
-                    ? "bg-emerald-100 text-emerald-800"
+                    ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]"
                     : s === "Pending"
-                      ? "bg-amber-100 text-amber-800"
+                      ? "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]"
                       : s === "Rejected"
-                        ? "bg-rose-100 text-rose-800"
+                        ? "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]"
                         : s === "Cancelled"
-                          ? "bg-slate-200 text-slate-700 line-through"
+                          ? "bg-card-2 text-ink-muted line-through"
                           : "bg-card-2 text-ink-muted";
                 return (
                   <span
@@ -342,14 +342,14 @@ const ExpensesList: React.FC = () => {
                       <>
                         <button
                           type="button"
-                          className="rounded border border-emerald-300 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50"
+                          className="rounded border border-[color:var(--color-success)]/40 px-2 py-1 text-[11px] font-semibold text-[color:var(--color-success)] hover:bg-[color:var(--color-success)]/10"
                           onClick={() => transition(item.id, "approve", "Approved and posted")}
                         >
                           Approve
                         </button>
                         <button
                           type="button"
-                          className="rounded border border-rose-300 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50"
+                          className="rounded border border-[color:var(--color-danger)]/40 px-2 py-1 text-[11px] font-semibold text-[color:var(--color-danger)] hover:bg-[color:var(--color-danger)]/10"
                           onClick={() => setRejecting(item.id)}
                         >
                           Reject
@@ -638,7 +638,7 @@ const CapitaliseExpenseDialog: React.FC<{
             />
           </label>
         </div>
-        {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+        {error && <p className="mt-2 text-sm text-[color:var(--color-danger)]">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             className="rounded border border-line px-3 py-1.5 text-sm font-semibold text-ink"

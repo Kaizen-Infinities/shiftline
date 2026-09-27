@@ -133,9 +133,7 @@ const MsmePage: React.FC = () => {
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
+              tab === key ? "border-b-2 border-accent text-accent" : "text-ink-muted hover:text-ink"
             }`}
           >
             {label}
@@ -148,7 +146,7 @@ const MsmePage: React.FC = () => {
       {tab === "clock" && (
         <>
           {overdue.length > 0 && (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+            <div className="rounded-lg border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-3 text-sm text-[color:var(--color-danger)]">
               <strong>
                 {overdue.length} bill{overdue.length === 1 ? "" : "s"} past the section 15 date,
                 worth {money(overdue.reduce((s, b) => s + b.outstanding, 0))}.
@@ -157,7 +155,7 @@ const MsmePage: React.FC = () => {
             </div>
           )}
           {soon.length > 0 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-3 text-sm text-[color:var(--color-warning)]">
               {soon.length} more fall due within a fortnight.
             </div>
           )}
@@ -190,8 +188,8 @@ const MsmePage: React.FC = () => {
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                             b.source === "EXPENSE"
-                              ? "bg-sky-100 text-sky-800"
-                              : "bg-slate-100 text-slate-700"
+                              ? "bg-nav-active text-accent"
+                              : "bg-card-2 text-ink-muted"
                           }`}
                         >
                           {b.source === "EXPENSE" ? "Expense" : "GRN"}
@@ -205,7 +203,7 @@ const MsmePage: React.FC = () => {
                       <td className={`${td} text-right font-semibold`}>{money(b.outstanding)}</td>
                       <td className={td}>
                         {b.overdue ? (
-                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-800">
+                          <span className="rounded-full bg-[color:var(--color-danger)]/10 px-2 py-0.5 text-xs font-semibold text-[color:var(--color-danger)]">
                             {-b.daysLeft} days late
                           </span>
                         ) : (
@@ -232,7 +230,7 @@ const MsmePage: React.FC = () => {
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <Card title={`Disallowed as at ${report.fyEnd}`}>
-              <p className="text-2xl font-semibold text-rose-700">
+              <p className="text-2xl font-semibold text-[color:var(--color-danger)]">
                 {money(report.disallowed.total)}
               </p>
               <p className="mt-1 text-xs text-ink-muted">
@@ -241,7 +239,7 @@ const MsmePage: React.FC = () => {
               </p>
             </Card>
             <Card title="Coming back this year">
-              <p className="text-2xl font-semibold text-emerald-700">
+              <p className="text-2xl font-semibold text-[color:var(--color-success)]">
                 {money(report.allowedOnPayment.total)}
               </p>
               <p className="mt-1 text-xs text-ink-muted">

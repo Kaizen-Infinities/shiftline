@@ -176,7 +176,7 @@ export const SalesReturnPage: React.FC = () => {
       render: (item) => (
         <button
           onClick={() => setSelectedViewReturn(item)}
-          className="font-mono font-semibold text-indigo-500 hover:underline cursor-pointer"
+          className="tabular-nums font-semibold text-accent hover:underline cursor-pointer"
           title="Click to view Sales Return Details"
         >
           {item.returnNo}
@@ -211,7 +211,7 @@ export const SalesReturnPage: React.FC = () => {
     {
       header: "GRAND TOTAL (₹)",
       render: (item) => (
-        <span className="font-mono font-semibold text-indigo-500 whitespace-nowrap">
+        <span className="tabular-nums font-semibold text-accent whitespace-nowrap">
           ₹{Number(item.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -316,7 +316,7 @@ export const SalesReturnPage: React.FC = () => {
             <span className="text-xs text-ink-subtle">Active filters:</span>
 
             {appliedFilters.customerGradeId && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-medium">
+              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-nav-active text-accent border border-accent rounded-full text-xs font-medium">
                 Grade: {activeGradeName || appliedFilters.customerGradeId}
                 <FaTimes
                   className="cursor-pointer hover:text-indigo-200 ml-0.5"
@@ -326,7 +326,7 @@ export const SalesReturnPage: React.FC = () => {
             )}
 
             {appliedFilters.status && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-medium">
+              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-nav-active text-accent border border-accent rounded-full text-xs font-medium">
                 Status: {appliedFilters.status}
                 <FaTimes
                   className="cursor-pointer hover:text-indigo-200 ml-0.5"
@@ -420,7 +420,7 @@ export const SalesReturnPage: React.FC = () => {
                 </h4>
                 <div className="border border-line rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-head text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                    <thead className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
                       <tr>
                         <th className="px-3 py-1.5">Product / Item</th>
                         <th className="px-3 py-1.5 text-center">Qty</th>
@@ -439,7 +439,7 @@ export const SalesReturnPage: React.FC = () => {
                                 item.description ||
                                 `Product #${item.productId}`}
                             </td>
-                            <td className="px-3 py-1.5 text-center font-mono font-semibold text-ink">
+                            <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-ink">
                               {item.quantity}
                             </td>
                             <td className="px-3 py-1.5 text-center font-medium text-ink-muted">
@@ -447,13 +447,13 @@ export const SalesReturnPage: React.FC = () => {
                                 ? formatStockQty(item.weight, item.uom || undefined)
                                 : "—"}
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono text-ink">
+                            <td className="px-3 py-1.5 text-right tabular-nums text-ink">
                               ₹{Number(item.unitPrice).toFixed(2)}
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono text-ink-subtle">
+                            <td className="px-3 py-1.5 text-right tabular-nums text-ink-subtle">
                               {item.taxRate || 0}%
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
+                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink">
                               ₹{Number(item.lineTotal).toFixed(2)}
                             </td>
                           </tr>

@@ -139,13 +139,13 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
                         <span className="text-ink-muted mr-1">
                           {open === row.partyId ? "▾" : "▸"}
                         </span>
-                        <span className="font-mono text-[10px] text-ink-muted mr-1">
+                        <span className="tabular-nums text-[10px] text-ink-muted mr-1">
                           {row.code}
                         </span>
                         {onOpenParty ? (
                           <button
                             type="button"
-                            className="text-blue-600 hover:underline"
+                            className="text-accent hover:underline"
                             onClick={(e) => {
                               e.stopPropagation();
                               onOpenParty(row.partyId);
@@ -161,13 +161,15 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
                       {buckets.map((b) => (
                         <td
                           key={b}
-                          className={`${num} ${b === "d90_plus" && row.buckets[b] > 0 ? "text-rose-700 font-semibold" : ""}`}
+                          className={`${num} ${b === "d90_plus" && row.buckets[b] > 0 ? "text-[color:var(--color-danger)] font-semibold" : ""}`}
                         >
                           {inr(row.buckets[b])}
                         </td>
                       ))}
                       <td className={`${num} font-semibold`}>{inr(row.total)}</td>
-                      <td className={`${num} ${row.overdue > 0 ? "text-amber-700" : ""}`}>
+                      <td
+                        className={`${num} ${row.overdue > 0 ? "text-[color:var(--color-warning)]" : ""}`}
+                      >
                         {inr(row.overdue)}
                       </td>
                       {showInterest && (
@@ -202,7 +204,9 @@ const AgeingTable: React.FC<Props> = ({ kind, asOnDate, partyId, search, onOpenP
                               <tbody>
                                 {(detail.documents ?? []).map((d) => (
                                   <tr key={d.id} className="border-t border-line">
-                                    <td className="py-0.5 pr-3 font-mono text-ink">{d.number}</td>
+                                    <td className="py-0.5 pr-3 tabular-nums text-ink">
+                                      {d.number}
+                                    </td>
                                     <td className="py-0.5 pr-3 text-ink">{formatDate(d.date)}</td>
                                     <td className="py-0.5 pr-3 text-ink">
                                       {formatDate(d.dueDate)}

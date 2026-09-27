@@ -39,9 +39,9 @@ const SCOPES: { value: TallyScope; label: string }[] = [
 ];
 const KINDS: TallyNameKind[] = ["GROUP", "LEDGER", "UNIT", "STOCK_ITEM", "VOUCHER_TYPE"];
 const STATUS_STYLE: Record<TallyRunRow["status"], string> = {
-  DRAFT: "bg-amber-100 text-amber-800",
-  CONFIRMED: "bg-emerald-100 text-emerald-800",
-  DISCARDED: "bg-slate-100 text-slate-700",
+  DRAFT: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
+  CONFIRMED: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
+  DISCARDED: "bg-card-2 text-ink-muted",
 };
 const COUNT_LABELS: Record<string, string> = {
   groups: "Groups",
@@ -147,9 +147,7 @@ const TallyExportPage: React.FC = () => {
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
+              tab === key ? "border-b-2 border-accent text-accent" : "text-ink-muted hover:text-ink"
             }`}
           >
             {label}

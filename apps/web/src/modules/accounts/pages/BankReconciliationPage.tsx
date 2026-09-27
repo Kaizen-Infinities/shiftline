@@ -35,11 +35,11 @@ import {
 type Tab = "lines" | "brs" | "cheques" | "import";
 const FORMATS: StatementFormat[] = ["HDFC", "ICICI", "SBI", "AXIS", "KOTAK", "GENERIC"];
 const CHEQUE_STYLE: Record<ChequeRow["status"], string> = {
-  IN_HAND: "bg-amber-100 text-amber-800",
-  DEPOSITED: "bg-sky-100 text-sky-800",
-  CLEARED: "bg-emerald-100 text-emerald-800",
-  BOUNCED: "bg-rose-100 text-rose-800",
-  CANCELLED: "bg-slate-100 text-slate-700",
+  IN_HAND: "bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)]",
+  DEPOSITED: "bg-nav-active text-accent",
+  CLEARED: "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)]",
+  BOUNCED: "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)]",
+  CANCELLED: "bg-card-2 text-ink-muted",
 };
 
 interface BankAccountOption {
@@ -172,9 +172,7 @@ const BankReconciliationPage: React.FC = () => {
             aria-selected={tab === key}
             onClick={() => setTab(key)}
             className={`px-3 py-2 text-sm font-semibold transition ${
-              tab === key
-                ? "border-b-2 border-blue-600 text-blue-700"
-                : "text-ink-muted hover:text-ink"
+              tab === key ? "border-b-2 border-accent text-accent" : "text-ink-muted hover:text-ink"
             }`}
           >
             {label}
@@ -213,18 +211,18 @@ const BankReconciliationPage: React.FC = () => {
                     </td>
                     <td className={td}>
                       {l.status === "MATCHED" ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                        <span className="rounded-full bg-[color:var(--color-success)]/10 px-2 py-0.5 text-xs font-semibold text-[color:var(--color-success)]">
                           matched
                           {l.matchConfidence !== null && l.matchConfidence < 100
                             ? ` · ${l.matchConfidence}%`
                             : ""}
                         </span>
                       ) : l.status === "IGNORED" ? (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                        <span className="rounded-full bg-card-2 px-2 py-0.5 text-xs font-semibold text-ink-muted">
                           set aside
                         </span>
                       ) : (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        <span className="rounded-full bg-[color:var(--color-warning)]/10 px-2 py-0.5 text-xs font-semibold text-[color:var(--color-warning)]">
                           unmatched
                         </span>
                       )}
@@ -306,7 +304,7 @@ const BankReconciliationPage: React.FC = () => {
               Reconciled balance {money(brs.reconciledBalance)}
             </p>
             {brs.difference !== null && Math.abs(brs.difference) >= 0.01 && (
-              <p className="mt-2 rounded-lg border border-rose-300 bg-rose-50 p-2 text-sm text-rose-900">
+              <p className="mt-2 rounded-lg border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger)]/10 p-2 text-sm text-[color:var(--color-danger)]">
                 {money(Math.abs(brs.difference))} is still unexplained. That difference is the whole
                 reason for doing this — it is shown rather than absorbed.
               </p>
@@ -353,7 +351,9 @@ const BankReconciliationPage: React.FC = () => {
                         {c.status.replace(/_/g, " ").toLowerCase()}
                       </span>
                       {c.bounceReason && (
-                        <div className="text-xs text-rose-700">{c.bounceReason}</div>
+                        <div className="text-xs text-[color:var(--color-danger)]">
+                          {c.bounceReason}
+                        </div>
                       )}
                     </td>
                     <td className={`${td} text-right`}>
@@ -546,7 +546,7 @@ const ImportCard: React.FC<{
         </label>
       </div>
       <textarea
-        className={`${field} mt-3 h-48 w-full font-mono text-xs`}
+        className={`${field} mt-3 h-48 w-full tabular-nums text-xs`}
         value={csv}
         onChange={(e) => setCsv(e.target.value)}
         placeholder="Date,Narration,Chq./Ref.No.,Value Dt,Withdrawal Amt.,Deposit Amt.,Closing Balance"

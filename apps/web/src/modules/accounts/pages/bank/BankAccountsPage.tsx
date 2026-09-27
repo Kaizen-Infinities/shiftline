@@ -275,7 +275,7 @@ const BankAccountsPage: React.FC = () => {
                   : "Total Balance"}
             </span>
             <span
-              className={`text-lg font-mono font-bold ${filteredBalance < 0 ? "text-[color:var(--color-danger)]" : "text-ink"}`}
+              className={`text-lg tabular-nums font-bold ${filteredBalance < 0 ? "text-[color:var(--color-danger)]" : "text-ink"}`}
             >
               ₹{Math.abs(filteredBalance).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
@@ -304,7 +304,7 @@ const BankAccountsPage: React.FC = () => {
               <div className="flex items-start justify-between mb-2 gap-2">
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-ink truncate">{acc.name}</h3>
-                  <p className="text-[10px] uppercase tracking-wide font-mono text-ink-subtle mt-0.5">
+                  <p className="text-[10px] uppercase tracking-wide tabular-nums text-ink-subtle mt-0.5">
                     {acc.code}
                   </p>
                 </div>
@@ -333,7 +333,7 @@ const BankAccountsPage: React.FC = () => {
                   Current Balance
                 </p>
                 <p
-                  className={`text-base font-mono font-bold mt-0.5 ${
+                  className={`text-base tabular-nums font-bold mt-0.5 ${
                     acc.currentBalance >= 0
                       ? "text-[color:var(--color-success)]"
                       : "text-[color:var(--color-danger)]"
@@ -409,7 +409,7 @@ const BankAccountsPage: React.FC = () => {
                     placeholder="e.g. TMB-001"
                     value={newCode}
                     onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
+                    className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
                     required
                   />
                 </div>
@@ -436,7 +436,7 @@ const BankAccountsPage: React.FC = () => {
                     <select
                       value={newOpeningDC}
                       onChange={(e) => setNewOpeningDC(e.target.value as "D" | "C")}
-                      className={`px-2 py-2 border border-line bg-card-2 rounded-sm text-xs font-bold font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent ${newOpeningDC === "D" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
+                      className={`px-2 py-2 border border-line bg-card-2 rounded-sm text-xs font-bold tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent ${newOpeningDC === "D" ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-success)]"}`}
                     >
                       <option value="D">Dr</option>
                       <option value="C">Cr</option>
@@ -448,7 +448,7 @@ const BankAccountsPage: React.FC = () => {
                       placeholder="0.00"
                       value={newOpeningBalance}
                       onChange={(e) => setNewOpeningBalance(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
+                      className="flex-1 px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
                     />
                   </div>
                   <p className="mt-1 text-[9px] text-ink-subtle">
@@ -560,7 +560,7 @@ const BankAccountsPage: React.FC = () => {
                   placeholder="e.g. 150000.00"
                   value={editOpeningBalance}
                   onChange={(e) => setEditOpeningBalance(e.target.value)}
-                  className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink font-mono focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
+                  className="w-full px-3 py-2 border border-line bg-card-2 rounded-sm text-xs text-ink tabular-nums focus:outline-none focus:ring-1 focus:ring-accent/40 focus:border-accent"
                   autoFocus
                 />
               </div>

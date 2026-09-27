@@ -149,27 +149,27 @@ export const VoucherListPage: React.FC = () => {
     const s = (statusStr || "POSTED").toUpperCase();
     if (s === "POSTED" || s === "CLOSED") {
       return (
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border border-[color:var(--color-success)]/40">
           POSTED
         </span>
       );
     }
     if (s === "DRAFT") {
       return (
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40">
           DRAFT
         </span>
       );
     }
     if (s === "CANCELLED" || s === "VOID") {
       return (
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/40">
           CANCELLED
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-nav-active text-accent border border-accent">
         {s}
       </span>
     );
@@ -252,8 +252,8 @@ export const VoucherListPage: React.FC = () => {
       {/* Single-row Header + Filters (Busy-style compact) */}
       <div className="bg-card rounded-lg border border-line px-3 py-2 flex flex-wrap items-center gap-2">
         <h2 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-          <FaFileInvoiceDollar className="text-blue-600 text-sm" /> Accounting Vouchers
-          {refreshing && <FaSync className="animate-spin text-blue-600 text-[10px]" />}
+          <FaFileInvoiceDollar className="text-accent text-sm" /> Accounting Vouchers
+          {refreshing && <FaSync className="animate-spin text-accent text-[10px]" />}
         </h2>
 
         <div className="flex items-center gap-1.5">
@@ -263,7 +263,7 @@ export const VoucherListPage: React.FC = () => {
           <select
             value={typeFilter}
             onChange={(e) => handleTypeChange(e.target.value)}
-            className="w-[130px] px-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none"
+            className="w-[130px] px-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-accent focus:outline-none"
           >
             {["ALL", "PURCHASE", "SALES", "PAYMENT", "RECEIPT", "JOURNAL", "CONTRA"].map((t) => (
               <option key={t} value={t}>
@@ -324,7 +324,7 @@ export const VoucherListPage: React.FC = () => {
           <input
             type="text"
             data-search-input
-            className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none"
+            className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-accent focus:outline-none"
             value={draftSearchTerm}
             onChange={(e) => setDraftSearchTerm(e.target.value)}
             placeholder="Search voucher no or narration..."
@@ -340,7 +340,7 @@ export const VoucherListPage: React.FC = () => {
         </button>
         <button
           onClick={handleApplyFilters}
-          className="px-2.5 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded cursor-pointer"
+          className="px-2.5 py-1 text-xs font-semibold sl-btn-blue rounded cursor-pointer"
         >
           Apply
         </button>
@@ -351,7 +351,7 @@ export const VoucherListPage: React.FC = () => {
             className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
             title="Refresh Data"
           >
-            <FaSync className={refreshing ? "animate-spin text-blue-600" : ""} /> Refresh
+            <FaSync className={refreshing ? "animate-spin text-accent" : ""} /> Refresh
           </button>
           {(can("vouchers.export") || can("accounts.export")) && (
             <ExportCSVButton
@@ -370,7 +370,7 @@ export const VoucherListPage: React.FC = () => {
           <h2 className="text-xs font-semibold text-ink">
             {typeFilter === "ALL" ? "All Registered Vouchers" : `${typeFilter} Vouchers`}
           </h2>
-          <span className="text-[11px] text-ink-subtle font-mono">Total: {total}</span>
+          <span className="text-[11px] text-ink-subtle tabular-nums">Total: {total}</span>
         </div>
 
         {vouchers.length === 0 ? (
@@ -382,7 +382,7 @@ export const VoucherListPage: React.FC = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-ink-muted">
-              <thead className="bg-head text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+              <thead className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
                 <tr>
                   <th className="px-3 py-2">Voucher No</th>
                   <th className="px-3 py-2">Type</th>
@@ -423,7 +423,7 @@ export const VoucherListPage: React.FC = () => {
                       <td className="px-3 py-1.5">
                         <button
                           onClick={() => openViewModal(v)}
-                          className="font-mono font-semibold text-blue-600 hover:text-blue-800 hover:underline transition cursor-pointer"
+                          className="tabular-nums font-semibold text-accent hover:text-accent hover:underline transition cursor-pointer"
                           title="Click to view voucher details"
                         >
                           {v.voucherNo}
@@ -434,7 +434,7 @@ export const VoucherListPage: React.FC = () => {
                           {v.type}
                         </span>
                       </td>
-                      <td className="px-3 py-1.5 font-mono text-[11px]">
+                      <td className="px-3 py-1.5 tabular-nums text-[11px]">
                         {new Date(v.date).toLocaleDateString("en-IN", {
                           day: "2-digit",
                           month: "short",
@@ -443,7 +443,7 @@ export const VoucherListPage: React.FC = () => {
                       </td>
                       <td className="px-3 py-1.5 font-semibold text-ink">{debitLedgerName}</td>
                       <td className="px-3 py-1.5 text-ink-muted">{creditLedgerName}</td>
-                      <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink whitespace-nowrap">
+                      <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink whitespace-nowrap">
                         ₹
                         {(amount || 0).toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -474,7 +474,7 @@ export const VoucherListPage: React.FC = () => {
                                   openViewModal(v);
                                 }
                               }}
-                              className="p-1 text-blue-600 hover:text-white hover:bg-blue-600 bg-blue-50 border border-blue-200 rounded transition inline-flex items-center justify-center gap-1 text-[10px] font-semibold cursor-pointer"
+                              className="p-1 text-accent hover:text-white hover:bg-blue-600 bg-nav-active border border-accent rounded transition inline-flex items-center justify-center gap-1 text-[10px] font-semibold cursor-pointer"
                               title="View GRN / Purchase Invoice Detail"
                             >
                               <FaEye className="w-2.5 h-2.5" />
@@ -494,7 +494,7 @@ export const VoucherListPage: React.FC = () => {
                                   openViewModal(v);
                                 }
                               }}
-                              className="p-1 text-emerald-600 hover:text-white hover:bg-emerald-600 bg-emerald-50 border border-emerald-200 rounded transition inline-flex items-center justify-center gap-1 text-[10px] font-semibold cursor-pointer"
+                              className="p-1 text-[color:var(--color-success)] hover:text-white hover:bg-emerald-600 bg-[color:var(--color-success)]/10 border border-[color:var(--color-success)]/40 rounded transition inline-flex items-center justify-center gap-1 text-[10px] font-semibold cursor-pointer"
                               title="View Sales Invoice Detail"
                             >
                               <FaEye className="w-2.5 h-2.5" />
@@ -523,10 +523,10 @@ export const VoucherListPage: React.FC = () => {
             <div className="px-3 py-2 border-b border-line bg-card-2 flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-bold font-mono text-ink">
+                  <h2 className="text-sm font-bold tabular-nums text-ink">
                     {selectedVoucher.voucherNo}
                   </h2>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/20 text-blue-500 border border-blue-500/30">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nav-active text-accent border border-accent">
                     {selectedVoucher.type}
                   </span>
                   {renderStatusBadge(selectedVoucher.status)}
@@ -564,7 +564,7 @@ export const VoucherListPage: React.FC = () => {
                   <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">
                     GRN / PO Ref
                   </span>
-                  <span className="font-mono font-medium text-ink text-xs">
+                  <span className="tabular-nums font-medium text-ink text-xs">
                     {getGrnRef(selectedVoucher)}
                   </span>
                 </div>
@@ -572,7 +572,7 @@ export const VoucherListPage: React.FC = () => {
                   <span className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wide block">
                     Supplier / Customer
                   </span>
-                  <span className="font-bold text-blue-600 flex items-center gap-1 mt-0.5 text-xs">
+                  <span className="font-bold text-accent flex items-center gap-1 mt-0.5 text-xs">
                     <FaBuilding className="text-ink-subtle text-[10px]" />
                     {getPartyName(selectedVoucher)}
                   </span>
@@ -583,12 +583,11 @@ export const VoucherListPage: React.FC = () => {
               {selectedVoucher.refDoc?.items && selectedVoucher.refDoc.items.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-ink mb-1.5 flex items-center gap-1.5">
-                    <FaReceipt className="text-blue-600 text-[10px]" /> Item Description &
-                    Quantities
+                    <FaReceipt className="text-accent text-[10px]" /> Item Description & Quantities
                   </h3>
                   <div className="border border-line rounded overflow-hidden">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-head text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                      <thead className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
                         <tr>
                           <th className="px-3 py-1.5">Item Description</th>
                           <th className="px-3 py-1.5 text-center">UOM</th>
@@ -603,14 +602,14 @@ export const VoucherListPage: React.FC = () => {
                           <tr key={idx} className="hover:bg-card-2">
                             <td className="px-3 py-1.5 font-medium text-ink">{item.description}</td>
                             <td className="px-3 py-1.5 text-center">{item.uom || "-"}</td>
-                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
+                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink">
                               {item.quantity}
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono">
+                            <td className="px-3 py-1.5 text-right tabular-nums">
                               ₹{item.unitPrice.toFixed(2)}
                             </td>
                             <td className="px-3 py-1.5 text-right">{item.tax || 0}%</td>
-                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
+                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink">
                               ₹
                               {item.lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                             </td>
@@ -630,7 +629,7 @@ export const VoucherListPage: React.FC = () => {
                 </h3>
                 <div className="border border-line rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-head text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                    <thead className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
                       <tr>
                         <th className="px-3 py-1.5">Debit Ledger</th>
                         <th className="px-3 py-1.5">Credit Ledger</th>
@@ -651,12 +650,12 @@ export const VoucherListPage: React.FC = () => {
                               ? `${item.creditLedger.name} (${item.creditLedger.code})`
                               : "-"}
                           </td>
-                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
+                          <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink">
                             {Number(item.debitAmount) > 0
                               ? `₹${Number(item.debitAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
                               : "-"}
                           </td>
-                          <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
+                          <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink">
                             {Number(item.creditAmount) > 0
                               ? `₹${Number(item.creditAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
                               : "-"}
@@ -683,7 +682,7 @@ export const VoucherListPage: React.FC = () => {
             <div className="px-3 py-2 bg-card-2 border-t border-line flex justify-end">
               <button
                 onClick={closeViewModal}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded text-xs transition cursor-pointer"
+                className="px-3 py-1.5 sl-btn-blue font-semibold rounded text-xs transition cursor-pointer"
               >
                 Close
               </button>

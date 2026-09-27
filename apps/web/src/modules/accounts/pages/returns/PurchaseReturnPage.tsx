@@ -439,7 +439,7 @@ export const PurchaseReturnPage: React.FC = () => {
       render: (item) => (
         <button
           onClick={() => setSelectedViewReturn(item)}
-          className="font-mono font-semibold text-indigo-500 hover:underline cursor-pointer"
+          className="tabular-nums font-semibold text-accent hover:underline cursor-pointer"
         >
           {item.returnNo}
         </button>
@@ -448,7 +448,7 @@ export const PurchaseReturnPage: React.FC = () => {
     {
       header: "DATE",
       render: (item) => (
-        <span className="font-mono text-xs">
+        <span className="tabular-nums text-xs">
           {item.returnDate ? new Date(item.returnDate).toLocaleDateString("en-IN") : "—"}
         </span>
       ),
@@ -469,7 +469,7 @@ export const PurchaseReturnPage: React.FC = () => {
     {
       header: "GRAND TOTAL (₹)",
       render: (item) => (
-        <span className="font-mono font-semibold text-indigo-500 whitespace-nowrap">
+        <span className="tabular-nums font-semibold text-accent whitespace-nowrap">
           ₹{Number(item.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
         </span>
       ),
@@ -575,7 +575,7 @@ export const PurchaseReturnPage: React.FC = () => {
             <span className="text-xs text-ink-subtle">Active filters:</span>
 
             {appliedFilters.supplierId && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-medium">
+              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-nav-active text-accent border border-accent rounded-full text-xs font-medium">
                 Supplier: {activeSupplierName || appliedFilters.supplierId}
                 <FaTimes
                   className="cursor-pointer hover:text-indigo-200 ml-0.5"
@@ -585,7 +585,7 @@ export const PurchaseReturnPage: React.FC = () => {
             )}
 
             {appliedFilters.status && (
-              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-medium">
+              <span className="flex items-center gap-1 px-2.5 py-0.5 bg-nav-active text-accent border border-accent rounded-full text-xs font-medium">
                 Status: {appliedFilters.status}
                 <FaTimes
                   className="cursor-pointer hover:text-indigo-200 ml-0.5"
@@ -640,7 +640,7 @@ export const PurchaseReturnPage: React.FC = () => {
                 <div className="grid grid-cols-3 gap-x-3 gap-y-2">
                   <div>
                     <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                      Supplier <span className="text-red-500">*</span>
+                      Supplier <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
                       value={supplierId}
@@ -658,7 +658,7 @@ export const PurchaseReturnPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                      Store / Warehouse <span className="text-red-500">*</span>
+                      Store / Warehouse <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
                       value={selectedStoreId}
@@ -680,7 +680,7 @@ export const PurchaseReturnPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                      Kind <span className="text-red-500">*</span>
+                      Kind <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
                       value={kind}
@@ -697,7 +697,7 @@ export const PurchaseReturnPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                      Refund Mode <span className="text-red-500">*</span>
+                      Refund Mode <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <select
                       value={refundMode}
@@ -712,7 +712,7 @@ export const PurchaseReturnPage: React.FC = () => {
                   </div>
                   <div className="col-span-3">
                     <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                      Reason for Return <span className="text-red-500">*</span>
+                      Reason for Return <span className="text-[color:var(--color-danger)]">*</span>
                     </label>
                     <input
                       type="text"
@@ -806,7 +806,7 @@ export const PurchaseReturnPage: React.FC = () => {
                                           return u;
                                         })
                                       }
-                                      className="w-full px-1 border border-line rounded text-[11px] font-mono bg-card text-ink focus:outline-none focus:border-primary"
+                                      className="w-full px-1 border border-line rounded text-[11px] tabular-nums bg-card text-ink focus:outline-none focus:border-primary"
                                     >
                                       {uomList.map((u: string) => (
                                         <option key={u} value={u}>
@@ -815,7 +815,7 @@ export const PurchaseReturnPage: React.FC = () => {
                                       ))}
                                     </select>
                                   ) : (
-                                    <span className="block text-center text-[11px] font-mono text-ink-muted">
+                                    <span className="block text-center text-[11px] tabular-nums text-ink-muted">
                                       {row.uom || "—"}
                                     </span>
                                   )}
@@ -832,7 +832,7 @@ export const PurchaseReturnPage: React.FC = () => {
                                     onChange={(e) =>
                                       handleRowQuantityChange(idx, parseFloat(e.target.value) || 0)
                                     }
-                                    className="w-full px-1 border border-line rounded text-center font-mono font-semibold text-primary bg-card focus:outline-none focus:border-primary disabled:opacity-60"
+                                    className="w-full px-1 border border-line rounded text-center tabular-nums font-semibold text-primary bg-card focus:outline-none focus:border-primary disabled:opacity-60"
                                   />
                                 </td>
                                 <td className="px-2 py-1">
@@ -845,17 +845,17 @@ export const PurchaseReturnPage: React.FC = () => {
                                     onChange={(e) =>
                                       handleRowPriceChange(idx, parseFloat(e.target.value) || 0)
                                     }
-                                    className="w-full px-1 border border-line rounded text-right font-mono bg-card text-ink focus:outline-none focus:border-primary disabled:opacity-60"
+                                    className="w-full px-1 border border-line rounded text-right tabular-nums bg-card text-ink focus:outline-none focus:border-primary disabled:opacity-60"
                                   />
                                 </td>
-                                <td className="px-2 py-1 text-right font-mono font-semibold text-ink text-[11px]">
+                                <td className="px-2 py-1 text-right tabular-nums font-semibold text-ink text-[11px]">
                                   ₹{lineTot.toFixed(2)}
                                 </td>
                                 <td className="px-2 py-1 text-center">
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveRow(idx)}
-                                    className="p-0.5 text-rose-500 hover:text-rose-600 rounded transition cursor-pointer"
+                                    className="p-0.5 text-[color:var(--color-danger)] hover:text-[color:var(--color-danger)] rounded transition cursor-pointer"
                                   >
                                     <FaTrash className="w-2.5 h-2.5" />
                                   </button>
@@ -872,7 +872,7 @@ export const PurchaseReturnPage: React.FC = () => {
                             >
                               Grand Total:
                             </td>
-                            <td className="px-2 py-1.5 text-right font-bold text-sm text-primary font-mono">
+                            <td className="px-2 py-1.5 text-right font-bold text-sm text-primary tabular-nums">
                               ₹{grandTotal.toFixed(2)}
                             </td>
                             <td></td>
@@ -993,7 +993,7 @@ export const PurchaseReturnPage: React.FC = () => {
                 </h4>
                 <div className="border border-line rounded overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-head text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
+                    <thead className="bg-card-2 text-ink uppercase font-bold text-[10px] tracking-wide border-b border-line">
                       <tr>
                         <th className="px-3 py-1.5">Material ID</th>
                         <th className="px-3 py-1.5">Material Name</th>
@@ -1006,7 +1006,7 @@ export const PurchaseReturnPage: React.FC = () => {
                       {selectedViewReturn.items && selectedViewReturn.items.length > 0 ? (
                         selectedViewReturn.items.map((item, i) => (
                           <tr key={item.id || i} className="hover:bg-card-2 transition-colors">
-                            <td className="px-3 py-1.5 font-mono text-indigo-400 font-medium">
+                            <td className="px-3 py-1.5 tabular-nums text-accent font-medium">
                               {item.rawMaterialId}
                             </td>
                             <td className="px-3 py-1.5 font-medium text-ink">
@@ -1014,13 +1014,13 @@ export const PurchaseReturnPage: React.FC = () => {
                                 item.rawMaterial?.name ||
                                 item.rawMaterialId}
                             </td>
-                            <td className="px-3 py-1.5 text-center font-mono font-semibold text-ink">
+                            <td className="px-3 py-1.5 text-center tabular-nums font-semibold text-ink">
                               {item.quantity}
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono text-ink">
+                            <td className="px-3 py-1.5 text-right tabular-nums text-ink">
                               ₹{Number(item.unitPrice).toFixed(2)}
                             </td>
-                            <td className="px-3 py-1.5 text-right font-mono font-semibold text-ink">
+                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-ink">
                               ₹
                               {(
                                 Number(item.lineTotal) ||

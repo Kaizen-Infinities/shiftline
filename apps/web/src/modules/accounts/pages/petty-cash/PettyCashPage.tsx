@@ -213,7 +213,7 @@ export const PettyCashPage: React.FC = () => {
       <div className="p-3">
         <div className="w-full lg:w-[420px]">
           <div className="bg-card border border-line rounded-md overflow-hidden shadow-sm">
-            <div className="bg-amber-500/90 text-white text-[11px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
+            <div className="bg-[color:var(--color-warning)]/10 text-white text-[11px] font-bold uppercase tracking-wide text-center py-1 border-b border-line">
               List of Petty Cash Entries
             </div>
             <div className="p-4 space-y-2.5 text-[11px]">
@@ -302,8 +302,10 @@ export const PettyCashPage: React.FC = () => {
         {/* Header — title + inline search + Change Filters + Refresh + Record */}
         <div className="bg-card rounded-md border border-line px-3 py-1.5 flex flex-wrap items-center gap-2 shrink-0 shadow-sm">
           <h1 className="text-sm font-bold text-ink flex items-center gap-2 mr-2">
-            <FaCoins className="text-amber-500 text-sm" /> Petty Cash Register
-            {refreshing && <FaSync className="animate-spin text-amber-500 text-[10px]" />}
+            <FaCoins className="text-[color:var(--color-warning)] text-sm" /> Petty Cash Register
+            {refreshing && (
+              <FaSync className="animate-spin text-[color:var(--color-warning)] text-[10px]" />
+            )}
           </h1>
           <span className="text-[10px] text-ink-subtle italic">
             From <b className="text-ink">{applied.startDate}</b> to{" "}
@@ -317,7 +319,7 @@ export const PettyCashPage: React.FC = () => {
               placeholder="Search entry no, category, description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
+              className="w-full pl-7 pr-2 py-1 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
             />
             <FaSearch className="absolute left-2 top-2 text-ink-subtle text-[10px]" />
           </div>
@@ -337,7 +339,10 @@ export const PettyCashPage: React.FC = () => {
               onClick={refresh}
               className="flex items-center gap-1 px-2 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
             >
-              <FaSync className={refreshing ? "animate-spin text-amber-500" : ""} /> Refresh
+              <FaSync
+                className={refreshing ? "animate-spin text-[color:var(--color-warning)]" : ""}
+              />{" "}
+              Refresh
             </button>
             <button
               onClick={() => {
@@ -360,7 +365,7 @@ export const PettyCashPage: React.FC = () => {
             <div className="p-8 text-center text-xs text-ink-subtle flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <FaSync className="animate-spin text-amber-500 text-[10px]" />
+                  <FaSync className="animate-spin text-[color:var(--color-warning)] text-[10px]" />
                   Loading petty cash entries…
                 </span>
               ) : (
@@ -403,24 +408,24 @@ export const PettyCashPage: React.FC = () => {
                         onClick={() => setSelectedRow(item.id)}
                         className={`border-b border-line-soft cursor-pointer ${
                           isSelected
-                            ? "bg-amber-500/20 text-ink"
+                            ? "bg-[color:var(--color-warning)]/10 text-ink"
                             : rowIdx % 2 === 0
                               ? "hover:bg-card-2/70"
                               : "bg-card-2/20 hover:bg-card-2/70"
                         }`}
                       >
-                        <td className="px-2 py-1 border-r border-line-soft font-mono text-[11px]">
+                        <td className="px-2 py-1 border-r border-line-soft tabular-nums text-[11px]">
                           {new Date(item.entryDate).toLocaleDateString("en-GB")}
                         </td>
-                        <td className="px-2 py-1 border-r border-line-soft font-mono font-semibold text-amber-500 text-center">
+                        <td className="px-2 py-1 border-r border-line-soft tabular-nums font-semibold text-[color:var(--color-warning)] text-center">
                           {item.entryNo || "-"}
                         </td>
                         <td className="px-2 py-1 border-r border-line-soft text-center">
                           <span
                             className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
                               isIn
-                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
+                                ? "bg-[color:var(--color-success)]/10 text-[color:var(--color-success)] border border-[color:var(--color-success)]/40"
+                                : "bg-[color:var(--color-danger)]/10 text-[color:var(--color-danger)] border border-[color:var(--color-danger)]/40"
                             }`}
                           >
                             {isIn ? "IN" : "OUT"}
@@ -440,12 +445,18 @@ export const PettyCashPage: React.FC = () => {
                           {item.paidTo || "-"}
                         </td>
                         {applied.showReceiptNo && (
-                          <td className="px-2 py-1 border-r border-line-soft font-mono text-[11px] text-ink-subtle text-center">
+                          <td className="px-2 py-1 border-r border-line-soft tabular-nums text-[11px] text-ink-subtle text-center">
                             {item.receiptNo || "-"}
                           </td>
                         )}
-                        <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold whitespace-nowrap">
-                          <span className={isIn ? "text-emerald-500" : "text-rose-500"}>
+                        <td className="px-2 py-1 border-r border-line-soft text-right tabular-nums font-semibold whitespace-nowrap">
+                          <span
+                            className={
+                              isIn
+                                ? "text-[color:var(--color-success)]"
+                                : "text-[color:var(--color-danger)]"
+                            }
+                          >
                             {isIn ? "+" : "−"}
                             {Number(item.amount).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -454,7 +465,7 @@ export const PettyCashPage: React.FC = () => {
                           </span>
                         </td>
                         {applied.showBalance && (
-                          <td className="px-2 py-1 text-right font-mono font-semibold text-ink whitespace-nowrap">
+                          <td className="px-2 py-1 text-right tabular-nums font-semibold text-ink whitespace-nowrap">
                             {(runningBalances.get(item.id) || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
@@ -500,7 +511,7 @@ export const PettyCashPage: React.FC = () => {
                       Page Total ({filteredEntries.length})
                       <span className="ml-3 normal-case text-ink-subtle">
                         IN{" "}
-                        <b className="text-emerald-500">
+                        <b className="text-[color:var(--color-success)]">
                           ₹
                           {totalInPage.toLocaleString("en-IN", {
                             minimumFractionDigits: 2,
@@ -509,7 +520,7 @@ export const PettyCashPage: React.FC = () => {
                         </b>
                         <span className="mx-2">·</span>
                         OUT{" "}
-                        <b className="text-rose-500">
+                        <b className="text-[color:var(--color-danger)]">
                           ₹
                           {totalOutPage.toLocaleString("en-IN", {
                             minimumFractionDigits: 2,
@@ -518,14 +529,14 @@ export const PettyCashPage: React.FC = () => {
                         </b>
                       </span>
                     </td>
-                    <td className="px-2 py-1.5 text-right font-bold text-sm text-ink font-mono border-r border-line">
+                    <td className="px-2 py-1.5 text-right font-bold text-sm text-ink tabular-nums border-r border-line">
                       {(totalInPage - totalOutPage).toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </td>
                     {applied.showBalance && (
-                      <td className="px-2 py-1.5 text-right font-bold text-sm text-amber-500 font-mono">
+                      <td className="px-2 py-1.5 text-right font-bold text-sm text-[color:var(--color-warning)] tabular-nums">
                         {summary.currentBalance.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -539,7 +550,7 @@ export const PettyCashPage: React.FC = () => {
           )}
 
           {/* Busy-style status bar */}
-          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle shrink-0">
+          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] tabular-nums text-ink-subtle shrink-0">
             <div className="flex gap-4">
               <span>
                 Entry No:{" "}
@@ -566,7 +577,7 @@ export const PettyCashPage: React.FC = () => {
               </span>
               <span>
                 Balance:{" "}
-                <b className="text-amber-500">
+                <b className="text-[color:var(--color-warning)]">
                   ₹
                   {summary.currentBalance.toLocaleString("en-IN", {
                     minimumFractionDigits: 2,
@@ -583,33 +594,33 @@ export const PettyCashPage: React.FC = () => {
          crores-scale values never squeeze the label or overflow the card. */}
       <aside className="w-[240px] shrink-0 bg-card border border-line rounded-md shadow-sm overflow-hidden">
         <div className="px-3 py-1.5 bg-card-2 border-b border-line text-[11px] font-bold uppercase tracking-wide text-ink flex items-center gap-1.5">
-          <FaCoins className="text-amber-500 text-xs" /> Summary
+          <FaCoins className="text-[color:var(--color-warning)] text-xs" /> Summary
         </div>
         <div className="divide-y divide-line-soft">
           <div className="px-3 py-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaArrowDown className="text-emerald-500 text-[10px]" />
+              <FaArrowDown className="text-[color:var(--color-success)] text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Total Cash IN</span>
             </div>
-            <div className="text-sm font-mono font-bold text-emerald-500 break-all leading-tight">
+            <div className="text-sm tabular-nums font-bold text-[color:var(--color-success)] break-all leading-tight">
               ₹{summary.totalIn.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
           </div>
           <div className="px-3 py-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaArrowUp className="text-rose-500 text-[10px]" />
+              <FaArrowUp className="text-[color:var(--color-danger)] text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Total Cash OUT</span>
             </div>
-            <div className="text-sm font-mono font-bold text-rose-500 break-all leading-tight">
+            <div className="text-sm tabular-nums font-bold text-[color:var(--color-danger)] break-all leading-tight">
               ₹{summary.totalOut.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
           </div>
-          <div className="px-3 py-2 bg-amber-500/5">
+          <div className="px-3 py-2 bg-[color:var(--color-warning)]/10">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaWallet className="text-amber-500 text-[10px]" />
+              <FaWallet className="text-[color:var(--color-warning)] text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Cash Balance on Hand</span>
             </div>
-            <div className="text-sm font-mono font-bold text-amber-500 break-all leading-tight">
+            <div className="text-sm tabular-nums font-bold text-[color:var(--color-warning)] break-all leading-tight">
               ₹{summary.currentBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
           </div>
@@ -620,13 +631,13 @@ export const PettyCashPage: React.FC = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3">
           <div className="bg-card rounded-md border border-line w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="px-3 py-1.5 border-b border-line bg-amber-500/90 text-white flex items-center justify-between">
+            <div className="px-3 py-1.5 border-b border-line bg-[color:var(--color-warning)]/10 text-white flex items-center justify-between">
               <h2 className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-2">
                 <FaCoins className="text-xs" /> New Petty Cash Entry
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1 text-white/80 hover:text-white hover:bg-white/10 rounded cursor-pointer"
+                className="p-1 text-white/80 hover:text-white hover:bg-card/10 rounded cursor-pointer"
               >
                 <FaTimes className="text-xs" />
               </button>
@@ -636,7 +647,7 @@ export const PettyCashPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
                   <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                    Transaction Type <span className="text-red-500">*</span>
+                    Transaction Type <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <SelectInput
                     label="Transaction Type"
@@ -655,7 +666,7 @@ export const PettyCashPage: React.FC = () => {
 
                 <div>
                   <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                    Entry Date <span className="text-red-500">*</span>
+                    Entry Date <span className="text-[color:var(--color-danger)]">*</span>
                   </label>
                   <DatePickerCalendar
                     name="entryDate"
@@ -668,7 +679,7 @@ export const PettyCashPage: React.FC = () => {
 
               <div>
                 <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                  Category <span className="text-red-500">*</span>
+                  Category <span className="text-[color:var(--color-danger)]">*</span>
                 </label>
                 <input
                   list="petty-cash-categories"
@@ -676,7 +687,7 @@ export const PettyCashPage: React.FC = () => {
                   required
                   placeholder="Type or select a category..."
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
+                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
                 />
                 <datalist id="petty-cash-categories">
                   {Array.from(new Set(entries.map((e) => e.category).filter(Boolean)))
@@ -689,7 +700,7 @@ export const PettyCashPage: React.FC = () => {
 
               <div>
                 <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                  Amount (₹) <span className="text-red-500">*</span>
+                  Amount (₹) <span className="text-[color:var(--color-danger)]">*</span>
                 </label>
                 <input
                   type="number"
@@ -698,13 +709,13 @@ export const PettyCashPage: React.FC = () => {
                   required
                   placeholder="0.00"
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink font-mono focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
+                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink tabular-nums focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
                 />
               </div>
 
               <div>
                 <label className="block mb-0.5 text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
-                  Description <span className="text-red-500">*</span>
+                  Description <span className="text-[color:var(--color-danger)]">*</span>
                 </label>
                 <input
                   type="text"
@@ -712,7 +723,7 @@ export const PettyCashPage: React.FC = () => {
                   required
                   placeholder="e.g. Purchased office stationery"
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
+                  className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
                 />
               </div>
 
@@ -726,7 +737,7 @@ export const PettyCashPage: React.FC = () => {
                     value={paidTo}
                     placeholder="e.g. Local Vendor / John"
                     onChange={(e) => setPaidTo(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
+                    className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
                   />
                 </div>
 
@@ -739,7 +750,7 @@ export const PettyCashPage: React.FC = () => {
                     value={receiptNo}
                     placeholder="e.g. REC-102"
                     onChange={(e) => setReceiptNo(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-amber-500/40 focus:border-amber-500 focus:outline-none"
+                    className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-[color:var(--color-warning)]/40 focus:outline-none"
                   />
                 </div>
               </div>
@@ -788,9 +799,9 @@ const ToggleRow: React.FC<{ label: string; value: boolean; onChange: (v: boolean
       <button
         type="button"
         onClick={() => onChange(true)}
-        className={`px-3 py-0.5 rounded text-[11px] font-mono font-bold border cursor-pointer ${
+        className={`px-3 py-0.5 rounded text-[11px] tabular-nums font-bold border cursor-pointer ${
           value
-            ? "bg-amber-500 text-white border-amber-500"
+            ? "bg-amber-500 text-white border-[color:var(--color-warning)]/40"
             : "bg-card text-ink-muted border-line hover:bg-card-2"
         }`}
       >
@@ -799,7 +810,7 @@ const ToggleRow: React.FC<{ label: string; value: boolean; onChange: (v: boolean
       <button
         type="button"
         onClick={() => onChange(false)}
-        className={`px-3 py-0.5 rounded text-[11px] font-mono font-bold border cursor-pointer ${
+        className={`px-3 py-0.5 rounded text-[11px] tabular-nums font-bold border cursor-pointer ${
           !value
             ? "bg-card-2 text-ink border-line"
             : "bg-card text-ink-muted border-line hover:bg-card-2"

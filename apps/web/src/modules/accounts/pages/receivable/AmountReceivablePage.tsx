@@ -351,7 +351,7 @@ export const AmountReceivablePage: React.FC = () => {
             </label>
             <input
               type="text"
-              className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500 focus:outline-none"
+              className="w-full px-2 py-1.5 border border-line bg-card rounded text-xs text-ink focus:ring-1 focus:ring-accent/30 focus:border-accent focus:outline-none"
               value={draftSearch}
               onChange={(e) => setDraftSearch(e.target.value)}
               placeholder="Code / Name..."
@@ -384,7 +384,7 @@ export const AmountReceivablePage: React.FC = () => {
           </button>
           <button
             onClick={handleApplyFilters}
-            className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded"
+            className="px-3 py-1.5 text-xs font-semibold sl-btn-blue rounded"
           >
             Apply
           </button>
@@ -393,7 +393,7 @@ export const AmountReceivablePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setView(view === "ageing" ? "balances" : "ageing")}
-              className={`px-2 py-1.5 rounded text-xs font-semibold border border-line ${view === "ageing" ? "bg-blue-600 text-white border-blue-600" : "bg-card-2 hover:bg-line text-ink-muted"}`}
+              className={`px-2 py-1.5 rounded text-xs font-semibold border border-line ${view === "ageing" ? "bg-blue-600 text-white border-accent" : "bg-card-2 hover:bg-line text-ink-muted"}`}
               title="Unpaid documents by days past due"
             >
               {view === "ageing" ? "Balances" : "Ageing"}
@@ -403,7 +403,7 @@ export const AmountReceivablePage: React.FC = () => {
               className="flex items-center gap-1 px-2 py-1.5 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold border border-line"
               title="Refresh"
             >
-              <FaSync className={refreshing ? "animate-spin text-blue-600" : ""} /> Refresh
+              <FaSync className={refreshing ? "animate-spin text-accent" : ""} /> Refresh
             </button>
             {(can("receivable.export") || can("accounts.export")) && (
               <ExportCSVButton
@@ -442,7 +442,7 @@ export const AmountReceivablePage: React.FC = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-2 py-1 border border-line rounded text-[11px] bg-card text-ink focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                  className="px-2 py-1 border border-line rounded text-[11px] bg-card text-ink focus:outline-none focus:ring-1 focus:ring-accent/30 cursor-pointer"
                 >
                   <option value="activity">Recent Activity</option>
                   <option value="balance">Highest Balance</option>
@@ -489,7 +489,7 @@ export const AmountReceivablePage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <span className="text-[11px] text-ink-subtle font-mono">
+              <span className="text-[11px] text-ink-subtle tabular-nums">
                 Total: {filteredCustomers.length}
               </span>
             </div>
@@ -499,7 +499,7 @@ export const AmountReceivablePage: React.FC = () => {
             <div className="p-8 text-center text-xs text-ink-subtle flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <FaSync className="animate-spin text-blue-600 text-[10px]" />
+                  <FaSync className="animate-spin text-accent text-[10px]" />
                   Loading customer receivables…
                 </span>
               ) : (
@@ -556,19 +556,19 @@ export const AmountReceivablePage: React.FC = () => {
                         onClick={() => setSelectedRow(item.customerId)}
                         className={`border-b border-line-soft cursor-pointer ${
                           isSelected
-                            ? "bg-blue-500/20 text-ink"
+                            ? "bg-nav-active text-ink"
                             : rowIdx % 2 === 0
                               ? "hover:bg-card-2/70"
                               : "bg-card-2/20 hover:bg-card-2/70"
                         }`}
                       >
                         {isVisible("index") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-center font-mono text-[11px] text-ink-subtle">
+                          <td className="px-2 py-1 border-r border-line-soft text-center tabular-nums text-[11px] text-ink-subtle">
                             {rowIdx + 1}
                           </td>
                         )}
                         {isVisible("code") && (
-                          <td className="px-2 py-1 border-r border-line-soft font-mono font-semibold text-blue-500">
+                          <td className="px-2 py-1 border-r border-line-soft tabular-nums font-semibold text-accent">
                             {item.customerCode || "-"}
                           </td>
                         )}
@@ -578,14 +578,14 @@ export const AmountReceivablePage: React.FC = () => {
                               {item.firmName}
                             </div>
                             {item.gstin && (
-                              <div className="text-[10px] text-ink-subtle font-mono">
+                              <div className="text-[10px] text-ink-subtle tabular-nums">
                                 GST: {item.gstin}
                               </div>
                             )}
                           </td>
                         )}
                         {isVisible("invoiced") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
+                          <td className="px-2 py-1 border-r border-line-soft text-right tabular-nums">
                             ₹
                             {(item.totalBilled || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -594,7 +594,7 @@ export const AmountReceivablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("paid") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
+                          <td className="px-2 py-1 border-r border-line-soft text-right tabular-nums">
                             ₹
                             {(item.totalPaid || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -603,7 +603,7 @@ export const AmountReceivablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("debit") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-semibold text-blue-700">
+                          <td className="px-2 py-1 border-r border-line-soft text-right tabular-nums font-semibold text-accent">
                             ₹
                             {(item.debit || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -612,7 +612,7 @@ export const AmountReceivablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("credit") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono">
+                          <td className="px-2 py-1 border-r border-line-soft text-right tabular-nums">
                             ₹
                             {(item.credit || 0).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -621,7 +621,7 @@ export const AmountReceivablePage: React.FC = () => {
                           </td>
                         )}
                         {isVisible("netBalance") && (
-                          <td className="px-2 py-1 border-r border-line-soft text-right font-mono font-bold whitespace-nowrap">
+                          <td className="px-2 py-1 border-r border-line-soft text-right tabular-nums font-bold whitespace-nowrap">
                             {Math.abs(bal) < 0.005 ? (
                               <span className="text-ink">₹0.00</span>
                             ) : bal > 0 ? (
@@ -629,9 +629,11 @@ export const AmountReceivablePage: React.FC = () => {
                                 ₹{balAbs} <span className="text-[10px] text-ink-subtle">Dr</span>
                               </span>
                             ) : (
-                              <span className="text-emerald-500">
+                              <span className="text-[color:var(--color-success)]">
                                 ₹{balAbs}{" "}
-                                <span className="text-[10px] text-emerald-500/70">Cr</span>
+                                <span className="text-[10px] text-[color:var(--color-success)]">
+                                  Cr
+                                </span>
                               </span>
                             )}
                           </td>
@@ -643,7 +645,7 @@ export const AmountReceivablePage: React.FC = () => {
                                 e.stopPropagation();
                                 navigate(`/accounts/receivable/${item.customerId}`);
                               }}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded text-[11px] border border-blue-200"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-nav-active hover:bg-nav-active text-accent font-semibold rounded text-[11px] border border-accent"
                             >
                               View <FaChevronRight size={8} />
                             </button>
@@ -699,7 +701,7 @@ export const AmountReceivablePage: React.FC = () => {
                       Grand Total ({filteredCustomers.length})
                     </td>
                     {isVisible("invoiced") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-ink border-r border-line">
                         ₹
                         {totals.totalBilled.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -708,7 +710,7 @@ export const AmountReceivablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("paid") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-ink border-r border-line">
                         ₹
                         {totals.totalPaid.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -717,7 +719,7 @@ export const AmountReceivablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("debit") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-blue-700 border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-accent border-r border-line">
                         ₹
                         {totals.totalDebit.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -726,7 +728,7 @@ export const AmountReceivablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("credit") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-ink border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-ink border-r border-line">
                         ₹
                         {totals.totalCredit.toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -735,7 +737,7 @@ export const AmountReceivablePage: React.FC = () => {
                       </td>
                     )}
                     {isVisible("netBalance") && (
-                      <td className="px-2 py-1.5 text-right font-mono font-bold text-blue-600 border-r border-line">
+                      <td className="px-2 py-1.5 text-right tabular-nums font-bold text-accent border-r border-line">
                         ₹
                         {Math.abs(totals.totalNetBalance).toLocaleString("en-IN", {
                           minimumFractionDigits: 2,
@@ -754,7 +756,7 @@ export const AmountReceivablePage: React.FC = () => {
           )}
 
           {/* Busy-style status bar */}
-          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] font-mono text-ink-subtle shrink-0">
+          <div className="border-t border-line bg-card-2/60 px-3 py-1 flex items-center justify-between text-[10px] tabular-nums text-ink-subtle shrink-0">
             <div className="flex gap-4">
               <span>
                 Entry No:{" "}
@@ -780,7 +782,7 @@ export const AmountReceivablePage: React.FC = () => {
                 Customers: <b className="text-ink">{filteredCustomers.length}</b>
               </span>
               <span>
-                Overdue: <b className="text-amber-600">{totals.overdueCount}</b>
+                Overdue: <b className="text-[color:var(--color-warning)]">{totals.overdueCount}</b>
               </span>
             </div>
           </div>
@@ -791,12 +793,12 @@ export const AmountReceivablePage: React.FC = () => {
          crores-scale values never squeeze the label or overflow the card. */}
       <aside className="w-[240px] shrink-0 bg-card border border-line rounded-md shadow-sm overflow-hidden">
         <div className="px-3 py-1.5 bg-card-2 border-b border-line text-[11px] font-bold uppercase tracking-wide text-ink flex items-center gap-1.5">
-          <FaUserFriends className="text-blue-600 text-xs" /> Summary
+          <FaUserFriends className="text-accent text-xs" /> Summary
         </div>
         <div className="divide-y divide-line-soft">
-          <div className="px-3 py-2 bg-blue-500/5">
+          <div className="px-3 py-2 bg-nav-active">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaMoneyBillWave className="text-blue-600 text-[10px]" />
+              <FaMoneyBillWave className="text-accent text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Total Receivable</span>
             </div>
             {(() => {
@@ -807,14 +809,14 @@ export const AmountReceivablePage: React.FC = () => {
               });
               if (Math.abs(bal) < 0.005) {
                 return (
-                  <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
+                  <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
                     ₹0.00
                   </div>
                 );
               }
               return (
                 <div
-                  className={`text-sm font-mono font-bold break-all leading-tight ${bal >= 0 ? "text-blue-600" : "text-emerald-500"}`}
+                  className={`text-sm tabular-nums font-bold break-all leading-tight ${bal >= 0 ? "text-accent" : "text-[color:var(--color-success)]"}`}
                 >
                   ₹{abs} <span className="text-[9px] font-sans">{bal >= 0 ? "Dr" : "Cr"}</span>
                 </div>
@@ -824,30 +826,30 @@ export const AmountReceivablePage: React.FC = () => {
 
           <div className="px-3 py-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaUserFriends className="text-indigo-600 text-[10px]" />
+              <FaUserFriends className="text-accent text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Customers</span>
             </div>
-            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
+            <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
               {filteredCustomers.length}
             </div>
           </div>
 
           <div className="px-3 py-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaExclamationTriangle className="text-amber-600 text-[10px]" />
+              <FaExclamationTriangle className="text-[color:var(--color-warning)] text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Overdue</span>
             </div>
-            <div className="text-sm font-mono font-bold text-amber-600 break-all leading-tight">
+            <div className="text-sm tabular-nums font-bold text-[color:var(--color-warning)] break-all leading-tight">
               {totals.overdueCount}
             </div>
           </div>
 
           <div className="px-3 py-2">
             <div className="flex items-center gap-1.5 mb-1">
-              <FaCheckCircle className="text-emerald-600 text-[10px]" />
+              <FaCheckCircle className="text-[color:var(--color-success)] text-[10px]" />
               <span className="text-[11px] font-semibold text-ink-muted">Total Debit</span>
             </div>
-            <div className="text-sm font-mono font-bold text-ink break-all leading-tight">
+            <div className="text-sm tabular-nums font-bold text-ink break-all leading-tight">
               ₹
               {totals.totalDebit.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,

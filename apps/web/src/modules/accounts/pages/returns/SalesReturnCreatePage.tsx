@@ -569,7 +569,7 @@ export const SalesReturnCreatePage: React.FC = () => {
           <h3 className="text-lg font-bold text-ink">
             {isEditMode ? `Edit Sales Return` : "New Sales Return (Credit Note)"}
             {isEditMode && originalReturnNo && (
-              <span className="text-purple-400 text-sm ml-1">*{originalReturnNo}</span>
+              <span className="text-accent text-sm ml-1">*{originalReturnNo}</span>
             )}
           </h3>
           <BackButton text="Back to List" to="/sales-returns" />
@@ -618,7 +618,7 @@ export const SalesReturnCreatePage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold text-ink uppercase tracking-wide">
-                Return Line Items <span className="text-red-500">*</span>
+                Return Line Items <span className="text-[color:var(--color-danger)]">*</span>
                 <span className="text-ink-muted font-normal normal-case ml-1 text-xs">
                   (Select sales products and specify quantities to return)
                 </span>
@@ -632,7 +632,9 @@ export const SalesReturnCreatePage: React.FC = () => {
               />
             </div>
 
-            {errors.rows && <p className="text-red-500 text-sm mb-2">{errors.rows}</p>}
+            {errors.rows && (
+              <p className="text-[color:var(--color-danger)] text-sm mb-2">{errors.rows}</p>
+            )}
 
             <div className="border border-line-soft rounded-xl overflow-hidden bg-card">
               <table className="min-w-full text-sm">
@@ -754,7 +756,7 @@ export const SalesReturnCreatePage: React.FC = () => {
                           </td>
                           <td className="py-2 px-1 text-right font-bold whitespace-nowrap">
                             {lineTot > 0 ? (
-                              <span className="text-emerald-500 text-sm">
+                              <span className="text-[color:var(--color-success)] text-sm">
                                 ₹{lineTot.toFixed(2)}
                               </span>
                             ) : (
@@ -792,7 +794,7 @@ export const SalesReturnCreatePage: React.FC = () => {
                                       type="checkbox"
                                       checked={comp.included}
                                       onChange={() => handleToggleComponent(idx, compIdx)}
-                                      className="w-3.5 h-3.5 rounded accent-blue-600 cursor-pointer"
+                                      className="w-3.5 h-3.5 rounded accent-[color:var(--color-primary)] cursor-pointer"
                                     />
                                     <span
                                       className={`text-xs ${comp.included ? "text-ink font-medium" : "line-through text-ink-subtle"}`}

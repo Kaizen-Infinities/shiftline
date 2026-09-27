@@ -197,22 +197,24 @@ export const SupplierBreakdownPage: React.FC = () => {
     },
     {
       header: "INVOICE NO",
-      render: (item: any) => <span className="font-mono font-bold text-ink">{item.invoiceNo}</span>,
+      render: (item: any) => (
+        <span className="tabular-nums font-bold text-ink">{item.invoiceNo}</span>
+      ),
     },
     {
       header: "DATE",
-      render: (item: any) => <span className="text-ink-muted font-mono">{item.date}</span>,
+      render: (item: any) => <span className="text-ink-muted tabular-nums">{item.date}</span>,
     },
     {
       header: "DUE DATE",
       render: (item: any) => (
-        <span className="text-ink-subtle font-mono">{item.dueDate || "-"}</span>
+        <span className="text-ink-subtle tabular-nums">{item.dueDate || "-"}</span>
       ),
     },
     {
       header: "INVOICE AMOUNT",
       render: (item: any) => (
-        <div className="text-right font-mono font-semibold text-ink">
+        <div className="text-right tabular-nums font-semibold text-ink">
           ₹{" "}
           {item.amount.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
@@ -234,9 +236,9 @@ export const SupplierBreakdownPage: React.FC = () => {
       header: "VOUCHER / REF NO",
       render: (item: any) => (
         <div className="flex items-center gap-2">
-          <span className="font-mono font-bold text-ink">{item.voucherNo}</span>
+          <span className="tabular-nums font-bold text-ink">{item.voucherNo}</span>
           {item.postedToLedger === false && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40">
               Not posted
             </span>
           )}
@@ -245,7 +247,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     },
     {
       header: "DATE",
-      render: (item: any) => <span className="text-ink-muted font-mono">{item.date}</span>,
+      render: (item: any) => <span className="text-ink-muted tabular-nums">{item.date}</span>,
     },
     {
       header: "PAYMENT MODE",
@@ -258,7 +260,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "AMOUNT PAID",
       render: (item: any) => (
-        <div className="text-right font-mono font-semibold text-emerald-600">
+        <div className="text-right tabular-nums font-semibold text-[color:var(--color-success)]">
           ₹{" "}
           {item.amount.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
@@ -270,7 +272,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "REFERENCE NO",
       render: (item: any) => (
-        <span className="text-ink-muted font-mono text-[11px]">{item.referenceNo || "-"}</span>
+        <span className="text-ink-muted tabular-nums text-[11px]">{item.referenceNo || "-"}</span>
       ),
     },
     {
@@ -290,11 +292,13 @@ export const SupplierBreakdownPage: React.FC = () => {
     },
     {
       header: "DATE",
-      render: (item: any) => <span className="text-ink-muted font-mono">{item.date}</span>,
+      render: (item: any) => <span className="text-ink-muted tabular-nums">{item.date}</span>,
     },
     {
       header: "VOUCHER NO",
-      render: (item: any) => <span className="font-mono font-bold text-ink">{item.voucherNo}</span>,
+      render: (item: any) => (
+        <span className="tabular-nums font-bold text-ink">{item.voucherNo}</span>
+      ),
     },
     {
       header: "PARTICULARS",
@@ -305,7 +309,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "DEBIT (DR)",
       render: (item: any) => (
-        <div className="text-right font-mono text-ink-muted">
+        <div className="text-right tabular-nums text-ink-muted">
           {item.debit > 0
             ? `₹ ${item.debit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "-"}
@@ -315,7 +319,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "CREDIT (CR)",
       render: (item: any) => (
-        <div className="text-right font-mono text-ink-muted">
+        <div className="text-right tabular-nums text-ink-muted">
           {item.credit > 0
             ? `₹ ${item.credit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "-"}
@@ -325,7 +329,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     {
       header: "RUNNING BALANCE",
       render: (item: any) => (
-        <div className="text-right font-mono font-semibold text-orange-600">
+        <div className="text-right tabular-nums font-semibold text-[color:var(--color-warning)]">
           ₹{" "}
           {item.runningBalance.toLocaleString("en-IN", {
             minimumFractionDigits: 2,
@@ -349,14 +353,16 @@ export const SupplierBreakdownPage: React.FC = () => {
               <FaArrowLeft size={9} /> Back
             </button>
             <h1 className="text-sm font-bold text-ink flex items-center gap-2 min-w-0 truncate">
-              <FaBuilding className="text-orange-600 text-sm shrink-0" />
+              <FaBuilding className="text-[color:var(--color-warning)] text-sm shrink-0" />
               <span className="truncate">
                 {supplierDetail?.supplier.legalName || "Supplier Breakdown"}
               </span>
-              {refreshing && <FaSync className="animate-spin text-orange-600 text-[10px]" />}
+              {refreshing && (
+                <FaSync className="animate-spin text-[color:var(--color-warning)] text-[10px]" />
+              )}
             </h1>
             {supplierDetail?.supplier.supplierCode && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded font-mono uppercase tracking-wide shrink-0">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-[color:var(--color-warning)]/10 text-[color:var(--color-warning)] border border-[color:var(--color-warning)]/40 rounded tabular-nums uppercase tracking-wide shrink-0">
                 {supplierDetail.supplier.supplierCode}
               </span>
             )}
@@ -368,7 +374,10 @@ export const SupplierBreakdownPage: React.FC = () => {
               className="flex items-center gap-1.5 px-2.5 py-1 bg-card-2 hover:bg-line text-ink-muted rounded text-xs font-semibold transition-all border border-line"
               title="Refresh"
             >
-              <FaSync className={refreshing ? "animate-spin text-orange-600" : ""} /> Refresh
+              <FaSync
+                className={refreshing ? "animate-spin text-[color:var(--color-warning)]" : ""}
+              />{" "}
+              Refresh
             </button>
             <button
               type="button"
@@ -475,7 +484,7 @@ export const SupplierBreakdownPage: React.FC = () => {
               </span>
               <FaMoneyBillWave className="text-ink-muted text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-ink mt-1">
+            <div className="text-lg tabular-nums font-bold text-ink mt-1">
               ₹{" "}
               {supplierDetail.summary.openingBalance.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -490,9 +499,9 @@ export const SupplierBreakdownPage: React.FC = () => {
               <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Invoiced
               </span>
-              <FaBuilding className="text-orange-600 text-xs" />
+              <FaBuilding className="text-[color:var(--color-warning)] text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-ink mt-1">
+            <div className="text-lg tabular-nums font-bold text-ink mt-1">
               ₹{" "}
               {supplierDetail.summary.totalBilled.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -507,9 +516,9 @@ export const SupplierBreakdownPage: React.FC = () => {
               <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Paid
               </span>
-              <FaCheckCircle className="text-emerald-600 text-xs" />
+              <FaCheckCircle className="text-[color:var(--color-success)] text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-emerald-600 mt-1">
+            <div className="text-lg tabular-nums font-bold text-[color:var(--color-success)] mt-1">
               ₹{" "}
               {supplierDetail.summary.totalPaid.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -524,9 +533,9 @@ export const SupplierBreakdownPage: React.FC = () => {
               <span className="text-[10px] uppercase tracking-wide font-semibold text-ink-subtle">
                 Outstanding
               </span>
-              <FaExclamationTriangle className="text-amber-600 text-xs" />
+              <FaExclamationTriangle className="text-[color:var(--color-warning)] text-xs" />
             </div>
-            <div className="text-lg font-mono font-bold text-orange-600 mt-1">
+            <div className="text-lg tabular-nums font-bold text-[color:var(--color-warning)] mt-1">
               ₹{" "}
               {supplierDetail.summary.closingBalance.toLocaleString("en-IN", {
                 minimumFractionDigits: 2,
@@ -545,7 +554,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             onClick={() => setActiveTab("invoices")}
             className={`flex items-center gap-1.5 px-3 py-2 font-semibold text-xs border-b-2 transition-colors ${
               activeTab === "invoices"
-                ? "border-orange-600 text-orange-600"
+                ? "border-[color:var(--color-warning)]/40 text-[color:var(--color-warning)]"
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
@@ -556,7 +565,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             onClick={() => setActiveTab("payments")}
             className={`flex items-center gap-1.5 px-3 py-2 font-semibold text-xs border-b-2 transition-colors ${
               activeTab === "payments"
-                ? "border-orange-600 text-orange-600"
+                ? "border-[color:var(--color-warning)]/40 text-[color:var(--color-warning)]"
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >
@@ -567,7 +576,7 @@ export const SupplierBreakdownPage: React.FC = () => {
             onClick={() => setActiveTab("statement")}
             className={`flex items-center gap-1.5 px-3 py-2 font-semibold text-xs border-b-2 transition-colors ${
               activeTab === "statement"
-                ? "border-orange-600 text-orange-600"
+                ? "border-[color:var(--color-warning)]/40 text-[color:var(--color-warning)]"
                 : "border-transparent text-ink-subtle hover:text-ink"
             }`}
           >

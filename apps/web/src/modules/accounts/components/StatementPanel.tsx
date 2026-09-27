@@ -13,7 +13,7 @@ import {
  * unpaid totals, then open the PDF or send it to the party by email or WhatsApp.
  */
 const input =
-  "rounded border border-line bg-card px-2 py-1 text-xs text-ink outline-none focus:border-blue-500";
+  "rounded border border-line bg-card px-2 py-1 text-xs text-ink outline-none focus:border-accent";
 const btn =
   "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold border border-line transition disabled:opacity-50";
 const inr = (n: number) =>
@@ -121,17 +121,17 @@ export const StatementPanel: React.FC<{
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
           <div className="rounded border border-line-soft p-2">
             <div className="text-[10px] uppercase text-ink-subtle">Opening</div>
-            <div className="font-mono text-ink">
+            <div className="tabular-nums text-ink">
               {inr(statement.openingBalance)} {statement.openingBalance < 0 ? "Cr" : "Dr"}
             </div>
           </div>
           <div className="rounded border border-line-soft p-2">
             <div className="text-[10px] uppercase text-ink-subtle">Entries</div>
-            <div className="font-mono text-ink">{statement.entries.length}</div>
+            <div className="tabular-nums text-ink">{statement.entries.length}</div>
           </div>
           <div className="rounded border border-line-soft p-2">
             <div className="text-[10px] uppercase text-ink-subtle">Closing</div>
-            <div className="font-mono text-ink">
+            <div className="tabular-nums text-ink">
               {inr(statement.closingBalance)} {statement.closingBalance < 0 ? "Cr" : "Dr"}
             </div>
           </div>
@@ -139,9 +139,9 @@ export const StatementPanel: React.FC<{
             <div className="text-[10px] uppercase text-ink-subtle">
               {partyType === "customer" ? "Receivable" : "Payable"} · overdue
             </div>
-            <div className="font-mono text-ink">
+            <div className="tabular-nums text-ink">
               {inr(Math.max(owes, 0))}
-              <span className="ml-1 text-rose-600">
+              <span className="ml-1 text-[color:var(--color-danger)]">
                 {statement.ageing ? `· ${inr(statement.ageing.overdue)}` : ""}
               </span>
             </div>
@@ -156,7 +156,8 @@ export const StatementPanel: React.FC<{
           disabled={busy !== ""}
           onClick={() => run("pdf")}
         >
-          <FaFilePdf className="text-rose-600" /> {busy === "pdf" ? "Preparing…" : "Open PDF"}
+          <FaFilePdf className="text-[color:var(--color-danger)]" />{" "}
+          {busy === "pdf" ? "Preparing…" : "Open PDF"}
         </button>
         <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
           Email
@@ -174,7 +175,7 @@ export const StatementPanel: React.FC<{
           disabled={busy !== "" || !email}
           onClick={() => run("email")}
         >
-          <FaEnvelope className="text-blue-600" /> {busy === "email" ? "Sending…" : "Email"}
+          <FaEnvelope className="text-accent" /> {busy === "email" ? "Sending…" : "Email"}
         </button>
         <label className="text-[10px] uppercase tracking-wide text-ink-subtle font-semibold">
           WhatsApp
@@ -191,7 +192,7 @@ export const StatementPanel: React.FC<{
           disabled={busy !== "" || !phone}
           onClick={() => run("whatsapp")}
         >
-          <FaWhatsapp className="text-emerald-600" />{" "}
+          <FaWhatsapp className="text-[color:var(--color-success)]" />{" "}
           {busy === "whatsapp" ? "Sending…" : "WhatsApp"}
         </button>
       </div>
