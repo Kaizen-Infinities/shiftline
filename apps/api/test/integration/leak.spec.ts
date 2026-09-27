@@ -95,6 +95,10 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "CustomerSchedule",
   "CustomerScheduleLine",
   "CustomerScheduleDispatch",
+  // TN-07: part maps and ASNs start empty; asn.spec.ts has the cross-tenant test.
+  "CustomerPartMap",
+  "Asn",
+  "AsnLine",
   "EsiContributionPeriod",
   "OvertimeQuarterPeriod",
   "PaymentGatewayConfig",
