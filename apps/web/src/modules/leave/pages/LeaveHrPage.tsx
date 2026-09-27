@@ -1,6 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
+import { CalendarDays, Plus, Umbrella, X } from "lucide-react";
+import {
+  ActionPill,
+  Chip,
+  ChipTabs,
+  EmptyState,
+  PageHeader,
+  SkeletonRows,
+  type ChipTone,
+} from "../../../components/ui/v2";
 import { EmployeePicker } from "../../../components/common/EmployeePicker";
 import { usePermission } from "../../../hooks/usePermission";
 import { labourService, type LeaveTypeRow } from "../../../services/labourService";
@@ -11,13 +21,16 @@ import {
   type LeaveRequestStatus,
 } from "../../../services/leaveService";
 import {
+  Avatar,
   Card,
+  PageShell,
+  TableWrap,
+  linkBtn,
   day,
   field,
   message,
   monthOptions,
   primary,
-  secondary,
   td,
   th,
 } from "../../payroll/components/peopleUi";
@@ -27,14 +40,17 @@ import {
  * `labourService` accrues and `leaveService` moves against it.
  */
 type Tab = "requests" | "calendar";
-const STATUS_STYLE: Record<LeaveRequestStatus, string> = {
-  PENDING:
-    "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]",
-  APPROVED:
-    "bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]",
-  REJECTED:
-    "bg-[color-mix(in_srgb,var(--color-danger)_14%,transparent)] text-[color:var(--color-danger)]",
-  CANCELLED: "bg-card-2 text-ink",
+const STATUS_TONE: Record<LeaveRequestStatus, ChipTone> = {
+  PENDING: "warning",
+  APPROVED: "success",
+  REJECTED: "danger",
+  CANCELLED: "muted",
+};
+const STATUS_LABEL: Record<LeaveRequestStatus, string> = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  CANCELLED: "Cancelled",
 };
 
 const daysInMonth = (month: string): number => {
@@ -164,59 +180,59 @@ const LeaveHrPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink">Leave</h1>
-          <p className="text-sm text-ink-muted">
-            Requests waiting on a decision, and who is off on the calendar.
-          </p>
+    <PageShell className="space-y-5">
+      <PageHeader
+        title="Leave"
+        icon={<Umbrella size={20} />}
+        subtitle="Requests waiting on a decision, and who is off on the calendar."
+        primaryAction={
+          tab === "requests" && can("leave.request") ? (
+            <ActionPill
+              icon={showForm ? <X size={17} /> : <Plus size={17} />}
+              variant={showForm ? "secondary" : "cta"}
+              onClick={() => setShowForm((v) => !v)}
+            >
+              {showForm ? "Close" : "Apply Leave"}
+            </ActionPill>
+          ) : undefined
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ChipTabs
+            ariaLabel="Leave view"
+            value={tab}
+            onChange={(k) => setTab(k as Tab)}
+            items={[
+              { key: "requests", label: "Requests" },
+              { key: "calendar", label: "Calendar", icon: <CalendarDays size={14} /> },
+            ]}
+          />
+          {tab === "requests" && (
+            <div role="group" aria-label="Status" className="flex flex-wrap gap-2">
+              {(["", "PENDING", "APPROVED", "REJECTED", "CANCELLED"] as const).map((st) => (
+                <Chip
+                  key={st || "all"}
+                  selected={status === st}
+                  onClick={() => setStatus(st)}
+                  tone={st ? STATUS_TONE[st] : "default"}
+                >
+                  {st ? STATUS_LABEL[st] : "All"}
+                </Chip>
+              ))}
+            </div>
+          )}
         </div>
-        <nav className="flex gap-2">
-          <button
-            className={tab === "requests" ? primary : secondary}
-            onClick={() => setTab("requests")}
-          >
-            Requests
-          </button>
-          <button
-            className={tab === "calendar" ? primary : secondary}
-            onClick={() => setTab("calendar")}
-          >
-            Calendar
-          </button>
-        </nav>
-      </header>
+      </PageHeader>
 
       {tab === "requests" && (
         <Card
           title="Leave requests"
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className={field}
-                value={status}
-                onChange={(e) => setStatus(e.target.value as LeaveRequestStatus | "")}
-                aria-label="Status"
-              >
-                <option value="">All statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-              {can("leave.request") && (
-                <button className={primary} onClick={() => setShowForm((v) => !v)}>
-                  {showForm ? "Close" : "New request"}
-                </button>
-              )}
-            </div>
-          }
+          subtitle={`${requests.length} ${requests.length === 1 ? "request" : "requests"}`}
         >
           {showForm && (
             <form
               onSubmit={submitRequest}
-              className="mb-4 grid grid-cols-1 gap-2 rounded-lg border border-line-soft p-3 sm:grid-cols-3"
+              className="mb-5 grid grid-cols-1 gap-3 rounded-[14px] bg-card-2 p-4 sm:grid-cols-3"
             >
               <EmployeePicker
                 value={form.employeeId}
@@ -237,21 +253,21 @@ const LeaveHrPage: React.FC = () => {
                 ))}
               </select>
               <div />
-              <label className="text-xs text-ink-muted">
+              <label className="sl-label flex-col !items-start">
                 From
                 <input
                   type="date"
-                  className={`${field} mt-1 w-full`}
+                  className={`${field} !w-full`}
                   value={form.fromDate}
                   onChange={(e) => setForm((f) => ({ ...f, fromDate: e.target.value }))}
                   required
                 />
               </label>
-              <label className="text-xs text-ink-muted">
+              <label className="sl-label flex-col !items-start">
                 To
                 <input
                   type="date"
-                  className={`${field} mt-1 w-full`}
+                  className={`${field} !w-full`}
                   value={form.toDate}
                   onChange={(e) => setForm((f) => ({ ...f, toDate: e.target.value }))}
                   required
@@ -281,16 +297,18 @@ const LeaveHrPage: React.FC = () => {
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
               />
-              <button className={`${primary} sm:col-span-3`} disabled={busy} type="submit">
-                Submit
-              </button>
+              <div className="flex justify-end sm:col-span-3">
+                <button className={primary} disabled={busy} type="submit">
+                  Submit
+                </button>
+              </div>
             </form>
           )}
 
-          <div className="overflow-x-auto">
+          <TableWrap>
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-line-soft">
+                <tr>
                   <th className={th}>Employee</th>
                   <th className={th}>Type</th>
                   <th className={th}>From</th>
@@ -302,42 +320,61 @@ const LeaveHrPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={8} className="p-0">
+                      <SkeletonRows rows={4} columns={6} header={false} />
+                    </td>
+                  </tr>
+                )}
                 {!loading && requests.length === 0 && (
                   <tr>
-                    <td className={td} colSpan={8}>
-                      No leave requests.
+                    <td colSpan={8}>
+                      <EmptyState
+                        compact
+                        icon={<Umbrella size={22} strokeWidth={1.75} />}
+                        title={status ? "No requests with this status" : "No leave requests."}
+                      />
                     </td>
                   </tr>
                 )}
                 {requests.map((r) => (
-                  <tr key={r.id} className="border-b border-line-soft/60">
+                  <tr key={r.id} className="sl-row-hover border-t border-line-soft">
                     <td className={td}>
-                      {r.employee.empCode} — {r.employee.fullName}
-                    </td>
-                    <td className={td}>{r.leaveType.code}</td>
-                    <td className={td}>{day(r.fromDate)}</td>
-                    <td className={td}>{day(r.toDate)}</td>
-                    <td className={td}>{r.days}</td>
-                    <td className={td}>{r.reason ?? "—"}</td>
-                    <td className={td}>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status]}`}
-                      >
-                        {r.status}
+                      <span className="flex items-center gap-2.5">
+                        <Avatar name={r.employee.fullName} size={32} />
+                        <span className="min-w-0">
+                          <span className="block font-semibold">{r.employee.fullName}</span>
+                          <span className="block text-[12px] text-ink-subtle">
+                            {r.employee.empCode}
+                          </span>
+                        </span>
                       </span>
                     </td>
-                    <td className={`${td} space-x-2`}>
+                    <td className={td}>
+                      <Chip size="sm">{r.leaveType.code}</Chip>
+                    </td>
+                    <td className={td}>{day(r.fromDate)}</td>
+                    <td className={td}>{day(r.toDate)}</td>
+                    <td className={`${td} tabular-nums`}>{r.days}</td>
+                    <td className={td}>{r.reason ?? "—"}</td>
+                    <td className={td}>
+                      <Chip size="sm" tone={STATUS_TONE[r.status]}>
+                        {STATUS_LABEL[r.status]}
+                      </Chip>
+                    </td>
+                    <td className={`${td} whitespace-nowrap`}>
                       {r.status === "PENDING" && can("leave.approve") && (
                         <>
                           <button
-                            className="text-xs font-semibold text-[color:var(--color-success)] hover:underline"
+                            className={linkBtn}
                             disabled={busy}
                             onClick={() => act(() => leaveService.approve(r.id), "Approved")}
                           >
                             Approve
                           </button>
                           <button
-                            className="text-xs font-semibold text-[color:var(--color-danger)] hover:underline"
+                            className={linkBtn}
                             disabled={busy}
                             onClick={() => act(() => leaveService.reject(r.id), "Rejected")}
                           >
@@ -348,7 +385,7 @@ const LeaveHrPage: React.FC = () => {
                       {(r.status === "PENDING" || r.status === "APPROVED") &&
                         can("leave.approve") && (
                           <button
-                            className="text-xs font-semibold text-ink-muted hover:underline"
+                            className={linkBtn}
                             disabled={busy}
                             onClick={() => act(() => leaveService.cancel(r.id), "Cancelled")}
                           >
@@ -360,7 +397,7 @@ const LeaveHrPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         </Card>
       )}
 
@@ -378,14 +415,18 @@ const LeaveHrPage: React.FC = () => {
           }
         >
           {!loading && calendarGrid.length === 0 && (
-            <p className="text-sm text-ink-muted">Nobody is off this month.</p>
+            <EmptyState
+              compact
+              icon={<CalendarDays size={22} strokeWidth={1.75} />}
+              title="Nobody is off this month."
+            />
           )}
           {calendarGrid.length > 0 && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-[14px] border border-line-soft">
               <table className="w-full border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-line-soft">
-                    <th className={`${th} sticky left-0 bg-card`}>Employee</th>
+                  <tr>
+                    <th className={`${th} sticky left-0 z-10`}>Employee</th>
                     {Array.from({ length: daysInMonth(month) }, (_, i) => i + 1).map((d) => (
                       <th key={d} className={`${th} text-center`}>
                         {d}
@@ -395,7 +436,7 @@ const LeaveHrPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {calendarGrid.map((row) => (
-                    <tr key={row.employeeId} className="border-b border-line-soft/60">
+                    <tr key={row.employeeId} className="border-t border-line-soft">
                       <td className={`${td} sticky left-0 bg-card whitespace-nowrap`}>
                         {row.employeeName} ({row.employeeCode})
                         {row.departmentName && (
@@ -405,7 +446,7 @@ const LeaveHrPage: React.FC = () => {
                       {row.cells.map((c, i) => (
                         <td
                           key={i}
-                          className={`${td} text-center ${c ? "bg-[color-mix(in_srgb,var(--color-warning)_9%,transparent)] font-semibold text-[color:var(--color-warning)]" : ""}`}
+                          className={`${td} text-center ${c ? "bg-nav-active font-semibold text-nav-active-fg" : ""}`}
                         >
                           {c ?? ""}
                         </td>
@@ -418,7 +459,7 @@ const LeaveHrPage: React.FC = () => {
           )}
         </Card>
       )}
-    </div>
+    </PageShell>
   );
 };
 
