@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { PageHeader } from "../../../components/ui/v2";
+import {
+  Chip,
+  ChipTabs,
+  EmptyState,
+  PageHeader,
+  SkeletonRows,
+  type ChipTone,
+} from "../../../components/ui/v2";
 import { Link2 } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
@@ -30,12 +37,12 @@ import {
  * settings half exists so the secrets can be set once and never shown again — the screen can say
  * a secret is stored, and that is all it can say.
  */
-const STATUS_STYLE: Record<PaymentLinkStatus, string> = {
-  CREATED: "bg-sky-100 text-sky-800",
-  PARTIALLY_PAID: "bg-amber-100 text-amber-800",
-  PAID: "bg-emerald-100 text-emerald-800",
-  EXPIRED: "bg-slate-100 text-slate-700",
-  CANCELLED: "bg-slate-100 text-slate-700",
+const STATUS_TONE: Record<PaymentLinkStatus, ChipTone> = {
+  CREATED: "info",
+  PARTIALLY_PAID: "warning",
+  PAID: "success",
+  EXPIRED: "muted",
+  CANCELLED: "muted",
 };
 
 const PaymentLinksPage: React.FC = () => {
@@ -135,47 +142,44 @@ const PaymentLinksPage: React.FC = () => {
         subtitle="Links a customer can pay, and what the gateway kept out of each collection."
       />
 
-      <div className="flex gap-2">
-        {(["links", "settings"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={t === tab ? primary : secondary}
-          >
-            {t === "links" ? "Links" : "Gateway"}
-          </button>
-        ))}
-      </div>
+      <ChipTabs
+        ariaLabel="Payment links"
+        value={tab}
+        onChange={setTab}
+        items={(["links", "settings"] as const).map((t) => ({
+          key: t,
+          label: t === "links" ? "Links" : "Gateway",
+        }))}
+      />
 
       {tab === "links" && (
         <>
           {can("payments.create") && (
             <Card title="Raise a link">
-              <div className="flex flex-wrap items-end gap-2">
-                <label className="text-sm text-ink-soft">
-                  Amount
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="block">
+                  <span className="sl-label">Amount (₹)</span>
                   <input
-                    className={`${field} ml-2 w-32`}
+                    className="sl-input h-11 w-40 py-0 text-right text-sm"
                     value={amount}
                     inputMode="decimal"
                     onChange={(e) => setAmount(e.target.value)}
                   />
                 </label>
-                <label className="text-sm text-ink-soft">
-                  For
+                <label className="block">
+                  <span className="sl-label">For</span>
                   <input
-                    className={`${field} ml-2 w-64`}
+                    className="sl-input h-11 w-72 max-w-full py-0 text-sm"
                     value={description}
                     placeholder="What this is for"
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </label>
-                <button type="button" className={primary} disabled={busy} onClick={raise}>
+                <button type="button" className="sl-cta sl-pill-md" disabled={busy} onClick={raise}>
                   Raise link
                 </button>
               </div>
-              <p className="mt-2 text-xs text-ink-soft">
+              <p className="mt-2 text-xs text-ink-muted">
                 A link against an invoice is raised from the invoice itself, so it can never be for
                 more than the invoice still owes.
               </p>
@@ -184,9 +188,9 @@ const PaymentLinksPage: React.FC = () => {
 
           <Card title="Links">
             {loading ? (
-              <p className="text-sm text-ink-soft">Loading…</p>
+              <SkeletonRows rows={4} columns={6} />
             ) : links.length === 0 ? (
-              <p className="text-sm text-ink-soft">No payment links yet.</p>
+              <EmptyState compact title="No payment links yet." />
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full">
@@ -213,7 +217,7 @@ const PaymentLinksPage: React.FC = () => {
                           <td className={td}>
                             {l.shortUrl ? (
                               <a
-                                className="text-blue-600 hover:underline"
+                                className="font-semibold text-accent hover:underline"
                                 href={l.shortUrl}
                                 target="_blank"
                                 rel="noreferrer"
@@ -229,11 +233,9 @@ const PaymentLinksPage: React.FC = () => {
                           <td className={`${td} text-right`}>{money(l.amountPaid)}</td>
                           <td className={`${td} text-right`}>{kept ? money(kept) : "—"}</td>
                           <td className={td}>
-                            <span
-                              className={`rounded px-2 py-0.5 text-xs ${STATUS_STYLE[l.status]}`}
-                            >
+                            <Chip tone={STATUS_TONE[l.status]} size="sm" dot>
                               {l.status.replace("_", " ").toLowerCase()}
-                            </span>
+                            </Chip>
                           </td>
                           <td className={td}>{day(l.expiresAt)}</td>
                           <td className={`${td} whitespace-nowrap`}>
@@ -276,7 +278,7 @@ const PaymentLinksPage: React.FC = () => {
       {tab === "settings" && settings && (
         <Card title="Gateway">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Provider
               <select
                 className={`${field} ml-2`}
@@ -287,7 +289,7 @@ const PaymentLinksPage: React.FC = () => {
                 <option value="RAZORPAY">Razorpay</option>
               </select>
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               <input
                 type="checkbox"
                 className="mr-2"
@@ -296,7 +298,7 @@ const PaymentLinksPage: React.FC = () => {
               />
               Collect through the gateway
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Key id
               <input
                 className={`${field} ml-2 w-56`}
@@ -304,7 +306,7 @@ const PaymentLinksPage: React.FC = () => {
                 onChange={(e) => setKeyId(e.target.value)}
               />
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Key secret
               <input
                 className={`${field} ml-2 w-56`}
@@ -314,7 +316,7 @@ const PaymentLinksPage: React.FC = () => {
                 onChange={(e) => setKeySecret(e.target.value)}
               />
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               Webhook secret
               <input
                 className={`${field} ml-2 w-56`}
@@ -324,7 +326,7 @@ const PaymentLinksPage: React.FC = () => {
                 onChange={(e) => setWebhookSecret(e.target.value)}
               />
             </label>
-            <label className="text-sm text-ink-soft">
+            <label className="text-sm text-ink-muted">
               A link lasts (hours)
               <input
                 className={`${field} ml-2 w-24`}
@@ -335,7 +337,7 @@ const PaymentLinksPage: React.FC = () => {
               />
             </label>
           </div>
-          <p className="mt-3 text-sm text-ink-soft">
+          <p className="mt-3 text-sm text-ink-muted">
             Callback URL: <code className="text-xs">{settings.webhookPath}</code> — give this to the
             gateway. It names no company, and rotating it stops the old one at once.
           </p>
