@@ -44,7 +44,7 @@ export const renderClaimHtml = (data: StatementData): string => {
     .map(
       (l, i) => `<tr>
         <td class="c">${i + 1}</td>
-        <td>${esc(l.invoiceNo)}</td>
+        <td class="nw">${esc(l.invoiceNo)}</td>
         <td class="c">${dmy(l.invoiceDate)}</td>
         <td class="c">${dmy(l.acceptedOn)}</td>
         <td class="c">${l.limitDays}</td>
@@ -75,6 +75,7 @@ export const renderClaimHtml = (data: StatementData): string => {
   .grid > div { flex: 1; }
   .r { text-align: right; white-space: nowrap; }
   .c { text-align: center; white-space: nowrap; }
+  .nw { white-space: nowrap; }
   tfoot td { font-weight: 700; background: #f8fafc; }
   .totals td { font-size: 11.5px; }
   .note { color: #475569; font-size: 9.5px; margin-top: 6px; }
