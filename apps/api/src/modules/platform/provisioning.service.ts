@@ -117,6 +117,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "goods-dispatch",
         // Customer delivery schedules (TN-02): the dispatch planner works from them.
         "delivery-schedules",
+        // OEM ASN and packing labels (TN-07): prepared at the dispatch dock.
+        "asn",
         "eod-stock",
         "inventory",
         "dash-inventory",

@@ -521,6 +521,8 @@ model Customer {
   projectJobs           ProjectJob[]        @relation("CustomerProjectJob")
   deliverySchedules     CustomerSchedule[]  @relation("CustomerDeliverySchedule")
   msmeRecoveryClaims    MsmeRecoveryClaim[] @relation("CustomerMsmeRecoveryClaim")
+  customerPartMaps      CustomerPartMap[]   @relation("CustomerPartMapCustomer")
+  asns                  Asn[]               @relation("CustomerAsn")
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -769,6 +771,9 @@ model Company {
   customerSchedules          CustomerSchedule[]         @relation("CompanyCustomerSchedule")
   customerScheduleLines      CustomerScheduleLine[]     @relation("CompanyCustomerScheduleLine")
   customerScheduleDispatches CustomerScheduleDispatch[] @relation("CompanyCustomerScheduleDispatch")
+  customerPartMaps           CustomerPartMap[]          @relation("CompanyCustomerPartMap")
+  asns                       Asn[]                      @relation("CompanyAsn")
+  asnLines                   AsnLine[]                  @relation("CompanyAsnLine")
 
   @@map("companies")
 }
@@ -1037,6 +1042,8 @@ model Product {
   finishedGoodsStocks       FinishedGoodsStock[]
   finishedGoodsTransactions FinishedGoodsTransaction[]
   customerScheduleLines     CustomerScheduleLine[]
+  customerPartMaps          CustomerPartMap[]
+  asnLines                  AsnLine[]
   goodsDispatchItems        GoodsDispatchItem[]
   images                    ProductImage[]
   productionOrders          ProductionOrder[]
@@ -2398,6 +2405,7 @@ model SalesInvoice {
   exportIncentiveClaims ExportIncentiveClaim[]
   msmeClaimLines        MsmeRecoveryClaimLine[] @relation("SalesInvoiceMsmeClaimLine")
   businessPlace         BusinessPlace?          @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
+  asns                  Asn[]
   /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
   cancelledAt           DateTime?               @map("cancelled_at") @db.Timestamptz(6)
   cancelledBy           String?                 @map("cancelled_by") @db.VarChar(36)
@@ -6363,6 +6371,7 @@ model CustomerScheduleLine {
 
   dispatches CustomerScheduleDispatch[]
   schedule   CustomerSchedule           @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  asnLines   AsnLine[]
   product    Product?                   @relation(fields: [productId], references: [id], onDelete: Restrict)
   company    Company                    @relation("CompanyCustomerScheduleLine", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -6385,11 +6394,114 @@ model CustomerScheduleDispatch {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   line    CustomerScheduleLine @relation(fields: [lineId], references: [id], onDelete: Restrict)
+  asnLine AsnLine?
   company Company              @relation("CompanyCustomerScheduleDispatch", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([lineId])
   @@index([companyId, dispatchDate])
   @@map("customer_schedule_dispatches")
+}
+
+// ── OEM ASN, packing labels and part-number cross-reference (TN-07) ───────────
+
+enum AsnStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+/// TN-07: the customer's (OEM's) part number for one of our products, with its standard pack.
+model CustomerPartMap {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  productId      BigInt   @map("product_id")
+  customerPartNo String   @map("customer_part_no") @db.VarChar(40)
+  description    String?  @db.VarChar(120)
+  /// Standard pack (bin / box) quantity; labels split an ASN line into packs of this size.
+  packQty        Decimal? @map("pack_qty") @db.Decimal(14, 3)
+  packType       String?  @map("pack_type") @db.VarChar(30)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdBy      String?  @map("created_by") @db.VarChar(36)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer @relation("CustomerPartMapCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  company  Company  @relation("CompanyCustomerPartMap", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, customerId, customerPartNo])
+  @@index([companyId, customerId, productId])
+  @@map("customer_part_maps")
+}
+
+/// TN-07: advance shipping notice for one sales invoice, sent to the OEM with the truck.
+model Asn {
+  id              String    @id @default(uuid()) @db.Uuid
+  companyId       String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  asnNo           String    @map("asn_no") @db.VarChar(40)
+  customerId      String    @map("customer_id") @db.Uuid
+  salesInvoiceId  String    @map("sales_invoice_id") @db.Uuid
+  /// Snapshot of the invoice number and date, as the OEM receives them.
+  invoiceNo       String    @map("invoice_no") @db.VarChar(40)
+  invoiceDate     DateTime  @map("invoice_date") @db.Date
+  vehicleNo       String?   @map("vehicle_no") @db.VarChar(15)
+  transporterName String?   @map("transporter_name") @db.VarChar(100)
+  lrNo            String?   @map("lr_no") @db.VarChar(30)
+  lrDate          DateTime? @map("lr_date") @db.Date
+  dispatchAt      DateTime  @map("dispatch_at") @db.Timestamptz(6)
+  status          AsnStatus @default(DRAFT)
+  sentAt          DateTime? @map("sent_at") @db.Timestamptz(6)
+  acknowledgedAt  DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  /// The OEM portal's acknowledgement / GRN reference.
+  ackRef          String?   @map("ack_ref") @db.VarChar(60)
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason    String?   @map("cancel_reason") @db.VarChar(300)
+  notes           String?   @db.VarChar(500)
+  createdBy       String?   @map("created_by") @db.VarChar(36)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lines        AsnLine[]
+  customer     Customer     @relation("CustomerAsn", fields: [customerId], references: [id], onDelete: Restrict)
+  salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  company      Company      @relation("CompanyAsn", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, asnNo])
+  @@index([companyId, customerId, dispatchAt])
+  @@index([salesInvoiceId])
+  @@map("asns")
+}
+
+/// TN-07: one part on an ASN. Once the ASN is sent, a line linked to a TN-02 schedule line books
+/// a CustomerScheduleDispatch (dispatchId) so the quantity counts toward adherence.
+model AsnLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  asnId          String   @map("asn_id") @db.Uuid
+  seq            Int
+  productId      BigInt   @map("product_id")
+  customerPartNo String   @map("customer_part_no") @db.VarChar(40)
+  description    String?  @db.VarChar(120)
+  uom            String?  @db.VarChar(20)
+  qty            Decimal  @db.Decimal(14, 3)
+  packQty        Decimal  @map("pack_qty") @db.Decimal(14, 3)
+  packs          Int
+  scheduleLineId String?  @map("schedule_line_id") @db.Uuid
+  dispatchId     String?  @unique @map("dispatch_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  asn          Asn                       @relation(fields: [asnId], references: [id], onDelete: Cascade)
+  product      Product                   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  scheduleLine CustomerScheduleLine?     @relation(fields: [scheduleLineId], references: [id], onDelete: SetNull)
+  dispatch     CustomerScheduleDispatch? @relation(fields: [dispatchId], references: [id], onDelete: SetNull)
+  company      Company                   @relation("CompanyAsnLine", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([asnId, seq])
+  @@index([scheduleLineId])
+  @@map("asn_lines")
 }
 
 // ── Export incentives and authorisations (TN-01) ─────────────────────────────

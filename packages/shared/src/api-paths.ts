@@ -377,6 +377,13 @@ export const API_PATHS = {
     lines: "/delivery-schedules/lines", // ← base; service appends /:lineId[/dispatches]
     dispatches: "/delivery-schedules/dispatches", // ← base; service appends /:dispatchId
   },
+  asn: {
+    base: "/asn", // ← service appends /:id, /:id/status, /:id/export, /:id/labels
+    prefill: "/asn/prefill",
+    invoices: "/asn/invoices",
+    formats: "/asn/export-formats",
+    partMaps: "/asn/part-maps", // ← service appends /:id
+  },
   leave: {
     base: "/leave",
     requests: "/leave/requests",

@@ -69,6 +69,7 @@ import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
 import projectJobsRoutes from "../modules/project-jobs/project-jobs.routes";
 import msmeClaimsRoutes from "../modules/msme-claims/msme-claims.routes";
 import deliveryScheduleRoutes from "../modules/delivery-schedules/delivery-schedules.routes";
+import asnRoutes from "../modules/asn/asn.routes";
 import exportIncentivesRoutes from "../modules/export-incentives/export-incentives.routes";
 import smsRoutes from "../modules/sms/sms.routes";
 import paymentsRoutes, {
@@ -161,6 +162,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/oee", router: oeeRoutes },
   { path: "/goods-dispatches", router: goodsDispatchRoutes },
   { path: "/delivery-schedules", router: deliveryScheduleRoutes },
+  { path: "/asn", router: asnRoutes },
   { path: "/inventory", router: inventoryRoutes },
   { path: "/machine-operation-assignments", router: machineOperationAssignmentRoutes },
   { path: "/product-shift-records", router: productShiftRecordRoutes },

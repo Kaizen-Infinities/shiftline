@@ -212,6 +212,7 @@ export const NAV_AREAS: NavArea[] = [
           path: "/sales/delivery-schedules",
           permission: "delivery-schedules.view",
         },
+        { label: "ASN", path: "/sales/asn", permission: "asn.view" },
         {
           label: "Dispatch",
           path: "/production/goods-dispatch",
@@ -338,6 +339,24 @@ export const NAV_AREAS: NavArea[] = [
             icon: CalendarRange,
             description: "OEM call-off schedules and on-time delivery.",
             keywords: ["oem", "schedule", "call off", "adherence"],
+          },
+          {
+            id: "sales.asn",
+            title: "ASN & labels",
+            path: "/sales/asn",
+            permission: "asn.view",
+            icon: PackageCheck,
+            description: "Advance shipping notices for OEMs, with a QR label per pack.",
+            keywords: ["asn", "advance shipping notice", "packing label", "bin label", "qr", "oem"],
+          },
+          {
+            id: "sales.partNumbers",
+            title: "Customer part numbers",
+            path: "/sales/customer-part-numbers",
+            permission: "asn.view",
+            icon: Tags,
+            description: "Each OEM's part number and standard pack for your items.",
+            keywords: ["part number", "cross reference", "oem part", "std pack", "bin qty"],
           },
           {
             id: "sales.dispatch",
