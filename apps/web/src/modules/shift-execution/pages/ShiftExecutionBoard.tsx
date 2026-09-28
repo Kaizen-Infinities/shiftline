@@ -640,6 +640,7 @@ const ShiftExecutionBoard: React.FC = () => {
               <Tile title={t("shift.productionOrder")}>
                 <SelectInput
                   label={t("shift.selectOrder")}
+                  defaultOptionLabel={t("shift.pickOrder")}
                   name="activeOrderId"
                   value={activeOrderId}
                   options={availableOrders.map((po) => ({
