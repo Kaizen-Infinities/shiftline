@@ -67,6 +67,7 @@ import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
 import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
 import projectJobsRoutes from "../modules/project-jobs/project-jobs.routes";
+import buyerAuditsRoutes from "../modules/buyer-audits/buyer-audits.routes";
 import msmeClaimsRoutes from "../modules/msme-claims/msme-claims.routes";
 import deliveryScheduleRoutes from "../modules/delivery-schedules/delivery-schedules.routes";
 import exportIncentivesRoutes from "../modules/export-incentives/export-incentives.routes";
@@ -187,6 +188,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/leave", router: leaveRoutes },
   { path: "/order-tna", router: orderTnaRoutes },
   { path: "/project-jobs", router: projectJobsRoutes },
+  { path: "/buyer-audits", router: buyerAuditsRoutes },
   { path: "/export-incentives", router: exportIncentivesRoutes },
   // The callback router must be mounted before /payments so a gateway's POST never meets
   // authMiddleware; it is authenticated by the signature on its body instead.

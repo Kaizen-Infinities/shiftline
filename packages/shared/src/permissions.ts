@@ -508,6 +508,13 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "manage", "approve"],
     description: "Fines and Deductions",
   },
+  {
+    // TN-08: buyer social-compliance audits (BSCI, WRAP, SMETA, SA8000…), findings, corrective
+    // actions and the readiness report built from attendance, payroll and the registers.
+    module: "buyer-audits",
+    actions: ["view", "create", "edit", "export"],
+    description: "Buyer social-compliance audits and audit readiness",
+  },
 
   // ── Shop floor (Phase 2) ────────────────────────────────────────────────────
   {

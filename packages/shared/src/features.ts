@@ -164,6 +164,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "leave",
       "registers",
       "fines",
+      "buyer-audits",
     ],
   },
   {
