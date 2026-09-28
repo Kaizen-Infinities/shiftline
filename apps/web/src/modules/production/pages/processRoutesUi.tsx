@@ -45,15 +45,14 @@ const STATE_TONE: Record<StepState, ChipTone> = {
 
 /** Loss against the norm: red once a finished step lost more than its norm. */
 export const LossChip: React.FC<{ step: StepProgress }> = ({ step }) => {
-  if (step.state === "NOT_STARTED" || step.lossPct == null || step.received <= 0) return null;
-  const tone: ChipTone = step.overNorm ? "danger" : step.state === "DONE" ? "success" : "muted";
+  // Judged only once the step is done: before that, what has not come back is still at the worker.
+  if (step.state !== "DONE" || step.lossPct == null) return null;
+  const tone: ChipTone = step.overNorm ? "danger" : "success";
   return (
     <Chip
       size="sm"
       tone={tone}
-      title={`Loss ${pct(step.lossPct)} against a norm of ${pct(step.lossNormPct)}${
-        step.state === "DONE" ? "" : " (so far)"
-      }`}
+      title={`Loss ${pct(step.lossPct)} against a norm of ${pct(step.lossNormPct)}`}
     >
       Loss {pct(step.lossPct)} / {pct(step.lossNormPct)}
     </Chip>
@@ -86,7 +85,9 @@ export const StepChain: React.FC<{ steps: StepProgress[]; currentSeq: number }> 
           <span className="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-ink-muted tabular-nums">
             {s.sent > 0 ? (
               <span>
-                {formatQty(s.sent, s.uomIn)} → {formatQty(s.received, s.uomOut)}
+                {s.received > 0
+                  ? `${formatQty(s.sent, s.uomIn)} → ${formatQty(s.received, s.uomOut)}`
+                  : `${formatQty(s.sent, s.uomIn)} sent`}
               </span>
             ) : (
               <span>
