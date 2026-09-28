@@ -252,6 +252,8 @@ const MyLeavePage = lazy(() => import("../modules/leave/pages/MyLeavePage"));
 const ExportIncentivesPage = lazy(() => import("../modules/exports/pages/ExportIncentivesPage"));
 const RegistersPage = lazy(() => import("../modules/payroll/pages/RegistersPage"));
 const FinesPage = lazy(() => import("../modules/payroll/pages/FinesPage"));
+const AuditReadinessPage = lazy(() => import("../modules/payroll/pages/AuditReadinessPage"));
+const BuyerAuditDetailPage = lazy(() => import("../modules/payroll/pages/BuyerAuditDetailPage"));
 const PaymentLinksPage = lazy(() => import("../modules/payments/pages/PaymentLinksPage"));
 const SmsPage = lazy(() => import("../modules/sms/pages/SmsPage"));
 const ComplianceCalendarPage = lazy(
@@ -662,6 +664,10 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="fines.view" />}>
                 <Route path="/hr/fines" element={<FinesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="buyer-audits.view" />}>
+                <Route path="/hr/audit-readiness" element={<AuditReadinessPage />} />
+                <Route path="/hr/audit-readiness/:id" element={<BuyerAuditDetailPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="payments.view" />}>
                 <Route path="/accounts/payment-links" element={<PaymentLinksPage />} />

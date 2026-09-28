@@ -59,6 +59,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/exports/incentives", marker: /Export incentives/ },
   { path: "/hr/registers", marker: /Statutory Registers/ },
   { path: "/hr/fines", marker: /Fines and deductions/ },
+  { path: "/hr/audit-readiness", marker: /Audit readiness/ },
   { path: "/accounts/payment-links", marker: /Payment Links/ },
   { path: "/settings/sms", marker: /SMS and OTP/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
