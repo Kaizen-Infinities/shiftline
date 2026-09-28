@@ -609,7 +609,7 @@ const SalesOrderDetail: React.FC = () => {
     : customer?.shippingPincode || customer?.addresses?.[1]?.address?.pincode || "";
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] space-y-4">
+    <div className="sl-page sl-page-doc">
       <PageHeader
         title={order.orderNo}
         meta={<StatusPill status={order.status} modifierMap={STATUS_MODIFIER} />}

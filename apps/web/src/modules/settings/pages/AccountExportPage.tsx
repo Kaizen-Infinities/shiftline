@@ -90,7 +90,7 @@ const AccountExportPage: React.FC = () => {
 
   const inProgress = rows.some((r) => r.status === "QUEUED" || r.status === "RUNNING");
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="Account Export"
         icon={<Archive size={22} />}

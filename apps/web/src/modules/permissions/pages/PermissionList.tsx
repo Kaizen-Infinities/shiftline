@@ -202,7 +202,7 @@ const PermissionList: React.FC = () => {
 
   return (
     <div>
-      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page">
         <PageHeader
           title="Permission Management"
           icon={<KeyRound size={20} />}

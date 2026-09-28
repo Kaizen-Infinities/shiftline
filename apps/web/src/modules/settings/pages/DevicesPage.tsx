@@ -68,7 +68,7 @@ const DevicesPage: React.FC = () => {
 
   const visible = rows.filter((r) => showRevoked || !r.revokedAt);
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
         title="Field Devices"
         icon={<Smartphone size={22} />}

@@ -830,7 +830,7 @@ const DailyPlanCreate: React.FC = () => {
   const selectedShiftForHint = shifts.find((s: any) => s.shiftCode === shiftId);
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title={title}
         subtitle="Pick the week's program, then the date, machine, shift, operators and quantity."

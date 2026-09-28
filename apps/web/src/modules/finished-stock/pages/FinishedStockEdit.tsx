@@ -69,7 +69,7 @@ const FinishedStockEdit: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="Edit Finished Stock"
         back="/finished-stock"

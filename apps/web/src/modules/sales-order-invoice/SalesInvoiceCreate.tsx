@@ -1515,7 +1515,7 @@ const SalesInvoiceForm: React.FC = () => {
   const invoiceGrand = totals.grandTotal + sundryNet + tcsAmount;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px]">
+    <div className="sl-page sl-page-doc">
       <PageHeader
         title={isEditMode ? "Edit Sales Invoice" : "Create Sales Invoice"}
         meta={

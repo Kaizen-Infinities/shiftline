@@ -289,7 +289,7 @@ const WeeklyPayrollReport: React.FC = () => {
   // ── Empty ──
   if (runs.length === 0) {
     return (
-      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page">
         {/* Header */}
         <PageHeader
           className="print:hidden"
@@ -548,7 +548,7 @@ const WeeklyPayrollReport: React.FC = () => {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2 print:p-0">
+    <div className="sl-page print:p-0">
       {/* Header */}
       <PageHeader
         className="print:hidden"

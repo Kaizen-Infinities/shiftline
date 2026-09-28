@@ -2859,7 +2859,7 @@ const PayrollRun: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1480px] flex-col py-1 sm:py-2">
+    <div className="sl-page">
       <PageHeader
         title="Run Payroll"
         subtitle={`${periodLabel} · ${runType === "MONTHLY" ? "Monthly" : "Weekly"} Run`}

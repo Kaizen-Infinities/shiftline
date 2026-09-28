@@ -831,6 +831,37 @@ input:-webkit-autofill:active {
    Every screen composes from these; do not re-invent them per page.
 ===================================================================== */
 @layer components {
+  /* ── Page frame (docs/specs/UI-v2.md, "Page layout") ──────────────────────
+     Every screen's root. The shell (BaseLayout) owns the gutters and the top
+     offset, so a page adds neither: every title starts at the same point and
+     the left edge never moves between screens. Blocks are 20px apart; the
+     width tier only moves the right edge. */
+  .sl-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+    min-width: 0;
+  }
+  /* Create/edit forms and settings: one readable column. */
+  .sl-page-form {
+    max-width: 70rem;
+  }
+  /* Documents: invoice, quotation and order editors and views. */
+  .sl-page-doc {
+    max-width: 90rem;
+  }
+  /* The page header keeps 20px below it on a page that is not (yet) an
+     .sl-page; inside one, the page gap already provides it. Both live here,
+     not in a utility, because Tailwind utilities outrank component rules and
+     an `mb-5` on the header could never be taken back. */
+  .sl-page-header {
+    margin-bottom: 1.25rem;
+  }
+  .sl-page > .sl-page-header {
+    margin-bottom: 0;
+  }
+
   /* A resting white tile: cards, nav rows, list rows, panels. */
   .sl-tile {
     background: var(--color-card);

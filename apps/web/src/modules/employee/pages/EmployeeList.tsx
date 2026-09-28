@@ -321,7 +321,7 @@ const Employeelist: React.FC = () => {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+    <div className="sl-page">
       <PageHeader
         title="Employee Management"
         icon={<Users size={20} />}

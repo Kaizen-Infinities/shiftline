@@ -100,7 +100,7 @@ const EInvoiceSettingsPage: React.FC = () => {
 
   if (!form || !settings) return <div className="p-6 text-sm text-ink-muted">Loading…</div>;
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="E-invoicing"
         icon={<FileCheck2 size={22} />}

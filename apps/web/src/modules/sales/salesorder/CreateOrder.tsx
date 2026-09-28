@@ -880,7 +880,7 @@ const SalesOrderForm: React.FC = () => {
 
   // ─── Render ──────────────────────────────────────────────────────
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="sl-page sl-page-doc">
       <PageHeader
         title={isEditMode ? "Edit Sales Order" : "Create Sales Order"}
         meta={

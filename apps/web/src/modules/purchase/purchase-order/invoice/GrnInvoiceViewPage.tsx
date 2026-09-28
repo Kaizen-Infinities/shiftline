@@ -368,7 +368,7 @@ const GrnInvoiceViewPage: React.FC = () => {
   const grnCancelled = String(selectedItem?.status || "").toUpperCase() === "CANCELLED";
 
   return (
-    <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] print:block">
+    <div className="sl-page-doc grid w-full grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] print:block">
       {/* ── Left rail ── */}
       <aside
         aria-label="Bills and invoices"

@@ -82,6 +82,28 @@ news; figures where a rise is bad (payables) pass `upIsGood={false}`.
   command palette and the breadcrumbs all read from it. A unit test asserts that every path in the
   old `sidebar.data.ts` appears in the new config, so no screen is lost.
 
+## Page layout
+
+One frame for every screen, so the title and the content edge never move between screens:
+
+- **The shell owns the frame.** `BaseLayout` sets the gutters (16 px, 20 px from `sm`, 32 px from
+  `lg`) and the top offset. A page root adds no padding and no top margin of its own.
+- **The page root is `.sl-page`.** It is a column with 20 px (`gap-5`) between blocks. A
+  `PageHeader` inside it drops its own bottom margin (`.sl-page > .sl-page-header`), so the
+  header sits 20 px above the content like every other block. `PageBody` in
+  `modules/production/ui` renders `.sl-page`.
+- **Width tiers move only the right edge.** They are always left-aligned, never centred:
+  - no tier: full width, for lists, dashboards, reports, boards and consoles;
+  - `.sl-page-form` (1120 px): create and edit forms, single-column settings and detail
+    summaries;
+  - `.sl-page-doc` (1440 px): document editors and views (orders, quotations, invoices, POs,
+    GRNs).
+
+  Do not add a `max-w-[…]` of your own on a page root.
+
+- **Inside a page.** Tiles use the `Tile` padding scale (`sm`/`md`/`lg`), and sections within a
+  tile are 16 px apart. Tables scroll inside their tile, never the page.
+
 ## Page patterns
 
 - **Page header:** title (`.sl-h1`), one line of context (`.sl-muted`), the primary `.sl-cta` on

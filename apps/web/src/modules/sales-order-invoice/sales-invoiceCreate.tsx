@@ -222,7 +222,7 @@ const SalesInvoiceCreate: React.FC = () => {
     } as unknown as React.ChangeEvent<HTMLInputElement>);
 
   return (
-    <div className="mx-auto w-full max-w-[1100px]">
+    <div className="sl-page sl-page-doc">
       <PageHeader
         title="Invoice Configuration"
         subtitle="Numbering for sales invoices: prefix, sequence and financial year."

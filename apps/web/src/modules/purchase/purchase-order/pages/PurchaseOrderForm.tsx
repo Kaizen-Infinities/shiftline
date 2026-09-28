@@ -1008,7 +1008,7 @@ const PurchaseOrderForm: React.FC = () => {
     : "Create Purchase Order";
 
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="sl-page sl-page-doc">
       <PageHeader
         title={title}
         meta={

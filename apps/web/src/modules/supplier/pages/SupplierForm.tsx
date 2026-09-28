@@ -590,7 +590,7 @@ const SupplierForm: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title={isEdit ? "Edit Supplier" : "Add New Supplier"}
         meta={

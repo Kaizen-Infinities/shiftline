@@ -67,9 +67,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     );
 
   return (
-    <header className={cx("mb-5 flex flex-col gap-4", className)}>
+    <header className={cx("sl-page-header flex flex-col gap-4", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="-mb-1">
+        // From lg up the top bar already shows the full trail; below it the top bar
+        // shows only the current page, so the trail is repeated here.
+        <nav aria-label="Breadcrumb" className="-mb-1 lg:hidden">
           <ol className="flex flex-wrap items-center gap-1 text-[13px] font-medium text-ink-subtle">
             {breadcrumbs.map((crumb, index) => {
               const last = index === breadcrumbs.length - 1;
@@ -99,7 +101,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+        {/* On a narrow screen the title block can wrap, so the back button sits level with
+            the title's first line rather than the middle of the block. */}
+        <div className="flex min-w-0 items-start gap-3 sm:items-center">
           {backButton}
           {icon && (
             <span

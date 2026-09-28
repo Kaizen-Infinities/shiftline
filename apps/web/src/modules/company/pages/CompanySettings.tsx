@@ -352,7 +352,7 @@ const CompanySettings: React.FC = () => {
 
   // Normal Settings/Edit Screen Design
   return (
-    <div className="mx-auto max-w-6xl p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="Company settings"
         icon={<Building2 size={22} />}

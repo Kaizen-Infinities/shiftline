@@ -700,7 +700,7 @@ const RolePermissionMapping: React.FC = () => {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+    <div className="sl-page">
       <PageHeader
         title="Role Permissions Matrix"
         icon={<FaShieldAlt size={18} />}

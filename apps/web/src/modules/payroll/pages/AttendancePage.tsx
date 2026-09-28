@@ -773,7 +773,7 @@ const AttendancePage: React.FC = () => {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 py-1 sm:py-2">
+    <div className="sl-page">
       <PageHeader
         className="!mb-1"
         title="Attendance Entry"

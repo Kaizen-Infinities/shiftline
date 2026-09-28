@@ -174,7 +174,7 @@ const EmailConfigPage: React.FC = () => {
   if (loading) return <CommonLoader text="Loading..." fullScreen={false} />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="Email Configuration"
         icon={<Mail size={22} />}

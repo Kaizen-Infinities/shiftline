@@ -1426,7 +1426,7 @@ const QuotationForm: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px]">
+    <div className="sl-page sl-page-doc">
       <PageHeader
         title={isEditMode ? "Edit Quotation" : "Create Quotation"}
         meta={

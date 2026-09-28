@@ -235,7 +235,7 @@ const CategoryForm: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-[960px]">
+    <div className="sl-page sl-page-form">
       {header}
 
       <form onSubmit={handleSubmit} noValidate>

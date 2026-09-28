@@ -282,7 +282,7 @@ const RoleList: React.FC = () => {
   return (
     <div>
       <div className="">
-        <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+        <div className="sl-page">
           <PageHeader
             title="Role Management"
             icon={<ShieldCheck size={20} />}

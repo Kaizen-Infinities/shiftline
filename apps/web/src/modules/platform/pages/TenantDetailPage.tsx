@@ -198,7 +198,7 @@ const TenantDetailPage: React.FC = () => {
 
   if (!t)
     return (
-      <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <div className="sl-page">
         <SkeletonTile lines={2} label="Loading…" />
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -210,7 +210,7 @@ const TenantDetailPage: React.FC = () => {
   const c = t.company;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
         title={c.companyName}
         icon={<Building2 size={22} />}

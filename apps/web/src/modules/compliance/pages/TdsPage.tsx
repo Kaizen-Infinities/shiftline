@@ -152,7 +152,7 @@ const TdsPage: React.FC = () => {
     ) : undefined;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
         title="TDS and TCS"
         icon={<Percent size={22} />}

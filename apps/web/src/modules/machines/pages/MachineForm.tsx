@@ -259,7 +259,7 @@ const MachineForm: React.FC = () => {
   }
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title={title}
         subtitle={

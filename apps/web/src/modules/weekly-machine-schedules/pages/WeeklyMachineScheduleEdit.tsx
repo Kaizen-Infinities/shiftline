@@ -323,7 +323,7 @@ const WeeklyMachineScheduleEdit: React.FC = () => {
 
   if (loadingPo || !currentPo) {
     return (
-      <PageBody className="max-w-[1100px]">
+      <PageBody className="sl-page-form">
         {header}
         <SkeletonTile lines={4} label="Loading assignment details..." />
         <SkeletonTile lines={2} />
@@ -332,7 +332,7 @@ const WeeklyMachineScheduleEdit: React.FC = () => {
   }
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       {header}
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <Tile title="Assignment Context">

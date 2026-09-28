@@ -142,7 +142,7 @@ const ShiftForm: React.FC = () => {
     );
   }
   return (
-    <div className="mx-auto w-full max-w-[1100px] py-1 sm:py-2">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title={isEdit ? "Edit Shift" : "Create Shift"}
         subtitle="Timings, break and grace used by attendance and overtime."

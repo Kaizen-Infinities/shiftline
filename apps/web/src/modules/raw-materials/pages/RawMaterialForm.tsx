@@ -343,7 +343,7 @@ const RawMaterialForm: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       {header}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

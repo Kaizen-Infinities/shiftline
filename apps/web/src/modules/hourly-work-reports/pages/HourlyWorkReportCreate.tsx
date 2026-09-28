@@ -769,7 +769,7 @@ const HourlyWorkReportCreate: React.FC = () => {
   const bigNumberClass = "h-14 text-center text-[20px] font-bold tabular-nums";
 
   return (
-    <PageBody className="max-w-[1180px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title="Hourly Production Entry"
         subtitle={

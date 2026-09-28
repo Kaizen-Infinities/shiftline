@@ -86,7 +86,7 @@ const FilingApprovalsPage: React.FC = () => {
   const filtered = status !== "" || filingType !== "";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
         title="Filing Approvals"
         icon={<ShieldCheck size={22} />}

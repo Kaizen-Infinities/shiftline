@@ -49,7 +49,7 @@ export const PageBody: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   children,
   ...rest
 }) => (
-  <div className={cx("flex w-full min-w-0 flex-col gap-5", className)} {...rest}>
+  <div className={cx("sl-page", className)} {...rest}>
     {children}
   </div>
 );

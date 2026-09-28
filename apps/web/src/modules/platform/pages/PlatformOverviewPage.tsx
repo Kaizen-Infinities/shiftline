@@ -38,7 +38,7 @@ const PlatformOverviewPage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
         title="Platform Overview"
         icon={<Building2 size={22} />}

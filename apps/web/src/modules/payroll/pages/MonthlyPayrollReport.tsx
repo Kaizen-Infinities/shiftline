@@ -807,7 +807,7 @@ const MonthlyPayrollReport: React.FC = () => {
   // ── Empty ──
   if (runs.length === 0) {
     return (
-      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page">
         {/* Header */}
         <PageHeader
           className="print:hidden"
@@ -880,7 +880,7 @@ const MonthlyPayrollReport: React.FC = () => {
   const pagedData = activeData.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+    <div className="sl-page">
       {/* Header */}
       <PageHeader
         className="print:hidden"

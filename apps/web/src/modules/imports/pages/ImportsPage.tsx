@@ -97,7 +97,7 @@ const ImportsPage: React.FC = () => {
   const rows = report?.rows.filter((r) => filter === "all" || r.status === filter) ?? [];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 text-ink md:p-6" data-testid="imports-page">
+    <div className="sl-page text-ink" data-testid="imports-page">
       <PageHeader
         title="Data imports"
         icon={<FileSpreadsheet size={22} />}

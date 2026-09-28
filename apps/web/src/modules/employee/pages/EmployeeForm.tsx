@@ -1614,7 +1614,7 @@ const EmployeeForm: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page sl-page-form">
         <PageHeader
           title={isEdit ? "Edit Employee" : "Create Employee"}
           subtitle="Loading employee data…"
@@ -1627,7 +1627,7 @@ const EmployeeForm: React.FC = () => {
   const saveLabel = isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Save Employee";
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-5 py-1 sm:py-2">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title={isEdit ? "Edit Employee" : "Create Employee"}
         back={() => navigate(-1)}

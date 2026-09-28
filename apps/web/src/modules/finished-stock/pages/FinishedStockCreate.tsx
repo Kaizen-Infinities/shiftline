@@ -62,7 +62,7 @@ const FinishedStockCreate: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="Create Finished Stock"
         back="/finished-stock"

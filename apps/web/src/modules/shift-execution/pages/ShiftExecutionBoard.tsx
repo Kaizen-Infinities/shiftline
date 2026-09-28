@@ -484,7 +484,7 @@ const ShiftExecutionBoard: React.FC = () => {
     );
 
   return (
-    <PageBody className="mx-auto max-w-[1400px]">
+    <PageBody>
       <PageHeader
         title="Shift Execution"
         icon={<Factory size={22} />}

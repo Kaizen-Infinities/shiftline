@@ -124,7 +124,7 @@ const HourlyWorkReportEdit: React.FC = () => {
   };
 
   return (
-    <PageBody className="max-w-[1180px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title="Edit Hourly Production Log"
         subtitle={`${productionOrderId || "—"} · Hour ${hourIndex}`}

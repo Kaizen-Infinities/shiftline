@@ -79,7 +79,7 @@ const CurrenciesPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="sl-page">
       <PageHeader
         title="Currencies and Rates"
         icon={<Coins size={22} />}

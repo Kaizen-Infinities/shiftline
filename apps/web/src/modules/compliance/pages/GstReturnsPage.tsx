@@ -200,7 +200,7 @@ const GstReturnsPage: React.FC = () => {
         : months.find((m) => m.value === period)?.label;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
         title="GST Returns"
         icon={<Landmark size={22} />}

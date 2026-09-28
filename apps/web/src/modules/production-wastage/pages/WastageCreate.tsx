@@ -234,7 +234,7 @@ const WastageForm: React.FC = () => {
   const title = isEdit ? "Edit Wastage Audit Log" : "Log Production Wastage";
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title={title}
         subtitle={

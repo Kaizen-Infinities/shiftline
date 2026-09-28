@@ -335,7 +335,7 @@ const CustomerFormPage: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title={isEditMode ? "Edit Customer" : "Create Customer"}
         meta={

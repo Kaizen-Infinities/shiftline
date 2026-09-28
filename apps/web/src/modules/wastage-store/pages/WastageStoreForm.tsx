@@ -227,7 +227,7 @@ const WastageStoreForm: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title={isEditMode ? "Edit Wastage Product" : "Create Wastage Product"}
         subtitle="Scrap or reject material that is stored and sold or reprocessed"
