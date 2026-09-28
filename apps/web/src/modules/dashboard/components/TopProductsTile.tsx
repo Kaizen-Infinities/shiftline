@@ -65,6 +65,7 @@ export const TopProductsTile: React.FC<{
       <TileHeader
         id="dash-top-products"
         icon={LuPackage}
+        tone="sales"
         title="Top products"
         subtitle="Finished goods by stock on hand"
         actions={

@@ -116,16 +116,25 @@ const envSchema = z
     }
   });
 
-const parsed = envSchema.safeParse(process.env);
+/**
+ * Validates an environment. An empty value (`LOG_LEVEL=` in a .env copied from the example)
+ * means "not set", as it does for most .env tooling, so the default or `optional()` applies
+ * instead of the empty string failing an enum or URL check. Required variables left empty
+ * still fail, as missing.
+ */
+export const parseEnv = (source: Record<string, string | undefined>) => {
+  const set = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== ""));
+  const parsed = envSchema.safeParse(set);
+  if (!parsed.success) {
+    const lines = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`);
+    throw new Error(
+      `\n\nEnvironment validation failed:\n${lines.join("\n")}\n\nCheck apps/api/.env against apps/api/.env.example.\n`
+    );
+  }
+  return parsed.data;
+};
 
-if (!parsed.success) {
-  const lines = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`);
-  throw new Error(
-    `\n\nEnvironment validation failed:\n${lines.join("\n")}\n\nCheck apps/api/.env against apps/api/.env.example.\n`
-  );
-}
-
-export const env = parsed.data;
+export const env = parseEnv(process.env);
 export type Env = typeof env;
 
 export const isProduction = env.NODE_ENV === "production";

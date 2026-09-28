@@ -61,6 +61,7 @@ const WastageStoreList: React.FC = () => {
     data: allWastageItems,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "wastageStore:list",
     socketModule: "rawMaterial",
@@ -282,6 +283,9 @@ const WastageStoreList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        sourceRowCount={allWastageItems.length}
+        onRetry={refresh}
         columns={columns}
         data={paginatedData}
         rowKey={(row) => row.rawMaterialId}

@@ -1,4 +1,5 @@
-import { configureStore } from "@reduxjs/toolkit";
+import { combineReducers, configureStore, type UnknownAction } from "@reduxjs/toolkit";
+import { sessionListener, sessionReset } from "./sessionReset";
 import authReducer from "../features/auth/authSlice";
 import { baseApi } from "../services/baseApi";
 import roleReducer from "../features/roles/roleSlice";
@@ -33,45 +34,58 @@ import payrollRunReducer from "../features/payroll/payrollRunSlice";
 import categoryReducer from "../features/categories/categorySlice";
 import eodStockReducer from "../features/eod-stock/eodStockSlice";
 
+const appReducer = combineReducers({
+  auth: authReducer,
+  roles: roleReducer,
+  departments: departmentReducer,
+  uoms: uomReducer,
+  users: userReducer,
+  employees: employeeReducer,
+  customers: customerReducer,
+  products: productReducer,
+  permissions: permissionReducer,
+  suppliers: supplierReducer,
+  shifts: shiftReducer,
+  profile: profileReducer,
+  stores: storeReducer,
+  rawMaterials: rawMaterialReducer,
+  rawMaterialStocks: rawMaterialStockReducer,
+  machines: machineReducer,
+  weeklyPrograms: weeklyProgramReducer,
+  productionOrders: productionOrderReducer,
+  hourlyProductions: hourlyProductionReducer,
+  stockAdjustments: stockAdjustmentReducer,
+  [baseApi.reducerPath]: baseApi.reducer,
+  purchaseOrder: purchaseOrderReducer,
+  productionWastages: productionWastageReducer,
+  company: companyReducer,
+  finishedGoodsStocks: finishedGoodsStockReducer,
+  dailyPlans: dailyPlanReducer,
+  goodsDispatch: goodsDispatchReducer,
+  productShiftRecords: productShiftRecordReducer,
+  productCapacityHistory: productCapacityHistoryReducer,
+  payrollSettings: payrollSettingsReducer,
+  payrollRun: payrollRunReducer,
+  categories: categoryReducer,
+  eodStock: eodStockReducer,
+});
+
+/**
+ * On `session/reset` every slice but `auth` goes back to its initial state, so data loaded
+ * for one identity is never shown under another (see app/sessionReset.ts).
+ */
+const rootReducer = (state: ReturnType<typeof appReducer> | undefined, action: UnknownAction) =>
+  appReducer(
+    state && sessionReset.match(action)
+      ? ({ auth: state.auth } as ReturnType<typeof appReducer>)
+      : state,
+    action
+  );
 
 export const store = configureStore({
-    reducer: {
-        auth: authReducer,
-        roles: roleReducer,
-        departments: departmentReducer,
-        uoms: uomReducer,
-        users: userReducer,
-        employees: employeeReducer,
-        customers: customerReducer,
-        products: productReducer,
-        permissions: permissionReducer,
-        suppliers: supplierReducer,
-        shifts: shiftReducer,
-        profile: profileReducer,
-        stores: storeReducer,
-        rawMaterials: rawMaterialReducer,
-        rawMaterialStocks: rawMaterialStockReducer,
-        machines: machineReducer,
-        weeklyPrograms: weeklyProgramReducer,
-        productionOrders: productionOrderReducer,
-        hourlyProductions: hourlyProductionReducer,
-        stockAdjustments: stockAdjustmentReducer,
-        [baseApi.reducerPath]: baseApi.reducer,
-        purchaseOrder: purchaseOrderReducer,
-        productionWastages: productionWastageReducer,
-        company: companyReducer,
-        finishedGoodsStocks: finishedGoodsStockReducer,
-        dailyPlans: dailyPlanReducer,
-        goodsDispatch: goodsDispatchReducer,
-        productShiftRecords: productShiftRecordReducer,
-        productCapacityHistory: productCapacityHistoryReducer,
-        payrollSettings: payrollSettingsReducer,
-        payrollRun: payrollRunReducer,
-        categories: categoryReducer,
-        eodStock: eodStockReducer,
-    },
-    middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(baseApi.middleware),
+  reducer: rootReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().prepend(sessionListener.middleware).concat(baseApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

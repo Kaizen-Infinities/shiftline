@@ -37,6 +37,24 @@ button and chip is a pill.
   storage key `shiftline-theme-v2`). **Never hard-code a colour** (`bg-white`, `text-gray-*`,
   `bg-blue-600`, `#hex` …): use a token so both themes work.
 
+## Colour roles
+
+Colour carries meaning, never decoration. Three roles, each with its own tokens:
+
+- **Brand and action:** `--color-accent` (blue) for links, the active nav row and the pale-blue
+  default icon square; the green `.sl-cta` for the one primary action.
+- **Status:** `.sl-chip-success | -warning | -danger | -muted` (and `--color-success|warning|danger`)
+  say how something is doing: good, watch, act, or not applicable. Always paired with a word or
+  number, never colour alone.
+- **Domain identity:** `.sl-tone-sales | -purchase | -cash | -production` tint an icon square with
+  the chart series of the same domain (`--chart-series-1..4`), so a figure and its chart line share
+  a hue. Identity only: a domain tone never signals good or bad.
+
+On dashboards, OEE and every "produced against target" percentage share one scale
+(`oeeTone` / `oeeChipClass` in `modules/dashboard/components/dashboardFormat.ts`): 85% and up is
+success, 60–85% warning, below 60% danger. A stat tile's delta chip is green when the move is good
+news; figures where a rise is bad (payables) pass `upIsGood={false}`.
+
 ## Shell and information architecture
 
 - **Left sidebar** (desktop ≥1024px, 272px, collapsible to a 76px icon rail): the brand tile and

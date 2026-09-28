@@ -32,3 +32,5 @@ export { Toolbar, SearchField } from "./Toolbar";
 export type { ToolbarProps, ToolbarFilter, SearchFieldProps } from "./Toolbar";
 export { Field, fieldControlClass } from "./Field";
 export type { FieldProps, FieldRenderProps } from "./Field";
+export { LoadError, StaleNotice } from "./LoadError";
+export type { LoadErrorProps, StaleNoticeProps } from "./LoadError";

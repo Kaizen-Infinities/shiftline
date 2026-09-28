@@ -290,7 +290,13 @@ const QuotationList: React.FC = () => {
     ]
   );
 
-  const { data, total, loading, refresh } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    refresh,
+    error: listError,
+  } = useListCache({
     cacheKey,
     socketModule: "salesOrder",
     fetcher,
@@ -722,6 +728,9 @@ const QuotationList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        sourceRowCount={data.length}
+        onRetry={refresh}
         data={data}
         rowKey={(item) => item.id}
         loading={loading}

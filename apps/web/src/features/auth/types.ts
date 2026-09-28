@@ -54,4 +54,17 @@ export interface AuthState {
   entitlements: Entitlements | null;
   /** Set while a platform admin acts as a tenant user (P1-02); read from the token. */
   impersonation: { id: string; impersonatedBy: string; expiresAt: string; reason: string } | null;
+  /**
+   * Whose data the client may hold: "userId|companyId|impersonationId" from the access token,
+   * null when signed out. A change resets every tenant-scoped cache (app/sessionReset.ts).
+   */
+  identity: string | null;
+  /**
+   * The path being switched to while one session is swapped for another (impersonation start
+   * or stop), else null. Protected routes render a loader until the router shows that path,
+   * so no screen of either identity mounts, and fetches, mid-swap. The router commits
+   * navigation as a transition, after ordinary state updates, which is why clearing a flag
+   * right after `navigate()` is not enough.
+   */
+  sessionSwitchTarget: string | null;
 }

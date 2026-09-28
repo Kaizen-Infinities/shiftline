@@ -75,6 +75,7 @@ const InvoiceList: React.FC = () => {
     data: allInvoices,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "grnInvoices:list",
     socketModule: "grnInvoice",
@@ -172,6 +173,9 @@ const InvoiceList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        sourceRowCount={allInvoices.length}
+        onRetry={refresh}
         data={data}
         rowKey={(item) => item.id}
         loading={loading}

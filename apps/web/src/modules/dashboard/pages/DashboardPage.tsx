@@ -33,13 +33,14 @@ import {
   DashTile,
   TileHeader,
   EmptyState,
+  LoadError,
   SkeletonRows,
   StatTile,
   StatTileSkeleton,
   TileLink,
   type Trend,
 } from "../components/DashboardPrimitives";
-import { inr, plural, statusChipClass } from "../components/dashboardFormat";
+import { inr, plural, statusChipClass, voucherTypeTone } from "../components/dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
    HOME DASHBOARD (UI v2)
@@ -233,7 +234,11 @@ const DashboardPage: React.FC = () => {
 
   const alerts = accountsSummary?.alerts ?? [];
   const transactions = accountsSummary?.recentTransactions ?? [];
+  const accountsFailed = !accountsSummary && !!accountsSummaryCache.error;
   const showAccountsTiles = !!accountsSummary || accountsLoading;
+  // The summary feeds every list below; when it failed with nothing cached, the
+  // tiles say so instead of claiming there is nothing to show.
+  const summaryFailed = !dashboardCache.data[0] && !!dashboardCache.error;
 
   return (
     <div className="flex w-full flex-col gap-8 pb-10">
@@ -244,6 +249,50 @@ const DashboardPage: React.FC = () => {
       />
 
       <QuickActions />
+
+      {summaryFailed && (
+        <div
+          role="alert"
+          className="sl-tile flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+        >
+          <p className="flex min-w-0 items-center gap-3 text-sm text-ink">
+            <span
+              aria-hidden="true"
+              className="sl-chip-danger grid h-9 w-9 shrink-0 place-items-center rounded-[12px]"
+            >
+              <LuCircleAlert />
+            </span>
+            <span>
+              <strong className="font-semibold">Some of the dashboard didn't load.</strong>{" "}
+              <span className="sl-muted">Orders, plans and stock below may be missing.</span>
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={dashboardCache.refresh}
+            disabled={summaryLoading}
+            className="sl-btn min-h-10 text-sm"
+          >
+            {summaryLoading ? "Trying again…" : "Try again"}
+          </button>
+        </div>
+      )}
+
+      {showOverview && accountsFailed && (
+        <section aria-labelledby="dash-overview-failed" className="flex flex-col gap-3">
+          <h2 id="dash-overview-failed" className="sl-section-label">
+            Money · {PERIOD_LABEL[dashPeriod]}
+          </h2>
+          <div className="sl-tile">
+            <LoadError
+              title="Couldn't load your money figures"
+              hint="Sales, purchases, balances and alerts will show here once they load."
+              onRetry={accountsSummaryCache.refresh}
+              retrying={accountsSummaryCache.loading}
+            />
+          </div>
+        </section>
+      )}
 
       {/* ── MONEY OVERVIEW ─────────────────────────────────────── */}
       {showOverview && showAccountsTiles && (
@@ -260,6 +309,7 @@ const DashboardPage: React.FC = () => {
                   label="Total sales"
                   value={inr(accountsSummary.totalSales)}
                   icon={LuArrowUpRight}
+                  tone="sales"
                   trend={cardTrends.sales}
                   note={plural(accountsSummary.salesVoucherCount, "voucher")}
                   onClick={() => navigate("/sales-invoices")}
@@ -268,6 +318,7 @@ const DashboardPage: React.FC = () => {
                   label="Total purchase"
                   value={inr(accountsSummary.totalPurchase)}
                   icon={LuArrowDownLeft}
+                  tone="purchase"
                   trend={cardTrends.purchase}
                   note={plural(accountsSummary.purchaseVoucherCount, "voucher")}
                   onClick={() => navigate("/invoice")}
@@ -285,6 +336,7 @@ const DashboardPage: React.FC = () => {
                     </>
                   }
                   icon={LuHandCoins}
+                  tone="sales"
                   trend={cardTrends.receivable}
                   note={plural(accountsSummary.receivableCustomerCount, "customer")}
                   onClick={() => navigate("/accounts/receivable")}
@@ -302,6 +354,8 @@ const DashboardPage: React.FC = () => {
                     </>
                   }
                   icon={LuFileText}
+                  tone="purchase"
+                  upIsGood={false}
                   trend={cardTrends.payable}
                   note={plural(accountsSummary.payableSupplierCount, "supplier")}
                   onClick={() => navigate("/accounts/payable")}
@@ -310,6 +364,7 @@ const DashboardPage: React.FC = () => {
                   label="Cash in hand"
                   value={inr(accountsSummary.totalCashInHand)}
                   icon={LuBanknote}
+                  tone="cash"
                   trend={cardTrends.cash}
                   note={plural(accountsSummary.cashAccountCount, "account")}
                   onClick={() => navigate("/accounts/bank-accounts?filter=cash")}
@@ -318,6 +373,7 @@ const DashboardPage: React.FC = () => {
                   label="Bank balance"
                   value={inr(accountsSummary.totalBankBalance)}
                   icon={LuLandmark}
+                  tone="cash"
                   trend={cardTrends.cash}
                   note={plural(accountsSummary.bankAccountCount, "account")}
                   onClick={() => navigate("/accounts/bank-accounts?filter=bank")}
@@ -353,6 +409,13 @@ const DashboardPage: React.FC = () => {
                 id="dash-alerts"
                 icon={LuBell}
                 title="Needs attention"
+                tone={
+                  alerts.some((a) => a.level === "danger")
+                    ? "danger"
+                    : alerts.length > 0
+                      ? "warning"
+                      : "accent"
+                }
                 subtitle="Alerts from your books"
                 actions={
                   alerts.length > 0 ? (
@@ -462,6 +525,7 @@ const DashboardPage: React.FC = () => {
                   id="dash-tasks"
                   icon={LuCalendarCheck}
                   title="Today's production"
+                  tone="production"
                   subtitle="Machine plans scheduled for today"
                   actions={
                     todayPlans.length > 0 ? (
@@ -471,6 +535,8 @@ const DashboardPage: React.FC = () => {
                 />
                 {summaryLoading && todayPlans.length === 0 ? (
                   <SkeletonRows rows={3} />
+                ) : summaryFailed ? (
+                  <LoadError title="Couldn't load today's plans" />
                 ) : todayPlans.length === 0 ? (
                   <EmptyState
                     icon={LuCalendarCheck}
@@ -521,7 +587,7 @@ const DashboardPage: React.FC = () => {
                             to="/daily-machine-planning"
                             className="group flex min-h-[56px] items-center gap-3 py-2"
                           >
-                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-card-2 text-accent">
+                            <span className="sl-tone-production grid h-10 w-10 shrink-0 place-items-center rounded-[12px]">
                               <LuCalendarCheck aria-hidden="true" />
                             </span>
                             <span className="min-w-0 flex-1">
@@ -552,6 +618,7 @@ const DashboardPage: React.FC = () => {
                   id="dash-recent-sales"
                   icon={LuShoppingCart}
                   title="Recent sales orders"
+                  tone="sales"
                   subtitle={
                     recentSales.length > 0 ? `Latest ${recentSales.length}` : "Newest first"
                   }
@@ -563,6 +630,8 @@ const DashboardPage: React.FC = () => {
                 />
                 {summaryLoading && recentSales.length === 0 ? (
                   <SkeletonRows rows={4} />
+                ) : summaryFailed ? (
+                  <LoadError title="Couldn't load sales orders" />
                 ) : recentSales.length === 0 ? (
                   <EmptyState
                     icon={LuShoppingCart}
@@ -594,7 +663,7 @@ const DashboardPage: React.FC = () => {
                           >
                             <span
                               aria-hidden="true"
-                              className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-chip text-sm font-bold text-chip-fg"
+                              className="sl-tone-sales grid h-10 w-10 shrink-0 place-items-center rounded-[12px] text-sm font-bold"
                             >
                               {custName.trim().charAt(0).toUpperCase() || "C"}
                             </span>
@@ -644,6 +713,7 @@ const DashboardPage: React.FC = () => {
               id="dash-transactions"
               icon={LuReceipt}
               title="Recent transactions"
+              tone="cash"
               subtitle={`Vouchers posted ${PERIOD_LABEL[dashPeriod]}`}
               actions={<TileLink to="/accounts/ledger-statement">Ledger statement →</TileLink>}
             />
@@ -689,7 +759,9 @@ const DashboardPage: React.FC = () => {
                           {t.voucherNo}
                         </td>
                         <td className="hidden px-3 sm:table-cell">
-                          <span className="sl-chip sl-chip-muted px-2.5 py-0 text-[11px] capitalize">
+                          <span
+                            className={`sl-chip ${voucherTypeTone(t.type)} px-2.5 py-0 text-[11px] capitalize`}
+                          >
                             {String(t.type).toLowerCase()}
                           </span>
                         </td>

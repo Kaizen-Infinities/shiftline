@@ -88,6 +88,7 @@ export const ChartOfAccountsPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<AccountLedger>({
     cacheKey,
     socketModule: "accountLedger",
@@ -360,6 +361,9 @@ export const ChartOfAccountsPage: React.FC = () => {
       </div>
 
       <DataTable
+        error={listError}
+        sourceRowCount={ledgers.length}
+        onRetry={refresh}
         ariaLabel="Chart of Accounts"
         columns={columns}
         data={filteredLedgers}

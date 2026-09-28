@@ -377,6 +377,25 @@ export function useModalDetail<T = any>(
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 /** Read cached data synchronously — no fetch triggered */
+/**
+ * Drops every cached detail — memory, in-flight requests and sessionStorage — and tells
+ * mounted hooks to re-read (they come back empty). Called when the signed-in identity
+ * changes, so one tenant's (or user's) cached rows can never show under another.
+ */
+export function clearAllDetailCaches(): void {
+  detailCache.clear();
+  inflight.clear();
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(SESSION_PREFIX)) sessionStorage.removeItem(k);
+    }
+  } catch {
+    // storage blocked: the memory cache is already empty
+  }
+  Array.from(subscribers.keys()).forEach(notifyDetail);
+}
+
 export function getDetailFromCache<T>(key: string): T | null {
   return read<T>(key)?.data ?? null;
 }
