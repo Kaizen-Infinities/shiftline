@@ -129,6 +129,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "transporters",
         "job-work",
       ]),
+      // Process routes (TN-06): stores send lots out to job workers and book them back in.
+      ...keysFor(["process-routes"], ["view", "create", "edit"]),
       // Leave (P2-09): self-service for whoever here has an employee record.
       ...keysFor(["leave"], ["view", "request"]),
       // Employee search (P2-15): the picker on the leave screen this role holds view/request on.
@@ -157,6 +159,7 @@ export const ROLE_DEFS = (): RoleDef[] => [
         "machine-telemetry",
         "order-tna",
         "project-jobs",
+        "process-routes",
       ]),
       // Leave (P2-09): self-service for whoever here has an employee record.
       ...keysFor(["leave"], ["view", "request"]),

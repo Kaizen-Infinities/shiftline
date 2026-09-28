@@ -751,6 +751,10 @@ model Company {
   projectJobStages       ProjectJobStage[]        @relation("CompanyProjectJobStage")
   projectJobCosts        ProjectJobCost[]         @relation("CompanyProjectJobCost")
   projectJobBillings     ProjectJobBilling[]      @relation("CompanyProjectJobBilling")
+  processRoutes          ProcessRoute[]           @relation("CompanyProcessRoute")
+  processRouteSteps      ProcessRouteStep[]       @relation("CompanyProcessRouteStep")
+  processLots            LotRouteProgress[]       @relation("CompanyLotRouteProgress")
+  lotStepMovements       LotStepMovement[]        @relation("CompanyLotStepMovement")
   paymentGateway         PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
   paymentLinks           PaymentLink[]            @relation("CompanyPaymentLink")
   paymentCaptures        PaymentCapture[]         @relation("CompanyPaymentCapture")
@@ -1050,6 +1054,8 @@ model Product {
   images                    ProductImage[]
   productionOrders          ProductionOrder[]
   productionSteps           ProductionStep[]
+  processRoutes             ProcessRoute[]             @relation("ProductProcessRoute")
+  processLots               LotRouteProgress[]         @relation("ProductLotRouteProgress")
   productionWastages        ProductionWastage[]
   uom                       UnitOfMeasure?             @relation(fields: [uomId], references: [id], onDelete: Restrict)
   category                  Category?                  @relation(fields: [categoryId], references: [id])
@@ -4625,9 +4631,12 @@ model JobWorker {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  challans     DeliveryChallan[]
+  challans          DeliveryChallan[]
   /// Movements sent on from this worker to another (ITC-04 table 5B).
-  challansFrom DeliveryChallan[] @relation("ChallanFromJobWorker")
+  challansFrom      DeliveryChallan[]  @relation("ChallanFromJobWorker")
+  /// TN-06: route steps this worker does by default, and lot movements they held.
+  processRouteSteps ProcessRouteStep[] @relation("JobWorkerProcessRouteStep")
+  lotStepMovements  LotStepMovement[]  @relation("JobWorkerLotStepMovement")
 
   company Company @relation("CompanyJobWorker", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -4681,12 +4690,14 @@ model DeliveryChallan {
   cancelledBy       String?       @map("cancelled_by") @db.VarChar(36)
   cancelReason      String?       @map("cancel_reason") @db.VarChar(255)
 
-  jobWorker     JobWorker?            @relation(fields: [jobWorkerId], references: [id])
-  fromJobWorker JobWorker?            @relation("ChallanFromJobWorker", fields: [fromJobWorkerId], references: [id])
-  parentChallan DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
-  returns       DeliveryChallan[]     @relation("ChallanReturns")
-  businessPlace BusinessPlace?        @relation("ChallanBusinessPlace", fields: [businessPlaceId], references: [id])
-  items         DeliveryChallanItem[]
+  jobWorker        JobWorker?            @relation(fields: [jobWorkerId], references: [id])
+  fromJobWorker    JobWorker?            @relation("ChallanFromJobWorker", fields: [fromJobWorkerId], references: [id])
+  parentChallan    DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
+  returns          DeliveryChallan[]     @relation("ChallanReturns")
+  businessPlace    BusinessPlace?        @relation("ChallanBusinessPlace", fields: [businessPlaceId], references: [id])
+  items            DeliveryChallanItem[]
+  /// TN-06: lot movements on a process route that this challan carried.
+  lotStepMovements LotStepMovement[]     @relation("ChallanLotStepMovement")
 
   company Company @relation("CompanyDeliveryChallan", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -6881,4 +6892,144 @@ model MsmeRecoveryClaimLine {
   @@index([salesInvoiceId])
   @@index([companyId])
   @@map("msme_recovery_claim_lines")
+}
+
+/// TN-06: whether a process route step runs on our own floor or at a job worker.
+enum ProcessStepMode {
+  IN_HOUSE
+  JOB_WORK
+}
+
+/// TN-06: a lot on a process route.
+enum ProcessLotStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+/// TN-06: material leaving for a step (OUT) or coming back from it (IN).
+enum LotMovementDirection {
+  OUT
+  IN
+}
+
+/// TN-06: the ordered chain of processes a product goes through (knitting → dyeing → printing →
+/// stitching; casting → fettling → machining), each step in-house or at a job worker. Never
+/// deleted once a lot has used it; deactivated instead.
+model ProcessRoute {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  routeCode   String   @map("route_code") @db.VarChar(30)
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  productId   BigInt?  @map("product_id")
+  active      Boolean  @default(true)
+  createdBy   String?  @map("created_by") @db.VarChar(36)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company            @relation("CompanyProcessRoute", fields: [companyId], references: [id], onDelete: Restrict)
+  product Product?           @relation("ProductProcessRoute", fields: [productId], references: [id], onDelete: Restrict)
+  steps   ProcessRouteStep[]
+  lots    LotRouteProgress[]
+
+  @@unique([companyId, routeCode])
+  @@index([companyId, active])
+  @@map("process_routes")
+}
+
+/// TN-06: one step of a route. What leaves it in `uomOut` is what the next step takes in; a
+/// conversion factor turns one unit in into units out (1 KG of fabric → 4 PCS).
+model ProcessRouteStep {
+  id                 String          @id @default(uuid()) @db.Uuid
+  companyId          String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  routeId            String          @map("route_id") @db.Uuid
+  seq                Int
+  name               String          @db.VarChar(60)
+  mode               ProcessStepMode
+  /// JobWorker.id, checked tenant-scoped by the service.
+  defaultJobWorkerId String?         @map("default_job_worker_id") @db.Uuid
+  /// Process loss allowed at this step, % of what should come back.
+  lossNormPct        Decimal         @default(0) @map("loss_norm_pct") @db.Decimal(5, 2)
+  uomIn              String          @map("uom_in") @db.VarChar(20)
+  uomOut             String          @map("uom_out") @db.VarChar(20)
+  conversionFactor   Decimal?        @map("conversion_factor") @db.Decimal(14, 6)
+  remarks            String?         @db.VarChar(300)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company          Company           @relation("CompanyProcessRouteStep", fields: [companyId], references: [id], onDelete: Restrict)
+  route            ProcessRoute      @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  defaultJobWorker JobWorker?        @relation("JobWorkerProcessRouteStep", fields: [defaultJobWorkerId], references: [id], onDelete: Restrict)
+  movements        LotStepMovement[]
+
+  @@unique([routeId, seq])
+  @@index([companyId])
+  @@map("process_route_steps")
+}
+
+/// TN-06: a lot travelling a route: how much went in, which step it is at, and whether it is done.
+model LotRouteProgress {
+  id             String           @id @default(uuid()) @db.Uuid
+  companyId      String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  lotNo          String           @map("lot_no") @db.VarChar(30)
+  routeId        String           @map("route_id") @db.Uuid
+  productId      BigInt?          @map("product_id")
+  inputQty       Decimal          @map("input_qty") @db.Decimal(14, 3)
+  inputUom       String           @map("input_uom") @db.VarChar(20)
+  startDate      DateTime         @map("start_date") @db.Date
+  /// The first step not yet complete; steps + 1 once all are.
+  currentStepSeq Int              @default(1) @map("current_step_seq")
+  status         ProcessLotStatus @default(OPEN)
+  remarks        String?          @db.VarChar(300)
+  closedAt       DateTime?        @map("closed_at") @db.Timestamptz(6)
+  cancelledAt    DateTime?        @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason   String?          @map("cancel_reason") @db.VarChar(255)
+  createdBy      String?          @map("created_by") @db.VarChar(36)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company   Company           @relation("CompanyLotRouteProgress", fields: [companyId], references: [id], onDelete: Restrict)
+  route     ProcessRoute      @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  product   Product?          @relation("ProductLotRouteProgress", fields: [productId], references: [id], onDelete: Restrict)
+  movements LotStepMovement[]
+
+  @@unique([companyId, lotNo])
+  @@index([companyId, status])
+  @@index([routeId])
+  @@map("lot_route_progress")
+}
+
+/// TN-06: material leaving for a step or coming back from it. A job-work step can carry the
+/// delivery challan (outward or return) that moved it; the challan itself is not changed.
+model LotStepMovement {
+  id           String               @id @default(uuid()) @db.Uuid
+  companyId    String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  lotId        String               @map("lot_id") @db.Uuid
+  stepId       String               @map("step_id") @db.Uuid
+  stepSeq      Int                  @map("step_seq")
+  direction    LotMovementDirection
+  qty          Decimal              @db.Decimal(14, 3)
+  uom          String               @db.VarChar(20)
+  movementDate DateTime             @map("movement_date") @db.Date
+  /// Who holds it at a job-work step; checked tenant-scoped by the service.
+  jobWorkerId  String?              @map("job_worker_id") @db.Uuid
+  /// DeliveryChallan.id, checked tenant-scoped by the service.
+  challanId    String?              @map("challan_id") @db.Uuid
+  /// On IN: this receipt finishes the step; what did not come back is process loss.
+  closesStep   Boolean              @default(false) @map("closes_step")
+  remarks      String?              @db.VarChar(300)
+  createdBy    String?              @map("created_by") @db.VarChar(36)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company   Company          @relation("CompanyLotStepMovement", fields: [companyId], references: [id], onDelete: Restrict)
+  lot       LotRouteProgress @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  step      ProcessRouteStep @relation(fields: [stepId], references: [id], onDelete: Restrict)
+  jobWorker JobWorker?       @relation("JobWorkerLotStepMovement", fields: [jobWorkerId], references: [id], onDelete: Restrict)
+  challan   DeliveryChallan? @relation("ChallanLotStepMovement", fields: [challanId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, lotId])
+  @@index([challanId])
+  @@index([jobWorkerId])
+  @@map("lot_step_movements")
 }

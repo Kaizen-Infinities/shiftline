@@ -358,6 +358,15 @@ export const API_PATHS = {
   inventory: {
     eodStock: "/inventory/eod-stock",
   },
+  processRoutes: {
+    base: "/process-routes", // ← service appends /:id, /:id/steps
+    options: "/process-routes/options",
+  },
+  processLots: {
+    base: "/process-lots", // ← service appends /:id, /:id/movements[/:movementId], /:id/close, /:id/cancel
+    board: "/process-lots/board",
+    challans: "/process-lots/challan-options",
+  },
   projectJobs: {
     base: "/project-jobs", // ← service appends /:id, /:id/summary, /:id/stages[/order|/:stageId], /:id/costs[/post|/:costId], /:id/billings
     stagePlans: "/project-jobs/stage-plans",
