@@ -20,7 +20,7 @@ with red only where the app itself uses it (the "18 overdue" chip). Inter.
 | 3   | 5.4–7.6   | Card: "EVERY DEADLINE."                                                                                                                         |
 | 4   | 7.6–10.4  | Close-up: the compliance calendar; the camera pushes to the red "18 overdue" chip as it glows                                                   |
 | 5   | 10.4–12.2 | Card: "EVERY RUPEE."                                                                                                                            |
-| 6   | 12.2–14.0 | Light-bar wipes, 0.6 s each: dashboard quick actions → "cancel reverses the ledger entries" → the Tamil shift console                           |
+| 6   | 12.2–14.0 | Light-bar wipes, 0.6 s each: "cancel reverses the ledger entries" → overdue Payroll run and TDS challan rows → the Tamil shift console          |
 | 7   | 14.0–14.4 | Black. Silence.                                                                                                                                 |
 | 8   | 14.4–17.0 | "ONE LEDGER." slams in with a shockwave of light                                                                                                |
 | 9   | 17.0–22.5 | The mark emerges from the light; SHIFTLINE in wide tracking; "Production to payroll, on one ledger."; "Made for Indian factories · Now in beta" |
