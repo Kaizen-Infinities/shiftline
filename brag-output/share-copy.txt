@@ -1,0 +1,1 @@
+Production to payroll, on one ledger. Shiftline is an ERP for Indian factories: an operator opens the shift console in Tamil, and the same books know every GSTR-1, TDS challan and EPFO due date.
