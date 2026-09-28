@@ -267,7 +267,7 @@ const CustomerPartMapPage: React.FC = () => {
                   </td>
                   <td className={td}>
                     <input
-                      className={cx(cell, "w-36 font-mono")}
+                      className={cx(cell, "w-44 font-mono")}
                       aria-label="New customer part number"
                       placeholder="OEM part no."
                       maxLength={40}
@@ -369,7 +369,7 @@ const CustomerPartMapPage: React.FC = () => {
                       <InlineInput
                         value={r.customerPartNo}
                         label={`Customer part number ${r.customerPartNo}`}
-                        className="w-36 font-mono"
+                        className="w-44 font-mono"
                         maxLength={40}
                         disabled={!canEdit}
                         onSave={(v) =>

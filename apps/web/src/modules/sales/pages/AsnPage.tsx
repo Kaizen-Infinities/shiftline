@@ -409,7 +409,7 @@ const CreateAsn: React.FC<{ onDone: (a: AsnDetail) => void; onClose: () => void 
                   </td>
                   <td className={td}>
                     <select
-                      className="sl-input h-9 w-56 pr-8 text-sm"
+                      className="sl-input h-9 w-64 pr-8 text-sm"
                       aria-label={`Schedule line for ${l.productLabel}`}
                       value={l.scheduleLineId}
                       onChange={(e) => setLine(l.key, { scheduleLineId: e.target.value })}
