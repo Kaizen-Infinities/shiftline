@@ -13,16 +13,26 @@ export const useRoles = () => {
 
   const cacheKey = `${CACHE_PREFIX}${page}:${limit}:${search}`;
 
-  const fetcher = useCallback(async (_signal: AbortSignal) => {
-    const res = await roleService.fetchAll({
-      page,
-      limit,
-      search: search || undefined,
-    });
-    return { data: res.data || [], total: res.total || 0 };
-  }, [page, limit, search]);
+  const fetcher = useCallback(
+    async (_signal: AbortSignal) => {
+      const res = await roleService.fetchAll({
+        page,
+        limit,
+        search: search || undefined,
+      });
+      return { data: res.data || [], total: res.total || 0 };
+    },
+    [page, limit, search]
+  );
 
-  const { data: rawRoles, total, loading, refreshing, refresh } = useListCache<Role>({
+  const {
+    data: rawRoles,
+    total,
+    loading,
+    refreshing,
+    error,
+    refresh,
+  } = useListCache<Role>({
     cacheKey,
     socketModule: "role",
     fetcher,
@@ -86,7 +96,7 @@ export const useRoles = () => {
     total,
     loading,
     refreshing,
-    error: null as string | null,
+    error,
     loadRoles,
     addRole,
     editRole,

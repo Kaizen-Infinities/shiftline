@@ -9,6 +9,7 @@ import {
   PageHeader,
   Tile,
   fieldControlClass,
+  StaleNotice,
 } from "../../../../components/ui/v2";
 import {
   EntryFooter,
@@ -91,7 +92,11 @@ const ReceiptVoucherAddPage: React.FC = () => {
     return { data: list, total: list.length };
   }, []);
 
-  const { data: ledgers } = useListCache<AccountLedger>({
+  const {
+    data: ledgers,
+    error: listError,
+    refresh: retryList,
+  } = useListCache<AccountLedger>({
     cacheKey: "accounts:ledgers:all",
     socketModule: "accountLedger",
     fetcher: ledgersFetcher,
@@ -271,6 +276,12 @@ const ReceiptVoucherAddPage: React.FC = () => {
       >
         <VoucherTypeNav current="RECEIPT" target="add" />
       </PageHeader>
+
+      {listError && ledgers.length === 0 && (
+        <StaleNotice onRetry={retryList}>
+          Couldn't load your ledgers, so the account lists below are empty.
+        </StaleNotice>
+      )}
 
       <Tile title="Voucher details" className="mb-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,220px)_minmax(0,1fr)_minmax(0,1fr)]">

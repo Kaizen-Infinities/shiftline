@@ -15,6 +15,8 @@ import {
   StatTile,
   EmptyState,
   SkeletonRows,
+  LoadError,
+  StaleNotice,
 } from "../../../../components/ui/v2";
 import {
   VoucherTypeNav,
@@ -100,6 +102,7 @@ const JournalEntryPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<Voucher>({
     cacheKey,
     socketModule: "voucher",
@@ -274,8 +277,13 @@ const JournalEntryPage: React.FC = () => {
       </div>
 
       <section className="sl-tile overflow-hidden" aria-label="Journal vouchers">
+        {listError && !loading && flatRows.length > 0 && (
+          <StaleNotice onRetry={refresh} className="m-3" />
+        )}
         {flatRows.length === 0 ? (
-          loading ? (
+          listError && !loading ? (
+            <LoadError compact title="Couldn't load journal vouchers" onRetry={refresh} />
+          ) : loading ? (
             <SkeletonRows rows={6} columns={5} label="Loading journal vouchers" />
           ) : (
             <EmptyState

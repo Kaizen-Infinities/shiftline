@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { featureForPermission } from "@shiftline/shared";
 import { useAppSelector, useAppDispatch } from "../hooks/reduxHooks";
+import { endSessionSwitch } from "../features/auth/authSlice";
 import { fetchCompany } from "../features/company/companySlice";
 import CommonLoader from "../components/ui/Loader/CommonLoader";
 import { usePermission } from "../hooks/usePermission";
@@ -26,18 +27,37 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectPath = "/unauthorized",
 }) => {
   const dispatch = useAppDispatch();
-  const { isAuthenticated, isInitialized } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isInitialized, sessionSwitchTarget } = useAppSelector(
+    (state) => state.auth
+  );
   const { data: company, loading: companyLoading } = useAppSelector((state) => state.company);
   const { can, holds, hasFeature, isSuperAdmin } = usePermission();
   const location = useLocation();
 
   // Platform admins have no tenant company (P1-02): fetching one would fail and, because a
   // rejected fetch leaves `company` null, loop for ever and trip the rate limiter.
+  // Mid-swap the user object can still describe the old identity while the token is already
+  // the new one, so the company is only fetched once the switch has landed.
+  const switching = sessionSwitchTarget !== null && location.pathname !== sessionSwitchTarget;
   useEffect(() => {
+    if (switching) return;
     if (isAuthenticated && !company && !companyLoading && !isSuperAdmin) {
       dispatch(fetchCompany());
     }
-  }, [isAuthenticated, company, companyLoading, isSuperAdmin, dispatch]);
+  }, [switching, isAuthenticated, company, companyLoading, isSuperAdmin, dispatch]);
+
+  // A session swap (impersonation start or stop) ends when the router shows its target path.
+  useEffect(() => {
+    if (sessionSwitchTarget !== null && location.pathname === sessionSwitchTarget) {
+      dispatch(endSessionSwitch());
+    }
+  }, [sessionSwitchTarget, location.pathname, dispatch]);
+
+  // Until then no protected screen is mounted: one for the old identity would otherwise
+  // re-render, and fetch, under the new one (see AuthState.sessionSwitchTarget).
+  if (switching) {
+    return <CommonLoader text="Switching session..." />;
+  }
 
   // Show loading screen while auth or company details are initializing
   if (!isInitialized || (isAuthenticated && !company && !isSuperAdmin)) {

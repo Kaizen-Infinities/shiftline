@@ -6,6 +6,9 @@ related_targets:
   ["apps/web/src/components/common/sidebar/Sidebar.tsx", "apps/web/src/assets/css/style.css"]
 ---
 
+> **Superseded (2026-09-27).** The owner's UI v2 brief replaced this direction; the live look and
+> its colour roles are in `docs/specs/UI-v2.md` (see `DESIGN.md`). Kept for history only.
+
 ## Direction contract
 
 THESIS: The app shell reads as a bordered ledger-paper sheet, not a floating SaaS dashboard — hairline rules divide regions, one reserved ink-stamp accent marks state and the primary action, and nothing else competes for color. Refuses both the default sidebar-cards-shadows arrangement (including the current slate/teal system) and its predictable opposite, a dense Tally-style terminal.

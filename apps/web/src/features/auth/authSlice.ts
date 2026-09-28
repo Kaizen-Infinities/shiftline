@@ -48,7 +48,15 @@ const initialState: AuthState = {
   isInitialized: false,
   entitlements: null,
   impersonation: null,
+  identity: null,
+  sessionSwitchTarget: null,
 };
+
+/** "userId|companyId|impersonationId" from a token payload; see AuthState.identity. */
+const identityOf = (payload: Record<string, unknown> | null): string | null =>
+  payload
+    ? [payload.userId ?? "", payload.companyId ?? "", payload.impersonationId ?? ""].join("|")
+    : null;
 
 // Async Thunks
 export const loginUser = createAsyncThunk("auth/login", async (credentials: LoginDto, thunkAPI) => {
@@ -137,6 +145,7 @@ const authSlice = createSlice({
               reason: action.payload.reason ?? state.impersonation?.reason ?? "",
             }
           : null;
+      state.identity = identityOf(payload);
       // Never persisted: a fresh page renews it from the httpOnly cookie.
       localStorage.removeItem("accessToken");
       sessionStorage.removeItem("accessToken");
@@ -153,8 +162,16 @@ const authSlice = createSlice({
       state.accessTokenExpiresAt = null;
       state.permissions = [];
       state.isAuthenticated = false;
+      state.identity = null;
       localStorage.removeItem("accessToken");
       sessionStorage.removeItem("accessToken");
+    },
+    /** Starts a session swap that ends when the router reaches `path`; see AuthState. */
+    beginSessionSwitch: (state, action: PayloadAction<string>) => {
+      state.sessionSwitchTarget = action.payload;
+    },
+    endSessionSwitch: (state) => {
+      state.sessionSwitchTarget = null;
     },
   },
   extraReducers: (builder) => {
@@ -173,6 +190,7 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.permissions = [];
       state.isAuthenticated = false;
+      state.identity = null;
     });
 
     // Get Current User thunk
@@ -190,6 +208,7 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.permissions = [];
       state.isAuthenticated = false;
+      state.identity = null;
     });
 
     // Initialize thunk
@@ -215,9 +234,11 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.permissions = [];
       state.isAuthenticated = false;
+      state.identity = null;
     });
   },
 });
 
-export const { setAccessToken, clearUser, setUserLocale } = authSlice.actions;
+export const { setAccessToken, clearUser, setUserLocale, beginSessionSwitch, endSessionSwitch } =
+  authSlice.actions;
 export default authSlice.reducer;

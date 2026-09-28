@@ -96,7 +96,13 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
     [debouncedSearch, activeStoreId, appliedCategory, appliedStatus, currentPage]
   );
 
-  const { data, total, loading } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    error: listError,
+    refresh: retryList,
+  } = useListCache({
     cacheKey,
     socketModule: "rawMaterialStock",
     fetcher,
@@ -260,6 +266,9 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
         />
 
         <DataTable
+          error={listError}
+          sourceRowCount={data.length}
+          onRetry={retryList}
           data={data || []}
           rowKey={(item) => item.rawMaterialId || item.id}
           loading={loading}

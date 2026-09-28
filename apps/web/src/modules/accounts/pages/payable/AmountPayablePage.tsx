@@ -2,7 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSync, FaChevronRight } from "react-icons/fa";
 import { Landmark, Plus, RefreshCw } from "lucide-react";
-import { ActionPill, PageHeader, StatTile } from "../../../../components/ui/v2";
+import {
+  ActionPill,
+  LoadError,
+  PageHeader,
+  StaleNotice,
+  StatTile,
+} from "../../../../components/ui/v2";
 import { fmtINR, fmtINRCompact } from "../../components/accountsUi";
 import { toast } from "react-toastify";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
@@ -149,6 +155,7 @@ export const AmountPayablePage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<SupplierPayableSummary>({
     cacheKey,
     socketModule: "voucher",
@@ -529,7 +536,12 @@ export const AmountPayablePage: React.FC = () => {
             </div>
           </div>
 
-          {filteredSuppliers.length === 0 ? (
+          {listError && !loading && filteredSuppliers.length > 0 && (
+            <StaleNotice onRetry={refresh} className="m-3" />
+          )}
+          {listError && !loading && payables.length === 0 ? (
+            <LoadError compact title="Couldn't load supplier payables" onRetry={refresh} />
+          ) : filteredSuppliers.length === 0 ? (
             <div className="p-10 text-center text-sm text-ink-muted flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">

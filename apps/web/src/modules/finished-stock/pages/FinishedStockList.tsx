@@ -87,7 +87,13 @@ const FinishedStockList: React.FC<FinishedStockListProps> = ({ storeId: propStor
     [activeStoreId, debouncedSearch, appliedCategory, currentPage]
   );
 
-  const { data, total, loading, refresh } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    refresh,
+    error: listError,
+  } = useListCache({
     cacheKey,
     socketModule: "finishedGoodsStock",
     fetcher,
@@ -185,6 +191,9 @@ const FinishedStockList: React.FC<FinishedStockListProps> = ({ storeId: propStor
         />
 
         <DataTable
+          error={listError}
+          sourceRowCount={data.length}
+          onRetry={refresh}
           data={paginatedData || []}
           rowKey={(item) => `${item.storeId}-${item.productItemId}`}
           loading={loading}

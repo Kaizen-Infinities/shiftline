@@ -1,5 +1,9 @@
 import { useCallback, useState } from "react";
-import type { Department, CreateDepartmentDto, UpdateDepartmentDto } from "../features/departments/types";
+import type {
+  Department,
+  CreateDepartmentDto,
+  UpdateDepartmentDto,
+} from "../features/departments/types";
 import { departmentService } from "../services/departmentService";
 import { useListCache, markStaleByPrefix } from "./useListCache";
 
@@ -12,16 +16,26 @@ export const useDepartments = () => {
 
   const cacheKey = `${CACHE_PREFIX}${page}:${limit}:${search}`;
 
-  const fetcher = useCallback(async (_signal: AbortSignal) => {
-    const res = await departmentService.fetchAll({
-      page,
-      limit,
-      search: search || undefined,
-    });
-    return { data: res.data || [], total: res.total || 0 };
-  }, [page, limit, search]);
+  const fetcher = useCallback(
+    async (_signal: AbortSignal) => {
+      const res = await departmentService.fetchAll({
+        page,
+        limit,
+        search: search || undefined,
+      });
+      return { data: res.data || [], total: res.total || 0 };
+    },
+    [page, limit, search]
+  );
 
-  const { data: departments, total, loading, refreshing, refresh } = useListCache<Department>({
+  const {
+    data: departments,
+    total,
+    loading,
+    refreshing,
+    error,
+    refresh,
+  } = useListCache<Department>({
     cacheKey,
     socketModule: "department",
     fetcher,
@@ -67,7 +81,7 @@ export const useDepartments = () => {
     total,
     loading,
     refreshing,
-    error: null as string | null,
+    error,
     loadDepartments,
     addDepartment,
     editDepartment,
