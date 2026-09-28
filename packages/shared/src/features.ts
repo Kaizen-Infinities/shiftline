@@ -126,6 +126,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "dash-machines",
       "order-tna",
       "project-jobs",
+      "process-routes",
     ],
   },
   {

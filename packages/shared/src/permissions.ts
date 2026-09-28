@@ -339,6 +339,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "Job / project costing",
   },
   {
+    // TN-06: multi-step process routes (knitting → dyeing → stitching) and the lots on them.
+    module: "process-routes",
+    actions: ["view", "create", "edit", "delete"],
+    description: "Process routes and lot board",
+  },
+  {
     module: "goods-dispatch",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Goods Dispatch",
