@@ -322,6 +322,7 @@ const RoleList: React.FC = () => {
               columns={columns}
               data={paginatedRoles}
               error={error}
+              sourceRowCount={roles.length}
               onRetry={refresh}
               rowKey={(row) => row.id}
               loading={loading}

@@ -415,6 +415,7 @@ const SalesInvoiceList: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={data.length}
         onRetry={refresh}
         columns={columns}
         data={data}

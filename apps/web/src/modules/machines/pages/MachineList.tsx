@@ -224,6 +224,7 @@ const MachineList: React.FC = () => {
 
         <DataTable
           error={listError}
+          sourceRowCount={machines.length}
           onRetry={refresh}
           ariaLabel="Machines"
           data={paginatedData}

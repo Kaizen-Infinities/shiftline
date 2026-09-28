@@ -370,6 +370,7 @@ const RawMaterialList: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={allRawMaterials.length}
         onRetry={refresh}
         columns={columns}
         data={paginatedData}

@@ -284,6 +284,7 @@ const WastageStoreList: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={allWastageItems.length}
         onRetry={refresh}
         columns={columns}
         data={paginatedData}

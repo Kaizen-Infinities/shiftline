@@ -418,6 +418,7 @@ const Employeelist: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={employees.length}
         onRetry={refresh}
         data={paginatedEmployees}
         rowKey={(emp) => emp.id}

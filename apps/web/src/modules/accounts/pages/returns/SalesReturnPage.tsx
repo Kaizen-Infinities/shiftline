@@ -342,6 +342,7 @@ export const SalesReturnPage: React.FC = () => {
         {/* Table */}
         <DataTable
           error={listError}
+          sourceRowCount={returns.length}
           onRetry={refresh}
           columns={columns}
           data={filteredReturns}

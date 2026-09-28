@@ -286,6 +286,7 @@ const MachineAssignmentList: React.FC = () => {
 
         <DataTable
           error={listError}
+          sourceRowCount={allAssignments.length}
           onRetry={refresh}
           ariaLabel="Machine assignments"
           data={paginatedData}

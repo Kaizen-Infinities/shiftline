@@ -264,6 +264,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
 
         <DataTable
           error={listError}
+          sourceRowCount={data.length}
           onRetry={retryList}
           data={data || []}
           rowKey={(item) => item.rawMaterialId || item.id}

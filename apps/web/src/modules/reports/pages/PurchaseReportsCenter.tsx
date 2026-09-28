@@ -425,6 +425,7 @@ const PurchaseReportsCenter: React.FC = () => {
         columns={finalColumns}
         data={backendReports}
         error={listError}
+        sourceRowCount={backendReports.length}
         onRetry={retryList}
         rowKey={(item: any) => item.id || item.poNumber}
         loading={loadingBackend}

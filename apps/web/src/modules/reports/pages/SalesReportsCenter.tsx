@@ -479,6 +479,7 @@ const SalesReportsCenter: React.FC = () => {
         )}
         data={backendReports}
         error={listError}
+        sourceRowCount={backendReports.length}
         onRetry={retryList}
         rowKey={(item: any) => item.id || item.orderNo}
         loading={loadingBackend}

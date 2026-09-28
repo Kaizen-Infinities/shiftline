@@ -228,6 +228,7 @@ const SupplierList: React.FC = () => {
 
         <DataTable
           error={listError}
+          sourceRowCount={allSuppliers.length}
           onRetry={refresh}
           data={paginatedSuppliers}
           rowKey={(supplier) => supplier.id}

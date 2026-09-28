@@ -65,6 +65,12 @@ interface DataTableProps<T> {
   error?: string | null;
   /** Retry for a failed load, usually the cache's `refresh`. */
   onRetry?: () => void;
+  /**
+   * Rows loaded before client-side search or filtering. Pass it when `data` is a filtered
+   * view, so a failed refresh with loaded rows reads as stale data (plus the normal "no
+   * matches" message) rather than as a failed load. Defaults to `data.length`.
+   */
+  sourceRowCount?: number;
 }
 
 const alignClass: Record<NonNullable<DataTableColumn<any>["align"]>, string> = {
@@ -118,6 +124,7 @@ function DataTable<T>({
   emptyAction,
   error = null,
   onRetry,
+  sourceRowCount,
 }: DataTableProps<T>) {
   const cellPaddingClass = density === "compact" ? "px-3 py-1.5" : "px-3 py-2 sm:px-4";
   const headerPaddingClass = density === "compact" ? "px-3 py-2" : "px-3 py-3 sm:px-4";
@@ -132,6 +139,12 @@ function DataTable<T>({
 
   // True while the table shows the skeleton or the empty message instead of rows.
   const showingPlaceholder = loading || data.length === 0;
+
+  // A failed load with nothing loaded at all shows the failed-load state; with rows loaded
+  // (even if the current filter hides them all) the rows are stale, not missing.
+  const loadedRows = sourceRowCount ?? data.length;
+  const loadFailed = Boolean(error) && !loading && loadedRows === 0;
+  const staleRows = Boolean(error) && !loading && loadedRows > 0;
 
   const hasPager = Boolean(pagination && pagination.totalPages > 1);
 
@@ -155,9 +168,7 @@ function DataTable<T>({
 
   return (
     <div className={`sl-tile w-full overflow-hidden ${className}`}>
-      {error && !loading && data.length > 0 && (
-        <StaleNotice onRetry={onRetry} className="m-3 mb-0" />
-      )}
+      {staleRows && <StaleNotice onRetry={onRetry} className="m-3 mb-0" />}
       <div
         className={`flex flex-col ${showingPlaceholder ? minHeightClassName : ""} ${maxHeightClassName}`}
       >
@@ -288,7 +299,7 @@ function DataTable<T>({
               reserved height and sit in the middle of the tile. */}
           {!loading && data.length === 0 && (
             <div className="flex min-w-full flex-1 items-center justify-center">
-              {error ? (
+              {loadFailed ? (
                 <LoadError compact title="Couldn't load this list" onRetry={onRetry} />
               ) : typeof emptyMessage === "string" ? (
                 <EmptyState compact title={emptyMessage} action={emptyAction} />

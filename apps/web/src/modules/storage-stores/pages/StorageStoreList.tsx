@@ -224,6 +224,7 @@ const StorageStoreList: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={allStores.length}
         onRetry={refresh}
         data={paginatedStores}
         rowKey={(item) => item.storeId}

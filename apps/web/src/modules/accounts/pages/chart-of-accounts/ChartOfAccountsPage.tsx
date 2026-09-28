@@ -362,6 +362,7 @@ export const ChartOfAccountsPage: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={ledgers.length}
         onRetry={refresh}
         ariaLabel="Chart of Accounts"
         columns={columns}

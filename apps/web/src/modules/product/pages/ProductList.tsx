@@ -495,6 +495,7 @@ const ProductList: React.FC = () => {
 
           <DataTable
             error={listError}
+            sourceRowCount={products.length}
             onRetry={refresh}
             columns={columns}
             data={paginatedProducts}

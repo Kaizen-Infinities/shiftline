@@ -331,6 +331,7 @@ const InventoryReportsCenter: React.FC = () => {
         columns={finalColumns}
         data={backendReports}
         error={listError}
+        sourceRowCount={backendReports.length}
         onRetry={retryList}
         rowKey={(row) => row.id || row.itemId || Math.random().toString()}
         loading={loadingBackend}

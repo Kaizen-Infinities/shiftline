@@ -392,6 +392,7 @@ const PurchaseOrderListPage: React.FC = () => {
 
         <DataTable
           error={listError}
+          sourceRowCount={allPurchaseOrders.length}
           onRetry={refresh}
           data={paginatedPOs}
           rowKey={(item) => item.id}

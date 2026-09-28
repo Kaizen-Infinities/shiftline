@@ -212,6 +212,7 @@ const SalesProductList: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={allSalesProducts.length}
         onRetry={refresh}
         columns={columns}
         data={paginatedData}

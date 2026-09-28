@@ -219,6 +219,7 @@ const ShiftList: React.FC = () => {
           <div>
             <DataTable
               error={listError}
+              sourceRowCount={data.length}
               onRetry={refresh}
               data={paginatedData}
               rowKey={(item) => item.id}

@@ -72,3 +72,44 @@ test("plans render", async ({ page }) => {
   await expect(page.getByText(/^Plans$/).first()).toBeVisible({ timeout: 20_000 });
   expect(failures()).toEqual([]);
 });
+
+/**
+ * Tenant isolation across a session swap. Stopping impersonation hands the tab back to a
+ * platform admin, who has no tenant: from the click on, only auth and platform endpoints may be
+ * called (a tenant screen that re-renders, or remounts, under the admin token would call its
+ * tenant endpoints without a tenant). The tenant's cached rows must be gone as well, so the next
+ * tenant the admin opens can never be shown this one's.
+ */
+test("stopping impersonation makes no tenant-scoped calls and drops the tenant's cache", async ({
+  page,
+}) => {
+  await page.goto("/platform/tenants");
+  await page.getByRole("link", { name: /Demo/i }).first().click();
+  page.once("dialog", (d) => d.accept("E2E: tenant isolation on stop"));
+  await page.getByRole("button", { name: /Act as owner/ }).click();
+  await expect(page.getByTestId("impersonation-banner")).toBeVisible({ timeout: 20_000 });
+  // Let the tenant dashboard load, so there is something to leak.
+  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
+  const cachedWhileActing = await page.evaluate(() =>
+    Object.keys(sessionStorage).filter((k) => k.startsWith("ulc:") || k.startsWith("udc:"))
+  );
+  expect(cachedWhileActing.length, "the tenant dashboard cached something").toBeGreaterThan(0);
+
+  const afterStop: string[] = [];
+  page.on("request", (req) => {
+    const url = new URL(req.url());
+    if (url.pathname.startsWith("/api/")) afterStop.push(`${req.method()} ${url.pathname}`);
+  });
+  await page.getByRole("button", { name: /Stop impersonating/ }).click();
+  await expect(page).toHaveURL(/\/platform/, { timeout: 20_000 });
+  await expect(page.getByTestId("impersonation-banner")).toHaveCount(0);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+
+  const tenantScoped = afterStop.filter((r) => !/^\w+ \/api\/(auth|platform)(\/|$)/.test(r));
+  expect(tenantScoped, "calls made after Stop outside /api/auth and /api/platform").toEqual([]);
+
+  const cachedAfterStop = await page.evaluate(() =>
+    Object.keys(sessionStorage).filter((k) => k.startsWith("ulc:") || k.startsWith("udc:"))
+  );
+  expect(cachedAfterStop, "tenant rows still cached after Stop").toEqual([]);
+});

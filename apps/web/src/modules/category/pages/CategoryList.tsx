@@ -241,6 +241,7 @@ const CategoryList: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={allCategories.length}
         onRetry={refresh}
         data={paginatedCategories}
         rowKey={(item) => item.id}

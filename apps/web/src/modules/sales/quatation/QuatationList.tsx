@@ -729,6 +729,7 @@ const QuotationList: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={data.length}
         onRetry={refresh}
         data={data}
         rowKey={(item) => item.id}

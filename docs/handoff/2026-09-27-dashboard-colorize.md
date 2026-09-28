@@ -40,5 +40,5 @@ other.
   All the screens were checked with empty data at 1440 px and 390 px, in light and dark.
 - The "Visual language" line in `docs/specs/P1-UI-remake.md` still describes the Passbook
   direction. Updating it belongs to whoever owns that spec.
-- The sidebar shows "by Applied Softwares" under the Shiftline wordmark. It is out of scope
-  here, but it looks like vendor text that should come from config or be removed.
+- ~~The sidebar shows "by Applied Softwares"~~: intentional maker credit from the UI v2 branding
+  commit (`MAKER` in `components/brand/BrandMark.tsx`), not vendor text. Corrected 2026-09-28.

@@ -355,6 +355,7 @@ const CustomerListPage: React.FC = () => {
 
       <DataTable
         error={listError}
+        sourceRowCount={customers.length}
         onRetry={refresh}
         data={customers ?? []}
         rowKey={(customer) => customer.id}

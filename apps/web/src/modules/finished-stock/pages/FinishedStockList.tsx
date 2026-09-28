@@ -192,6 +192,7 @@ const FinishedStockList: React.FC<FinishedStockListProps> = ({ storeId: propStor
 
         <DataTable
           error={listError}
+          sourceRowCount={data.length}
           onRetry={refresh}
           data={paginatedData || []}
           rowKey={(item) => `${item.storeId}-${item.productItemId}`}

@@ -305,6 +305,7 @@ const DepartmentList: React.FC = () => {
               columns={columns}
               data={paginatedDepts}
               error={error}
+              sourceRowCount={departments.length}
               onRetry={refresh}
               rowKey={(row) => row.id}
               loading={loading}

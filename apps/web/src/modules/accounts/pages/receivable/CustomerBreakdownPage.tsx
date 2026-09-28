@@ -594,6 +594,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             rowKey={(item: any) => item.id}
             loading={tableLoading}
             error={listError}
+            sourceRowCount={customerDetailList.length}
             onRetry={refresh}
             emptyMessage="No sales invoices recorded for this customer."
           />
@@ -606,6 +607,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             rowKey={(item: any) => item.id}
             loading={tableLoading}
             error={listError}
+            sourceRowCount={customerDetailList.length}
             onRetry={refresh}
             emptyMessage="No receipt collection vouchers recorded for this customer."
           />
@@ -618,6 +620,7 @@ export const CustomerBreakdownPage: React.FC = () => {
             rowKey={(item: any) => item.id}
             loading={tableLoading}
             error={listError}
+            sourceRowCount={customerDetailList.length}
             onRetry={refresh}
             emptyMessage="No ledger statement entries recorded for this customer."
           />

@@ -4,7 +4,12 @@ import { toast } from "react-toastify";
 import { FEATURE_KEYS } from "@shiftline/shared";
 import { Building2, Eye } from "lucide-react";
 
-import { getCurrentUser, setAccessToken } from "../../../features/auth/authSlice";
+import {
+  getCurrentUser,
+  setAccessToken,
+  beginSessionSwitch,
+  endSessionSwitch,
+} from "../../../features/auth/authSlice";
 import { useAppDispatch } from "../../../hooks/reduxHooks";
 import type { AuditEntry } from "../../../services/auditTrailService";
 import {
@@ -156,6 +161,9 @@ const TenantDetailPage: React.FC = () => {
     setBusy(true);
     try {
       const r = await platformService.impersonate(id, { userId, reason });
+      // Unmount the console before the tenant token lands; the switch ends when the router
+      // reaches /dashboard (AuthState.sessionSwitchTarget).
+      dispatch(beginSessionSwitch("/dashboard"));
       dispatch(
         setAccessToken({
           accessToken: r.accessToken,
@@ -167,6 +175,7 @@ const TenantDetailPage: React.FC = () => {
       toast.info(`Acting as ${r.user.fullName} at ${r.company.companyName} for 30 minutes`);
       navigate("/dashboard");
     } catch (err) {
+      dispatch(endSessionSwitch());
       toast.error(message(err));
     } finally {
       setBusy(false);

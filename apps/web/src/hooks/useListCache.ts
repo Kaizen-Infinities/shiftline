@@ -343,6 +343,25 @@ export function useListCache<T = any>({
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 /** Read a cache entry synchronously (memory first, then sessionStorage). Returns undefined if not cached. */
+/**
+ * Drops every cached list — memory, in-flight requests and sessionStorage — and tells
+ * mounted hooks to re-read (they come back empty). Called when the signed-in identity
+ * changes, so one tenant's (or user's) cached rows can never show under another.
+ */
+export function clearAllListCaches(): void {
+  cache.clear();
+  inflight.clear();
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(SESSION_PREFIX)) sessionStorage.removeItem(k);
+    }
+  } catch {
+    // storage blocked: the memory cache is already empty
+  }
+  Array.from(subscribers.keys()).forEach(notify);
+}
+
 export function readCacheEntry<T = any>(
   key: string
 ): { data: T[]; total: number; timestamp: number } | undefined {

@@ -229,6 +229,7 @@ const PermissionList: React.FC = () => {
             columns={columns}
             data={paginatedPerms}
             error={error}
+            sourceRowCount={permissions.length}
             onRetry={refresh}
             rowKey={(row) => row.id}
             loading={loading}
