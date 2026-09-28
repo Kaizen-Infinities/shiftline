@@ -247,6 +247,8 @@ const LeaveHrPage = lazy(() => import("../modules/leave/pages/LeaveHrPage"));
 const OrderTnaPage = lazy(() => import("../modules/production/pages/OrderTnaPage"));
 const ProjectJobsPage = lazy(() => import("../modules/production/pages/ProjectJobsPage"));
 const ProjectJobDetailPage = lazy(() => import("../modules/production/pages/ProjectJobDetailPage"));
+const ProcessRoutesPage = lazy(() => import("../modules/production/pages/ProcessRoutesPage"));
+const LotBoardPage = lazy(() => import("../modules/production/pages/LotBoardPage"));
 const DeliverySchedulesPage = lazy(() => import("../modules/sales/pages/DeliverySchedulesPage"));
 const MyLeavePage = lazy(() => import("../modules/leave/pages/MyLeavePage"));
 const ExportIncentivesPage = lazy(() => import("../modules/exports/pages/ExportIncentivesPage"));
@@ -567,6 +569,10 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="project-jobs.view" />}>
                 <Route path="/production/jobs" element={<ProjectJobsPage />} />
                 <Route path="/production/jobs/:id" element={<ProjectJobDetailPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="process-routes.view" />}>
+                <Route path="/production/process-routes" element={<ProcessRoutesPage />} />
+                <Route path="/production/lots" element={<LotBoardPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="goods-dispatch.view" />}>
                 <Route path="/production/goods-dispatch" element={<GoodsDispatchList />} />
