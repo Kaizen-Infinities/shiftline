@@ -6,6 +6,9 @@ import { useAppDispatch, useAppSelector } from "../../hooks/reduxHooks";
 import { usePermission } from "../../hooks/usePermission";
 import { logoutUser } from "../../features/auth/authSlice";
 import { useTheme } from "../../providers/ThemeProvider";
+import { useT } from "../../i18n/I18nProvider";
+import type { TFunction } from "../../i18n/I18nProvider";
+import LanguageSwitch from "./LanguageSwitch";
 import ShellDialog from "./ShellDialog";
 import { menuKeyNav, useDismiss } from "./useDismiss";
 
@@ -28,12 +31,12 @@ type ShellUser = {
   profileImage?: string | null;
 };
 
-const roleLabel = (user?: ShellUser | null): string => {
-  if (!user) return "User";
-  if (user.isSuperAdmin) return "Platform admin";
+const roleLabel = (t: TFunction, user?: ShellUser | null): string => {
+  if (!user) return t("shell.user");
+  if (user.isSuperAdmin) return t("shell.platformAdmin");
   const role = user.role as { name?: string } | string | undefined;
   const value = (typeof role === "object" && role?.name) || user.roleId || role;
-  if (typeof value !== "string" || !value) return "User";
+  if (typeof value !== "string" || !value) return t("shell.user");
   const text = value
     .replace(/^ROLE_/, "")
     .replace(/_/g, " ")
@@ -76,6 +79,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
   const company = useAppSelector((s) => s.company.data);
   const { can, isSuperAdmin } = usePermission();
   const { mode, toggle } = useTheme();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -84,7 +88,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
   useDismiss(rootRef, open, close, buttonRef);
 
   const name = user?.fullName || user?.username || "User";
-  const role = roleLabel(user);
+  const role = roleLabel(t, user);
   const profilePath = can("profile.view") ? "/profile" : "/company/view";
 
   const go = (path: string) => {
@@ -115,7 +119,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
         }}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Account menu for ${name}`}
+        aria-label={t("shell.accountMenuFor", { name })}
         className={`flex items-center gap-2.5 rounded-full border border-line-soft bg-card shadow-[var(--shadow-sm)] transition-colors hover:bg-nav-hover ${
           compact ? "p-1" : "py-1 pl-1 pr-3"
         }`}
@@ -139,7 +143,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
       {open && (
         <div
           role="menu"
-          aria-label="Account"
+          aria-label={t("shell.account")}
           onKeyDown={menuKeyNav}
           // Tells the global "Esc goes back" shortcut that an overlay is open.
           data-radix-popper-content-wrapper=""
@@ -164,7 +168,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
                 onClick={() => go(profilePath)}
               >
                 <User size={17} aria-hidden className="text-ink-subtle" />
-                My profile
+                {t("shell.myProfile")}
               </button>
               <button
                 type="button"
@@ -173,7 +177,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
                 onClick={() => go("/notifications")}
               >
                 <Bell size={17} aria-hidden className="text-ink-subtle" />
-                Notifications
+                {t("shell.notifications")}
               </button>
             </>
           )}
@@ -187,7 +191,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
             }}
           >
             <Keyboard size={17} aria-hidden className="text-ink-subtle" />
-            Keyboard shortcuts
+            {t("shell.keyboardShortcuts")}
             <span className="sl-kbd ml-auto">F1</span>
           </button>
           <button type="button" role="menuitem" className="sl-menu-item" onClick={toggle}>
@@ -196,8 +200,9 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
             ) : (
               <Moon size={17} aria-hidden className="text-ink-subtle" />
             )}
-            {mode === "dark" ? "Light theme" : "Dark theme"}
+            {mode === "dark" ? t("shell.lightTheme") : t("shell.darkTheme")}
           </button>
+          {!isSuperAdmin && <LanguageSwitch className="px-2 pt-2 pb-1" />}
           <div className="my-1 h-px bg-line-soft" />
           <button
             type="button"
@@ -209,19 +214,19 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ onOpenShortcuts, compact = fa
             }}
           >
             <LogOut size={17} aria-hidden />
-            Sign out
+            {t("shell.signOut")}
           </button>
         </div>
       )}
 
       <ShellDialog
         open={confirmOut}
-        title="Sign out of Shiftline?"
-        confirmText="Sign out"
+        title={t("shell.signOutTitle")}
+        confirmText={t("shell.signOut")}
         onConfirm={() => void signOut()}
         onCancel={() => setConfirmOut(false)}
       >
-        You will need your email and password to come back in.
+        {t("shell.signOutBody")}
       </ShellDialog>
     </div>
   );

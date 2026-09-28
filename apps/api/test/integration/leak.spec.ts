@@ -95,6 +95,10 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "CustomerSchedule",
   "CustomerScheduleLine",
   "CustomerScheduleDispatch",
+  // TN-07: part maps and ASNs start empty; asn.spec.ts has the cross-tenant test.
+  "CustomerPartMap",
+  "Asn",
+  "AsnLine",
   "EsiContributionPeriod",
   "OvertimeQuarterPeriod",
   "PaymentGatewayConfig",
@@ -181,10 +185,24 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   // export order T&A (TN-03); order-tna.spec proves a foreign company sees none
   "OrderTna",
   "OrderTnaMilestone",
+  // job / project costing (TN-09); project-jobs.spec proves a foreign company sees none
+  "ProjectJob",
+  "ProjectJobStage",
+  "ProjectJobCost",
+  "ProjectJobBilling",
+  // multi-step process routes (TN-06); process-routes.spec proves a foreign company sees none
+  "ProcessRoute",
+  "ProcessRouteStep",
+  "LotRouteProgress",
+  "LotStepMovement",
   // exports (TN-01): its own suite proves a foreign tenant's rows read as absent
   "ExportIncentiveClaim",
   "ExportAuthorisation",
   "ExportObligationEntry",
+  // MSME claims (TN-05): msme-claims.spec proves a foreign company sees none
+  "MsmeClaimSetting",
+  "MsmeRecoveryClaim",
+  "MsmeRecoveryClaimLine",
 ]);
 
 describe("cross-tenant leak suite", () => {

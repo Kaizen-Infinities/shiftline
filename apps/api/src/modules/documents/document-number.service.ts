@@ -35,6 +35,8 @@ export const DOCUMENT_PREFIXES: Record<string, string> = {
   RECEIPT_VOUCHER: "RV",
   REFUND_VOUCHER: "RFV",
   JOB_WORK_CHALLAN: "JW",
+  /** TN-05: an MSME delayed-payment claim on a buyer (not a tax document). */
+  MSME_CLAIM: "MSC",
 };
 
 const pad2 = (n: number) => String(n).padStart(2, "0");

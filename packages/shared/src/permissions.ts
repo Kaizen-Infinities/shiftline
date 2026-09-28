@@ -333,6 +333,18 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "Export order time-and-action calendar",
   },
   {
+    // TN-09: per-job costing for body builders and fabricators (quote vs actual).
+    module: "project-jobs",
+    actions: ["view", "create", "edit", "delete", "export"],
+    description: "Job / project costing",
+  },
+  {
+    // TN-06: multi-step process routes (knitting → dyeing → stitching) and the lots on them.
+    module: "process-routes",
+    actions: ["view", "create", "edit", "delete"],
+    description: "Process routes and lot board",
+  },
+  {
     module: "goods-dispatch",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Goods Dispatch",
@@ -341,6 +353,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     module: "delivery-schedules",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Customer delivery schedules and adherence",
+  },
+  {
+    // TN-07: advance shipping notices, packing labels and the customer part-number map.
+    module: "asn",
+    actions: ["view", "create", "edit", "export"],
+    description: "OEM ASN, packing labels and customer part numbers",
   },
   {
     module: "shift-execution",
@@ -432,6 +450,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     module: "receivable",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Accounts Receivable",
+  },
+  {
+    // TN-05: section 16 interest and Samadhaan / MSEFC claims against late-paying buyers.
+    module: "msme-claims",
+    actions: ["view", "create", "edit", "export"],
+    description: "MSME delayed-payment claims (receivable side)",
   },
   {
     module: "vouchers",

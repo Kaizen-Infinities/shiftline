@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
+import type { Locale } from "@shiftline/shared";
 import authService from "../../services/authService";
 import { refreshAccessToken } from "../../api/refresh";
 import type { AuthState, UserResponseDto, LoginDto, ProfileResponseDto } from "./types";
@@ -149,6 +150,10 @@ const authSlice = createSlice({
       localStorage.removeItem("accessToken");
       sessionStorage.removeItem("accessToken");
     },
+    /** TN-04: the language switch updates the user in place (optimistically). */
+    setUserLocale: (state, action: PayloadAction<Locale>) => {
+      if (state.user) state.user.locale = action.payload;
+    },
     clearUser: (state) => {
       state.user = null;
       state.entitlements = null;
@@ -234,6 +239,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setAccessToken, clearUser, beginSessionSwitch, endSessionSwitch } =
+export const { setAccessToken, clearUser, setUserLocale, beginSessionSwitch, endSessionSwitch } =
   authSlice.actions;
 export default authSlice.reducer;

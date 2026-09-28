@@ -66,7 +66,13 @@ import statutoryPayrollRoutes from "../modules/payroll/statutory.routes";
 import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
 import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
+import projectJobsRoutes from "../modules/project-jobs/project-jobs.routes";
+import msmeClaimsRoutes from "../modules/msme-claims/msme-claims.routes";
+import processRoutesRoutes, {
+  lotsRouter as processLotsRoutes,
+} from "../modules/process-routes/process-routes.routes";
 import deliveryScheduleRoutes from "../modules/delivery-schedules/delivery-schedules.routes";
+import asnRoutes from "../modules/asn/asn.routes";
 import exportIncentivesRoutes from "../modules/export-incentives/export-incentives.routes";
 import smsRoutes from "../modules/sms/sms.routes";
 import paymentsRoutes, {
@@ -159,6 +165,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/oee", router: oeeRoutes },
   { path: "/goods-dispatches", router: goodsDispatchRoutes },
   { path: "/delivery-schedules", router: deliveryScheduleRoutes },
+  { path: "/asn", router: asnRoutes },
   { path: "/inventory", router: inventoryRoutes },
   { path: "/machine-operation-assignments", router: machineOperationAssignmentRoutes },
   { path: "/product-shift-records", router: productShiftRecordRoutes },
@@ -173,6 +180,8 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/job-work", router: jobWorkRoutes },
   { path: "/tds", router: tdsRoutes },
   { path: "/tally", router: tallyRoutes },
+  // TN-05: mounted before /msme so the payable router never sees these paths.
+  { path: "/msme/receivable-claims", router: msmeClaimsRoutes },
   { path: "/msme", router: msmeRoutes },
   { path: "/assets", router: assetRoutes },
   { path: "/fx", router: fxRoutes },
@@ -182,6 +191,9 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/labour", router: labourRoutes },
   { path: "/leave", router: leaveRoutes },
   { path: "/order-tna", router: orderTnaRoutes },
+  { path: "/project-jobs", router: projectJobsRoutes },
+  { path: "/process-routes", router: processRoutesRoutes },
+  { path: "/process-lots", router: processLotsRoutes },
   { path: "/export-incentives", router: exportIncentivesRoutes },
   // The callback router must be mounted before /payments so a gateway's POST never meets
   // authMiddleware; it is authenticated by the signature on its body instead.

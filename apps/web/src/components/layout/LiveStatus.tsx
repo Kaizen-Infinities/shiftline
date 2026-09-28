@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 import { useSocket } from "../../providers/SocketProvider";
+import { useT } from "../../i18n/I18nProvider";
 
 /**
  * A quiet "Live" chip: green while the real-time connection is up, amber when the browser is
@@ -8,6 +9,7 @@ import { useSocket } from "../../providers/SocketProvider";
  */
 const LiveStatus: React.FC<{ className?: string }> = ({ className = "" }) => {
   const { isConnected } = useSocket();
+  const { t } = useT();
   const [online, setOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine
   );
@@ -24,11 +26,11 @@ const LiveStatus: React.FC<{ className?: string }> = ({ className = "" }) => {
   }, []);
 
   const live = online && isConnected;
-  const label = live ? "Live" : online ? "Reconnecting" : "Offline";
+  const label = live ? t("shell.live") : online ? t("shell.reconnecting") : t("shell.offline");
   return (
     <span
       role="status"
-      title={live ? "Real-time updates are on" : "Real-time updates are paused"}
+      title={live ? t("shell.liveOn") : t("shell.livePaused")}
       className={`sl-chip ${live ? "sl-chip-success" : "sl-chip-warning"} ${className}`}
     >
       <span

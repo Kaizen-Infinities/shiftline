@@ -1,3 +1,5 @@
+import type { Locale } from "@shiftline/shared";
+
 export type UserStatus = "active" | "suspended" | "locked";
 
 export interface LoginDto {
@@ -15,6 +17,8 @@ export interface UserResponseDto {
   isSuperAdmin?: boolean;
   lastLoginAt: string | null;
   mfaEnabled: boolean;
+  /** UI language (TN-04); absent from older sessions, which read as English. */
+  locale?: Locale;
   avatarUrl?: string | null;
   profilePicture?: string | null;
   photoUrl?: string | null;

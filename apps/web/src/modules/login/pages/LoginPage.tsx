@@ -7,12 +7,27 @@ import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { loginUser } from "../../../features/auth/authSlice";
 import { companyService, type CompanyBranding } from "../../../services/companyService";
 import AuthLayout from "../../../components/layout/AuthLayout";
+import LanguageSwitch from "../../../components/layout/LanguageSwitch";
+import { useT } from "../../../i18n/I18nProvider";
+
+/** "Welcome to {brand}" with the product name in bold, wherever the language puts it. */
+const withBrand = (text: string) => {
+  const [before, after = ""] = text.split("{brand}");
+  return (
+    <>
+      {before}
+      <strong>Shiftline</strong>
+      {after}
+    </>
+  );
+};
 
 const LoginPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const ids = useId();
+  const { t } = useT();
 
   const { isLoading: reduxLoading } = useAppSelector((state) => state.auth);
   const [company, setCompany] = useState<CompanyBranding | null>(null);
@@ -45,21 +60,21 @@ const LoginPage = () => {
     const errors = { email: "", password: "" };
 
     if (!email.trim()) {
-      errors.email = "Email Address is required";
+      errors.email = t("login.emailRequired");
       isValid = false;
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email.trim())) {
-        errors.email = "Please enter a valid email address";
+        errors.email = t("login.emailInvalid");
         isValid = false;
       }
     }
 
     if (!password) {
-      errors.password = "Password is required";
+      errors.password = t("login.passwordRequired");
       isValid = false;
     } else if (password.length < 4) {
-      errors.password = "Password must be at least 4 characters";
+      errors.password = t("login.passwordShort");
       isValid = false;
     }
 
@@ -82,7 +97,7 @@ const LoginPage = () => {
 
       if (loginUser.fulfilled.match(resultAction)) {
         const user = resultAction.payload;
-        toast.success(`Welcome back, ${user?.fullName || "User"}`);
+        toast.success(t("login.welcomeBack", { name: user?.fullName || t("shell.user") }));
 
         const locationState = location.state as {
           from?: { pathname?: string; search?: string; hash?: string };
@@ -97,12 +112,12 @@ const LoginPage = () => {
 
         navigate(fromPath, { replace: true });
       } else {
-        const message = (resultAction.payload as string) || "Invalid email or password";
+        const message = (resultAction.payload as string) || t("login.failed");
         setServerError(message);
         toast.error(message);
       }
     } catch (err: any) {
-      const message = err?.message || "An unexpected error occurred";
+      const message = err?.message || t("login.unexpected");
       setServerError(message);
       toast.error(message);
     } finally {
@@ -118,19 +133,16 @@ const LoginPage = () => {
     <AuthLayout
       logoUrl={company?.logoUrl}
       logoAlt={companyName}
-      headline={
-        <>
-          Welcome to <strong>Shiftline</strong>
-        </>
-      }
-      subline="Production, inventory, sales, purchasing, accounts and statutory compliance, on one ledger."
-      footer={`© ${new Date().getFullYear()} Shiftline · ${MAKER.full}`}
+      headline={withBrand(t("login.headline"))}
+      subline={t("login.subline")}
+      footer={`© ${new Date().getFullYear()} Shiftline Beta · ${MAKER.full}`}
     >
       <div className="sl-tile w-full max-w-[420px] !rounded-[24px] p-7 sm:p-9">
-        <h2 className="sl-h1">Sign in</h2>
-        <p className="sl-muted mt-1.5 text-sm leading-relaxed">
-          Sign in to your account to continue managing operations.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h2 className="sl-h1">{t("login.title")}</h2>
+          <LanguageSwitch showLabel={false} announce={false} className="w-[11.5rem]" />
+        </div>
+        <p className="sl-muted mt-1.5 text-sm leading-relaxed">{t("login.intro")}</p>
 
         {serverError && (
           <div
@@ -145,7 +157,7 @@ const LoginPage = () => {
         <form onSubmit={handleLogin} className="mt-7 space-y-5" noValidate>
           <div>
             <label htmlFor={emailId} className="mb-1.5 block text-sm font-semibold text-ink-muted">
-              Email address
+              {t("login.email")}
             </label>
             <div className="relative">
               <Mail
@@ -158,7 +170,7 @@ const LoginPage = () => {
                 name="email"
                 type="email"
                 value={email}
-                placeholder="you@company.com"
+                placeholder={t("login.emailPlaceholder")}
                 required
                 disabled={loading}
                 autoComplete="username"
@@ -187,7 +199,7 @@ const LoginPage = () => {
               htmlFor={passwordId}
               className="mb-1.5 block text-sm font-semibold text-ink-muted"
             >
-              Password
+              {t("login.password")}
             </label>
             <div className="relative">
               <LockKeyhole
@@ -200,7 +212,7 @@ const LoginPage = () => {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                placeholder="Enter your password"
+                placeholder={t("login.passwordPlaceholder")}
                 required
                 disabled={loading}
                 autoComplete="current-password"
@@ -217,9 +229,9 @@ const LoginPage = () => {
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
                 disabled={loading}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                 aria-pressed={showPassword}
-                title={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                 className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-ink-subtle hover:bg-nav-hover hover:text-ink"
               >
                 {showPassword ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
@@ -237,14 +249,14 @@ const LoginPage = () => {
 
           <div className="pt-2">
             <button type="submit" disabled={loading} className="sl-cta sl-cta-lg w-full">
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? t("login.submitting") : t("login.submit")}
             </button>
           </div>
         </form>
 
         <div className="mt-7 flex flex-wrap items-center gap-2 border-t border-line-soft pt-5 text-xs text-ink-subtle">
-          <span className="sl-chip sl-chip-muted !text-xs">GST ready</span>
-          <span className="sl-chip sl-chip-muted !text-xs">Made for Indian factories</span>
+          <span className="sl-chip sl-chip-muted !text-xs">{t("login.gstReady")}</span>
+          <span className="sl-chip sl-chip-muted !text-xs">{t("login.madeForIndia")}</span>
         </div>
       </div>
     </AuthLayout>

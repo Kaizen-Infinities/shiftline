@@ -100,14 +100,31 @@ export const AUDITED_MODELS = [
   // export order time-and-action calendar (TN-03)
   "OrderTna",
   "OrderTnaMilestone",
+  "ProjectJob",
+  "ProjectJobStage",
+  "ProjectJobCost",
+  "ProjectJobBilling",
+  // multi-step job-work process routes (TN-06)
+  "ProcessRoute",
+  "ProcessRouteStep",
+  "LotRouteProgress",
+  "LotStepMovement",
   // customer delivery schedules (TN-02)
   "CustomerSchedule",
   "CustomerScheduleLine",
   "CustomerScheduleDispatch",
+  // OEM ASN and part-number cross-reference (TN-07)
+  "CustomerPartMap",
+  "Asn",
+  "AsnLine",
   // exports (TN-01): incentive claims are receivables and authorisations a legal obligation
   "ExportIncentiveClaim",
   "ExportAuthorisation",
   "ExportObligationEntry",
+  // MSME delayed-payment claims (TN-05): a legal demand on a buyer, and the rate behind it
+  "MsmeClaimSetting",
+  "MsmeRecoveryClaim",
+  "MsmeRecoveryClaimLine",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

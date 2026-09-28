@@ -245,7 +245,13 @@ const LabourEntitlementsPage = lazy(
 );
 const LeaveHrPage = lazy(() => import("../modules/leave/pages/LeaveHrPage"));
 const OrderTnaPage = lazy(() => import("../modules/production/pages/OrderTnaPage"));
+const ProjectJobsPage = lazy(() => import("../modules/production/pages/ProjectJobsPage"));
+const ProjectJobDetailPage = lazy(() => import("../modules/production/pages/ProjectJobDetailPage"));
+const ProcessRoutesPage = lazy(() => import("../modules/production/pages/ProcessRoutesPage"));
+const LotBoardPage = lazy(() => import("../modules/production/pages/LotBoardPage"));
 const DeliverySchedulesPage = lazy(() => import("../modules/sales/pages/DeliverySchedulesPage"));
+const AsnPage = lazy(() => import("../modules/sales/pages/AsnPage"));
+const CustomerPartMapPage = lazy(() => import("../modules/sales/pages/CustomerPartMapPage"));
 const MyLeavePage = lazy(() => import("../modules/leave/pages/MyLeavePage"));
 const ExportIncentivesPage = lazy(() => import("../modules/exports/pages/ExportIncentivesPage"));
 const RegistersPage = lazy(() => import("../modules/payroll/pages/RegistersPage"));
@@ -318,6 +324,7 @@ const AmountPayablePage = lazy(() => import("../modules/accounts/pages/payable/A
 const AmountReceivablePage = lazy(
   () => import("../modules/accounts/pages/receivable/AmountReceivablePage")
 );
+const MsmeClaimsPage = lazy(() => import("../modules/accounts/pages/receivable/MsmeClaimsPage"));
 const SupplierBreakdownPage = lazy(
   () => import("../modules/accounts/pages/payable/SupplierBreakdownPage")
 );
@@ -559,8 +566,19 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="production-wastages.view" />}>
                 <Route path="/production-wastages" element={<WastageList />} />
               </Route>
+              <Route element={<ProtectedRoute permission="msme-claims.view" />}>
+                <Route path="/accounts/msme-claims" element={<MsmeClaimsPage />} />
+              </Route>
               <Route element={<ProtectedRoute permission="order-tna.view" />}>
                 <Route path="/production/order-tna" element={<OrderTnaPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="project-jobs.view" />}>
+                <Route path="/production/jobs" element={<ProjectJobsPage />} />
+                <Route path="/production/jobs/:id" element={<ProjectJobDetailPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="process-routes.view" />}>
+                <Route path="/production/process-routes" element={<ProcessRoutesPage />} />
+                <Route path="/production/lots" element={<LotBoardPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="goods-dispatch.view" />}>
                 <Route path="/production/goods-dispatch" element={<GoodsDispatchList />} />
@@ -639,6 +657,10 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="delivery-schedules.view" />}>
                 <Route path="/sales/delivery-schedules" element={<DeliverySchedulesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="asn.view" />}>
+                <Route path="/sales/asn" element={<AsnPage />} />
+                <Route path="/sales/customer-part-numbers" element={<CustomerPartMapPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="export-incentives.view" />}>
                 <Route path="/exports/incentives" element={<ExportIncentivesPage />} />

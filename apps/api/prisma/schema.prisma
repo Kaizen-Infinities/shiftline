@@ -173,6 +173,8 @@ model User {
   lastLoginIp         String?
   mfaEnabled          Boolean              @default(false)
   mfaSecret           String?
+  /// UI language (TN-04): "en" or "ta"; a CHECK constraint enforces the list.
+  locale              String               @default("en") @db.VarChar(5)
   createdBy           String?
   createdOn           DateTime             @default(now()) @db.Timestamptz(6)
   updatedOn           DateTime             @updatedAt @db.Timestamptz(6)
@@ -518,7 +520,11 @@ model Customer {
   cheques               Cheque[]
   tdsDeductions         TdsDeduction[]      @relation("CustomerTdsDeduction")
   orderTnas             OrderTna[]          @relation("CustomerOrderTna")
+  projectJobs           ProjectJob[]        @relation("CustomerProjectJob")
   deliverySchedules     CustomerSchedule[]  @relation("CustomerDeliverySchedule")
+  msmeRecoveryClaims    MsmeRecoveryClaim[] @relation("CustomerMsmeRecoveryClaim")
+  customerPartMaps      CustomerPartMap[]   @relation("CustomerPartMapCustomer")
+  asns                  Asn[]               @relation("CustomerAsn")
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -741,6 +747,14 @@ model Company {
   leaveRequests          LeaveRequest[]           @relation("CompanyLeaveRequest")
   orderTnas              OrderTna[]               @relation("CompanyOrderTna")
   orderTnaMilestones     OrderTnaMilestone[]      @relation("CompanyOrderTnaMilestone")
+  projectJobs            ProjectJob[]             @relation("CompanyProjectJob")
+  projectJobStages       ProjectJobStage[]        @relation("CompanyProjectJobStage")
+  projectJobCosts        ProjectJobCost[]         @relation("CompanyProjectJobCost")
+  projectJobBillings     ProjectJobBilling[]      @relation("CompanyProjectJobBilling")
+  processRoutes          ProcessRoute[]           @relation("CompanyProcessRoute")
+  processRouteSteps      ProcessRouteStep[]       @relation("CompanyProcessRouteStep")
+  processLots            LotRouteProgress[]       @relation("CompanyLotRouteProgress")
+  lotStepMovements       LotStepMovement[]        @relation("CompanyLotStepMovement")
   paymentGateway         PaymentGatewayConfig?    @relation("CompanyPaymentGatewayConfig")
   paymentLinks           PaymentLink[]            @relation("CompanyPaymentLink")
   paymentCaptures        PaymentCapture[]         @relation("CompanyPaymentCapture")
@@ -754,12 +768,18 @@ model Company {
   exportIncentiveClaims  ExportIncentiveClaim[]   @relation("CompanyExportIncentiveClaim")
   exportAuthorisations   ExportAuthorisation[]    @relation("CompanyExportAuthorisation")
   exportObligations      ExportObligationEntry[]  @relation("CompanyExportObligationEntry")
+  msmeClaimSetting       MsmeClaimSetting?        @relation("CompanyMsmeClaimSetting")
+  msmeRecoveryClaims     MsmeRecoveryClaim[]      @relation("CompanyMsmeRecoveryClaim")
+  msmeRecoveryClaimLines MsmeRecoveryClaimLine[]  @relation("CompanyMsmeRecoveryClaimLine")
 
   gstr2bSettings             Gstr2bSettings?            @relation("CompanyGstr2bSettings")
   supplierFollowUps          SupplierFollowUp[]         @relation("CompanySupplierFollowUp")
   customerSchedules          CustomerSchedule[]         @relation("CompanyCustomerSchedule")
   customerScheduleLines      CustomerScheduleLine[]     @relation("CompanyCustomerScheduleLine")
   customerScheduleDispatches CustomerScheduleDispatch[] @relation("CompanyCustomerScheduleDispatch")
+  customerPartMaps           CustomerPartMap[]          @relation("CompanyCustomerPartMap")
+  asns                       Asn[]                      @relation("CompanyAsn")
+  asnLines                   AsnLine[]                  @relation("CompanyAsnLine")
 
   @@map("companies")
 }
@@ -1028,10 +1048,14 @@ model Product {
   finishedGoodsStocks       FinishedGoodsStock[]
   finishedGoodsTransactions FinishedGoodsTransaction[]
   customerScheduleLines     CustomerScheduleLine[]
+  customerPartMaps          CustomerPartMap[]
+  asnLines                  AsnLine[]
   goodsDispatchItems        GoodsDispatchItem[]
   images                    ProductImage[]
   productionOrders          ProductionOrder[]
   productionSteps           ProductionStep[]
+  processRoutes             ProcessRoute[]             @relation("ProductProcessRoute")
+  processLots               LotRouteProgress[]         @relation("ProductLotRouteProgress")
   productionWastages        ProductionWastage[]
   uom                       UnitOfMeasure?             @relation(fields: [uomId], references: [id], onDelete: Restrict)
   category                  Category?                  @relation(fields: [categoryId], references: [id])
@@ -2328,70 +2352,72 @@ model InvoiceSetting {
 }
 
 model SalesInvoice {
-  id                    String                 @id @default(uuid()) @db.Uuid
-  companyId             String                 @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  invoiceNo             String                 @map("invoice_no")
-  invoiceDate           DateTime               @map("invoice_date") @db.Date
-  dueDate               DateTime?              @map("due_date") @db.Date
-  status                String                 @default("DRAFT")
-  customerId            String                 @map("customer_id") @db.Uuid
+  id                    String                  @id @default(uuid()) @db.Uuid
+  companyId             String                  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  invoiceNo             String                  @map("invoice_no")
+  invoiceDate           DateTime                @map("invoice_date") @db.Date
+  dueDate               DateTime?               @map("due_date") @db.Date
+  status                String                  @default("DRAFT")
+  customerId            String                  @map("customer_id") @db.Uuid
   notes                 String?
-  subTotal              Decimal                @map("sub_total") @db.Decimal(14, 2)
-  discountType          String?                @map("discount_type") @db.VarChar(10)
-  discountValue         Decimal?               @map("discount_value") @db.Decimal(14, 2)
-  totalDiscount         Decimal                @default(0) @map("total_discount") @db.Decimal(14, 2)
-  taxTotal              Decimal                @map("tax_total") @db.Decimal(14, 2)
-  grandTotal            Decimal                @map("grand_total") @db.Decimal(14, 2)
-  createdBy             String?                @map("created_by")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  salesOrderId          Int?                   @map("sales_order_id")
-  storeId               String?                @map("store_id") @db.VarChar(20)
-  payments              Json?                  @default("[]") @map("payments")
-  narration             String?                @db.VarChar(2000)
-  transport             Json?                  @map("transport")
-  numberOfBundle        Int?                   @map("number_of_bundle")
-  billSundry            Json?                  @map("bill_sundry")
-  shippingAddressLine1  String?                @map("shipping_address_line1") @db.VarChar(255)
-  shippingCity          String?                @map("shipping_city") @db.VarChar(100)
-  shippingState         String?                @map("shipping_state") @db.VarChar(100)
-  shippingPincode       String?                @map("shipping_pincode") @db.VarChar(20)
-  documentType          SalesDocumentType      @default(TAX_INVOICE) @map("document_type")
-  businessPlaceId       BigInt?                @map("business_place_id")
+  subTotal              Decimal                 @map("sub_total") @db.Decimal(14, 2)
+  discountType          String?                 @map("discount_type") @db.VarChar(10)
+  discountValue         Decimal?                @map("discount_value") @db.Decimal(14, 2)
+  totalDiscount         Decimal                 @default(0) @map("total_discount") @db.Decimal(14, 2)
+  taxTotal              Decimal                 @map("tax_total") @db.Decimal(14, 2)
+  grandTotal            Decimal                 @map("grand_total") @db.Decimal(14, 2)
+  createdBy             String?                 @map("created_by")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+  salesOrderId          Int?                    @map("sales_order_id")
+  storeId               String?                 @map("store_id") @db.VarChar(20)
+  payments              Json?                   @default("[]") @map("payments")
+  narration             String?                 @db.VarChar(2000)
+  transport             Json?                   @map("transport")
+  numberOfBundle        Int?                    @map("number_of_bundle")
+  billSundry            Json?                   @map("bill_sundry")
+  shippingAddressLine1  String?                 @map("shipping_address_line1") @db.VarChar(255)
+  shippingCity          String?                 @map("shipping_city") @db.VarChar(100)
+  shippingState         String?                 @map("shipping_state") @db.VarChar(100)
+  shippingPincode       String?                 @map("shipping_pincode") @db.VarChar(20)
+  documentType          SalesDocumentType       @default(TAX_INVOICE) @map("document_type")
+  businessPlaceId       BigInt?                 @map("business_place_id")
   /// GST state code of the recipient (goods: where they are delivered).
-  placeOfSupply         String?                @map("place_of_supply") @db.VarChar(2)
-  supplyType            SupplyType             @default(INTRA_STATE) @map("supply_type")
-  customerGstin         String?                @map("customer_gstin") @db.VarChar(15)
-  reverseCharge         Boolean                @default(false) @map("reverse_charge")
-  cessTotal             Decimal                @default(0) @map("cess_total") @db.Decimal(14, 2)
+  placeOfSupply         String?                 @map("place_of_supply") @db.VarChar(2)
+  supplyType            SupplyType              @default(INTRA_STATE) @map("supply_type")
+  customerGstin         String?                 @map("customer_gstin") @db.VarChar(15)
+  reverseCharge         Boolean                 @default(false) @map("reverse_charge")
+  cessTotal             Decimal                 @default(0) @map("cess_total") @db.Decimal(14, 2)
   /// Exports and SEZ supplies (P1-14): whether tax was charged, and the shipping bill that
   /// proves the goods left, which GSTR-1's EXP table carries.
-  exportType            ExportType?            @map("export_type")
-  lutNumber             String?                @map("lut_number") @db.VarChar(30)
-  shippingBillNo        String?                @map("shipping_bill_no") @db.VarChar(20)
-  shippingBillDate      DateTime?              @map("shipping_bill_date") @db.Date
-  portCode              String?                @map("port_code") @db.VarChar(10)
+  exportType            ExportType?             @map("export_type")
+  lutNumber             String?                 @map("lut_number") @db.VarChar(30)
+  shippingBillNo        String?                 @map("shipping_bill_no") @db.VarChar(20)
+  shippingBillDate      DateTime?               @map("shipping_bill_date") @db.Date
+  portCode              String?                 @map("port_code") @db.VarChar(10)
   /// A foreign-currency document keeps both: the books are in INR at the rate it posted at.
-  currencyCode          String                 @default("INR") @map("currency_code") @db.VarChar(3)
-  exchangeRate          Decimal                @default(1) @map("exchange_rate") @db.Decimal(14, 6)
-  foreignTotal          Decimal?               @map("foreign_total") @db.Decimal(14, 2)
+  currencyCode          String                  @default("INR") @map("currency_code") @db.VarChar(3)
+  exchangeRate          Decimal                 @default(1) @map("exchange_rate") @db.Decimal(14, 6)
+  foreignTotal          Decimal?                @map("foreign_total") @db.Decimal(14, 2)
   /// P2-05: TCS collected on this invoice (section 394, e.g. 206C(1) scrap or 206C(1H) above the
   /// buyer threshold). Included in grandTotal — the customer owes it too.
-  tcsSectionCode        String?                @map("tcs_section_code") @db.VarChar(20)
-  tcsAmount             Decimal                @default(0) @map("tcs_amount") @db.Decimal(14, 2)
+  tcsSectionCode        String?                 @map("tcs_section_code") @db.VarChar(20)
+  tcsAmount             Decimal                 @default(0) @map("tcs_amount") @db.Decimal(14, 2)
   items                 SalesInvoiceItem[]
   paymentRecords        SalesInvoicePayment[]
-  customer              Customer               @relation(fields: [customerId], references: [id])
-  salesOrder            SalesOrder?            @relation(fields: [salesOrderId], references: [id])
-  store                 Store?                 @relation(fields: [companyId, storeId], references: [companyId, storeId])
+  customer              Customer                @relation(fields: [customerId], references: [id])
+  salesOrder            SalesOrder?             @relation(fields: [salesOrderId], references: [id])
+  store                 Store?                  @relation(fields: [companyId, storeId], references: [companyId, storeId])
   salesReturns          SalesReturn[]
   advanceAdjustments    AdvanceAdjustment[]
   exportIncentiveClaims ExportIncentiveClaim[]
-  businessPlace         BusinessPlace?         @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
+  msmeClaimLines        MsmeRecoveryClaimLine[] @relation("SalesInvoiceMsmeClaimLine")
+  businessPlace         BusinessPlace?          @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
+  asns                  Asn[]
   /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
-  cancelledAt           DateTime?              @map("cancelled_at") @db.Timestamptz(6)
-  cancelledBy           String?                @map("cancelled_by") @db.VarChar(36)
-  cancelReason          String?                @map("cancel_reason") @db.VarChar(255)
+  cancelledAt           DateTime?               @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy           String?                 @map("cancelled_by") @db.VarChar(36)
+  cancelReason          String?                 @map("cancel_reason") @db.VarChar(255)
 
   company      Company       @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
   paymentLinks PaymentLink[]
@@ -4605,9 +4631,12 @@ model JobWorker {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  challans     DeliveryChallan[]
+  challans          DeliveryChallan[]
   /// Movements sent on from this worker to another (ITC-04 table 5B).
-  challansFrom DeliveryChallan[] @relation("ChallanFromJobWorker")
+  challansFrom      DeliveryChallan[]  @relation("ChallanFromJobWorker")
+  /// TN-06: route steps this worker does by default, and lot movements they held.
+  processRouteSteps ProcessRouteStep[] @relation("JobWorkerProcessRouteStep")
+  lotStepMovements  LotStepMovement[]  @relation("JobWorkerLotStepMovement")
 
   company Company @relation("CompanyJobWorker", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -4661,12 +4690,14 @@ model DeliveryChallan {
   cancelledBy       String?       @map("cancelled_by") @db.VarChar(36)
   cancelReason      String?       @map("cancel_reason") @db.VarChar(255)
 
-  jobWorker     JobWorker?            @relation(fields: [jobWorkerId], references: [id])
-  fromJobWorker JobWorker?            @relation("ChallanFromJobWorker", fields: [fromJobWorkerId], references: [id])
-  parentChallan DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
-  returns       DeliveryChallan[]     @relation("ChallanReturns")
-  businessPlace BusinessPlace?        @relation("ChallanBusinessPlace", fields: [businessPlaceId], references: [id])
-  items         DeliveryChallanItem[]
+  jobWorker        JobWorker?            @relation(fields: [jobWorkerId], references: [id])
+  fromJobWorker    JobWorker?            @relation("ChallanFromJobWorker", fields: [fromJobWorkerId], references: [id])
+  parentChallan    DeliveryChallan?      @relation("ChallanReturns", fields: [parentChallanId], references: [id])
+  returns          DeliveryChallan[]     @relation("ChallanReturns")
+  businessPlace    BusinessPlace?        @relation("ChallanBusinessPlace", fields: [businessPlaceId], references: [id])
+  items            DeliveryChallanItem[]
+  /// TN-06: lot movements on a process route that this challan carried.
+  lotStepMovements LotStepMovement[]     @relation("ChallanLotStepMovement")
 
   company Company @relation("CompanyDeliveryChallan", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -6353,6 +6384,7 @@ model CustomerScheduleLine {
 
   dispatches CustomerScheduleDispatch[]
   schedule   CustomerSchedule           @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  asnLines   AsnLine[]
   product    Product?                   @relation(fields: [productId], references: [id], onDelete: Restrict)
   company    Company                    @relation("CompanyCustomerScheduleLine", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -6375,11 +6407,114 @@ model CustomerScheduleDispatch {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   line    CustomerScheduleLine @relation(fields: [lineId], references: [id], onDelete: Restrict)
+  asnLine AsnLine?
   company Company              @relation("CompanyCustomerScheduleDispatch", fields: [companyId], references: [id], onDelete: Restrict)
 
   @@index([lineId])
   @@index([companyId, dispatchDate])
   @@map("customer_schedule_dispatches")
+}
+
+// ── OEM ASN, packing labels and part-number cross-reference (TN-07) ───────────
+
+enum AsnStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+/// TN-07: the customer's (OEM's) part number for one of our products, with its standard pack.
+model CustomerPartMap {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  productId      BigInt   @map("product_id")
+  customerPartNo String   @map("customer_part_no") @db.VarChar(40)
+  description    String?  @db.VarChar(120)
+  /// Standard pack (bin / box) quantity; labels split an ASN line into packs of this size.
+  packQty        Decimal? @map("pack_qty") @db.Decimal(14, 3)
+  packType       String?  @map("pack_type") @db.VarChar(30)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdBy      String?  @map("created_by") @db.VarChar(36)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer Customer @relation("CustomerPartMapCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  company  Company  @relation("CompanyCustomerPartMap", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, customerId, customerPartNo])
+  @@index([companyId, customerId, productId])
+  @@map("customer_part_maps")
+}
+
+/// TN-07: advance shipping notice for one sales invoice, sent to the OEM with the truck.
+model Asn {
+  id              String    @id @default(uuid()) @db.Uuid
+  companyId       String    @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  asnNo           String    @map("asn_no") @db.VarChar(40)
+  customerId      String    @map("customer_id") @db.Uuid
+  salesInvoiceId  String    @map("sales_invoice_id") @db.Uuid
+  /// Snapshot of the invoice number and date, as the OEM receives them.
+  invoiceNo       String    @map("invoice_no") @db.VarChar(40)
+  invoiceDate     DateTime  @map("invoice_date") @db.Date
+  vehicleNo       String?   @map("vehicle_no") @db.VarChar(15)
+  transporterName String?   @map("transporter_name") @db.VarChar(100)
+  lrNo            String?   @map("lr_no") @db.VarChar(30)
+  lrDate          DateTime? @map("lr_date") @db.Date
+  dispatchAt      DateTime  @map("dispatch_at") @db.Timestamptz(6)
+  status          AsnStatus @default(DRAFT)
+  sentAt          DateTime? @map("sent_at") @db.Timestamptz(6)
+  acknowledgedAt  DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  /// The OEM portal's acknowledgement / GRN reference.
+  ackRef          String?   @map("ack_ref") @db.VarChar(60)
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason    String?   @map("cancel_reason") @db.VarChar(300)
+  notes           String?   @db.VarChar(500)
+  createdBy       String?   @map("created_by") @db.VarChar(36)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lines        AsnLine[]
+  customer     Customer     @relation("CustomerAsn", fields: [customerId], references: [id], onDelete: Restrict)
+  salesInvoice SalesInvoice @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  company      Company      @relation("CompanyAsn", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, asnNo])
+  @@index([companyId, customerId, dispatchAt])
+  @@index([salesInvoiceId])
+  @@map("asns")
+}
+
+/// TN-07: one part on an ASN. Once the ASN is sent, a line linked to a TN-02 schedule line books
+/// a CustomerScheduleDispatch (dispatchId) so the quantity counts toward adherence.
+model AsnLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  asnId          String   @map("asn_id") @db.Uuid
+  seq            Int
+  productId      BigInt   @map("product_id")
+  customerPartNo String   @map("customer_part_no") @db.VarChar(40)
+  description    String?  @db.VarChar(120)
+  uom            String?  @db.VarChar(20)
+  qty            Decimal  @db.Decimal(14, 3)
+  packQty        Decimal  @map("pack_qty") @db.Decimal(14, 3)
+  packs          Int
+  scheduleLineId String?  @map("schedule_line_id") @db.Uuid
+  dispatchId     String?  @unique @map("dispatch_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  asn          Asn                       @relation(fields: [asnId], references: [id], onDelete: Cascade)
+  product      Product                   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  scheduleLine CustomerScheduleLine?     @relation(fields: [scheduleLineId], references: [id], onDelete: SetNull)
+  dispatch     CustomerScheduleDispatch? @relation(fields: [dispatchId], references: [id], onDelete: SetNull)
+  company      Company                   @relation("CompanyAsnLine", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([asnId, seq])
+  @@index([scheduleLineId])
+  @@map("asn_lines")
 }
 
 // ── Export incentives and authorisations (TN-01) ─────────────────────────────
@@ -6502,4 +6637,399 @@ model ExportObligationEntry {
 
   @@unique([companyId, authorisationId, shippingBillNo])
   @@map("export_obligation_entries")
+}
+
+/// TN-09: lifecycle of a body-building or fabrication job.
+enum ProjectJobStatus {
+  QUOTED
+  IN_PROGRESS
+  COMPLETED
+  DELIVERED
+  CANCELLED
+}
+
+/// TN-09: a stage on a job's plan.
+enum ProjectJobStageStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  SKIPPED
+}
+
+/// TN-09: what a cost line is.
+enum ProjectJobCostType {
+  MATERIAL
+  LABOUR
+  SUBCONTRACT
+  OVERHEAD
+}
+
+/// TN-09: a DRAFT cost line can be removed; a POSTED one is locked.
+enum ProjectJobCostStatus {
+  DRAFT
+  POSTED
+}
+
+/// TN-09: advances received and invoices raised against a job.
+enum ProjectJobBillingKind {
+  ADVANCE
+  STAGE_INVOICE
+  FINAL
+}
+
+/// TN-09: one customer job (a truck body on the customer's chassis, a fabrication order) costed
+/// on its own and compared with its quote.
+model ProjectJob {
+  id                String           @id @default(uuid()) @db.Uuid
+  companyId         String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobNo             String           @map("job_no") @db.VarChar(30)
+  customerId        String           @map("customer_id") @db.Uuid
+  title             String           @db.VarChar(120)
+  description       String?          @db.VarChar(500)
+  quotedAmount      Decimal          @map("quoted_amount") @db.Decimal(14, 2)
+  quoteDate         DateTime         @map("quote_date") @db.Date
+  targetDate        DateTime?        @map("target_date") @db.Date
+  /// Customer-owned chassis or material held in custody while the job runs.
+  chassisNo         String?          @map("chassis_no") @db.VarChar(40)
+  chassisMake       String?          @map("chassis_make") @db.VarChar(80)
+  chassisReceivedOn DateTime?        @map("chassis_received_on") @db.Date
+  conditionNotes    String?          @map("condition_notes") @db.VarChar(500)
+  status            ProjectJobStatus @default(QUOTED)
+  createdBy         String?          @map("created_by") @db.VarChar(36)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company             @relation("CompanyProjectJob", fields: [companyId], references: [id], onDelete: Restrict)
+  customer Customer            @relation("CustomerProjectJob", fields: [customerId], references: [id], onDelete: Restrict)
+  stages   ProjectJobStage[]
+  costs    ProjectJobCost[]
+  billings ProjectJobBilling[]
+
+  @@unique([companyId, jobNo])
+  @@index([companyId, status])
+  @@map("project_jobs")
+}
+
+/// TN-09: an ordered stage of a job's plan (chassis inward, fabrication, paneling ...).
+model ProjectJobStage {
+  id           String                @id @default(uuid()) @db.Uuid
+  companyId    String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobId        String                @map("job_id") @db.Uuid
+  seq          Int
+  name         String                @db.VarChar(80)
+  /// Relative weight for % complete (default 1).
+  weight       Int                   @default(1)
+  plannedStart DateTime?             @map("planned_start") @db.Date
+  plannedEnd   DateTime?             @map("planned_end") @db.Date
+  actualStart  DateTime?             @map("actual_start") @db.Date
+  actualEnd    DateTime?             @map("actual_end") @db.Date
+  status       ProjectJobStageStatus @default(PENDING)
+  remarks      String?               @db.VarChar(300)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company             @relation("CompanyProjectJobStage", fields: [companyId], references: [id], onDelete: Restrict)
+  job      ProjectJob          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  billings ProjectJobBilling[]
+
+  @@unique([jobId, seq])
+  @@index([companyId])
+  @@map("project_job_stages")
+}
+
+/// TN-09: a cost booked to a job. Amount = qty x rate (labour: hours x rate per hour).
+model ProjectJobCost {
+  id            String               @id @default(uuid()) @db.Uuid
+  companyId     String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobId         String               @map("job_id") @db.Uuid
+  type          ProjectJobCostType
+  costDate      DateTime             @map("cost_date") @db.Date
+  description   String               @db.VarChar(200)
+  qty           Decimal              @db.Decimal(14, 3)
+  uom           String?              @db.VarChar(20)
+  rate          Decimal              @db.Decimal(14, 2)
+  amount        Decimal              @db.Decimal(14, 2)
+  /// RawMaterial.id, checked tenant-scoped by the service.
+  rawMaterialId String?              @map("raw_material_id") @db.Uuid
+  /// RawMaterialTransaction.rmTxnId of an issue, checked tenant-scoped; costed once.
+  stockIssueId  BigInt?              @map("stock_issue_id")
+  /// Employee.id for labour, checked tenant-scoped.
+  employeeId    BigInt?              @map("employee_id")
+  vendorName    String?              @map("vendor_name") @db.VarChar(120)
+  status        ProjectJobCostStatus @default(DRAFT)
+  createdBy     String?              @map("created_by") @db.VarChar(36)
+  createdAt     DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company    @relation("CompanyProjectJobCost", fields: [companyId], references: [id], onDelete: Restrict)
+  job     ProjectJob @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, stockIssueId])
+  @@index([companyId, jobId, type])
+  @@map("project_job_costs")
+}
+
+/// TN-09: an advance received or an invoice raised against a job.
+model ProjectJobBilling {
+  id              String                @id @default(uuid()) @db.Uuid
+  companyId       String                @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  jobId           String                @map("job_id") @db.Uuid
+  kind            ProjectJobBillingKind
+  billDate        DateTime              @map("bill_date") @db.Date
+  amount          Decimal               @db.Decimal(14, 2)
+  /// On an invoice: the part of it settled from advances already received.
+  advanceAdjusted Decimal               @default(0) @map("advance_adjusted") @db.Decimal(14, 2)
+  stageId         String?               @map("stage_id") @db.Uuid
+  /// SalesInvoice.id, checked tenant-scoped by the service.
+  salesInvoiceId  String?               @map("sales_invoice_id") @db.Uuid
+  reference       String?               @db.VarChar(60)
+  remarks         String?               @db.VarChar(300)
+  createdBy       String?               @map("created_by") @db.VarChar(36)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company Company          @relation("CompanyProjectJobBilling", fields: [companyId], references: [id], onDelete: Restrict)
+  job     ProjectJob       @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  stage   ProjectJobStage? @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, jobId])
+  @@map("project_job_billings")
+}
+
+// ── MSME delayed-payment claims, receivable side (TN-05) ───────────────────────
+
+enum MsmeClaimStatus {
+  DRAFT
+  FILED
+  HEARING
+  SETTLED
+  WITHDRAWN
+}
+
+enum MsmeClaimForum {
+  SAMADHAAN
+  MSEFC
+  DIRECT
+}
+
+/// The tenant's own MSME particulars for section 16 claims: one row per company.
+model MsmeClaimSetting {
+  id                 String        @id @default(uuid()) @db.Uuid
+  companyId          String        @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// RBI bank rate, % a year; section 16 interest is three times this. VERIFY against the RBI.
+  bankRate           Decimal       @default(6.75) @map("bank_rate") @db.Decimal(5, 2)
+  /// Where the rate was checked (RBI notice / date), shown on the claim statement.
+  bankRateNote       String?       @map("bank_rate_note") @db.VarChar(200)
+  udyamNumber        String?       @map("udyam_number") @db.VarChar(19)
+  enterpriseCategory MsmeCategory? @map("enterprise_category")
+  updatedBy          String?       @map("updated_by") @db.VarChar(36)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyMsmeClaimSetting", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("msme_claim_settings")
+}
+
+/// A delayed-payment claim against one buyer (MSME Samadhaan, MSEFC or a direct demand).
+model MsmeRecoveryClaim {
+  id             String          @id @default(uuid()) @db.Uuid
+  companyId      String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  claimNo        String          @map("claim_no") @db.VarChar(30)
+  customerId     String          @map("customer_id") @db.Uuid
+  status         MsmeClaimStatus @default(DRAFT)
+  forum          MsmeClaimForum  @default(SAMADHAAN)
+  /// Interest on the lines is computed up to this date.
+  asOfDate       DateTime        @map("as_of_date") @db.Date
+  bankRate       Decimal         @map("bank_rate") @db.Decimal(5, 2)
+  annualRate     Decimal         @map("annual_rate") @db.Decimal(6, 2)
+  principalTotal Decimal         @default(0) @map("principal_total") @db.Decimal(14, 2)
+  interestTotal  Decimal         @default(0) @map("interest_total") @db.Decimal(14, 2)
+  filedOn        DateTime?       @map("filed_on") @db.Date
+  /// Samadhaan application number or MSEFC case number.
+  referenceNo    String?         @map("reference_no") @db.VarChar(60)
+  hearingOn      DateTime?       @map("hearing_on") @db.Date
+  settledOn      DateTime?       @map("settled_on") @db.Date
+  settledAmount  Decimal?        @map("settled_amount") @db.Decimal(14, 2)
+  notes          String?         @db.VarChar(1000)
+  createdBy      String?         @map("created_by") @db.VarChar(36)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company                 @relation("CompanyMsmeRecoveryClaim", fields: [companyId], references: [id], onDelete: Restrict)
+  customer Customer                @relation("CustomerMsmeRecoveryClaim", fields: [customerId], references: [id], onDelete: Restrict)
+  lines    MsmeRecoveryClaimLine[]
+
+  @@unique([companyId, claimNo])
+  @@index([companyId, status])
+  @@index([customerId])
+  @@map("msme_recovery_claims")
+}
+
+/// One invoice on a claim, with its section 15 date and section 16 interest as of the claim date.
+model MsmeRecoveryClaimLine {
+  id                   String   @id @default(uuid()) @db.Uuid
+  companyId            String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  claimId              String   @map("claim_id") @db.Uuid
+  salesInvoiceId       String   @map("sales_invoice_id") @db.Uuid
+  invoiceNo            String   @map("invoice_no") @db.VarChar(40)
+  invoiceDate          DateTime @map("invoice_date") @db.Date
+  acceptedOn           DateTime @map("accepted_on") @db.Date
+  invoiceAmount        Decimal  @map("invoice_amount") @db.Decimal(14, 2)
+  paidAmount           Decimal  @default(0) @map("paid_amount") @db.Decimal(14, 2)
+  principalOutstanding Decimal  @map("principal_outstanding") @db.Decimal(14, 2)
+  limitDays            Int      @map("limit_days")
+  dueDate              DateTime @map("due_date") @db.Date
+  daysLate             Int      @map("days_late")
+  interest             Decimal  @db.Decimal(14, 2)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company      Company           @relation("CompanyMsmeRecoveryClaimLine", fields: [companyId], references: [id], onDelete: Restrict)
+  claim        MsmeRecoveryClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  salesInvoice SalesInvoice      @relation("SalesInvoiceMsmeClaimLine", fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([claimId, salesInvoiceId])
+  @@index([salesInvoiceId])
+  @@index([companyId])
+  @@map("msme_recovery_claim_lines")
+}
+
+/// TN-06: whether a process route step runs on our own floor or at a job worker.
+enum ProcessStepMode {
+  IN_HOUSE
+  JOB_WORK
+}
+
+/// TN-06: a lot on a process route.
+enum ProcessLotStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+/// TN-06: material leaving for a step (OUT) or coming back from it (IN).
+enum LotMovementDirection {
+  OUT
+  IN
+}
+
+/// TN-06: the ordered chain of processes a product goes through (knitting → dyeing → printing →
+/// stitching; casting → fettling → machining), each step in-house or at a job worker. Never
+/// deleted once a lot has used it; deactivated instead.
+model ProcessRoute {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  routeCode   String   @map("route_code") @db.VarChar(30)
+  name        String   @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  productId   BigInt?  @map("product_id")
+  active      Boolean  @default(true)
+  createdBy   String?  @map("created_by") @db.VarChar(36)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company            @relation("CompanyProcessRoute", fields: [companyId], references: [id], onDelete: Restrict)
+  product Product?           @relation("ProductProcessRoute", fields: [productId], references: [id], onDelete: Restrict)
+  steps   ProcessRouteStep[]
+  lots    LotRouteProgress[]
+
+  @@unique([companyId, routeCode])
+  @@index([companyId, active])
+  @@map("process_routes")
+}
+
+/// TN-06: one step of a route. What leaves it in `uomOut` is what the next step takes in; a
+/// conversion factor turns one unit in into units out (1 KG of fabric → 4 PCS).
+model ProcessRouteStep {
+  id                 String          @id @default(uuid()) @db.Uuid
+  companyId          String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  routeId            String          @map("route_id") @db.Uuid
+  seq                Int
+  name               String          @db.VarChar(60)
+  mode               ProcessStepMode
+  /// JobWorker.id, checked tenant-scoped by the service.
+  defaultJobWorkerId String?         @map("default_job_worker_id") @db.Uuid
+  /// Process loss allowed at this step, % of what should come back.
+  lossNormPct        Decimal         @default(0) @map("loss_norm_pct") @db.Decimal(5, 2)
+  uomIn              String          @map("uom_in") @db.VarChar(20)
+  uomOut             String          @map("uom_out") @db.VarChar(20)
+  conversionFactor   Decimal?        @map("conversion_factor") @db.Decimal(14, 6)
+  remarks            String?         @db.VarChar(300)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company          Company           @relation("CompanyProcessRouteStep", fields: [companyId], references: [id], onDelete: Restrict)
+  route            ProcessRoute      @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  defaultJobWorker JobWorker?        @relation("JobWorkerProcessRouteStep", fields: [defaultJobWorkerId], references: [id], onDelete: Restrict)
+  movements        LotStepMovement[]
+
+  @@unique([routeId, seq])
+  @@index([companyId])
+  @@map("process_route_steps")
+}
+
+/// TN-06: a lot travelling a route: how much went in, which step it is at, and whether it is done.
+model LotRouteProgress {
+  id             String           @id @default(uuid()) @db.Uuid
+  companyId      String           @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  lotNo          String           @map("lot_no") @db.VarChar(30)
+  routeId        String           @map("route_id") @db.Uuid
+  productId      BigInt?          @map("product_id")
+  inputQty       Decimal          @map("input_qty") @db.Decimal(14, 3)
+  inputUom       String           @map("input_uom") @db.VarChar(20)
+  startDate      DateTime         @map("start_date") @db.Date
+  /// The first step not yet complete; steps + 1 once all are.
+  currentStepSeq Int              @default(1) @map("current_step_seq")
+  status         ProcessLotStatus @default(OPEN)
+  remarks        String?          @db.VarChar(300)
+  closedAt       DateTime?        @map("closed_at") @db.Timestamptz(6)
+  cancelledAt    DateTime?        @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason   String?          @map("cancel_reason") @db.VarChar(255)
+  createdBy      String?          @map("created_by") @db.VarChar(36)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company   Company           @relation("CompanyLotRouteProgress", fields: [companyId], references: [id], onDelete: Restrict)
+  route     ProcessRoute      @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  product   Product?          @relation("ProductLotRouteProgress", fields: [productId], references: [id], onDelete: Restrict)
+  movements LotStepMovement[]
+
+  @@unique([companyId, lotNo])
+  @@index([companyId, status])
+  @@index([routeId])
+  @@map("lot_route_progress")
+}
+
+/// TN-06: material leaving for a step or coming back from it. A job-work step can carry the
+/// delivery challan (outward or return) that moved it; the challan itself is not changed.
+model LotStepMovement {
+  id           String               @id @default(uuid()) @db.Uuid
+  companyId    String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  lotId        String               @map("lot_id") @db.Uuid
+  stepId       String               @map("step_id") @db.Uuid
+  stepSeq      Int                  @map("step_seq")
+  direction    LotMovementDirection
+  qty          Decimal              @db.Decimal(14, 3)
+  uom          String               @db.VarChar(20)
+  movementDate DateTime             @map("movement_date") @db.Date
+  /// Who holds it at a job-work step; checked tenant-scoped by the service.
+  jobWorkerId  String?              @map("job_worker_id") @db.Uuid
+  /// DeliveryChallan.id, checked tenant-scoped by the service.
+  challanId    String?              @map("challan_id") @db.Uuid
+  /// On IN: this receipt finishes the step; what did not come back is process loss.
+  closesStep   Boolean              @default(false) @map("closes_step")
+  remarks      String?              @db.VarChar(300)
+  createdBy    String?              @map("created_by") @db.VarChar(36)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  company   Company          @relation("CompanyLotStepMovement", fields: [companyId], references: [id], onDelete: Restrict)
+  lot       LotRouteProgress @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  step      ProcessRouteStep @relation(fields: [stepId], references: [id], onDelete: Restrict)
+  jobWorker JobWorker?       @relation("JobWorkerLotStepMovement", fields: [jobWorkerId], references: [id], onDelete: Restrict)
+  challan   DeliveryChallan? @relation("ChallanLotStepMovement", fields: [challanId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, lotId])
+  @@index([challanId])
+  @@index([jobWorkerId])
+  @@map("lot_step_movements")
 }
