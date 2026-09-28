@@ -97,6 +97,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       // Export incentives (TN-01): the accountant chases drawback, RoDTEP scrips and EPCG
       // obligations the same way it chases every other receivable.
       ...keysFor(["export-incentives"]),
+      // MSME claims (TN-05): section 16 interest and the Samadhaan / MSEFC claim on late buyers.
+      ...keysFor(["msme-claims"]),
       // Employee search (P2-15): a light picker for the leave and fines screens this role runs.
       ...keysFor(["employees"], ["search"]),
     ],

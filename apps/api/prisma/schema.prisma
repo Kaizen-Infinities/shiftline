@@ -520,6 +520,7 @@ model Customer {
   orderTnas             OrderTna[]          @relation("CustomerOrderTna")
   projectJobs           ProjectJob[]        @relation("CustomerProjectJob")
   deliverySchedules     CustomerSchedule[]  @relation("CustomerDeliverySchedule")
+  msmeRecoveryClaims    MsmeRecoveryClaim[] @relation("CustomerMsmeRecoveryClaim")
 
   company Company @relation("CompanyCustomer", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -759,6 +760,9 @@ model Company {
   exportIncentiveClaims  ExportIncentiveClaim[]   @relation("CompanyExportIncentiveClaim")
   exportAuthorisations   ExportAuthorisation[]    @relation("CompanyExportAuthorisation")
   exportObligations      ExportObligationEntry[]  @relation("CompanyExportObligationEntry")
+  msmeClaimSetting       MsmeClaimSetting?        @relation("CompanyMsmeClaimSetting")
+  msmeRecoveryClaims     MsmeRecoveryClaim[]      @relation("CompanyMsmeRecoveryClaim")
+  msmeRecoveryClaimLines MsmeRecoveryClaimLine[]  @relation("CompanyMsmeRecoveryClaimLine")
 
   gstr2bSettings             Gstr2bSettings?            @relation("CompanyGstr2bSettings")
   supplierFollowUps          SupplierFollowUp[]         @relation("CompanySupplierFollowUp")
@@ -2333,70 +2337,71 @@ model InvoiceSetting {
 }
 
 model SalesInvoice {
-  id                    String                 @id @default(uuid()) @db.Uuid
-  companyId             String                 @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
-  invoiceNo             String                 @map("invoice_no")
-  invoiceDate           DateTime               @map("invoice_date") @db.Date
-  dueDate               DateTime?              @map("due_date") @db.Date
-  status                String                 @default("DRAFT")
-  customerId            String                 @map("customer_id") @db.Uuid
+  id                    String                  @id @default(uuid()) @db.Uuid
+  companyId             String                  @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  invoiceNo             String                  @map("invoice_no")
+  invoiceDate           DateTime                @map("invoice_date") @db.Date
+  dueDate               DateTime?               @map("due_date") @db.Date
+  status                String                  @default("DRAFT")
+  customerId            String                  @map("customer_id") @db.Uuid
   notes                 String?
-  subTotal              Decimal                @map("sub_total") @db.Decimal(14, 2)
-  discountType          String?                @map("discount_type") @db.VarChar(10)
-  discountValue         Decimal?               @map("discount_value") @db.Decimal(14, 2)
-  totalDiscount         Decimal                @default(0) @map("total_discount") @db.Decimal(14, 2)
-  taxTotal              Decimal                @map("tax_total") @db.Decimal(14, 2)
-  grandTotal            Decimal                @map("grand_total") @db.Decimal(14, 2)
-  createdBy             String?                @map("created_by")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  salesOrderId          Int?                   @map("sales_order_id")
-  storeId               String?                @map("store_id") @db.VarChar(20)
-  payments              Json?                  @default("[]") @map("payments")
-  narration             String?                @db.VarChar(2000)
-  transport             Json?                  @map("transport")
-  numberOfBundle        Int?                   @map("number_of_bundle")
-  billSundry            Json?                  @map("bill_sundry")
-  shippingAddressLine1  String?                @map("shipping_address_line1") @db.VarChar(255)
-  shippingCity          String?                @map("shipping_city") @db.VarChar(100)
-  shippingState         String?                @map("shipping_state") @db.VarChar(100)
-  shippingPincode       String?                @map("shipping_pincode") @db.VarChar(20)
-  documentType          SalesDocumentType      @default(TAX_INVOICE) @map("document_type")
-  businessPlaceId       BigInt?                @map("business_place_id")
+  subTotal              Decimal                 @map("sub_total") @db.Decimal(14, 2)
+  discountType          String?                 @map("discount_type") @db.VarChar(10)
+  discountValue         Decimal?                @map("discount_value") @db.Decimal(14, 2)
+  totalDiscount         Decimal                 @default(0) @map("total_discount") @db.Decimal(14, 2)
+  taxTotal              Decimal                 @map("tax_total") @db.Decimal(14, 2)
+  grandTotal            Decimal                 @map("grand_total") @db.Decimal(14, 2)
+  createdBy             String?                 @map("created_by")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+  salesOrderId          Int?                    @map("sales_order_id")
+  storeId               String?                 @map("store_id") @db.VarChar(20)
+  payments              Json?                   @default("[]") @map("payments")
+  narration             String?                 @db.VarChar(2000)
+  transport             Json?                   @map("transport")
+  numberOfBundle        Int?                    @map("number_of_bundle")
+  billSundry            Json?                   @map("bill_sundry")
+  shippingAddressLine1  String?                 @map("shipping_address_line1") @db.VarChar(255)
+  shippingCity          String?                 @map("shipping_city") @db.VarChar(100)
+  shippingState         String?                 @map("shipping_state") @db.VarChar(100)
+  shippingPincode       String?                 @map("shipping_pincode") @db.VarChar(20)
+  documentType          SalesDocumentType       @default(TAX_INVOICE) @map("document_type")
+  businessPlaceId       BigInt?                 @map("business_place_id")
   /// GST state code of the recipient (goods: where they are delivered).
-  placeOfSupply         String?                @map("place_of_supply") @db.VarChar(2)
-  supplyType            SupplyType             @default(INTRA_STATE) @map("supply_type")
-  customerGstin         String?                @map("customer_gstin") @db.VarChar(15)
-  reverseCharge         Boolean                @default(false) @map("reverse_charge")
-  cessTotal             Decimal                @default(0) @map("cess_total") @db.Decimal(14, 2)
+  placeOfSupply         String?                 @map("place_of_supply") @db.VarChar(2)
+  supplyType            SupplyType              @default(INTRA_STATE) @map("supply_type")
+  customerGstin         String?                 @map("customer_gstin") @db.VarChar(15)
+  reverseCharge         Boolean                 @default(false) @map("reverse_charge")
+  cessTotal             Decimal                 @default(0) @map("cess_total") @db.Decimal(14, 2)
   /// Exports and SEZ supplies (P1-14): whether tax was charged, and the shipping bill that
   /// proves the goods left, which GSTR-1's EXP table carries.
-  exportType            ExportType?            @map("export_type")
-  lutNumber             String?                @map("lut_number") @db.VarChar(30)
-  shippingBillNo        String?                @map("shipping_bill_no") @db.VarChar(20)
-  shippingBillDate      DateTime?              @map("shipping_bill_date") @db.Date
-  portCode              String?                @map("port_code") @db.VarChar(10)
+  exportType            ExportType?             @map("export_type")
+  lutNumber             String?                 @map("lut_number") @db.VarChar(30)
+  shippingBillNo        String?                 @map("shipping_bill_no") @db.VarChar(20)
+  shippingBillDate      DateTime?               @map("shipping_bill_date") @db.Date
+  portCode              String?                 @map("port_code") @db.VarChar(10)
   /// A foreign-currency document keeps both: the books are in INR at the rate it posted at.
-  currencyCode          String                 @default("INR") @map("currency_code") @db.VarChar(3)
-  exchangeRate          Decimal                @default(1) @map("exchange_rate") @db.Decimal(14, 6)
-  foreignTotal          Decimal?               @map("foreign_total") @db.Decimal(14, 2)
+  currencyCode          String                  @default("INR") @map("currency_code") @db.VarChar(3)
+  exchangeRate          Decimal                 @default(1) @map("exchange_rate") @db.Decimal(14, 6)
+  foreignTotal          Decimal?                @map("foreign_total") @db.Decimal(14, 2)
   /// P2-05: TCS collected on this invoice (section 394, e.g. 206C(1) scrap or 206C(1H) above the
   /// buyer threshold). Included in grandTotal — the customer owes it too.
-  tcsSectionCode        String?                @map("tcs_section_code") @db.VarChar(20)
-  tcsAmount             Decimal                @default(0) @map("tcs_amount") @db.Decimal(14, 2)
+  tcsSectionCode        String?                 @map("tcs_section_code") @db.VarChar(20)
+  tcsAmount             Decimal                 @default(0) @map("tcs_amount") @db.Decimal(14, 2)
   items                 SalesInvoiceItem[]
   paymentRecords        SalesInvoicePayment[]
-  customer              Customer               @relation(fields: [customerId], references: [id])
-  salesOrder            SalesOrder?            @relation(fields: [salesOrderId], references: [id])
-  store                 Store?                 @relation(fields: [companyId, storeId], references: [companyId, storeId])
+  customer              Customer                @relation(fields: [customerId], references: [id])
+  salesOrder            SalesOrder?             @relation(fields: [salesOrderId], references: [id])
+  store                 Store?                  @relation(fields: [companyId, storeId], references: [companyId, storeId])
   salesReturns          SalesReturn[]
   advanceAdjustments    AdvanceAdjustment[]
   exportIncentiveClaims ExportIncentiveClaim[]
-  businessPlace         BusinessPlace?         @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
+  msmeClaimLines        MsmeRecoveryClaimLine[] @relation("SalesInvoiceMsmeClaimLine")
+  businessPlace         BusinessPlace?          @relation("SalesInvoiceBusinessPlace", fields: [businessPlaceId], references: [id])
   /// Cancelled documents stay on file (MCA Rule 3(1)); their vouchers are reversed (P1-09).
-  cancelledAt           DateTime?              @map("cancelled_at") @db.Timestamptz(6)
-  cancelledBy           String?                @map("cancelled_by") @db.VarChar(36)
-  cancelReason          String?                @map("cancel_reason") @db.VarChar(255)
+  cancelledAt           DateTime?               @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy           String?                 @map("cancelled_by") @db.VarChar(36)
+  cancelReason          String?                 @map("cancel_reason") @db.VarChar(255)
 
   company      Company       @relation("CompanySalesInvoice", fields: [companyId], references: [id], onDelete: Restrict)
   paymentLinks PaymentLink[]
@@ -6663,4 +6668,103 @@ model ProjectJobBilling {
 
   @@index([companyId, jobId])
   @@map("project_job_billings")
+}
+
+// ── MSME delayed-payment claims, receivable side (TN-05) ───────────────────────
+
+enum MsmeClaimStatus {
+  DRAFT
+  FILED
+  HEARING
+  SETTLED
+  WITHDRAWN
+}
+
+enum MsmeClaimForum {
+  SAMADHAAN
+  MSEFC
+  DIRECT
+}
+
+/// The tenant's own MSME particulars for section 16 claims: one row per company.
+model MsmeClaimSetting {
+  id                 String        @id @default(uuid()) @db.Uuid
+  companyId          String        @unique @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// RBI bank rate, % a year; section 16 interest is three times this. VERIFY against the RBI.
+  bankRate           Decimal       @default(6.75) @map("bank_rate") @db.Decimal(5, 2)
+  /// Where the rate was checked (RBI notice / date), shown on the claim statement.
+  bankRateNote       String?       @map("bank_rate_note") @db.VarChar(200)
+  udyamNumber        String?       @map("udyam_number") @db.VarChar(19)
+  enterpriseCategory MsmeCategory? @map("enterprise_category")
+  updatedBy          String?       @map("updated_by") @db.VarChar(36)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company @relation("CompanyMsmeClaimSetting", fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@map("msme_claim_settings")
+}
+
+/// A delayed-payment claim against one buyer (MSME Samadhaan, MSEFC or a direct demand).
+model MsmeRecoveryClaim {
+  id             String          @id @default(uuid()) @db.Uuid
+  companyId      String          @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  claimNo        String          @map("claim_no") @db.VarChar(30)
+  customerId     String          @map("customer_id") @db.Uuid
+  status         MsmeClaimStatus @default(DRAFT)
+  forum          MsmeClaimForum  @default(SAMADHAAN)
+  /// Interest on the lines is computed up to this date.
+  asOfDate       DateTime        @map("as_of_date") @db.Date
+  bankRate       Decimal         @map("bank_rate") @db.Decimal(5, 2)
+  annualRate     Decimal         @map("annual_rate") @db.Decimal(6, 2)
+  principalTotal Decimal         @default(0) @map("principal_total") @db.Decimal(14, 2)
+  interestTotal  Decimal         @default(0) @map("interest_total") @db.Decimal(14, 2)
+  filedOn        DateTime?       @map("filed_on") @db.Date
+  /// Samadhaan application number or MSEFC case number.
+  referenceNo    String?         @map("reference_no") @db.VarChar(60)
+  hearingOn      DateTime?       @map("hearing_on") @db.Date
+  settledOn      DateTime?       @map("settled_on") @db.Date
+  settledAmount  Decimal?        @map("settled_amount") @db.Decimal(14, 2)
+  notes          String?         @db.VarChar(1000)
+  createdBy      String?         @map("created_by") @db.VarChar(36)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company                 @relation("CompanyMsmeRecoveryClaim", fields: [companyId], references: [id], onDelete: Restrict)
+  customer Customer                @relation("CustomerMsmeRecoveryClaim", fields: [customerId], references: [id], onDelete: Restrict)
+  lines    MsmeRecoveryClaimLine[]
+
+  @@unique([companyId, claimNo])
+  @@index([companyId, status])
+  @@index([customerId])
+  @@map("msme_recovery_claims")
+}
+
+/// One invoice on a claim, with its section 15 date and section 16 interest as of the claim date.
+model MsmeRecoveryClaimLine {
+  id                   String   @id @default(uuid()) @db.Uuid
+  companyId            String   @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  claimId              String   @map("claim_id") @db.Uuid
+  salesInvoiceId       String   @map("sales_invoice_id") @db.Uuid
+  invoiceNo            String   @map("invoice_no") @db.VarChar(40)
+  invoiceDate          DateTime @map("invoice_date") @db.Date
+  acceptedOn           DateTime @map("accepted_on") @db.Date
+  invoiceAmount        Decimal  @map("invoice_amount") @db.Decimal(14, 2)
+  paidAmount           Decimal  @default(0) @map("paid_amount") @db.Decimal(14, 2)
+  principalOutstanding Decimal  @map("principal_outstanding") @db.Decimal(14, 2)
+  limitDays            Int      @map("limit_days")
+  dueDate              DateTime @map("due_date") @db.Date
+  daysLate             Int      @map("days_late")
+  interest             Decimal  @db.Decimal(14, 2)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company      Company           @relation("CompanyMsmeRecoveryClaimLine", fields: [companyId], references: [id], onDelete: Restrict)
+  claim        MsmeRecoveryClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  salesInvoice SalesInvoice      @relation("SalesInvoiceMsmeClaimLine", fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([claimId, salesInvoiceId])
+  @@index([salesInvoiceId])
+  @@index([companyId])
+  @@map("msme_recovery_claim_lines")
 }

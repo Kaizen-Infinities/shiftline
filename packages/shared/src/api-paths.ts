@@ -360,6 +360,11 @@ export const API_PATHS = {
     base: "/project-jobs", // ← service appends /:id, /:id/summary, /:id/stages[/order|/:stageId], /:id/costs[/post|/:costId], /:id/billings
     stagePlans: "/project-jobs/stage-plans",
   },
+  msmeClaims: {
+    base: "/msme/receivable-claims", // ← service appends /:id, /:id/status, /:id/recompute, /:id/pdf
+    eligible: "/msme/receivable-claims/eligible",
+    settings: "/msme/receivable-claims/settings",
+  },
   orderTna: {
     base: "/order-tna", // ← service appends /:id, /:id/milestones[/:milestoneId]
     templates: "/order-tna/templates",
