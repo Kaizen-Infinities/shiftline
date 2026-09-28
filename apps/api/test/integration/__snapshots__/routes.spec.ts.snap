@@ -769,6 +769,7 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "GET /api/users/:id",
   "PATCH /api/users/:id/status",
   "GET /api/users/check-username/:username",
+  "PATCH /api/users/me/locale",
   "GET /api/users/profile",
   "PATCH /api/users/profile",
   "GET /api/v1/insights/accounts",

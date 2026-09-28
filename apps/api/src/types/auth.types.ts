@@ -1,3 +1,5 @@
+import type { Locale } from "@shiftline/shared";
+
 export enum UserRole {
   SUPER_ADMIN = "SUPER_ADMIN",
   ADMIN = "ADMIN",
@@ -83,6 +85,8 @@ export interface UserResponseDto {
   mfaEnabled: boolean;
   avatarUrl?: string | null;
   isSuperAdmin?: boolean;
+  /** UI language (TN-04); platform admins are always "en". */
+  locale: Locale;
 }
 
 export interface ProfileResponseDto {

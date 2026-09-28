@@ -88,6 +88,7 @@ export class UserRepository {
       fullName?: string;
       email?: string;
       username?: string;
+      locale?: string;
     }
   ) {
     return prisma.user.update({

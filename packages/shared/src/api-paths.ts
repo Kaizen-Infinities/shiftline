@@ -43,6 +43,8 @@ export const API_PATHS = {
   },
   user: {
     base: "/users",
+    /** The signed-in user's UI language (TN-04). */
+    myLocale: "/users/me/locale",
   },
   product: {
     base: "/products",
