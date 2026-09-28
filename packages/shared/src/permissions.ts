@@ -452,6 +452,13 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "MSME delayed-payment claims (receivable side)",
   },
   {
+    // TN-10: state and central subsidy / scheme claims (capital subsidy, LTPT power subsidy,
+    // interest subvention, NEEDS, PLI). Folds into the P2-14 licence register later.
+    module: "subsidy-schemes",
+    actions: ["view", "create", "edit", "export"],
+    description: "Subsidies and scheme claims",
+  },
+  {
     module: "vouchers",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Vouchers",

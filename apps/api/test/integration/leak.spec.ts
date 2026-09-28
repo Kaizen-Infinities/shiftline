@@ -198,6 +198,9 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "MsmeClaimSetting",
   "MsmeRecoveryClaim",
   "MsmeRecoveryClaimLine",
+  // subsidies and schemes (TN-10): subsidy-schemes.spec proves a foreign company sees none
+  "SubsidyScheme",
+  "SubsidyClaim",
 ]);
 
 describe("cross-tenant leak suite", () => {
