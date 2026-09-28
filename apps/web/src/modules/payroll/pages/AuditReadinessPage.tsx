@@ -663,12 +663,8 @@ const AuditReadinessPage: React.FC = () => {
         </div>
       </div>
 
-      <Tile
-        padding="none"
-        divider
-        title="Buyer audits"
-        icon={<CalendarCheck size={18} />}
-        actions={
+      <Tile padding="none" divider title="Buyer audits" icon={<CalendarCheck size={18} />}>
+        <div className="px-4 py-3 sm:px-5">
           <ChipTabs<AuditTab>
             size="sm"
             ariaLabel="Audit status"
@@ -681,8 +677,7 @@ const AuditReadinessPage: React.FC = () => {
               { key: "ALL", label: "All", count: count("ALL") },
             ]}
           />
-        }
-      >
+        </div>
         {loadingAudits ? (
           <SkeletonRows rows={3} columns={3} header={false} />
         ) : groups.length === 0 ? (
