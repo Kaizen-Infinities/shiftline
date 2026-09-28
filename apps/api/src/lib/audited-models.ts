@@ -104,6 +104,11 @@ export const AUDITED_MODELS = [
   "ProjectJobStage",
   "ProjectJobCost",
   "ProjectJobBilling",
+  // multi-step job-work process routes (TN-06)
+  "ProcessRoute",
+  "ProcessRouteStep",
+  "LotRouteProgress",
+  "LotStepMovement",
   // customer delivery schedules (TN-02)
   "CustomerSchedule",
   "CustomerScheduleLine",
