@@ -16,6 +16,7 @@ import SearchInput from "../../../../components/ui/SearchInput/SearchInput";
 import FilterPopover from "../../../../components/ui/FilterPopover/FilterPopover";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import DataTable, { type DataTableColumn } from "../../../../components/ui/table/DataTable";
+import { PageHeader } from "../../../../components/ui/v2";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { usePermission } from "../../../../hooks/usePermission";
 
@@ -238,79 +239,75 @@ export const SalesReturnPage: React.FC = () => {
   return (
     <div>
       <div className="w-full">
-        {/* Header */}
-        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="sl-h1 m-0 leading-tight">Sales Returns</h1>
-            <p className="sl-muted m-0 mt-1 text-sm">
-              Goods customers send back; each return raises a credit note.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
-            <SearchInput
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Return no, customer, reason..."
-            />
-
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onOpen={handleFilterOpen}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            >
-              <div className="space-y-3">
-                <div>
-                  <label className="sl-label">Customer Grade</label>
-                  <SelectInput
-                    name="filterGrade"
-                    value={draftFilters.customerGradeId}
-                    options={gradeOptions}
-                    defaultOptionLabel="All Grades"
-                    searchable={false}
-                    noMargin
-                    onChange={(e) =>
-                      setDraftFilters((p) => ({ ...p, customerGradeId: e.target.value }))
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="sl-label">Status</label>
-                  <SelectInput
-                    name="filterStatus"
-                    value={draftFilters.status}
-                    options={[
-                      { value: "APPROVED", label: "Approved" },
-                      { value: "COMPLETED", label: "Completed" },
-                    ]}
-                    defaultOptionLabel="All Statuses"
-                    searchable={false}
-                    noMargin
-                    onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </FilterPopover>
-
-            {can("sales-returns.export") && (
-              <ExportCSVButton
-                fetchData={fetchSalesReturnsForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
+        <PageHeader
+          title="Sales Returns"
+          subtitle="Goods customers send back; each return raises a credit note."
+          actions={
+            <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
+              <SearchInput
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Return no, customer, reason..."
               />
-            )}
 
-            <CustomButton
-              text="New Sales Return"
-              icon={FaPlus}
-              onClick={() => navigate("/sales-returns/create")}
-            />
-          </div>
-        </div>
+              <FilterPopover
+                activeFilterCount={activeFilterCount}
+                hasActiveFilters={hasActiveFilters}
+                onOpen={handleFilterOpen}
+                onApply={handleApplyFilters}
+                onClear={handleClearFilters}
+              >
+                <div className="space-y-3">
+                  <div>
+                    <label className="sl-label">Customer Grade</label>
+                    <SelectInput
+                      name="filterGrade"
+                      value={draftFilters.customerGradeId}
+                      options={gradeOptions}
+                      defaultOptionLabel="All Grades"
+                      searchable={false}
+                      noMargin
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, customerGradeId: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="sl-label">Status</label>
+                    <SelectInput
+                      name="filterStatus"
+                      value={draftFilters.status}
+                      options={[
+                        { value: "APPROVED", label: "Approved" },
+                        { value: "COMPLETED", label: "Completed" },
+                      ]}
+                      defaultOptionLabel="All Statuses"
+                      searchable={false}
+                      noMargin
+                      onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </FilterPopover>
+
+              {can("sales-returns.export") && (
+                <ExportCSVButton
+                  fetchData={fetchSalesReturnsForExport}
+                  columns={csvColumns}
+                  filename={csvFilename}
+                  text="Export"
+                />
+              )}
+
+              <CustomButton
+                text="New Sales Return"
+                icon={FaPlus}
+                onClick={() => navigate("/sales-returns/create")}
+              />
+            </div>
+          }
+        />
 
         {/* Active filter chips */}
         {hasActiveFilters && (

@@ -80,7 +80,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                   {crumb.to && !last ? (
                     <Link
                       to={crumb.to}
-                      className="rounded-full px-1 hover:text-ink hover:underline underline-offset-4"
+                      className="relative rounded-full px-1 before:absolute before:inset-x-0 before:-inset-y-3 before:content-[''] hover:text-ink hover:underline underline-offset-4"
                     >
                       {crumb.label}
                     </Link>
@@ -115,7 +115,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="sl-h1 m-0 truncate leading-tight">{title}</h1>
+              <h1 className="sl-h1 m-0 leading-tight [overflow-wrap:anywhere] sm:truncate">
+                {title}
+              </h1>
               {meta}
             </div>
             {subtitle && <p className="sl-muted m-0 mt-1 text-sm leading-snug">{subtitle}</p>}

@@ -110,7 +110,7 @@ const ImportsPage: React.FC = () => {
       ) : types.length === 0 ? (
         <p className="text-sm text-ink-muted">You do not have permission to import any data.</p>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
           <aside className="space-y-2">
             {types.map((t) => (
               <button

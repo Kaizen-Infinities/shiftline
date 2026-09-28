@@ -861,6 +861,35 @@ input:-webkit-autofill:active {
   .sl-page > .sl-page-header {
     margin-bottom: 0;
   }
+  /* A toolbar (filters, search) belongs to the table under it: 16px apart on
+     every page, which inside an .sl-page means taking 4px back from the gap. */
+  .sl-toolbar {
+    margin-bottom: 1rem;
+  }
+  .sl-page > .sl-toolbar {
+    margin-bottom: -0.25rem;
+  }
+
+  /* Touch screens: every chip, tab and pill button is at least 40px tall
+     (docs/specs/P1-UI-remake.md, Interaction). Mouse layouts keep their density. */
+  @media (pointer: coarse) {
+    button.sl-chip,
+    a.sl-chip,
+    .sl-chip[role="tab"],
+    .sl-btn,
+    .sl-btn-blue,
+    .sl-btn-danger,
+    .sl-cta {
+      min-height: 2.5rem;
+    }
+  }
+
+  /* A table inside another tile (a form section's line items, a BOM) is a
+     framed region of that tile, not a second floating card. */
+  .sl-tile .sl-table-tile {
+    box-shadow: none;
+    border-radius: 14px;
+  }
 
   /* A resting white tile: cards, nav rows, list rows, panels. */
   .sl-tile {

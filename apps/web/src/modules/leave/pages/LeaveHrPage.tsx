@@ -180,7 +180,7 @@ const LeaveHrPage: React.FC = () => {
   };
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
         title="Leave"
         icon={<Umbrella size={20} />}

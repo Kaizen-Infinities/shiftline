@@ -79,7 +79,7 @@ const MsmePage: React.FC = () => {
   const soon = bills.filter((b) => !b.overdue && b.daysLeft <= 15);
 
   return (
-    <div className="w-full space-y-4">
+    <div className="sl-page">
       <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="sl-h1 m-0 leading-tight">MSME Dues</h1>

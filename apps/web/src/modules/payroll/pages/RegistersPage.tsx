@@ -112,7 +112,7 @@ const RegistersPage: React.FC = () => {
   const isRange = REGISTERS.find((r) => r.value === register)?.range ?? false;
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
         title="Statutory Registers"
         icon={<BookOpen size={20} />}

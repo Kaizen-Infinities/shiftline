@@ -101,6 +101,16 @@ One frame for every screen, so the title and the content edge never move between
 
   Do not add a `max-w-[…]` of your own on a page root.
 
+- **A toolbar belongs to its table.** Filters and search (`Toolbar`, `.sl-toolbar`) sit 16 px
+  above the table they filter, on every page.
+- **A table inside a tile is a framed region, not a second card.** `DataTable` drops its shadow
+  and uses the inner radius there (`.sl-tile .sl-table-tile`). Do not wrap a `DataTable` in
+  another `Tile` just to hold it.
+- **Titles wrap on phones.** The `PageHeader` title wraps below `sm` and truncates from `sm` up.
+  The in-page breadcrumb shows below `lg` only, because the top bar shows the full trail from
+  `lg` up.
+- **Touch targets.** On touch screens every chip, tab and pill button is at least 40 px tall
+  (`@media (pointer: coarse)`); mouse layouts keep their density.
 - **Inside a page.** Tiles use the `Tile` padding scale (`sm`/`md`/`lg`), and sections within a
   tile are 16 px apart. Tables scroll inside their tile, never the page.
 

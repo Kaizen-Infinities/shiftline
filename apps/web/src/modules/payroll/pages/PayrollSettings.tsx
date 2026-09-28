@@ -781,7 +781,7 @@ const PayrollSettings: React.FC = () => {
 
   if (loading) {
     return (
-      <PageShell className="space-y-5">
+      <PageShell>
         <PageHeader title="Payroll Settings" subtitle="Loading payroll settings…" />
         <div className="grid gap-5 lg:grid-cols-2">
           <SkeletonTile lines={4} />
@@ -793,7 +793,7 @@ const PayrollSettings: React.FC = () => {
 
   if (error) {
     return (
-      <PageShell className="space-y-5">
+      <PageShell>
         <PageHeader title="Payroll Settings" back="/payroll" />
         <Notice
           tone="danger"
@@ -983,7 +983,7 @@ const PayrollSettings: React.FC = () => {
   ];
 
   return (
-    <PageShell className="space-y-5 pb-24">
+    <PageShell className="pb-24">
       <PageHeader
         title="Payroll Settings"
         icon={<SettingsIcon size={20} />}

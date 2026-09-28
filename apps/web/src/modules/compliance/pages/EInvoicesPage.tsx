@@ -13,7 +13,6 @@ import {
   ActionPill,
   Chip,
   PageHeader,
-  Tile,
   Toolbar,
   actionPillClass,
   type ChipTone,
@@ -198,35 +197,33 @@ const EInvoicesPage: React.FC = () => {
         }
       />
 
-      <Tile padding="none" className="overflow-hidden">
-        <DataTable
-          ariaLabel="E-invoices"
-          columns={columns}
-          data={shown}
-          rowKey={(r) => r.id}
-          loading={loading}
-          emptyMessage={
-            filtered
-              ? "No e-invoices match these filters."
-              : "No e-invoices yet. Raise one from a B2B invoice once e-invoicing is enabled in Settings."
-          }
-          emptyAction={
-            filtered ? (
-              <ActionPill
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setStatus("");
-                  setDocType("");
-                  setSearch("");
-                }}
-              >
-                Clear filters
-              </ActionPill>
-            ) : undefined
-          }
-        />
-      </Tile>
+      <DataTable
+        ariaLabel="E-invoices"
+        columns={columns}
+        data={shown}
+        rowKey={(r) => r.id}
+        loading={loading}
+        emptyMessage={
+          filtered
+            ? "No e-invoices match these filters."
+            : "No e-invoices yet. Raise one from a B2B invoice once e-invoicing is enabled in Settings."
+        }
+        emptyAction={
+          filtered ? (
+            <ActionPill
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setStatus("");
+                setDocType("");
+                setSearch("");
+              }}
+            >
+              Clear filters
+            </ActionPill>
+          ) : undefined
+        }
+      />
     </div>
   );
 };

@@ -238,7 +238,7 @@ const SalaryAdvancePage: React.FC = () => {
     st === "ALL" ? advances.length : advances.filter((a) => a.status === st).length;
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
         title="Salary Advance"
         icon={<Wallet size={20} />}

@@ -171,7 +171,7 @@ const FinesPage: React.FC = () => {
   };
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
         title="Fines and deductions"
         icon={<Gavel size={20} />}

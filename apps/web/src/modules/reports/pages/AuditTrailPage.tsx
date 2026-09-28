@@ -164,7 +164,7 @@ const AuditTrailPage: React.FC = () => {
   const last = result ? Math.min(result.total, result.page * result.pageSize) : 0;
 
   return (
-    <div className="w-full min-w-0 space-y-4">
+    <div className="sl-page">
       <PageHeader
         title="Audit Trail"
         subtitle="Every change to the books, documents, payroll and masters, recorded by the database and never editable."

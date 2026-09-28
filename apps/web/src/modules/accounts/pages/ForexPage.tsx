@@ -88,7 +88,7 @@ const ForexPage: React.FC = () => {
   const done = revaluations.find((r) => r.periodKey === periodKey);
 
   return (
-    <div className="w-full space-y-4">
+    <div className="sl-page">
       <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="sl-h1 m-0 leading-tight">Foreign Exchange</h1>

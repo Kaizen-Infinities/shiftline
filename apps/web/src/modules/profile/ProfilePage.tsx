@@ -81,8 +81,8 @@ const ProfilePage: React.FC = () => {
   ];
 
   return (
-    <div className="flex max-w-[1024px] flex-col gap-6">
-      <section className="flex flex-col gap-5 pt-2 sm:flex-row sm:items-center">
+    <div className="sl-page sl-page-form">
+      <section className="flex flex-col gap-5 sm:flex-row sm:items-center">
         <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-brand text-2xl font-bold text-[color:var(--color-white)] shadow-[0_5px_0_color-mix(in_srgb,var(--color-brand)_65%,var(--color-black))]">
           {getInitials(employee.fullName)}
         </span>

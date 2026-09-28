@@ -285,7 +285,7 @@ const PayrollDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <PageShell className="space-y-5">
+      <PageShell>
         <PageHeader title="Payroll" subtitle="Loading payroll data…" />
         <div className="grid gap-4 lg:grid-cols-3">
           <SkeletonTile lines={4} height={220} className="lg:col-span-2" />
@@ -314,7 +314,7 @@ const PayrollDashboard: React.FC = () => {
   ) : null;
 
   return (
-    <PageShell className="space-y-6">
+    <PageShell>
       <PageHeader
         title="Payroll"
         subtitle={

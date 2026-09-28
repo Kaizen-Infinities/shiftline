@@ -115,7 +115,7 @@ const StatutoryPayrollPage: React.FC = () => {
   };
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
         title="Statutory Payroll"
         icon={<Landmark size={20} />}

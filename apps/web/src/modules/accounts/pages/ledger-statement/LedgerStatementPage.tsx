@@ -521,11 +521,20 @@ export const LedgerStatementPage: React.FC = () => {
 
   return (
     <div className="relative w-full text-ink" style={{ minHeight: "calc(100vh - 160px)" }}>
+      {/* While a setup step is open the statement's own header is hidden, but the page keeps
+         its title so the user knows where they are; the step panel sits below it. */}
+      {(showFormatDialog || showMergedDialog || showModeDialog || showOptionsDialog) && (
+        <PageHeader
+          title={showMergedDialog ? "Merged Ledger Statement" : "Ledger Statement"}
+          icon={<BookOpen size={20} />}
+          subtitle="Choose how to show the statement, then the account and period."
+        />
+      )}
       {/* Merged Ledger picker — Busy's "Merged Ledger !" modal. Only shown
          when navigating to /accounts/ledger-statement/merged. Skips the
          Format + Mode dialogs and offers Group / Selected only. */}
       {showMergedDialog && (
-        <div className="fixed left-1/2 top-[96px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
+        <div className="fixed left-1/2 top-[204px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
           <div className="sl-dialog w-full overflow-hidden">
             <div className="sl-h2 m-0 border-b border-line-soft px-5 py-4 text-[16px]">
               Merged Ledger !
@@ -592,7 +601,7 @@ export const LedgerStatementPage: React.FC = () => {
          Standard / T-Format". Appears first when the page opens. Once
          chosen, closes and hands off to the Mode picker. */}
       {showFormatDialog && (
-        <div className="fixed left-1/2 top-[96px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
+        <div className="fixed left-1/2 top-[204px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
           <div className="sl-dialog w-full overflow-hidden">
             <div className="flex items-center gap-2.5 border-b border-line-soft px-5 py-4 text-ink">
               <FaBook className="text-sm" />
@@ -668,7 +677,7 @@ export const LedgerStatementPage: React.FC = () => {
       {/* Step 2: Busy-style Mode selection — "Ledger to be shown for".
          Appears after Format is chosen. Left-side panel (no backdrop). */}
       {showModeDialog && (
-        <div className="fixed left-1/2 top-[96px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
+        <div className="fixed left-1/2 top-[204px] z-30 w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2">
           <div className="sl-dialog w-full overflow-hidden">
             <div className="flex items-center gap-2.5 border-b border-line-soft px-5 py-4 text-ink">
               <FaBook className="text-sm" />
@@ -790,7 +799,7 @@ export const LedgerStatementPage: React.FC = () => {
          tight vertical rhythm. */}
       {showOptionsDialog && (
         <div
-          className="fixed left-1/2 top-[96px] z-30 w-2xl max-w-[calc(100vw-32px)] -translate-x-1/2"
+          className="fixed left-1/2 top-[204px] z-30 w-2xl max-w-[calc(100vw-32px)] -translate-x-1/2"
           style={{ maxHeight: "calc(100vh - 100px)" }}
         >
           <div
