@@ -17,7 +17,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/sales-order", marker: /Sales Order Management/i },
   { path: "/sales-invoices", marker: /Sales Invoice List/i },
   { path: "/settings/company", marker: /General Info/i },
-  { path: "/company/view", marker: /Employee Code/i },
+  { path: "/company/view", marker: /Employee code/i },
   { path: "/settings/imports", marker: /Data imports/i },
   { path: "/settings/gst", marker: /HSN/ },
   { path: "/accounts/chart-of-accounts", marker: /Chart of Accounts/ },
@@ -58,6 +58,9 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/production/order-tna", marker: /Order T&A/ },
   { path: "/production/jobs", marker: /^Jobs$/ },
   { path: "/accounts/msme-claims", marker: /MSME claims/ },
+  { path: "/accounts/subsidies", marker: /Subsidies & schemes/ },
+  { path: "/production/process-routes", marker: /^Process routes$/ },
+  { path: "/production/lots", marker: /^Lot board$/ },
   { path: "/exports/incentives", marker: /Export incentives/ },
   { path: "/hr/registers", marker: /Statutory Registers/ },
   { path: "/hr/fines", marker: /Fines and deductions/ },
@@ -65,6 +68,8 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/settings/sms", marker: /SMS and OTP/ },
   { path: "/notifications", marker: /You are up to date|unread/i },
   { path: "/settings/machine-gateways", marker: /Machine gateways/i },
+  { path: "/shift-execution", marker: /Open the shift console/ },
+  { path: "/inventory/eod-stock", marker: /Day-end stock/ },
 ];
 
 const trackApi = (page: Page) => {
@@ -122,6 +127,21 @@ test.describe("smoke", () => {
       expect(failures()).toEqual([]);
     });
   }
+
+  test("the language switch shows Tamil and switches back (TN-04)", async ({ page }) => {
+    const failures = trackApi(page);
+    await page.goto("/profile");
+    const tamil = page.getByTestId("profile-language").getByTestId("language-ta");
+    await expect(tamil).toBeVisible({ timeout: 20_000 });
+    await tamil.click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "ta");
+    await expect(page.getByText("உங்கள் விவரங்கள்").first()).toBeVisible();
+    // Leave the shared demo owner in English for the other tests.
+    await page.getByTestId("profile-language").getByTestId("language-en").click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByText("Your details").first()).toBeVisible();
+    expect(failures()).toEqual([]);
+  });
 
   test("a wrong password is refused without a crash", async ({ browser }) => {
     const context = await browser.newContext();

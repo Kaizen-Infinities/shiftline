@@ -86,7 +86,13 @@ const WastageStockList: React.FC = () => {
     [debouncedSearch, appliedCategory, appliedStatus, currentPage]
   );
 
-  const { data, total, loading, refresh } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    refresh,
+    error: listError,
+  } = useListCache({
     cacheKey,
     socketModule: "rawMaterialStock",
     fetcher,
@@ -230,6 +236,9 @@ const WastageStockList: React.FC = () => {
         />
 
         <DataTable
+          error={listError}
+          sourceRowCount={data.length}
+          onRetry={refresh}
           data={data || []}
           rowKey={(item) => item.rawMaterialId || item.id}
           loading={loading}

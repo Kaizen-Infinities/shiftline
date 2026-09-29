@@ -1,5 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { LuCloudOff, LuRotateCw } from "react-icons/lu";
+import { toneClass, type TileTone } from "./dashboardFormat";
 
 /* ════════════════════════════════════════════════════════════════
    DASHBOARD BUILDING BLOCKS (UI v2)
@@ -32,15 +34,16 @@ export const TileHeader: React.FC<{
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
+  tone?: TileTone;
   className?: string;
-}> = ({ id, icon: Icon, title, subtitle, actions, className = "" }) => (
+}> = ({ id, icon: Icon, title, subtitle, actions, tone, className = "" }) => (
   <header
     className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 pt-5 pb-3 ${className}`}
   >
     <div className="flex min-w-0 items-center gap-3">
       <span
         aria-hidden="true"
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-chip text-accent"
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-[12px] ${toneClass(tone)}`}
       >
         <Icon className="text-[18px]" />
       </span>
@@ -85,6 +88,52 @@ export const EmptyState: React.FC<{
   </div>
 );
 
+/**
+ * A load that failed: says so plainly and offers a retry, so a failed request
+ * never reads as "nothing here yet". `role="alert"` announces it once.
+ */
+export const LoadError: React.FC<{
+  title?: string;
+  hint?: string;
+  onRetry?: () => void;
+  retrying?: boolean;
+  className?: string;
+}> = ({
+  title = "Couldn't load this",
+  hint = "Check your connection, then try again.",
+  onRetry,
+  retrying = false,
+  className = "",
+}) => (
+  <div
+    role="alert"
+    className={`flex flex-1 flex-col items-center justify-center gap-2 px-6 py-8 text-center ${className}`}
+  >
+    <span
+      aria-hidden="true"
+      className="sl-chip-danger mb-1 grid h-12 w-12 place-items-center rounded-2xl"
+    >
+      <LuCloudOff className="text-xl" />
+    </span>
+    <p className="text-sm font-semibold text-ink">{title}</p>
+    <p className="sl-muted max-w-[34ch] text-xs leading-relaxed">{hint}</p>
+    {onRetry && (
+      <button
+        type="button"
+        onClick={onRetry}
+        disabled={retrying}
+        className="sl-btn mt-2 min-h-10 px-4 py-2 text-sm"
+      >
+        <LuRotateCw
+          aria-hidden="true"
+          className={retrying ? "animate-spin motion-reduce:animate-none" : ""}
+        />
+        {retrying ? "Trying again…" : "Try again"}
+      </button>
+    )}
+  </div>
+);
+
 /** The concept's grey slabs: a few rows standing in for a list while it loads. */
 export const SkeletonRows: React.FC<{ rows?: number; className?: string }> = ({
   rows = 4,
@@ -106,17 +155,23 @@ export const SkeletonRows: React.FC<{ rows?: number; className?: string }> = ({
 
 export type Trend = "up" | "down" | "neutral";
 
-/** Stat tile: label, big number, delta chip and an icon square. */
+/**
+ * Stat tile: label, big number, delta chip and an icon square. The delta chip
+ * is green when the move is good news: pass `upIsGood={false}` for figures
+ * such as payables, where a rise is the thing to watch.
+ */
 export const StatTile: React.FC<{
   label: string;
   value: React.ReactNode;
   icon: IconType;
+  tone?: TileTone;
   trend?: Trend;
+  upIsGood?: boolean;
   note?: string;
   onClick?: () => void;
-}> = ({ label, value, icon: Icon, trend = "neutral", note, onClick }) => {
-  const chipTone =
-    trend === "up" ? "sl-chip-success" : trend === "down" ? "sl-chip-danger" : "sl-chip-muted";
+}> = ({ label, value, icon: Icon, tone, trend = "neutral", upIsGood = true, note, onClick }) => {
+  const good = trend === "neutral" ? null : (trend === "up") === upIsGood;
+  const chipTone = good === null ? "sl-chip-muted" : good ? "sl-chip-success" : "sl-chip-danger";
   const arrow = trend === "up" ? "↑" : trend === "down" ? "↓" : null;
   return (
     <button
@@ -128,7 +183,7 @@ export const StatTile: React.FC<{
         <span className="min-w-0 text-[13px] leading-snug font-medium text-ink-muted">{label}</span>
         <span
           aria-hidden="true"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[12px] bg-chip text-accent sm:h-9 sm:w-9"
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-[12px] sm:h-9 sm:w-9 ${toneClass(tone)}`}
         >
           <Icon className="text-base" />
         </span>

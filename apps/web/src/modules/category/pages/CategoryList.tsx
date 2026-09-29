@@ -72,6 +72,7 @@ const CategoryList: React.FC = () => {
     data: allCategories,
     loading,
     refresh,
+    error: listError,
   } = useListCache<Category>({
     cacheKey: "categories:list",
     socketModule: "category",
@@ -239,6 +240,9 @@ const CategoryList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        sourceRowCount={allCategories.length}
+        onRetry={refresh}
         data={paginatedCategories}
         rowKey={(item) => item.id}
         loading={loading}

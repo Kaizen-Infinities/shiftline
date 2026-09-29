@@ -82,6 +82,7 @@ export const SupplierBreakdownPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<SupplierPayableDetail>({
     cacheKey,
     socketModule: "voucher",
@@ -582,6 +583,9 @@ export const SupplierBreakdownPage: React.FC = () => {
             data={invoices}
             rowKey={(item: any) => item.id}
             loading={tableLoading}
+            error={listError}
+            sourceRowCount={supplierDetailList.length}
+            onRetry={refresh}
             emptyMessage="No purchase invoices recorded for this supplier."
           />
         )}
@@ -592,6 +596,9 @@ export const SupplierBreakdownPage: React.FC = () => {
             data={payments}
             rowKey={(item: any) => item.id}
             loading={tableLoading}
+            error={listError}
+            sourceRowCount={supplierDetailList.length}
+            onRetry={refresh}
             emptyMessage="No payment vouchers recorded for this supplier."
           />
         )}
@@ -602,6 +609,9 @@ export const SupplierBreakdownPage: React.FC = () => {
             data={statements}
             rowKey={(item: any) => item.id}
             loading={tableLoading}
+            error={listError}
+            sourceRowCount={supplierDetailList.length}
+            onRetry={refresh}
             emptyMessage="No ledger statement entries recorded for this supplier."
           />
         )}

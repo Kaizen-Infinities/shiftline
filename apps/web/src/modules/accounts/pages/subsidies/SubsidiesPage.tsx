@@ -72,7 +72,10 @@ const RemindersTile: React.FC<{
     ) : (
       <ul className="m-0 list-none p-0" aria-label="Subsidy reminders">
         {items.map((r, i) => (
-          <li key={`${r.schemeId}-${r.type}-${r.claimId ?? i}`} className="border-t border-line-soft first:border-t-0">
+          <li
+            key={`${r.schemeId}-${r.type}-${r.claimId ?? i}`}
+            className="border-t border-line-soft first:border-t-0"
+          >
             <button
               type="button"
               onClick={() => onOpen(r.schemeId)}
@@ -205,14 +208,20 @@ const SubsidiesPage: React.FC = () => {
         <StatTile
           label="Claimed"
           value={shortMoney(summary?.claimed)}
-          hint={summary?.drafted ? `${shortMoney(summary.drafted)} in drafts` : "Filed with the authority"}
+          hint={
+            summary?.drafted
+              ? `${shortMoney(summary.drafted)} in drafts`
+              : "Filed with the authority"
+          }
           icon={<BadgeIndianRupee size={18} />}
           loading={loading}
         />
         <StatTile
           label="Received"
           value={shortMoney(summary?.received)}
-          hint={summary?.shortfall ? `${shortMoney(summary.shortfall)} short of claims` : "In the bank"}
+          hint={
+            summary?.shortfall ? `${shortMoney(summary.shortfall)} short of claims` : "In the bank"
+          }
           loading={loading}
         />
         <StatTile
@@ -292,7 +301,11 @@ const SubsidiesPage: React.FC = () => {
                             {s.schemeCode}
                           </span>
                           <SchemeStatusChip status={s.status} />
-                          <Chip size="sm" tone="muted" icon={s.kind === "POWER_SUBSIDY_LTPT" ? <Zap size={12} /> : undefined}>
+                          <Chip
+                            size="sm"
+                            tone="muted"
+                            icon={s.kind === "POWER_SUBSIDY_LTPT" ? <Zap size={12} /> : undefined}
+                          >
                             {KIND_LABEL[s.kind]}
                           </Chip>
                           {s.ltptDueMonths > 0 && (
@@ -312,13 +325,22 @@ const SubsidiesPage: React.FC = () => {
                         </div>
                       </div>
                       <div className="hidden shrink-0 text-right sm:block">
-                        <div className="text-[11px] font-medium text-ink-subtle">Received / sanctioned</div>
+                        <div className="text-[11px] font-medium text-ink-subtle">
+                          Received / sanctioned
+                        </div>
                         <div className="text-sm font-semibold tabular-nums text-ink">
                           {shortMoney(s.totals.disbursed)}
-                          <span className="sl-muted font-normal"> / {s.expected !== null ? shortMoney(s.expected) : "—"}</span>
+                          <span className="sl-muted font-normal">
+                            {" "}
+                            / {s.expected !== null ? shortMoney(s.expected) : "—"}
+                          </span>
                         </div>
                       </div>
-                      <ChevronRight size={18} className="shrink-0 text-ink-subtle" aria-hidden="true" />
+                      <ChevronRight
+                        size={18}
+                        className="shrink-0 text-ink-subtle"
+                        aria-hidden="true"
+                      />
                     </button>
                   </li>
                 ))}

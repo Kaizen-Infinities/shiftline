@@ -56,6 +56,7 @@ export const SalesReturnPage: React.FC = () => {
     data: returns,
     loading,
     refresh,
+    error: listError,
   } = useListCache<SalesReturn>({
     cacheKey,
     socketModule: "salesReturn",
@@ -340,6 +341,9 @@ export const SalesReturnPage: React.FC = () => {
 
         {/* Table */}
         <DataTable
+          error={listError}
+          sourceRowCount={returns.length}
+          onRetry={refresh}
           columns={columns}
           data={filteredReturns}
           rowKey={(item) => item.id}

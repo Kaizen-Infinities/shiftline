@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { ActionPill, PageHeader, Toolbar } from "../../../../components/ui/v2";
+import { useT } from "../../../../i18n/I18nProvider";
 import { PAGE_CLASS } from "../../../sales/shared/tradeUi";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -51,6 +52,7 @@ const calculatePendingAmount = (item: any) => {
 };
 
 const InvoiceList: React.FC = () => {
+  const { t } = useT();
   const navigate = useNavigate();
   const { can } = usePermission();
   const [searchTerm, setSearchTerm] = useState("");
@@ -75,6 +77,7 @@ const InvoiceList: React.FC = () => {
     data: allInvoices,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "grnInvoices:list",
     socketModule: "grnInvoice",
@@ -106,13 +109,13 @@ const InvoiceList: React.FC = () => {
 
     try {
       await grnInvoiceService.cancel(itemToDelete, reason);
-      toast.success("GRN cancelled; its ledger entries were reversed.");
+      toast.success(t("grn.toast.cancelled"));
       setShowDeleteModal(false);
       setItemToDelete(null);
       refresh();
     } catch (error: any) {
       console.error("❌ Delete error:", error);
-      toast.error(error?.response?.data?.message || "Failed to cancel invoice");
+      toast.error(error?.response?.data?.message || t("grn.toast.cancelFailed"));
     }
   };
 
@@ -139,15 +142,15 @@ const InvoiceList: React.FC = () => {
 
   const createButton = can("invoice.create") ? (
     <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/invoice/create")}>
-      Receive Goods
+      {t("grn.receiveGoods")}
     </ActionPill>
   ) : null;
 
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Bill & Invoice List"
-        subtitle={`${(allInvoices?.length || 0).toLocaleString("en-IN")} GRN invoice${allInvoices?.length === 1 ? "" : "s"} · supplier bills booked against goods received`}
+        title={t("grn.listTitle")}
+        subtitle={t("grn.listSubtitle", { count: allInvoices?.length || 0 })}
         primaryAction={createButton}
         actions={
           can("invoice.export") ? (
@@ -155,7 +158,7 @@ const InvoiceList: React.FC = () => {
               fetchData={fetchInvoicesForExport}
               columns={csvColumns}
               filename={csvFilename}
-              text="Export"
+              text={t("common.export")}
             />
           ) : null
         }
@@ -167,16 +170,19 @@ const InvoiceList: React.FC = () => {
           setSearchTerm(v);
           setCurrentPage(1);
         }}
-        searchPlaceholder="Search GRN, bill no or supplier"
-        searchLabel="Search GRN invoices"
+        searchPlaceholder={t("grn.searchPlaceholder")}
+        searchLabel={t("grn.searchLabel")}
       />
 
       <DataTable
+        error={listError}
+        sourceRowCount={allInvoices.length}
+        onRetry={refresh}
         data={data}
         rowKey={(item) => item.id}
         loading={loading}
-        ariaLabel="GRN invoices"
-        emptyMessage={searchTerm ? `No invoices match "${searchTerm}".` : "No supplier bills yet."}
+        ariaLabel={t("grn.tableLabel")}
+        emptyMessage={searchTerm ? t("grn.noMatch", { term: searchTerm }) : t("grn.empty")}
         emptyAction={searchTerm ? undefined : createButton}
         pagination={{
           currentPage,
@@ -194,7 +200,7 @@ const InvoiceList: React.FC = () => {
             ),
           },
           {
-            header: "GRN no",
+            header: t("grn.col.grnNo"),
             render: (item) => (
               <button
                 type="button"
@@ -206,25 +212,25 @@ const InvoiceList: React.FC = () => {
             ),
           },
           {
-            header: "Bill no",
+            header: t("grn.col.billNo"),
             render: (item) => <span className="text-ink-muted">{item.invoiceNo || "—"}</span>,
           },
           {
-            header: "GRN date",
+            header: t("grn.col.grnDate"),
             render: (item) => (
               <span className="tabular-nums text-ink-muted">{formatDate(item.grnDate)}</span>
             ),
           },
           {
-            header: "Supplier",
+            header: t("common.supplier"),
             render: (item) => (
               <span className="font-medium text-ink">
-                {item.supplier?.displayName || item.supplier?.legalName || "N/A"}
+                {item.supplier?.displayName || item.supplier?.legalName || t("common.notAvailable")}
               </span>
             ),
           },
           {
-            header: "Net amount",
+            header: t("grn.col.netAmount"),
             align: "right",
             render: (item) => (
               <span className="font-semibold tabular-nums text-ink">
@@ -233,16 +239,16 @@ const InvoiceList: React.FC = () => {
             ),
           },
           {
-            header: "Status",
+            header: t("common.status"),
             render: (item) =>
               String(item.status || "").toUpperCase() === "CANCELLED" ? (
-                <StatusBadge status="CANCELLED" />
+                <StatusBadge status="CANCELLED" translate />
               ) : (
-                <StatusBadge status="POSTED" customText="Posted" tone="success" />
+                <StatusBadge status="POSTED" customText={t("grn.posted")} tone="success" />
               ),
           },
           {
-            header: "Actions",
+            header: t("common.actions"),
             align: "right",
             render: (item) => {
               return (
@@ -267,8 +273,8 @@ const InvoiceList: React.FC = () => {
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteConfirm}
-        title="Cancel this GRN / invoice?"
-        confirmText="Cancel GRN"
+        title={t("grn.cancelTitle")}
+        confirmText={t("grn.cancelConfirm")}
       />
     </div>
   );

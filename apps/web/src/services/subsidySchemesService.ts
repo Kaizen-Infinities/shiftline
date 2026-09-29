@@ -226,9 +226,9 @@ export const subsidySchemesService = {
   reminders: async (): Promise<{ asOf: string; items: SubsidyReminder[] }> =>
     (await apiClient.get(p.reminders)).data.data,
 
-  list: async (params: { status?: SchemeStatus; kind?: SchemeKind } = {}): Promise<
-    SubsidyScheme[]
-  > => (await apiClient.get(p.base, { params })).data.data,
+  list: async (
+    params: { status?: SchemeStatus; kind?: SchemeKind } = {}
+  ): Promise<SubsidyScheme[]> => (await apiClient.get(p.base, { params })).data.data,
 
   get: async (id: string): Promise<SubsidySchemeDetail> =>
     (await apiClient.get(`${p.base}/${id}`)).data.data,

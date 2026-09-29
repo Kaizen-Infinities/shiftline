@@ -6,6 +6,7 @@ import { BrandLockup, BrandMark } from "../brand/BrandMark";
 import type { NavArea } from "../../navigation/nav.types";
 import { areaHome, cleanPath, matchPath, screensOf } from "../../navigation/nav.utils";
 import { useSidebarNav } from "../../navigation/useNav";
+import { useT } from "../../i18n/I18nProvider";
 
 interface AppSidebarProps {
   /** Icon rail (desktop only). */
@@ -34,6 +35,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
   onClose,
 }) => {
   const { sections, activeArea, pathname } = useSidebarNav();
+  const { t } = useT();
   const rail = collapsed && variant === "desktop";
   const [tip, setTip] = useState<Tip | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -98,7 +100,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 
   return (
     <nav
-      aria-label="Main"
+      aria-label={t("shell.mainNav")}
       className={`flex h-full flex-col ${
         variant === "drawer" ? "w-[min(88vw,320px)] bg-page" : rail ? "w-[76px]" : "w-[272px]"
       }`}
@@ -112,7 +114,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
         <Link
           to="/dashboard"
           onClick={onClose}
-          aria-label="Shiftline home"
+          aria-label={t("shell.home")}
           className="rounded-[14px] focus-visible:outline-offset-4"
         >
           {rail ? <BrandMark size={40} /> : <BrandLockup size={40} />}
@@ -121,7 +123,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close navigation"
+            aria-label={t("shell.closeNavigation")}
             className="sl-icon-btn sl-icon-btn-plain"
           >
             <X size={20} aria-hidden />
@@ -190,9 +192,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
               hideTip();
               onToggleCollapsed();
             }}
-            aria-label={rail ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={rail ? t("shell.expandSidebar") : t("shell.collapseSidebar")}
             aria-expanded={!rail}
-            onMouseEnter={showTip("Expand sidebar")}
+            onMouseEnter={showTip(t("shell.expandSidebar"))}
             onMouseLeave={hideTip}
             className={`flex items-center gap-3 rounded-[14px] text-sm font-medium text-ink-subtle transition-colors hover:bg-card hover:text-ink ${
               rail ? "mx-auto h-11 w-11 justify-center" : "h-11 w-full px-4"
@@ -203,7 +205,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
             ) : (
               <>
                 <PanelLeftClose size={19} aria-hidden />
-                <span>Collapse</span>
+                <span>{t("shell.collapse")}</span>
               </>
             )}
           </button>

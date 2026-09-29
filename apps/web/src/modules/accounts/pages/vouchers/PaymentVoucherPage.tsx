@@ -15,6 +15,8 @@ import {
   StatTile,
   EmptyState,
   SkeletonRows,
+  LoadError,
+  StaleNotice,
   Chip,
 } from "../../../../components/ui/v2";
 import {
@@ -111,6 +113,7 @@ const PaymentVoucherPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<Voucher>({
     cacheKey,
     socketModule: "voucher",
@@ -263,8 +266,13 @@ const PaymentVoucherPage: React.FC = () => {
       </div>
 
       <section className="sl-tile overflow-hidden" aria-label="Payment vouchers">
+        {listError && !loading && vouchers.length > 0 && (
+          <StaleNotice onRetry={refresh} className="m-3" />
+        )}
         {vouchers.length === 0 ? (
-          loading ? (
+          listError && !loading ? (
+            <LoadError compact title="Couldn't load payment vouchers" onRetry={refresh} />
+          ) : loading ? (
             <SkeletonRows rows={6} columns={5} label="Loading payment vouchers" />
           ) : (
             <EmptyState

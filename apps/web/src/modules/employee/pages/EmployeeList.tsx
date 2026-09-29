@@ -104,6 +104,7 @@ const Employeelist: React.FC = () => {
     data: employees,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "employees:list",
     socketModule: "employee",
@@ -416,6 +417,9 @@ const Employeelist: React.FC = () => {
       </div>
 
       <DataTable
+        error={listError}
+        sourceRowCount={employees.length}
+        onRetry={refresh}
         data={paginatedEmployees}
         rowKey={(emp) => emp.id}
         loading={loading}

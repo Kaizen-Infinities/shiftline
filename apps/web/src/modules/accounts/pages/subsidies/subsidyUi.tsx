@@ -158,9 +158,7 @@ const initialState = (
     },
     ltpt: {
       startMonth: isKind("POWER_SUBSIDY_LTPT") ? s(d.startMonth) : "",
-      months: isKind("POWER_SUBSIDY_LTPT")
-        ? s(d.months)
-        : s(defaults?.POWER_SUBSIDY_LTPT.months),
+      months: isKind("POWER_SUBSIDY_LTPT") ? s(d.months) : s(defaults?.POWER_SUBSIDY_LTPT.months),
       ratePct: isKind("POWER_SUBSIDY_LTPT")
         ? s(d.ratePct)
         : s(defaults?.POWER_SUBSIDY_LTPT.ratePct),
@@ -434,9 +432,7 @@ export const SchemeForm: React.FC<{
           ))}
         </datalist>
 
-        {(showCapital ||
-          f.kind === "POWER_SUBSIDY_LTPT" ||
-          f.kind === "INTEREST_SUBVENTION") && (
+        {(showCapital || f.kind === "POWER_SUBSIDY_LTPT" || f.kind === "INTEREST_SUBVENTION") && (
           <div className="flex flex-col gap-4 rounded-[14px] bg-card-2 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="sl-section-label m-0">{KIND_LABEL[f.kind]} figures</p>
@@ -584,8 +580,8 @@ export const SchemeForm: React.FC<{
                 </div>
                 <div className="flex flex-col gap-2">
                   <p className="m-0 text-[13px] font-medium text-ink-subtle">
-                    Principal outstanding from a date (the sanctioned loan is used before the
-                    first entry)
+                    Principal outstanding from a date (the sanctioned loan is used before the first
+                    entry)
                   </p>
                   {f.balances.map((b, i) => (
                     <div key={i} className="flex flex-wrap items-center gap-2">

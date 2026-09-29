@@ -157,8 +157,16 @@ const CalcTile: React.FC<{ scheme: SubsidySchemeDetail }> = ({ scheme }) => {
   return (
     <Tile padding="md" title="Interest subvention">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Figure label="Loan" value={money(d.sanctionedLoan)} hint={`${d.loanAccountRef}${d.lender ? ` · ${d.lender}` : ""}`} />
-        <Figure label="Subvention" value={`${d.subventionPct}% a year`} hint={d.annualCap ? `Cap ${money(d.annualCap)} a year` : undefined} />
+        <Figure
+          label="Loan"
+          value={money(d.sanctionedLoan)}
+          hint={`${d.loanAccountRef}${d.lender ? ` · ${d.lender}` : ""}`}
+        />
+        <Figure
+          label="Subvention"
+          value={`${d.subventionPct}% a year`}
+          hint={d.annualCap ? `Cap ${money(d.annualCap)} a year` : undefined}
+        />
         <Figure
           label="This year so far"
           value={money(c.fyToDate.amount)}
@@ -238,7 +246,10 @@ const ClaimForm: React.FC<{
       title={claim ? `Edit ${claim.claimNo}` : "File a claim"}
       subtitle="Saved as a draft; mark it filed once it reaches the authority."
     >
-      <form onSubmit={(e) => void submit(e)} className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-4">
+      <form
+        onSubmit={(e) => void submit(e)}
+        className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-4"
+      >
         <Field label="Period from" required>
           <input
             type="date"
@@ -343,45 +354,82 @@ const ClaimStep: React.FC<{
   };
   const cls = fieldControlClass(false, "h-10");
   return (
-    <form onSubmit={(e) => void submit(e)} className="flex flex-wrap items-end gap-2 rounded-[12px] bg-card-2 p-3">
+    <form
+      onSubmit={(e) => void submit(e)}
+      className="flex flex-wrap items-end gap-2 rounded-[12px] bg-card-2 p-3"
+    >
       <span className="w-full text-[13px] font-semibold text-ink">
         {CLAIM_ACTION[to]}: {claim.claimNo}
       </span>
       {to !== "REJECTED" && (
         <label className="flex flex-col text-[12px] text-ink-subtle">
           {to === "FILED" ? "Filed on" : to === "APPROVED" ? "Approved on" : "Received on"}
-          <input type="date" className={cls} value={f.date} max={todayIso()} onChange={(e) => set("date", e.target.value)} required />
+          <input
+            type="date"
+            className={cls}
+            value={f.date}
+            max={todayIso()}
+            onChange={(e) => set("date", e.target.value)}
+            required
+          />
         </label>
       )}
       {(to === "FILED" || to === "APPROVED") && (
         <label className="flex flex-col text-[12px] text-ink-subtle">
           Acknowledgement / reference
-          <input className={cls} value={f.referenceNo} maxLength={80} onChange={(e) => set("referenceNo", e.target.value)} />
+          <input
+            className={cls}
+            value={f.referenceNo}
+            maxLength={80}
+            onChange={(e) => set("referenceNo", e.target.value)}
+          />
         </label>
       )}
       {(to === "APPROVED" || to === "DISBURSED") && (
         <label className="flex flex-col text-[12px] text-ink-subtle">
           {to === "APPROVED" ? "Approved amount (₹)" : "Amount received (₹)"}
-          <input className={cls} inputMode="decimal" value={f.amount} onChange={(e) => set("amount", e.target.value)} required={to === "DISBURSED"} />
+          <input
+            className={cls}
+            inputMode="decimal"
+            value={f.amount}
+            onChange={(e) => set("amount", e.target.value)}
+            required={to === "DISBURSED"}
+          />
         </label>
       )}
       {to === "DISBURSED" && (
         <label className="flex flex-col text-[12px] text-ink-subtle">
           Bank reference (UTR)
-          <input className={cls} value={f.bankRef} maxLength={80} onChange={(e) => set("bankRef", e.target.value)} />
+          <input
+            className={cls}
+            value={f.bankRef}
+            maxLength={80}
+            onChange={(e) => set("bankRef", e.target.value)}
+          />
         </label>
       )}
       {to === "REJECTED" && (
         <label className="flex min-w-[240px] flex-1 flex-col text-[12px] text-ink-subtle">
           Why was it rejected?
-          <input className={cls} value={f.reason} maxLength={500} onChange={(e) => set("reason", e.target.value)} required />
+          <input
+            className={cls}
+            value={f.reason}
+            maxLength={500}
+            onChange={(e) => set("reason", e.target.value)}
+            required
+          />
         </label>
       )}
       <div className="ml-auto flex gap-2">
         <ActionPill variant="secondary" size="sm" onClick={onCancel}>
           Cancel
         </ActionPill>
-        <ActionPill type="submit" size="sm" variant={to === "REJECTED" ? "danger" : "cta"} icon={<Check size={14} />}>
+        <ActionPill
+          type="submit"
+          size="sm"
+          variant={to === "REJECTED" ? "danger" : "cta"}
+          icon={<Check size={14} />}
+        >
           Save
         </ActionPill>
       </div>
@@ -461,10 +509,18 @@ const SubsidySchemePage: React.FC = () => {
             ...(sf.amount.trim() ? { sanctionedAmount: Number(sf.amount) } : {}),
           }
         : { status: to };
-    if ((to === "CLOSED" || to === "REJECTED") && !window.confirm(`${SCHEME_ACTION[to]}? This cannot be undone.`)) {
+    if (
+      (to === "CLOSED" || to === "REJECTED") &&
+      !window.confirm(`${SCHEME_ACTION[to]}? This cannot be undone.`)
+    ) {
       return;
     }
-    if (await act(() => subsidySchemesService.setStatus(scheme.id, body), `Scheme ${SCHEME_STATUS_LABEL[to].toLowerCase()}`)) {
+    if (
+      await act(
+        () => subsidySchemesService.setStatus(scheme.id, body),
+        `Scheme ${SCHEME_STATUS_LABEL[to].toLowerCase()}`
+      )
+    ) {
       setSanction(false);
     }
   };
@@ -524,11 +580,17 @@ const SubsidySchemePage: React.FC = () => {
             </Chip>
           </>
         }
-        subtitle={[scheme.schemeCode, scheme.authority, scheme.sanctionOrderNo].filter(Boolean).join(" · ")}
+        subtitle={[scheme.schemeCode, scheme.authority, scheme.sanctionOrderNo]
+          .filter(Boolean)
+          .join(" · ")}
         actions={
           <>
             {canEdit && !locked && (
-              <ActionPill variant="secondary" icon={<Pencil size={15} />} onClick={() => setEditing(true)}>
+              <ActionPill
+                variant="secondary"
+                icon={<Pencil size={15} />}
+                onClick={() => setEditing(true)}
+              >
                 Edit
               </ActionPill>
             )}
@@ -543,7 +605,12 @@ const SubsidySchemePage: React.FC = () => {
                 </ActionPill>
               ))}
             {canEdit && scheme.claimCount === 0 && (
-              <ActionPill variant="secondary" icon={<Trash2 size={15} />} onClick={() => void remove()} aria-label="Delete scheme">
+              <ActionPill
+                variant="secondary"
+                icon={<Trash2 size={15} />}
+                onClick={() => void remove()}
+                aria-label="Delete scheme"
+              >
                 Delete
               </ActionPill>
             )}
@@ -559,7 +626,11 @@ const SubsidySchemePage: React.FC = () => {
       />
 
       {sanction && (
-        <Tile padding="md" title="Sanction particulars" subtitle="From the sanction order you received.">
+        <Tile
+          padding="md"
+          title="Sanction particulars"
+          subtitle="From the sanction order you received."
+        >
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -568,16 +639,38 @@ const SubsidySchemePage: React.FC = () => {
             className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-4"
           >
             <Field label="Sanction order no." required>
-              <input className={input} value={sf.orderNo} maxLength={80} onChange={(e) => setSf((x) => ({ ...x, orderNo: e.target.value }))} required />
+              <input
+                className={input}
+                value={sf.orderNo}
+                maxLength={80}
+                onChange={(e) => setSf((x) => ({ ...x, orderNo: e.target.value }))}
+                required
+              />
             </Field>
             <Field label="Sanction date" required>
-              <input type="date" className={input} value={sf.date} max={todayIso()} onChange={(e) => setSf((x) => ({ ...x, date: e.target.value }))} required />
+              <input
+                type="date"
+                className={input}
+                value={sf.date}
+                max={todayIso()}
+                onChange={(e) => setSf((x) => ({ ...x, date: e.target.value }))}
+                required
+              />
             </Field>
             <Field label="Sanctioned amount (₹)">
-              <input className={input} inputMode="decimal" value={sf.amount} onChange={(e) => setSf((x) => ({ ...x, amount: e.target.value }))} />
+              <input
+                className={input}
+                inputMode="decimal"
+                value={sf.amount}
+                onChange={(e) => setSf((x) => ({ ...x, amount: e.target.value }))}
+              />
             </Field>
             <div className="flex items-end justify-end gap-2.5">
-              <ActionPill variant="secondary" icon={<X size={15} />} onClick={() => setSanction(false)}>
+              <ActionPill
+                variant="secondary"
+                icon={<X size={15} />}
+                onClick={() => setSanction(false)}
+              >
                 Cancel
               </ActionPill>
               <ActionPill type="submit" icon={<Check size={17} />}>
@@ -608,9 +701,25 @@ const SubsidySchemePage: React.FC = () => {
           value={scheme.expected !== null ? shortMoney(scheme.expected) : "—"}
           hint={scheme.sanctionDate ? `On ${day(scheme.sanctionDate)}` : "Not sanctioned yet"}
         />
-        <StatTile label="Claimed" value={shortMoney(t.claimed)} hint={t.drafted ? `${shortMoney(t.drafted)} in drafts` : `${scheme.claimCount} claims`} />
-        <StatTile label="Received" value={shortMoney(t.disbursed)} hint={t.shortfall ? `${shortMoney(t.shortfall)} short` : "In the bank"} />
-        <StatTile label="Pending" value={shortMoney(t.pending)} hint={t.unclaimed !== null ? `${shortMoney(t.unclaimed)} not yet claimed` : "Filed, awaiting money"} />
+        <StatTile
+          label="Claimed"
+          value={shortMoney(t.claimed)}
+          hint={t.drafted ? `${shortMoney(t.drafted)} in drafts` : `${scheme.claimCount} claims`}
+        />
+        <StatTile
+          label="Received"
+          value={shortMoney(t.disbursed)}
+          hint={t.shortfall ? `${shortMoney(t.shortfall)} short` : "In the bank"}
+        />
+        <StatTile
+          label="Pending"
+          value={shortMoney(t.pending)}
+          hint={
+            t.unclaimed !== null
+              ? `${shortMoney(t.unclaimed)} not yet claimed`
+              : "Filed, awaiting money"
+          }
+        />
       </div>
 
       {claimForm && (
@@ -627,13 +736,22 @@ const SubsidySchemePage: React.FC = () => {
 
       <CalcTile scheme={scheme} />
 
-      <Tile padding="none" divider title="Claims" subtitle="Draft → filed → approved → received. A claim only moves forward.">
+      <Tile
+        padding="none"
+        divider
+        title="Claims"
+        subtitle="Draft → filed → approved → received. A claim only moves forward."
+      >
         {scheme.claims.length === 0 ? (
           <EmptyState
             compact
             icon={<FilePlus2 size={22} />}
             title="No claims yet."
-            description={scheme.takesClaims ? "File the first claim under this scheme." : "Claims open once the scheme is sanctioned."}
+            description={
+              scheme.takesClaims
+                ? "File the first claim under this scheme."
+                : "Claims open once the scheme is sanctioned."
+            }
             action={
               canCreate && scheme.takesClaims ? (
                 <ActionPill icon={<FilePlus2 size={18} />} onClick={() => setClaimForm("new")}>
@@ -647,12 +765,24 @@ const SubsidySchemePage: React.FC = () => {
             <table className="w-full min-w-[860px]" aria-label="Claims">
               <thead className="bg-card-2">
                 <tr>
-                  <th scope="col" className={th}>Claim</th>
-                  <th scope="col" className={th}>Period</th>
-                  <th scope="col" className={`${th} !text-right`}>Claimed</th>
-                  <th scope="col" className={th}>Status</th>
-                  <th scope="col" className={th}>Filed</th>
-                  <th scope="col" className={`${th} !text-right`}>Received</th>
+                  <th scope="col" className={th}>
+                    Claim
+                  </th>
+                  <th scope="col" className={th}>
+                    Period
+                  </th>
+                  <th scope="col" className={`${th} !text-right`}>
+                    Claimed
+                  </th>
+                  <th scope="col" className={th}>
+                    Status
+                  </th>
+                  <th scope="col" className={th}>
+                    Filed
+                  </th>
+                  <th scope="col" className={`${th} !text-right`}>
+                    Received
+                  </th>
                   <th scope="col" className={th}>
                     <span className="sr-only">Actions</span>
                   </th>
@@ -663,34 +793,63 @@ const SubsidySchemePage: React.FC = () => {
                   <React.Fragment key={c.id}>
                     <tr className="border-t border-line-soft">
                       <td className={td}>
-                        <div className="font-mono text-[13px] font-semibold text-accent">{c.claimNo}</div>
-                        {c.referenceNo && <div className="sl-muted text-[12px]">Ref {c.referenceNo}</div>}
+                        <div className="font-mono text-[13px] font-semibold text-accent">
+                          {c.claimNo}
+                        </div>
+                        {c.referenceNo && (
+                          <div className="sl-muted text-[12px]">Ref {c.referenceNo}</div>
+                        )}
                       </td>
                       <td className={`${td} tabular-nums`}>
                         {day(c.periodFrom)} – {day(c.periodTo)}
                       </td>
-                      <td className={`${td} text-right font-semibold tabular-nums`}>{money(c.amountClaimed)}</td>
+                      <td className={`${td} text-right font-semibold tabular-nums`}>
+                        {money(c.amountClaimed)}
+                      </td>
                       <td className={td}>
                         <ClaimStatusChip status={c.status} />
-                        {c.rejectionReason && <div className="sl-muted mt-0.5 max-w-[200px] truncate text-[12px]" title={c.rejectionReason}>{c.rejectionReason}</div>}
+                        {c.rejectionReason && (
+                          <div
+                            className="sl-muted mt-0.5 max-w-[200px] truncate text-[12px]"
+                            title={c.rejectionReason}
+                          >
+                            {c.rejectionReason}
+                          </div>
+                        )}
                       </td>
                       <td className={`${td} tabular-nums`}>
                         {day(c.filedOn)}
                         {c.daysPending !== null && (
-                          <div className={cx("text-[12px]", c.daysPending > 90 ? "font-semibold text-[color:var(--color-danger)]" : "text-ink-subtle")}>
+                          <div
+                            className={cx(
+                              "text-[12px]",
+                              c.daysPending > 90
+                                ? "font-semibold text-[color:var(--color-danger)]"
+                                : "text-ink-subtle"
+                            )}
+                          >
                             {c.daysPending} days waiting
                           </div>
                         )}
                       </td>
                       <td className={`${td} text-right tabular-nums`}>
                         {c.disbursedAmount !== null ? money(c.disbursedAmount) : "—"}
-                        {c.disbursedOn && <div className="sl-muted text-[12px]">{day(c.disbursedOn)}{c.bankRef ? ` · ${c.bankRef}` : ""}</div>}
+                        {c.disbursedOn && (
+                          <div className="sl-muted text-[12px]">
+                            {day(c.disbursedOn)}
+                            {c.bankRef ? ` · ${c.bankRef}` : ""}
+                          </div>
+                        )}
                       </td>
                       <td className={`${td} text-right`}>
                         {canEdit && (
                           <div className="flex flex-wrap justify-end gap-1.5">
                             {c.status === "DRAFT" && (
-                              <ActionPill variant="secondary" size="sm" onClick={() => setClaimForm(c)}>
+                              <ActionPill
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => setClaimForm(c)}
+                              >
                                 Edit
                               </ActionPill>
                             )}
@@ -741,12 +900,23 @@ const SubsidySchemePage: React.FC = () => {
         <dl className="m-0 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <InfoItem label="Authority" value={scheme.authority} />
           <InfoItem label="Sanction order" value={scheme.sanctionOrderNo} mono />
-          <InfoItem label="Sanction date" value={scheme.sanctionDate ? day(scheme.sanctionDate) : null} />
+          <InfoItem
+            label="Sanction date"
+            value={scheme.sanctionDate ? day(scheme.sanctionDate) : null}
+          />
           <InfoItem
             label="Valid"
-            value={scheme.validFrom || scheme.validTo ? `${day(scheme.validFrom)} – ${day(scheme.validTo)}` : null}
+            value={
+              scheme.validFrom || scheme.validTo
+                ? `${day(scheme.validFrom)} – ${day(scheme.validTo)}`
+                : null
+            }
           />
-          <InfoItem className="col-span-2 sm:col-span-4" label="Eligibility notes" value={scheme.eligibilityNotes} />
+          <InfoItem
+            className="col-span-2 sm:col-span-4"
+            label="Eligibility notes"
+            value={scheme.eligibilityNotes}
+          />
         </dl>
         {scheme.details && (
           <InlineAlert tone="info" title="Rates and caps are your own entries" className="mt-4">

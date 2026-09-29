@@ -100,6 +100,8 @@ const InventoryReportsCenter: React.FC = () => {
     data: backendReports,
     total,
     loading: loadingBackend,
+    error: listError,
+    refresh: retryList,
   } = useListCache({
     cacheKey,
     socketModule: "inventorySnapshot",
@@ -328,6 +330,9 @@ const InventoryReportsCenter: React.FC = () => {
       <DataTable
         columns={finalColumns}
         data={backendReports}
+        error={listError}
+        sourceRowCount={backendReports.length}
+        onRetry={retryList}
         rowKey={(row) => row.id || row.itemId || Math.random().toString()}
         loading={loadingBackend}
         pagination={{

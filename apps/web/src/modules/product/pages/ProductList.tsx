@@ -47,6 +47,7 @@ const ProductList: React.FC = () => {
     data: products,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "products:list",
     socketModule: "product",
@@ -493,6 +494,9 @@ const ProductList: React.FC = () => {
           />
 
           <DataTable
+            error={listError}
+            sourceRowCount={products.length}
+            onRetry={refresh}
             columns={columns}
             data={paginatedProducts}
             rowKey={(row) => row.id}

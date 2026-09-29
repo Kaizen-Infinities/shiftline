@@ -20,6 +20,7 @@ import { usePermission } from "../../../hooks/usePermission";
 import { Plus, Send } from "lucide-react";
 import { ActionPill, Chip, PageHeader, SectionLabel, Tile } from "../../../components/ui/v2";
 import FormFooter from "../../stock/lib/FormFooter";
+import { useT } from "../../../i18n/I18nProvider";
 
 const formatUOM = (code: string | null | undefined) => {
   if (!code) return "pcs";
@@ -58,6 +59,8 @@ const GoodsDispatchCreate: React.FC = () => {
 
   useFormShortcuts({});
 
+  const { t } = useT();
+
   useEffect(() => {
     dispatch(fetchEligibleOrders({}));
     dispatch(fetchStores({ storeCategory: "FINISHED_GOODS", limit: 100 }));
@@ -74,7 +77,7 @@ const GoodsDispatchCreate: React.FC = () => {
     const poStoreId = po.destinationStoreId;
 
     if (selectedPOs.some((p) => p.productionOrderId === po.productionOrderId)) {
-      toast.warning("This production order is already added");
+      toast.warning(t("dispatch.toast.alreadyAdded"));
       return;
     }
 
@@ -85,10 +88,10 @@ const GoodsDispatchCreate: React.FC = () => {
 
         setFormData((prev) => ({ ...prev, destinationStoreId: poStoreId }));
         setFormErrors((prev) => ({ ...prev, destinationStoreId: "" }));
-        toast.info(`Destination store auto-set to "${storeLabel}".`);
+        toast.info(t("dispatch.toast.storeAutoSet", { store: storeLabel }));
       } else if (poStoreId !== formData.destinationStoreId) {
         toast.error(
-          `Production Order ${po.productionOrderId} belongs to store "${poStoreId}", which doesn't match current destination store.`
+          t("dispatch.toast.storeMismatch", { po: po.productionOrderId, store: poStoreId })
         );
         return;
       }
@@ -110,7 +113,7 @@ const GoodsDispatchCreate: React.FC = () => {
   const handleQtyChange = (productionOrderId: string, val: string, maxQty: number) => {
     const num = Number(val);
     if (num > maxQty) {
-      toast.warning(`Dispatch quantity cannot exceed pending quantity of ${maxQty}`);
+      toast.warning(t("dispatch.toast.overPending", { qty: maxQty }));
       return;
     }
     setSelectedPOs((prev) =>
@@ -134,11 +137,11 @@ const GoodsDispatchCreate: React.FC = () => {
     let isValid = true;
 
     if (!formData.vehicleNumber.trim()) {
-      errors.vehicleNumber = "Vehicle number is required";
+      errors.vehicleNumber = t("dispatch.err.vehicle");
       isValid = false;
     }
     if (!formData.driverName.trim()) {
-      errors.driverName = "Driver name is required";
+      errors.driverName = t("dispatch.err.driver");
       isValid = false;
     }
     if (formData.driverMobile) {
@@ -149,7 +152,7 @@ const GoodsDispatchCreate: React.FC = () => {
       }
     }
     if (!formData.destinationStoreId) {
-      errors.destinationStoreId = "Destination store is required";
+      errors.destinationStoreId = t("dispatch.err.store");
       isValid = false;
     }
 
@@ -159,16 +162,16 @@ const GoodsDispatchCreate: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      toast.error("Please fix form errors before submitting");
+      toast.error(t("dispatch.toast.fixErrors"));
       return;
     }
     if (selectedPOs.length === 0) {
-      toast.error("At least one production order must be added to dispatch");
+      toast.error(t("dispatch.toast.noOrders"));
       return;
     }
     const invalidItem = selectedPOs.some((po) => !po.dispatchQty || Number(po.dispatchQty) <= 0);
     if (invalidItem) {
-      toast.error("All selected items must have a dispatch quantity greater than 0");
+      toast.error(t("dispatch.toast.zeroQty"));
       return;
     }
 
@@ -177,7 +180,10 @@ const GoodsDispatchCreate: React.FC = () => {
     );
     if (storeMismatch) {
       toast.error(
-        `Production Order ${storeMismatch.productionOrderId} is assigned to store "${storeMismatch.destinationStoreId}", which doesn't match the selected destination store.`
+        t("dispatch.toast.storeMismatch", {
+          po: storeMismatch.productionOrderId,
+          store: storeMismatch.destinationStoreId,
+        })
       );
       return;
     }
@@ -195,16 +201,16 @@ const GoodsDispatchCreate: React.FC = () => {
       };
 
       await dispatch(createGoodsDispatch(payload)).unwrap();
-      toast.success("Goods Dispatch created successfully");
+      toast.success(t("dispatch.toast.created"));
       navigate("/production/goods-dispatch");
     } catch (error: any) {
-      toast.error(error || "Failed to create goods dispatch");
+      toast.error(error || t("dispatch.toast.createFailed"));
     }
   };
 
   const combinedColumns: DataTableColumn<any>[] = [
     {
-      header: "PO Number",
+      header: t("dispatch.col.po"),
       width: "110px",
       accessor: "productionOrderId",
       render: (item: any) => (
@@ -212,7 +218,7 @@ const GoodsDispatchCreate: React.FC = () => {
       ),
     },
     {
-      header: "Product",
+      header: t("common.product"),
       width: "minmax(130px, 1fr)",
       accessor: "productItem",
       render: (item: any) => (
@@ -225,7 +231,7 @@ const GoodsDispatchCreate: React.FC = () => {
       ),
     },
     {
-      header: "Pending",
+      header: t("dispatch.col.pending"),
       width: "100px",
       accessor: "pendingDispatchQty",
       align: "right",
@@ -236,7 +242,7 @@ const GoodsDispatchCreate: React.FC = () => {
       ),
     },
     {
-      header: "Dispatch Qty",
+      header: t("dispatch.col.dispatchQty"),
       width: "160px",
       render: (item: any) => {
         const selected = selectedPOs.find((p) => p.productionOrderId === item.productionOrderId);
@@ -254,7 +260,7 @@ const GoodsDispatchCreate: React.FC = () => {
                 handleQtyChange(item.productionOrderId, e.target.value, item.pendingDispatchQty)
               }
               inputMode="decimal"
-              aria-label={`Dispatch quantity for ${item.productionOrderId}`}
+              aria-label={t("dispatch.qtyFor", { po: item.productionOrderId })}
               className="sl-input h-9 w-24 px-2 text-right tabular-nums"
             />
             <span className="text-xs text-ink-subtle">{formatUOM(item.uom)}</span>
@@ -263,7 +269,7 @@ const GoodsDispatchCreate: React.FC = () => {
       },
     },
     {
-      header: "Remarks",
+      header: t("common.remarks"),
       width: "140px",
       render: (item: any) => {
         const selected = selectedPOs.find((p) => p.productionOrderId === item.productionOrderId);
@@ -271,18 +277,18 @@ const GoodsDispatchCreate: React.FC = () => {
         return (
           <input
             type="text"
-            placeholder="Optional"
+            placeholder={t("dispatch.optional")}
             value={selected.remarks || ""}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => handleRemarksChange(item.productionOrderId, e.target.value)}
-            aria-label={`Remarks for ${item.productionOrderId}`}
+            aria-label={t("dispatch.remarksFor", { po: item.productionOrderId })}
             className="sl-input h-9 w-full px-2 text-sm"
           />
         );
       },
     },
     {
-      header: "Action",
+      header: t("hourly.action"),
       width: "90px",
       accessor: "id",
       render: (item: any) => {
@@ -296,7 +302,7 @@ const GoodsDispatchCreate: React.FC = () => {
             icon={<Plus size={14} />}
             onClick={() => handleSelectPO(item)}
           >
-            Add
+            {t("dispatch.add")}
           </ActionPill>
         );
       },
@@ -326,40 +332,42 @@ const GoodsDispatchCreate: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Create Goods Dispatch"
-        subtitle="Select completed production orders to dispatch to the warehouse"
+        title={t("dispatch.createTitle")}
+        subtitle={t("dispatch.createSubtitle")}
         back="/production/goods-dispatch"
-        backLabel="Back to dispatches"
+        backLabel={t("dispatch.back")}
         breadcrumbs={[
-          { label: "Production" },
-          { label: "Goods dispatch", to: "/production/goods-dispatch" },
-          { label: "New" },
+          { label: t("dispatch.crumbProduction") },
+          { label: t("dispatch.title"), to: "/production/goods-dispatch" },
+          { label: t("dispatch.crumbNew") },
         ]}
       />
 
       <div className="flex flex-col gap-4">
-        <section aria-label="Select Production Orders">
+        <section aria-label={t("dispatch.selectOrders")}>
           <SectionLabel
             action={
               selectedPOs.length > 0 ? (
                 <span className="flex items-center gap-2">
-                  <Chip size="sm">{selectedPOs.length} Selected</Chip>
+                  <Chip size="sm">
+                    {t("dispatch.selectedCount", { count: selectedPOs.length })}
+                  </Chip>
                   <Chip size="sm" tone="success" className="tabular-nums">
-                    Total: {totalDispatchQty.toLocaleString("en-IN")} Units
+                    {t("dispatch.totalUnits", { qty: totalDispatchQty })}
                   </Chip>
                 </span>
               ) : undefined
             }
           >
-            Select Production Orders
+            {t("dispatch.selectOrders")}
           </SectionLabel>
           <DataTable
             columns={combinedColumns}
             data={filteredEligibleOrders}
             loading={loading}
             rowKey={(item) => item.productionOrderId}
-            ariaLabel="Eligible production orders"
-            emptyMessage="No eligible production orders available for dispatch."
+            ariaLabel={t("dispatch.eligibleLabel")}
+            emptyMessage={t("dispatch.noEligible")}
             minHeightClassName=""
             rowClassName={(item: any) =>
               selectedPOs.some((p) => p.productionOrderId === item.productionOrderId)
@@ -369,47 +377,47 @@ const GoodsDispatchCreate: React.FC = () => {
           />
         </section>
 
-        <Tile title="Vehicle & transport" subtitle="Where it goes, who drives and when it loads">
+        <Tile title={t("dispatch.vehicleTitle")} subtitle={t("dispatch.vehicleSub")}>
           <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
             <DatePickerCalendar
-              label="Dispatch Date"
+              label={t("dispatch.date")}
               name="dispatchDate"
               value={formData.dispatchDate}
               onChange={(e) => handleInputChange(e as any)}
               required
             />
             <SelectInput
-              label="Destination Store"
+              label={t("dispatch.destination")}
               name="destinationStoreId"
               value={formData.destinationStoreId}
               onChange={handleInputChange}
               required
               error={formErrors.destinationStoreId}
               options={[
-                { value: "", label: "Select Store" },
+                { value: "", label: t("dispatch.selectStore") },
                 ...stores.map((s) => ({ value: s.storeId, label: s.storeName })),
               ]}
             />
             <TextInput
-              label="Vehicle Number"
+              label={t("dispatch.vehicleNumber")}
               name="vehicleNumber"
               value={formData.vehicleNumber}
               onChange={handleInputChange}
-              placeholder="e.g. TN-XX-XXXX"
+              placeholder={t("dispatch.vehiclePlaceholder")}
               required
               error={formErrors.vehicleNumber}
             />
             <TextInput
-              label="Driver Name"
+              label={t("dispatch.driverName")}
               name="driverName"
               value={formData.driverName}
               onChange={handleInputChange}
-              placeholder="Driver Name"
+              placeholder={t("dispatch.driverName")}
               required
               error={formErrors.driverName}
             />
             <IndiaPhoneInput
-              label="Driver Mobile"
+              label={t("dispatch.driverMobile")}
               name="driverMobile"
               value={formData.driverMobile}
               onChange={(e: any) => handleInputChange(e)}
@@ -417,25 +425,25 @@ const GoodsDispatchCreate: React.FC = () => {
               error={formErrors.driverMobile}
             />
             <TextInput
-              label="Transport Name"
+              label={t("dispatch.transportName")}
               name="transportName"
               value={formData.transportName}
               onChange={handleInputChange}
-              placeholder="e.g. VRL Logistics"
+              placeholder={t("dispatch.transportPlaceholder")}
             />
             <TimePickerInput
-              label="Loading Time"
+              label={t("dispatch.loadingTime")}
               name="loadingTime"
               value={formData.loadingTime}
               onChange={(val) => setFormData((prev) => ({ ...prev, loadingTime: val }))}
             />
             <div className="md:col-span-2">
               <TextInput
-                label="Remarks"
+                label={t("common.remarks")}
                 name="remarks"
                 value={formData.remarks}
                 onChange={handleInputChange}
-                placeholder="Enter dispatch remarks..."
+                placeholder={t("dispatch.remarksPlaceholder")}
                 as="textarea"
                 rows={2}
               />
@@ -447,8 +455,8 @@ const GoodsDispatchCreate: React.FC = () => {
       <FormFooter
         hint={
           selectedPOs.length > 0
-            ? `${selectedPOs.length} order(s) · ${totalDispatchQty.toLocaleString("en-IN")} units`
-            : "Add at least one production order"
+            ? t("dispatch.footerCount", { count: selectedPOs.length, qty: totalDispatchQty })
+            : t("dispatch.footerEmpty")
         }
       >
         <ActionPill
@@ -456,16 +464,16 @@ const GoodsDispatchCreate: React.FC = () => {
           onClick={() => navigate("/production/goods-dispatch")}
           disabled={loading}
         >
-          Cancel
+          {t("common.cancel")}
         </ActionPill>
         {can("goods-dispatch.create") && (
           <ActionPill
             icon={<Send size={16} />}
             onClick={handleSubmit}
             loading={loading}
-            loadingText="Creating..."
+            loadingText={t("dispatch.creating")}
           >
-            Create Dispatch
+            {t("dispatch.create")}
           </ActionPill>
         )}
       </FormFooter>
