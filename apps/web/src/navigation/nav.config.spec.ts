@@ -58,6 +58,7 @@ describe("navigation config", () => {
       "/production/order-tna",
       "/sales/asn",
       "/sales/customer-part-numbers",
+      "/accounts/subsidies",
     ]) {
       expect(paths.has(p)).toBe(true);
     }

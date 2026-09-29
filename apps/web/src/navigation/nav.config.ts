@@ -1254,6 +1254,23 @@ export const NAV_AREAS: NavArea[] = [
             ],
           },
           {
+            id: "accounts.subsidies",
+            title: "Subsidies & schemes",
+            path: "/accounts/subsidies",
+            permission: "subsidy-schemes.view",
+            icon: Landmark,
+            description: "Capital, power and interest subsidies: sanctioned, claimed, received.",
+            keywords: [
+              "subsidy",
+              "scheme",
+              "ltpt",
+              "capital subsidy",
+              "interest subvention",
+              "needs",
+              "pli",
+            ],
+          },
+          {
             id: "accounts.payable",
             title: "Payables",
             path: "/accounts/payable",

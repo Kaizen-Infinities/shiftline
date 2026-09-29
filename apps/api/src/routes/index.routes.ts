@@ -69,6 +69,8 @@ import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
 import projectJobsRoutes from "../modules/project-jobs/project-jobs.routes";
 import buyerAuditsRoutes from "../modules/buyer-audits/buyer-audits.routes";
 import msmeClaimsRoutes from "../modules/msme-claims/msme-claims.routes";
+import subsidySchemesRoutes from "../modules/subsidy-schemes/subsidy-schemes.routes";
+
 import processRoutesRoutes, {
   lotsRouter as processLotsRoutes,
 } from "../modules/process-routes/process-routes.routes";
@@ -184,6 +186,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   // TN-05: mounted before /msme so the payable router never sees these paths.
   { path: "/msme/receivable-claims", router: msmeClaimsRoutes },
   { path: "/msme", router: msmeRoutes },
+  { path: "/subsidy-schemes", router: subsidySchemesRoutes },
   { path: "/assets", router: assetRoutes },
   { path: "/fx", router: fxRoutes },
   { path: "/costing", router: costingRoutes },

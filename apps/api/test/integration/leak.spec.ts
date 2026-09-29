@@ -207,6 +207,9 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "BuyerAudit",
   "AuditFinding",
   "CorrectiveAction",
+  // subsidies and schemes (TN-10): subsidy-schemes.spec proves a foreign company sees none
+  "SubsidyScheme",
+  "SubsidyClaim",
 ]);
 
 describe("cross-tenant leak suite", () => {

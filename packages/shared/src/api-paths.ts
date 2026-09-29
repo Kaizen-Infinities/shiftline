@@ -382,6 +382,12 @@ export const API_PATHS = {
     readinessExport: "/buyer-audits/readiness/export",
     owners: "/buyer-audits/owners",
   },
+  subsidySchemes: {
+    base: "/subsidy-schemes", // ← service appends /:id, /:id/status, /:id/entitlement, /:id/claims[/:claimId[/status]]
+    summary: "/subsidy-schemes/summary",
+    reminders: "/subsidy-schemes/reminders",
+    exportCsv: "/subsidy-schemes/export.csv",
+  },
   orderTna: {
     base: "/order-tna", // ← service appends /:id, /:id/milestones[/:milestoneId]
     templates: "/order-tna/templates",
