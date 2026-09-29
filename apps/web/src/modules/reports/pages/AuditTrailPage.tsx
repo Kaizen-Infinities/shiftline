@@ -169,7 +169,6 @@ const AuditTrailPage: React.FC = () => {
         title="Audit Trail"
         subtitle="Every change to the books, documents, payroll and masters, recorded by the database and never editable."
         icon={<History size={22} />}
-        className="!mb-1"
         actions={
           can("audit-reports.export") && (
             <button

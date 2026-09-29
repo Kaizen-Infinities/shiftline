@@ -13,6 +13,7 @@ import {
   type VarianceReport,
   type WipTotal,
 } from "../../../services/costingService";
+import { PageHeader } from "../../../components/ui/v2";
 import {
   Card,
   day,
@@ -105,105 +106,102 @@ const CostingPage: React.FC = () => {
 
   return (
     <div className="sl-page">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="sl-h1 m-0 leading-tight">Costing</h1>
-          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
-            What the stock is worth at weighted average, what each product cost to make, where the
-            money went and whether that was the plan.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tab === "stock" && (
-            <select
-              className={field}
-              value={stockPeriodKey}
-              onChange={(e) => setStockPeriodKey(e.target.value)}
-              aria-label="Stock period"
-            >
-              {months.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {tab === "centres" && (
-            <select
-              className={field}
-              value={periodKey}
-              onChange={(e) => setPeriodKey(e.target.value)}
-              aria-label="Month"
-            >
-              {months.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {tab === "budgets" && (
-            <select
-              className={field}
-              value={fyCode}
-              onChange={(e) => setFyCode(e.target.value)}
-              aria-label="Financial year"
-            >
-              {years.map((y) => (
-                <option key={y.value} value={y.value}>
-                  {y.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {tab === "stock" && can("costing.manage") && (
-            <>
-              <button
-                className={primary}
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    const out = await costingService.postClosingStock(stockPeriodKey);
-                    toast.success(
-                      out.posted
-                        ? `Posted the movement of ${out.movement}`
-                        : "Nothing to post for that month"
-                    );
-                    await load();
-                  } catch (err) {
-                    toast.error(message(err));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
+      <PageHeader
+        title="Costing"
+        subtitle="What the stock is worth at weighted average, what each product cost to make, where the money went and whether that was the plan."
+        actions={
+          <>
+            {tab === "stock" && (
+              <select
+                className={field}
+                value={stockPeriodKey}
+                onChange={(e) => setStockPeriodKey(e.target.value)}
+                aria-label="Stock period"
               >
-                Post {stockPeriodKey} stock movement
-              </button>
-              <button
-                className={primary}
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    const result = await costingService.backfillValuation();
-                    setBackfillResult(result);
-                    toast.success(
-                      `Backfilled ${result.created} valuation entries (${result.skipped} skipped)`
-                    );
-                  } catch (err) {
-                    toast.error(message(err));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
+                {months.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tab === "centres" && (
+              <select
+                className={field}
+                value={periodKey}
+                onChange={(e) => setPeriodKey(e.target.value)}
+                aria-label="Month"
               >
-                Backfill valuation
-              </button>
-            </>
-          )}
-        </div>
-      </header>
+                {months.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tab === "budgets" && (
+              <select
+                className={field}
+                value={fyCode}
+                onChange={(e) => setFyCode(e.target.value)}
+                aria-label="Financial year"
+              >
+                {years.map((y) => (
+                  <option key={y.value} value={y.value}>
+                    {y.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tab === "stock" && can("costing.manage") && (
+              <>
+                <button
+                  className={primary}
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      const out = await costingService.postClosingStock(stockPeriodKey);
+                      toast.success(
+                        out.posted
+                          ? `Posted the movement of ${out.movement}`
+                          : "Nothing to post for that month"
+                      );
+                      await load();
+                    } catch (err) {
+                      toast.error(message(err));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Post {stockPeriodKey} stock movement
+                </button>
+                <button
+                  className={primary}
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      const result = await costingService.backfillValuation();
+                      setBackfillResult(result);
+                      toast.success(
+                        `Backfilled ${result.created} valuation entries (${result.skipped} skipped)`
+                      );
+                    } catch (err) {
+                      toast.error(message(err));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Backfill valuation
+                </button>
+              </>
+            )}
+          </>
+        }
+      />
 
       <nav className="flex flex-wrap gap-2" role="tablist">
         {(

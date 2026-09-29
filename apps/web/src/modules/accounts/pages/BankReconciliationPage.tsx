@@ -11,6 +11,7 @@ import {
   type StatementFormat,
   type StatementLineRow,
 } from "../../../services/bankingService";
+import { PageHeader } from "../../../components/ui/v2";
 import {
   Card,
   danger,
@@ -115,47 +116,44 @@ const BankReconciliationPage: React.FC = () => {
 
   return (
     <div className="sl-page">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="sl-h1 m-0 leading-tight">Bank Reconciliation</h1>
-          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
-            The statement against the cash book, and the cheques that have not turned into money
-            yet.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select
-            className={field}
-            value={bankAccountId}
-            onChange={(e) => setBankAccountId(e.target.value)}
-            aria-label="Bank account"
-          >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.bankName}
-                {a.accountNumber ? ` · ${a.accountNumber}` : ""}
-              </option>
-            ))}
-            {accounts.length === 0 && <option value="">No bank account yet</option>}
-          </select>
-          {tab === "lines" && can("banking.manage") && bankAccountId && (
-            <button
-              className={primary}
-              disabled={busy}
-              onClick={() =>
-                act(async () => {
-                  const out = await bankingService.autoMatch(bankAccountId);
-                  toast.info(
-                    `${out.matched} matched, ${out.leftForAPerson} left for you to look at`
-                  );
-                }, "Matched")
-              }
+      <PageHeader
+        title="Bank Reconciliation"
+        subtitle="The statement against the cash book, and the cheques that have not turned into money yet."
+        actions={
+          <>
+            <select
+              className={field}
+              value={bankAccountId}
+              onChange={(e) => setBankAccountId(e.target.value)}
+              aria-label="Bank account"
             >
-              Match what it can
-            </button>
-          )}
-        </div>
-      </header>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.bankName}
+                  {a.accountNumber ? ` · ${a.accountNumber}` : ""}
+                </option>
+              ))}
+              {accounts.length === 0 && <option value="">No bank account yet</option>}
+            </select>
+            {tab === "lines" && can("banking.manage") && bankAccountId && (
+              <button
+                className={primary}
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    const out = await bankingService.autoMatch(bankAccountId);
+                    toast.info(
+                      `${out.matched} matched, ${out.leftForAPerson} left for you to look at`
+                    );
+                  }, "Matched")
+                }
+              >
+                Match what it can
+              </button>
+            )}
+          </>
+        }
+      />
 
       <nav className="flex flex-wrap gap-2" role="tablist">
         {(

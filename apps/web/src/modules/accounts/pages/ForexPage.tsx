@@ -8,6 +8,7 @@ import {
   type FxLine,
   type FxRevaluationRow,
 } from "../../../services/fxService";
+import { PageHeader } from "../../../components/ui/v2";
 import {
   Card,
   day,
@@ -89,52 +90,49 @@ const ForexPage: React.FC = () => {
 
   return (
     <div className="sl-page">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="sl-h1 m-0 leading-tight">Foreign Exchange</h1>
-          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
-            What is still owed in a foreign currency, what the rupee has done to it, and what
-            customs charged on the way in.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tab === "revaluations" && (
-            <select
-              className={field}
-              value={periodKey}
-              onChange={(e) => setPeriodKey(e.target.value)}
-              aria-label="Period"
-            >
-              {months.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {tab === "exposure" && can("currencies.edit") && (
-            <button
-              className={secondary}
-              disabled={busy}
-              onClick={() =>
-                act(async () => {
-                  const out = await fxService.pullRates({});
-                  if (out.missing.length > 0) {
-                    toast.info(`No rate published for ${out.missing.join(", ")}`);
-                  }
-                }, "Rates pulled")
-              }
-            >
-              Pull today&apos;s rates
-            </button>
-          )}
-          {tab === "imports" && can("imports.create") && (
-            <button className={primary} onClick={() => setAdding(true)}>
-              Record a bill of entry
-            </button>
-          )}
-        </div>
-      </header>
+      <PageHeader
+        title="Foreign Exchange"
+        subtitle="What is still owed in a foreign currency, what the rupee has done to it, and what customs charged on the way in."
+        actions={
+          <>
+            {tab === "revaluations" && (
+              <select
+                className={field}
+                value={periodKey}
+                onChange={(e) => setPeriodKey(e.target.value)}
+                aria-label="Period"
+              >
+                {months.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tab === "exposure" && can("currencies.edit") && (
+              <button
+                className={secondary}
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    const out = await fxService.pullRates({});
+                    if (out.missing.length > 0) {
+                      toast.info(`No rate published for ${out.missing.join(", ")}`);
+                    }
+                  }, "Rates pulled")
+                }
+              >
+                Pull today&apos;s rates
+              </button>
+            )}
+            {tab === "imports" && can("imports.create") && (
+              <button className={primary} onClick={() => setAdding(true)}>
+                Record a bill of entry
+              </button>
+            )}
+          </>
+        }
+      />
 
       <nav className="flex flex-wrap gap-2" role="tablist">
         {(

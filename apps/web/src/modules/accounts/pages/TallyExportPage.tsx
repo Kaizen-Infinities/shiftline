@@ -10,6 +10,7 @@ import {
   type TallyRunRow,
   type TallyScope,
 } from "../../../services/tallyService";
+import { PageHeader } from "../../../components/ui/v2";
 import {
   Card,
   day,
@@ -123,15 +124,10 @@ const TallyExportPage: React.FC = () => {
 
   return (
     <div className="sl-page">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="sl-h1 m-0 leading-tight">Tally Export</h1>
-          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
-            The books as an XML file your accountant imports into Tally — groups and ledgers under
-            the names Tally already uses, and the month's vouchers in its own sign convention.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="Tally Export"
+        subtitle="The books as an XML file your accountant imports into Tally — groups and ledgers under the names Tally already uses, and the month's vouchers in its own sign convention."
+      />
 
       <nav className="flex flex-wrap gap-2" role="tablist">
         {(
