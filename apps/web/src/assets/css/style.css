@@ -1328,6 +1328,12 @@ body {
     font-size: 0.8125rem;
     gap: 0.4rem;
   }
+  /* The touch rule above is overridden by this later one, so small pills restate it. */
+  @media (pointer: coarse) {
+    .sl-pill-sm {
+      min-height: 2.5rem;
+    }
+  }
   .sl-pill-md {
     min-height: 2.75rem;
     padding: 0 1.25rem;
