@@ -376,6 +376,12 @@ export const API_PATHS = {
     eligible: "/msme/receivable-claims/eligible",
     settings: "/msme/receivable-claims/settings",
   },
+  buyerAudits: {
+    base: "/buyer-audits", // ← service appends /:id, /:id/cancel, /:id/findings[/:findingId[/actions]], /:id/actions/:actionId
+    readiness: "/buyer-audits/readiness",
+    readinessExport: "/buyer-audits/readiness/export",
+    owners: "/buyer-audits/owners",
+  },
   orderTna: {
     base: "/order-tna", // ← service appends /:id, /:id/milestones[/:milestoneId]
     templates: "/order-tna/templates",

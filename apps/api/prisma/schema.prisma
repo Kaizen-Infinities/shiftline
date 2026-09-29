@@ -523,6 +523,7 @@ model Customer {
   projectJobs           ProjectJob[]        @relation("CustomerProjectJob")
   deliverySchedules     CustomerSchedule[]  @relation("CustomerDeliverySchedule")
   msmeRecoveryClaims    MsmeRecoveryClaim[] @relation("CustomerMsmeRecoveryClaim")
+  buyerAudits           BuyerAudit[]        @relation("CustomerBuyerAudit")
   customerPartMaps      CustomerPartMap[]   @relation("CustomerPartMapCustomer")
   asns                  Asn[]               @relation("CustomerAsn")
 
@@ -751,6 +752,9 @@ model Company {
   projectJobStages       ProjectJobStage[]        @relation("CompanyProjectJobStage")
   projectJobCosts        ProjectJobCost[]         @relation("CompanyProjectJobCost")
   projectJobBillings     ProjectJobBilling[]      @relation("CompanyProjectJobBilling")
+  buyerAudits            BuyerAudit[]             @relation("CompanyBuyerAudit")
+  auditFindings          AuditFinding[]           @relation("CompanyAuditFinding")
+  correctiveActions      CorrectiveAction[]       @relation("CompanyCorrectiveAction")
   processRoutes          ProcessRoute[]           @relation("CompanyProcessRoute")
   processRouteSteps      ProcessRouteStep[]       @relation("CompanyProcessRouteStep")
   processLots            LotRouteProgress[]       @relation("CompanyLotRouteProgress")
@@ -7032,4 +7036,134 @@ model LotStepMovement {
   @@index([challanId])
   @@index([jobWorkerId])
   @@map("lot_step_movements")
+}
+
+// ── Buyer social-compliance audits (TN-08) ────────────────────────────────────
+
+enum BuyerAuditStandard {
+  BSCI
+  WRAP
+  SMETA
+  SA8000
+  SEDEX
+  HIGG
+  CUSTOMER_COC
+  OTHER
+}
+
+/// PLANNED → IN_PROGRESS → COMPLETED, forward only; CANCELLED from either open state, never deleted.
+enum BuyerAuditStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AuditFindingArea {
+  WORKING_HOURS
+  WAGES
+  HEALTH_SAFETY
+  CHILD_LABOUR
+  DOCUMENTATION
+  ENVIRONMENT
+  OTHER
+}
+
+enum AuditFindingSeverity {
+  CRITICAL
+  MAJOR
+  MINOR
+  OBSERVATION
+}
+
+/// OPEN → IN_PROGRESS → DONE → VERIFIED, forward only (a step may be skipped, never undone).
+enum CorrectiveActionStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  VERIFIED
+}
+
+/// TN-08: a buyer's social-compliance audit (BSCI, WRAP, SMETA, SA8000, Sedex, Higg, a buyer's
+/// code of conduct) — planned, carried out, graded, and the next one due.
+model BuyerAudit {
+  id            String             @id @default(uuid()) @db.Uuid
+  companyId     String             @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  /// User-entered, or "<standard>-<scheduledDate>" when left blank.
+  auditNo       String             @map("audit_no") @db.VarChar(30)
+  standard      BuyerAuditStandard
+  /// The buyer who asked for the audit, if any (tenant-checked by the service).
+  customerId    String?            @map("customer_id") @db.Uuid
+  auditorFirm   String?            @map("auditor_firm") @db.VarChar(120)
+  auditorName   String?            @map("auditor_name") @db.VarChar(80)
+  scheduledDate DateTime           @map("scheduled_date") @db.Date
+  actualDate    DateTime?          @map("actual_date") @db.Date
+  status        BuyerAuditStatus   @default(PLANNED)
+  /// The grade or result as the scheme states it ("B", "Gold", "Pass", "78%").
+  rating        String?            @db.VarChar(40)
+  nextAuditDue  DateTime?          @map("next_audit_due") @db.Date
+  remarks       String?            @db.VarChar(500)
+  cancelReason  String?            @map("cancel_reason") @db.VarChar(300)
+  createdBy     String?            @map("created_by") @db.VarChar(36)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company  Company        @relation("CompanyBuyerAudit", fields: [companyId], references: [id], onDelete: Restrict)
+  customer Customer?      @relation("CustomerBuyerAudit", fields: [customerId], references: [id], onDelete: Restrict)
+  findings AuditFinding[]
+
+  @@unique([companyId, auditNo])
+  @@index([companyId, status, scheduledDate])
+  @@map("buyer_audits")
+}
+
+/// One non-compliance an auditor raised, by area and severity.
+model AuditFinding {
+  id          String               @id @default(uuid()) @db.Uuid
+  companyId   String               @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  auditId     String               @map("audit_id") @db.Uuid
+  seq         Int
+  area        AuditFindingArea
+  severity    AuditFindingSeverity
+  /// The scheme's clause or question number, e.g. "PA 6.2".
+  clauseRef   String?              @map("clause_ref") @db.VarChar(40)
+  description String               @db.VarChar(1000)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company            @relation("CompanyAuditFinding", fields: [companyId], references: [id], onDelete: Restrict)
+  audit   BuyerAudit         @relation(fields: [auditId], references: [id], onDelete: Restrict)
+  actions CorrectiveAction[]
+
+  @@unique([auditId, seq])
+  @@index([companyId, severity])
+  @@map("audit_findings")
+}
+
+/// A corrective action against a finding. Lean on purpose: when P2-10 CAPA lands this becomes a
+/// `CapaAction` (same owner / due date / status / evidence shape) raised from the finding.
+model CorrectiveAction {
+  id              String                 @id @default(uuid()) @db.Uuid
+  companyId       String                 @default(dbgenerated("(current_setting('app.company_id'::text))::uuid")) @map("company_id") @db.Uuid
+  findingId       String                 @map("finding_id") @db.Uuid
+  action          String                 @db.VarChar(500)
+  /// The owner is a user or an employee (both tenant-checked); the name is kept for display.
+  ownerUserId     String?                @map("owner_user_id") @db.VarChar(36)
+  ownerEmployeeId BigInt?                @map("owner_employee_id")
+  ownerName       String?                @map("owner_name") @db.VarChar(120)
+  dueDate         DateTime               @map("due_date") @db.Date
+  status          CorrectiveActionStatus @default(OPEN)
+  evidenceNote    String?                @map("evidence_note") @db.VarChar(1000)
+  closedOn        DateTime?              @map("closed_on") @db.Date
+  verifiedBy      String?                @map("verified_by") @db.VarChar(36)
+  createdBy       String?                @map("created_by") @db.VarChar(36)
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company Company      @relation("CompanyCorrectiveAction", fields: [companyId], references: [id], onDelete: Restrict)
+  finding AuditFinding @relation(fields: [findingId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status, dueDate])
+  @@index([findingId])
+  @@map("corrective_actions")
 }

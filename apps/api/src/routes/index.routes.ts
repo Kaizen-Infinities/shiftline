@@ -67,6 +67,7 @@ import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
 import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
 import projectJobsRoutes from "../modules/project-jobs/project-jobs.routes";
+import buyerAuditsRoutes from "../modules/buyer-audits/buyer-audits.routes";
 import msmeClaimsRoutes from "../modules/msme-claims/msme-claims.routes";
 import processRoutesRoutes, {
   lotsRouter as processLotsRoutes,
@@ -192,6 +193,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/leave", router: leaveRoutes },
   { path: "/order-tna", router: orderTnaRoutes },
   { path: "/project-jobs", router: projectJobsRoutes },
+  { path: "/buyer-audits", router: buyerAuditsRoutes },
   { path: "/process-routes", router: processRoutesRoutes },
   { path: "/process-lots", router: processLotsRoutes },
   { path: "/export-incentives", router: exportIncentivesRoutes },

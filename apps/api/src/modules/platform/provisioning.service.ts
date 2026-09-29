@@ -232,6 +232,8 @@ export const ROLE_DEFS = (): RoleDef[] => [
       ...keysFor(["registers"], ["view"]),
       // Fines and deductions (P2-13): read-only, same shape as the registers above.
       ...keysFor(["fines"], ["view"]),
+      // Buyer audits (TN-08): the auditor reads the audit calendar, findings and readiness.
+      ...keysFor(["buyer-audits"], ["view"]),
       // Employee search (P2-15): the picker used wherever this role reads leave/fines/payroll.
       ...keysFor(["employees"], ["search"]),
     ],
