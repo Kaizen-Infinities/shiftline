@@ -186,7 +186,7 @@ const BankAccountsPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="sl-page">
       <PageHeader
         title={
           filterType === "cash"

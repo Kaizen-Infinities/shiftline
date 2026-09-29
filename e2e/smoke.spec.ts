@@ -111,7 +111,10 @@ test.describe("smoke", () => {
       const failures = trackApi(page);
       await page.goto(screen.path);
       await expect(page).not.toHaveURL(/\/login/);
-      await expect(page.getByText(screen.marker).first()).toBeVisible({ timeout: 20_000 });
+      // Visible matches only: the in-page breadcrumb repeats the title but is hidden from `lg` up.
+      await expect(page.getByText(screen.marker).filter({ visible: true }).first()).toBeVisible({
+        timeout: 20_000,
+      });
       // Let the screen's data calls settle before judging them; a screen that
       // polls or retries an external service must not stall the test.
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);

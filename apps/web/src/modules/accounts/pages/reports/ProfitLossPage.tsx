@@ -282,7 +282,7 @@ export const ProfitLossPage: React.FC = () => {
   const netTone = summary && summary.isProfit ? "success" : "danger";
 
   return (
-    <div className="w-full">
+    <div className="sl-page">
       <PageHeader
         title="Profit & Loss"
         subtitle={`${activeConfig.label} · ${fmtDate(startDate)} to ${fmtDate(endDate)}`}
@@ -354,7 +354,7 @@ export const ProfitLossPage: React.FC = () => {
         </FilterGroup>
       </ReportFilterBar>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         <StatTile
           label="Total income"
           value={

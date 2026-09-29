@@ -70,10 +70,7 @@ const Notice: React.FC<{ tone: NoticeTone; icon: React.ReactNode; children: Reac
   icon,
   children,
 }) => (
-  <div
-    role="status"
-    className="sl-tile mb-4 flex items-center gap-3 px-4 py-3 text-sm text-ink-muted"
-  >
+  <div role="status" className="sl-tile flex items-center gap-3 px-4 py-3 text-sm text-ink-muted">
     <span
       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chip ${NOTICE_TONE[tone]}`}
       aria-hidden="true"
@@ -306,7 +303,7 @@ const EodStockList: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-w-0">
+    <div className="sl-page min-w-0">
       <PageHeader
         title="EOD Stock"
         subtitle="Opening and end-of-day balance of every item, per store and day"

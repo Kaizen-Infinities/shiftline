@@ -775,7 +775,6 @@ const AttendancePage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        className="!mb-1"
         title="Attendance Entry"
         back="/payroll"
         backLabel="Back to payroll"

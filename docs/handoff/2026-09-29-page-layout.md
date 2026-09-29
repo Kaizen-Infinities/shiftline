@@ -31,6 +31,10 @@ off on phones, and small pill buttons were 36 px tall on touch screens.
 - The hand-built headers on the accounts screens (Forex, Tally, Costing, Bank reconciliation,
   Fixed assets, MSME), audit trail, and sales/purchase returns are `PageHeader` now; the books and
   statements screens use `.sl-page`; the ledger statement has a title while it is being set up.
+  `ReportFilterBar` (accounts) no longer carries `mb-4`: every report using it sits in `.sl-page`.
+- **Smoke test:** the marker check matches visible text only (`filter({ visible: true })`). The
+  in-page breadcrumb repeats the title and comes first in the DOM, but is hidden from `lg` up, so
+  `.first()` alone picked the hidden copy on five screens.
 
 ## Checked
 
@@ -38,7 +42,18 @@ A measuring script over all routes at 1440 × 900 and 390 × 844 (signed in as t
 no console errors, no horizontal page scroll on phones, no truncated titles on phones, and the
 title sits at the same x/y on every desktop screen except three back-button rows (5 px lower,
 consistent with each other). Intentional exceptions: the home dashboard keeps 32 px between its
-labelled sections.
+labelled sections; a toolbar sits 16 px above its table. A title without a header icon starts at
+the content edge, one with an icon 56 px further in.
+
+`e2e/smoke.spec.ts` and `e2e/platform.spec.ts` passed three runs in a row (59/59).
+
+Running e2e locally:
+
+- Point Playwright at the preinstalled browser with `PLAYWRIGHT_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
+- Set `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` to the seeded admin. A database seeded before the
+  `.env` quoting fix has the password `DevAdmin`, cut off at the `#`.
+- Failed sign-ins count per IP in `login_attempts`, and a run with a wrong password locks
+  localhost out with a 429. Clear `login_attempts where success = false` in the dev database.
 
 ## Open
 

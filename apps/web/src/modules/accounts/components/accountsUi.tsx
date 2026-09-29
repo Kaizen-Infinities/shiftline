@@ -266,7 +266,7 @@ export const ReportFilterBar: React.FC<{ children: React.ReactNode; className?: 
 }) => (
   <div
     className={cx(
-      "sl-tile mb-4 flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:flex-wrap lg:items-end",
+      "sl-tile flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:flex-wrap lg:items-end",
       className
     )}
   >

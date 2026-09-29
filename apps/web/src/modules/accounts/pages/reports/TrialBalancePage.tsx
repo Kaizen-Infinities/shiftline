@@ -282,7 +282,7 @@ export const TrialBalancePage: React.FC = () => {
   );
 
   return (
-    <div className="w-full">
+    <div className="sl-page">
       <PageHeader
         title="Trial Balance"
         subtitle={`${activeConfig.category === "opening" ? "Opening Trial" : "Closing Trial"} · ${activeConfig.label} · as on ${fmtDate(effectiveDate)}`}
@@ -400,7 +400,7 @@ export const TrialBalancePage: React.FC = () => {
         </label>
       </ReportFilterBar>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile
           label="Total debit"
           value={<span title={fmtINR(totals.dr)}>{fmtINRCompact(totals.dr)}</span>}

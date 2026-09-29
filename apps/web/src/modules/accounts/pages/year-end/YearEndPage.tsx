@@ -109,7 +109,7 @@ const YearEndPage: React.FC = () => {
   const existing = preview?.existing ?? null;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="sl-page">
       <PageHeader
         title="Year-End Closing"
         subtitle="Transfer the year's result to Retained Earnings, close the year's periods, open the next year and freeze the books. Prepared by one person, approved by another."
