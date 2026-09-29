@@ -48,6 +48,18 @@ import { Figure, PageBody, formatQty } from "../../production/ui";
 import { formatDateTime } from "../../../utils/dateUtils";
 import CommonModal from "../../../components/ui/Modal/CommonModal";
 import { useSocketSync } from "../../../hooks/useSocketSync";
+import { useT } from "../../../i18n/I18nProvider";
+import type { MessageKey } from "../../../i18n/en";
+
+/** Stored downtime reasons stay in English (they are data); the label is translated. */
+const DOWNTIME_REASON_KEYS: Record<string, MessageKey> = {
+  Breakdown: "shift.reason.breakdown",
+  "Mold Change": "shift.reason.moldChange",
+  "Material Shortage": "shift.reason.materialShortage",
+  "Power Failure": "shift.reason.powerFailure",
+  "Quality Issue": "shift.reason.qualityIssue",
+  "Operator Absence": "shift.reason.operatorAbsence",
+};
 
 // Interface for local Downtime log
 interface DowntimeLog {
@@ -60,6 +72,7 @@ interface DowntimeLog {
 
 const ShiftExecutionBoard: React.FC = () => {
   const dispatch = useAppDispatch();
+  const { t } = useT();
 
   // Redux data
   const { data: productionOrders } = useAppSelector((state) => state.productionOrders);
@@ -206,7 +219,7 @@ const ShiftExecutionBoard: React.FC = () => {
       // ✅ FIX: Use "IN_PRODUCTION" (underscore, no space) — correct backend status
       if (newStatus === "IN_PRODUCTION") {
         payload.actualStartDateTime = new Date().toISOString();
-        toast.info("Shift production started!");
+        toast.info(t("shift.toast.started"));
       } else if (newStatus === "POST_PRODUCTION") {
         payload.actualEndDateTime = new Date().toISOString();
         // sum actuals to update order's produced qty
@@ -223,9 +236,7 @@ const ShiftExecutionBoard: React.FC = () => {
         payload.producedQty = sumActual;
         payload.rejectedQty = sumReject;
         payload.scrapQty = sumScrap;
-        toast.success(
-          "Shift production finishing phase initiated! Status updated to Post-Production."
-        );
+        toast.success(t("shift.toast.finishing"));
 
         await dispatch(
           updateProductionOrder({ id: Number(activeOrderId), data: payload })
@@ -250,7 +261,7 @@ const ShiftExecutionBoard: React.FC = () => {
       await dispatch(updateProductionOrder({ id: Number(activeOrderId), data: payload })).unwrap();
       dispatch(fetchProductionOrders());
     } catch (err: any) {
-      toast.error(err || "Failed to update status");
+      toast.error(err || t("shift.toast.statusFailed"));
     }
   };
 
@@ -259,7 +270,7 @@ const ShiftExecutionBoard: React.FC = () => {
     if (!activeOrderId) return;
     const row = hourlyInputs[hourIndex];
     if (!row.actual) {
-      toast.error("Please enter actual production quantity");
+      toast.error(t("shift.toast.enterActual"));
       return;
     }
 
@@ -278,7 +289,7 @@ const ShiftExecutionBoard: React.FC = () => {
             },
           })
         ).unwrap();
-        toast.success(`Hour ${hourIndex} log updated successfully!`);
+        toast.success(t("shift.toast.hourUpdated", { hour: hourIndex }));
       } else {
         await dispatch(
           createHourlyProduction({
@@ -287,7 +298,7 @@ const ShiftExecutionBoard: React.FC = () => {
             qtyProduced: Number(row.actual),
           })
         ).unwrap();
-        toast.success(`Hour ${hourIndex} log saved successfully!`);
+        toast.success(t("shift.toast.hourSaved", { hour: hourIndex }));
       }
 
       // Automatically advance active hour index
@@ -321,7 +332,7 @@ const ShiftExecutionBoard: React.FC = () => {
       dispatch(fetchHourlyProductions());
       dispatch(fetchProductionOrders());
     } catch (err: any) {
-      toast.error(err || "Failed to save hourly log");
+      toast.error(err || t("shift.toast.hourFailed"));
     }
   };
 
@@ -354,13 +365,10 @@ const ShiftExecutionBoard: React.FC = () => {
       setSupervisorMode(true);
       setShowSupervisorModal(false);
       toast.success(
-        `Supervisor mode unlocked${name ? ` by ${name}` : ""}. Every hour is editable.`
+        name ? t("shift.toast.supervisorOnBy", { name }) : t("shift.toast.supervisorOn")
       );
     } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message ??
-          "Supervisor mode stays locked. Check the details and try again."
-      );
+      toast.error(err?.response?.data?.message ?? t("shift.toast.supervisorFailed"));
     } finally {
       setSupervisorPassword("");
       setVerifyingSupervisor(false);
@@ -371,14 +379,14 @@ const ShiftExecutionBoard: React.FC = () => {
   const handleAddDowntime = (e: React.FormEvent) => {
     e.preventDefault();
     if (!downtimeStart || !downtimeEnd) {
-      toast.error("Please enter start and end time");
+      toast.error(t("shift.toast.enterTimes"));
       return;
     }
 
     const start = new Date(downtimeStart);
     const end = new Date(downtimeEnd);
     if (end <= start) {
-      toast.error("End time must be after start time");
+      toast.error(t("shift.toast.endAfterStart"));
       return;
     }
 
@@ -397,7 +405,7 @@ const ShiftExecutionBoard: React.FC = () => {
     setDowntimeLogs(updated);
     localStorage.setItem(`downtime_${activeOrderId}`, JSON.stringify(updated));
     setShowDowntimeModal(false);
-    toast.success("Downtime stoppage logged!");
+    toast.success(t("shift.toast.stoppageLogged"));
 
     setDowntimeStart("");
     setDowntimeEnd("");
@@ -408,7 +416,7 @@ const ShiftExecutionBoard: React.FC = () => {
     const updated = downtimeLogs.filter((log) => log.id !== id);
     setDowntimeLogs(updated);
     localStorage.setItem(`downtime_${activeOrderId}`, JSON.stringify(updated));
-    toast.info("Downtime log deleted");
+    toast.info(t("shift.toast.stoppageDeleted"));
   };
 
   // Shift performance analytics calculations
@@ -452,21 +460,19 @@ const ShiftExecutionBoard: React.FC = () => {
   }, [hourlyInputs, downtimeLogs, activeOrder]);
 
   const HOURS = [1, 2, 3, 4, 5, 6, 7, 8];
-  const DOWNTIME_REASONS = [
-    { label: "Breakdown (Mechanical/Electrical)", value: "Breakdown" },
-    { label: "Mold Change", value: "Mold Change" },
-    { label: "Material Shortage", value: "Material Shortage" },
-    { label: "Power Failure", value: "Power Failure" },
-    { label: "Quality Issue (Inspection delay)", value: "Quality Issue" },
-    { label: "Operator Absence", value: "Operator Absence" },
-  ];
+  const DOWNTIME_REASONS = Object.entries(DOWNTIME_REASON_KEYS).map(([value, key]) => ({
+    label: t(key),
+    value,
+  }));
+  const reasonLabel = (reason: string) =>
+    DOWNTIME_REASON_KEYS[reason] ? t(DOWNTIME_REASON_KEYS[reason]) : reason;
   const SHIFT_OPTIONS = [
-    { label: "Morning Shift", value: "MORNING" },
-    { label: "Evening Shift", value: "EVENING" },
+    { label: t("shift.morning"), value: "MORNING" },
+    { label: t("shift.evening"), value: "EVENING" },
   ];
 
   const machineName = machines.find((m) => m.machineId === selectedMachineId)?.machineName;
-  const shiftLabel = selectedShiftId === "MORNING" ? "Morning Shift" : "Evening Shift";
+  const shiftLabel = selectedShiftId === "MORNING" ? t("shift.morning") : t("shift.evening");
   const target = Number(activeOrder?.targetQty) || 0;
   const progressPct = target > 0 ? Math.min(100, (analytics.totalProduced / target) * 100) : 0;
   const isRunning = activeOrder?.status === "IN_PRODUCTION";
@@ -474,6 +480,13 @@ const ShiftExecutionBoard: React.FC = () => {
     activeOrder?.status === "POST_PRODUCTION" || activeOrder?.status === "COMPLETED";
   const numberInputClass =
     "sl-input h-12 w-full text-center text-[18px] font-bold tabular-nums disabled:opacity-60";
+
+  const fieldLabel = (field: "actual" | "reject" | "scrap") =>
+    field === "actual"
+      ? t("shift.actualQty")
+      : field === "reject"
+        ? t("shift.rejectQty")
+        : t("shift.scrapQty");
 
   const pickerTile = (selected: boolean) =>
     cx(
@@ -486,9 +499,9 @@ const ShiftExecutionBoard: React.FC = () => {
   return (
     <PageBody className="mx-auto max-w-[1400px]">
       <PageHeader
-        title="Shift Execution"
+        title={t("shift.title")}
         icon={<Factory size={22} />}
-        subtitle="Operator Shift Execution Console · start the run, log every hour, record stoppages."
+        subtitle={t("shift.subtitle")}
         meta={
           isConsoleActive && activeOrder ? (
             <StatusBadge status={activeOrder.status ?? ""} />
@@ -506,7 +519,7 @@ const ShiftExecutionBoard: React.FC = () => {
                 setSupervisorMode(false);
               }}
             >
-              Close Console Session
+              {t("shift.closeSession")}
             </ActionPill>
           ) : undefined
         }
@@ -515,17 +528,13 @@ const ShiftExecutionBoard: React.FC = () => {
       {!isConsoleActive ? (
         /* ------------------------------------------------ setup */
         <div className="mx-auto w-full max-w-2xl">
-          <Tile
-            padding="lg"
-            title="Setup Shift Console Session"
-            subtitle="Tap your machine and shift, enter your name, then open the board."
-          >
+          <Tile padding="lg" title={t("shift.setupTitle")} subtitle={t("shift.setupSubtitle")}>
             <form
               className="flex flex-col gap-6"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!selectedMachineId || !selectedShiftId || !operatorName) {
-                  toast.error("Please fill in all setup fields");
+                  toast.error(t("shift.fillSetup"));
                   return;
                 }
                 setIsConsoleActive(true);
@@ -535,9 +544,9 @@ const ShiftExecutionBoard: React.FC = () => {
                 }
               }}
             >
-              <div role="radiogroup" aria-label="Machine">
+              <div role="radiogroup" aria-label={t("common.machine")}>
                 <span className="sl-label">
-                  Machine
+                  {t("common.machine")}
                   <span className="sl-required" aria-hidden="true">
                     *
                   </span>
@@ -570,9 +579,9 @@ const ShiftExecutionBoard: React.FC = () => {
                 )}
               </div>
 
-              <div role="radiogroup" aria-label="Shift">
+              <div role="radiogroup" aria-label={t("common.shift")}>
                 <span className="sl-label">
-                  Shift
+                  {t("common.shift")}
                   <span className="sl-required" aria-hidden="true">
                     *
                   </span>
@@ -594,18 +603,18 @@ const ShiftExecutionBoard: React.FC = () => {
               </div>
 
               <TextInput
-                label="Operator Name / ID"
+                label={t("shift.operatorName")}
                 name="operatorName"
                 value={operatorName}
                 required
-                placeholder="Enter your name"
+                placeholder={t("shift.operatorPlaceholder")}
                 autoComplete="name"
                 inputClassName="h-14 text-[17px]"
                 onChange={(e) => setOperatorName(e.target.value)}
               />
 
               <ActionPill type="submit" size="xl" fullWidth icon={<Play size={20} />}>
-                Initialize Operator Board
+                {t("shift.openBoard")}
               </ActionPill>
             </form>
           </Tile>
@@ -628,9 +637,10 @@ const ShiftExecutionBoard: React.FC = () => {
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
             {/* Left: order, big figures, controls, OEE */}
             <div className="flex flex-col gap-5 lg:col-span-4">
-              <Tile title="Production order">
+              <Tile title={t("shift.productionOrder")}>
                 <SelectInput
-                  label="Select Production Order"
+                  label={t("shift.selectOrder")}
+                  defaultOptionLabel={t("shift.pickOrder")}
                   name="activeOrderId"
                   value={activeOrderId}
                   options={availableOrders.map((po) => ({
@@ -647,28 +657,31 @@ const ShiftExecutionBoard: React.FC = () => {
                         {activeOrder.productItem?.productName}
                       </p>
                       <p className="sl-muted m-0 text-[13px]">
-                        8 run hours · {formatQty(hourlyTarget)} {activeOrder.uom}/hr target
+                        {t("shift.runHours", {
+                          qty: formatQty(hourlyTarget),
+                          uom: activeOrder.uom ?? "",
+                        })}
                       </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 rounded-[16px] bg-card-2 p-4">
                       <Figure
                         size="lg"
-                        label="Target"
+                        label={t("shift.target")}
                         value={formatQty(activeOrder.targetQty)}
                         hint={activeOrder.uom}
                       />
                       <Figure
                         size="lg"
-                        label="Done"
+                        label={t("shift.done")}
                         tone="accent"
                         value={formatQty(analytics.totalProduced)}
-                        hint={`${progressPct.toFixed(0)}% of target`}
+                        hint={t("shift.ofTarget", { pct: progressPct.toFixed(0) })}
                       />
                       <div
                         className="col-span-2 h-3 overflow-hidden rounded-full bg-card"
                         role="progressbar"
-                        aria-label="Shift progress"
+                        aria-label={t("shift.progress")}
                         aria-valuemin={0}
                         aria-valuemax={100}
                         aria-valuenow={Math.round(progressPct)}
@@ -681,7 +694,7 @@ const ShiftExecutionBoard: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col gap-2.5">
-                      <SectionLabel className="!mb-0">Shift Status Controls</SectionLabel>
+                      <SectionLabel className="!mb-0">{t("shift.controls")}</SectionLabel>
                       <ActionPill
                         variant={isRunning ? "secondary" : "cta"}
                         size={isRunning ? "lg" : "xl"}
@@ -691,7 +704,7 @@ const ShiftExecutionBoard: React.FC = () => {
                         disabled={activeOrder.status === "IN_PRODUCTION"}
                         className={isRunning ? "min-h-[56px]" : undefined}
                       >
-                        {isRunning ? "Running" : "Start Shift / Resume"}
+                        {isRunning ? t("shift.running") : t("shift.start")}
                       </ActionPill>
                       <ActionPill
                         variant={isRunning ? "cta" : "secondary"}
@@ -702,7 +715,7 @@ const ShiftExecutionBoard: React.FC = () => {
                         disabled={isFinished}
                         className={!isRunning ? "min-h-[56px]" : undefined}
                       >
-                        Complete Shift / Finish
+                        {t("shift.complete")}
                       </ActionPill>
                       <ActionPill
                         variant="danger"
@@ -713,7 +726,7 @@ const ShiftExecutionBoard: React.FC = () => {
                         disabled={activeOrder.status === "CANCELLED"}
                         className="min-h-[56px]"
                       >
-                        Stop / Stoppage
+                        {t("shift.stop")}
                       </ActionPill>
                     </div>
                   </div>
@@ -722,18 +735,17 @@ const ShiftExecutionBoard: React.FC = () => {
                     role="status"
                     className="mt-4 rounded-[14px] bg-card-2 p-4 text-center text-[14px] font-medium text-[color:var(--color-warning)]"
                   >
-                    No active production order loaded for this machine shift slot. Please select or
-                    schedule one.
+                    {t("shift.noOrder")}
                   </div>
                 )}
               </Tile>
 
               {activeOrder && (
-                <Tile title="Real-time Shift OEE" icon={<Gauge size={18} />}>
+                <Tile title={t("shift.oeeTitle")} icon={<Gauge size={18} />}>
                   <div className="flex items-end justify-between gap-3">
                     <Figure
                       size="lg"
-                      label="Overall Shift OEE"
+                      label={t("shift.oeeOverall")}
                       value={`${analytics.oee}%`}
                       tone="accent"
                     />
@@ -741,13 +753,13 @@ const ShiftExecutionBoard: React.FC = () => {
                       tone={analytics.totalDowntime > 0 ? "danger" : "success"}
                       icon={<Clock size={14} />}
                     >
-                      {analytics.totalDowntime} min down
+                      {t("shift.minDown", { count: analytics.totalDowntime })}
                     </Chip>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-3 border-t border-line-soft pt-4">
-                    <Figure label="Availability" value={`${analytics.availability}%`} />
-                    <Figure label="Performance" value={`${analytics.performance}%`} />
-                    <Figure label="Quality" value={`${analytics.quality}%`} />
+                    <Figure label={t("shift.availability")} value={`${analytics.availability}%`} />
+                    <Figure label={t("shift.performance")} value={`${analytics.performance}%`} />
+                    <Figure label={t("shift.quality")} value={`${analytics.quality}%`} />
                   </div>
                 </Tile>
               )}
@@ -758,12 +770,10 @@ const ShiftExecutionBoard: React.FC = () => {
               {activeOrder ? (
                 <>
                   <Tile
-                    title="Hourly Production Log"
+                    title={t("shift.hourlyLog")}
                     icon={<ClipboardList size={18} />}
                     subtitle={
-                      supervisorMode
-                        ? "Supervisor mode: every hour is editable."
-                        : "Only the active hour is open. Save moves you to the next hour."
+                      supervisorMode ? t("shift.supervisorEditable") : t("shift.activeHourOnly")
                     }
                     actions={
                       supervisorMode ? (
@@ -774,7 +784,7 @@ const ShiftExecutionBoard: React.FC = () => {
                           onClick={() => setSupervisorMode(false)}
                           className="text-[color:var(--color-success)]"
                         >
-                          Supervisor Unlocked
+                          {t("shift.supervisorUnlocked")}
                         </ActionPill>
                       ) : (
                         <ActionPill
@@ -783,14 +793,14 @@ const ShiftExecutionBoard: React.FC = () => {
                           icon={<Lock size={14} />}
                           onClick={() => setShowSupervisorModal(true)}
                         >
-                          Supervisor Override
+                          {t("shift.supervisorOverride")}
                         </ActionPill>
                       )
                     }
                   >
                     <div
                       role="group"
-                      aria-label="Active Hour"
+                      aria-label={t("shift.activeHour")}
                       className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 py-1 [scrollbar-width:none]"
                     >
                       {HOURS.map((h) => (
@@ -800,7 +810,7 @@ const ShiftExecutionBoard: React.FC = () => {
                           selected={activeHourIndex === h}
                           onClick={() => setActiveHourIndex(h)}
                           className="shrink-0 !min-h-[44px] tabular-nums"
-                          aria-label={`Hour ${h}`}
+                          aria-label={t("shift.hourN", { hour: h })}
                         >
                           H{h}
                           {hourlyInputs[h]?.actual ? <Check size={14} aria-hidden="true" /> : null}
@@ -809,13 +819,18 @@ const ShiftExecutionBoard: React.FC = () => {
                     </div>
 
                     <div className="hidden grid-cols-[72px_1fr_1fr_1fr_1fr_96px] gap-3 px-3 pb-2 md:grid">
-                      {["Hour", "Target Qty", "Actual Qty", "Reject Qty", "Scrap Qty", ""].map(
-                        (h) => (
-                          <span key={h} className="sl-th text-center">
-                            {h}
-                          </span>
-                        )
-                      )}
+                      {[
+                        t("shift.hour"),
+                        t("shift.targetQty"),
+                        t("shift.actualQty"),
+                        t("shift.rejectQty"),
+                        t("shift.scrapQty"),
+                        "",
+                      ].map((h) => (
+                        <span key={h} className="sl-th text-center">
+                          {h}
+                        </span>
+                      ))}
                     </div>
                     <ol className="m-0 flex list-none flex-col gap-2 p-0">
                       {HOURS.map((hour) => {
@@ -843,13 +858,13 @@ const ShiftExecutionBoard: React.FC = () => {
                                 <Lock
                                   size={14}
                                   className="text-ink-subtle md:mx-auto md:mt-0.5 md:block"
-                                  aria-label="Locked"
+                                  aria-label={t("shift.locked")}
                                 />
                               )}
                             </div>
                             <div className="text-right md:text-center">
                               <span className="block text-[12px] font-medium text-ink-subtle md:hidden">
-                                Target
+                                {t("shift.target")}
                               </span>
                               <span className="font-semibold text-ink-muted tabular-nums">
                                 {formatQty(hourlyTarget)} {activeOrder.uom}
@@ -858,16 +873,15 @@ const ShiftExecutionBoard: React.FC = () => {
                             {(["actual", "reject", "scrap"] as const).map((field) => (
                               <label key={field} className="min-w-0">
                                 <span className="block pb-1 text-[12px] font-medium text-ink-subtle md:sr-only">
-                                  {field === "actual"
-                                    ? "Actual Qty"
-                                    : field === "reject"
-                                      ? "Reject Qty"
-                                      : "Scrap Qty"}
+                                  {fieldLabel(field)}
                                 </span>
                                 <input
                                   type="number"
                                   inputMode="numeric"
-                                  aria-label={`Hour ${hour} ${field} quantity`}
+                                  aria-label={t("shift.hourFieldQty", {
+                                    hour,
+                                    field: fieldLabel(field),
+                                  })}
                                   className={numberInputClass}
                                   placeholder="0"
                                   value={input[field]}
@@ -882,9 +896,9 @@ const ShiftExecutionBoard: React.FC = () => {
                               disabled={!isEditable}
                               onClick={() => handleSaveHourlyRow(hour)}
                               className="col-span-3 min-h-[48px] self-end md:col-span-1"
-                              aria-label={`Save hour ${hour}`}
+                              aria-label={t("shift.saveHour", { hour })}
                             >
-                              Save
+                              {t("common.save")}
                             </ActionPill>
                           </li>
                         );
@@ -893,7 +907,7 @@ const ShiftExecutionBoard: React.FC = () => {
                   </Tile>
 
                   <Tile
-                    title="Machine Stoppage & Downtime Logs"
+                    title={t("shift.downtimeTitle")}
                     icon={<Clock size={18} />}
                     actions={
                       <ActionPill
@@ -902,7 +916,7 @@ const ShiftExecutionBoard: React.FC = () => {
                         icon={<Plus size={16} />}
                         onClick={() => setShowDowntimeModal(true)}
                       >
-                        Log Stoppage
+                        {t("shift.logStoppage")}
                       </ActionPill>
                     }
                   >
@@ -914,19 +928,19 @@ const ShiftExecutionBoard: React.FC = () => {
                             className="flex flex-wrap items-center gap-3 rounded-[14px] bg-card-2 px-4 py-3"
                           >
                             <Chip tone="danger" dot>
-                              {log.reason}
+                              {reasonLabel(log.reason)}
                             </Chip>
                             <span className="sl-muted text-[13px] tabular-nums">
                               {formatDateTime(log.startTime)} → {formatDateTime(log.endTime)}
                             </span>
                             <span className="ml-auto text-[17px] font-bold text-ink tabular-nums">
-                              {log.durationMinutes} min
+                              {t("common.minutes", { count: log.durationMinutes })}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleDeleteDowntime(log.id)}
                               className="sl-icon-btn sl-icon-btn-md sl-icon-btn-hover-danger"
-                              aria-label="Delete downtime log"
+                              aria-label={t("shift.deleteDowntime")}
                             >
                               <Trash2 size={16} aria-hidden="true" />
                             </button>
@@ -937,7 +951,7 @@ const ShiftExecutionBoard: React.FC = () => {
                       <EmptyState
                         compact
                         icon={<Check size={22} />}
-                        title="No machine stoppages logged for this shift. High efficiency!"
+                        title={t("shift.noStoppages")}
                       />
                     )}
                   </Tile>
@@ -946,8 +960,8 @@ const ShiftExecutionBoard: React.FC = () => {
                 <Tile>
                   <EmptyState
                     icon={<ClipboardList size={28} />}
-                    title="Awaiting active Production Order selection"
-                    description="Please select a Production Order in the side panel to view execution grids and logs."
+                    title={t("shift.awaitingOrder")}
+                    description={t("shift.awaitingOrderHelp")}
                   />
                 </Tile>
               )}
@@ -960,12 +974,12 @@ const ShiftExecutionBoard: React.FC = () => {
       <CommonModal
         show={showSupervisorModal}
         onHide={() => setShowSupervisorModal(false)}
-        title="Supervisor Authorization"
+        title={t("shift.supervisorTitle")}
         maxWidth="sm"
         footer={
           <div className="flex w-full items-center justify-end gap-2.5">
             <ActionPill variant="secondary" onClick={() => setShowSupervisorModal(false)}>
-              Cancel
+              {t("common.cancel")}
             </ActionPill>
             <ActionPill
               icon={<Unlock size={16} />}
@@ -975,17 +989,15 @@ const ShiftExecutionBoard: React.FC = () => {
                 handleSupervisorVerify({ preventDefault: () => {} } as unknown as React.FormEvent)
               }
             >
-              Unlock Console
+              {t("shift.unlockConsole")}
             </ActionPill>
           </div>
         }
       >
         <form onSubmit={handleSupervisorVerify} className="flex flex-col gap-4">
-          <p className="sl-muted text-sm">
-            A supervisor signs in with their own account to unlock every hour on this console.
-          </p>
+          <p className="sl-muted text-sm">{t("shift.supervisorHelp")}</p>
           <TextInput
-            label="Supervisor email"
+            label={t("shift.supervisorEmail")}
             name="supervisorEmail"
             type="email"
             autoComplete="off"
@@ -995,7 +1007,7 @@ const ShiftExecutionBoard: React.FC = () => {
             inputClassName="h-12"
           />
           <TextInput
-            label="Supervisor password"
+            label={t("shift.supervisorPassword")}
             name="supervisorPassword"
             type="password"
             autoComplete="off"
@@ -1012,12 +1024,12 @@ const ShiftExecutionBoard: React.FC = () => {
       <CommonModal
         show={showDowntimeModal}
         onHide={() => setShowDowntimeModal(false)}
-        title="Log Machine Downtime Stoppage"
+        title={t("shift.downtimeModalTitle")}
         maxWidth="lg"
         footer={
           <div className="flex w-full items-center justify-end gap-2.5">
             <ActionPill variant="secondary" onClick={() => setShowDowntimeModal(false)}>
-              Cancel
+              {t("common.cancel")}
             </ActionPill>
             <ActionPill
               variant="danger"
@@ -1026,15 +1038,15 @@ const ShiftExecutionBoard: React.FC = () => {
                 handleAddDowntime({ preventDefault: () => {} } as unknown as React.FormEvent)
               }
             >
-              Log Stoppage
+              {t("shift.logStoppage")}
             </ActionPill>
           </div>
         }
       >
         <form onSubmit={handleAddDowntime} className="flex flex-col gap-4">
-          <div role="radiogroup" aria-label="Downtime Reason">
+          <div role="radiogroup" aria-label={t("shift.downtimeReason")}>
             <span className="sl-label">
-              Downtime Reason
+              {t("shift.downtimeReason")}
               <span className="sl-required" aria-hidden="true">
                 *
               </span>
@@ -1056,7 +1068,7 @@ const ShiftExecutionBoard: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextInput
-              label="Stoppage Start Time"
+              label={t("shift.stoppageStart")}
               name="downtimeStart"
               type="datetime-local"
               value={downtimeStart}
@@ -1064,7 +1076,7 @@ const ShiftExecutionBoard: React.FC = () => {
               onChange={(e) => setDowntimeStart(e.target.value)}
             />
             <TextInput
-              label="Stoppage End Time"
+              label={t("shift.stoppageEnd")}
               name="downtimeEnd"
               type="datetime-local"
               value={downtimeEnd}

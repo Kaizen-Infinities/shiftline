@@ -2,7 +2,7 @@ import React, { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import { Landmark, RefreshCw } from "lucide-react";
-import { ActionPill, PageHeader } from "../../../../components/ui/v2";
+import { ActionPill, LoadError, PageHeader, StaleNotice } from "../../../../components/ui/v2";
 import { toast } from "react-toastify";
 import { accountService, type LedgerStatementResult } from "../../../../services/accountService";
 import { useListCache } from "../../../../hooks/useListCache";
@@ -37,6 +37,7 @@ const BankStatementPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<LedgerStatementResult>({
     cacheKey,
     socketModule: "voucher",
@@ -144,7 +145,10 @@ const BankStatementPage: React.FC = () => {
           </span>
         </div>
 
-        {!data && loading ? null : !data || data.entries.length === 0 ? (
+        {listError && !loading && data && <StaleNotice onRetry={refresh} className="m-3" />}
+        {!data && loading ? null : !data && listError ? (
+          <LoadError compact title="Couldn't load this statement" onRetry={refresh} />
+        ) : !data || data.entries.length === 0 ? (
           <div className="p-10 text-center text-sm text-ink-muted">
             No transactions found for this period.
           </div>

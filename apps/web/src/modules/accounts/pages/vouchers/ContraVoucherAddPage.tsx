@@ -8,6 +8,7 @@ import {
   PageHeader,
   Tile,
   fieldControlClass,
+  StaleNotice,
 } from "../../../../components/ui/v2";
 import {
   BalanceSummary,
@@ -68,7 +69,11 @@ const ContraVoucherAddPage: React.FC = () => {
     return { data: list, total: list.length };
   }, []);
 
-  const { data: ledgers } = useListCache<AccountLedger>({
+  const {
+    data: ledgers,
+    error: listError,
+    refresh: retryList,
+  } = useListCache<AccountLedger>({
     cacheKey: "accounts:ledgers:all",
     socketModule: "accountLedger",
     fetcher: ledgersFetcher,
@@ -207,6 +212,12 @@ const ContraVoucherAddPage: React.FC = () => {
       >
         <VoucherTypeNav current="CONTRA" target="add" />
       </PageHeader>
+
+      {listError && ledgers.length === 0 && (
+        <StaleNotice onRetry={retryList}>
+          Couldn't load your ledgers, so the account lists below are empty.
+        </StaleNotice>
+      )}
 
       <Tile title="Voucher details" className="mb-4">
         <div className="grid gap-4 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">

@@ -68,6 +68,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "job-work",
       "goods-dispatch",
       "delivery-schedules",
+      "asn",
       "sales-reports",
       "gst_tax",
     ],
@@ -126,6 +127,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "dash-machines",
       "order-tna",
       "project-jobs",
+      "process-routes",
     ],
   },
   {

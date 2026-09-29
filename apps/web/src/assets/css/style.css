@@ -1187,6 +1187,28 @@ body {
     background: color-mix(in srgb, var(--color-info) 14%, transparent);
     color: color-mix(in srgb, var(--color-info) 55%, var(--color-ink));
   }
+  /* ── Domain tones: icon squares keyed to the chart series of the same domain, so
+     "purchase" is the same amber on its stat tile and in the trend chart. Identity
+     only, never status: status keeps the success/warning/danger chips. ── */
+  .sl-tone-sales,
+  .sl-tone-purchase,
+  .sl-tone-cash,
+  .sl-tone-production {
+    background: color-mix(in srgb, var(--sl-tone) 15%, transparent);
+    color: color-mix(in srgb, var(--sl-tone) 65%, var(--color-ink));
+  }
+  .sl-tone-sales {
+    --sl-tone: var(--chart-series-1);
+  }
+  .sl-tone-purchase {
+    --sl-tone: var(--chart-series-2);
+  }
+  .sl-tone-cash {
+    --sl-tone: var(--chart-series-3);
+  }
+  .sl-tone-production {
+    --sl-tone: var(--chart-series-4);
+  }
   .sl-chip-sm {
     padding: 0.125rem 0.625rem;
     font-size: 0.75rem;
@@ -2069,4 +2091,13 @@ body {
   .sl-tab-icon {
     transition: none;
   }
+}
+
+/* ===============================
+   Tamil UI (TN-04): Latin text and digits stay in Inter; Tamil glyphs fall through to
+   Noto Sans Tamil, which the I18nProvider loads from Google Fonts only for Tamil users.
+================================ */
+html[lang="ta"] {
+  --font-head: "Inter", "Noto Sans Tamil", system-ui, sans-serif;
+  --font-body: "Inter", "Noto Sans Tamil", system-ui, sans-serif;
 }

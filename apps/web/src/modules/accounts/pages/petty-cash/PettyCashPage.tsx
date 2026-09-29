@@ -9,7 +9,14 @@ import {
   Wallet,
 } from "lucide-react";
 import { FaCoins, FaSync, FaTimes } from "react-icons/fa";
-import { ActionPill, PageHeader, SearchField, StatTile } from "../../../../components/ui/v2";
+import {
+  ActionPill,
+  LoadError,
+  PageHeader,
+  SearchField,
+  StaleNotice,
+  StatTile,
+} from "../../../../components/ui/v2";
 import {
   OptionRow,
   RegisterOptionsCard,
@@ -125,6 +132,7 @@ export const PettyCashPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<PettyCashEntry>({
     cacheKey,
     socketModule: "pettyCashEntry",
@@ -376,7 +384,12 @@ export const PettyCashPage: React.FC = () => {
           className="sl-tile overflow-hidden flex flex-col"
           style={{ maxHeight: "calc(100vh - 240px)" }}
         >
-          {filteredEntries.length === 0 ? (
+          {listError && !loading && filteredEntries.length > 0 && (
+            <StaleNotice onRetry={refresh} className="m-3" />
+          )}
+          {listError && !loading && entries.length === 0 ? (
+            <LoadError compact title="Couldn't load petty cash entries" onRetry={refresh} />
+          ) : filteredEntries.length === 0 ? (
             <div className="p-10 text-center text-sm text-ink-muted flex-1">
               {loading ? (
                 <span className="inline-flex items-center gap-2">

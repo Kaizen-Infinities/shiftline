@@ -85,7 +85,12 @@ const ShiftList: React.FC = () => {
     return { data: list, total: list.length };
   }, []);
 
-  const { data, loading, refresh } = useListCache<Shift>({
+  const {
+    data,
+    loading,
+    refresh,
+    error: listError,
+  } = useListCache<Shift>({
     cacheKey: "shifts:list",
     socketModule: "shift",
     fetcher,
@@ -213,6 +218,9 @@ const ShiftList: React.FC = () => {
           {/* Table */}
           <div>
             <DataTable
+              error={listError}
+              sourceRowCount={data.length}
+              onRetry={refresh}
               data={paginatedData}
               rowKey={(item) => item.id}
               loading={loading}

@@ -4,7 +4,12 @@ import { toast } from "react-toastify";
 
 import apiClient from "../../api/apiClient";
 import { refreshAccessToken } from "../../api/refresh";
-import { getCurrentUser, setAccessToken } from "../../features/auth/authSlice";
+import {
+  beginSessionSwitch,
+  endSessionSwitch,
+  getCurrentUser,
+  setAccessToken,
+} from "../../features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "../../hooks/reduxHooks";
 
 /**
@@ -34,6 +39,9 @@ const ImpersonationBanner: React.FC = () => {
 
   const stop = async () => {
     setBusy(true);
+    // Unmount the tenant screens before the admin token lands; the switch ends when the router
+    // reaches /platform (AuthState.sessionSwitchTarget).
+    dispatch(beginSessionSwitch("/platform"));
     try {
       await apiClient.post("/auth/impersonation/end").catch(() => undefined);
       const admin = await refreshAccessToken();
@@ -43,6 +51,7 @@ const ImpersonationBanner: React.FC = () => {
       toast.info("Back to your admin session");
       navigate("/platform");
     } catch (err) {
+      dispatch(endSessionSwitch());
       toast.error((err as Error).message);
     } finally {
       setBusy(false);

@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, toLocale } from "@shiftline/shared";
 import { withoutTenant } from "../../lib/tenant-context";
 import crypto from "crypto";
 
@@ -681,6 +682,7 @@ export class AuthService {
       avatarUrl:
         user.avatarUrl || user.profilePicture || user.photoUrl || user.employee?.photoUrl || null,
       isSuperAdmin,
+      locale: isSuperAdmin ? DEFAULT_LOCALE : toLocale(user.locale),
     };
   }
 

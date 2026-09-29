@@ -165,6 +165,7 @@ export const CustomerPurchaseReport: React.FC<{
         <TileHeader
           id="dash-purchase-report"
           icon={LuShoppingBag}
+          tone="sales"
           title="Product purchase report"
           subtitle={`What each customer bought in the last 3 months · ${report.totalProducts} products · ${report.customers.length} customers`}
         />

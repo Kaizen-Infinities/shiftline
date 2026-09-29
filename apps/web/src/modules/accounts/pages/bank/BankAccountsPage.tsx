@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { FaUniversity, FaPlus, FaArrowRight, FaTimes, FaSync, FaPen } from "react-icons/fa";
 import { toast } from "react-toastify";
 import { Banknote, Landmark, Plus, RefreshCw, Wrench } from "lucide-react";
-import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
+import { ActionPill, Chip, LoadError, PageHeader, StaleNotice } from "../../../../components/ui/v2";
 import { fmtINR } from "../../components/accountsUi";
 import apiClient from "../../../../api/apiClient";
 import { accountService } from "../../../../services/accountService";
@@ -89,6 +89,7 @@ const BankAccountsPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<BankAccountsData>({
     cacheKey,
     socketModule: "accountLedger",
@@ -255,14 +256,19 @@ const BankAccountsPage: React.FC = () => {
             <div
               className={`text-2xl font-bold tabular-nums ${filteredBalance < 0 ? "text-[color:var(--color-danger)]" : "text-ink"}`}
             >
-              {fmtINR(Math.abs(filteredBalance))}
+              {listError && cachedList.length === 0 ? "—" : fmtINR(Math.abs(filteredBalance))}
             </div>
           </div>
         </div>
       </PageHeader>
 
       {/* Account Cards */}
-      {filteredAccounts.length === 0 && !loading ? (
+      {listError && !loading && filteredAccounts.length > 0 && <StaleNotice onRetry={refresh} />}
+      {listError && !loading && cachedList.length === 0 ? (
+        <div className="sl-tile">
+          <LoadError compact title="Couldn't load your accounts" onRetry={refresh} />
+        </div>
+      ) : filteredAccounts.length === 0 && !loading ? (
         <div className="sl-tile p-10 text-center text-sm text-ink-muted">
           {filterType === "cash"
             ? "No cash accounts found."

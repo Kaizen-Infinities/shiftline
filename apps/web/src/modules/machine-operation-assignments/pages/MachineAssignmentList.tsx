@@ -87,6 +87,7 @@ const MachineAssignmentList: React.FC = () => {
     data: allAssignments,
     loading,
     refresh,
+    error: listError,
   } = useListCache<MachineOperationAssignment>({
     cacheKey: "machineAssignments:list",
     socketModule: "machineOperationAssignment",
@@ -284,6 +285,9 @@ const MachineAssignmentList: React.FC = () => {
         </Toolbar>
 
         <DataTable
+          error={listError}
+          sourceRowCount={allAssignments.length}
+          onRetry={refresh}
           ariaLabel="Machine assignments"
           data={paginatedData}
           rowKey={(item: any) => item.id}

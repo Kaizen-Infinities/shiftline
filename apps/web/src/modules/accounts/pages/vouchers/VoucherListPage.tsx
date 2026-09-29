@@ -22,6 +22,7 @@ import {
   type VoucherType,
 } from "../../../../services/voucherService";
 import { useListCache } from "../../../../hooks/useListCache";
+import { LoadError, StaleNotice } from "../../../../components/ui/v2";
 import { useSocketSync } from "../../../../hooks/useSocketSync";
 import { usePermission } from "../../../../hooks/usePermission";
 import HistoryLink from "../../../../components/ui/HistoryLink/HistoryLink";
@@ -73,6 +74,7 @@ export const VoucherListPage: React.FC = () => {
     loading,
     refreshing,
     refresh,
+    error: listError,
   } = useListCache<Voucher>({
     cacheKey,
     socketModule: "voucher",
@@ -369,8 +371,13 @@ export const VoucherListPage: React.FC = () => {
           <span className="text-[12.5px] text-ink-subtle tabular-nums">Total: {total}</span>
         </div>
 
+        {listError && !loading && vouchers.length > 0 && (
+          <StaleNotice onRetry={refresh} className="m-3" />
+        )}
         {vouchers.length === 0 ? (
-          loading ? null : (
+          listError && !loading ? (
+            <LoadError compact title="Couldn't load vouchers" onRetry={refresh} />
+          ) : loading ? null : (
             <div className="p-10 text-center text-sm text-ink-muted">
               No vouchers matching your filter criteria.
             </div>

@@ -69,6 +69,7 @@ const RawMaterialList: React.FC = () => {
     data: allRawMaterials,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "rawMaterials:list",
     socketModule: "rawMaterial",
@@ -368,6 +369,9 @@ const RawMaterialList: React.FC = () => {
       />
 
       <DataTable
+        error={listError}
+        sourceRowCount={allRawMaterials.length}
+        onRetry={refresh}
         columns={columns}
         data={paginatedData}
         rowKey={(row) => row.rawMaterialId}

@@ -107,6 +107,7 @@ const CustomerListPage: React.FC = () => {
     total,
     loading,
     refresh,
+    error: listError,
   } = useListCache({
     cacheKey,
     socketModule: "customer",
@@ -232,7 +233,11 @@ const CustomerListPage: React.FC = () => {
     <div className={PAGE_CLASS}>
       <PageHeader
         title="Customer Management"
-        subtitle={`${(total || 0).toLocaleString("en-IN")} customer${total === 1 ? "" : "s"} · parties you sell to, with their GSTIN, grade and credit terms`}
+        subtitle={
+          listError && (customers ?? []).length === 0
+            ? "Parties you sell to, with their GSTIN, grade and credit terms"
+            : `${(total || 0).toLocaleString("en-IN")} customer${total === 1 ? "" : "s"} · parties you sell to, with their GSTIN, grade and credit terms`
+        }
         primaryAction={createButton}
         actions={
           canExport ? (
@@ -349,6 +354,9 @@ const CustomerListPage: React.FC = () => {
       </Toolbar>
 
       <DataTable
+        error={listError}
+        sourceRowCount={customers.length}
+        onRetry={refresh}
         data={customers ?? []}
         rowKey={(customer) => customer.id}
         loading={loading}

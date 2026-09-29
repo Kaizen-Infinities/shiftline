@@ -106,6 +106,8 @@ const SalesReportsCenter: React.FC = () => {
     data: backendReports,
     total,
     loading: loadingBackend,
+    error: listError,
+    refresh: retryList,
   } = useListCache({
     cacheKey,
     socketModule: "salesOrder",
@@ -476,6 +478,9 @@ const SalesReportsCenter: React.FC = () => {
           (c) => typeof c.header === "string" && visibleColumns.includes(c.header)
         )}
         data={backendReports}
+        error={listError}
+        sourceRowCount={backendReports.length}
+        onRetry={retryList}
         rowKey={(item: any) => item.id || item.orderNo}
         loading={loadingBackend}
         emptyMessage="No sales order data found in date range."

@@ -12,6 +12,7 @@ import { categoryService } from "../../../services/categoryService";
 import { usePermission } from "../../../hooks/usePermission";
 import { Layers } from "lucide-react";
 import { ActionPill, Chip, PageHeader, Toolbar } from "../../../components/ui/v2";
+import { useT } from "../../../i18n/I18nProvider";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -34,6 +35,8 @@ const parseBaseUom = (uomStr?: string) => {
 
 const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
   const { can } = usePermission();
+  const { t } = useT();
+  const na = t("common.notAvailable");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -93,7 +96,13 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
     [debouncedSearch, activeStoreId, appliedCategory, appliedStatus, currentPage]
   );
 
-  const { data, total, loading } = useListCache({
+  const {
+    data,
+    total,
+    loading,
+    error: listError,
+    refresh: retryList,
+  } = useListCache({
     cacheKey,
     socketModule: "rawMaterialStock",
     fetcher,
@@ -196,8 +205,8 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
     <div>
       <div className="w-full min-w-0">
         <PageHeader
-          title="Stock Ledger Management"
-          subtitle={`${total || 0} stock lines · raw material on hand, reserved and available by store`}
+          title={t("stock.title")}
+          subtitle={t("stock.subtitle", { count: total || 0 })}
           icon={<Layers size={22} />}
           actions={
             can("raw_material_stocks.export") ? (
@@ -213,10 +222,10 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
         <Toolbar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Search stock..."
-          searchLabel="Search stock"
+          searchPlaceholder={t("stock.searchPlaceholder")}
+          searchLabel={t("stock.searchLabel")}
           filters={[
-            { key: "", label: "All categories" },
+            { key: "", label: t("stock.allCategories") },
             ...categoryOptions.map((c) => ({ key: c.value, label: c.label })),
           ]}
           filterValue={appliedCategory}
@@ -225,19 +234,19 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
             setAppliedCategory(key);
             setCurrentPage(1);
           }}
-          filtersLabel="Category"
+          filtersLabel={t("stock.category")}
           right={
             <div className="flex flex-wrap items-center gap-2">
               {lowOnPage > 0 && (
                 <Chip tone="warning" dot>
-                  {lowOnPage} need attention
+                  {t("stock.needAttention", { count: lowOnPage })}
                 </Chip>
               )}
-              <div role="group" aria-label="Status" className="flex items-center gap-2">
+              <div role="group" aria-label={t("common.status")} className="flex items-center gap-2">
                 {[
-                  { key: "", label: "Any status" },
-                  { key: "Active", label: "Active" },
-                  { key: "Inactive", label: "Inactive" },
+                  { key: "", label: t("stock.anyStatus") },
+                  { key: "Active", label: t("status.ACTIVE") },
+                  { key: "Inactive", label: t("status.INACTIVE") },
                 ].map((f) => (
                   <Chip
                     key={f.key || "all"}
@@ -257,15 +266,16 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
         />
 
         <DataTable
+          error={listError}
+          sourceRowCount={data.length}
+          onRetry={retryList}
           data={data || []}
           rowKey={(item) => item.rawMaterialId || item.id}
           loading={loading}
           density="compact"
-          ariaLabel="Stock ledger"
+          ariaLabel={t("stock.tableLabel")}
           emptyMessage={
-            hasActiveFilters || debouncedSearch
-              ? "No stock matches these filters."
-              : "No stock records found."
+            hasActiveFilters || debouncedSearch ? t("stock.emptyFiltered") : t("stock.empty")
           }
           emptyAction={
             hasActiveFilters || debouncedSearch ? (
@@ -276,7 +286,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
                   handleClearFilters();
                 }}
               >
-                Clear filters
+                {t("common.clearFilters")}
               </ActionPill>
             ) : undefined
           }
@@ -295,7 +305,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
               ),
             },
             {
-              header: "Material",
+              header: t("stock.material"),
               render: (item) => {
                 const matName = (item as any).materialName || item.rawMaterial?.materialName || "-";
                 const isWastage =
@@ -312,7 +322,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
                       </button>
                       {isWastage && (
                         <Chip size="sm" tone="warning">
-                          Wastage
+                          {t("stock.wastage")}
                         </Chip>
                       )}
                     </div>
@@ -322,7 +332,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
               },
             },
             {
-              header: "Category",
+              header: t("stock.category"),
               render: (item) => {
                 const catName =
                   (item as any).category?.name || item.rawMaterial?.category?.name || "—";
@@ -330,13 +340,13 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
               },
             },
             {
-              header: "Store",
+              header: t("common.store"),
               render: (item) => (
                 <Chip size="sm">{item.store?.storeName || item.storeId || "—"}</Chip>
               ),
             },
             {
-              header: "Physical stock",
+              header: t("stock.physical"),
               align: "right",
               render: (item) => {
                 const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
@@ -347,14 +357,14 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
                   <div className="flex flex-col items-end tabular-nums">
                     <span className="text-ink">{formatDisplayQty(item.onHandQty, baseUom)}</span>
                     <span className="text-xs text-ink-subtle">
-                      {formatDisplayQty(minStock, baseUom, "Min ")}
+                      {formatDisplayQty(minStock, baseUom, t("stock.minPrefix"))}
                     </span>
                   </div>
                 );
               },
             },
             {
-              header: "Reserved",
+              header: t("stock.reserved"),
               align: "right",
               render: (item) => {
                 const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
@@ -366,7 +376,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
               },
             },
             {
-              header: "Available",
+              header: t("stock.available"),
               align: "right",
               render: (item) => {
                 const baseUom = (item as any).baseUom || item.rawMaterial?.baseUom || "";
@@ -379,7 +389,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
                     </span>
                     {level !== "ok" && (
                       <Chip size="sm" tone={level === "low" ? "danger" : "warning"}>
-                        {level === "low" ? "Below min" : "Reorder"}
+                        {level === "low" ? t("stock.belowMin") : t("stock.reorder")}
                       </Chip>
                     )}
                   </div>
@@ -389,10 +399,10 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
             {
               header: "Status",
               align: "center",
-              render: (item) => <StatusBadge status={item.status || "Active"} />,
+              render: (item) => <StatusBadge status={item.status || "Active"} translate />,
             },
             {
-              header: "Actions",
+              header: t("common.actions"),
               align: "right",
               render: (item) => (
                 <div className="table-action-group w-full justify-end">
@@ -407,7 +417,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
       <CommonViewModal
         show={showView}
         onHide={() => setShowView(false)}
-        modalTitle="Stock Details"
+        modalTitle={t("stock.details")}
         avatarText={
           selectedItem
             ? ((selectedItem as any).materialName || selectedItem.rawMaterial?.materialName || "S")
@@ -422,93 +432,93 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
               selectedItem.rawMaterialId
             : ""
         }
-        headerSubtitle={selectedItem ? `ID: ${selectedItem.rawMaterialId}` : ""}
+        headerSubtitle={selectedItem ? t("stock.idLine", { id: selectedItem.rawMaterialId }) : ""}
         sections={
           selectedItem
             ? [
                 {
                   fields: [
-                    { label: "Material ID", value: selectedItem.rawMaterialId },
+                    { label: t("stock.materialId"), value: selectedItem.rawMaterialId },
                     {
-                      label: "Material Name",
+                      label: t("stock.materialName"),
                       value:
                         (selectedItem as any).materialName ||
                         selectedItem.rawMaterial?.materialName ||
-                        "N/A",
+                        na,
                     },
                     {
-                      label: "Category",
+                      label: t("stock.category"),
                       value:
                         (selectedItem as any).category?.name ||
                         selectedItem.rawMaterial?.category?.name ||
-                        "N/A",
+                        na,
                     },
                     {
-                      label: "Primary UOM",
+                      label: t("stock.primaryUom"),
                       value: parseBaseUom(
                         (selectedItem as any).baseUom || selectedItem.rawMaterial?.baseUom
                       ).primary,
                     },
                     {
-                      label: "Secondary UOM(s)",
+                      label: t("stock.secondaryUom"),
                       value: parseBaseUom(
                         (selectedItem as any).baseUom || selectedItem.rawMaterial?.baseUom
                       ).secondary,
                     },
                     {
-                      label: "Reorder Level",
+                      label: t("stock.reorderLevel"),
                       value:
                         (selectedItem as any).reorderLevel != null
                           ? formatExportQty(
                               (selectedItem as any).reorderLevel,
                               (selectedItem as any).baseUom || ""
                             )
-                          : "N/A",
+                          : na,
                     },
                     {
-                      label: "Minimum Stock",
+                      label: t("stock.minimumStock"),
                       value:
                         (selectedItem as any).minimumStock != null
                           ? formatExportQty(
                               (selectedItem as any).minimumStock,
                               (selectedItem as any).baseUom || ""
                             )
-                          : "N/A",
+                          : na,
                     },
                     {
-                      label: "Store",
-                      value: selectedItem.store?.storeName || selectedItem.storeId || "N/A",
+                      label: t("common.store"),
+                      value: selectedItem.store?.storeName || selectedItem.storeId || na,
                     },
                     {
-                      label: "Store Location",
+                      label: t("stock.storeLocation"),
                       value:
                         formatLocationAddress(
                           (selectedItem as any).storeLocation?.locationCode ||
                             selectedItem.locationId
-                        ) || "N/A",
+                        ) || na,
                     },
                     {
-                      label: "Physical Stock",
+                      label: t("stock.physicalStock"),
                       value: formatExportQty(
                         selectedItem.onHandQty ?? 0,
                         (selectedItem as any).baseUom || ""
                       ),
                     },
                     {
-                      label: "Reserved Stock",
+                      label: t("stock.reservedStock"),
                       value: formatExportQty(
                         selectedItem.reservedQty ?? 0,
                         (selectedItem as any).baseUom || ""
                       ),
                     },
                     {
-                      label: "Available Stock",
+                      label: t("stock.availableStock"),
                       value: formatExportQty(
                         Number(selectedItem.onHandQty ?? 0) - Number(selectedItem.reservedQty ?? 0),
                         (selectedItem as any).baseUom || ""
                       ),
                     },
-                    { label: "Status", value: selectedItem.status || "Active" },
+                    { label: t("common.status"), value: selectedItem.status || "Active" },
                   ],
                 },
               ]

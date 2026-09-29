@@ -43,6 +43,8 @@ export const API_PATHS = {
   },
   user: {
     base: "/users",
+    /** The signed-in user's UI language (TN-04). */
+    myLocale: "/users/me/locale",
   },
   product: {
     base: "/products",
@@ -356,6 +358,15 @@ export const API_PATHS = {
   inventory: {
     eodStock: "/inventory/eod-stock",
   },
+  processRoutes: {
+    base: "/process-routes", // ← service appends /:id, /:id/steps
+    options: "/process-routes/options",
+  },
+  processLots: {
+    base: "/process-lots", // ← service appends /:id, /:id/movements[/:movementId], /:id/close, /:id/cancel
+    board: "/process-lots/board",
+    challans: "/process-lots/challan-options",
+  },
   projectJobs: {
     base: "/project-jobs", // ← service appends /:id, /:id/summary, /:id/stages[/order|/:stageId], /:id/costs[/post|/:costId], /:id/billings
     stagePlans: "/project-jobs/stage-plans",
@@ -382,6 +393,13 @@ export const API_PATHS = {
     adherence: "/delivery-schedules/adherence",
     lines: "/delivery-schedules/lines", // ← base; service appends /:lineId[/dispatches]
     dispatches: "/delivery-schedules/dispatches", // ← base; service appends /:dispatchId
+  },
+  asn: {
+    base: "/asn", // ← service appends /:id, /:id/status, /:id/export, /:id/labels
+    prefill: "/asn/prefill",
+    invoices: "/asn/invoices",
+    formats: "/asn/export-formats",
+    partMaps: "/asn/part-maps", // ← service appends /:id
   },
   leave: {
     base: "/leave",

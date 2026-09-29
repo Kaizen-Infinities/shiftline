@@ -84,6 +84,7 @@ const PurchaseOrderListPage: React.FC = () => {
     data: allPurchaseOrders,
     loading,
     refresh,
+    error: listError,
   } = useListCache<any>({
     cacheKey: "purchaseOrders:list",
     socketModule: "purchaseOrder",
@@ -390,6 +391,9 @@ const PurchaseOrderListPage: React.FC = () => {
         />
 
         <DataTable
+          error={listError}
+          sourceRowCount={allPurchaseOrders.length}
+          onRetry={refresh}
           data={paginatedPOs}
           rowKey={(item) => item.id}
           loading={loading}
