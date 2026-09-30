@@ -139,6 +139,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "payable",
       "receivable",
       "msme-claims",
+      "subsidy-schemes",
       "vouchers",
       "petty-cash",
       "chart-of-accounts",
@@ -166,6 +167,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "leave",
       "registers",
       "fines",
+      "buyer-audits",
     ],
   },
   {

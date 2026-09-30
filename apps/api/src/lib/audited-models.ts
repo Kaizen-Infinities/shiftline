@@ -125,6 +125,13 @@ export const AUDITED_MODELS = [
   "MsmeClaimSetting",
   "MsmeRecoveryClaim",
   "MsmeRecoveryClaimLine",
+  // buyer social-compliance audits (TN-08): the trail a buyer's auditor asks to see
+  "BuyerAudit",
+  "AuditFinding",
+  "CorrectiveAction",
+  // subsidy and scheme claims (TN-10): sanction orders and government money claimed / received
+  "SubsidyScheme",
+  "SubsidyClaim",
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];

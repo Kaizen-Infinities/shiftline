@@ -67,7 +67,10 @@ import labourRoutes from "../modules/payroll/labour.routes";
 import leaveRoutes from "../modules/leave/leave.routes";
 import orderTnaRoutes from "../modules/order-tna/order-tna.routes";
 import projectJobsRoutes from "../modules/project-jobs/project-jobs.routes";
+import buyerAuditsRoutes from "../modules/buyer-audits/buyer-audits.routes";
 import msmeClaimsRoutes from "../modules/msme-claims/msme-claims.routes";
+import subsidySchemesRoutes from "../modules/subsidy-schemes/subsidy-schemes.routes";
+
 import processRoutesRoutes, {
   lotsRouter as processLotsRoutes,
 } from "../modules/process-routes/process-routes.routes";
@@ -183,6 +186,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   // TN-05: mounted before /msme so the payable router never sees these paths.
   { path: "/msme/receivable-claims", router: msmeClaimsRoutes },
   { path: "/msme", router: msmeRoutes },
+  { path: "/subsidy-schemes", router: subsidySchemesRoutes },
   { path: "/assets", router: assetRoutes },
   { path: "/fx", router: fxRoutes },
   { path: "/costing", router: costingRoutes },
@@ -192,6 +196,7 @@ export const API_MOUNTS: { path: string; router: Router }[] = [
   { path: "/leave", router: leaveRoutes },
   { path: "/order-tna", router: orderTnaRoutes },
   { path: "/project-jobs", router: projectJobsRoutes },
+  { path: "/buyer-audits", router: buyerAuditsRoutes },
   { path: "/process-routes", router: processRoutesRoutes },
   { path: "/process-lots", router: processLotsRoutes },
   { path: "/export-incentives", router: exportIncentivesRoutes },

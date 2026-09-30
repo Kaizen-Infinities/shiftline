@@ -256,6 +256,8 @@ const MyLeavePage = lazy(() => import("../modules/leave/pages/MyLeavePage"));
 const ExportIncentivesPage = lazy(() => import("../modules/exports/pages/ExportIncentivesPage"));
 const RegistersPage = lazy(() => import("../modules/payroll/pages/RegistersPage"));
 const FinesPage = lazy(() => import("../modules/payroll/pages/FinesPage"));
+const AuditReadinessPage = lazy(() => import("../modules/payroll/pages/AuditReadinessPage"));
+const BuyerAuditDetailPage = lazy(() => import("../modules/payroll/pages/BuyerAuditDetailPage"));
 const PaymentLinksPage = lazy(() => import("../modules/payments/pages/PaymentLinksPage"));
 const SmsPage = lazy(() => import("../modules/sms/pages/SmsPage"));
 const ComplianceCalendarPage = lazy(
@@ -325,6 +327,10 @@ const AmountReceivablePage = lazy(
   () => import("../modules/accounts/pages/receivable/AmountReceivablePage")
 );
 const MsmeClaimsPage = lazy(() => import("../modules/accounts/pages/receivable/MsmeClaimsPage"));
+const SubsidiesPage = lazy(() => import("../modules/accounts/pages/subsidies/SubsidiesPage"));
+const SubsidySchemePage = lazy(
+  () => import("../modules/accounts/pages/subsidies/SubsidySchemePage")
+);
 const SupplierBreakdownPage = lazy(
   () => import("../modules/accounts/pages/payable/SupplierBreakdownPage")
 );
@@ -569,6 +575,10 @@ const AppRoutes = () => {
               <Route element={<ProtectedRoute permission="msme-claims.view" />}>
                 <Route path="/accounts/msme-claims" element={<MsmeClaimsPage />} />
               </Route>
+              <Route element={<ProtectedRoute permission="subsidy-schemes.view" />}>
+                <Route path="/accounts/subsidies" element={<SubsidiesPage />} />
+                <Route path="/accounts/subsidies/:id" element={<SubsidySchemePage />} />
+              </Route>
               <Route element={<ProtectedRoute permission="order-tna.view" />}>
                 <Route path="/production/order-tna" element={<OrderTnaPage />} />
               </Route>
@@ -674,6 +684,10 @@ const AppRoutes = () => {
               </Route>
               <Route element={<ProtectedRoute permission="fines.view" />}>
                 <Route path="/hr/fines" element={<FinesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute permission="buyer-audits.view" />}>
+                <Route path="/hr/audit-readiness" element={<AuditReadinessPage />} />
+                <Route path="/hr/audit-readiness/:id" element={<BuyerAuditDetailPage />} />
               </Route>
               <Route element={<ProtectedRoute permission="payments.view" />}>
                 <Route path="/accounts/payment-links" element={<PaymentLinksPage />} />

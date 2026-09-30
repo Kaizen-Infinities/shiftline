@@ -458,6 +458,13 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     description: "MSME delayed-payment claims (receivable side)",
   },
   {
+    // TN-10: state and central subsidy / scheme claims (capital subsidy, LTPT power subsidy,
+    // interest subvention, NEEDS, PLI). Folds into the P2-14 licence register later.
+    module: "subsidy-schemes",
+    actions: ["view", "create", "edit", "export"],
+    description: "Subsidies and scheme claims",
+  },
+  {
     module: "vouchers",
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Vouchers",
@@ -519,6 +526,13 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     module: "fines",
     actions: ["view", "manage", "approve"],
     description: "Fines and Deductions",
+  },
+  {
+    // TN-08: buyer social-compliance audits (BSCI, WRAP, SMETA, SA8000…), findings, corrective
+    // actions and the readiness report built from attendance, payroll and the registers.
+    module: "buyer-audits",
+    actions: ["view", "create", "edit", "export"],
+    description: "Buyer social-compliance audits and audit readiness",
   },
 
   // ── Shop floor (Phase 2) ────────────────────────────────────────────────────

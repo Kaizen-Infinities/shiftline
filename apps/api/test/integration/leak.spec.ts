@@ -203,6 +203,13 @@ const MODELS_WITHOUT_SEED_ROWS: ReadonlySet<string> = new Set([
   "MsmeClaimSetting",
   "MsmeRecoveryClaim",
   "MsmeRecoveryClaimLine",
+  // buyer audits (TN-08): buyer-audits.spec proves a foreign company sees none
+  "BuyerAudit",
+  "AuditFinding",
+  "CorrectiveAction",
+  // subsidies and schemes (TN-10): subsidy-schemes.spec proves a foreign company sees none
+  "SubsidyScheme",
+  "SubsidyClaim",
 ]);
 
 describe("cross-tenant leak suite", () => {
