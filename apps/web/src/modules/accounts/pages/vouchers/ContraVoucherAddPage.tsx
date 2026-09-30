@@ -309,6 +309,7 @@ const ContraVoucherAddPage: React.FC = () => {
                           ledgers={ledgers}
                           onChange={(val) => updateRow(row.id, "ledgerId", val)}
                           placeholder={unlocked ? "Type to search ledgers" : ""}
+                          ariaLabel={`Account, line ${idx + 1}`}
                           filterFn={isBankOrCashLedger}
                           accentColor="rose-500"
                           variant="cell"

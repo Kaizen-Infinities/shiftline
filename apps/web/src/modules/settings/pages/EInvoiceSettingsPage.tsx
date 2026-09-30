@@ -118,8 +118,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           E-invoicing is on for this company
         </label>
         <div>
-          <span className={label}>Provider</span>
+          <label htmlFor="einv-provider" className={label}>
+            Provider
+          </label>
           <select
+            id="einv-provider"
             className={input}
             value={form.provider}
             onChange={(e) => set("provider", e.target.value as Form["provider"])}
@@ -129,8 +132,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           </select>
         </div>
         <div>
-          <span className={label}>Applies to documents dated from</span>
+          <label htmlFor="einv-from" className={label}>
+            Applies to documents dated from
+          </label>
           <input
+            id="einv-from"
             type="date"
             className={input}
             value={form.applicableFrom}
@@ -138,8 +144,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           />
         </div>
         <div>
-          <span className={label}>Aggregate annual turnover (₹ crore)</span>
+          <label htmlFor="einv-aato" className={label}>
+            Aggregate annual turnover (₹ crore)
+          </label>
           <input
+            id="einv-aato"
             type="number"
             min={0}
             step="0.01"
@@ -158,8 +167,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           GSP connection
         </div>
         <div className="md:col-span-2">
-          <span className={label}>Base URL</span>
+          <label htmlFor="einv-base-url" className={label}>
+            Base URL
+          </label>
           <input
+            id="einv-base-url"
             className={input}
             value={form.baseUrl}
             onChange={(e) => set("baseUrl", e.target.value)}
@@ -167,8 +179,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           />
         </div>
         <div>
-          <span className={label}>Client id</span>
+          <label htmlFor="einv-client-id" className={label}>
+            Client id
+          </label>
           <input
+            id="einv-client-id"
             className={input}
             value={form.clientId}
             onChange={(e) => set("clientId", e.target.value)}
@@ -176,10 +191,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           />
         </div>
         <div>
-          <span className={label}>
+          <label htmlFor="einv-client-secret" className={label}>
             Client secret {settings.hasClientSecret && "(stored; leave blank to keep)"}
-          </span>
+          </label>
           <input
+            id="einv-client-secret"
             type="password"
             className={input}
             value={form.clientSecret}
@@ -188,8 +204,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           />
         </div>
         <div>
-          <span className={label}>API user (e-invoice portal)</span>
+          <label htmlFor="einv-api-user" className={label}>
+            API user (e-invoice portal)
+          </label>
           <input
+            id="einv-api-user"
             className={input}
             value={form.username}
             onChange={(e) => set("username", e.target.value)}
@@ -197,10 +216,11 @@ const EInvoiceSettingsPage: React.FC = () => {
           />
         </div>
         <div>
-          <span className={label}>
+          <label htmlFor="einv-api-password" className={label}>
             API password {settings.hasPassword && "(stored; leave blank to keep)"}
-          </span>
+          </label>
           <input
+            id="einv-api-password"
             type="password"
             className={input}
             value={form.password}

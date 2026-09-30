@@ -1681,7 +1681,7 @@ const EmployeeForm: React.FC = () => {
       <div className="sl-tile min-h-[350px] p-5 sm:p-6">{tabRenderers[activeTab]()}</div>
 
       {/* Sticky footer */}
-      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
+      <div className="sl-sticky-footer z-20 [--sl-footer-gap:0px]flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <ActionPill
             variant="secondary"

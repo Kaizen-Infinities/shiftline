@@ -582,7 +582,7 @@ const PayrollDashboard: React.FC = () => {
             {runsLoading && <span className="sl-spinner" aria-label="Loading" />}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="sr-only" htmlFor="payroll-month">
+            <label className="sl-label !mb-0 whitespace-nowrap" htmlFor="payroll-month">
               Month
             </label>
             <input

@@ -1150,7 +1150,7 @@ const SalesInvoiceForm: React.FC = () => {
         key: "itemName",
         header: selectedSalesOrderId ? "Sales Product" : "Product",
         width: "1fr",
-        render: (row: InvoiceLineItem) => {
+        render: (row: InvoiceLineItem, index: number) => {
           if (selectedSalesOrderId) {
             // Compute live stock from component products
             const sp = salesProducts.find((s: any) => String(s.id) === row.itemId);
@@ -1183,6 +1183,7 @@ const SalesInvoiceForm: React.FC = () => {
             <SelectInput
               hideLabel
               label=""
+              ariaLabel={`Product, line ${index + 1}`}
               name={`item-${row.id}`}
               value={row.itemId}
               disabled={isLocked}
@@ -1204,8 +1205,9 @@ const SalesInvoiceForm: React.FC = () => {
         header: "HSN",
         width: "90px",
         align: "center" as const,
-        render: (row: InvoiceLineItem) => (
+        render: (row: InvoiceLineItem, index: number) => (
           <input
+            aria-label={`HSN code, line ${index + 1}`}
             type="text"
             inputMode="numeric"
             value={row.hsnCode || ""}
@@ -1223,9 +1225,10 @@ const SalesInvoiceForm: React.FC = () => {
         header: "Qty",
         width: "80px",
         align: "center" as const,
-        render: (row: InvoiceLineItem) => (
+        render: (row: InvoiceLineItem, index: number) => (
           <div>
             <input
+              aria-label={`Quantity, line ${index + 1}`}
               type="text"
               inputMode="numeric"
               value={String(row.qty)}
@@ -1247,8 +1250,9 @@ const SalesInvoiceForm: React.FC = () => {
         header: "Unit Price",
         width: "100px",
         align: "right" as const,
-        render: (row: InvoiceLineItem) => (
+        render: (row: InvoiceLineItem, index: number) => (
           <input
+            aria-label={`Unit price, line ${index + 1}`}
             type="text"
             inputMode="decimal"
             value={String(row.rate)}
@@ -1264,8 +1268,9 @@ const SalesInvoiceForm: React.FC = () => {
         header: "Weight (kg)",
         width: "90px",
         align: "center" as const,
-        render: (row: InvoiceLineItem) => (
+        render: (row: InvoiceLineItem, index: number) => (
           <input
+            aria-label={`Weight (kg), line ${index + 1}`}
             type="text"
             inputMode="decimal"
             value={String(row.weight || 0)}
@@ -1339,6 +1344,7 @@ const SalesInvoiceForm: React.FC = () => {
                 >
                   <input
                     type="checkbox"
+                    aria-label={`Include ${comp.componentProduct?.productName || comp.componentProduct?.productCode || `product ${compId}`}`}
                     checked={!isExcluded}
                     onChange={() => {
                       setExcludedComponents((prev) => {
@@ -1412,6 +1418,7 @@ const SalesInvoiceForm: React.FC = () => {
         width: "1fr",
         render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => (
           <select
+            aria-label={`Bill sundry, line ${_index + 1}`}
             value={row.type}
             onChange={(e) => update({ type: e.target.value })}
             style={{
@@ -1456,6 +1463,7 @@ const SalesInvoiceForm: React.FC = () => {
                   const calcAmount = ((totals.subTotal * rateNum) / 100).toFixed(2);
                   update({ rate, amount: rateNum > 0 ? calcAmount : "" });
                 }}
+                aria-label={`Sundry rate percent, line ${_index + 1}`}
                 placeholder="0.000"
                 className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right"
               />
@@ -1477,6 +1485,7 @@ const SalesInvoiceForm: React.FC = () => {
               inputMode="decimal"
               value={row.amount}
               onChange={(e) => update({ amount: e.target.value.replace(/[^0-9.]/g, ""), rate: "" })}
+              aria-label={`Sundry amount, line ${_index + 1}`}
               placeholder="0.00"
               className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right font-semibold"
               style={{ color: isNeg ? "var(--color-danger)" : "var(--color-ink)" }}

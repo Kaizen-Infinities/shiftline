@@ -21,6 +21,7 @@ import {
   PageHeader,
   SkeletonTile,
   Tile,
+  useConfirm,
 } from "../../../components/ui/v2";
 import { Notice, PageShell } from "../components/peopleUi";
 import { payrollService } from "../../../services/payrollService";
@@ -84,6 +85,7 @@ const SlabConfigurator: React.FC<{
   warningNote?: string;
   canEdit?: boolean;
 }> = ({ slabs, onChange, title, warningNote, canEdit = false }) => {
+  const [confirm, confirmDialog] = useConfirm();
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<Partial<SlabEntry>>({});
@@ -136,8 +138,13 @@ const SlabConfigurator: React.FC<{
     setAdding(false);
     setDraft({});
   };
-  const remove = (id: string) => {
-    if (window.confirm("Remove this slab?")) onChange(slabs.filter((s) => s.id !== id));
+  const remove = async (id: string) => {
+    const ok = await confirm({
+      message: "Remove this slab?",
+      confirmText: "Remove",
+      destructive: true,
+    });
+    if (ok) onChange(slabs.filter((s) => s.id !== id));
   };
 
   // Shared form fields — 3 reusable TextInput components
@@ -215,6 +222,7 @@ const SlabConfigurator: React.FC<{
 
   return (
     <div className="space-y-3">
+      {confirmDialog}
       {/* Header */}
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-bold text-ink">{title}</h4>
@@ -309,6 +317,7 @@ const SalaryComponentsEditor: React.FC<{
   onChange: (comps: SalaryComponent[]) => void;
   canEdit?: boolean;
 }> = ({ comps, onChange, canEdit = false }) => {
+  const [confirm, confirmDialog] = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<SalaryComponent>>({});
 
@@ -356,8 +365,13 @@ const SalaryComponentsEditor: React.FC<{
     setDraft({ ...newComp });
   };
 
-  const deleteComp = (id: string) => {
-    if (window.confirm("Delete this salary component? This cannot be undone.")) {
+  const deleteComp = async (id: string) => {
+    const ok = await confirm({
+      message: "Delete this salary component? This cannot be undone.",
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (ok) {
       onChange(comps.filter((c) => c.id !== id));
       if (editingId === id) {
         setEditingId(null);
@@ -373,6 +387,7 @@ const SalaryComponentsEditor: React.FC<{
 
   return (
     <div className="space-y-3">
+      {confirmDialog}
       <div className="flex items-center justify-between">
         <p className="text-xs text-ink-muted">
           Define earning and deduction components used in salary computation.
@@ -1010,7 +1025,7 @@ const PayrollSettings: React.FC = () => {
       {tabItems.find((t) => t.key === tab)?.content}
 
       {canEditSettings && (
-        <div className="sticky bottom-0 z-20 -mx-1 flex justify-end gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 shadow-[0_-6px_24px_-12px_rgba(15,27,38,0.25)] backdrop-blur">
+        <div className="sl-sticky-footer z-20 [--sl-footer-gap:0px] -mx-1 flex justify-end gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 shadow-[0_-6px_24px_-12px_rgba(15,27,38,0.25)] backdrop-blur">
           <span className="sl-muted mr-auto self-center text-sm">
             {isDirty ? "You have unsaved changes." : "All changes saved."}
           </span>

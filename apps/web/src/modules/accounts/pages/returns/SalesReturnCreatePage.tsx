@@ -679,14 +679,21 @@ export const SalesReturnCreatePage: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setExpandedItemIndex(isExpanded ? null : idx)}
-                                  className="p-0.5 rounded text-ink-subtle hover:text-primary hover:bg-primary/10 transition-colors flex-shrink-0"
+                                  aria-expanded={isExpanded}
+                                  aria-label={`${isExpanded ? "Hide" : "Show"} components, line ${idx + 1}`}
+                                  className="sl-icon-btn sl-icon-btn-ghost sl-icon-btn-hover-primary"
                                 >
-                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                  {isExpanded ? (
+                                    <ChevronUp size={14} aria-hidden="true" />
+                                  ) : (
+                                    <ChevronDown size={14} aria-hidden="true" />
+                                  )}
                                 </button>
                               )}
                               <SelectInput
                                 hideLabel
                                 label=""
+                                ariaLabel={`Product, line ${idx + 1}`}
                                 name={`product-${idx}`}
                                 value={row.productId ? String(row.productId) : ""}
                                 defaultOptionLabel="-- Select Product --"
@@ -709,6 +716,7 @@ export const SalesReturnCreatePage: React.FC = () => {
                           <td className="py-1 px-1 w-20">
                             <TextInput
                               name={`qty-${idx}`}
+                              aria-label={`Quantity, line ${idx + 1}`}
                               type="number"
                               value={row.quantity ? String(row.quantity) : ""}
                               min="0"
@@ -726,6 +734,7 @@ export const SalesReturnCreatePage: React.FC = () => {
                           <td className="py-1 px-1 w-40">
                             <QuantityInput
                               hideLabel
+                              label={`Weight, line ${idx + 1}`}
                               name={`weight-${idx}`}
                               value={row.weight === 0 ? "" : row.weight}
                               baseUoms={row.baseUoms || "kg, g, t"}
@@ -740,6 +749,7 @@ export const SalesReturnCreatePage: React.FC = () => {
                           <td className="py-1 px-1 w-28">
                             <TextInput
                               name={`unitPrice-${idx}`}
+                              aria-label={`Unit price, line ${idx + 1}`}
                               type="number"
                               value={row.unitPrice ? String(row.unitPrice) : ""}
                               min="0"

@@ -367,6 +367,7 @@ const SalesReportsCenter: React.FC = () => {
             <label className="sl-label">Date Range</label>
             <SelectInput
               name="dateRangePreset"
+              ariaLabel="Date range"
               value={dateRangePreset}
               options={DATE_RANGE_OPTIONS}
               hideLabel={true}
@@ -377,6 +378,7 @@ const SalesReportsCenter: React.FC = () => {
             <label className="sl-label">Start Date</label>
             <DatePickerCalendar
               name="draftStartDate"
+              ariaLabel="Start date"
               value={draftStartDate}
               onChange={(e) => {
                 setDraftStartDate(e.target.value);
@@ -388,6 +390,7 @@ const SalesReportsCenter: React.FC = () => {
             <label className="sl-label">End Date</label>
             <DatePickerCalendar
               name="draftEndDate"
+              ariaLabel="End date"
               value={draftEndDate}
               onChange={(e) => {
                 setDraftEndDate(e.target.value);
@@ -396,8 +399,11 @@ const SalesReportsCenter: React.FC = () => {
             />
           </div>
           <div>
-            <label className="sl-label">Order No</label>
+            <label htmlFor="sales-report-order-no" className="sl-label">
+              Order No
+            </label>
             <input
+              id="sales-report-order-no"
               type="text"
               className="sl-input h-11 w-full px-4"
               value={draftOrderNo}
@@ -409,6 +415,7 @@ const SalesReportsCenter: React.FC = () => {
             <label className="sl-label">Customer</label>
             <SelectInput
               name="draftCustomerId"
+              ariaLabel="Customer"
               value={draftCustomerId}
               options={customers.map((c) => ({ label: c.displayName || c.firmName, value: c.id }))}
               defaultOptionLabel="All Customers"
@@ -421,6 +428,7 @@ const SalesReportsCenter: React.FC = () => {
             <label className="sl-label">Status</label>
             <SelectInput
               name="draftStatus"
+              ariaLabel="Status"
               value={draftStatus}
               options={[
                 { label: "Draft", value: "DRAFT" },
@@ -440,6 +448,7 @@ const SalesReportsCenter: React.FC = () => {
             <label className="sl-label">Dispatch Type</label>
             <SelectInput
               name="draftDispatchType"
+              ariaLabel="Dispatch type"
               value={draftDispatchType}
               options={DISPATCH_TYPE_OPTIONS}
               defaultOptionLabel="All Types"

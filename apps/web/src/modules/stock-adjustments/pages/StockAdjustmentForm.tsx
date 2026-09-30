@@ -1066,6 +1066,7 @@ const StockAdjustmentForm: React.FC = () => {
                     <SelectInput
                       label=""
                       hideLabel
+                      ariaLabel="Category filter"
                       noMargin
                       name="categoryFilter"
                       value={selectedCategoryFilter}

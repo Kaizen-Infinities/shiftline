@@ -20,7 +20,14 @@ import {
   type TenantDetail,
   type TenantUser,
 } from "../../../services/platformService";
-import { ActionPill, Chip, ChipTabs, PageHeader, SkeletonTile } from "../../../components/ui/v2";
+import {
+  ActionPill,
+  Chip,
+  ChipTabs,
+  PageHeader,
+  SkeletonTile,
+  useConfirm,
+} from "../../../components/ui/v2";
 import {
   Badge,
   Section,
@@ -43,6 +50,7 @@ import {
 type Tab = "users" | "devices" | "audit" | "impersonations";
 
 const TenantDetailPage: React.FC = () => {
+  const [confirm, confirmDialog] = useConfirm();
   const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -182,13 +190,14 @@ const TenantDetailPage: React.FC = () => {
     }
   };
 
-  const revoke = (d: DeviceRow) => {
-    if (
-      !window.confirm(
-        `Revoke ${d.model ?? d.deviceId} used by ${d.agentName}? The app signs out and wipes.`
-      )
-    )
-      return;
+  const revoke = async (d: DeviceRow) => {
+    const ok = await confirm({
+      title: "Revoke device",
+      message: `Revoke ${d.model ?? d.deviceId} used by ${d.agentName}? The app signs out and wipes.`,
+      confirmText: "Revoke",
+      destructive: true,
+    });
+    if (!ok) return;
     return run(
       "Device revoked",
       () => platformService.revokeDevice(id, d.id),
@@ -211,6 +220,7 @@ const TenantDetailPage: React.FC = () => {
 
   return (
     <div className="sl-page">
+      {confirmDialog}
       <PageHeader
         title={c.companyName}
         icon={<Building2 size={22} />}

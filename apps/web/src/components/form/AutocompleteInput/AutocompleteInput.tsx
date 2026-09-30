@@ -30,6 +30,8 @@ interface AutocompleteInputProps {
   horizontal?: boolean;
   /** Compact inline mode for use inside table cells — no label, no border, minimal padding */
   inline?: boolean;
+  /** Accessible name when no visible `label` is rendered (inline table cells). */
+  ariaLabel?: string;
   onChange: (value: string) => void;
 }
 
@@ -45,6 +47,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   disabled = false,
   horizontal = false,
   inline = false,
+  ariaLabel,
   onChange,
 }) => {
   const [search, setSearch] = useState("");
@@ -242,6 +245,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
             <input
               ref={inputRef}
               id={name}
+              aria-label={inline || !label ? ariaLabel || label || undefined : undefined}
               type="text"
               autoComplete="off"
               disabled={disabled}

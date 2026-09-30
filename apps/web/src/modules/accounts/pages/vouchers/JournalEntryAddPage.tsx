@@ -320,6 +320,7 @@ const JournalEntryAddPage: React.FC = () => {
                           ledgers={ledgers}
                           onChange={(val) => updateRow(row.id, "ledgerId", val)}
                           placeholder={unlocked ? "Type to search ledgers" : ""}
+                          ariaLabel={`Account, line ${idx + 1}`}
                           accentColor="purple-500"
                           variant="cell"
                           onSelected={() => focusCell(idx, "amount")}

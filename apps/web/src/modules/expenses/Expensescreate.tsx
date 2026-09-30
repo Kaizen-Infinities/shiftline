@@ -558,7 +558,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
           </div>
 
           {/* Form Actions — sticky footer */}
-          <div className="sticky bottom-0 z-20 -mx-1 bg-[linear-gradient(to_top,var(--color-page)_70%,transparent)] px-1 pb-3 pt-4">
+          <div className="sl-sticky-footer z-20 [--sl-footer-gap:0px]-mx-1 bg-[linear-gradient(to_top,var(--color-page)_70%,transparent)] px-1 pb-3 pt-4">
             <div className="sl-tile flex flex-wrap items-center justify-end gap-2.5 px-4 py-3">
               <ActionPill variant="secondary" onClick={onCancel} disabled={saving}>
                 Cancel

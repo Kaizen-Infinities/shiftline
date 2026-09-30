@@ -625,6 +625,7 @@ const ProductionReportsCenter: React.FC = () => {
             <label className="sl-label">Date Range</label>
             <SelectInput
               name="dateRangePreset"
+              ariaLabel="Date range"
               value={dateRangePreset}
               options={DATE_RANGE_OPTIONS}
               hideLabel={true}
@@ -635,6 +636,7 @@ const ProductionReportsCenter: React.FC = () => {
             <label className="sl-label">Start Date</label>
             <DatePickerCalendar
               name="draftStartDate"
+              ariaLabel="Start date"
               value={draftStartDate}
               onChange={(e) => {
                 setDraftStartDate(e.target.value);
@@ -646,6 +648,7 @@ const ProductionReportsCenter: React.FC = () => {
             <label className="sl-label">End Date</label>
             <DatePickerCalendar
               name="draftEndDate"
+              ariaLabel="End date"
               value={draftEndDate}
               onChange={(e) => {
                 setDraftEndDate(e.target.value);
@@ -657,6 +660,7 @@ const ProductionReportsCenter: React.FC = () => {
             <label className="sl-label">Machine</label>
             <SelectInput
               name="draftMachine"
+              ariaLabel="Machine"
               value={draftMachine}
               options={machines.map((m) => ({ label: m.machineName, value: m?.machineId || "" }))}
               defaultOptionLabel="All Machines"
@@ -668,6 +672,7 @@ const ProductionReportsCenter: React.FC = () => {
             <label className="sl-label">Shift</label>
             <SelectInput
               name="draftShift"
+              ariaLabel="Shift"
               value={draftShift}
               options={shifts.map((s) => ({ label: s.shiftName, value: s.shiftCode }))}
               defaultOptionLabel="All Shifts"

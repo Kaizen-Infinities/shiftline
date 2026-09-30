@@ -128,13 +128,13 @@ export const TopProductsTile: React.FC<{
                 axisLine={false}
                 tickLine={false}
                 interval={0}
-                tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
+                tick={{ fontSize: 11, fill: "var(--color-ink-subtle)" }}
                 tickFormatter={(v: string) => (v && v.length > 8 ? `${v.slice(0, 7)}…` : v)}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
+                tick={{ fontSize: 11, fill: "var(--color-ink-subtle)" }}
                 tickFormatter={(v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : `${v}`)}
               />
               <Tooltip

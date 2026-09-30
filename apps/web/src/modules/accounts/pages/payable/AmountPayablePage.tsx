@@ -414,8 +414,11 @@ export const AmountPayablePage: React.FC = () => {
           </div>
 
           <div className="w-[180px]">
-            <label className="sl-label">Search</label>
+            <label htmlFor="ap-search" className="sl-label">
+              Search
+            </label>
             <input
+              id="ap-search"
               type="text"
               className="sl-input h-11 w-full text-sm"
               value={draftSearch}
@@ -435,6 +438,7 @@ export const AmountPayablePage: React.FC = () => {
               }))}
               defaultOptionLabel="All Suppliers"
               hideLabel
+              ariaLabel="Supplier"
               searchable
               onChange={(e) => setDraftSupplierId(e.target.value)}
             />
@@ -484,6 +488,7 @@ export const AmountPayablePage: React.FC = () => {
                   Sort:
                 </label>
                 <select
+                  aria-label="Sort by"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="sl-input h-9 !w-auto text-[13px] cursor-pointer"

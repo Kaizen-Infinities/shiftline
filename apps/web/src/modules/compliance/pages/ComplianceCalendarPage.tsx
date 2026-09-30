@@ -299,7 +299,7 @@ const ComplianceCalendarPage: React.FC = () => {
                       <span className="text-[15px] font-bold tabular-nums">
                         {new Date(r.dueDate).getDate()}
                       </span>
-                      <span className="text-[10px] font-semibold uppercase">
+                      <span className="text-[11px] font-semibold uppercase">
                         {new Date(r.dueDate).toLocaleDateString("en-IN", { month: "short" })}
                       </span>
                     </span>

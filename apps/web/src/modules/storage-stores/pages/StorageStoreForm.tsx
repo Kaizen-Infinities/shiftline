@@ -7,7 +7,6 @@ import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import { createStore, updateStore } from "../../../features/stores/storeSlice";
 import { fetchEmployees } from "../../../features/employee/employeeSlice";
 import { storeService } from "../../../services/storeService";
-import { storeTypeService } from "../../../services/storeTypeService";
 import { STORE_CATEGORY_OPTIONS } from "../../../features/stores/types";
 import { useRoles } from "../../../hooks/useRoles";
 import SelectInput from "../../../components/form/SelectInput/SelectInput";
@@ -68,7 +67,6 @@ const StorageStoreForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [selectedRoleId, setSelectedRoleId] = useState("");
-  const [dbStoreTypes, setDbStoreTypes] = useState<Array<{ label: string; value: string }>>([]);
 
   useFormShortcuts({});
 
@@ -79,17 +77,6 @@ const StorageStoreForm: React.FC = () => {
   const fetchDependencies = useCallback(async () => {
     dispatch(fetchEmployees(undefined));
     loadRoles();
-    try {
-      const res = await storeTypeService.fetchAll();
-      const types = Array.isArray(res) ? res : res?.storeTypes || [];
-      const mapped = types.map((st: any) => ({
-        label: st.name || st.code,
-        value: st.code || st.name,
-      }));
-      setDbStoreTypes(mapped);
-    } catch {
-      // store types are optional; continue without them
-    }
   }, [dispatch, loadRoles]);
 
   // Load initial data (Create mode vs Edit mode)
@@ -268,11 +255,7 @@ const StorageStoreForm: React.FC = () => {
     }
   };
 
-  const categoryOptions = [
-    { label: "Select a category", value: "" },
-    ...STORE_CATEGORY_OPTIONS,
-    ...dbStoreTypes.filter((st) => !STORE_CATEGORY_OPTIONS.some((o) => o.value === st.value)),
-  ];
+  const categoryOptions = [{ label: "Select a category", value: "" }, ...STORE_CATEGORY_OPTIONS];
 
   const header = (
     <PageHeader

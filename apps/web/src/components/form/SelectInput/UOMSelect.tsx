@@ -433,6 +433,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
                 <>
                   <Select
                     isMulti
+                    aria-label={label}
                     menuPortalTarget={typeof document !== "undefined" ? document.body : null}
                     closeMenuOnSelect={false}
                     blurInputOnSelect={false}
@@ -512,6 +513,7 @@ export const UOMSelect: React.FC<UOMSelectProps> = ({
               return (
                 <Select
                   isMulti
+                  aria-label={label}
                   menuPortalTarget={typeof document !== "undefined" ? document.body : null}
                   closeMenuOnSelect={false}
                   blurInputOnSelect={false}

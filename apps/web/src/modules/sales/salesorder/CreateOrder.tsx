@@ -720,6 +720,7 @@ const SalesOrderForm: React.FC = () => {
               value={itemValue?.salesProductId || ""}
               options={opts}
               placeholder="Type to search..."
+              ariaLabel={`Item, line ${index + 1}`}
               error={(errors.items as any)?.[index]?.salesProductId?.message}
               onChange={(spId) => {
                 const sp = salesProducts.find((s) => String(s.id) === spId);
@@ -768,6 +769,7 @@ const SalesOrderForm: React.FC = () => {
                 setValue(`items.${index}.components`, updated);
               }}
               placeholder="0"
+              aria-label={`Quantity, line ${index + 1}`}
               className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0"
             />
           );

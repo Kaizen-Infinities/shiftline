@@ -323,6 +323,7 @@ const PurchaseReportsCenter: React.FC = () => {
             <label className="sl-label">Date Range</label>
             <SelectInput
               name="dateRangePreset"
+              ariaLabel="Date range"
               value={dateRangePreset}
               options={DATE_RANGE_OPTIONS}
               hideLabel={true}
@@ -333,6 +334,7 @@ const PurchaseReportsCenter: React.FC = () => {
             <label className="sl-label">Start Date</label>
             <DatePickerCalendar
               name="draftStartDate"
+              ariaLabel="Start date"
               value={draftStartDate}
               onChange={(e) => {
                 setDraftStartDate(e.target.value);
@@ -344,6 +346,7 @@ const PurchaseReportsCenter: React.FC = () => {
             <label className="sl-label">End Date</label>
             <DatePickerCalendar
               name="draftEndDate"
+              ariaLabel="End date"
               value={draftEndDate}
               onChange={(e) => {
                 setDraftEndDate(e.target.value);
@@ -352,8 +355,11 @@ const PurchaseReportsCenter: React.FC = () => {
             />
           </div>
           <div>
-            <label className="sl-label">PO No</label>
+            <label htmlFor="purchase-report-po-no" className="sl-label">
+              PO No
+            </label>
             <input
+              id="purchase-report-po-no"
               type="text"
               className="sl-input h-11 w-full px-4"
               value={draftPoNumber}
@@ -365,6 +371,7 @@ const PurchaseReportsCenter: React.FC = () => {
             <label className="sl-label">Supplier</label>
             <SelectInput
               name="draftSupplierId"
+              ariaLabel="Supplier"
               value={draftSupplierId}
               options={suppliers.map((s) => ({ label: s.displayName, value: s.id.toString() }))}
               defaultOptionLabel="All Suppliers"
@@ -377,6 +384,7 @@ const PurchaseReportsCenter: React.FC = () => {
             <label className="sl-label">Status</label>
             <SelectInput
               name="draftStatus"
+              ariaLabel="Status"
               value={draftStatus}
               options={[
                 { label: "Draft", value: "DRAFT" },

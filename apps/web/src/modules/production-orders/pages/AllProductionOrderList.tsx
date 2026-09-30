@@ -301,6 +301,7 @@ const AllProductionOrderList: React.FC = () => {
               <SelectInput
                 label=""
                 hideLabel
+                ariaLabel="Order status"
                 name="statusFilter"
                 value={statusFilter}
                 onChange={(e) => {

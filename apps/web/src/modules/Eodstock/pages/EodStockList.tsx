@@ -359,6 +359,7 @@ const EodStockList: React.FC = () => {
                 defaultOptionLabel="All Stores"
                 options={stores.map((s) => ({ label: s.storeName, value: s.storeId }))}
                 hideLabel
+                ariaLabel="Store filter"
                 noMargin
                 onChange={(e) => {
                   setStoreIdFilter(e.target.value);

@@ -155,6 +155,7 @@ const SmsPage: React.FC = () => {
                         <input
                           className={`${field} w-44`}
                           value={dltEdits[t.code] ?? t.dltTemplateId ?? ""}
+                          aria-label={`DLT template id, ${t.code}`}
                           placeholder="not registered"
                           onChange={(e) => setDltEdits({ ...dltEdits, [t.code]: e.target.value })}
                         />

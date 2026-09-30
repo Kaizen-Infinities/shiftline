@@ -240,6 +240,7 @@ const MachineGatewaysPage: React.FC = () => {
         <div className="grid gap-2 sl-tile p-4 sm:p-5 sm:grid-cols-3">
           <input
             className={field}
+            aria-label="Code"
             placeholder="Code"
             value={form.code}
             disabled={!!editing}
@@ -247,6 +248,7 @@ const MachineGatewaysPage: React.FC = () => {
           />
           <select
             className={field}
+            aria-label="Machine"
             value={form.machineId}
             disabled={!!editing}
             onChange={(e) => setForm({ ...form, machineId: e.target.value })}
@@ -260,6 +262,7 @@ const MachineGatewaysPage: React.FC = () => {
           </select>
           <select
             className={field}
+            aria-label="Adapter kind"
             value={form.adapterKind}
             disabled={!!editing}
             onChange={(e) =>
@@ -277,6 +280,7 @@ const MachineGatewaysPage: React.FC = () => {
             type="number"
             min={5}
             max={3600}
+            aria-label="Poll interval (s)"
             placeholder="Poll interval (s)"
             value={form.pollIntervalSeconds}
             onChange={(e) => setForm({ ...form, pollIntervalSeconds: e.target.value })}
@@ -284,6 +288,7 @@ const MachineGatewaysPage: React.FC = () => {
           <textarea
             className={`${field} sm:col-span-3 font-mono text-xs`}
             rows={2}
+            aria-label="Connection settings (JSON)"
             placeholder='Connection settings (JSON), e.g. {"filePath": "/var/telemetry/press1.json"}'
             value={form.connectionSettingsText}
             onChange={(e) => setForm({ ...form, connectionSettingsText: e.target.value })}
@@ -291,6 +296,7 @@ const MachineGatewaysPage: React.FC = () => {
           <textarea
             className={`${field} sm:col-span-3 font-mono text-xs`}
             rows={2}
+            aria-label="Credentials (JSON)"
             placeholder={
               editing
                 ? "Credentials (JSON) — leave blank to keep the stored value"
@@ -443,6 +449,7 @@ const MachineGatewaysPage: React.FC = () => {
                               <td className="py-1 pr-3">
                                 <input
                                   className={`${field} w-32`}
+                                  aria-label="Vendor tag"
                                   placeholder="Vendor tag"
                                   value={newRow.vendorTag}
                                   onChange={(e) =>
@@ -453,6 +460,7 @@ const MachineGatewaysPage: React.FC = () => {
                               <td className="py-1 pr-3">
                                 <select
                                   className={field}
+                                  aria-label="Canonical signal"
                                   value={newRow.canonicalSignal}
                                   onChange={(e) =>
                                     setNewRow({ ...newRow, canonicalSignal: e.target.value })

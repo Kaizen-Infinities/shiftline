@@ -2010,6 +2010,20 @@ body {
   }
 
   /* Mobile bottom tab bar. */
+  /* A form's sticky action bar sits 12px above the bottom edge, and above the phone tab bar
+     while that bar is on screen (it is fixed, so a plain bottom offset lands under it). */
+  .sl-sticky-footer {
+    position: sticky;
+    bottom: var(--sl-footer-gap, 0.75rem);
+  }
+  body:has(.sl-tabbar) .sl-sticky-footer {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom) + var(--sl-footer-gap, 0.75rem));
+  }
+  @media (min-width: 1024px) {
+    body:has(.sl-tabbar) .sl-sticky-footer {
+      bottom: var(--sl-footer-gap, 0.75rem);
+    }
+  }
   .sl-tabbar {
     background: color-mix(in srgb, var(--color-card) 92%, transparent);
     backdrop-filter: blur(12px);

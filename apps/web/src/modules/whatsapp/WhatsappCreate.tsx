@@ -300,7 +300,7 @@ const WhatsappCreatePage: React.FC = () => {
 
           {/* Footer */}
           {canEditWhatsapp && (
-            <div className="sl-tile sticky bottom-3 z-10 flex justify-end gap-2 px-4 py-3">
+            <div className="sl-tile sl-sticky-footer z-10 flex justify-end gap-2 px-4 py-3">
               <ActionPill variant="secondary" icon={<Eraser size={16} />} onClick={handleClear}>
                 Clear
               </ActionPill>

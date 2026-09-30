@@ -373,7 +373,7 @@ const DailyReportPage: React.FC = () => {
           >
             <ChevronLeft size={18} aria-hidden="true" />
           </button>
-          <label className="sr-only" htmlFor="daily-report-date">
+          <label className="sl-label !mb-0 whitespace-nowrap" htmlFor="daily-report-date">
             Select Date
           </label>
           <input

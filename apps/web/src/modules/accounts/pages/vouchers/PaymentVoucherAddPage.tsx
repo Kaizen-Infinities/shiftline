@@ -10,6 +10,7 @@ import {
   Tile,
   fieldControlClass,
   StaleNotice,
+  useConfirm,
 } from "../../../../components/ui/v2";
 import {
   EntryFooter,
@@ -58,6 +59,7 @@ const makeEmptyRow = (): PaymentRow => ({
 });
 
 const PaymentVoucherAddPage: React.FC = () => {
+  const [confirm, confirmDialog] = useConfirm();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
@@ -281,9 +283,11 @@ const PaymentVoucherAddPage: React.FC = () => {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-      const proceed = window.confirm(
-        `Cash / Bank balance is going negative ( Rs. -${shortfallStr} ).\n\nWould you like to continue?`
-      );
+      const proceed = await confirm({
+        title: "Balance going negative",
+        message: `Cash / Bank balance is going negative ( Rs. -${shortfallStr} ).\n\nWould you like to continue?`,
+        confirmText: "Continue",
+      });
       if (!proceed) return;
     }
 
@@ -324,6 +328,7 @@ const PaymentVoucherAddPage: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit} onKeyDown={ctrlEnterSubmit} className="w-full">
+      {confirmDialog}
       <PageHeader
         title="New payment voucher"
         subtitle={VOUCHER_KINDS.PAYMENT.hint}
