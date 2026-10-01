@@ -37,6 +37,33 @@ import { fetchShifts } from "../../../features/shifts/shiftSlice";
 import { dailyPlanService } from "../../../services/dailyPlanService";
 import apiClient from "../../../api/apiClient";
 import config from "../../../api/config";
+import { useT } from "../../../i18n/I18nProvider";
+import type { MessageKey } from "../../../i18n/en";
+
+/** Reason values are stored in English (reports group by them); only the labels translate. */
+const DOWNTIME_REASONS: [string, MessageKey][] = [
+  ["Machine Breakdown", "hourly.reason.machineBreakdown"],
+  ["Power Failure", "hourly.reason.powerFailure"],
+  ["Material Shortage", "hourly.reason.materialShortage"],
+  ["Tool/Mould Change", "hourly.reason.toolChange"],
+  ["Operator Unavailable", "hourly.reason.operatorUnavailable"],
+  ["Quality Issue", "hourly.reason.qualityIssue"],
+  ["Preventative Maintenance", "hourly.reason.maintenance"],
+  ["Others", "common.others"],
+];
+const REJECT_REASONS: [string, MessageKey][] = [
+  ["Quality Issue", "hourly.reason.qualityIssue"],
+  ["Machine Defect", "hourly.reason.machineDefect"],
+  ["Material Defect", "hourly.reason.materialDefect"],
+  ["Operator Error", "hourly.reason.operatorError"],
+  ["Others", "common.others"],
+];
+const SCRAP_REASONS: [string, MessageKey][] = [
+  ["Startup Scrap", "hourly.reason.startupScrap"],
+  ["Process Setting", "hourly.reason.processSetting"],
+  ["Material Purging", "hourly.reason.materialPurging"],
+  ["Others", "common.others"],
+];
 
 const formatLocalDateString = (d: Date) => {
   const year = d.getFullYear();
@@ -81,6 +108,7 @@ const normalizeUom = (uom: string): string => {
 };
 
 const HourlyWorkReportCreate: React.FC = () => {
+  const { t } = useT();
   const navigate = useNavigate();
   const locationState = useLocation();
   const dispatch = useAppDispatch();
@@ -239,7 +267,7 @@ const HourlyWorkReportCreate: React.FC = () => {
       .then((res: any) => {
         const plan = res.data;
         if (!plan) {
-          toast.error("Daily Production Plan not found");
+          toast.error(t("hourly.toast.planNotFound"));
           setActivePlan(null);
           setAvailableOperators([]);
           setOperatorId("");
@@ -253,7 +281,7 @@ const HourlyWorkReportCreate: React.FC = () => {
         if (!plan.operators || plan.operators.length === 0) {
           setAvailableOperators([]);
           setOperatorId("");
-          setPlanError("The selected Daily Production Plan does not have an assigned operator.");
+          setPlanError(t("hourly.err.noOperator"));
         } else {
           setAvailableOperators(plan.operators);
           // Reset manual-selection flag since this is a plan change (new context)
@@ -289,7 +317,7 @@ const HourlyWorkReportCreate: React.FC = () => {
       })
       .catch((err: any) => {
         console.error("Failed to fetch daily plan:", err);
-        toast.error("Failed to load daily plan details");
+        toast.error(t("hourly.toast.planLoadFailed"));
         setActivePlan(null);
         setAvailableOperators([]);
         setOperatorId("");
@@ -442,7 +470,7 @@ const HourlyWorkReportCreate: React.FC = () => {
     let baseOptions: { label: string; value: string; disabled?: boolean }[];
     if (!shiftTiming?.startTime || !shiftTiming?.endTime) {
       baseOptions = Array.from({ length: 24 }, (_, i) => ({
-        label: `Hour ${i + 1}`,
+        label: t("hourly.hourN", { hour: i + 1 }),
         value: String(i + 1),
       }));
     } else {
@@ -460,7 +488,7 @@ const HourlyWorkReportCreate: React.FC = () => {
       const hours = Math.floor(totalMinutes / 60);
 
       baseOptions = Array.from({ length: hours }, (_, i) => ({
-        label: `Hour ${i + 1}`,
+        label: t("hourly.hourN", { hour: i + 1 }),
         value: String(i + 1),
       }));
     }
@@ -490,7 +518,7 @@ const HourlyWorkReportCreate: React.FC = () => {
         disabled,
       };
     });
-  }, [shiftTiming, existingLogs, editingLogId, activePlan]);
+  }, [shiftTiming, existingLogs, editingLogId, activePlan, t]);
 
   const isFinalHour = hourOptions.length > 0 && Number(hourIndex) === hourOptions.length;
 
@@ -537,31 +565,29 @@ const HourlyWorkReportCreate: React.FC = () => {
     // Collect ALL errors in one pass
     const errors: Record<string, string> = {};
 
-    if (!hourIndex) errors.hourIndex = "Hour index is required";
-    if (!operatorId) errors.operatorId = "Operator is required";
-    if (!qtyProduced || Number(qtyProduced) <= 0)
-      errors.qtyProduced = "Produced quantity must be greater than 0";
+    if (!hourIndex) errors.hourIndex = t("hourly.err.hour");
+    if (!operatorId) errors.operatorId = t("hourly.err.operator");
+    if (!qtyProduced || Number(qtyProduced) <= 0) errors.qtyProduced = t("hourly.err.produced");
     if (Number(downtime) > 0 && !downtimeReason)
-      errors.downtimeReason = "Please select a downtime reason";
-    if (Number(rejectQty) > 0 && !rejectReason)
-      errors.rejectReason = "Please select a reject reason";
-    if (Number(scrapQty) > 0 && !scrapReason) errors.scrapReason = "Please select a scrap reason";
+      errors.downtimeReason = t("hourly.err.downtimeReason");
+    if (Number(rejectQty) > 0 && !rejectReason) errors.rejectReason = t("hourly.err.rejectReason");
+    if (Number(scrapQty) > 0 && !scrapReason) errors.scrapReason = t("hourly.err.scrapReason");
     if (
       (downtimeReason === "Others" || rejectReason === "Others" || scrapReason === "Others") &&
       !remarks?.trim()
     ) {
-      errors.remarks = "Please provide a reason";
+      errors.remarks = t("hourly.err.remarks");
     }
 
     // Stop plan reason validation (same pass)
     if (stopPlanEarly && !stopPlanReason.trim()) {
-      errors.stopPlanReason = "Reason for stopping is required";
+      errors.stopPlanReason = t("hourly.err.stopReason");
     }
 
     // Wastage validation
     const isLastHour = hourOptions.length > 0 && Number(hourIndex) === hourOptions.length;
     if (isLastHour && !stopPlanEarly && wastages.length === 0) {
-      errors.logWastage = "Please add at least one wastage product for the final hourly entry";
+      errors.logWastage = t("hourly.err.wastage");
     }
 
     let updatedWastages = wastages;
@@ -569,9 +595,9 @@ const HourlyWorkReportCreate: React.FC = () => {
     if (wastages.length > 0) {
       const normalizedWastages = wastages.map((w) => ({
         ...w,
-        storeError: !w.storeId ? "Store is required" : "",
-        productError: !w.targetWastageProductId ? "Product is required" : "",
-        quantityError: Number(w.quantity) > 0 ? "" : "Quantity must be greater than 0",
+        storeError: !w.storeId ? t("hourly.err.store") : "",
+        productError: !w.targetWastageProductId ? t("hourly.err.product") : "",
+        quantityError: Number(w.quantity) > 0 ? "" : t("hourly.err.quantity"),
       }));
       hasWastageError = normalizedWastages.some(
         (w) => w.storeError || w.productError || w.quantityError
@@ -584,9 +610,9 @@ const HourlyWorkReportCreate: React.FC = () => {
     if (rawMaterialsUsed.length > 0) {
       const normalizedRM = rawMaterialsUsed.map((rm) => ({
         ...rm,
-        storeError: !rm.storeId ? "Store is required" : "",
-        productError: !rm.rawMaterialId ? "Raw Material is required" : "",
-        quantityError: Number(rm.quantity) > 0 ? "" : "Quantity must be greater than 0",
+        storeError: !rm.storeId ? t("hourly.err.store") : "",
+        productError: !rm.rawMaterialId ? t("hourly.err.rawMaterial") : "",
+        quantityError: Number(rm.quantity) > 0 ? "" : t("hourly.err.quantity"),
       }));
       hasRawMaterialError = normalizedRM.some(
         (rm) => rm.storeError || rm.productError || rm.quantityError
@@ -608,7 +634,7 @@ const HourlyWorkReportCreate: React.FC = () => {
       return;
     }
     if (!activePlan) {
-      toast.error("Cannot save: No active Daily Plan loaded.");
+      toast.error(t("hourly.toast.noPlan"));
       return;
     }
 
@@ -688,10 +714,10 @@ const HourlyWorkReportCreate: React.FC = () => {
         res = await dispatch(
           updateHourlyProduction({ id: String(editingLogId), data: payload })
         ).unwrap();
-        toast.success("Hourly Production entry updated successfully!");
+        toast.success(t("hourly.toast.updated"));
       } else {
         res = await dispatch(createHourlyProduction(payload)).unwrap();
-        toast.success("Hourly Production entry saved successfully!");
+        toast.success(t("hourly.toast.saved"));
       }
       // Handle Stop Plan Early
       if (stopPlanEarly && dailyPlanId) {
@@ -719,13 +745,11 @@ const HourlyWorkReportCreate: React.FC = () => {
 
           await apiClient.put(`/daily-production-plans/${dailyPlanId}`, stopPayload);
           toast.success(
-            isCompleteStop
-              ? "Production permanently stopped. Proceeding to post-production."
-              : "Production stopped. You can carry forward the remaining quantity from the planning page."
+            isCompleteStop ? t("hourly.toast.stoppedForGood") : t("hourly.toast.stoppedCarry")
           );
         } catch (err: any) {
           console.error("Failed to stop production plan early", err);
-          toast.error(err?.response?.data?.message || "Failed to stop production plan early");
+          toast.error(err?.response?.data?.message || t("hourly.toast.stopFailed"));
         }
       }
 
@@ -737,7 +761,7 @@ const HourlyWorkReportCreate: React.FC = () => {
         navigate("/daily-machine-planning");
       }
     } catch (err: any) {
-      toast.error(err || "Failed to log hourly production");
+      toast.error(err || t("hourly.toast.saveFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -769,19 +793,19 @@ const HourlyWorkReportCreate: React.FC = () => {
   const bigNumberClass = "h-14 text-center text-[20px] font-bold tabular-nums";
 
   return (
-    <PageBody className="sl-page-form">
+    <PageBody className="max-w-[1180px]">
       <PageHeader
-        title="New hourly report"
+        title={t("hourly.title")}
         subtitle={
           activePlan
             ? `${activePlan.productionOrderId} · ${activePlan.productName}`
-            : "Pick the daily plan, then log what the machine made this hour."
+            : t("hourly.subtitleEmpty")
         }
         back="/daily-machine-planning"
-        backLabel="Back to Planning"
+        backLabel={t("hourly.backToPlanning")}
         breadcrumbs={[
-          { label: "Daily machine planning", to: "/daily-machine-planning" },
-          { label: editingLogId ? "Edit hourly report" : "New hourly report" },
+          { label: t("hourly.crumbPlanning"), to: "/daily-machine-planning" },
+          { label: editingLogId ? t("hourly.crumbEdit") : t("hourly.crumbLog") },
         ]}
       />
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -798,7 +822,7 @@ const HourlyWorkReportCreate: React.FC = () => {
             />
             <div>
               <p className="m-0 text-sm font-bold text-[color:var(--color-danger)]">
-                Plan Verification Failed
+                {t("hourly.planCheckFailed")}
               </p>
               <p className="m-0 text-sm text-ink-muted">{planError}</p>
             </div>
@@ -806,29 +830,38 @@ const HourlyWorkReportCreate: React.FC = () => {
         )}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           {/* Left Side: Plan Details */}
-          <Tile title="Plan Details" className="self-start lg:sticky lg:top-4 lg:col-span-4">
+          <Tile
+            title={t("hourly.planDetails")}
+            className="self-start lg:sticky lg:top-4 lg:col-span-4"
+          >
             <div>
               <div className="flex flex-col gap-4">
                 {/* Daily Production Plan dropdown when not prefilled */}
                 {!isPreFilled ? (
                   <div>
                     <SelectInput
-                      label="Daily Production Plan"
+                      label={t("hourly.dailyPlan")}
                       name="selectedDailyPlanId"
                       value={selectedDailyPlanId}
                       required
                       options={dailyPlans.map((dp) => ({
-                        label: `${dp.dailyPlanId} — PO: ${dp.productionOrderId} — Date: ${dp.productionDate?.split("T")[0]} — Machine: ${dp.machineId} — Shift: ${dp.shiftId}`,
+                        label: t("hourly.planOption", {
+                          id: dp.dailyPlanId,
+                          po: dp.productionOrderId,
+                          date: dp.productionDate?.split("T")[0] ?? "",
+                          machine: dp.machineId,
+                          shift: dp.shiftId,
+                        }),
                         value: dp.dailyPlanId,
                       }))}
                       onChange={(e) => handleDailyPlanSelect(e.target.value)}
-                      defaultOptionLabel="— Select Daily Production Plan —"
+                      defaultOptionLabel={t("hourly.selectDailyPlan")}
                     />
                   </div>
                 ) : (
                   <div>
                     <TextInput
-                      label="Daily Production Plan ID"
+                      label={t("hourly.dailyPlanId")}
                       name="dailyPlanId"
                       value={dailyPlanId || ""}
                       disabled
@@ -837,12 +870,12 @@ const HourlyWorkReportCreate: React.FC = () => {
                 )}
 
                 <dl className="m-0 grid grid-cols-2 gap-4 rounded-[14px] bg-card-2 p-4 lg:grid-cols-1">
-                  <InfoItem label="Machine" value={machineLabel} />
+                  <InfoItem label={t("common.machine")} value={machineLabel} />
                   <InfoItem
-                    label="Production Date"
+                    label={t("hourly.productionDate")}
                     value={productionDate ? formatDate(productionDate) : "—"}
                   />
-                  <InfoItem label="Shift" value={shiftLabel} />
+                  <InfoItem label={t("common.shift")} value={shiftLabel} />
                 </dl>
               </div>
             </div>
@@ -852,13 +885,13 @@ const HourlyWorkReportCreate: React.FC = () => {
           <div className="flex flex-col gap-5 lg:col-span-8">
             {/* Active plan: the big figures */}
             {loadingPlan ? (
-              <SkeletonTile lines={2} label="Loading active plan..." />
+              <SkeletonTile lines={2} label={t("hourly.loadingPlan")} />
             ) : activePlan ? (
               <Tile>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Chip size="sm" tone="success" icon={<CheckCircle2 size={13} />}>
-                      Active plan loaded
+                      {t("hourly.planLoaded")}
                     </Chip>
                     <p className="m-0 mt-2 text-[17px] font-bold leading-tight text-ink">
                       {activePlan.productName}
@@ -870,16 +903,20 @@ const HourlyWorkReportCreate: React.FC = () => {
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-3 rounded-[16px] bg-card-2 p-4">
-                  <Figure size="lg" label="Target" value={formatQty(activePlan.plannedQty)} />
                   <Figure
                     size="lg"
-                    label="Produced"
+                    label={t("hourly.target")}
+                    value={formatQty(activePlan.plannedQty)}
+                  />
+                  <Figure
+                    size="lg"
+                    label={t("hourly.produced")}
                     tone="success"
                     value={formatQty(shiftProducedQty)}
                   />
                   <Figure
                     size="lg"
-                    label="Remaining"
+                    label={t("hourly.remaining")}
                     tone="warning"
                     value={formatQty(remainingQtyForShift)}
                   />
@@ -891,15 +928,15 @@ const HourlyWorkReportCreate: React.FC = () => {
                 className="sl-tile flex items-center gap-3 p-4 text-sm font-medium text-[color:var(--color-warning)]"
               >
                 <Info size={18} className="shrink-0" aria-hidden="true" />
-                No active plan. Select a valid Daily Production Plan to begin.
+                {t("hourly.noPlan")}
               </div>
             )}
 
-            <Tile title="Hourly Entry Log" subtitle="Good pieces, rejects and scrap for this hour.">
+            <Tile title={t("hourly.entryLog")} subtitle={t("hourly.entryLogSub")}>
               <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
                 <div className="flex flex-col">
                   <SelectInput
-                    label="Hour index of Shift"
+                    label={t("hourly.hourIndex")}
                     name="hourIndex"
                     value={hourIndex}
                     options={hourOptions}
@@ -924,8 +961,8 @@ const HourlyWorkReportCreate: React.FC = () => {
                     ) {
                       return (
                         <div className="mt-2 rounded-[12px] bg-card-2 p-3 text-[13px] text-[color:var(--color-warning)]">
-                          <strong>Plan Completed:</strong> {limit} hours planned and logged.
-                          Remaining shift hours can be allocated to a new plan.
+                          <strong>{t("hourly.planCompletedLabel")}</strong>{" "}
+                          {t("hourly.planCompleted", { count: limit })}
                         </div>
                       );
                     }
@@ -934,16 +971,20 @@ const HourlyWorkReportCreate: React.FC = () => {
                 </div>
                 <div>
                   <SelectInput
-                    label="Operator"
+                    label={t("common.operator")}
                     name="operatorId"
                     value={operatorId}
                     required
                     error={
                       formErrors.operatorId ||
-                      (planError && planError.includes("operator") ? planError : undefined)
+                      (planError && planError === t("hourly.err.noOperator")
+                        ? planError
+                        : undefined)
                     }
                     disabled={loadingPlan || availableOperators.length === 0}
-                    defaultOptionLabel={loadingPlan ? "Loading operator..." : "— Select Operator —"}
+                    defaultOptionLabel={
+                      loadingPlan ? t("hourly.loadingOperator") : t("hourly.selectOperator")
+                    }
                     options={availableOperators.map((op) => ({
                       value: op.id.toString(),
                       label: op.fullName,
@@ -957,7 +998,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                 </div>
                 <div>
                   <TextInput
-                    label="Produced Qty"
+                    label={t("hourly.producedQty")}
                     name="qtyProduced"
                     value={qtyProduced}
                     type="number"
@@ -965,7 +1006,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                     inputClassName={bigNumberClass}
                     step="1"
                     required
-                    placeholder="Enter produced amount"
+                    placeholder={t("hourly.producedPlaceholder")}
                     error={formErrors.qtyProduced}
                     onChange={(e) => {
                       setQtyProduced(e.target.value);
@@ -975,14 +1016,14 @@ const HourlyWorkReportCreate: React.FC = () => {
                 </div>
                 <div>
                   <TextInput
-                    label="Reject Qty"
+                    label={t("hourly.rejectQty")}
                     name="rejectQty"
                     value={rejectQty}
                     type="number"
                     inputMode="numeric"
                     inputClassName={bigNumberClass}
                     step="1"
-                    placeholder="Enter reject amount"
+                    placeholder={t("hourly.rejectPlaceholder")}
                     error={formErrors.rejectQty}
                     onChange={(e) => {
                       setRejectQty(e.target.value);
@@ -992,14 +1033,14 @@ const HourlyWorkReportCreate: React.FC = () => {
                 </div>
                 <div>
                   <TextInput
-                    label="Scrap Qty"
+                    label={t("hourly.scrapQty")}
                     name="scrapQty"
                     value={scrapQty}
                     type="number"
                     inputMode="numeric"
                     inputClassName={bigNumberClass}
                     step="1"
-                    placeholder="Enter scrap amount"
+                    placeholder={t("hourly.scrapPlaceholder")}
                     error={formErrors.scrapQty}
                     onChange={(e) => {
                       setScrapQty(e.target.value);
@@ -1009,7 +1050,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                 </div>
                 <div>
                   <QuantityInput
-                    label="Downtime"
+                    label={t("hourly.downtime")}
                     name="downtime"
                     value={downtime}
                     baseUoms="mins,hrs"
@@ -1023,7 +1064,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                 {Number(downtime) > 0 && (
                   <div>
                     <SelectInput
-                      label="Downtime Reason"
+                      label={t("hourly.downtimeReason")}
                       name="downtimeReason"
                       value={downtimeReason}
                       error={formErrors.downtimeReason}
@@ -1031,23 +1072,14 @@ const HourlyWorkReportCreate: React.FC = () => {
                         setDowntimeReason(e.target.value);
                         setFormErrors((prev) => ({ ...prev, downtimeReason: "" }));
                       }}
-                      options={[
-                        { label: "Machine Breakdown", value: "Machine Breakdown" },
-                        { label: "Power Failure", value: "Power Failure" },
-                        { label: "Material Shortage", value: "Material Shortage" },
-                        { label: "Tool/Mould Change", value: "Tool/Mould Change" },
-                        { label: "Operator Unavailable", value: "Operator Unavailable" },
-                        { label: "Quality Issue", value: "Quality Issue" },
-                        { label: "Preventative Maintenance", value: "Preventative Maintenance" },
-                        { label: "Others", value: "Others" },
-                      ]}
+                      options={DOWNTIME_REASONS.map(([value, key]) => ({ value, label: t(key) }))}
                     />
                   </div>
                 )}
                 {Number(rejectQty) > 0 && (
                   <div>
                     <SelectInput
-                      label="Reject Reason"
+                      label={t("hourly.rejectReason")}
                       name="rejectReason"
                       value={rejectReason}
                       error={formErrors.rejectReason}
@@ -1055,20 +1087,14 @@ const HourlyWorkReportCreate: React.FC = () => {
                         setRejectReason(e.target.value);
                         setFormErrors((prev) => ({ ...prev, rejectReason: "" }));
                       }}
-                      options={[
-                        { value: "Quality Issue", label: "Quality Issue" },
-                        { value: "Machine Defect", label: "Machine Defect" },
-                        { value: "Material Defect", label: "Material Defect" },
-                        { value: "Operator Error", label: "Operator Error" },
-                        { value: "Others", label: "Others" },
-                      ]}
+                      options={REJECT_REASONS.map(([value, key]) => ({ value, label: t(key) }))}
                     />
                   </div>
                 )}
                 {Number(scrapQty) > 0 && (
                   <div>
                     <SelectInput
-                      label="Scrap Reason"
+                      label={t("hourly.scrapReason")}
                       name="scrapReason"
                       value={scrapReason}
                       error={formErrors.scrapReason}
@@ -1076,12 +1102,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                         setScrapReason(e.target.value);
                         setFormErrors((prev) => ({ ...prev, scrapReason: "" }));
                       }}
-                      options={[
-                        { value: "Startup Scrap", label: "Startup Scrap" },
-                        { value: "Process Setting", label: "Process Setting" },
-                        { value: "Material Purging", label: "Material Purging" },
-                        { value: "Others", label: "Others" },
-                      ]}
+                      options={SCRAP_REASONS.map(([value, key]) => ({ value, label: t(key) }))}
                     />
                   </div>
                 )}
@@ -1090,11 +1111,11 @@ const HourlyWorkReportCreate: React.FC = () => {
                   scrapReason === "Others") && (
                   <div>
                     <TextInput
-                      label="Remarks (Reason for Others)"
+                      label={t("hourly.remarksOthers")}
                       name="remarks"
                       value={remarks}
                       required
-                      placeholder="Enter specific reason"
+                      placeholder={t("hourly.remarksPlaceholder")}
                       error={formErrors.remarks}
                       onChange={(e) => {
                         setRemarks(e.target.value);
@@ -1117,8 +1138,8 @@ const HourlyWorkReportCreate: React.FC = () => {
               label={
                 <span className="ml-3 text-[15px] font-semibold text-[color:var(--color-danger)]">
                   {Number(hourIndex) === hourOptions.length
-                    ? "Permanently Stop this Production Order"
-                    : "Stop Production Plan after this hour"}
+                    ? t("hourly.stopPermanently")
+                    : t("hourly.stopAfterHour")}
                 </span>
               }
               checked={stopPlanEarly}
@@ -1137,11 +1158,11 @@ const HourlyWorkReportCreate: React.FC = () => {
               <div className="mt-4 flex w-full flex-col gap-4 rounded-[16px] bg-card-2 p-4">
                 <div className="w-full">
                   <TextInput
-                    label="Reason for Stopping"
+                    label={t("hourly.stopReason")}
                     name="stopPlanReason"
                     value={stopPlanReason}
                     required
-                    placeholder="e.g. Target not met — permanently closing this PO"
+                    placeholder={t("hourly.stopReasonPlaceholder")}
                     error={formErrors.stopPlanReason}
                     onChange={(e) => {
                       setStopPlanReason(e.target.value);
@@ -1155,7 +1176,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                 {Number(hourIndex) < hourOptions.length && (
                   <div className="w-full">
                     <span className="sl-label">
-                      Stop Action Type
+                      {t("hourly.stopType")}
                       <span className="sl-required" aria-hidden="true">
                         *
                       </span>
@@ -1177,10 +1198,10 @@ const HourlyWorkReportCreate: React.FC = () => {
                             onChange={() => setStopOption("FORCE_COMPLETE")}
                             className="sl-check"
                           />
-                          Completed Stop
+                          {t("hourly.stopComplete")}
                         </div>
                         <span className="mt-1 pl-6 text-[12px] text-ink-subtle">
-                          Stop production without carrying forward any quantity.
+                          {t("hourly.stopCompleteHelp")}
                         </span>
                       </div>
 
@@ -1200,14 +1221,12 @@ const HourlyWorkReportCreate: React.FC = () => {
                             onChange={() => setStopOption("CARRY_FORWARD")}
                             className="sl-check"
                           />
-                          Stop & Carry Forward
+                          {t("hourly.stopCarry")}
                         </div>
                         <span className="mt-1 pl-6 text-[12px] text-ink-subtle">
-                          Carry forward the remaining{" "}
-                          <strong>
-                            {Math.max(0, remainingQtyForShift - (Number(qtyProduced) || 0))} pcs
-                          </strong>{" "}
-                          to a new daily plan.
+                          {t("hourly.stopCarryHelp", {
+                            qty: Math.max(0, remainingQtyForShift - (Number(qtyProduced) || 0)),
+                          })}
                         </span>
                       </div>
                     </div>
@@ -1217,9 +1236,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                 {/* Final hour: always Complete Stop — just show info */}
                 {Number(hourIndex) === hourOptions.length && (
                   <div className="rounded-[12px] bg-card p-3 text-[13px] leading-relaxed text-[color:var(--color-danger)]">
-                    <strong>Complete Stop:</strong> The Production Order will be permanently locked.
-                    No new daily plans can be created for this PO. All produced quantity will
-                    proceed to post-production and dispatch.
+                    <strong>{t("hourly.completeStopLabel")}</strong> {t("hourly.completeStopInfo")}
                   </div>
                 )}
               </div>
@@ -1232,12 +1249,10 @@ const HourlyWorkReportCreate: React.FC = () => {
             {/* Info Banner */}
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <Chip tone="warning" size="sm">
-                {stopPlanEarly ? "Log Wastage (Optional)" : "Final Hour — Log Wastage (Required)"}
+                {stopPlanEarly ? t("hourly.wastageOptional") : t("hourly.wastageRequired")}
               </Chip>
               <span className="text-[13px] font-medium text-ink-muted">
-                {stopPlanEarly
-                  ? "Add rows below only if wastage occurred."
-                  : "At least one wastage entry is required."}
+                {stopPlanEarly ? t("hourly.wastageOptionalHelp") : t("hourly.wastageRequiredHelp")}
               </span>
             </div>
 
@@ -1252,12 +1267,14 @@ const HourlyWorkReportCreate: React.FC = () => {
             <div className="mt-2">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="sl-h2 m-0 leading-tight">
-                  Wastage Products
+                  {t("hourly.wastageProducts")}
                   {!stopPlanEarly && (
                     <span className="text-[color:var(--color-danger)] ml-1">*</span>
                   )}
                   {stopPlanEarly && (
-                    <span className="ml-2 text-xs font-normal text-ink-subtle">(optional)</span>
+                    <span className="ml-2 text-xs font-normal text-ink-subtle">
+                      {t("hourly.optional")}
+                    </span>
                   )}
                 </h2>
                 <ActionPill
@@ -1281,15 +1298,13 @@ const HourlyWorkReportCreate: React.FC = () => {
                     ]);
                   }}
                 >
-                  Add Wastage Product
+                  {t("hourly.addWastage")}
                 </ActionPill>
               </div>
 
               {wastages.length === 0 ? (
                 <div className="rounded-[14px] bg-card-2 py-8 text-center text-sm font-medium text-ink-subtle">
-                  {stopPlanEarly
-                    ? "No wastage products added. Click '+ Add Wastage Product' if needed."
-                    : "No wastage products added yet. Click '+ Add Wastage Product' to add one."}
+                  {stopPlanEarly ? t("hourly.noWastageOptional") : t("hourly.noWastageYet")}
                 </div>
               ) : (
                 <div className="mt-3 overflow-visible rounded-[14px] border border-line-soft">
@@ -1298,24 +1313,26 @@ const HourlyWorkReportCreate: React.FC = () => {
                       <thead>
                         <tr className="border-b border-line-soft">
                           <th className="sl-th bg-card-2 px-4 py-3 min-w-[160px]">
-                            Store{" "}
+                            {t("common.store")}{" "}
                             <span className="sl-required" aria-hidden="true">
                               *
                             </span>
                           </th>
                           <th className="sl-th bg-card-2 px-4 py-3 min-w-[220px]">
-                            Wastage Product{" "}
+                            {t("hourly.wastageProduct")}{" "}
                             <span className="sl-required" aria-hidden="true">
                               *
                             </span>
                           </th>
                           <th className="sl-th bg-card-2 px-4 py-3 min-w-[180px]">
-                            Quantity{" "}
+                            {t("common.quantity")}{" "}
                             <span className="sl-required" aria-hidden="true">
                               *
                             </span>
                           </th>
-                          <th className="sl-th bg-card-2 px-4 py-3 text-center w-[80px]">Action</th>
+                          <th className="sl-th bg-card-2 px-4 py-3 text-center w-[80px]">
+                            {t("hourly.action")}
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-line-soft">
@@ -1337,7 +1354,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                                   setWastages(newW);
                                 }}
                                 options={[
-                                  { label: "Select Store", value: "" },
+                                  { label: t("hourly.selectStore"), value: "" },
                                   ...wastageStores.map((s: any) => ({
                                     label: s.storeName,
                                     value: s.storeId,
@@ -1387,7 +1404,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                                   setWastages(newW);
                                 }}
                                 options={[
-                                  { label: "Select Product", value: "" },
+                                  { label: t("hourly.selectProduct"), value: "" },
                                   ...rawMaterials
                                     .filter((r: any) => {
                                       if (!w.storeId) return true;
@@ -1461,8 +1478,8 @@ const HourlyWorkReportCreate: React.FC = () => {
         {/* Returned Raw Materials */}
         {(isFinalHour || stopPlanEarly) && (
           <Tile
-            title="Returned Raw Materials"
-            subtitle="Log remaining raw materials returned to the warehouse."
+            title={t("hourly.returnedRm")}
+            subtitle={t("hourly.returnedRmSub")}
             actions={
               <ActionPill
                 size="sm"
@@ -1484,14 +1501,14 @@ const HourlyWorkReportCreate: React.FC = () => {
                   ]);
                 }}
               >
-                Add Raw Material
+                {t("hourly.addRm")}
               </ActionPill>
             }
           >
             <div className="overflow-hidden rounded-[14px] border border-line-soft">
               {rawMaterialsUsed.length === 0 ? (
                 <div className="bg-card-2 p-6 text-center text-sm font-medium text-ink-subtle">
-                  No raw materials logged. Click '+ Add Raw Material' to add one.
+                  {t("hourly.noRm")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -1499,24 +1516,26 @@ const HourlyWorkReportCreate: React.FC = () => {
                     <thead>
                       <tr className="border-b border-line-soft">
                         <th className="sl-th bg-card-2 px-4 py-3 min-w-[160px]">
-                          Store{" "}
+                          {t("common.store")}{" "}
                           <span className="sl-required" aria-hidden="true">
                             *
                           </span>
                         </th>
                         <th className="sl-th bg-card-2 px-4 py-3 min-w-[220px]">
-                          Raw Material{" "}
+                          {t("common.rawMaterial")}{" "}
                           <span className="sl-required" aria-hidden="true">
                             *
                           </span>
                         </th>
                         <th className="sl-th bg-card-2 px-4 py-3 min-w-[180px]">
-                          Quantity{" "}
+                          {t("common.quantity")}{" "}
                           <span className="sl-required" aria-hidden="true">
                             *
                           </span>
                         </th>
-                        <th className="sl-th bg-card-2 px-4 py-3 text-center w-[80px]">Action</th>
+                        <th className="sl-th bg-card-2 px-4 py-3 text-center w-[80px]">
+                          {t("hourly.action")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-line-soft">
@@ -1529,7 +1548,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                               name={`rm-store-${index}`}
                               value={rm.storeId}
                               options={[
-                                { value: "", label: "-- Select Store --" },
+                                { value: "", label: t("hourly.selectStore") },
                                 ...rawMaterialStores.map((s: any) => ({
                                   value: s.storeId,
                                   label: s.storeName || s.storeId,
@@ -1551,7 +1570,7 @@ const HourlyWorkReportCreate: React.FC = () => {
                               name={`rm-id-${index}`}
                               value={rm.rawMaterialId}
                               options={[
-                                { value: "", label: "-- Select Raw Material --" },
+                                { value: "", label: t("hourly.selectRm") },
                                 ...rawMaterialOptions
                                   .filter((r: any) => {
                                     if (r.itemType === "WASTAGE") return false;
@@ -1653,24 +1672,24 @@ const HourlyWorkReportCreate: React.FC = () => {
         )}
 
         {/* Action Buttons */}
-        <StickyFormFooter hint="F2 saves">
+        <StickyFormFooter hint={t("hourly.f2Saves")}>
           <ActionPill
             variant="secondary"
             icon={<Eraser size={16} />}
             onClick={handleClear}
             disabled={isSubmitting}
           >
-            Reset Fields
+            {t("hourly.reset")}
           </ActionPill>
           <ActionPill
             type="submit"
             size="lg"
             icon={<Save size={18} />}
             loading={isSubmitting}
-            loadingText={editingLogId ? "Updating..." : "Saving..."}
+            loadingText={editingLogId ? t("hourly.updating") : t("common.saving")}
             disabled={!activePlan || isNewLogBlocked}
           >
-            {editingLogId ? "Update Entry" : "Save Entry"}
+            {editingLogId ? t("hourly.update") : t("hourly.save")}
           </ActionPill>
         </StickyFormFooter>
       </form>
@@ -1685,7 +1704,7 @@ const HourlyWorkReportCreate: React.FC = () => {
         title={
           <div className="flex items-center gap-2 font-bold text-ink">
             <Trophy size={20} className="text-accent" aria-hidden="true" />
-            <span>New Production High Reached!</span>
+            <span>{t("hourly.newHighTitle")}</span>
           </div>
         }
         footer={
@@ -1695,7 +1714,7 @@ const HourlyWorkReportCreate: React.FC = () => {
               navigate("/daily-machine-planning");
             }}
           >
-            Awesome!
+            {t("hourly.awesome")}
           </ActionPill>
         }
       >
@@ -1705,28 +1724,28 @@ const HourlyWorkReportCreate: React.FC = () => {
               <Crown size={40} aria-hidden="true" />
             </div>
           </div>
-          <h3 className="text-2xl font-bold text-ink mb-2">Congratulations!</h3>
+          <h3 className="text-2xl font-bold text-ink mb-2">{t("hourly.congrats")}</h3>
           <p className="text-ink-subtle text-sm max-w-sm mx-auto mb-6">
             {newHighDetails?.previousCapacity > 0
-              ? "You have recorded a new highest production capacity for this product on this machine!"
-              : "First production capacity record set for this product on this machine!"}
+              ? t("hourly.newHighBody")
+              : t("hourly.firstHighBody")}
           </p>
 
           <div className="mb-6 inline-block min-w-[240px] rounded-[18px] bg-card-2 p-6">
             <div className="text-xs uppercase tracking-wider text-ink-subtle font-semibold mb-1">
-              New Capacity High
+              {t("hourly.newCapacityHigh")}
             </div>
             <div className="flex items-center justify-center gap-2 text-4xl font-extrabold text-ink tabular-nums">
               <span>{newHighDetails?.newCapacity}</span>
               <span className="text-lg font-normal text-ink-muted">
-                {activePlan?.uom || "units"}
+                {activePlan?.uom || t("hourly.units")}
               </span>
             </div>
             {newHighDetails?.previousCapacity > 0 && (
               <div className="mt-2 inline-block rounded-full bg-card px-3 py-1 text-xs text-ink-subtle">
-                Previous High:{" "}
+                {t("hourly.previousHigh")}{" "}
                 <span className="font-semibold text-ink">
-                  {newHighDetails.previousCapacity} {activePlan?.uom || "units"}
+                  {newHighDetails.previousCapacity} {activePlan?.uom || t("hourly.units")}
                 </span>
               </div>
             )}
@@ -1740,14 +1759,18 @@ const HourlyWorkReportCreate: React.FC = () => {
                 aria-hidden="true"
               />
               <div>
-                <span className="text-ink-subtle text-xs block font-medium">Date</span>
+                <span className="text-ink-subtle text-xs block font-medium">
+                  {t("common.date")}
+                </span>
                 <strong className="text-ink font-semibold">{newHighDetails?.date}</strong>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
               <Cog size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
-                <span className="text-ink-subtle text-xs block font-medium">Machine</span>
+                <span className="text-ink-subtle text-xs block font-medium">
+                  {t("common.machine")}
+                </span>
                 <strong
                   className="text-ink font-semibold truncate block max-w-[150px]"
                   title={newHighDetails?.machineName}
@@ -1759,14 +1782,18 @@ const HourlyWorkReportCreate: React.FC = () => {
             <div className="flex items-start gap-2.5">
               <Clock size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
-                <span className="text-ink-subtle text-xs block font-medium">Shift</span>
+                <span className="text-ink-subtle text-xs block font-medium">
+                  {t("common.shift")}
+                </span>
                 <strong className="text-ink font-semibold">{newHighDetails?.shiftName}</strong>
               </div>
             </div>
             <div className="flex items-start gap-2.5">
               <Users size={16} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
               <div>
-                <span className="text-ink-subtle text-xs block font-medium">Operators</span>
+                <span className="text-ink-subtle text-xs block font-medium">
+                  {t("hourly.operators")}
+                </span>
                 <strong
                   className="text-ink font-semibold block truncate max-w-[150px]"
                   title={newHighDetails?.operators}

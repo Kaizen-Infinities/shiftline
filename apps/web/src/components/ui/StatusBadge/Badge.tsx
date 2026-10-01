@@ -1,6 +1,8 @@
 // src/components/ui/StatusBadge/StatusBadge.tsx
 import React from "react";
 
+import { useT } from "../../../i18n/I18nProvider";
+
 export type StatusTone = "default" | "muted" | "success" | "warning" | "danger" | "info";
 
 interface StatusBadgeProps {
@@ -16,6 +18,11 @@ interface StatusBadgeProps {
   tone?: StatusTone;
   title?: string;
   style?: React.CSSProperties;
+  /**
+   * TN-04: show the status in the viewer's language (shop-floor and store screens only;
+   * accounting screens leave it off and stay English).
+   */
+  translate?: boolean;
 }
 
 /** Status → chip tone. Anything unknown is a muted chip. */
@@ -157,7 +164,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   tone,
   title,
   style,
+  translate = false,
 }) => {
+  const { tDynamic } = useT();
   const normalizedStatus = (status || "").toUpperCase().replace(/\s+/g, "_");
 
   // Explicit tone → legacy colour pair read as a tone → status lookup → muted.
@@ -189,6 +198,8 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         .join(" ");
     }
   }
+
+  if (translate && !customText) displayText = tDynamic(`status.${normalizedStatus}`, displayText);
 
   return (
     <span

@@ -2172,3 +2172,12 @@ body {
     transition: none;
   }
 }
+
+/* ===============================
+   Tamil UI (TN-04): Latin text and digits stay in Inter; Tamil glyphs fall through to
+   Noto Sans Tamil, which the I18nProvider loads from Google Fonts only for Tamil users.
+================================ */
+html[lang="ta"] {
+  --font-head: "Inter", "Noto Sans Tamil", system-ui, sans-serif;
+  --font-body: "Inter", "Noto Sans Tamil", system-ui, sans-serif;
+}

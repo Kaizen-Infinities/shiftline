@@ -19,6 +19,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { GST_STATES } from "@shiftline/shared";
+import { useT } from "../../../../i18n/I18nProvider";
 
 import CustomButton from "../../../../components/ui/Button/Button";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
@@ -89,6 +90,7 @@ const emptyItem = (): GRNItem => ({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const InvoiceDetailPage: React.FC = () => {
+  const { t } = useT();
   const navigate = useNavigate();
   useFormShortcuts({});
   const { id } = useParams<{ id: string }>();
@@ -224,7 +226,7 @@ const InvoiceDetailPage: React.FC = () => {
         const list = Array.isArray(res) ? res : res?.data || [];
         setApprovedPOs(list);
       })
-      .catch(() => toast.error("Failed to load active orders"))
+      .catch(() => toast.error(t("grn.toast.loadOrders")))
       .finally(() => setLoadingPOs(false));
 
     if (!id) {
@@ -262,7 +264,7 @@ const InvoiceDetailPage: React.FC = () => {
         .then((invoice) => {
           const isClosed = ["CLOSED", "PAID"].includes((invoice.paymentStatus || "").toUpperCase());
           if (isClosed) {
-            toast.error("Fully paid/Closed invoices cannot be edited");
+            toast.error(t("grn.toast.paidLocked"));
             navigate("/invoice");
             return;
           }
@@ -393,7 +395,7 @@ const InvoiceDetailPage: React.FC = () => {
         })
         .catch((err) => {
           console.error("Failed to load GRN Invoice:", err);
-          toast.error("Failed to load invoice details");
+          toast.error(t("grn.toast.loadDetails"));
           navigate("/invoice");
         });
     }
@@ -405,7 +407,7 @@ const InvoiceDetailPage: React.FC = () => {
         const res = await rawMaterialService.fetchAll();
         setRawMaterials(Array.isArray(res) ? res : (res?.rawMaterials ?? []));
       } catch {
-        toast.error("Failed to load raw materials");
+        toast.error(t("grn.toast.loadRm"));
       }
     };
     fetchRawMaterials();
@@ -596,7 +598,7 @@ const InvoiceDetailPage: React.FC = () => {
 
         setItems(autoPopulatedItems);
       })
-      .catch(() => toast.error("Failed to load PO details"))
+      .catch(() => toast.error(t("grn.toast.loadPo")))
       .finally(() => setLoadingPO(false));
   }, [form.poId, suppliers, stores]);
 
@@ -988,7 +990,7 @@ const InvoiceDetailPage: React.FC = () => {
   // ── Options ───────────────────────────────────────────────────────────────────
   const poOptions = useMemo(
     () => [
-      { value: "", label: "Select PO" },
+      { value: "", label: t("grn.selectPo") },
       ...approvedPOs.map((po: any) => {
         const supplierName =
           po.supplier?.supplierName || po.supplier?.displayName || po.supplier?.legalName || "";
@@ -1005,7 +1007,7 @@ const InvoiceDetailPage: React.FC = () => {
 
   const supplierOptions = useMemo(
     () => [
-      { value: "", label: "Select" },
+      { value: "", label: t("grn.select") },
       ...(suppliers || []).map((s: any) => ({
         value: String(s.id || ""),
         label: `${s.supplierCode || ""} - ${s.legalName || s.displayName || ""}`,
@@ -1016,7 +1018,7 @@ const InvoiceDetailPage: React.FC = () => {
 
   const storeOptions = useMemo(
     () => [
-      { value: "", label: "Select" },
+      { value: "", label: t("grn.select") },
       ...(stores || [])
         .filter((s: any) => s.isActive)
         .map((s: any) => ({
@@ -1125,7 +1127,7 @@ const InvoiceDetailPage: React.FC = () => {
     }
 
     if (!items || items.length === 0) {
-      toast.error("Please add at least one item.");
+      toast.error(t("grn.toast.addItem"));
       return;
     }
 
@@ -1153,7 +1155,7 @@ const InvoiceDetailPage: React.FC = () => {
 
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
-      toast.error("Please fill all required fields.");
+      toast.error(t("grn.toast.fillRequired"));
       return;
     }
     setSaving(true);
@@ -1252,10 +1254,10 @@ const InvoiceDetailPage: React.FC = () => {
 
       if (isEditMode && id) {
         await grnInvoiceService.update(id, payload);
-        toast.success("GRN / Invoice updated successfully!");
+        toast.success(t("grn.toast.updated"));
       } else {
         await grnInvoiceService.create(payload);
-        toast.success("GRN / Invoice created successfully!");
+        toast.success(t("grn.toast.created"));
       }
       navigate("/invoice");
     } catch (error: any) {
@@ -1273,9 +1275,9 @@ const InvoiceDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="sl-page sl-page-doc">
+    <div className="mx-auto w-full max-w-[1400px]">
       <PageHeader
-        title={isEditMode ? "Edit GRN" : "New GRN"}
+        title={isEditMode ? t("grn.editTitle") : t("grn.createTitle")}
         meta={
           form.grnNumber ? (
             <Chip size="sm" tone="muted" className="tabular-nums">
@@ -1283,12 +1285,12 @@ const InvoiceDetailPage: React.FC = () => {
             </Chip>
           ) : null
         }
-        subtitle="Book the supplier's bill against the goods received. Saving posts the purchase and adds the stock."
+        subtitle={t("grn.subtitle")}
         back={() => navigate(-1)}
-        backLabel="Back to List"
+        backLabel={t("grn.backToList")}
         breadcrumbs={[
-          { label: "Goods received (GRN)", to: "/invoice" },
-          { label: isEditMode ? "Edit" : "New" },
+          { label: t("grn.crumbList"), to: "/invoice" },
+          { label: isEditMode ? t("nav.crumb.edit") : t("nav.crumb.create") },
         ]}
       />
       <div>
@@ -1297,11 +1299,11 @@ const InvoiceDetailPage: React.FC = () => {
             {/* ── Section 1: GRN Details ── */}
             <div className="sl-tile p-4 sm:p-5">
               <div className="mb-4 flex items-center gap-2">
-                <h2 className="sl-h2 m-0">GRN Details</h2>
+                <h2 className="sl-h2 m-0">{t("grn.details")}</h2>
               </div>
               <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
                 <SelectInput
-                  label="PO (Optional)"
+                  label={t("grn.po")}
                   name="poId"
                   value={form.poId}
                   options={poOptions}
@@ -1309,24 +1311,24 @@ const InvoiceDetailPage: React.FC = () => {
                   disabled={isEditMode}
                 />
                 <TextInput
-                  label="GRN Number"
+                  label={t("grn.grnNumber")}
                   name="grnNumber"
                   value={form.grnNumber}
                   onChange={handleChange}
                   disabled
                 />
                 <TextInput
-                  label="Invoice No."
+                  label={t("grn.invoiceNo")}
                   name="invoiceNo"
                   value={form.invoiceNo}
                   onChange={handleChange}
-                  placeholder="Supplier invoice"
+                  placeholder={t("grn.invoicePlaceholder")}
                   required
                   error={errors.invoiceNo}
                   disabled={isEditMode}
                 />
                 <DatePickerCalendar
-                  label="GRN Date"
+                  label={t("grn.grnDate")}
                   name="grnDate"
                   value={form.grnDate}
                   onChange={(e) => setForm((p) => ({ ...p, grnDate: e.target.value }))}
@@ -1335,7 +1337,7 @@ const InvoiceDetailPage: React.FC = () => {
                   disabled={isEditMode}
                 />
                 <SelectInput
-                  label="Supplier"
+                  label={t("common.supplier")}
                   name="supplierId"
                   value={form.supplierId}
                   options={supplierOptions}
@@ -1346,7 +1348,7 @@ const InvoiceDetailPage: React.FC = () => {
                   error={errors.supplierId}
                 />
                 <SelectInput
-                  label="Store"
+                  label={t("common.store")}
                   name="storeId"
                   value={form.storeId}
                   options={storeOptions}
@@ -1481,50 +1483,54 @@ const InvoiceDetailPage: React.FC = () => {
             {/* ── Section 4: Receipt Details ── */}
             <div className="sl-tile p-4 sm:p-5">
               <div className="mb-4 flex items-center gap-2">
-                <h2 className="sl-h2 m-0">Receipt Details</h2>
+                <h2 className="sl-h2 m-0">{t("grn.receipt")}</h2>
               </div>
               <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
                 <DatePickerCalendar
-                  label="Receive Date"
+                  label={t("grn.receiveDate")}
                   name="receiveDate"
                   value={form.receiveDate}
                   onChange={(e) => setForm((p) => ({ ...p, receiveDate: e.target.value }))}
                   disabled={isEditMode}
                 />
                 <DatePickerCalendar
-                  label="Bill Due Date"
+                  label={t("grn.billDueDate")}
                   name="billDueDate"
                   value={form.billDueDate}
                   onChange={(e) => setForm((p) => ({ ...p, billDueDate: e.target.value }))}
                   disabled={isEditMode}
                 />
                 <TextInput
-                  label="Challan No"
+                  label={t("grn.challanNo")}
                   name="challanNo"
                   value={form.challanNo}
                   onChange={handleChange}
-                  placeholder="Optional"
+                  placeholder={t("grn.optional")}
                   disabled={isEditMode}
                 />
                 <TextInput
-                  label="Transporter"
+                  label={t("grn.transporter")}
                   name="transport"
                   value={form.transport}
                   onChange={handleChange}
-                  placeholder="Optional"
+                  placeholder={t("grn.optional")}
                   disabled={isEditMode}
                 />
                 <TextInput
-                  label="E-Way Bill"
+                  label={t("grn.ewayBill")}
                   name="eWayBill"
                   value={form.eWayBill}
                   onChange={handleChange}
-                  placeholder="Optional"
+                  placeholder={t("grn.optional")}
                   disabled={isEditMode}
                 />
                 {!isEditMode && (
                   <FileUpload
-                    label={form.invoiceImage ? `Invoice: ${form.invoiceImage}` : "Upload Invoice"}
+                    label={
+                      form.invoiceImage
+                        ? t("grn.invoiceFile", { name: form.invoiceImage.name })
+                        : t("grn.uploadInvoice")
+                    }
                     name="invoiceImage"
                     onChange={handleFileChange}
                   />
@@ -1535,7 +1541,7 @@ const InvoiceDetailPage: React.FC = () => {
             {/* ── Section 5: Order Items ── */}
             <div className="sl-tile p-4 sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="sl-h2 m-0">Order Items</h2>
+                <h2 className="sl-h2 m-0">{t("grn.items")}</h2>
                 {!isEditMode && (
                   <ActionPill
                     size="sm"
@@ -1543,7 +1549,7 @@ const InvoiceDetailPage: React.FC = () => {
                     icon={<Plus size={15} />}
                     onClick={addItem}
                   >
-                    Add Item
+                    {t("grn.addItem")}
                   </ActionPill>
                 )}
               </div>
@@ -1552,9 +1558,11 @@ const InvoiceDetailPage: React.FC = () => {
                   <thead className="bg-card-2">
                     <tr>
                       <th className="sl-th px-2 py-2.5 text-center w-8">#</th>
-                      <th className="sl-th px-2 py-2.5 text-left">Product</th>
+                      <th className="sl-th px-2 py-2.5 text-left">{t("common.product")}</th>
                       <th className="sl-th px-2 py-2.5 text-left w-24">HSN</th>
-                      <th className="sl-th px-2 py-2.5 text-left min-w-[160px]">Qty & UOM</th>
+                      <th className="sl-th px-2 py-2.5 text-left min-w-[160px]">
+                        {t("grn.col.qtyUom")}
+                      </th>
                       <th className="sl-th px-2 py-2.5 text-left">Unit Price (₹)</th>
                       <th className="sl-th px-2 py-2.5 text-left">Tax %</th>
                       <th className="sl-th px-2 py-2.5 text-right">Net (₹)</th>
@@ -1595,7 +1603,7 @@ const InvoiceDetailPage: React.FC = () => {
                                 noMargin={true}
                                 value={item.productId ? String(item.productId) : ""}
                                 options={[
-                                  { value: "", label: "-- Select Material --" },
+                                  { value: "", label: t("grn.selectMaterial") },
                                   ...(rawMaterials || []).map((rm: any) => ({
                                     value: String(rm.rawMaterialId),
                                     label:
@@ -2195,17 +2203,17 @@ const InvoiceDetailPage: React.FC = () => {
             </div>
           </div>
 
-          <FormFooter start={<KeyHint keys={["F2"]}>saves the bill</KeyHint>}>
+          <FormFooter start={<KeyHint keys={["F2"]}>{t("grn.f2Saves")}</KeyHint>}>
             <ActionPill variant="secondary" onClick={() => navigate("/invoice")}>
-              Cancel
+              {t("common.cancel")}
             </ActionPill>
             <ActionPill
               type="submit"
               icon={<PackageCheck size={17} />}
               loading={saving}
-              loadingText="Saving…"
+              loadingText={t("common.saving")}
             >
-              {isEditMode ? "Update Bill" : "Create Bill & Update Stock"}
+              {isEditMode ? t("grn.update") : t("grn.createAndStock")}
             </ActionPill>
           </FormFooter>
         </form>

@@ -52,7 +52,14 @@ describe("navigation config", () => {
 
   it("covers the newest screens", () => {
     const paths = new Set(allNavPaths());
-    for (const p of ["/exports/incentives", "/sales/delivery-schedules", "/production/order-tna"]) {
+    for (const p of [
+      "/exports/incentives",
+      "/sales/delivery-schedules",
+      "/production/order-tna",
+      "/sales/asn",
+      "/sales/customer-part-numbers",
+      "/accounts/subsidies",
+    ]) {
       expect(paths.has(p)).toBe(true);
     }
   });

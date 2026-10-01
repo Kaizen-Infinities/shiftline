@@ -34,8 +34,9 @@ playwright-report/
 .DS_Store
 Thumbs.db
 
-# agent scratch
-.claude/
+# agent scratch (only the shared project settings are committed)
+.claude/*
+!.claude/settings.json
 CLAUDE.local.md
 
 # retention archives written by the worker

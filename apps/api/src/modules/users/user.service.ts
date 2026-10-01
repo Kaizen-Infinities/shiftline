@@ -1,3 +1,4 @@
+import { toLocale, type Locale } from "@shiftline/shared";
 import { ApiError } from "../../utils/ApiError";
 import { UserResponse } from "../../types/user.types";
 import { userRepository } from "./user.repository";
@@ -41,6 +42,20 @@ export class UserService {
     if (payload.username !== undefined) updateData.username = payload.username;
 
     const updatedUser = await userRepository.updateUser(userId, updateData);
+    return this.formatUser(updatedUser);
+  }
+
+  /** TN-04: the signed-in user's UI language. Only ever the caller's own row. */
+  async updateMyLocale(userId: string, locale: Locale): Promise<UserResponse> {
+    // The platform console stays in English; admins have no users row.
+    if (!userId || userId.startsWith("admin_")) {
+      throw new ApiError(403, "Language can be set only for company users");
+    }
+    const userExists = await userRepository.findUserById(userId);
+    if (!userExists) {
+      throw new ApiError(404, "User not found");
+    }
+    const updatedUser = await userRepository.updateUser(userId, { locale });
     return this.formatUser(updatedUser);
   }
 
@@ -156,6 +171,7 @@ export class UserService {
         user.role?.name ??
         (user.roleId !== undefined && user.roleId !== null ? user.roleId.toString() : ""),
       status: user.status as UserStatus,
+      locale: toLocale(user.locale),
       lastLoginAt: user.lastLoginAt,
       createdOn: user.createdOn,
     };

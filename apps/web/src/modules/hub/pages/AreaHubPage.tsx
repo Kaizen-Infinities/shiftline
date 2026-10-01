@@ -5,6 +5,7 @@ import { ArrowRight, Plus, Search } from "lucide-react";
 import { NAV_AREAS } from "../../../navigation/nav.config";
 import { useVisibleAreas } from "../../../navigation/useNav";
 import { useCommandPalette } from "../../../components/command-palette/paletteContext";
+import { useT } from "../../../i18n/I18nProvider";
 
 /**
  * Area hub (`/hub/:area`): the area's name, one to three green primary actions and chip
@@ -15,13 +16,14 @@ const AreaHubPage: React.FC = () => {
   const { area: areaId = "" } = useParams();
   const areas = useVisibleAreas();
   const { openPalette } = useCommandPalette();
+  const { t } = useT();
   const area = areas.find((a) => a.id === areaId);
   const known = NAV_AREAS.some((a) => a.id === areaId);
 
   useEffect(() => {
-    if (area) document.title = `${area.title} · Shiftline`;
+    if (area) document.title = `${area.title} · Shiftline Beta`;
     return () => {
-      document.title = "Shiftline";
+      document.title = "Shiftline Beta";
     };
   }, [area]);
 
@@ -49,10 +51,10 @@ const AreaHubPage: React.FC = () => {
           type="button"
           onClick={openPalette}
           className="sl-btn hidden self-start sm:inline-flex lg:self-auto"
-          aria-label={`Search in Shiftline`}
+          aria-label={t("hub.searchIn")}
         >
           <Search size={16} aria-hidden />
-          Find a screen
+          {t("hub.findScreen")}
         </button>
       </section>
 
@@ -133,7 +135,10 @@ const AreaHubPage: React.FC = () => {
       ))}
 
       <p className="text-xs text-ink-subtle">
-        {screenCount} {screenCount === 1 ? "screen" : "screens"} in {area.title} that you can open.
+        {t(screenCount === 1 ? "hub.screenCountOne" : "hub.screenCount", {
+          count: screenCount,
+          area: area.title,
+        })}
       </p>
     </div>
   );

@@ -10,15 +10,17 @@ import {
 } from "lucide-react";
 
 import { useProfile } from "../../hooks/useProfile";
+import { useT } from "../../i18n/I18nProvider";
+import LanguageSwitch from "../../components/layout/LanguageSwitch";
 
-const formatDate = (date?: string | null) =>
+const formatDate = (date?: string | null, fallback = "N/A") =>
   date
-    ? new Date(date).toLocaleDateString("en-US", {
+    ? new Date(date).toLocaleDateString("en-IN", {
         day: "numeric",
         month: "short",
         year: "numeric",
       })
-    : "N/A";
+    : fallback;
 
 const getInitials = (name?: string | null) => {
   if (!name) return "—";
@@ -32,13 +34,15 @@ const getInitials = (name?: string | null) => {
 
 const ProfilePage: React.FC = () => {
   const { employee, loading } = useProfile();
+  const { t } = useT();
+  const na = t("common.notAvailable");
 
   if (loading || !employee) {
     return (
       <div
         className="flex max-w-[1024px] flex-col gap-6 pt-2"
         aria-busy="true"
-        aria-label="Loading profile"
+        aria-label={t("profile.loading")}
       >
         <div className="flex items-center gap-5">
           <span className="sl-skeleton h-20 w-20 !rounded-full" />
@@ -52,31 +56,31 @@ const ProfilePage: React.FC = () => {
   const rows: { icon: React.ReactNode; label: string; value: string; mono?: boolean }[] = [
     {
       icon: <BadgeCheck size={18} />,
-      label: "Employee Code",
-      value: employee.empCode || "N/A",
+      label: t("profile.empCode"),
+      value: employee.empCode || na,
       mono: true,
     },
     {
       icon: <Briefcase size={18} />,
-      label: "Department",
-      value: employee.department?.name || "N/A",
+      label: t("profile.department"),
+      value: employee.department?.name || na,
     },
     {
       icon: <CalendarDays size={18} />,
-      label: "Date of Joining",
-      value: formatDate(employee.dateOfJoining),
+      label: t("profile.joined"),
+      value: formatDate(employee.dateOfJoining, na),
     },
     {
       icon: <ShieldCheck size={18} />,
-      label: "System Role",
-      value: employee.designation?.name || "N/A",
+      label: t("profile.role"),
+      value: employee.designation?.name || na,
     },
-    { icon: <Phone size={18} />, label: "Mobile Number", value: employee.mobile || "N/A" },
-    { icon: <Mail size={18} />, label: "Email Address", value: employee.email || "N/A" },
+    { icon: <Phone size={18} />, label: t("profile.mobile"), value: employee.mobile || na },
+    { icon: <Mail size={18} />, label: t("profile.email"), value: employee.email || na },
     {
       icon: <CalendarDays size={18} />,
-      label: "Account Created",
-      value: formatDate(employee.createdAt),
+      label: t("profile.accountCreated"),
+      value: formatDate(employee.createdAt, na),
     },
   ];
 
@@ -87,9 +91,9 @@ const ProfilePage: React.FC = () => {
           {getInitials(employee.fullName)}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="sl-h1">My profile</h1>
+          <h1 className="sl-h1">{t("profile.title")}</h1>
           <p className="sl-muted mt-1">
-            {employee.fullName || "N/A"} · {employee.department?.name || "Employee"}
+            {employee.fullName || na} · {employee.department?.name || t("profile.employee")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -106,12 +110,18 @@ const ProfilePage: React.FC = () => {
       </section>
 
       <section className="sl-tile p-5 sm:p-6">
-        <h2 className="sl-h2 mb-4">Your details</h2>
+        <h2 className="sl-h2 mb-4">{t("profile.yourDetails")}</h2>
         <dl className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {rows.map((r) => (
             <RecordRow key={r.label} {...r} />
           ))}
         </dl>
+      </section>
+
+      <section className="sl-tile p-5 sm:p-6" data-testid="profile-language">
+        <h2 className="sl-h2 mb-1">{t("profile.preferences")}</h2>
+        <p className="sl-muted mb-4 text-sm">{t("language.help")}</p>
+        <LanguageSwitch className="max-w-xs" />
       </section>
     </div>
   );

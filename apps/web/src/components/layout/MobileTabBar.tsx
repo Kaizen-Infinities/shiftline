@@ -5,6 +5,7 @@ import { LayoutDashboard, Search, UserRound } from "lucide-react";
 import { useCommandPalette } from "../command-palette/paletteContext";
 import { usePermission } from "../../hooks/usePermission";
 import { useSidebarNav } from "../../navigation/useNav";
+import { useT } from "../../i18n/I18nProvider";
 import { areaHome, cleanPath } from "../../navigation/nav.utils";
 import { mostUsedArea, recordAreaVisit } from "../../navigation/storage";
 
@@ -14,6 +15,7 @@ import { mostUsedArea, recordAreaVisit } from "../../navigation/storage";
  */
 const MobileTabBar: React.FC = () => {
   const { areas, activeArea, pathname } = useSidebarNav();
+  const { t } = useT();
   const { openPalette, isOpen } = useCommandPalette();
   const { can } = usePermission();
   const activeId = activeArea?.id;
@@ -38,7 +40,7 @@ const MobileTabBar: React.FC = () => {
 
   return (
     <nav
-      aria-label="Quick"
+      aria-label={t("shell.quickNav")}
       className="sl-tabbar fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 gap-1 px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:hidden"
     >
       <Link
@@ -49,7 +51,7 @@ const MobileTabBar: React.FC = () => {
         <span className="sl-tab-icon">
           <LayoutDashboard size={20} aria-hidden />
         </span>
-        Home
+        {t("shell.tabHome")}
       </Link>
       <button
         type="button"
@@ -60,7 +62,7 @@ const MobileTabBar: React.FC = () => {
         <span className="sl-tab-icon">
           <Search size={20} aria-hidden />
         </span>
-        Search
+        {t("shell.tabSearch")}
       </button>
       {favourite && FavIcon ? (
         <Link
@@ -84,7 +86,7 @@ const MobileTabBar: React.FC = () => {
         <span className="sl-tab-icon">
           <UserRound size={20} aria-hidden />
         </span>
-        Profile
+        {t("shell.tabProfile")}
       </Link>
     </nav>
   );

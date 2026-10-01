@@ -68,6 +68,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "job-work",
       "goods-dispatch",
       "delivery-schedules",
+      "asn",
       "sales-reports",
       "gst_tax",
     ],
@@ -125,6 +126,8 @@ export const FEATURES: readonly FeatureDef[] = [
       "production-reports",
       "dash-machines",
       "order-tna",
+      "project-jobs",
+      "process-routes",
     ],
   },
   {
@@ -135,6 +138,8 @@ export const FEATURES: readonly FeatureDef[] = [
       "accounts",
       "payable",
       "receivable",
+      "msme-claims",
+      "subsidy-schemes",
       "vouchers",
       "petty-cash",
       "chart-of-accounts",
@@ -162,6 +167,7 @@ export const FEATURES: readonly FeatureDef[] = [
       "leave",
       "registers",
       "fines",
+      "buyer-audits",
     ],
   },
   {

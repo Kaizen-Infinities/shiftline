@@ -1,6 +1,8 @@
 import React, { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import { useT } from "../../i18n/I18nProvider";
+
 interface ShellDialogProps {
   open: boolean;
   title: string;
@@ -22,6 +24,7 @@ const ShellDialog: React.FC<ShellDialogProps> = ({
   busy,
 }) => {
   const titleId = useId();
+  const { t } = useT();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -71,7 +74,7 @@ const ShellDialog: React.FC<ShellDialogProps> = ({
         {children && <div className="mt-2 text-sm text-ink-muted">{children}</div>}
         <div className="mt-6 flex justify-end gap-2">
           <button ref={cancelRef} type="button" className="sl-btn" onClick={onCancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="button" className="sl-btn-blue" onClick={onConfirm} disabled={busy}>
             {confirmText}

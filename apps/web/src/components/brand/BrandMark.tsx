@@ -55,6 +55,18 @@ export const MAKER = {
   url: "https://kaizeninfinities.com/",
 } as const;
 
+/** Shiftline is in beta: said next to the wordmark, in the tab title and in the app shell. */
+export const PRODUCT_TITLE = "Shiftline Beta";
+
+/** The small "Beta" chip that rides next to the wordmark. */
+export const BetaChip: React.FC<{ className?: string }> = ({ className = "" }) => (
+  <span
+    className={`sl-chip !px-1.5 !py-0 text-[10px] font-bold uppercase leading-4 tracking-[0.08em] ${className}`}
+  >
+    Beta
+  </span>
+);
+
 /** Mark and wordmark side by side, as in the sidebar and on the sign-in page. */
 export const BrandLockup: React.FC<{
   size?: number;
@@ -64,10 +76,13 @@ export const BrandLockup: React.FC<{
   <span className={`inline-flex items-center gap-3 ${className}`}>
     <BrandMark size={size} />
     <span className="flex flex-col leading-none">
-      <span
-        className={`text-[1.3rem] font-bold tracking-[-0.02em] text-ink leading-none ${wordmarkClassName}`}
-      >
-        Shiftline
+      <span className="flex items-center gap-1.5">
+        <span
+          className={`text-[1.3rem] font-bold tracking-[-0.02em] text-ink leading-none ${wordmarkClassName}`}
+        >
+          Shiftline
+        </span>
+        <BetaChip />
       </span>
       <span className="mt-1 text-[11px] font-medium tracking-[0.01em] text-ink-subtle">
         by {MAKER.short}

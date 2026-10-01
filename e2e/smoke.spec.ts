@@ -17,7 +17,7 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/sales-order", marker: /^sales orders$/i },
   { path: "/sales-invoices", marker: /^sales invoices$/i },
   { path: "/settings/company", marker: /General Info/i },
-  { path: "/company/view", marker: /Employee Code/i },
+  { path: "/company/view", marker: /employee code/i },
   { path: "/settings/imports", marker: /data imports/i },
   { path: "/settings/gst", marker: /HSN/ },
   { path: "/accounts/chart-of-accounts", marker: /chart of accounts/i },
@@ -51,6 +51,14 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/payroll/statutory", marker: /statutory payroll/i },
   { path: "/payroll/entitlements", marker: /leave & entitlements/i },
   { path: "/sales/delivery-schedules", marker: /delivery schedules/i },
+  { path: "/sales/asn", marker: /ASN & labels/ },
+  { path: "/sales/customer-part-numbers", marker: /Customer part numbers/ },
+  { path: "/production/jobs", marker: /^Jobs$/ },
+  { path: "/accounts/msme-claims", marker: /MSME claims/ },
+  { path: "/accounts/subsidies", marker: /Subsidies & schemes/ },
+  { path: "/production/process-routes", marker: /^Process routes$/ },
+  { path: "/production/lots", marker: /^Lot board$/ },
+  { path: "/hr/audit-readiness", marker: /Audit readiness/ },
   { path: "/hr/leave", marker: /^leave requests$/i },
   { path: "/me/leave", marker: /my leave/i },
   { path: "/production/order-tna", marker: /order t&a/i },
@@ -61,6 +69,8 @@ const SCREENS: { path: string; marker: RegExp }[] = [
   { path: "/settings/sms", marker: /sms & otp/i },
   { path: "/notifications", marker: /You are up to date|unread/i },
   { path: "/settings/machine-gateways", marker: /Machine gateways/i },
+  { path: "/shift-execution", marker: /Open the shift console/ },
+  { path: "/inventory/eod-stock", marker: /Day-end stock/ },
 ];
 
 const trackApi = (page: Page) => {
@@ -121,6 +131,21 @@ test.describe("smoke", () => {
       expect(failures()).toEqual([]);
     });
   }
+
+  test("the language switch shows Tamil and switches back (TN-04)", async ({ page }) => {
+    const failures = trackApi(page);
+    await page.goto("/profile");
+    const tamil = page.getByTestId("profile-language").getByTestId("language-ta");
+    await expect(tamil).toBeVisible({ timeout: 20_000 });
+    await tamil.click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "ta");
+    await expect(page.getByText("உங்கள் விவரங்கள்").first()).toBeVisible();
+    // Leave the shared demo owner in English for the other tests.
+    await page.getByTestId("profile-language").getByTestId("language-en").click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByText("Your details").first()).toBeVisible();
+    expect(failures()).toEqual([]);
+  });
 
   test("a wrong password is refused without a crash", async ({ browser }) => {
     const context = await browser.newContext();

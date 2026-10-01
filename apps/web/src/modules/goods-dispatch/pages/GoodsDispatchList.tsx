@@ -22,10 +22,12 @@ import { formatDate } from "../../../utils/dateUtils";
 import { usePermission } from "../../../hooks/usePermission";
 import { AlertCircle, Plus, Truck } from "lucide-react";
 import { ActionPill, PageHeader, Tile, Toolbar } from "../../../components/ui/v2";
+import { useT } from "../../../i18n/I18nProvider";
 
 const ITEMS_PER_PAGE = 15;
 
 const GoodsDispatchList: React.FC = () => {
+  const { t } = useT();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { can } = usePermission();
@@ -146,19 +148,19 @@ const GoodsDispatchList: React.FC = () => {
   // const totalCount = meta?.total || 0;
 
   const STATUS_CHIPS = [
-    { key: "", label: "All" },
-    { key: "PENDING_GATE_APPROVAL", label: "Pending Gate" },
-    { key: "PENDING_STORE_RECEIPT", label: "Pending Store" },
-    { key: "WAREHOUSE_RECEIVED", label: "Received" },
-    { key: "GATE_REJECTED", label: "Gate Rejected" },
-    { key: "STORE_REJECTED", label: "Store Rejected" },
+    { key: "", label: t("common.all") },
+    { key: "PENDING_GATE_APPROVAL", label: t("dispatch.chip.pendingGate") },
+    { key: "PENDING_STORE_RECEIPT", label: t("dispatch.chip.pendingStore") },
+    { key: "WAREHOUSE_RECEIVED", label: t("dispatch.chip.received") },
+    { key: "GATE_REJECTED", label: t("dispatch.chip.gateRejected") },
+    { key: "STORE_REJECTED", label: t("dispatch.chip.storeRejected") },
   ];
 
   const filtered = Boolean(hasActiveFilters || debouncedSearch);
 
   const columns: DataTableColumn<any>[] = [
     {
-      header: "Dispatch No",
+      header: t("dispatch.col.number"),
       accessor: "dispatchNumber",
       render: (item: any) =>
         can("goods-dispatch.view") ? (
@@ -174,39 +176,41 @@ const GoodsDispatchList: React.FC = () => {
         ),
     },
     {
-      header: "Date",
+      header: t("common.date"),
       accessor: "dispatchDate",
       render: (item: any) => (
         <span className="text-ink-muted">{formatDate(item.dispatchDate)}</span>
       ),
     },
     {
-      header: "Vehicle",
+      header: t("dispatch.col.vehicle"),
       accessor: "vehicleNumber",
       render: (item: any) => (
         <span className="font-mono text-sm text-ink">{item.vehicleNumber || "—"}</span>
       ),
     },
     {
-      header: "Driver",
+      header: t("dispatch.col.driver"),
       accessor: "driverName",
       render: (item: any) => <span className="text-ink">{item.driverName || "—"}</span>,
     },
     {
-      header: "Items",
+      header: t("dispatch.col.items"),
       accessor: "items",
       align: "right",
       render: (item: any) => (
-        <span className="tabular-nums text-ink-muted">{item.items?.length || 0} PO(s)</span>
+        <span className="tabular-nums text-ink-muted">
+          {t("dispatch.poCount", { count: item.items?.length || 0 })}
+        </span>
       ),
     },
     {
-      header: "Status",
+      header: t("common.status"),
       accessor: "status",
-      render: (item: any) => <StatusBadge status={item.status} />,
+      render: (item: any) => <StatusBadge status={item.status} translate />,
     },
     {
-      header: "Actions",
+      header: t("common.actions"),
       accessor: "id",
       align: "right",
       render: (item: any) => (
@@ -234,7 +238,7 @@ const GoodsDispatchList: React.FC = () => {
       icon={<Plus size={18} />}
       onClick={() => navigate("/production/goods-dispatch/create")}
     >
-      Create Dispatch
+      {t("dispatch.create")}
     </ActionPill>
   ) : null;
 
@@ -242,8 +246,8 @@ const GoodsDispatchList: React.FC = () => {
     <div>
       <div className="w-full min-w-0">
         <PageHeader
-          title="Goods dispatch"
-          subtitle="Manage finished goods dispatches to warehouse"
+          title={t("dispatch.title")}
+          subtitle={t("dispatch.subtitle")}
           icon={<Truck size={22} />}
           actions={
             can("goods-dispatch.export") ? (
@@ -251,7 +255,7 @@ const GoodsDispatchList: React.FC = () => {
                 fetchData={fetchDispatchesForExport}
                 columns={csvColumns}
                 filename={csvFilename}
-                text="Export"
+                text={t("common.export")}
               />
             ) : null
           }
@@ -261,8 +265,8 @@ const GoodsDispatchList: React.FC = () => {
         <Toolbar
           searchValue={searchTerm}
           onSearchChange={setSearchTerm}
-          searchPlaceholder="Search by Dispatch No, Vehicle, Driver..."
-          searchLabel="Search dispatches"
+          searchPlaceholder={t("dispatch.searchPlaceholder")}
+          searchLabel={t("dispatch.searchLabel")}
           filters={STATUS_CHIPS}
           filterValue={filterStatus}
           onFilterChange={(key) => {
@@ -270,7 +274,7 @@ const GoodsDispatchList: React.FC = () => {
             setDraftFilterStatus(key);
             setCurrentPage(1);
           }}
-          filtersLabel="Status"
+          filtersLabel={t("common.status")}
           right={
             <FilterPopover
               activeFilterCount={[filterDateFrom, filterDateTo].filter(Boolean).length}
@@ -281,18 +285,18 @@ const GoodsDispatchList: React.FC = () => {
             >
               <div className="space-y-3">
                 <DatePickerCalendar
-                  label="Date From"
+                  label={t("dispatch.dateFrom")}
                   name="dateFrom"
                   value={draftFilterDateFrom}
                   onChange={(e) => setDraftFilterDateFrom(e.target.value)}
-                  placeholder="Select date"
+                  placeholder={t("dispatch.selectDate")}
                 />
                 <DatePickerCalendar
-                  label="Date To"
+                  label={t("dispatch.dateTo")}
                   name="dateTo"
                   value={draftFilterDateTo}
                   onChange={(e) => setDraftFilterDateTo(e.target.value)}
-                  placeholder="Select date"
+                  placeholder={t("dispatch.selectDate")}
                 />
               </div>
             </FilterPopover>
@@ -307,7 +311,7 @@ const GoodsDispatchList: React.FC = () => {
               aria-hidden="true"
             />
             <p role="alert" className="m-0 text-sm font-semibold text-ink">
-              Could not load dispatches. Press F5 to retry.
+              {t("dispatch.loadFailed")}
             </p>
           </Tile>
         )}
@@ -317,8 +321,8 @@ const GoodsDispatchList: React.FC = () => {
           data={dispatches || []}
           loading={loading}
           rowKey={(item) => item.id.toString()}
-          ariaLabel="Goods dispatches"
-          emptyMessage={filtered ? "No dispatches match these filters." : "No dispatches found"}
+          ariaLabel={t("dispatch.tableLabel")}
+          emptyMessage={filtered ? t("dispatch.emptyFiltered") : t("dispatch.empty")}
           emptyAction={
             filtered ? (
               <ActionPill
@@ -328,7 +332,7 @@ const GoodsDispatchList: React.FC = () => {
                   handleClearFilters();
                 }}
               >
-                Clear filters
+                {t("common.clearFilters")}
               </ActionPill>
             ) : (
               createCta

@@ -6,6 +6,7 @@ import { getCurrentUser } from "../../features/auth/authSlice";
 import { useSocketSync } from "../../hooks/useSocketSync";
 import { useGlobalShortcuts } from "../../hooks/useGlobalShortcuts";
 import ImpersonationBanner from "../common/ImpersonationBanner";
+import BetaNotice from "./BetaNotice";
 import ShortcutPanel from "../ui/ShortcutPanel/ShortcutPanel";
 import Calculator from "../ui/Calculator/Calculator";
 import PrefetchProgressBar from "../../providers/PrefetchProgressBar";
@@ -185,6 +186,7 @@ const BaseLayout = () => {
 
         <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
           <ImpersonationBanner />
+          <BetaNotice />
           <TopBar
             onOpenMenu={() => setDrawerOpen(true)}
             menuButtonRef={menuButtonRef}

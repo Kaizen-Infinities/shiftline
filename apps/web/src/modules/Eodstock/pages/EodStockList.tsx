@@ -15,6 +15,8 @@ import { usePermission } from "../../../hooks/usePermission";
 import type { EodCategory, EodStockItem } from "../../../services/eodStockService";
 import { CalendarClock, Info, Lock, Radio } from "lucide-react";
 import { ActionPill, Chip, PageHeader, Toolbar, type ChipTone } from "../../../components/ui/v2";
+import { useT } from "../../../i18n/I18nProvider";
+import type { MessageKey } from "../../../i18n/en";
 
 const ITEMS_PER_PAGE = 20;
 const LIVE_POLL_INTERVAL_MS = 30_000;
@@ -38,10 +40,10 @@ const formatQty = (qty: number | null, uom: string | null): string => {
   return u ? `${qty.toLocaleString("en-IN")} ${u}` : qty.toLocaleString("en-IN");
 };
 
-const CATEGORY_LABELS: Record<EodCategory, string> = {
-  RAW_MATERIAL: "Raw Material",
-  FINISHED_PRODUCT: "Finished Product",
-  WASTAGE: "Wastage",
+const CATEGORY_KEYS: Record<EodCategory, MessageKey> = {
+  RAW_MATERIAL: "eod.cat.raw",
+  FINISHED_PRODUCT: "eod.cat.finished",
+  WASTAGE: "eod.cat.wastage",
 };
 
 const CATEGORY_TONES: Record<EodCategory, ChipTone> = {
@@ -50,11 +52,14 @@ const CATEGORY_TONES: Record<EodCategory, ChipTone> = {
   WASTAGE: "warning",
 };
 
-const CategoryBadge: React.FC<{ category: EodCategory }> = ({ category }) => (
-  <Chip size="sm" tone={CATEGORY_TONES[category] ?? "muted"} className="whitespace-nowrap">
-    {CATEGORY_LABELS[category] ?? category}
-  </Chip>
-);
+const CategoryBadge: React.FC<{ category: EodCategory }> = ({ category }) => {
+  const { t } = useT();
+  return (
+    <Chip size="sm" tone={CATEGORY_TONES[category] ?? "muted"} className="whitespace-nowrap">
+      {CATEGORY_KEYS[category] ? t(CATEGORY_KEYS[category]) : category}
+    </Chip>
+  );
+};
 
 type NoticeTone = "info" | "success" | "warning" | "muted";
 const NOTICE_TONE: Record<NoticeTone, string> = {
@@ -70,7 +75,10 @@ const Notice: React.FC<{ tone: NoticeTone; icon: React.ReactNode; children: Reac
   icon,
   children,
 }) => (
-  <div role="status" className="sl-tile flex items-center gap-3 px-4 py-3 text-sm text-ink-muted">
+  <div
+    role="status"
+    className="sl-tile mb-4 flex items-center gap-3 px-4 py-3 text-sm text-ink-muted"
+  >
     <span
       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-chip ${NOTICE_TONE[tone]}`}
       aria-hidden="true"
@@ -82,6 +90,7 @@ const Notice: React.FC<{ tone: NoticeTone; icon: React.ReactNode; children: Reac
 );
 
 const EodStockList: React.FC = () => {
+  const { t } = useT();
   const { socket } = useSocket();
   const dispatch = useAppDispatch();
   const { can } = usePermission();
@@ -212,22 +221,14 @@ const EodStockList: React.FC = () => {
 
   // ── Empty state message ───────────────────────────────────────────────────────
   const emptyMessage = useMemo(() => {
-    if (isFuture) return "Future date — no EOD data available yet.";
-    const catLabels: Record<string, string> = {
-      RAW_MATERIAL: "Raw Material",
-      FINISHED_PRODUCT: "Finished Product",
-      WASTAGE: "Wastage",
-    };
-    const parts: string[] = [];
-    if (categoryFilter) parts.push(catLabels[categoryFilter] || categoryFilter);
-    if (storeIdFilter) parts.push(`in ${getStoreName(storeIdFilter)}`);
+    if (isFuture) return t("eod.future");
+    const date = formatDate(selectedDate);
+    const filteredOut = Boolean(categoryFilter || storeIdFilter);
     if (!isTodaySelected) {
-      return parts.length
-        ? `No ${parts.join(" ")} data recorded for ${formatDate(selectedDate)}.`
-        : `No EOD data recorded for ${formatDate(selectedDate)}. The stock snapshot for this date was not captured.`;
+      return filteredOut ? t("eod.emptyFilteredOn", { date }) : t("eod.emptyOn", { date });
     }
-    return parts.length ? `No ${parts.join(" ")} stock data found.` : "Loading live stock data…";
-  }, [categoryFilter, storeIdFilter, selectedDate, isFuture, isTodaySelected, getStoreName]);
+    return filteredOut ? t("eod.emptyFiltered") : t("eod.loadingLive");
+  }, [categoryFilter, storeIdFilter, selectedDate, isFuture, isTodaySelected, t]);
 
   const csvColumns = [
     { header: "Item Code", accessor: (r: EodStockItem) => r.itemCode },
@@ -255,16 +256,15 @@ const EodStockList: React.FC = () => {
     if (isTodaySelected && isLive) {
       return (
         <Notice tone="info" icon={<Radio size={15} />}>
-          <span className="font-semibold text-ink">Live view</span> — Start qty = day opening
-          balance · Current qty = current live stock{" "}
-          <span className="text-xs text-ink-subtle">(auto-refreshes every 30 s)</span>
+          <span className="font-semibold text-ink">{t("eod.liveView")}</span> — {t("eod.liveHelp")}{" "}
+          <span className="text-xs text-ink-subtle">{t("eod.autoRefresh")}</span>
         </Notice>
       );
     }
     if (isTodaySelected && isLocked) {
       return (
         <Notice tone="success" icon={<Lock size={14} />}>
-          Today's stock locked as of{" "}
+          {t("eod.todayLockedAt")}{" "}
           <span className="font-semibold text-ink">{formatDateTime(lastLockedAt!)}</span>
         </Notice>
       );
@@ -272,7 +272,7 @@ const EodStockList: React.FC = () => {
     if (!isTodaySelected && isLocked) {
       return (
         <Notice tone="muted" icon={<Lock size={14} />}>
-          Stock locked as of{" "}
+          {t("eod.lockedAt")}{" "}
           <span className="font-semibold text-ink">{formatDateTime(lastLockedAt!)}</span>
         </Notice>
       );
@@ -280,21 +280,21 @@ const EodStockList: React.FC = () => {
     if (!isTodaySelected && !isLocked && data.length === 0 && !loading) {
       return (
         <Notice tone="warning" icon={<Info size={15} />}>
-          No EOD snapshot recorded for{" "}
-          <span className="font-semibold text-ink">{formatDate(selectedDate)}</span>.
+          {t("eod.noSnapshot")}{" "}
+          <span className="font-semibold text-ink">{formatDate(selectedDate)}</span>
         </Notice>
       );
     }
     if (isFuture) {
       return (
         <Notice tone="muted" icon={<Info size={15} />}>
-          Future date — no EOD data available yet.
+          {t("eod.future")}
         </Notice>
       );
     }
     return (
       <Notice tone="info" icon={<Info size={15} />}>
-        Showing stock for{" "}
+        {t("eod.showingFor")}{" "}
         <span className="font-semibold text-ink">
           {asOf ? formatDate(asOf) : formatDate(selectedDate)}
         </span>
@@ -303,19 +303,19 @@ const EodStockList: React.FC = () => {
   };
 
   return (
-    <div className="sl-page min-w-0">
+    <div className="w-full min-w-0">
       <PageHeader
-        title="Day-end stock"
-        subtitle="Opening and end-of-day balance of every item, per store and day"
+        title={t("eod.title")}
+        subtitle={t("eod.subtitle")}
         icon={<CalendarClock size={22} />}
         meta={
           isTodaySelected && isLive ? (
             <Chip size="sm" tone="success" dot>
-              Live
+              {t("shell.live")}
             </Chip>
           ) : isLocked ? (
             <Chip size="sm" tone="muted" icon={<Lock size={11} />}>
-              Locked
+              {t("eod.locked")}
             </Chip>
           ) : undefined
         }
@@ -325,7 +325,7 @@ const EodStockList: React.FC = () => {
               data={data}
               columns={csvColumns}
               filename={`eod-stock-${selectedDate}.csv`}
-              text="Export"
+              text={t("common.export")}
             />
           ) : null
         }
@@ -337,29 +337,28 @@ const EodStockList: React.FC = () => {
           setSearchTerm(value);
           setCurrentPage(1);
         }}
-        searchPlaceholder="Search item code or name…"
-        searchLabel="Search items"
+        searchPlaceholder={t("eod.searchPlaceholder")}
+        searchLabel={t("eod.searchLabel")}
         filters={[
-          { key: "", label: "All" },
-          { key: "RAW_MATERIAL", label: "Raw Material" },
-          { key: "FINISHED_PRODUCT", label: "Finished Product" },
-          { key: "WASTAGE", label: "Wastage" },
+          { key: "", label: t("common.all") },
+          { key: "RAW_MATERIAL", label: t("eod.cat.raw") },
+          { key: "FINISHED_PRODUCT", label: t("eod.cat.finished") },
+          { key: "WASTAGE", label: t("eod.cat.wastage") },
         ]}
         filterValue={categoryFilter}
         onFilterChange={(key) => {
           setCategoryFilter(key);
           setCurrentPage(1);
         }}
-        filtersLabel="Category"
+        filtersLabel={t("stock.category")}
         right={
           <>
             <div className="w-full sm:w-48">
               <SelectInput
                 value={storeIdFilter}
-                defaultOptionLabel="All Stores"
+                defaultOptionLabel={t("eod.allStores")}
                 options={stores.map((s) => ({ label: s.storeName, value: s.storeId }))}
                 hideLabel
-                ariaLabel="Store filter"
                 noMargin
                 onChange={(e) => {
                   setStoreIdFilter(e.target.value);
@@ -371,7 +370,7 @@ const EodStockList: React.FC = () => {
               <DatePickerCalendar
                 value={selectedDate}
                 maxDate={todayStr}
-                placeholder="Select date"
+                placeholder={t("dispatch.selectDate")}
                 onChange={(e) => {
                   setSelectedDate(e.target.value);
                   setCurrentPage(1);
@@ -387,7 +386,7 @@ const EodStockList: React.FC = () => {
                   setCurrentPage(1);
                 }}
               >
-                Today
+                {t("eod.today")}
               </ActionPill>
             )}
           </>
@@ -401,11 +400,11 @@ const EodStockList: React.FC = () => {
         loading={loading}
         rowKey={(item) => item.id}
         density="compact"
-        ariaLabel="EOD stock"
+        ariaLabel={t("eod.title")}
         emptyMessage={emptyMessage}
         columns={[
           {
-            header: "Item",
+            header: t("eod.item"),
             render: (item) => (
               <div className="flex min-w-0 flex-col">
                 <span className="font-semibold text-ink">{item.itemName}</span>
@@ -414,15 +413,15 @@ const EodStockList: React.FC = () => {
             ),
           },
           {
-            header: "Category",
+            header: t("stock.category"),
             render: (item) => <CategoryBadge category={item.category} />,
           },
           {
-            header: "Store",
+            header: t("common.store"),
             render: (item) => <span className="text-ink-muted">{getStoreName(item.storeId)}</span>,
           },
           {
-            header: "Start qty",
+            header: t("eod.startQty"),
             align: "right",
             render: (item) => (
               <span className="tabular-nums text-ink-muted">
@@ -431,14 +430,14 @@ const EodStockList: React.FC = () => {
             ),
           },
           {
-            header: isTodaySelected && isLive ? "Current qty" : "EOD qty",
+            header: isTodaySelected && isLive ? t("eod.currentQty") : t("eod.eodQty"),
             align: "right",
             render: (item) => (
               <span className="flex items-center justify-end gap-1.5 font-semibold tabular-nums text-ink">
                 {formatQty(item.eodQty, item.uom)}
                 {item.recordedAt !== null && (
-                  <span title={`Locked at ${formatDateTime(item.recordedAt)}`}>
-                    <Lock size={11} className="text-ink-subtle" aria-label="Locked" />
+                  <span title={t("eod.lockedAtTime", { time: formatDateTime(item.recordedAt) })}>
+                    <Lock size={11} className="text-ink-subtle" aria-label={t("eod.locked")} />
                   </span>
                 )}
               </span>
