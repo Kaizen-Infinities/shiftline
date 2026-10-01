@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 import { usePermission } from "../../../hooks/usePermission";
-import apiClient from "../../../api/apiClient";
 import {
   bankingService,
+  type BankAccountOption,
   type Brs,
   type ChequeRow,
   type MatchCandidate,
@@ -43,16 +43,11 @@ const CHEQUE_STYLE: Record<ChequeRow["status"], string> = {
   CANCELLED: "sl-chip-muted",
 };
 
-interface BankAccountOption {
-  id: string;
-  bankName: string;
-  accountNumber?: string | null;
-}
-
 const BankReconciliationPage: React.FC = () => {
   const { can } = usePermission();
   const [tab, setTab] = useState<Tab>("lines");
   const [accounts, setAccounts] = useState<BankAccountOption[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [bankAccountId, setBankAccountId] = useState("");
   const [lines, setLines] = useState<StatementLineRow[]>([]);
   const [brs, setBrs] = useState<Brs | null>(null);
@@ -67,14 +62,14 @@ const BankReconciliationPage: React.FC = () => {
   useEffect(() => {
     void (async () => {
       try {
-        // The endpoint answers { accounts, totalBalance }; older builds returned the bare list.
-        const body = (await apiClient.get("/accounts/bank-accounts")).data.data as
-          BankAccountOption[] | { accounts?: BankAccountOption[] };
-        const rows = Array.isArray(body) ? body : (body?.accounts ?? []);
+        const rows = (await bankingService.accounts()).filter((r) => r.isActive);
         setAccounts(rows);
-        if (rows[0]) setBankAccountId(rows[0].id);
+        const first = rows.find((r) => r.isDefault) ?? rows[0];
+        if (first) setBankAccountId(first.id);
       } catch {
         // The picker is empty until an account exists; the tabs say so themselves.
+      } finally {
+        setAccountsLoaded(true);
       }
     })();
   }, []);
@@ -117,7 +112,7 @@ const BankReconciliationPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Bank Reconciliation"
+        title="Bank reconciliation"
         subtitle="The statement against the cash book, and the cheques that have not turned into money yet."
         actions={
           <>
@@ -175,6 +170,13 @@ const BankReconciliationPage: React.FC = () => {
           </button>
         ))}
       </nav>
+
+      {accountsLoaded && accounts.length === 0 && tab !== "cheques" && (
+        <div className="sl-tile p-5 text-sm text-ink-muted" role="status">
+          No bank account yet. Add one in the company setup, then come back to import a statement
+          and reconcile it.
+        </div>
+      )}
 
       {loading && (
         <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">

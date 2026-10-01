@@ -45,6 +45,22 @@ export interface MatchCandidate {
 }
 
 class BankingService {
+  // ── Bank accounts ──────────────────────────────────────────────────────────
+  /** The tenant's bank accounts, for the pickers. Scoped to the tenant by the client. */
+  async accounts() {
+    return prisma.bankAccount.findMany({
+      select: {
+        id: true,
+        bankName: true,
+        accountNumber: true,
+        ledgerId: true,
+        isActive: true,
+        isDefault: true,
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+  }
+
   // ── Statements ─────────────────────────────────────────────────────────────
   async statements(bankAccountId?: string) {
     return prisma.bankStatement.findMany({

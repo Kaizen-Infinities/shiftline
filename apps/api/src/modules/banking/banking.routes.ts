@@ -18,6 +18,15 @@ router.use(authMiddleware);
 const actorOf = (req: Request) => ({ userId: req.user?.userId });
 const idParam = z.string().uuid();
 
+// ── Bank accounts ─────────────────────────────────────────────────────────────
+router.get(
+  "/accounts",
+  requirePermission("banking.view"),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(new ApiResponse("Bank accounts", await bankingService.accounts()));
+  })
+);
+
 // ── Statements ────────────────────────────────────────────────────────────────
 router.get(
   "/statements",
