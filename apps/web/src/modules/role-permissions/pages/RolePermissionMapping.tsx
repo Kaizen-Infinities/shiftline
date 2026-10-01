@@ -713,7 +713,7 @@ const RolePermissionMapping: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Role Permissions Matrix"
+        title="Permission mapping"
         icon={<FaShieldAlt size={18} />}
         subtitle="Choose a role, then switch each screen's actions on or off. Changes take effect immediately."
         actions={

@@ -182,7 +182,7 @@ const LeaveHrPage: React.FC = () => {
   return (
     <PageShell>
       <PageHeader
-        title="Leave"
+        title="Leave requests"
         icon={<Umbrella size={20} />}
         subtitle="Requests waiting on a decision, and who is off on the calendar."
         primaryAction={

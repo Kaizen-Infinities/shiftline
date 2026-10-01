@@ -1275,7 +1275,7 @@ const InvoiceDetailPage: React.FC = () => {
   return (
     <div className="sl-page sl-page-doc">
       <PageHeader
-        title={isEditMode ? "Edit GRN / Invoice" : "Create GRN / Invoice"}
+        title={isEditMode ? "Edit GRN" : "New GRN"}
         meta={
           form.grnNumber ? (
             <Chip size="sm" tone="muted" className="tabular-nums">
@@ -1287,7 +1287,7 @@ const InvoiceDetailPage: React.FC = () => {
         back={() => navigate(-1)}
         backLabel="Back to List"
         breadcrumbs={[
-          { label: "Bills & invoices", to: "/invoice" },
+          { label: "Goods received (GRN)", to: "/invoice" },
           { label: isEditMode ? "Edit" : "New" },
         ]}
       />

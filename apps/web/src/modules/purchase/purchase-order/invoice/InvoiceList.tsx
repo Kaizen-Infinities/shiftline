@@ -147,7 +147,7 @@ const InvoiceList: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Bill & Invoice List"
+        title="Goods received (GRN)"
         subtitle={`${(allInvoices?.length || 0).toLocaleString("en-IN")} GRN invoice${allInvoices?.length === 1 ? "" : "s"} · supplier bills booked against goods received`}
         primaryAction={createButton}
         actions={

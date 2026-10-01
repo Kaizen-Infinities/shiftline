@@ -238,7 +238,7 @@ const CustomerListPage: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Customer Management"
+        title="Customers"
         subtitle={
           listError && (customers ?? []).length === 0
             ? "Parties you sell to, with their GSTIN, grade and credit terms"

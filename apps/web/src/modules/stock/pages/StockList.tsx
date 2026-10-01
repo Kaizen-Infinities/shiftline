@@ -202,7 +202,7 @@ const StockList: React.FC<StockListProps> = ({ storeId: propStoreId }) => {
     <div>
       <div className="w-full min-w-0">
         <PageHeader
-          title="Stock Ledger Management"
+          title="Raw material stock"
           subtitle={`${total || 0} stock lines · raw material on hand, reserved and available by store`}
           icon={<Layers size={22} />}
           actions={

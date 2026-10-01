@@ -91,7 +91,7 @@ const ForexPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Foreign Exchange"
+        title="Foreign exchange"
         subtitle="What is still owed in a foreign currency, what the rupee has done to it, and what customs charged on the way in."
         actions={
           <>

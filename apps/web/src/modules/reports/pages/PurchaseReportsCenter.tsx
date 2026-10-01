@@ -300,7 +300,7 @@ const PurchaseReportsCenter: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Purchase Order Report"
+        title="Purchase reports"
         subtitle="Purchase orders by period, supplier and status"
         icon={<ShoppingCart size={22} />}
         actions={

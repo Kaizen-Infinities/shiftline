@@ -267,7 +267,7 @@ const DepartmentList: React.FC = () => {
       <div className="">
         <div className="sl-page">
           <PageHeader
-            title="Department Management"
+            title="Departments"
             icon={<Building2 size={20} />}
             subtitle="Groups people for payroll reports, approvals and headcount."
             actions={

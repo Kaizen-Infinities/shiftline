@@ -224,7 +224,7 @@ const ExpensesList: React.FC = () => {
   return (
     <div className="w-full">
       <PageHeader
-        title="Expense Management"
+        title="Expenses & claims"
         subtitle="Business expenses and staff claims, posted to the books when approved"
         icon={<Receipt size={20} />}
         primaryAction={

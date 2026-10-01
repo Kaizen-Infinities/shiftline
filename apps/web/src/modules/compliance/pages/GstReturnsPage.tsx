@@ -202,7 +202,7 @@ const GstReturnsPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="GST Returns"
+        title="GST returns"
         icon={<Landmark size={22} />}
         subtitle="Computed from the books. Nothing is filed until it is approved."
         meta={periodText ? <Chip size="sm">{periodText}</Chip> : undefined}

@@ -211,10 +211,10 @@ const MachineAssignmentList: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Machine Assignments"
+        title="Machine assignments"
         icon={<UserCog size={22} />}
         subtitle="Who runs which machine, per shift and week."
-        breadcrumbs={[{ label: "Machines", to: "/machines" }, { label: "Assignments" }]}
+        breadcrumbs={[{ label: "Machines", to: "/machines" }, { label: "Machine assignments" }]}
         actions={
           canExportAssignment ? (
             <ExportCSVButton

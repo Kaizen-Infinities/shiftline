@@ -1526,7 +1526,7 @@ const SalesInvoiceForm: React.FC = () => {
   return (
     <div className="sl-page sl-page-doc">
       <PageHeader
-        title={isEditMode ? "Edit Sales Invoice" : "Create Sales Invoice"}
+        title={isEditMode ? "Edit sales invoice" : "New sales invoice"}
         meta={
           <>
             <Chip

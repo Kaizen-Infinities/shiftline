@@ -284,7 +284,7 @@ export const TrialBalancePage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Trial Balance"
+        title="Trial balance"
         subtitle={`${activeConfig.category === "opening" ? "Opening Trial" : "Closing Trial"} · ${activeConfig.label} · as on ${fmtDate(effectiveDate)}`}
         icon={<Scale size={20} />}
         actions={

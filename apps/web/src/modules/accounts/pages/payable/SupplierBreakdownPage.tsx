@@ -347,10 +347,10 @@ export const SupplierBreakdownPage: React.FC = () => {
         back="/accounts/payable"
         backLabel="Back to payables"
         breadcrumbs={[
-          { label: "Amount Payable", to: "/accounts/payable" },
+          { label: "Payables", to: "/accounts/payable" },
           { label: supplierDetail?.supplier.legalName || "Supplier" },
         ]}
-        title={supplierDetail?.supplier.legalName || "Supplier Breakdown"}
+        title={supplierDetail?.supplier.legalName || "Supplier breakdown"}
         subtitle="Bills, payments and the running balance for this supplier"
         meta={
           supplierDetail?.supplier.supplierCode ? (

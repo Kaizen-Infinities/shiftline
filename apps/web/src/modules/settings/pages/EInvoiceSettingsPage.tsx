@@ -102,10 +102,10 @@ const EInvoiceSettingsPage: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title="E-invoicing"
+        title="E-invoicing setup"
         icon={<FileCheck2 size={22} />}
         subtitle="B2B invoices, credit notes and debit notes are registered with the Invoice Registration Portal through your GST Suvidha Provider. Until a GSP is connected, the built-in fixture provider mimics the portal so the flow can be tried without filing anything."
-        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "E-invoicing" }]}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "E-invoicing setup" }]}
       />
       <div className="grid gap-4 sl-tile p-4 sm:p-5 md:grid-cols-2">
         <label className="flex items-center gap-2 text-sm text-ink md:col-span-2">

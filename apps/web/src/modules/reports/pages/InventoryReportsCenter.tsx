@@ -232,7 +232,7 @@ const InventoryReportsCenter: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Inventory Reports"
+        title="Inventory reports"
         subtitle={
           asOfDate
             ? `Data as of: ${new Date(asOfDate).toLocaleDateString("en-IN")}`

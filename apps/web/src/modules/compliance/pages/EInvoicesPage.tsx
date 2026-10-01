@@ -141,7 +141,7 @@ const EInvoicesPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="E-invoice Register"
+        title="E-invoice register"
         icon={<FileCheck2 size={22} />}
         subtitle="Every IRN raised or refused by the portal for invoices, credit notes and debit notes. Failed ones can be retried from the document."
         meta={

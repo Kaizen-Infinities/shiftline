@@ -214,7 +214,7 @@ const WastageList: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Production Wastage"
+        title="Production wastage"
         icon={<Recycle size={22} />}
         subtitle={`Production Wastage Auditing · ${total || 0} log${total === 1 ? "" : "s"}; drafts can be edited until approved.`}
         actions={

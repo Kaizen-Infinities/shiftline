@@ -213,7 +213,7 @@ const CategoryForm: React.FC = () => {
 
   const header = (
     <PageHeader
-      title={isEditMode ? "Edit Category" : "Create Category"}
+      title={isEditMode ? "Edit category" : "New category"}
       subtitle="Categories group products, raw materials and wastage items"
       back="/categories"
       backLabel="Back to categories"

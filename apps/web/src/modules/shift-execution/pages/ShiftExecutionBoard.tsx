@@ -486,7 +486,7 @@ const ShiftExecutionBoard: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Shift Execution"
+        title="Shift execution board"
         icon={<Factory size={22} />}
         subtitle="Operator Shift Execution Console · start the run, log every hour, record stoppages."
         meta={

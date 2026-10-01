@@ -241,7 +241,7 @@ const MachineForm: React.FC = () => {
     }
   };
 
-  const title = isEdit ? "Edit Machine" : "Create Machine";
+  const title = isEdit ? "Edit machine" : "New machine";
 
   if (loading) {
     return (

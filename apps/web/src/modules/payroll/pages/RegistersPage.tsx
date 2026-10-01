@@ -114,9 +114,9 @@ const RegistersPage: React.FC = () => {
   return (
     <PageShell>
       <PageHeader
-        title="Statutory Registers"
+        title="Statutory registers"
         icon={<BookOpen size={20} />}
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Registers" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Statutory registers" }]}
         subtitle="Muster roll, wages, overtime, fines, deductions and advances in the form the Labour Codes ask a company to keep."
         actions={
           <>

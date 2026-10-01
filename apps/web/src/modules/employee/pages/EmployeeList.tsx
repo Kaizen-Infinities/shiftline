@@ -323,7 +323,7 @@ const Employeelist: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Employee Management"
+        title="Employees"
         icon={<Users size={20} />}
         subtitle={`${employees.length} people on the rolls`}
         actions={

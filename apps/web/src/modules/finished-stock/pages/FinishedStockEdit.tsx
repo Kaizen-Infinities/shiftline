@@ -71,7 +71,7 @@ const FinishedStockEdit: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title="Edit Finished Stock"
+        title="Edit finished goods stock"
         back="/finished-stock"
         backLabel="Back to list"
         breadcrumbs={[

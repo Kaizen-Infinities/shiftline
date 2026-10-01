@@ -199,13 +199,13 @@ const ContraVoucherAddPage: React.FC = () => {
   return (
     <form onSubmit={handleSubmit} onKeyDown={ctrlEnterSubmit} className="w-full" noValidate={false}>
       <PageHeader
-        title="New contra voucher"
+        title="New contra entry"
         subtitle={VOUCHER_KINDS.CONTRA.hint}
         back="/accounts/contra-entry"
         backLabel="Back to contra register"
         breadcrumbs={[
           { label: "Accounts" },
-          { label: "Contra Register", to: "/accounts/contra-entry" },
+          { label: "Contra entries", to: "/accounts/contra-entry" },
           { label: "New" },
         ]}
         meta={<Chip tone="muted">Vch no. assigned on save</Chip>}

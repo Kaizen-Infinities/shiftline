@@ -170,7 +170,7 @@ const UserList: React.FC = () => {
     <div>
       <div className="sl-page">
         <PageHeader
-          title="User Management"
+          title="Users"
           icon={<UserCog size={20} />}
           subtitle="Everyone who can sign in to this company."
           actions={

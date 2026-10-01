@@ -114,7 +114,7 @@ const YearEndPage: React.FC = () => {
     <div className="sl-page">
       {confirmDialog}
       <PageHeader
-        title="Year-End Closing"
+        title="Year-end closing"
         subtitle="Transfer the year's result to Retained Earnings, close the year's periods, open the next year and freeze the books. Prepared by one person, approved by another."
         icon={<CalendarCheck size={20} />}
       />

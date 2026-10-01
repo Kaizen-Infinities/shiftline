@@ -114,9 +114,9 @@ const LabourEntitlementsPage: React.FC = () => {
   return (
     <PageShell>
       <PageHeader
-        title="Leave and Entitlements"
+        title="Leave & entitlements"
         icon={<Umbrella size={20} />}
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Entitlements" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Leave & entitlements" }]}
         subtitle="What the company owes rather than what it deducts: leave accrued, gratuity building since the fifth year, the statutory bonus, and what is settled when someone leaves."
         actions={
           <>

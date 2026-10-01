@@ -2865,11 +2865,11 @@ const PayrollRun: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Run Payroll"
+        title="Run payroll"
         subtitle={`${periodLabel} · ${runType === "MONTHLY" ? "Monthly" : "Weekly"} Run`}
         back="/payroll"
         backLabel="Back to payroll"
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Run Payroll" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Run payroll" }]}
         meta={
           step > 1 && currentRun ? (
             <>

@@ -461,7 +461,7 @@ const GrnInvoiceViewPage: React.FC = () => {
           <div className="mx-auto max-w-5xl">
             <div className="no-print">
               <PageHeader
-                title={`Purchase Invoice #${selectedItem.invoiceNo || selectedItem.grnNumber}`}
+                title={`Purchase invoice #${selectedItem.invoiceNo || selectedItem.grnNumber}`}
                 meta={
                   <>
                     {grnCancelled ? (

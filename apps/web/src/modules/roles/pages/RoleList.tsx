@@ -284,7 +284,7 @@ const RoleList: React.FC = () => {
       <div className="">
         <div className="sl-page">
           <PageHeader
-            title="Role Management"
+            title="Roles"
             icon={<ShieldCheck size={20} />}
             subtitle="What each kind of user may see and do."
             actions={

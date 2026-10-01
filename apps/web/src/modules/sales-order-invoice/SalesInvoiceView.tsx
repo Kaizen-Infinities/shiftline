@@ -628,7 +628,7 @@ const SalesInvoiceView: React.FC = () => {
           <div className="mx-auto max-w-5xl">
             <div className="no-print">
               <PageHeader
-                title={`Sales Invoice #${invoice.invoiceNo}`}
+                title={`Sales invoice #${invoice.invoiceNo}`}
                 meta={
                   isCancelled ? (
                     <Chip dot tone="danger">

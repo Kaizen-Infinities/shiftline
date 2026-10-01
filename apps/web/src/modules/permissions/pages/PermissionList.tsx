@@ -204,7 +204,7 @@ const PermissionList: React.FC = () => {
     <div>
       <div className="sl-page">
         <PageHeader
-          title="Permission Management"
+          title="Permissions"
           icon={<KeyRound size={20} />}
           subtitle="The permission keys roles are built from."
           actions={undefined}

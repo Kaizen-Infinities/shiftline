@@ -125,7 +125,7 @@ const TallyExportPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Tally Export"
+        title="Tally export"
         subtitle="The books as an XML file your accountant imports into Tally — groups and ledgers under the names Tally already uses, and the month's vouchers in its own sign convention."
       />
 

@@ -286,7 +286,7 @@ export const ChartOfAccountsPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Chart of Accounts"
+        title="Chart of accounts"
         subtitle={`${summary.total} ledgers in ${summary.groupsCount} groups · grouped per Schedule III`}
         icon={<Network size={20} />}
         primaryAction={

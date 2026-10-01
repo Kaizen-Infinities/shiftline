@@ -158,7 +158,7 @@ const ComplianceCalendarPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Compliance Calendar"
+        title="Compliance calendar"
         icon={<CalendarClock size={22} />}
         subtitle="Every statutory date, where it stands, and what is already late."
         meta={

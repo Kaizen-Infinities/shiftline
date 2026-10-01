@@ -305,7 +305,7 @@ const EodStockList: React.FC = () => {
   return (
     <div className="sl-page min-w-0">
       <PageHeader
-        title="EOD Stock"
+        title="Day-end stock"
         subtitle="Opening and end-of-day balance of every item, per store and day"
         icon={<CalendarClock size={22} />}
         meta={

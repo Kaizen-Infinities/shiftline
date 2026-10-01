@@ -1003,9 +1003,9 @@ const PurchaseOrderForm: React.FC = () => {
 
   const title = isEdit
     ? isLocked
-      ? "View Purchase Order"
-      : "Edit Purchase Order"
-    : "Create Purchase Order";
+      ? "View purchase order"
+      : "Edit purchase order"
+    : "New purchase order";
 
   return (
     <div className="sl-page sl-page-doc">

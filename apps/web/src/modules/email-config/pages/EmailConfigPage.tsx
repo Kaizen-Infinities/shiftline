@@ -176,7 +176,7 @@ const EmailConfigPage: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title="Email Configuration"
+        title="Email"
         icon={<Mail size={22} />}
         subtitle="The mail server that invoices, reminders and invitations go out through. The password is stored encrypted and never shown again."
         breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Email" }]}

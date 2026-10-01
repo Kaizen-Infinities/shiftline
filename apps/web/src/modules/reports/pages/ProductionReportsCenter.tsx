@@ -602,7 +602,7 @@ const ProductionReportsCenter: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Production Reports"
+        title="Production reports"
         subtitle="Output, rejects and efficiency by machine and shift"
         icon={<Factory size={22} />}
         actions={

@@ -293,10 +293,10 @@ export const MachineAssignmentForm: React.FC = () => {
     }
   };
 
-  const title = isEdit ? "Edit Machine Assignment" : "Assign Machine Operation";
+  const title = isEdit ? "Edit machine assignment" : "New machine assignment";
   const crumbs = [
     { label: "Machines", to: "/machines" },
-    { label: "Assignments", to: "/machines/assignments" },
+    { label: "Machine assignments", to: "/machines/assignments" },
     { label: isEdit ? "Edit" : "New" },
   ];
 

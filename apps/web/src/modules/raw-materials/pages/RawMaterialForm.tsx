@@ -318,7 +318,7 @@ const RawMaterialForm: React.FC = () => {
 
   const header = (
     <PageHeader
-      title={isEditMode ? "Edit Raw Material" : "Create Raw Material"}
+      title={isEditMode ? "Edit raw material" : "New raw material"}
       subtitle="A material you buy and consume in production, with its stock levels"
       back="/raw-materials"
       backLabel="Back to raw materials"

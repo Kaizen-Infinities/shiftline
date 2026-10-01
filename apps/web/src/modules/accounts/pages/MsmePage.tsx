@@ -82,7 +82,7 @@ const MsmePage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="MSME Dues"
+        title="MSME dues"
         subtitle="Micro and small suppliers have to be paid within 15 days, or 45 where there is a written agreement. Past that, section 43B(h) moves the deduction to the year the money actually leaves."
         actions={
           <>

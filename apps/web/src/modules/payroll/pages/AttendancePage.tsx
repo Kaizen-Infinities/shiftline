@@ -775,7 +775,7 @@ const AttendancePage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Attendance Entry"
+        title="Attendance"
         back="/payroll"
         backLabel="Back to payroll"
         breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Attendance" }]}

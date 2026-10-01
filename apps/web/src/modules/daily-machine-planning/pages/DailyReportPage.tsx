@@ -339,13 +339,13 @@ const DailyReportPage: React.FC = () => {
   return (
     <PageBody className="report-print-container" id="daily-production-report">
       <PageHeader
-        title="Daily Production Report"
+        title="Daily production report"
         icon={<BarChart3 size={22} />}
         subtitle={`Overview of production progress across all machines · ${selectedDate ? formatDate(selectedDate) : ""}`}
         back={() => navigate(-1)}
         breadcrumbs={[
-          { label: "Daily planning", to: "/daily-machine-planning" },
-          { label: "Daily report" },
+          { label: "Daily machine planning", to: "/daily-machine-planning" },
+          { label: "Daily production report" },
         ]}
         actions={
           <div className="no-print flex flex-wrap items-center gap-2.5">

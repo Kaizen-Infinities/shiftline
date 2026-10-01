@@ -525,7 +525,7 @@ export const LedgerStatementPage: React.FC = () => {
          its title so the user knows where they are; the step panel sits below it. */}
       {(showFormatDialog || showMergedDialog || showModeDialog || showOptionsDialog) && (
         <PageHeader
-          title={showMergedDialog ? "Merged Ledger Statement" : "Ledger Statement"}
+          title={showMergedDialog ? "Merged ledger" : "Ledger statement"}
           icon={<BookOpen size={20} />}
           subtitle="Choose how to show the statement, then the account and period."
         />
@@ -1799,7 +1799,7 @@ export const LedgerStatementPage: React.FC = () => {
           {/* Header — selection changes live in the Account Ledger dialog
            (Change Account button), so there are no date pickers here. */}
           <PageHeader
-            title="Ledger Statement"
+            title="Ledger statement"
             icon={<BookOpen size={20} />}
             meta={
               <Chip tone="muted" size="sm">

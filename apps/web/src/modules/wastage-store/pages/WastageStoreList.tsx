@@ -230,7 +230,7 @@ const WastageStoreList: React.FC = () => {
   return (
     <div className="sl-page min-w-0">
       <PageHeader
-        title="Wastage Products"
+        title="Wastage store"
         subtitle={`${allWastageItems.length} items · scrap, regrind and rejects kept in wastage stores`}
         icon={<Recycle size={22} />}
         actions={

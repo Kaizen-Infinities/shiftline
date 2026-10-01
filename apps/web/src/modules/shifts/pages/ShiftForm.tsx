@@ -144,7 +144,7 @@ const ShiftForm: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEdit ? "Edit Shift" : "Create Shift"}
+        title={isEdit ? "Edit shift" : "New shift"}
         subtitle="Timings, break and grace used by attendance and overtime."
         back="/shifts"
         backLabel="Back to List"

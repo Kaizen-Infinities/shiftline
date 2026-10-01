@@ -567,10 +567,10 @@ export const SalesReturnCreatePage: React.FC = () => {
         back="/sales-returns"
         backLabel="Back to list"
         breadcrumbs={[
-          { label: "Sales Returns", to: "/sales-returns" },
+          { label: "Sales returns", to: "/sales-returns" },
           { label: isEditMode ? "Edit" : "New" },
         ]}
-        title={isEditMode ? "Edit Sales Return" : "New Sales Return (Credit Note)"}
+        title={isEditMode ? "Edit sales return" : "New sales return"}
         meta={
           isEditMode && originalReturnNo ? <Chip size="sm">{originalReturnNo}</Chip> : undefined
         }

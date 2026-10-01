@@ -68,7 +68,7 @@ const WastageStockCreate: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title="Log Wastage Stock Entry"
+        title="New wastage stock"
         back="/wastage-stock"
         backLabel="Back to list"
         breadcrumbs={[

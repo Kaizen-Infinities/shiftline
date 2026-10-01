@@ -267,7 +267,7 @@ const ReceiptVoucherAddPage: React.FC = () => {
         backLabel="Back to receipt register"
         breadcrumbs={[
           { label: "Accounts" },
-          { label: "Receipt Register", to: "/accounts/receipt-voucher" },
+          { label: "Receipt vouchers", to: "/accounts/receipt-voucher" },
           { label: "New" },
         ]}
         meta={

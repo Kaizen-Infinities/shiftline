@@ -110,9 +110,9 @@ const SmsPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="SMS and OTP"
+        title="SMS & OTP"
         icon={<MessageSquare size={22} />}
-        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "SMS and OTP" }]}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "SMS & OTP" }]}
         subtitle="Templates registered on DLT, what has been sent, and the account it goes out through."
       />
 

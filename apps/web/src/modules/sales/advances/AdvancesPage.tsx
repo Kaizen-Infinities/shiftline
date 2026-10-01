@@ -212,7 +212,7 @@ const AdvancesPage: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Advances Received"
+        title="Advances received"
         subtitle="Money taken before the invoice. The tax on it is due the day it arrives."
         icon={<Wallet size={22} />}
         primaryAction={recordButton}

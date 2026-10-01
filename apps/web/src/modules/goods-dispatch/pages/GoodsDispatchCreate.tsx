@@ -326,7 +326,7 @@ const GoodsDispatchCreate: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Create Goods Dispatch"
+        title="New dispatch"
         subtitle="Select completed production orders to dispatch to the warehouse"
         back="/production/goods-dispatch"
         backLabel="Back to dispatches"

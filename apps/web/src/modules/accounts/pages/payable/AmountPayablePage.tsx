@@ -303,7 +303,7 @@ export const AmountPayablePage: React.FC = () => {
   return (
     <div className="w-full text-ink">
       <PageHeader
-        title="Amount Payable"
+        title="Payables"
         subtitle="What you owe suppliers, with ageing and the MSME clock"
         icon={<Landmark size={20} />}
         primaryAction={

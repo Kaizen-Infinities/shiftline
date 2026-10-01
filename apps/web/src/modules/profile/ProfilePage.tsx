@@ -87,10 +87,10 @@ const ProfilePage: React.FC = () => {
           {getInitials(employee.fullName)}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="sl-welcome">
-            Hello <strong>{employee.fullName || "N/A"}</strong>
-          </h1>
-          <p className="sl-muted mt-1">{employee.department?.name || "Employee"}</p>
+          <h1 className="sl-h1">My profile</h1>
+          <p className="sl-muted mt-1">
+            {employee.fullName || "N/A"} · {employee.department?.name || "Employee"}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="sl-chip sl-chip-success">

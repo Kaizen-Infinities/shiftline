@@ -224,7 +224,7 @@ const SalesInvoiceCreate: React.FC = () => {
   return (
     <div className="sl-page sl-page-doc">
       <PageHeader
-        title="Invoice Configuration"
+        title="Invoice settings"
         subtitle="Numbering for sales invoices: prefix, sequence and financial year."
         icon={<Hash size={22} />}
       />

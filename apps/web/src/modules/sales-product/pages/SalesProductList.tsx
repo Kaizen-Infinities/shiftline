@@ -185,7 +185,7 @@ const SalesProductList: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Sales Product"
+        title="Sales products"
         subtitle="Sellable kits built from production items, e.g. a bucket with its lid"
         primaryAction={createButton}
         actions={

@@ -240,7 +240,7 @@ export const SalesReturnPage: React.FC = () => {
     <div>
       <div className="w-full">
         <PageHeader
-          title="Sales Returns"
+          title="Sales returns"
           subtitle="Goods customers send back; each return raises a credit note."
           actions={
             <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">

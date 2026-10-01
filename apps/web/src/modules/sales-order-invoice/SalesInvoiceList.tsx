@@ -384,7 +384,7 @@ const SalesInvoiceList: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Sales Invoice List"
+        title="Sales invoices"
         subtitle={
           loading && !total
             ? "Tax invoices raised to customers"

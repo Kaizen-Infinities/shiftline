@@ -166,7 +166,7 @@ const AuditTrailPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Audit Trail"
+        title="Audit trail"
         subtitle="Every change to the books, documents, payroll and masters, recorded by the database and never editable."
         icon={<History size={22} />}
         actions={

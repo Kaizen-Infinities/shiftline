@@ -105,7 +105,7 @@ const FixedAssetsPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Fixed Assets"
+        title="Fixed assets"
         subtitle="The register, the monthly charge under Schedule II, and the income-tax block depreciation that goes on the return. The two are separate calculations and are not meant to agree."
         actions={
           <>

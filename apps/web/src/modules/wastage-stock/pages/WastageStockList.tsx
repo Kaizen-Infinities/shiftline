@@ -182,7 +182,7 @@ const WastageStockList: React.FC = () => {
     <div>
       <div className="w-full min-w-0">
         <PageHeader
-          title="Wastage Stock Ledger"
+          title="Wastage stock"
           subtitle={`${total || 0} items · scrap and rejects on hand in wastage stores`}
           icon={<Recycle size={22} />}
           actions={

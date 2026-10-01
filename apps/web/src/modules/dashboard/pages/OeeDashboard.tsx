@@ -167,7 +167,7 @@ const OeeDashboard: React.FC = () => {
       {/* ── Header ── */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="sl-h1">OEE and machine activity</h1>
+          <h1 className="sl-h1">OEE dashboard</h1>
           <p className="sl-muted mt-1 text-sm">Factory overview and equipment effectiveness</p>
         </div>
         <label className="flex items-center gap-2 text-sm text-ink-muted">

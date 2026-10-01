@@ -337,7 +337,7 @@ const CustomerFormPage: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEditMode ? "Edit Customer" : "Create Customer"}
+        title={isEditMode ? "Edit customer" : "New customer"}
         meta={
           watch("customerId") ? (
             <Chip size="sm" tone="muted" className="tabular-nums">

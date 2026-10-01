@@ -498,7 +498,7 @@ export const PurchaseReturnPage: React.FC = () => {
     <div>
       <div className="w-full">
         <PageHeader
-          title="Purchase Returns"
+          title="Purchase returns"
           subtitle="Goods you send back to suppliers; each return raises a debit note."
           actions={
             <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">

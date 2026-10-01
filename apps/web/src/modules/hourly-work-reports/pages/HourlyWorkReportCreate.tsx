@@ -771,7 +771,7 @@ const HourlyWorkReportCreate: React.FC = () => {
   return (
     <PageBody className="sl-page-form">
       <PageHeader
-        title="Hourly Production Entry"
+        title="New hourly report"
         subtitle={
           activePlan
             ? `${activePlan.productionOrderId} · ${activePlan.productName}`
@@ -780,8 +780,8 @@ const HourlyWorkReportCreate: React.FC = () => {
         back="/daily-machine-planning"
         backLabel="Back to Planning"
         breadcrumbs={[
-          { label: "Daily planning", to: "/daily-machine-planning" },
-          { label: editingLogId ? "Edit hourly entry" : "Log hour" },
+          { label: "Daily machine planning", to: "/daily-machine-planning" },
+          { label: editingLogId ? "Edit hourly report" : "New hourly report" },
         ]}
       />
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">

@@ -229,13 +229,13 @@ const WastageStoreForm: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEditMode ? "Edit Wastage Product" : "Create Wastage Product"}
+        title={isEditMode ? "Edit wastage store item" : "New wastage store item"}
         subtitle="Scrap or reject material that is stored and sold or reprocessed"
         back="/wastage-store"
         backLabel="Back to wastage products"
         breadcrumbs={[
           { label: "Inventory" },
-          { label: "Wastage products", to: "/wastage-store" },
+          { label: "Wastage store", to: "/wastage-store" },
           { label: isEditMode ? "Edit" : "New" },
         ]}
       />

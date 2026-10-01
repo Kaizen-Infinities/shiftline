@@ -304,14 +304,14 @@ const DailyPlanViewPage: React.FC = () => {
   );
 
   const crumbs = [
-    { label: "Daily planning", to: "/daily-machine-planning" },
+    { label: "Daily machine planning", to: "/daily-machine-planning" },
     { label: viewPlan?.dailyPlanId || "Plan" },
   ];
 
   if (!viewPlan || !viewPlan.productionOrderId) {
     return (
       <PageBody>
-        <PageHeader title="Daily Plan" back={() => navigate(-1)} breadcrumbs={crumbs} />
+        <PageHeader title="Daily plan" back={() => navigate(-1)} breadcrumbs={crumbs} />
         <SkeletonTile lines={3} label="Loading..." />
         <SkeletonTile lines={5} />
       </PageBody>
@@ -354,7 +354,7 @@ const DailyPlanViewPage: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title={`Daily Plan — ${viewPlan.dailyPlanId}`}
+        title={`Daily plan — ${viewPlan.dailyPlanId}`}
         meta={<StatusBadge status={viewPlan.status} />}
         subtitle={`${viewPlan.productionDate ? formatDate(viewPlan.productionDate) : "—"} · ${viewPlan.machine?.machineName || viewPlan.machineId} · ${viewPlan.shift?.shiftName || viewPlan.shiftId}`}
         back={() => navigate(-1)}

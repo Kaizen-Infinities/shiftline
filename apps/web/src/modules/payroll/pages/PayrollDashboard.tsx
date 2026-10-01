@@ -286,7 +286,7 @@ const PayrollDashboard: React.FC = () => {
   if (loading) {
     return (
       <PageShell>
-        <PageHeader title="Payroll" subtitle="Loading payroll data…" />
+        <PageHeader title="Payroll overview" subtitle="Loading payroll data…" />
         <div className="grid gap-4 lg:grid-cols-3">
           <SkeletonTile lines={4} height={220} className="lg:col-span-2" />
           <SkeletonTile lines={4} height={220} />
@@ -316,7 +316,7 @@ const PayrollDashboard: React.FC = () => {
   return (
     <PageShell>
       <PageHeader
-        title="Payroll"
+        title="Payroll overview"
         subtitle={
           <>
             {company?.companyName || "Company"} · salaries, statutory dues and payslips for{" "}

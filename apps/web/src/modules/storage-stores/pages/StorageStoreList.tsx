@@ -162,7 +162,7 @@ const StorageStoreList: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Store Management"
+        title="Storage stores"
         subtitle={`${allStores.length} stores · where raw materials, finished goods and wastage are kept`}
         icon={<Warehouse size={22} />}
         actions={

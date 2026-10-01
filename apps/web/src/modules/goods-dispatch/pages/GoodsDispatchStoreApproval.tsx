@@ -100,7 +100,7 @@ const GoodsDispatchStoreApproval: React.FC = () => {
 
   return (
     <div className="w-full min-w-0">
-      <DispatchHeader data={dispatchData} prefix="Store Receipt" />
+      <DispatchHeader data={dispatchData} prefix="Store receipt" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
           <DispatchItemsTable

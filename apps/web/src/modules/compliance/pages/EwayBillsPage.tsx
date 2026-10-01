@@ -219,7 +219,7 @@ const EwayBillsPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="E-way Bills"
+        title="E-way bills"
         icon={<Truck size={22} />}
         subtitle="Every e-way bill raised for invoices and dispatch challans, with validity. Tick live bills on one vehicle to make a trip sheet."
         meta={

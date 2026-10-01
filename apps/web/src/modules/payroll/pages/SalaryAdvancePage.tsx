@@ -240,9 +240,9 @@ const SalaryAdvancePage: React.FC = () => {
   return (
     <PageShell>
       <PageHeader
-        title="Salary Advance"
+        title="Salary advances"
         icon={<Wallet size={20} />}
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Salary Advance" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Salary advances" }]}
         subtitle="Record and track advances given to employees; recoveries come off the next payroll runs."
         primaryAction={
           canCreateAdvance ? (

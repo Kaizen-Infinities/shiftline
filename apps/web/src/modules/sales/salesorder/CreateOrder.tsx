@@ -884,7 +884,7 @@ const SalesOrderForm: React.FC = () => {
   return (
     <div className="sl-page sl-page-doc">
       <PageHeader
-        title={isEditMode ? "Edit Sales Order" : "Create Sales Order"}
+        title={isEditMode ? "Edit sales order" : "New sales order"}
         meta={
           watch("orderNo") ? (
             <Chip size="sm" tone="muted" className="tabular-nums">

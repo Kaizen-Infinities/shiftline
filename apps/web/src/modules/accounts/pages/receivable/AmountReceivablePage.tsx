@@ -305,7 +305,7 @@ export const AmountReceivablePage: React.FC = () => {
   return (
     <div className="w-full text-ink">
       <PageHeader
-        title="Amount Receivable"
+        title="Receivables"
         subtitle="What customers owe you, with ageing and overdue bills"
         icon={<HandCoins size={20} />}
         primaryAction={

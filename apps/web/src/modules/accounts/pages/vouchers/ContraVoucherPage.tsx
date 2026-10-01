@@ -202,7 +202,7 @@ const ContraVoucherPage: React.FC = () => {
     return (
       <div className="w-full">
         <PageHeader
-          title="Contra Register"
+          title="Contra entries"
           subtitle="Transfers between your own bank and cash accounts"
           icon={<ArrowLeftRight size={20} />}
           primaryAction={newButton}
@@ -278,7 +278,7 @@ const ContraVoucherPage: React.FC = () => {
   return (
     <div className="w-full">
       <PageHeader
-        title="Contra Register"
+        title="Contra entries"
         subtitle={
           <>
             Series {applied.voucherSeries} · {fmtDate(applied.startDate)} to{" "}

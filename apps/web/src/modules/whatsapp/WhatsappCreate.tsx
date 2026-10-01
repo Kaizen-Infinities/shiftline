@@ -190,7 +190,7 @@ const WhatsappCreatePage: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title="WhatsApp Business Configuration"
+        title="WhatsApp"
         icon={<MessageCircle size={22} />}
         subtitle="The WhatsApp Business account invoices, payslips and reminders are shared through."
         breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "WhatsApp" }]}

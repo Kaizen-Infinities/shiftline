@@ -27,7 +27,7 @@ const StoreTypeList: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Store Categories"
+        title="Store categories"
         subtitle="Store categories are fixed system-defined types. All stores must belong to one of the following categories."
         icon={<Warehouse size={22} />}
       />

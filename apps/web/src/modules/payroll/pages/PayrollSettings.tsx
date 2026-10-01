@@ -797,7 +797,7 @@ const PayrollSettings: React.FC = () => {
   if (loading) {
     return (
       <PageShell>
-        <PageHeader title="Payroll Settings" subtitle="Loading payroll settings…" />
+        <PageHeader title="Payroll settings" subtitle="Loading payroll settings…" />
         <div className="grid gap-5 lg:grid-cols-2">
           <SkeletonTile lines={4} />
           <SkeletonTile lines={4} />
@@ -809,7 +809,7 @@ const PayrollSettings: React.FC = () => {
   if (error) {
     return (
       <PageShell>
-        <PageHeader title="Payroll Settings" back="/payroll" />
+        <PageHeader title="Payroll settings" back="/payroll" />
         <Notice
           tone="danger"
           title="Settings could not be loaded"
@@ -1000,11 +1000,11 @@ const PayrollSettings: React.FC = () => {
   return (
     <PageShell className="pb-24">
       <PageHeader
-        title="Payroll Settings"
+        title="Payroll settings"
         icon={<SettingsIcon size={20} />}
         back="/payroll"
         backLabel="Back to payroll"
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Settings" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Payroll settings" }]}
         subtitle="Configure payroll policies, statutory deductions, and salary components."
         meta={
           isDirty ? (

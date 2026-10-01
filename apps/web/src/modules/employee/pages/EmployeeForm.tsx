@@ -1616,7 +1616,7 @@ const EmployeeForm: React.FC = () => {
     return (
       <div className="sl-page sl-page-form">
         <PageHeader
-          title={isEdit ? "Edit Employee" : "Create Employee"}
+          title={isEdit ? "Edit employee" : "New employee"}
           subtitle="Loading employee data…"
         />
         <SkeletonTile lines={6} label="Loading employee data" />
@@ -1629,12 +1629,9 @@ const EmployeeForm: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEdit ? "Edit Employee" : "Create Employee"}
+        title={isEdit ? "Edit employee" : "New employee"}
         back={() => navigate(-1)}
-        breadcrumbs={[
-          { label: "Employees", to: "/employees" },
-          { label: isEdit ? "Edit" : "New employee" },
-        ]}
+        breadcrumbs={[{ label: "Employees", to: "/employees" }, { label: isEdit ? "Edit" : "New" }]}
         subtitle={
           isEdit && (form.empCode || form.fullName) ? (
             <>

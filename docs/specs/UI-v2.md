@@ -118,6 +118,12 @@ One frame for every screen, so the title and the content edge never move between
 
 - **Page header:** title (`.sl-h1`), one line of context (`.sl-muted`), the primary `.sl-cta` on
   the right, and secondary `.sl-btn`s.
+- **Titles:** sentence case (capitalise the first word and proper nouns; keep acronyms and brand
+  terms such as GST, HSN/SAC, TDS, EOD, OEE, UOM, WhatsApp, Tally as written). A page's title is its
+  nav label from `nav.config.ts`; a screen without a nav entry drops suffixes like "Management",
+  "List", "Master" and "Entry". Create and edit pages read "New <thing>" / "Edit <thing>". Titles
+  never carry greetings (the profile page is "My profile"; only the dashboard's "Welcome back" is a
+  deliberate greeting). Breadcrumb labels and the page's `document.title` use the same wording.
 - **List screen:** header, a row of filter chips and a search `.sl-input`, then the table inside a
   `.sl-tile`. Rows are 52px with a hairline between them, the header row is `bg-card-2` with small
   slate labels, row actions sit in a trailing "…" menu or icon pills, and statuses are chips. The

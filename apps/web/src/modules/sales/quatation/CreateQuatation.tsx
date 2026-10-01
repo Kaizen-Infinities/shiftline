@@ -1434,7 +1434,7 @@ const QuotationForm: React.FC = () => {
   return (
     <div className="sl-page sl-page-doc">
       <PageHeader
-        title={isEditMode ? "Edit Quotation" : "Create Quotation"}
+        title={isEditMode ? "Edit quotation" : "New quotation"}
         meta={
           watch("quotationNo") ? (
             <Chip size="sm" tone="muted" className="tabular-nums">

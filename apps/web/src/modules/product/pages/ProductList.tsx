@@ -444,7 +444,7 @@ const ProductList: React.FC = () => {
       <div>
         <div className="w-full min-w-0">
           <PageHeader
-            title="Production Product"
+            title="Production products"
             subtitle={`${stats.total} products · finished goods, their bill of materials and machine capacity`}
             icon={<Package size={22} />}
             actions={

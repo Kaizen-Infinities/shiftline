@@ -284,7 +284,7 @@ export const ProfitLossPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Profit & Loss"
+        title="Profit & loss"
         subtitle={`${activeConfig.label} · ${fmtDate(startDate)} to ${fmtDate(endDate)}`}
         icon={<TrendingUp size={20} />}
         actions={

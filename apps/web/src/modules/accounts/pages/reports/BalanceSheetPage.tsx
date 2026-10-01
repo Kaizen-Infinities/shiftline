@@ -412,7 +412,7 @@ const BalanceSheetPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Balance Sheet"
+        title="Balance sheet"
         subtitle={`${activeConfig.label} · as on ${fmtDate(asOnDate)}`}
         icon={<Scale size={20} />}
         actions={

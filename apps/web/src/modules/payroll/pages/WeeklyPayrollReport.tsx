@@ -293,11 +293,11 @@ const WeeklyPayrollReport: React.FC = () => {
         {/* Header */}
         <PageHeader
           className="print:hidden"
-          title="Weekly Payroll Report"
+          title="Weekly payroll report"
           icon={<FileText size={20} />}
           back="/payroll"
           backLabel="Back to payroll"
-          breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Weekly Payroll Report" }]}
+          breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Weekly payroll report" }]}
           subtitle={"No payroll runs found for selected filters."}
           meta={undefined}
           actions={
@@ -552,11 +552,11 @@ const WeeklyPayrollReport: React.FC = () => {
       {/* Header */}
       <PageHeader
         className="print:hidden"
-        title="Weekly Payroll Report"
+        title="Weekly payroll report"
         icon={<FileText size={20} />}
         back="/payroll"
         backLabel="Back to payroll"
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Weekly Payroll Report" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Weekly payroll report" }]}
         subtitle={`${run.runCode} · ${run.period}`}
         meta={<StatusBadge status={run.status} />}
         actions={

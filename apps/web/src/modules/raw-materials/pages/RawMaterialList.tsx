@@ -297,7 +297,7 @@ const RawMaterialList: React.FC = () => {
   return (
     <div className="sl-page min-w-0">
       <PageHeader
-        title="Raw Materials Management"
+        title="Raw materials"
         subtitle={`${stats.total} materials · on hand, reserved for orders and free to issue`}
         icon={<Boxes size={22} />}
         actions={

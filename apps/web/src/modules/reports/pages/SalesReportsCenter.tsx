@@ -344,7 +344,7 @@ const SalesReportsCenter: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Sales Order Report"
+        title="Sales reports"
         subtitle="Sales orders by period, customer, status and dispatch type"
         icon={<TrendingUp size={22} />}
         actions={

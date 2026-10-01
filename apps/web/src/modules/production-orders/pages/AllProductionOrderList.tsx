@@ -263,7 +263,7 @@ const AllProductionOrderList: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Production Order History"
+        title="Order history"
         icon={<History size={22} />}
         subtitle={`Every production order, grouped by order number · ${groupedData.length} order${groupedData.length === 1 ? "" : "s"}`}
         breadcrumbs={[

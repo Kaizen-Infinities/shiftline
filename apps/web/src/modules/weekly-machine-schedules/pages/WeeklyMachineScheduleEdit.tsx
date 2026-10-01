@@ -310,13 +310,13 @@ const WeeklyMachineScheduleEdit: React.FC = () => {
   const uom = currentPo?.uom?.toLowerCase() === "ea" ? "pcs" : currentPo?.uom;
   const header = (
     <PageHeader
-      title="Edit Weekly Assignment"
+      title="Edit weekly schedule"
       subtitle="Update the planned quantity and machine for this week"
       back="/weekly-machine-schedules"
       backLabel="Back to List"
       breadcrumbs={[
         { label: "Weekly schedules", to: "/weekly-machine-schedules" },
-        { label: "Edit assignment" },
+        { label: "Edit weekly schedule" },
       ]}
     />
   );

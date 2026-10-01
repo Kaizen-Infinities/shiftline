@@ -336,7 +336,7 @@ const PaymentVoucherAddPage: React.FC = () => {
         backLabel="Back to payment register"
         breadcrumbs={[
           { label: "Accounts" },
-          { label: "Payment Register", to: "/accounts/payment-voucher" },
+          { label: "Payment vouchers", to: "/accounts/payment-voucher" },
           { label: "New" },
         ]}
         meta={

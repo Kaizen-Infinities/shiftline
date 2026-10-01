@@ -242,7 +242,7 @@ const GoodsDispatchList: React.FC = () => {
     <div>
       <div className="w-full min-w-0">
         <PageHeader
-          title="Goods Dispatch"
+          title="Goods dispatch"
           subtitle="Manage finished goods dispatches to warehouse"
           icon={<Truck size={22} />}
           actions={

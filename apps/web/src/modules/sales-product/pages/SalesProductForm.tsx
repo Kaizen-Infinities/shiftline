@@ -211,7 +211,7 @@ const SalesProductForm: React.FC = () => {
   return (
     <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEditMode ? "Edit Sales Product" : "Create Sales Product"}
+        title={isEditMode ? "Edit sales product" : "New sales product"}
         subtitle="A sellable kit and the production items it is assembled from."
         back="/sales-products"
         backLabel="Back to List"

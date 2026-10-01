@@ -81,10 +81,10 @@ const CurrenciesPage: React.FC = () => {
   return (
     <div className="sl-page">
       <PageHeader
-        title="Currencies and Rates"
+        title="Currencies & rates"
         icon={<Coins size={22} />}
         subtitle="The books are kept in rupees. A foreign invoice converts at the rate published for its date, and that rate stays on the document."
-        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Currencies and Rates" }]}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Currencies & rates" }]}
       />
 
       {can("currencies.edit") && (

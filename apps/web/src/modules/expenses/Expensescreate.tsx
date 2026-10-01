@@ -330,10 +330,10 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
         back={onCancel}
         backLabel="Back to list"
         breadcrumbs={[
-          { label: "Expense Management", to: "/expenses" },
+          { label: "Expenses & claims", to: "/expenses" },
           { label: isEdit ? "Edit" : "New" },
         ]}
-        title={isEdit ? `Edit Expense: ${formData.expenseNumber}` : "Create Expense"}
+        title={isEdit ? `Edit expense: ${formData.expenseNumber}` : "New expense"}
         subtitle="Posted to the expense ledger; TDS is worked out from the section you pick"
       />
       <div className="w-full">
