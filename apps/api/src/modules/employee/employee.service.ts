@@ -5,6 +5,24 @@ import { sendEmail } from "../../utils/mailer";
 import { generateWelcomeEmailHtml } from "../../templates/welcomeEmailTemplate";
 import bcrypt from "bcrypt";
 import { logger } from "../../lib/logger";
+import { safeUserSelect } from "../users/user.select";
+import { entitlementService } from "../entitlements/entitlement.service";
+import { authRepository } from "../auth/auth.repository";
+
+/** Reports whether the caller holds a permission (same rule as requirePermission). */
+export type CanDo = (permission: string) => boolean;
+
+const requirePerm = (can: CanDo, permission: string) => {
+  if (!can(permission)) {
+    throw new ApiError(403, `Access Denied: "${permission}" permission required`);
+  }
+};
+
+/** The role must belong to this tenant (the Prisma client scopes the lookup). */
+const assertRoleInTenant = async (tx: any, roleId: number) => {
+  const role = await tx.role.findFirst({ where: { id: Number(roleId) }, select: { id: true } });
+  if (!role) throw new ApiError(400, "That role does not exist");
+};
 
 class EmployeeService {
   /** Validates a business-place id belongs to this tenant (P2-15) and converts it to a BigInt,
@@ -41,7 +59,7 @@ class EmployeeService {
     }
   }
 
-  async create(data: any) {
+  async create(data: any, can: CanDo) {
     const {
       createLoginAccount,
       loginAccount,
@@ -52,6 +70,8 @@ class EmployeeService {
       businessPlaceId,
       ...employeeData
     } = data;
+
+    if (createLoginAccount || loginAccount) requirePerm(can, "users.create");
 
     employeeData.businessPlaceId = await this.resolveBusinessPlaceId(businessPlaceId);
     await this.assertTenantRefs({
@@ -187,6 +207,10 @@ class EmployeeService {
           throw new ApiError(400, "Username already exists");
         }
 
+        await assertRoleInTenant(tx, loginAccount.roleId);
+        // Plan seats (P1-01), the same check UserService.create makes.
+        await entitlementService.assertSeatAvailable();
+
         const passwordHash = await bcrypt.hash(loginAccount.password, 10);
         await tx.user.create({
           data: {
@@ -211,7 +235,7 @@ class EmployeeService {
       return tx.employee.findUnique({
         where: { id: employee.id },
         include: {
-          user: { include: { role: true } },
+          user: { select: safeUserSelect },
           role: true,
           department: true,
           shift: true,
@@ -232,7 +256,6 @@ class EmployeeService {
             fullName: createdEmployee.fullName,
             empCode: createdEmployee.empCode,
             username: loginAccount.username,
-            password: loginAccount.password,
             title: "Welcome to Shiftline!",
             subtitle: "Your official employee account and login credentials are ready.",
             teamName: "Shiftline HR & IT Team",
@@ -321,7 +344,7 @@ class EmployeeService {
       prisma.employee.findMany({
         where,
         include: {
-          user: { include: { role: true } },
+          user: { select: safeUserSelect },
           role: true,
           department: true,
           shift: true,
@@ -360,7 +383,7 @@ class EmployeeService {
     const employee = await prisma.employee.findUnique({
       where: { id },
       include: {
-        user: { include: { role: true } },
+        user: { select: safeUserSelect },
         role: true,
         department: true,
         shift: true,
@@ -400,7 +423,7 @@ class EmployeeService {
     return empObj;
   }
 
-  async update(id: bigint, data: any) {
+  async update(id: bigint, data: any, can: CanDo) {
     // Check if employee exists
     await this.findById(id);
 
@@ -429,6 +452,7 @@ class EmployeeService {
       employeeData.updatedBy = null;
     }
 
+    let revokeSessionsOf: string | null = null;
     const updatedEmployee = (await prisma.$transaction(async (tx) => {
       // Check unique identity fields against OTHER employees
       if (employeeData.empCode) {
@@ -532,6 +556,10 @@ class EmployeeService {
         });
 
         if (existingUser) {
+          // Changing a linked account is user management, not employee editing (F02).
+          requirePerm(can, "users.edit");
+          await assertRoleInTenant(tx, loginAccount.roleId);
+
           // Update existing user account
           const updateData: any = {
             username: loginAccount.username,
@@ -568,8 +596,19 @@ class EmployeeService {
             where: { userId: existingUser.userId },
             data: updateData,
           });
+
+          // A new password, role, username or status ends the account's live sessions.
+          if (
+            updateData.passwordHash ||
+            updateData.roleId !== existingUser.roleId ||
+            updateData.username !== existingUser.username ||
+            updateData.status !== existingUser.status
+          ) {
+            revokeSessionsOf = existingUser.userId;
+          }
         } else {
           // Create new user account for existing employee
+          requirePerm(can, "users.create");
           if (!loginAccount.password) {
             throw new ApiError(400, "Password is required for creating a login account");
           }
@@ -580,6 +619,10 @@ class EmployeeService {
           if (usernameTaken) {
             throw new ApiError(400, "Username already exists");
           }
+
+          await assertRoleInTenant(tx, loginAccount.roleId);
+          // Plan seats (P1-01), the same check UserService.create makes.
+          await entitlementService.assertSeatAvailable();
 
           const passwordHash = await bcrypt.hash(loginAccount.password, 10);
           await tx.user.create({
@@ -606,13 +649,15 @@ class EmployeeService {
       return tx.employee.findUnique({
         where: { id },
         include: {
-          user: { include: { role: true } },
+          user: { select: safeUserSelect },
           department: true,
           shift: true,
           businessPlace: true,
         },
       });
     }))!;
+
+    if (revokeSessionsOf) await authRepository.logoutAllUserSessions(revokeSessionsOf);
 
     // Send email notification after transaction if login account password was set/updated
     const recipientEmail =
@@ -631,7 +676,6 @@ class EmployeeService {
             fullName: updatedEmployee.fullName,
             empCode: updatedEmployee.empCode,
             username: loginAccount.username,
-            password: loginAccount.password,
             title: "Account Credentials Updated",
             subtitle: "Your login credentials for the Shiftline portal have been updated.",
             teamName: "Shiftline HR & IT Team",

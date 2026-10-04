@@ -8,7 +8,7 @@ import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
 import { uploadToImageKit } from "../../config/imagekit";
 import { logger } from "../../lib/logger";
-import { employeeColumnLimitsSchema } from "./employee.validation";
+import { employeeColumnLimitsSchema, loginAccountSchema } from "./employee.validation";
 
 // ─── Helpers for FormData parsing ────────────────────────────────────────────
 
@@ -155,15 +155,28 @@ function parseEmployeeBody(body: Record<string, any>) {
       try {
         parsed.loginAccount = JSON.parse(la);
       } catch {
-        parsed.loginAccount = null;
+        throw new ApiError(400, "Invalid login account details");
       }
     } else {
       parsed.loginAccount = la;
+    }
+    if (parsed.loginAccount) {
+      const result = loginAccountSchema.safeParse(parsed.loginAccount);
+      if (!result.success) throw new ApiError(400, "Invalid login account details");
+      parsed.loginAccount = result.data;
     }
   }
 
   return parsed;
 }
+
+/** Mirrors requirePermission: Super Admins pass, everyone else needs the exact key. */
+const can = (req: Request) => (permission: string) => {
+  const user = req.user;
+  if (!user) return false;
+  if (user.isSuperAdmin || user.userId?.startsWith("admin_")) return true;
+  return Array.isArray(user.permissions) && user.permissions.includes(permission);
+};
 
 // ─── Controller ───────────────────────────────────────────────────────────────
 
@@ -187,7 +200,7 @@ class EmployeeController {
       }
     }
 
-    const employee = await employeeService.create(data);
+    const employee = await employeeService.create(data, can(req));
 
     emitToTenant("employee:created", employee);
 
@@ -317,7 +330,7 @@ class EmployeeController {
       }
     }
 
-    const employee = await employeeService.update(id, data);
+    const employee = await employeeService.update(id, data, can(req));
 
     emitToTenant("employee:updated", employee);
 
