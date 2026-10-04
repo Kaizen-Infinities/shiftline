@@ -258,13 +258,16 @@ class PaymentsService {
 
       const feeVoucherId = await this.postGatewayFee(tx, capture.id, payment, config.feeLedgerCode);
 
-      const paid = n2(Number(link.amountPaid) + amount);
+      // Atomic increment (no read-modify-write on a pre-transaction snapshot), then the status
+      // is derived from the committed total the increment returns.
+      const bumped = await tx.paymentLink.update({
+        where: { id: link.id },
+        data: { amountPaid: { increment: D(amount) } },
+      });
+      const paid = n2(Number(bumped.amountPaid));
       const status: PaymentLinkStatus =
         paid + 0.009 >= Number(link.amount) ? "PAID" : "PARTIALLY_PAID";
-      await tx.paymentLink.update({
-        where: { id: link.id },
-        data: { amountPaid: D(paid), status },
-      });
+      await tx.paymentLink.update({ where: { id: link.id }, data: { status } });
 
       const row = await tx.paymentCapture.update({
         where: { id: capture.id },
@@ -341,6 +344,9 @@ class PaymentsService {
     capture: { id: string },
     payment: ProviderPayment
   ): Promise<{ salesInvoicePaymentId: string | null; voucherId: string | null }> {
+    // Same per-invoice row lock as a manual receipt (ABUSE-01): the payments JSON is rebuilt from
+    // the locked row, so a gateway capture and a counter receipt cannot overwrite each other.
+    await tx.$queryRaw`SELECT id FROM sales_invoices WHERE id = ${salesInvoiceId}::uuid FOR UPDATE`;
     const invoice = await tx.salesInvoice.findUnique({ where: { id: salesInvoiceId } });
     if (!invoice) return { salesInvoicePaymentId: null, voucherId: null };
 

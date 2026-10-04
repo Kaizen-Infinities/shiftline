@@ -1185,7 +1185,6 @@ class SalesInvoiceService {
     await periodService.assertPostingAllowed(new Date(data.paymentDate), currentUser);
 
     const isForeign = Boolean(invoice.currencyCode && invoice.currencyCode !== BASE_CURRENCY);
-    const existingPayments = extractPaymentsArray(invoice.payments);
     const amount = Math.round(Number(data.amount) * 100) / 100;
 
     // A foreign-currency invoice settles at the day's rate unless one was given explicitly
@@ -1200,79 +1199,96 @@ class SalesInvoiceService {
       );
     }
 
-    // The outstanding balance: in rupees for a rupee invoice; in the invoice's own foreign
-    // currency for a foreign one, since a receipt settling at a different rate than the
-    // invoice was booked at legitimately moves a different rupee figure without over- or
-    // under-collecting the debt itself (that difference is exactly the realised FX gain/loss).
-    let outstandingDisplay: number;
-    if (isForeign) {
-      const bookedRate = Number(invoice.exchangeRate ?? 1) || 1;
-      const foreignAlreadyPaid = existingPayments.reduce((s, p: any) => {
-        const rate = Number(p.settlementRate) > 0 ? Number(p.settlementRate) : bookedRate;
-        return s + (Number(p.amount) || 0) / rate;
-      }, 0);
-      const foreignOutstanding =
-        Math.round((Number(invoice.foreignTotal ?? 0) - foreignAlreadyPaid) * 100) / 100;
-      const rateForThisReceipt = settlementRate ?? bookedRate;
-      const inrCeiling = Math.round(foreignOutstanding * rateForThisReceipt * 100) / 100;
-      outstandingDisplay = inrCeiling;
-      if (amount > inrCeiling + 1) {
-        // Foreign-currency roundings can differ by a few paise per rupee of rate; a rupee of
-        // slack per unit of rate is generous enough to absorb that without hiding a real
-        // over-receipt.
-        throw new ApiError(
-          400,
-          `Receipt exceeds the outstanding balance (₹${Math.max(inrCeiling, 0)}) on invoice ${invoice.invoiceNo}`,
-          "OVER_RECEIPT"
-        );
-      }
-    } else {
-      const alreadyPaid =
-        Math.round(existingPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0) * 100) /
-        100;
-      outstandingDisplay = Math.round((Number(invoice.grandTotal) - alreadyPaid) * 100) / 100;
-      if (amount > outstandingDisplay + 0.01) {
-        throw new ApiError(
-          400,
-          `Receipt of ${amount} exceeds the outstanding balance of ${Math.max(outstandingDisplay, 0)} on invoice ${invoice.invoiceNo}`,
-          "OVER_RECEIPT"
-        );
-      }
-    }
-
-    const methodLabel =
-      data.instrumentType === "CHEQUE"
-        ? "Cheque"
-        : data.instrumentType === "BANK"
-          ? "Bank Transfer"
-          : "Cash";
-
-    const paymentId = crypto.randomUUID();
-    const payment: Record<string, unknown> = {
-      id: paymentId,
-      amount,
-      paymentMethod: methodLabel,
-      referenceNumber: data.referenceNumber ?? null,
-      paymentDate: data.paymentDate,
-      instrumentType: data.instrumentType,
-      recordedBy: currentUser.userId,
-      createdAt: new Date().toISOString(),
-      source: "MANUAL",
-    };
-    if (data.instrumentType === "CHEQUE") {
-      payment.chequeNo = data.chequeNo;
-      payment.chequeDate = data.chequeDate ?? data.paymentDate;
-      payment.chequeBank = data.chequeBank ?? null;
-      payment.chequeParty = data.chequeParty ?? null;
-    }
-    if (settlementRate) payment.settlementRate = settlementRate;
-
-    const allPayments = [...existingPayments, payment];
-    const totalPaid = allPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
-    const fullyPaid = totalPaid >= Number(invoice.grandTotal) - 0.01;
-
     return prisma.$transaction(
       async (tx) => {
+        // ABUSE-01: serialise receipts per invoice. The row lock is taken first, then the invoice
+        // is re-read, so the outstanding check and the payments JSON are computed from the
+        // committed state and two overlapping receipts cannot both pass on a stale snapshot.
+        await tx.$queryRaw`SELECT id FROM sales_invoices WHERE id = ${id}::uuid AND company_id = ${currentUser.companyId}::uuid FOR UPDATE`;
+        const invoice = await tx.salesInvoice.findFirst({
+          where: { id, companyId: currentUser.companyId },
+        });
+        if (!invoice) throw new ApiError(404, "Sales Invoice not found");
+        if (invoice.cancelledAt) {
+          throw new ApiError(
+            409,
+            `Invoice ${invoice.invoiceNo} is cancelled; it cannot record a receipt`,
+            "INVOICE_CANCELLED"
+          );
+        }
+        const existingPayments = extractPaymentsArray(invoice.payments);
+        // The outstanding balance: in rupees for a rupee invoice; in the invoice's own foreign
+        // currency for a foreign one, since a receipt settling at a different rate than the
+        // invoice was booked at legitimately moves a different rupee figure without over- or
+        // under-collecting the debt itself (that difference is exactly the realised FX gain/loss).
+        let outstandingDisplay: number;
+        if (isForeign) {
+          const bookedRate = Number(invoice.exchangeRate ?? 1) || 1;
+          const foreignAlreadyPaid = existingPayments.reduce((s, p: any) => {
+            const rate = Number(p.settlementRate) > 0 ? Number(p.settlementRate) : bookedRate;
+            return s + (Number(p.amount) || 0) / rate;
+          }, 0);
+          const foreignOutstanding =
+            Math.round((Number(invoice.foreignTotal ?? 0) - foreignAlreadyPaid) * 100) / 100;
+          const rateForThisReceipt = settlementRate ?? bookedRate;
+          const inrCeiling = Math.round(foreignOutstanding * rateForThisReceipt * 100) / 100;
+          outstandingDisplay = inrCeiling;
+          if (amount > inrCeiling + 1) {
+            // Foreign-currency roundings can differ by a few paise per rupee of rate; a rupee of
+            // slack per unit of rate is generous enough to absorb that without hiding a real
+            // over-receipt.
+            throw new ApiError(
+              400,
+              `Receipt exceeds the outstanding balance (₹${Math.max(inrCeiling, 0)}) on invoice ${invoice.invoiceNo}`,
+              "OVER_RECEIPT"
+            );
+          }
+        } else {
+          const alreadyPaid =
+            Math.round(
+              existingPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0) * 100
+            ) / 100;
+          outstandingDisplay = Math.round((Number(invoice.grandTotal) - alreadyPaid) * 100) / 100;
+          if (amount > outstandingDisplay + 0.01) {
+            throw new ApiError(
+              400,
+              `Receipt of ${amount} exceeds the outstanding balance of ${Math.max(outstandingDisplay, 0)} on invoice ${invoice.invoiceNo}`,
+              "OVER_RECEIPT"
+            );
+          }
+        }
+
+        const methodLabel =
+          data.instrumentType === "CHEQUE"
+            ? "Cheque"
+            : data.instrumentType === "BANK"
+              ? "Bank Transfer"
+              : "Cash";
+
+        const paymentId = crypto.randomUUID();
+        const payment: Record<string, unknown> = {
+          id: paymentId,
+          amount,
+          paymentMethod: methodLabel,
+          referenceNumber: data.referenceNumber ?? null,
+          paymentDate: data.paymentDate,
+          instrumentType: data.instrumentType,
+          recordedBy: currentUser.userId,
+          createdAt: new Date().toISOString(),
+          source: "MANUAL",
+        };
+        if (data.instrumentType === "CHEQUE") {
+          payment.chequeNo = data.chequeNo;
+          payment.chequeDate = data.chequeDate ?? data.paymentDate;
+          payment.chequeBank = data.chequeBank ?? null;
+          payment.chequeParty = data.chequeParty ?? null;
+        }
+        if (settlementRate) payment.settlementRate = settlementRate;
+
+        const allPayments = [...existingPayments, payment];
+        const totalPaid = allPayments.reduce((s, p: any) => s + (Number(p.amount) || 0), 0);
+        const fullyPaid = totalPaid >= Number(invoice.grandTotal) - 0.01;
+
         await tx.salesInvoice.update({
           where: { id },
           data: {
