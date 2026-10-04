@@ -1,3 +1,5 @@
+import { escapeHtml } from "../utils/escapeHtml";
+
 /**
  * Estimate template — matches the exact monospace/plain-text style PDF.
  * Layout: E s t i m a t e header, dashed separators, fixed-width columns.
@@ -112,14 +114,18 @@ export const generateEstimateHtml = (order: any, company: any): string => {
             : `No. Of Bundles : 1`,
     ];
 
-    const body = lines.join("\n");
+    // Escape each assembled line (padding is already applied), then bold the Grand Total line.
+    // Done on the server: the PDF renderer runs with JavaScript disabled.
+    const bodyHtml = lines
+        .map((l) => (l.includes("Grand Total") ? `<strong>${escapeHtml(l)}</strong>` : escapeHtml(l)))
+        .join("\n");
 
     const companyBlock = company?.companyName ? `
 <div style="text-align:center;margin-bottom:10px;font-size:13px;line-height:1.7;">
-  <div style="font-size:16px;font-weight:bold;">${company.companyName}</div>
-  ${[company.addressLine1, company.city, company.state, company.zipcode].filter(Boolean).join(", ")}
-  ${company.phone ? `<br/>Ph: ${company.phone}` : ""}
-  ${company.gstin ? `<br/>GSTIN: ${company.gstin}` : ""}
+  <div style="font-size:16px;font-weight:bold;">${escapeHtml(company.companyName)}</div>
+  ${escapeHtml([company.addressLine1, company.city, company.state, company.zipcode].filter(Boolean).join(", "))}
+  ${company.phone ? `<br/>Ph: ${escapeHtml(company.phone)}` : ""}
+  ${company.gstin ? `<br/>GSTIN: ${escapeHtml(company.gstin)}` : ""}
 </div>` : "";
 
     return `<!DOCTYPE html>
@@ -150,29 +156,14 @@ export const generateEstimateHtml = (order: any, company: any): string => {
     color: #000;
     line-height: 1.55;
   }
-  .grand {
-    /* bold the Grand Total line via JS injection below */
-  }
 </style>
 </head>
 <body>
 <div class="page">
   ${companyBlock}
   <div class="title">E s t i m a t e</div>
-  <pre id="body"></pre>
+  <pre id="body">${bodyHtml}</pre>
 </div>
-<script>
-  const raw = ${JSON.stringify(body)};
-  const el  = document.getElementById("body");
-  // Bold the Grand Total line
-  const lines = raw.split("\\n").map(l => {
-    if (l.includes("Grand Total")) {
-      return "<strong>" + l.replace(/</g,"&lt;") + "</strong>";
-    }
-    return l.replace(/</g,"&lt;");
-  });
-  el.innerHTML = lines.join("\\n");
-</script>
 </body>
 </html>`;
 };

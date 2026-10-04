@@ -1,3 +1,5 @@
+import { escapeHtml as e, safeUrl } from "../utils/escapeHtml";
+import { DOCUMENT_CSS } from "./documentCss";
 export interface InvoicePrintExtras {
   /** IRN block (P1-11); absent when the document has no e-invoice. */
   eInvoice?: {
@@ -222,7 +224,7 @@ export const generateInvoiceHtml = (
     let taxHtml = "";
     if (isInterState) {
       taxHtml = `
-                <td class="border border-black px-2 py-1 align-middle text-center">${item.igstRate}%</td>
+                <td class="border border-black px-2 py-1 align-middle text-center">${e(item.igstRate)}%</td>
                 <td class="border border-black px-2 py-1 align-middle text-right">${item.igstAmount.toFixed(2)}</td>
             `;
     } else {
@@ -236,9 +238,9 @@ export const generateInvoiceHtml = (
     itemsHtml += `
             <tr>
                 <td class="border border-black px-2 py-1 align-middle text-center">${idx + 1}.</td>
-                <td class="border border-black px-2 py-1 align-middle text-left">${item.description || item.product?.productName || "N/A"}</td>
-                <td class="border border-black px-2 py-1 align-middle text-right">${item.qty}</td>
-                <td class="border border-black px-2 py-1 align-middle text-center">${item.unit}</td>
+                <td class="border border-black px-2 py-1 align-middle text-left">${e(item.description || item.product?.productName || "N/A")}</td>
+                <td class="border border-black px-2 py-1 align-middle text-right">${e(item.qty)}</td>
+                <td class="border border-black px-2 py-1 align-middle text-center">${e(item.unit)}</td>
                 <td class="border border-black px-2 py-1 align-middle text-right">${item.rate.toFixed(2)}</td>
                 ${taxHtml}
                 <td class="border border-black px-2 py-1 align-middle text-right">${item.amount.toFixed(2)}</td>
@@ -302,27 +304,23 @@ export const generateInvoiceHtml = (
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdn.tailwindcss.com"></script>
-        <style>
-            body { font-family: sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .border-collapse { border-collapse: collapse; }
-        </style>
+        <style>${DOCUMENT_CSS}</style>
     </head>
     <body class="bg-white text-black p-8">
         <div class="max-w-[800px] mx-auto font-[Arial,sans-serif] border-[1.5px] border-black box-border text-[14px] font-medium">
             <!-- Top bar -->
             <div class="flex justify-between items-center px-3 pt-2 text-[13px] font-semibold">
-                <div>GSTIN : ${company?.gstin || "-"}</div>
+                <div>GSTIN : ${e(company?.gstin || "-")}</div>
                 <div class="italic">Triplicate Copy</div>
             </div>
             ${
               eInv
                 ? `<div class="flex justify-between items-start gap-3 px-3 pt-1 pb-2 text-[11px] border-b-[1.5px] border-black">
                 <div class="space-y-0.5 break-all">
-                    <div><span class="font-bold">IRN</span> : ${eInv.irn}${eInv.cancelled ? ' <span class="font-bold text-red-700">(CANCELLED)</span>' : ""}</div>
-                    <div><span class="font-bold">Ack No.</span> : ${eInv.ackNo || "-"} &nbsp; <span class="font-bold">Ack Date</span> : ${eInv.ackDate || "-"}</div>
+                    <div><span class="font-bold">IRN</span> : ${e(eInv.irn)}${eInv.cancelled ? ' <span class="font-bold text-red-700">(CANCELLED)</span>' : ""}</div>
+                    <div><span class="font-bold">Ack No.</span> : ${e(eInv.ackNo || "-")} &nbsp; <span class="font-bold">Ack Date</span> : ${e(eInv.ackDate || "-")}</div>
                 </div>
-                <img src="${eInv.qrDataUrl}" alt="e-invoice QR" width="96" height="96" class="shrink-0" />
+                <img src="${safeUrl(eInv.qrDataUrl)}" alt="e-invoice QR" width="96" height="96" class="shrink-0" />
             </div>`
                 : ""
             }
@@ -331,32 +329,32 @@ export const generateInvoiceHtml = (
             <div class="text-center border-b-[1.5px] border-black px-3 pb-2">
                 <div class="text-sm uppercase font-bold tracking-[2px]">Tax Invoice</div>
                 <h1 class="text-2xl font-extrabold m-0 tracking-[1px] mt-1">
-                    ${company?.legalName || company?.companyName || "Company Name"}
+                    ${e(company?.legalName || company?.companyName || "Company Name")}
                 </h1>
                 <div class="text-[13px] mt-1">
-                    ${company?.addressLine1 || ""}
-                    ${company?.city ? `, ${company.city}` : ""}
-                    ${company?.state ? `, ${company.state}` : ""}
-                    ${company?.pincode ? ` - ${company.pincode}` : ""}
+                    ${e(company?.addressLine1 || "")}
+                    ${company?.city ? `, ${e(company.city)}` : ""}
+                    ${company?.state ? `, ${e(company.state)}` : ""}
+                    ${company?.pincode ? ` - ${e(company.pincode)}` : ""}
                 </div>
             </div>
 
             <!-- Invoice meta block -->
             <div class="flex border-b-[1.5px] border-black">
                 <div class="flex-1 border-r-[1.5px] border-black p-2 space-y-1">
-                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Invoice No.</span><span>: ${invoice.invoiceNo}</span></div>
+                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Invoice No.</span><span>: ${e(invoice.invoiceNo)}</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">Dated</span><span>: ${formatDate(invoice.invoiceDate)}</span></div>
-                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Place of Supply</span><span>: ${customerState || "-"}</span></div>
+                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Place of Supply</span><span>: ${e(customerState || "-")}</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">Due Date</span><span>: ${formatDate(invoice.dueDate)}</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">Reverse Charge</span><span>: N</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">GR/RR No</span><span>: </span></div>
                 </div>
                 <div class="flex-1 p-2 space-y-1">
-                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Transport</span><span>: ${invoice.salesOrder?.transportName || "—"}</span></div>
+                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Transport</span><span>: ${e(invoice.salesOrder?.transportName || "—")}</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">Vehicle No</span><span>: —</span></div>
-                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Station</span><span>: ${getTransportStation(invoice.customer, invoice.salesOrder?.transportName)}</span></div>
+                    <div class="flex text-[13px]"><span class="w-[110px] font-bold">Station</span><span>: ${e(getTransportStation(invoice.customer, invoice.salesOrder?.transportName))}</span></div>
                     <div class="flex text-[13px]"><span class="w-[110px] font-bold">E-way Bill no</span><span>: —</span></div>
-                    ${invoice.salesOrder?.orderNo ? `<div class="flex text-[13px]"><span class="w-[110px] font-bold">Ref. Order No.</span><span>: ${invoice.salesOrder.orderNo}</span></div>` : ""}
+                    ${invoice.salesOrder?.orderNo ? `<div class="flex text-[13px]"><span class="w-[110px] font-bold">Ref. Order No.</span><span>: ${e(invoice.salesOrder.orderNo)}</span></div>` : ""}
                 </div>
             </div>
 
@@ -364,19 +362,19 @@ export const generateInvoiceHtml = (
             <div class="flex border-b-[1.5px] border-black">
                 <div class="flex-1 border-r-[1.5px] border-black p-2">
                     <div class="font-bold mb-1">Billed to :</div>
-                    <div class="font-semibold">${invoice.customer?.displayName || invoice.customer?.firmName || "N/A"}</div>
+                    <div class="font-semibold">${e(invoice.customer?.displayName || invoice.customer?.firmName || "N/A")}</div>
                     <div class="font-semibold">
-                        ${invoice.customer?.addresses?.[0]?.address?.addressLine1 || ""}<br />
-                        ${invoice.customer?.addresses?.[0]?.address?.city || ""}, ${invoice.customer?.addresses?.[0]?.address?.state || ""} - ${invoice.customer?.addresses?.[0]?.address?.pincode || ""}
+                        ${e(invoice.customer?.addresses?.[0]?.address?.addressLine1 || "")}<br />
+                        ${e(invoice.customer?.addresses?.[0]?.address?.city || "")}, ${e(invoice.customer?.addresses?.[0]?.address?.state || "")} - ${e(invoice.customer?.addresses?.[0]?.address?.pincode || "")}
                     </div>
-                    ${invoice.customer?.gstin ? `<div class="mt-1">GSTIN / UIN : ${invoice.customer.gstin}</div>` : ""}
+                    ${invoice.customer?.gstin ? `<div class="mt-1">GSTIN / UIN : ${e(invoice.customer.gstin)}</div>` : ""}
                 </div>
                 <div class="flex-1 p-2">
                     <div class="font-bold mb-1">Shipped to :</div>
-                    <div class="font-semibold">${invoice.customer?.displayName || invoice.customer?.firmName || "N/A"}</div>
+                    <div class="font-semibold">${e(invoice.customer?.displayName || invoice.customer?.firmName || "N/A")}</div>
                     <div class="font-semibold">
-                        ${invoice.salesOrder?.shippingAddressLine1 || invoice.customer?.addresses?.[0]?.address?.addressLine1 || ""}<br />
-                        ${invoice.salesOrder?.shippingCity || invoice.customer?.addresses?.[0]?.address?.city || ""}, ${invoice.salesOrder?.shippingState || invoice.customer?.addresses?.[0]?.address?.state || ""} - ${invoice.salesOrder?.shippingPincode || invoice.customer?.addresses?.[0]?.address?.pincode || ""}
+                        ${e(invoice.salesOrder?.shippingAddressLine1 || invoice.customer?.addresses?.[0]?.address?.addressLine1 || "")}<br />
+                        ${e(invoice.salesOrder?.shippingCity || invoice.customer?.addresses?.[0]?.address?.city || "")}, ${e(invoice.salesOrder?.shippingState || invoice.customer?.addresses?.[0]?.address?.state || "")} - ${e(invoice.salesOrder?.shippingPincode || invoice.customer?.addresses?.[0]?.address?.pincode || "")}
                     </div>
                 </div>
             </div>
@@ -415,7 +413,7 @@ export const generateInvoiceHtml = (
                         ? `
                     <tr>
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px] text-red-600">
-                            Discount ${discountValue > 0 ? `(${discountValue}${discountType === "PERCENT" ? "%" : " Flat"})` : ""} (-)
+                            Discount ${discountValue > 0 ? `(${e(discountValue)}${discountType === "PERCENT" ? "%" : " Flat"})` : ""} (-)
                         </td>
                         <td class="border border-black px-2 py-1 text-right text-[13px] text-red-600">- ${formatMoney(invoiceDiscount)}</td>
                     </tr>
@@ -452,7 +450,7 @@ export const generateInvoiceHtml = (
                         (cr) => `
                     <tr>
                         <td colspan="${isInterState ? 7 : 9}" class="border border-black px-2 py-1 text-right text-[13px]">
-                            ${cr.label} ${cr.sign === 1 ? "(+)" : "(-)"}
+                            ${e(cr.label)} ${cr.sign === 1 ? "(+)" : "(-)"}
                         </td>
                         <td class="border border-black px-2 py-1 text-right text-[13px]">
                             ${cr.sign === 1 ? "+" : "-"}&nbsp;${formatMoney(cr.amount)}
@@ -477,13 +475,13 @@ export const generateInvoiceHtml = (
 
             <!-- Bank details -->
             <div class="px-2 py-2 border-t border-black text-[13px]">
-                <span class="font-bold">Bank Details :</span> BANK NAME : ${company?.bankName || "BANK OF BARODA"}
-                &nbsp;&nbsp; BRANCH : ${company?.bankBranch || "PALGHAR BRANCH"} <br />
-                A/c No : ${company?.bankAccountNo || "123456789012"} &nbsp;&nbsp; IFSC CODE : ${company?.bankIfsc || "BARB0PALGHA"}
+                <span class="font-bold">Bank Details :</span> BANK NAME : ${e(company?.bankName || "BANK OF BARODA")}
+                &nbsp;&nbsp; BRANCH : ${e(company?.bankBranch || "PALGHAR BRANCH")} <br />
+                A/c No : ${e(company?.bankAccountNo || "123456789012")} &nbsp;&nbsp; IFSC CODE : ${e(company?.bankIfsc || "BARB0PALGHA")}
             </div>
 
             <!-- Notes -->
-            ${invoice.notes ? `<div class="px-2 py-2 border-t border-black text-[13px]"><span class="font-bold">Notes :</span> ${invoice.notes}</div>` : ""}
+            ${invoice.notes ? `<div class="px-2 py-2 border-t border-black text-[13px]"><span class="font-bold">Notes :</span> ${e(invoice.notes)}</div>` : ""}
 
             <!-- Footer: Terms + Signature -->
             <div class="flex border-t-[1.5px] border-black text-[13px]">
@@ -496,7 +494,7 @@ export const generateInvoiceHtml = (
                 <div class="flex-1 p-2 flex flex-col justify-between">
                     <div class="font-bold">Receiver's Signature :</div>
                     <div class="text-right font-bold mt-6">
-                        For ${company?.legalName || company?.companyName || "Company"}
+                        For ${e(company?.legalName || company?.companyName || "Company")}
                     </div>
                 </div>
             </div>
