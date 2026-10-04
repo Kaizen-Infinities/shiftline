@@ -5,19 +5,24 @@
 Multi-tenant ERP SaaS for Indian secondary-sector manufacturers. npm-workspaces
 monorepo: `apps/api` (Express 5, Prisma 6, PostgreSQL, pg-boss), `apps/web`
 (React 19, Vite, Redux Toolkit, Tailwind), `packages/*` shared code. Runs locally
-on Docker compose; CI on GitHub Actions. No hosting yet.
+on Docker compose; hosted at https://shiftline.apps.kaizeninfinities.com on a single-node
+kind cluster (`docs/runbooks/hosting.md`); CI on GitHub Actions.
 
 ## Start of every session
 
-1. Read the newest file in `docs/handoff/`.
+1. Read `docs/STATUS.md` (and `docs/AS-BUILT.md` for what is live), then the newest note in
+   `docs/handoff/` if any.
 2. Read the spec for the package you are working on in `docs/specs/`.
 3. `npm install && npm run typecheck` must be green before you change anything.
+
+New work packages come from `docs/ROADMAP.md` with `R-xx` ids; ignore `docs/archive/` unless asked.
 
 ## Loop for every work package
 
 Spec (half a page, `docs/specs/<id>.md`) → schema + failing tests → implement →
 verify on the running stack (screenshot in the PR) → self-review for tenancy,
-input leaks, secrets, error text → human review and merge → hand-off note.
+input leaks, secrets, error text → human review and merge → hand-off note, then update
+`docs/STATUS.md` and `docs/ROADMAP.md`.
 
 ## Definition of done
 

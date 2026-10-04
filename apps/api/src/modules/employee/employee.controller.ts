@@ -8,6 +8,7 @@ import { ApiError } from "../../utils/ApiError";
 import { emitToTenant } from "../../lib/realtime";
 import { uploadToImageKit } from "../../config/imagekit";
 import { logger } from "../../lib/logger";
+import { employeeColumnLimitsSchema } from "./employee.validation";
 
 // ─── Helpers for FormData parsing ────────────────────────────────────────────
 
@@ -169,6 +170,7 @@ function parseEmployeeBody(body: Record<string, any>) {
 class EmployeeController {
   create = asyncHandler(async (req: Request, res: Response) => {
     const data = parseEmployeeBody(req.body);
+    employeeColumnLimitsSchema.parse(data);
 
     // Upload profile photo to ImageKit if provided
     if (req.file?.buffer) {
@@ -299,6 +301,7 @@ class EmployeeController {
   update = asyncHandler(async (req: Request, res: Response) => {
     const id = BigInt(String(req.params.id));
     const data = parseEmployeeBody(req.body);
+    employeeColumnLimitsSchema.parse(data);
 
     // Upload new profile photo to ImageKit if provided
     if (req.file?.buffer) {

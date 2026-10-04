@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
-import { LedgerType, VoucherType } from "@prisma/client";
+import { VoucherType } from "@prisma/client";
+import { bankCashLedgerWhere, isCashLedger } from "../accounts/bank-cash-ledgers";
+import { getISTDayStartUtc } from "../../utils/dateUtils";
 import { getTvSummary } from "./dashboard.tv.service";
 import { logger } from "../../lib/logger";
 
@@ -72,6 +74,7 @@ const dashboardController = {
               producedQty: true,
               createdAt: true,
               orderDate: true,
+              dueDate: true,
               productItem: { select: { productName: true } },
             },
             orderBy: { createdAt: "desc" },
@@ -234,10 +237,9 @@ const dashboardController = {
 
   getAccountsSummary: async (req: Request, res: Response) => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // IST calendar day, whatever timezone the server runs in.
+      const today = getISTDayStartUtc();
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
       // ─── Period filter ────────────────────────────────────────────
       const period = (req.query.period as string) || "year";
@@ -254,14 +256,6 @@ const dashboardController = {
         periodStart = new Date(now.getFullYear(), 0, 1);
       }
       const periodEnd = now;
-
-      const bankGroups = [
-        "Cash & Bank",
-        "Bank Accounts",
-        "Cash in Hand",
-        "BANK ACCOUNTS",
-        "CASH IN HAND",
-      ];
 
       // Fetch all data in ONE transaction — shares 1 pool connection instead of 20+
       const {
@@ -289,12 +283,14 @@ const dashboardController = {
           draftVouchers,
         ] = await Promise.all([
           tx.accountLedger.findMany({
-            where: {
-              type: LedgerType.ASSET,
-              group: { in: bankGroups, mode: "insensitive" },
-              isActive: true,
+            where: bankCashLedgerWhere,
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              group: true,
+              ledgerGroup: { select: { code: true } },
             },
-            select: { id: true, code: true, name: true, group: true },
           }),
           tx.accountLedger.findMany({
             where: { customerId: { not: null } },
@@ -429,23 +425,13 @@ const dashboardController = {
       );
 
       // ─── Bank & Cash aggregation ─────────────────────────────
-      const isCashAccount = (group: string, name: string) => {
-        const g = (group || "").toLowerCase().trim();
-        if (g === "cash in hand" || g === "cash") return true;
-        // For legacy "Cash & Bank" group, check the account name
-        if (g === "cash & bank") {
-          const n = (name || "").toLowerCase();
-          return n.includes("cash") && !n.includes("bank");
-        }
-        return false;
-      };
       let totalBankBalance = 0;
       let totalCashInHand = 0;
       let cashAccountCount = 0;
       let bankAccountCount = 0;
       for (const l of bankLedgers) {
         const balance = (debitMap.get(l.id) || 0) - (creditMap.get(l.id) || 0);
-        if (isCashAccount(l.group || "", l.name || "")) {
+        if (isCashLedger(l)) {
           totalCashInHand += balance;
           cashAccountCount++;
         } else {
@@ -607,15 +593,20 @@ const dashboardController = {
           link: "/raw-materials",
         });
       }
-      const negativeBankAccounts = bankLedgers.filter((l) => {
-        const bal = (debitMap.get(l.id) || 0) - (creditMap.get(l.id) || 0);
-        return bal < 0;
-      });
+      // Same ledgers and same debit-minus-credit balance as the cash and bank tiles above, so the
+      // alert and the tiles cannot disagree. A ledger counts as overdrawn below a paisa.
+      const negativeBankAccounts = bankLedgers
+        .map((l) => ({ l, bal: (debitMap.get(l.id) || 0) - (creditMap.get(l.id) || 0) }))
+        .filter((x) => x.bal < -0.005);
       if (negativeBankAccounts.length > 0) {
         alerts.push({
           level: "warn",
           message: `${negativeBankAccounts.length} bank/cash account${negativeBankAccounts.length > 1 ? "s show" : " shows"} negative balance — check entries`,
           link: "/accounts/bank-accounts",
+          details: negativeBankAccounts.map((x) => ({
+            name: x.l.name,
+            amount: `-${fmtINR(Math.abs(x.bal))}`,
+          })),
         });
       }
 
@@ -640,6 +631,7 @@ const dashboardController = {
           cashBankAccountCount: bankLedgers.length,
           cashAccountCount,
           bankAccountCount,
+          negativeCashBankCount: negativeBankAccounts.length,
           stockValue,
           stockItemCount,
           // Extras

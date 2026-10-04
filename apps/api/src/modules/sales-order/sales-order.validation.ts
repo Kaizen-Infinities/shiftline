@@ -82,6 +82,11 @@ export const addressSchema = z.object({
 }).passthrough();
 export type Address = z.infer<typeof addressSchema>;
 
+/** Order ids are 32-bit integers; "1.5", "1e99" or a huge number is a client error, not a 500. */
+const salesOrderIdParam = z
+    .string()
+    .regex(/^\d{1,9}$/, "Sales order ID must be a valid number");
+
 /**
  * Sales Order Item Input (shared shape used inside create/update body)
  * Includes optional GST fields — only used when the role has sales-orders.view-gst permission.
@@ -91,14 +96,18 @@ const salesOrderItemInputSchema = z.object({
         .refine((val) => !isNaN(Number(val)), "Product ID must be a valid number"),
     salesProductId: z.union([z.string(), z.number()]).optional().nullable()
         .transform((val) => (val != null && val !== "" && !isNaN(Number(val)) ? Number(val) : null)),
+    // quantity is Decimal(14,3) and prices Decimal(14,2): keep inputs inside the columns.
     quantity: z.union([z.number(), z.string()])
         .transform(Number)
-        .refine((val) => Number.isFinite(val) && val > 0, "Quantity must be a valid positive number"),
+        .refine((val) => Number.isFinite(val) && val > 0, "Quantity must be a valid positive number")
+        .refine((val) => val < 1e10, "Quantity is too large"),
     // Manually entered unit price (overrides grade-based pricing when present)
     unitPrice: z.union([z.number(), z.string()]).optional().nullable()
-        .transform((val) => (val != null && val !== "" && !isNaN(Number(val)) && Number(val) > 0 ? Number(val) : undefined)),
+        .transform((val) => (val != null && val !== "" && !isNaN(Number(val)) && Number(val) > 0 ? Number(val) : undefined))
+        .refine((val) => val === undefined || val < 1e11, "Unit price is too large"),
     quotationUnitPrice: z.union([z.number(), z.string()]).optional().nullable()
-        .transform((val) => (val != null && val !== "" && !isNaN(Number(val)) && Number(val) > 0 ? Number(val) : undefined)),
+        .transform((val) => (val != null && val !== "" && !isNaN(Number(val)) && Number(val) > 0 ? Number(val) : undefined))
+        .refine((val) => val === undefined || val < 1e11, "Unit price is too large"),
     // GST fields (optional — stored in sales_order_items)
     cgstRate: z.number().min(0).max(100).optional().nullable(),
     sgstRate: z.number().min(0).max(100).optional().nullable(),
@@ -114,11 +123,11 @@ const salesOrderBodyShape = z.object({
     orderDate: z.string().min(1, "Order date is required")
         .refine((val) => !isNaN(Date.parse(val)), "Invalid order date"),
     customerId: z.string().uuid("Customer ID must be a valid UUID"),
-    mobile: z.string().optional().nullable().transform((val) => (val && val.trim() !== "" ? val : null)),
+    mobile: z.string().max(20, "Mobile must be at most 20 characters").optional().nullable().transform((val) => (val && val.trim() !== "" ? val : null)),
     isInterState: z.boolean().default(false).optional(),
     orderType: z.union([OrderTypeEnum, z.literal(""), z.null()]).optional().transform((val) => (val && val.trim() !== "" ? (val as any) : undefined)),
-    referenceText: z.string().optional().nullable().transform((val) => (val && val.trim() !== "" ? val : null)),
-    salesPersonName: z.string().optional().nullable().transform((val) => (val && val.trim() !== "" ? val : null)),
+    referenceText: z.string().max(255, "Reference text must be at most 255 characters").optional().nullable().transform((val) => (val && val.trim() !== "" ? val : null)),
+    salesPersonName: z.string().max(100, "Sales person name must be at most 100 characters").optional().nullable().transform((val) => (val && val.trim() !== "" ? val : null)),
     // New Order Source fields
     orderSource: z.union([OrderSourceEnum, z.literal(""), z.null()]).optional()
         .transform((val) => (val && val.trim() !== "" ? (val as any) : null)),
@@ -126,14 +135,14 @@ const salesOrderBodyShape = z.object({
         .transform((val) => (val != null && val !== "" && !isNaN(Number(val)) ? BigInt(Number(val)) : null)),
     referredByCustomerId: z.string().uuid().optional().nullable()
         .transform((val) => (val && val.trim() !== "" ? val : null)),
-    referredByName: z.string().optional().nullable()
+    referredByName: z.string().max(100, "Referred-by name must be at most 100 characters").optional().nullable()
         .transform((val) => (val && val.trim() !== "" ? val : null)),
     status: SalesOrderStatusEnum.default("DRAFT"),
     narration: z.string().max(1000, "Narration must be less than 1000 characters").optional().nullable(),
     createdBy: z.string().min(1).max(36).optional().nullable(),
     // Order-level discount (from the quotation form)
     orderDiscountType: DiscountTypeEnum.optional().nullable(),
-    orderDiscountValue: z.coerce.number().min(0).optional().nullable(),
+    orderDiscountValue: z.coerce.number().min(0).max(1e11, "Discount is too large").optional().nullable(),
     billSundry: z.any().optional().nullable(),
     items: z.array(salesOrderItemInputSchema).min(1, "At least one item is required"),
 });
@@ -194,8 +203,7 @@ export const updateSalesOrderSchema = z.object({
         // status back to DRAFT when only items/discount are being changed.
         .extend({ status: SalesOrderStatusEnum.optional() }),
     params: z.object({
-        id: z.string().or(z.number())
-            .refine((val) => !isNaN(Number(val)), "Sales order ID must be a valid number"),
+        id: salesOrderIdParam,
     }),
 });
 
@@ -204,10 +212,7 @@ export const updateSalesOrderSchema = z.object({
  */
 export const salesOrderIdSchema = z.object({
     params: z.object({
-        id: z
-            .string()
-            .or(z.number())
-            .refine((val) => !isNaN(Number(val)), "Sales order ID must be a valid number"),
+        id: salesOrderIdParam,
     })
 });
 

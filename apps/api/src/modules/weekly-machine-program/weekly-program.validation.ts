@@ -11,12 +11,12 @@ export const createWeeklyProgramSchema = z.object({
     weeklyProgramId: z
       .string()
       .min(1, "Weekly Program ID is required")
-      .max(50),
+      .max(20),
 
     productionOrderId: z
       .string()
       .min(1, "Production Order is required")
-      .max(50),
+      .max(20),
 
     weekStartDate: z
       .string()
@@ -28,13 +28,13 @@ export const createWeeklyProgramSchema = z.object({
 
     machineId: z
       .string()
-      .max(50)
+      .max(20)
       .optional()
       .nullable(),
 
     shiftId: z
       .string()
-      .max(50)
+      .max(20)
       .optional()
       .nullable(),
 
@@ -99,7 +99,7 @@ export const updateWeeklyProgramSchema = z.object({
   body: z.object({
     productionOrderId: z
       .string()
-      .max(50)
+      .max(20)
       .optional(),
 
     weekStartDate: z
@@ -114,13 +114,13 @@ export const updateWeeklyProgramSchema = z.object({
 
     machineId: z
       .string()
-      .max(50)
+      .max(20)
       .optional()
       .nullable(),
 
     shiftId: z
       .string()
-      .max(50)
+      .max(20)
       .optional()
       .nullable(),
 

@@ -125,6 +125,8 @@ export interface UseDetailCacheResult<T> {
   loading: boolean;
   /** True during silent background revalidation */
   refreshing: boolean;
+  /** True once every attempt has failed; cleared by the next success or retry. */
+  error: boolean;
   refresh: () => void;
 }
 
@@ -142,6 +144,7 @@ export function useDetailCache<T = any>({
   const [data, setData] = useState<T | null>(hit?.data ?? null);
   const [loading, setLoading] = useState<boolean>(!hit);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<boolean>(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const { socket } = useSocket();
@@ -171,6 +174,7 @@ export function useDetailCache<T = any>({
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
+      let retryScheduled = false;
       const key = cacheKeyRef.current;
       const hasCached = detailCache.has(key) || !!sessionStorage.getItem(SESSION_PREFIX + key);
 
@@ -195,15 +199,20 @@ export function useDetailCache<T = any>({
         if (ctrl.signal.aborted) return;
         write(key, result);
         setData(result);
+        setError(false);
       } catch (err: any) {
         if (ctrl.signal.aborted) return;
         if (attempt < maxRetries) {
+          retryScheduled = true;
           setTimeout(() => doFetch(true, attempt + 1), Math.min(1000 * 2 ** attempt, 8000));
           return;
         }
+        setError(true);
         console.error(`[useDetailCache] "${cacheKeyRef.current}" failed:`, err?.message ?? err);
       } finally {
-        if (!ctrl.signal.aborted) {
+        // While a retry is queued the first load is still in progress; only the last
+        // attempt ends it, so a failed load shows the error state rather than an empty form.
+        if (!ctrl.signal.aborted && !retryScheduled) {
           setLoading(false);
           setRefreshing(false);
         }
@@ -272,6 +281,7 @@ export function useDetailCache<T = any>({
 
   const refresh = useCallback(() => {
     del(cacheKeyRef.current);
+    setError(false);
     doFetch(false);
   }, [doFetch]);
 
@@ -287,7 +297,7 @@ export function useDetailCache<T = any>({
     return subscribeDetail(cacheKey, onCacheMutated);
   }, [cacheKey]);
 
-  return { data, loading, refreshing, refresh };
+  return { data, loading, refreshing, error, refresh };
 }
 
 // ─── useModalDetail ───────────────────────────────────────────────────────────

@@ -101,6 +101,7 @@ exports[`route inventory > lists every mounted route (snapshot doubles as docume
   "POST /api/auth/register",
   "GET /api/auth/sessions",
   "GET /api/banking/accounts",
+  "POST /api/banking/accounts",
   "POST /api/banking/auto-match",
   "GET /api/banking/brs",
   "GET /api/banking/cheques",

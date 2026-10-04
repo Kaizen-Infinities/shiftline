@@ -5,10 +5,11 @@
 export const inrCompact = (v: number | null | undefined): string => {
   const n = Number(v || 0);
   const a = Math.abs(n);
-  if (a >= 1e7) return `₹${(n / 1e7).toFixed(2)}Cr`;
-  if (a >= 1e5) return `₹${(n / 1e5).toFixed(2)}L`;
-  if (a >= 1e3) return `₹${Math.round(n).toLocaleString("en-IN")}`;
-  return `₹${n.toFixed(0)}`;
+  const sign = n < 0 ? "-" : "";
+  if (a >= 1e7) return `${sign}₹${(a / 1e7).toFixed(2)}Cr`;
+  if (a >= 1e5) return `${sign}₹${(a / 1e5).toFixed(2)}L`;
+  if (a >= 1e3) return `${sign}₹${Math.round(a).toLocaleString("en-IN")}`;
+  return `${sign}₹${a.toFixed(0)}`;
 };
 
 export const minutesLabel = (m: number): string => {

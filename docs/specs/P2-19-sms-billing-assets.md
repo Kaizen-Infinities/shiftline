@@ -2,7 +2,7 @@
 
 ## Why
 
-`docs/handoff/2026-09-14-P2-01-scheduled-work.md` built the queued SMS path and the scheduled
+`docs/archive/handoff/2026-09-14-P2-01-scheduled-work.md` built the queued SMS path and the scheduled
 billing sweep but left both half-finished: nothing ever calls `sendTemplateQueued` for a payment
 link or a capture, and the sweep has no way to bill a tenant a hand-negotiated price. `P2-07`'s
 own follow-up list is missing a test for capitalising an expense, a downloadable opening-import

@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { ChipTabs, PageHeader } from "../../../components/ui/v2";
+import { ChipTabs, LoadError, PageHeader } from "../../../components/ui/v2";
 import { MessageSquare } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
@@ -44,20 +44,34 @@ const SmsPage: React.FC = () => {
   const [messages, setMessages] = useState<SmsMessageRow[]>([]);
   const [settings, setSettings] = useState<SmsSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadSeq = useRef(0);
   const [busy, setBusy] = useState(false);
   const [authKey, setAuthKey] = useState("");
   const [dltEdits, setDltEdits] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
+    // Only the newest request may write state: a slow tab must not overwrite the one now open.
+    const seq = ++loadSeq.current;
     setLoading(true);
+    setLoadFailed(false);
     try {
-      if (tab === "templates") setTemplates(await smsService.templates(true));
-      if (tab === "messages") setMessages(await smsService.messages());
-      if (tab === "settings") setSettings(await smsService.settings());
-    } catch (err) {
-      toast.error(message(err));
+      if (tab === "templates") {
+        const rows = await smsService.templates(true);
+        if (seq === loadSeq.current) setTemplates(rows);
+      }
+      if (tab === "messages") {
+        const rows = await smsService.messages();
+        if (seq === loadSeq.current) setMessages(rows);
+      }
+      if (tab === "settings") {
+        const row = await smsService.settings();
+        if (seq === loadSeq.current) setSettings(row);
+      }
+    } catch {
+      if (seq === loadSeq.current) setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [tab]);
 
@@ -126,7 +140,18 @@ const SmsPage: React.FC = () => {
         }))}
       />
 
-      {tab === "templates" && (
+      {loadFailed && (
+        <div className="sl-tile">
+          <LoadError
+            compact
+            title={`Couldn't load the SMS ${tab === "templates" ? "templates" : tab === "messages" ? "log" : "account"}`}
+            onRetry={load}
+            retrying={loading}
+          />
+        </div>
+      )}
+
+      {!loadFailed && tab === "templates" && (
         <Card title="Templates">
           {loading ? (
             <p className="text-sm text-ink-muted">Loading…</p>
@@ -186,7 +211,7 @@ const SmsPage: React.FC = () => {
         </Card>
       )}
 
-      {tab === "messages" && (
+      {!loadFailed && tab === "messages" && (
         <Card title="Sent">
           {loading ? (
             <p className="text-sm text-ink-muted">Loading…</p>
@@ -232,7 +257,14 @@ const SmsPage: React.FC = () => {
         </Card>
       )}
 
-      {tab === "settings" && settings && (
+      {!loadFailed && tab === "settings" && !settings && loading && (
+        <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
+          <div className="sl-skeleton h-4 w-2/5" />
+          <div className="sl-skeleton h-3 w-3/4" />
+        </div>
+      )}
+
+      {!loadFailed && tab === "settings" && settings && (
         <Card title="Account">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm text-ink-muted">

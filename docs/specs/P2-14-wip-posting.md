@@ -4,7 +4,7 @@
 
 P2-04 gave WIP a real figure — material issued to an open production order, from the valuation
 ledger — and reported it alongside the closing-stock posting without ever booking it
-(`docs/handoff/2026-09-14-P2-04-valuation-wiring.md`, "WIP is reported, not posted"). Until the
+(`docs/archive/handoff/2026-09-14-P2-04-valuation-wiring.md`, "WIP is reported, not posted"). Until the
 owner names a ledger, the product ships with a sensible default and a setting to change it.
 
 ## Scope

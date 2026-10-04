@@ -194,17 +194,36 @@ const DashboardPage: React.FC = () => {
   }, [accountsSummary]);
 
   /* ── Today's daily production plans ── */
+  // "Today" is the IST calendar day, the same day the TV board cuts at. A plan's production date
+  // is a calendar date (stored at UTC midnight), so compare date parts, not local midnights.
   const todayPlans = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const istToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(
+      new Date()
+    );
     return safe(dailyPlans).filter((p: any) => {
       const raw = p.productionDate || p.date || p.createdAt;
       if (!raw) return false;
       const d = new Date(raw);
-      d.setHours(0, 0, 0, 0);
-      return d.getTime() === today.getTime();
+      if (Number.isNaN(d.getTime())) return false;
+      return d.toISOString().slice(0, 10) === istToday;
     });
   }, [dailyPlans]);
+
+  // Production orders past their due date and not finished: the TV board's "past due" count.
+  // Different from "planned today" (machine plans dated today), so the empty state says both.
+  const overdueOrderCount = useMemo(() => {
+    const istToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(
+      new Date()
+    );
+    const done = ["COMPLETED", "CLOSED", "CANCELLED"];
+    return safe(productionOrders).filter((po: any) => {
+      if (!po.dueDate || done.includes(String(po.status || "").toUpperCase())) return false;
+      const due = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(
+        new Date(po.dueDate)
+      );
+      return due < istToday;
+    }).length;
+  }, [productionOrders]);
 
   /* ── Top products by finished-goods stock ── */
   const topProducts = useMemo(() => {
@@ -541,7 +560,11 @@ const DashboardPage: React.FC = () => {
                   <EmptyState
                     icon={LuCalendarCheck}
                     title="Nothing planned for today"
-                    hint="Plan machines, shifts and products for the day and they will line up here."
+                    hint={
+                      overdueOrderCount > 0
+                        ? `No machine plan is dated today. Separately, ${overdueOrderCount} production order${overdueOrderCount > 1 ? "s are" : " is"} past due date and not finished (the TV board's "past due" count).`
+                        : "Plan machines, shifts and products for the day and they will line up here."
+                    }
                     action={
                       can("daily-machine-planning.create")
                         ? { label: "Plan production", to: "/daily-production-plans/create" }

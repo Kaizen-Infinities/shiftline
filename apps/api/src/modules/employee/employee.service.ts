@@ -20,6 +20,27 @@ class EmployeeService {
     return id;
   }
 
+  /**
+   * departmentId, roleId and a login account's roleId are plain foreign keys (no company in the
+   * key), so the database would happily link to another tenant's row. Look each one up through
+   * the tenant-scoped client first and refuse anything this tenant cannot see.
+   */
+  private async assertTenantRefs(refs: {
+    departmentId?: number | null;
+    roleId?: number | null;
+    loginRoleId?: number | null;
+  }) {
+    if (refs.departmentId != null) {
+      const dept = await prisma.department.findFirst({ where: { id: Number(refs.departmentId) } });
+      if (!dept) throw new ApiError(400, "That department does not exist");
+    }
+    for (const roleId of [refs.roleId, refs.loginRoleId]) {
+      if (roleId == null) continue;
+      const role = await prisma.role.findFirst({ where: { id: Number(roleId) } });
+      if (!role) throw new ApiError(400, "That role does not exist");
+    }
+  }
+
   async create(data: any) {
     const {
       createLoginAccount,
@@ -33,6 +54,11 @@ class EmployeeService {
     } = data;
 
     employeeData.businessPlaceId = await this.resolveBusinessPlaceId(businessPlaceId);
+    await this.assertTenantRefs({
+      departmentId: employeeData.departmentId,
+      roleId: employeeData.roleId,
+      loginRoleId: createLoginAccount && loginAccount ? loginAccount.roleId : undefined,
+    });
 
     if (employeeData.createdBy && employeeData.createdBy.startsWith("admin_")) {
       employeeData.createdBy = null;
@@ -390,6 +416,11 @@ class EmployeeService {
     } = data;
 
     const resolvedBusinessPlaceId = await this.resolveBusinessPlaceId(businessPlaceId);
+    await this.assertTenantRefs({
+      departmentId: employeeData.departmentId,
+      roleId: employeeData.roleId,
+      loginRoleId: createLoginAccount && loginAccount ? loginAccount.roleId : undefined,
+    });
     if (resolvedBusinessPlaceId !== undefined) {
       employeeData.businessPlaceId = resolvedBusinessPlaceId;
     }

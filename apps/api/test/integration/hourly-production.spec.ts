@@ -6,7 +6,7 @@ import { asDemoTenant, createProduct } from "../factories";
 import { runAsTenant, withoutTenant } from "../../src/lib/tenant-context";
 
 /**
- * Hourly production (characterisation, Phase 2-T #4 — docs/handoff/2026-09-13-commission-
+ * Hourly production (characterisation, Phase 2-T #4 — docs/archive/handoff/2026-09-13-commission-
  * phase-2-transition.md). Locks down today's behaviour of
  * `apps/api/src/modules/hourly-production/` so Phase 2's OEE and stock-movement work (P2-04,
  * P2-08) has a red test the moment it changes one of these paths.

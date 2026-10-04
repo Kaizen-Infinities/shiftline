@@ -4,7 +4,7 @@
 
 Phase 1 left four things manual or synchronous that should run themselves: subscription
 invoices, the SMS send, cheque-due warnings and the Tally export
-(`docs/handoff/2026-09-12-phase-1-complete.md` "Nothing schedules itself that should", and the
+(`docs/archive/handoff/2026-09-12-phase-1-complete.md` "Nothing schedules itself that should", and the
 per-package notes for P1-21, P1-22, P1-20 and P1-06). None of the four needs an account the owner
 has not supplied; each reuses a service that already does the work by hand.
 

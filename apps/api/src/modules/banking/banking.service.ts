@@ -5,6 +5,7 @@ import { logger } from "../../lib/logger";
 import { runAsTenant, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
+import { bankCashLedgerWhere, isCashLedger } from "../accounts/bank-cash-ledgers";
 import { periodService } from "../accounts/period.service";
 import { notify } from "../notifications/notify";
 import { safeCreateVoucher, voucherPostingService } from "../accounts/voucherPosting.service";
@@ -46,18 +47,105 @@ export interface MatchCandidate {
 
 class BankingService {
   // ── Bank accounts ──────────────────────────────────────────────────────────
-  /** The tenant's bank accounts, for the pickers. Scoped to the tenant by the client. */
+  /**
+   * The accounts reconciliation works on: `BankAccount` rows, whose uuid statements, lines and
+   * cheques hang off. The dashboard counts bank *ledgers*, so a bank ledger with no `BankAccount`
+   * row (opened by hand in the chart of accounts, not through onboarding) is returned as
+   * `unlinked`, for the caller to register, rather than hidden behind "No bank account yet".
+   */
   async accounts() {
-    return prisma.bankAccount.findMany({
+    const rows = await prisma.bankAccount.findMany({
+      where: { isActive: true },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      include: { ledger: { select: { id: true, code: true, name: true } } },
+    });
+    const ledgers = await prisma.accountLedger.findMany({
+      where: bankCashLedgerWhere,
       select: {
         id: true,
-        bankName: true,
-        accountNumber: true,
-        ledgerId: true,
-        isActive: true,
-        isDefault: true,
+        code: true,
+        name: true,
+        group: true,
+        ledgerGroup: { select: { code: true } },
+        bankAccount: { select: { id: true } },
       },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      orderBy: { name: "asc" },
+    });
+    const unlinked = ledgers
+      .filter((l) => !l.bankAccount && !isCashLedger(l))
+      .map((l) => ({ ledgerId: l.id, code: l.code, name: l.name }));
+
+    const ids = rows.map((r) => r.ledgerId);
+    const [dr, cr] = ids.length
+      ? await Promise.all([
+          prisma.journalItem.groupBy({
+            by: ["debitLedgerId"],
+            where: { debitLedgerId: { in: ids } },
+            _sum: { debitAmount: true },
+          }),
+          prisma.journalItem.groupBy({
+            by: ["creditLedgerId"],
+            where: { creditLedgerId: { in: ids } },
+            _sum: { creditAmount: true },
+          }),
+        ])
+      : [[], []];
+    const drMap = new Map(
+      dr.map((r) => [r.debitLedgerId as number, Number(r._sum.debitAmount ?? 0)])
+    );
+    const crMap = new Map(
+      cr.map((r) => [r.creditLedgerId as number, Number(r._sum.creditAmount ?? 0)])
+    );
+
+    return {
+      accounts: rows.map((r) => ({
+        id: r.id,
+        bankName: r.bankName,
+        accountName: r.accountName,
+        accountNumber: r.accountNumber,
+        ifsc: r.ifsc,
+        isDefault: r.isDefault,
+        ledgerId: r.ledgerId,
+        ledgerCode: r.ledger.code,
+        ledgerName: r.ledger.name,
+        bookBalance: n2((drMap.get(r.ledgerId) ?? 0) - (crMap.get(r.ledgerId) ?? 0)),
+      })),
+      unlinked,
+    };
+  }
+
+  /** Registers the bank details for an existing bank ledger so it can be reconciled. */
+  async linkLedger(input: {
+    ledgerId: number;
+    bankName: string;
+    accountName?: string | null;
+    accountNumber?: string | null;
+    ifsc?: string | null;
+    branch?: string | null;
+  }) {
+    const ledger = await prisma.accountLedger.findFirst({
+      where: { AND: [bankCashLedgerWhere, { id: input.ledgerId }] },
+      select: {
+        id: true,
+        name: true,
+        group: true,
+        ledgerGroup: { select: { code: true } },
+        bankAccount: { select: { id: true } },
+      },
+    });
+    if (!ledger || isCashLedger(ledger)) throw new ApiError(404, "Bank ledger not found");
+    if (ledger.bankAccount) throw new ApiError(409, "This ledger already has bank details");
+    const first = (await prisma.bankAccount.count()) === 0;
+    return prisma.bankAccount.create({
+      data: {
+        ledgerId: ledger.id,
+        bankName: input.bankName,
+        accountName: input.accountName ?? null,
+        accountNumber: input.accountNumber ?? null,
+        ifsc: input.ifsc ?? null,
+        branch: input.branch ?? null,
+        isDefault: first,
+      },
     });
   }
 

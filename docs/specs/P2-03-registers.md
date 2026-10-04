@@ -2,7 +2,7 @@
 
 ## Why
 
-`docs/handoff/2026-09-12-P1-17b-labour-code.md` and the Phase 1 completion note say the registers
+`docs/archive/handoff/2026-09-12-P1-17b-labour-code.md` and the Phase 1 completion note say the registers
 a labour inspector asks for under the Labour Codes (muster roll, register of wages, overtime,
 fines, deductions, advances) are not written. The data exists across attendance, payroll and
 advances; each register is a report over what those modules already persisted.

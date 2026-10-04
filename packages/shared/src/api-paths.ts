@@ -57,10 +57,6 @@ export const API_PATHS = {
     base: "/stores",
     nextId: "/stores/next-id",
   },
-  storeType: {
-    base: "/store-types",
-    nextId: "/store-types/next-id",
-  },
   rawMaterial: {
     base: "/raw-materials",
     nextId: "/raw-materials/next-id",
@@ -276,6 +272,7 @@ export const API_PATHS = {
   },
   banking: {
     base: "/banking",
+    accounts: "/banking/accounts",
     statements: "/banking/statements",
     lines: "/banking/lines",
     brs: "/banking/brs",

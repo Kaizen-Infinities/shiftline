@@ -14,7 +14,7 @@ const router = Router();
 router.post(
   "/",
   authMiddleware,
-  requirePermission("machines.view"),
+  requirePermission("production-wastages.create"),
   validateMiddleware(createProductionWastageSchema),
   productionWastageController.create
 );
@@ -22,14 +22,14 @@ router.post(
 router.get(
   "/",
   authMiddleware,
-  requirePermission("machines.view"),
+  requirePermission("production-wastages.view"),
   productionWastageController.findAll
 );
 
 router.get(
   "/:id",
   authMiddleware,
-  requirePermission("machines.view"),
+  requirePermission("production-wastages.view"),
   validateMiddleware(getProductionWastageIdSchema),
   productionWastageController.findById
 );
@@ -37,7 +37,7 @@ router.get(
 router.put(
   "/:id",
   authMiddleware,
-  requirePermission("machines.view"),
+  requirePermission("production-wastages.edit"),
   validateMiddleware(updateProductionWastageSchema),
   productionWastageController.update
 );
@@ -45,7 +45,7 @@ router.put(
 router.delete(
   "/:id",
   authMiddleware,
-  requirePermission("machines.view"),
+  requirePermission("production-wastages.delete"),
   validateMiddleware(getProductionWastageIdSchema),
   productionWastageController.delete
 );
@@ -53,7 +53,7 @@ router.delete(
 router.post(
   "/:id/approve",
   authMiddleware,
-  requirePermission("machines.view"),
+  requirePermission("production-wastages.edit"),
   validateMiddleware(getProductionWastageIdSchema),
   productionWastageController.approve
 );
@@ -61,7 +61,7 @@ router.post(
 router.post(
   "/:id/reject",
   authMiddleware,
-  requirePermission("machines.view"),
+  requirePermission("production-wastages.edit"),
   validateMiddleware(getProductionWastageIdSchema),
   productionWastageController.reject
 );

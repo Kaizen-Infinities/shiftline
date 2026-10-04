@@ -7,7 +7,7 @@ connectivity is the largest item in the backlog and the one the whole plastics d
 on: real cycle counts, real downtime, real state. It is also the item with no hardware yet, so it is
 built adapter-first with a simulator and pinned against a press later.
 
-Read `docs/specs/P2-00-shop-floor-foundation.md` first — the write path and the adapter pattern are
+Read `docs/archive/specs/unbuilt-shop-floor/P2-00-shop-floor-foundation.md` first — the write path and the adapter pattern are
 defined there and this spec assumes them.
 
 ## Scope

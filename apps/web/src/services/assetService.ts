@@ -2,6 +2,9 @@ import { API_PATHS } from "@shiftline/shared";
 
 import apiClient from "../api/apiClient";
 
+/** A screen's opening request gives up after this long and shows its error state. */
+const LOAD_TIMEOUT_MS = 30_000;
+
 /** Fixed assets and depreciation (P1-18). */
 export type DepreciationMethod = "SLM" | "WDV";
 export type AssetStatus = "ACTIVE" | "DISPOSED" | "WRITTEN_OFF";
@@ -151,9 +154,9 @@ const p = API_PATHS.assets;
 
 export const assetService = {
   classes: async (all = false): Promise<AssetClassRow[]> =>
-    (await apiClient.get(p.classes, { params: { all } })).data.data,
+    (await apiClient.get(p.classes, { params: { all }, timeout: LOAD_TIMEOUT_MS })).data.data,
   list: async (q: { status?: AssetStatus } = {}): Promise<AssetRow[]> =>
-    (await apiClient.get(p.base, { params: q })).data.data,
+    (await apiClient.get(p.base, { params: q, timeout: LOAD_TIMEOUT_MS })).data.data,
   create: async (body: {
     code: string;
     name: string;
@@ -169,17 +172,18 @@ export const assetService = {
     body: { disposedOn: string; proceeds?: number; moneyLedgerCode?: string }
   ) => (await apiClient.post(`${p.base}/${id}/dispose`, body)).data.data,
   preview: async (periodKey: string): Promise<DepreciationPreview> =>
-    (await apiClient.get(`${p.depreciation}/preview/${periodKey}`)).data.data,
+    (await apiClient.get(`${p.depreciation}/preview/${periodKey}`, { timeout: LOAD_TIMEOUT_MS }))
+      .data.data,
   runs: async (): Promise<DepreciationRunRow[]> =>
-    (await apiClient.get(`${p.depreciation}/runs`)).data.data,
+    (await apiClient.get(`${p.depreciation}/runs`, { timeout: LOAD_TIMEOUT_MS })).data.data,
   prepare: async (periodKey: string): Promise<DepreciationRunRow> =>
     (await apiClient.post(`${p.depreciation}/${periodKey}/prepare`)).data.data,
   post: async (id: string): Promise<DepreciationRunRow> =>
     (await apiClient.post(`${p.depreciation}/runs/${id}/post`)).data.data,
   register: async (fyCode: string): Promise<AssetRegister> =>
-    (await apiClient.get(`${p.register}/${fyCode}`)).data.data,
+    (await apiClient.get(`${p.register}/${fyCode}`, { timeout: LOAD_TIMEOUT_MS })).data.data,
   itBlocks: async (fyCode: string): Promise<ItBlocks> =>
-    (await apiClient.get(`${p.itBlocks}/${fyCode}`)).data.data,
+    (await apiClient.get(`${p.itBlocks}/${fyCode}`, { timeout: LOAD_TIMEOUT_MS })).data.data,
   upsertClass: async (body: {
     id?: string;
     code: string;

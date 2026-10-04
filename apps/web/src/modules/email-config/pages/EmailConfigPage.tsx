@@ -1,5 +1,5 @@
 import { Mail, Save, Send, Server } from "lucide-react";
-import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
+import { ActionPill, LoadError, PageHeader, Tile } from "../../../components/ui/v2";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "react-toastify";
 import { emailConfigService } from "../../../services/emailConfigService";
@@ -63,7 +63,12 @@ const EmailConfigPage: React.FC = () => {
     return await emailConfigService.getConfig();
   }, []);
 
-  const { data: fetchedConfig, loading } = useDetailCache<any>({
+  const {
+    data: fetchedConfig,
+    loading,
+    error: loadFailed,
+    refresh,
+  } = useDetailCache<any>({
     cacheKey: "emailConfig:smtp",
     socketModule: "emailConfig",
     fetcher,
@@ -172,6 +177,21 @@ const EmailConfigPage: React.FC = () => {
   };
 
   if (loading) return <CommonLoader text="Loading..." fullScreen={false} />;
+
+  if (loadFailed && !fetchedConfig) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+        <PageHeader
+          title="Email Configuration"
+          icon={<Mail size={22} />}
+          breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Email" }]}
+        />
+        <div className="sl-tile">
+          <LoadError compact title="Couldn't load the email settings" onRetry={refresh} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sl-page sl-page-form">

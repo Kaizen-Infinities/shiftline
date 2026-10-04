@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { getISTDateString, getISTDayStartUtc } from "../../utils/dateUtils";
 
 /* ══════════════════════════════════════════════════════════════════
    TV DASHBOARD SUMMARY
@@ -16,15 +17,26 @@ import { prisma } from "../../config/prisma";
 export type TvLevel = "CRITICAL" | "HIGH" | "MEDIUM";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** Weekday (0 = Sunday) of the IST calendar day an instant falls on. */
+const istWeekday = (d: Date) => new Date(d.getTime() + IST_OFFSET_MS).getUTCDay();
 
 const num = (v: any) => Number(v || 0);
 
-/** Start of day, local server time. */
-const startOfDay = (d: Date) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-};
+/**
+ * Start of the IST calendar day. The server clock may run in UTC, so "today" is always cut at
+ * IST midnight, the same day the dashboard and the planners mean.
+ */
+const startOfDay = (d: Date) => getISTDayStartUtc(d);
+
+/**
+ * Finished goods carry no stock rule of their own when the product has no minimum set; the
+ * dashboard stock panel (InventoryStockIntelligence) falls back to this figure, and critical
+ * means at or below 40% of the minimum. The TV board uses the same rule.
+ */
+export const FG_DEFAULT_MINIMUM = 1500;
+export const FG_CRITICAL_FRACTION = 0.4;
 
 /** Compact Indian-format money: 4.82L / 1.15Cr / 8,400 */
 const inr = (v: number): string => {
@@ -68,8 +80,14 @@ export async function getTvSummary() {
   const tomorrow = new Date(today.getTime() + DAY_MS);
   const yesterday = new Date(today.getTime() - DAY_MS);
   const weekAgo = new Date(today.getTime() - 6 * DAY_MS); // 7-day window incl. today
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const [istYear, istMonth] = getISTDateString(now).split("-").map(Number);
+  const istMonthStart = (y: number, m: number) => {
+    const d = new Date(Date.UTC(y, m - 1, 1)); // normalises m = 0 to December of y - 1
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    return new Date(`${d.getUTCFullYear()}-${mm}-01T00:00:00+05:30`);
+  };
+  const monthStart = istMonthStart(istYear, istMonth);
+  const lastMonthStart = istMonthStart(istYear, istMonth - 1);
 
   const [
     invoices,
@@ -77,6 +95,7 @@ export async function getTvSummary() {
     productionOrders,
     rawMaterials,
     finishedStock,
+    products,
     hourlyToday,
     oeeWeek,
     machines,
@@ -132,7 +151,15 @@ export async function getTvSummary() {
       .catch(() => [] as any[]),
 
     prisma.finishedGoodsStock
-      .findMany({ select: { onHandQty: true } })
+      .findMany({ select: { productItemId: true, onHandQty: true } })
+      .catch(() => [] as any[]),
+
+    // Active, non-scrap products: a product with no stock row is at zero, not absent.
+    prisma.product
+      .findMany({
+        where: { isActive: true, isScrap: false },
+        select: { id: true, productName: true, minimumQty: true },
+      })
       .catch(() => [] as any[]),
 
     // Today's hourly production — drives downtime + today's produced qty
@@ -322,6 +349,8 @@ export async function getTvSummary() {
   let healthy = 0;
   let low = 0;
   let critical = 0;
+  let finishedCritical = 0;
+  let finishedLow = 0;
   const reorderItems: Array<{
     name: string;
     stock: string;
@@ -352,7 +381,29 @@ export async function getTvSummary() {
       healthy++;
     }
   }
-  const skuTotal = rawMaterials.length;
+  // Finished goods: stock is summed across stores; no row means zero on hand.
+  const fgQtyByProduct = new Map<string, number>();
+  for (const r of finishedStock) {
+    const k = String(r.productItemId);
+    fgQtyByProduct.set(k, (fgQtyByProduct.get(k) || 0) + num(r.onHandQty));
+  }
+  for (const pr of products) {
+    const qty = fgQtyByProduct.get(String(pr.id)) || 0;
+    const min = Number(pr.minimumQty) || FG_DEFAULT_MINIMUM;
+    const stock = `${qty.toLocaleString("en-IN")}`;
+    if (qty <= min * FG_CRITICAL_FRACTION) {
+      critical++;
+      finishedCritical++;
+      reorderItems.push({ name: pr.productName, stock, status: "CRITICAL" });
+    } else if (qty <= min) {
+      low++;
+      finishedLow++;
+      reorderItems.push({ name: pr.productName, stock, status: "LOW" });
+    } else {
+      healthy++;
+    }
+  }
+  const skuTotal = rawMaterials.length + products.length;
   const pctOf = (n: number) => (skuTotal > 0 ? Math.round((n / skuTotal) * 100) : 0);
   const healthyPct = pctOf(healthy);
 
@@ -435,11 +486,13 @@ export async function getTvSummary() {
   const seriesFor = (pick: (from: Date, to: Date) => number) =>
     dayKeys.map((d) => {
       const to = new Date(d.getTime() + DAY_MS);
-      return { day: dayLabel[d.getDay()], value: pick(d, to) };
+      return { day: dayLabel[istWeekday(d)], value: pick(d, to) };
     });
 
   const salesSeries = seriesFor((f, t) =>
-    invoices.filter((i: any) => inRange(i.invoiceDate, f, t)).reduce((s: number, i: any) => s + invTotal(i), 0)
+    invoices
+      .filter((i: any) => inRange(i.invoiceDate, f, t))
+      .reduce((s: number, i: any) => s + invTotal(i), 0)
   );
   const ordersSeries = seriesFor(
     (f, t) => salesOrders.filter((so: any) => inRange(so.orderDate, f, t)).length
@@ -456,7 +509,7 @@ export async function getTvSummary() {
   const efficiencySeries = dayKeys.map((d) => {
     const arr = oeeByDay.get(startOfDay(d).toISOString()) || [];
     const avg = arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-    return { day: dayLabel[d.getDay()], value: Math.round(avg) };
+    return { day: dayLabel[istWeekday(d)], value: Math.round(avg) };
   });
 
   const lastNonZero = (arr: { value: number }[]) => {
@@ -480,7 +533,7 @@ export async function getTvSummary() {
   if (delayedOrders > 0) {
     alerts.push({
       level: "HIGH",
-      text: `${delayedOrders} production order${delayedOrders > 1 ? "s" : ""} past due date`,
+      text: `${delayedOrders} production order${delayedOrders > 1 ? "s" : ""} past due date and not finished`,
     });
   }
   if (overdueAmount > 0) {
@@ -491,16 +544,29 @@ export async function getTvSummary() {
       }`,
     });
   }
-  if (critical > 0) {
+  if (critical - finishedCritical > 0) {
+    const n = critical - finishedCritical;
     alerts.push({
       level: "CRITICAL",
-      text: `${critical} raw material${critical > 1 ? "s" : ""} below safety stock`,
+      text: `${n} raw material${n > 1 ? "s" : ""} below safety stock`,
     });
   }
-  if (low > 0) {
+  if (finishedCritical > 0) {
+    alerts.push({
+      level: "CRITICAL",
+      text: `${finishedCritical} finished good${finishedCritical > 1 ? "s" : ""} critically low or out of stock`,
+    });
+  }
+  if (low - finishedLow > 0) {
     alerts.push({
       level: "MEDIUM",
-      text: `${low} raw material${low > 1 ? "s" : ""} below reorder level`,
+      text: `${low - finishedLow} raw material${low - finishedLow > 1 ? "s" : ""} below reorder level`,
+    });
+  }
+  if (finishedLow > 0) {
+    alerts.push({
+      level: "MEDIUM",
+      text: `${finishedLow} finished good${finishedLow > 1 ? "s" : ""} below minimum stock`,
     });
   }
 
@@ -556,6 +622,9 @@ export async function getTvSummary() {
       lowCount: low,
       skuTotal,
       finishedUnits,
+      finishedCritical,
+      finishedLow,
+      finishedSkuTotal: products.length,
       split: inventorySplit,
       reorderItems: reorderItems.slice(0, 6),
     },

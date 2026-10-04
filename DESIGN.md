@@ -9,4 +9,4 @@ of that spec. Chart series colours are `--chart-series-1..4`, and domain tones r
 
 The earlier "Passbook Ledger" direction (the surface brief under
 `apps/web/.impeccable/surfaces/` and the "Visual language" line in
-`docs/specs/P1-UI-remake.md`) is superseded by UI v2.
+`docs/archive/specs/superseded/P1-UI-remake.md`) is superseded by UI v2.

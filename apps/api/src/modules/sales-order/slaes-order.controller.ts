@@ -5,14 +5,11 @@ import companyService from "../company/company.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { emitToTenant } from "../../lib/realtime";
+import { ApiError } from "../../utils/ApiError";
 import { generateQuotationHtml } from "../../templates/quotationTemplate";
 import { generatePdfFromHtml } from "../../utils/pdfGenerator";
 import { sendEmail } from "../../utils/mailer";
-import {
-  SalesOrderQueryInput,
-  SalesOrderStatusEnum,
-  SalesOrderStatus,
-} from "./sales-order.validation";
+import { SalesOrderQueryInput } from "./sales-order.validation";
 
 /** Extract permissions array from request user */
 function getPerms(req: Request): string[] {
@@ -21,16 +18,18 @@ function getPerms(req: Request): string[] {
 
 class SalesOrderController {
   create = asyncHandler(async (req: Request, res: Response) => {
-    const order = await salesOrderService.create(req.body, getPerms(req));
+    // The creator is the caller; a createdBy in the body is never trusted (it is a foreign key
+    // to users and would otherwise let a caller name any user, including another tenant's).
+    const userId = req.user?.userId;
+    const createdBy = userId && !userId.startsWith("admin_") ? userId : null;
+    const order = await salesOrderService.create({ ...req.body, createdBy }, getPerms(req));
     emitToTenant("salesOrder:created", order);
     return res.status(201).json(new ApiResponse("Sales Order created successfully", order));
   });
 
   checkCreditBlock = asyncHandler(async (req: Request, res: Response) => {
     const customerId = req.query.customerId as string;
-    if (!customerId) {
-      return res.status(400).json(new ApiResponse("customerId is required", { blocked: false }));
-    }
+    if (!customerId) throw new ApiError(400, "customerId is required");
     const blockResult = await creditCheckService.hasBlockingPendingOrder(customerId);
     return res
       .status(200)
@@ -38,25 +37,10 @@ class SalesOrderController {
   });
 
   findAll = asyncHandler(async (req: Request, res: Response) => {
-    const query: SalesOrderQueryInput = {
-      page: req.query.page ? Number(req.query.page) : 1,
-      pageSize: req.query.pageSize ? Number(req.query.pageSize) : 20,
-      customerId: req.query.customerId as string,
-      orderNo: req.query.orderNo as string,
-      quotationOnly: req.query.quotationOnly === "true",
-      customerGradeId: req.query.customerGradeId ? Number(req.query.customerGradeId) : undefined,
-      customerTypeId: req.query.customerTypeId ? Number(req.query.customerTypeId) : undefined,
-      orderType: req.query.orderType as string | undefined,
-      orderSource: req.query.orderSource as string | undefined,
-      dispatchType: req.query.dispatchType as string | undefined,
-      sourceEmployeeId: req.query.sourceEmployeeId ? Number(req.query.sourceEmployeeId) : undefined,
-      status: this.parseSalesOrderStatuses(req.query.status),
-      search: req.query.search as string,
-      fromDate: req.query.fromDate as string,
-      toDate: req.query.toDate as string,
-      sortBy: this.parseSortBy(req.query.sortBy) ?? "createdAt",
-      sortOrder: this.parseSortOrder(req.query.sortOrder) ?? "desc",
-    };
+    // salesOrderQuerySchema has already parsed and normalised the query (status list, numbers,
+    // sort fields, defaults); re-parsing the raw strings here used to drop the status filter
+    // and the sort column.
+    const query = req.query as unknown as SalesOrderQueryInput;
     const orders = await salesOrderService.findAll(query, getPerms(req));
     return res.status(200).json(new ApiResponse("Sales Orders fetched successfully", orders));
   });
@@ -120,9 +104,7 @@ class SalesOrderController {
 
   emailQuotation = asyncHandler(async (req: Request, res: Response) => {
     const { recipientEmail, subject, message } = req.body;
-    if (!recipientEmail) {
-      return res.status(400).json(new ApiResponse("Recipient email is required"));
-    }
+    if (!recipientEmail) throw new ApiError(400, "Recipient email is required");
     const perms = getPerms(req);
     const order = await salesOrderService.findById(Number(req.params.id), perms);
     if (!order) return res.status(404).json(new ApiResponse("Order not found"));
@@ -166,14 +148,14 @@ class SalesOrderController {
 
   getSourceOrders = asyncHandler(async (req: Request, res: Response) => {
     const customerId = req.query.customerId as string;
-    if (!customerId) return res.status(400).json(new ApiResponse("customerId is required", []));
+    if (!customerId) throw new ApiError(400, "customerId is required");
     const orders = await salesOrderService.getSourceOrders(customerId, getPerms(req));
     return res.status(200).json(new ApiResponse("Source orders fetched successfully", orders));
   });
 
   whatsappQuotation = asyncHandler(async (req: Request, res: Response) => {
     const { to, message } = req.body;
-    if (!to) return res.status(400).json(new ApiResponse("Recipient phone number is required"));
+    if (!to) throw new ApiError(400, "Recipient phone number is required");
 
     const perms = getPerms(req);
     const order = await salesOrderService.findById(Number(req.params.id), perms);
@@ -193,30 +175,6 @@ class SalesOrderController {
     );
     return res.status(200).json(new ApiResponse("WhatsApp message sent successfully!"));
   });
-
-  // ─── Private helpers ──────────────────────────────────────────────────────
-
-  private parseSortBy(value: unknown): "orderDate" | "createdAt" | "orderNo" | undefined {
-    if (!value || typeof value !== "string") return undefined;
-    const v = value.toLowerCase();
-    return v === "orderDate" || v === "createdAt" || v === "orderNo" ? (v as any) : undefined;
-  }
-
-  private parseSortOrder(value: unknown): "asc" | "desc" | undefined {
-    if (!value || typeof value !== "string") return undefined;
-    const v = value.toLowerCase();
-    return v === "asc" || v === "desc" ? (v as any) : undefined;
-  }
-
-  private parseSalesOrderStatuses(value: unknown): SalesOrderStatus[] | undefined {
-    if (!value || typeof value !== "string") return undefined;
-    const valid: SalesOrderStatus[] = [];
-    for (const s of value.split(",").map((s) => s.trim().toUpperCase())) {
-      const r = SalesOrderStatusEnum.safeParse(s);
-      if (r.success) valid.push(r.data);
-    }
-    return valid.length > 0 ? valid : undefined;
-  }
 }
 
 export default new SalesOrderController();

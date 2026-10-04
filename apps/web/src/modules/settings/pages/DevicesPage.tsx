@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { Chip, EmptyState, PageHeader } from "../../../components/ui/v2";
+import { Chip, EmptyState, LoadError, PageHeader, StaleNotice } from "../../../components/ui/v2";
 import { Smartphone } from "lucide-react";
 
 import CommonConfirmModal from "../../../components/ui/CommonConfirmModal/CommonConfirmModal";
@@ -23,6 +23,8 @@ const message = (err: unknown) =>
 
 const DevicesPage: React.FC = () => {
   const [rows, setRows] = useState<DeviceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showRevoked, setShowRevoked] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -30,10 +32,14 @@ const DevicesPage: React.FC = () => {
   const [deviceToRevoke, setDeviceToRevoke] = useState<DeviceRow | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       setRows(await deviceService.list(true));
-    } catch (err) {
-      toast.error(message(err));
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -88,84 +94,100 @@ const DevicesPage: React.FC = () => {
           </>
         }
       />
+      {loadFailed && rows.length > 0 && <StaleNotice onRetry={load} retrying={loading} />}
       <div className="sl-tile overflow-x-auto p-2 sm:p-3">
-        <table className="min-w-full">
-          <thead>
-            <tr>
-              <th className={th}>Device</th>
-              <th className={th}>Agent</th>
-              <th className={th}>App</th>
-              <th className={th}>First seen</th>
-              <th className={th}>Last seen</th>
-              <th className={th}>Last sync</th>
-              <th className={th}>State</th>
-              <th className={th} />
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((d) => (
-              <tr key={d.id} className="border-t border-line-soft">
-                <td className={td}>
-                  {d.model ?? "Unknown"}
-                  <div className="text-xs text-ink-muted">
-                    {d.platform ?? "?"} · {d.deviceId}
-                  </div>
-                </td>
-                <td className={td}>
-                  {d.agentName} <span className="text-xs text-ink-subtle">{d.agentUsername}</span>
-                </td>
-                <td className={td}>{d.appVersion ?? "—"}</td>
-                <td className={td}>{when(d.firstSeenAt)}</td>
-                <td className={td}>{when(d.lastSeenAt)}</td>
-                <td className={td}>{when(d.lastSyncAt)}</td>
-                <td className={td}>
-                  {d.revokedAt ? (
-                    <Chip tone="danger" size="sm" dot>
-                      Revoked
-                    </Chip>
-                  ) : (
-                    <Chip tone="success" size="sm" dot>
-                      Active
-                    </Chip>
-                  )}
-                </td>
-                <td className={td}>
-                  {d.revokedAt ? (
-                    <button
-                      type="button"
-                      className={secondary}
-                      disabled={busy === d.id}
-                      onClick={() => act(d, "restore")}
-                    >
-                      Restore
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className={danger}
-                      disabled={busy === d.id}
-                      onClick={() => triggerRevoke(d)}
-                    >
-                      Revoke and wipe
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {visible.length === 0 && (
+        {loadFailed && rows.length === 0 ? (
+          <LoadError
+            compact
+            title="Couldn't load field devices"
+            onRetry={load}
+            retrying={loading}
+          />
+        ) : loading && rows.length === 0 ? (
+          <div className="space-y-3 p-3" role="status" aria-label="Loading">
+            <div className="sl-skeleton h-4 w-2/5" />
+            <div className="sl-skeleton h-3 w-3/4" />
+            <div className="sl-skeleton h-3 w-1/2" />
+          </div>
+        ) : (
+          <table className="min-w-full">
+            <thead>
               <tr>
-                <td colSpan={8}>
-                  <EmptyState
-                    compact
-                    icon={<Smartphone size={22} />}
-                    title="No field devices yet."
-                    description="They appear when an agent signs in to the app."
-                  />
-                </td>
+                <th className={th}>Device</th>
+                <th className={th}>Agent</th>
+                <th className={th}>App</th>
+                <th className={th}>First seen</th>
+                <th className={th}>Last seen</th>
+                <th className={th}>Last sync</th>
+                <th className={th}>State</th>
+                <th className={th} />
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visible.map((d) => (
+                <tr key={d.id} className="border-t border-line-soft">
+                  <td className={td}>
+                    {d.model ?? "Unknown"}
+                    <div className="text-xs text-ink-muted">
+                      {d.platform ?? "?"} · {d.deviceId}
+                    </div>
+                  </td>
+                  <td className={td}>
+                    {d.agentName} <span className="text-xs text-ink-subtle">{d.agentUsername}</span>
+                  </td>
+                  <td className={td}>{d.appVersion ?? "—"}</td>
+                  <td className={td}>{when(d.firstSeenAt)}</td>
+                  <td className={td}>{when(d.lastSeenAt)}</td>
+                  <td className={td}>{when(d.lastSyncAt)}</td>
+                  <td className={td}>
+                    {d.revokedAt ? (
+                      <Chip tone="danger" size="sm" dot>
+                        Revoked
+                      </Chip>
+                    ) : (
+                      <Chip tone="success" size="sm" dot>
+                        Active
+                      </Chip>
+                    )}
+                  </td>
+                  <td className={td}>
+                    {d.revokedAt ? (
+                      <button
+                        type="button"
+                        className={secondary}
+                        disabled={busy === d.id}
+                        onClick={() => act(d, "restore")}
+                      >
+                        Restore
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={danger}
+                        disabled={busy === d.id}
+                        onClick={() => triggerRevoke(d)}
+                      >
+                        Revoke and wipe
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={8}>
+                    <EmptyState
+                      compact
+                      icon={<Smartphone size={22} />}
+                      title="No field devices yet."
+                      description="They appear when an agent signs in to the app."
+                    />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <CommonConfirmModal

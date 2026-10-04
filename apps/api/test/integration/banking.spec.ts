@@ -40,13 +40,13 @@ describe("bank reconciliation and cheques", () => {
     const client = await api();
     const res = await client.get("/api/banking/accounts").set(OWNER.auth);
     expect(res.status).toBe(200);
-    const rows = res.body.data as Record<string, unknown>[];
+    const rows = res.body.data.accounts as Record<string, unknown>[];
+    expect(Array.isArray(res.body.data.unlinked)).toBe(true);
     const mine = rows.find((r) => r.id === BANK_ACCOUNT_ID);
     expect(mine).toBeDefined();
-    expect(Object.keys(mine!).sort()).toEqual(
-      ["accountNumber", "bankName", "id", "isActive", "isDefault", "ledgerId"].sort()
-    );
+    expect(mine).toMatchObject({ bankName: expect.any(String), isDefault: expect.any(Boolean) });
     expect(typeof mine!.ledgerId).toBe("number");
+    expect(typeof mine!.bookBalance).toBe("number");
     // The id the picker hands back is the one the other endpoints accept.
     const lines = await client
       .get(`/api/banking/lines?bankAccountId=${BANK_ACCOUNT_ID}`)
@@ -73,7 +73,7 @@ describe("bank reconciliation and cheques", () => {
       });
     });
     const res = await client.get("/api/banking/accounts").set(OWNER.auth);
-    const ids = (res.body.data as { id: string }[]).map((r) => r.id);
+    const ids = (res.body.data.accounts as { id: string }[]).map((r) => r.id);
     expect(ids).not.toContain(foreign.id);
     expect(JSON.stringify(res.body)).not.toContain(`Foreign Bank ${sfx}`);
     const theirs = await runAsTenant(other.id, () => prisma.bankAccount.findMany());

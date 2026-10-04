@@ -11,7 +11,7 @@
 3. **Actions**: allow GitHub Actions for the repo; Dependabot security updates on.
 4. **Secrets** (only when an external service is wired): add as repository secrets, never
    in workflow files or `.env.example`.
-5. **Environments**: local-only development needs none. When Railway hosting is enabled, create a
-   protected `production` environment with required reviewers and follow
-   `railway-cloudflare.md`; keep deployment credentials out of repository secrets unless a
+5. **Environments**: local-only development needs none. Hosting is described in
+   `hosting.md`; if a GitHub deployment environment is added, protect it with required reviewers;
+   keep deployment credentials out of repository secrets unless a
    GitHub Actions workflow explicitly needs them.

@@ -140,3 +140,24 @@ export const employeeIdSchema = z.object({
     id: z.string(),
   }),
 });
+
+/**
+ * Column limits for the (multipart-friendly) create/update routes, which have no body schema of
+ * their own. Checked on the controller's parsed fields so an over-long value is a field-level 400
+ * instead of a database "value too long" error. Unknown keys pass through untouched.
+ */
+const money = z.number().min(0).max(9_999_999_999);
+export const employeeColumnLimitsSchema = z.looseObject({
+  empCode: z.string().max(20, "Employee code must be at most 20 characters").optional(),
+  mobile: z.string().max(20).nullish(),
+  personalMobile: z.string().max(20).nullish(),
+  emergencyContactNumber: z.string().max(20).nullish(),
+  email: z.string().max(100).nullish(),
+  personalEmail: z.string().max(100).nullish(),
+  basicSalary: money.nullish(),
+  grossSalary: money.nullish(),
+  da: money.nullish(),
+  hra: money.nullish(),
+  otherAllowance: money.nullish(),
+  cashInHand: money.nullish(),
+});

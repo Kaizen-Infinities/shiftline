@@ -2,6 +2,9 @@ import { API_PATHS } from "@shiftline/shared";
 
 import apiClient from "../api/apiClient";
 
+/** A screen's opening request gives up after this long and shows its error state. */
+const LOAD_TIMEOUT_MS = 30_000;
+
 /** SMS, DLT templates and one-time passwords (P1-22). */
 export interface SmsSettings {
   provider: string;
@@ -48,7 +51,8 @@ export interface SmsPreview {
 const p = API_PATHS.sms;
 
 export const smsService = {
-  settings: async (): Promise<SmsSettings> => (await apiClient.get(p.settings)).data.data,
+  settings: async (): Promise<SmsSettings> =>
+    (await apiClient.get(p.settings, { timeout: LOAD_TIMEOUT_MS })).data.data,
   saveSettings: async (body: {
     provider: string;
     enabled: boolean;
@@ -60,7 +64,7 @@ export const smsService = {
   verify: async (): Promise<{ ok: boolean; detail: string }> =>
     (await apiClient.post(`${p.settings}/verify`)).data.data,
   templates: async (all = false): Promise<SmsTemplateRow[]> =>
-    (await apiClient.get(p.templates, { params: { all } })).data.data,
+    (await apiClient.get(p.templates, { params: { all }, timeout: LOAD_TIMEOUT_MS })).data.data,
   saveTemplate: async (body: {
     code: string;
     name: string;
@@ -72,5 +76,5 @@ export const smsService = {
   preview: async (body: string, values: Record<string, string>): Promise<SmsPreview> =>
     (await apiClient.post(p.preview, { body, values })).data.data,
   messages: async (params: { to?: string; status?: string } = {}): Promise<SmsMessageRow[]> =>
-    (await apiClient.get(p.messages, { params })).data.data,
+    (await apiClient.get(p.messages, { params, timeout: LOAD_TIMEOUT_MS })).data.data,
 };

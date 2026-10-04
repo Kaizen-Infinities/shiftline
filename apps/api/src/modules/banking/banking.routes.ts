@@ -27,6 +27,26 @@ router.get(
   })
 );
 
+router.post(
+  "/accounts",
+  requirePermission("banking.manage"),
+  asyncHandler(async (req: Request, res: Response) => {
+    const body = z
+      .object({
+        ledgerId: z.number().int().positive(),
+        bankName: z.string().trim().min(1).max(120),
+        accountName: z.string().trim().max(160).optional().nullable(),
+        accountNumber: z.string().trim().max(34).optional().nullable(),
+        ifsc: z.string().trim().max(11).optional().nullable(),
+        branch: z.string().trim().max(120).optional().nullable(),
+      })
+      .parse(req.body);
+    res
+      .status(201)
+      .json(new ApiResponse("Bank account added", await bankingService.linkLedger(body)));
+  })
+);
+
 // ── Statements ────────────────────────────────────────────────────────────────
 router.get(
   "/statements",

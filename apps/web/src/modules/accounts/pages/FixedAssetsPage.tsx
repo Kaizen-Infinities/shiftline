@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 
+import { LoadError } from "../../../components/ui/v2";
 import { usePermission } from "../../../hooks/usePermission";
 import {
   assetService,
@@ -65,23 +66,44 @@ const FixedAssetsPage: React.FC = () => {
   const [editingClass, setEditingClass] = useState<AssetClassRow | "new" | null>(null);
   const [viewingRunId, setViewingRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadSeq = useRef(0);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    // Only the newest request may write state, so a slow tab cannot overwrite the open one.
+    const seq = ++loadSeq.current;
+    const current = () => seq === loadSeq.current;
     setLoading(true);
+    setLoadFailed(false);
     try {
-      if (tab === "register") setAssets(await assetService.list());
-      if (tab === "classes") setClasses(await assetService.classes(true));
-      if (tab === "depreciation") {
-        setPreview(await assetService.preview(periodKey));
-        setRuns(await assetService.runs());
+      if (tab === "register") {
+        const rows = await assetService.list();
+        if (current()) setAssets(rows);
       }
-      if (tab === "yearEnd") setRegister(await assetService.register(fyCode));
-      if (tab === "tax") setBlocks(await assetService.itBlocks(fyCode));
-    } catch (err) {
-      toast.error(message(err));
+      if (tab === "classes") {
+        const rows = await assetService.classes(true);
+        if (current()) setClasses(rows);
+      }
+      if (tab === "depreciation") {
+        const [p, r] = await Promise.all([assetService.preview(periodKey), assetService.runs()]);
+        if (current()) {
+          setPreview(p);
+          setRuns(r);
+        }
+      }
+      if (tab === "yearEnd") {
+        const r = await assetService.register(fyCode);
+        if (current()) setRegister(r);
+      }
+      if (tab === "tax") {
+        const b = await assetService.itBlocks(fyCode);
+        if (current()) setBlocks(b);
+      }
+    } catch {
+      if (current()) setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [tab, periodKey, fyCode]);
   useEffect(() => {
@@ -178,7 +200,19 @@ const FixedAssetsPage: React.FC = () => {
         ))}
       </nav>
 
-      {loading && (
+      {loadFailed && (
+        <div className="sl-tile">
+          <LoadError
+            compact
+            title="Couldn't load this tab"
+            description="The figures were not loaded, so none are shown. Check your connection, then try again."
+            onRetry={load}
+            retrying={loading}
+          />
+        </div>
+      )}
+
+      {loading && !loadFailed && (
         <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">
           <div className="sl-skeleton h-4 w-2/5" />
           <div className="sl-skeleton h-3 w-3/4" />
@@ -186,7 +220,7 @@ const FixedAssetsPage: React.FC = () => {
         </div>
       )}
 
-      {tab === "register" && (
+      {!loadFailed && tab === "register" && (
         <Card title="Assets">
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -246,7 +280,7 @@ const FixedAssetsPage: React.FC = () => {
         </Card>
       )}
 
-      {tab === "depreciation" && preview && (
+      {!loadFailed && tab === "depreciation" && preview && (
         <>
           <Card
             title={`Depreciation for ${preview.from} to ${preview.to}`}
@@ -372,7 +406,7 @@ const FixedAssetsPage: React.FC = () => {
         </>
       )}
 
-      {tab === "yearEnd" && register && (
+      {!loadFailed && tab === "yearEnd" && register && (
         <Card title={`Fixed asset register · ${register.fyStart} to ${register.fyEnd}`}>
           <p className="mb-3 text-xs text-ink-muted">
             The Schedule II movement the notes to the accounts print. Depreciation is summed from
@@ -424,7 +458,7 @@ const FixedAssetsPage: React.FC = () => {
         </Card>
       )}
 
-      {tab === "tax" && blocks && (
+      {!loadFailed && tab === "tax" && blocks && (
         <Card title={`Income-tax depreciation · FY ${blocks.fyCode}`}>
           <div className="mb-3 rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-3 text-sm text-[color:var(--color-warning)]">
             {blocks.note} A block is a pool, the rate is the Act&apos;s, an asset used for under 180
@@ -471,7 +505,7 @@ const FixedAssetsPage: React.FC = () => {
         </Card>
       )}
 
-      {tab === "classes" && (
+      {!loadFailed && tab === "classes" && (
         <Card title="Asset classes">
           <p className="mb-3 text-xs text-ink-muted">
             Each class carries both regimes: the Schedule II life and method for the accounts, and

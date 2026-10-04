@@ -94,6 +94,47 @@ class SalesOrderService {
     }
   }
 
+  /**
+   * sourceEmployeeId, referredByCustomerId and salesProductId are plain foreign keys (no company
+   * in the key), so the database would link to another tenant's row. Look each up through the
+   * tenant-scoped client and refuse what this tenant cannot see.
+   */
+  private async assertTenantRefs(refs: {
+    sourceEmployeeId?: unknown;
+    referredByCustomerId?: unknown;
+    salesProductIds?: unknown[];
+  }) {
+    if (refs.sourceEmployeeId) {
+      const emp = await prisma.employee.findFirst({
+        where: { id: BigInt(refs.sourceEmployeeId as bigint | number | string) },
+        select: { id: true },
+      });
+      if (!emp) throw new ApiError(400, "Source employee not found");
+    }
+    if (refs.referredByCustomerId) {
+      const cust = await prisma.customer.findFirst({
+        where: { id: String(refs.referredByCustomerId) },
+        select: { id: true },
+      });
+      if (!cust) throw new ApiError(400, "Referring customer not found");
+    }
+    const spIds = [...new Set((refs.salesProductIds ?? []).filter(Boolean).map((v) => String(v)))];
+    if (spIds.length > 0) {
+      const found = await prisma.salesProduct.count({
+        where: { id: { in: spIds.map((v) => BigInt(v)) } },
+      });
+      if (found !== spIds.length) throw new ApiError(400, "Sales product not found");
+    }
+  }
+
+  /** Every money column is Decimal(14,2): refuse totals that would not fit instead of a 500. */
+  private assertAmountsFit(...amounts: Prisma.Decimal[]) {
+    const limit = new Prisma.Decimal("1e12");
+    if (amounts.some((a) => a.abs().gte(limit))) {
+      throw new ApiError(400, "Order amount is too large");
+    }
+  }
+
   private assertNoDuplicateProducts(items: IncomingItem[]) {
     const seen = new Map<string, number>();
     const dupes = new Set<string>();
@@ -223,6 +264,11 @@ class SalesOrderService {
     if (!customer) throw new ApiError(404, `Customer ${data.customerId} not found`);
 
     await this.assertProductsExist(data.items.map((i) => BigInt(i.productId)));
+    await this.assertTenantRefs({
+      sourceEmployeeId: (data as any).sourceEmployeeId,
+      referredByCustomerId: (data as any).referredByCustomerId,
+      salesProductIds: data.items.map((i) => i.salesProductId),
+    });
 
     const existingCheck = await prisma.salesOrder.findFirst({ where: { orderNo: data.orderNo } });
     if (existingCheck) throw new ApiError(409, `Order No "${data.orderNo}" already exists`);
@@ -269,6 +315,13 @@ class SalesOrderService {
     const createAdjustedTax = createTotalTax.mul(createDiscRatio);
     const createBillSundry = calcBillSundryTotal((data as any).billSundry);
     const createNetAmount = createTaxable.add(createAdjustedTax).add(createBillSundry);
+    this.assertAmountsFit(
+      createSubtotal,
+      createNetAmount,
+      createTotalTax,
+      createDiscount,
+      ...itemsWithGst.map((l) => l.lineTotal)
+    );
 
     const gstOrder = await prisma.salesOrder.create({
       data: {
@@ -481,6 +534,12 @@ class SalesOrderService {
       throw new ApiError(409, `Cannot edit order in status ${existingStatus}.`);
     }
 
+    await this.assertTenantRefs({
+      sourceEmployeeId: (data as any).sourceEmployeeId,
+      referredByCustomerId: (data as any).referredByCustomerId,
+      salesProductIds: data.items?.map((i) => i.salesProductId),
+    });
+
     const updateData: Prisma.SalesOrderUncheckedUpdateInput = {};
     if (data.mobile !== undefined) updateData.mobile = data.mobile;
     // @ts-ignore
@@ -545,8 +604,6 @@ class SalesOrderService {
         return { ...l, ...gst };
       });
 
-      await prisma.salesOrderItem.deleteMany({ where: { salesOrderId: id } });
-
       const updSubtotal = itemsWithGst.reduce((s, l) => s.add(l.lineTotal), ZERO);
       const updTotalCgst = itemsWithGst.reduce((s, l) => s.add(l.cgstAmount), ZERO);
       const updTotalSgst = itemsWithGst.reduce((s, l) => s.add(l.sgstAmount), ZERO);
@@ -587,7 +644,17 @@ class SalesOrderService {
       updateData.totalSgst = updTotalSgst;
       updateData.totalIgst = updTotalIgst;
       updateData.totalTax = updTotalTax;
+      this.assertAmountsFit(
+        updSubtotal,
+        updateData.netAmount as Prisma.Decimal,
+        updTotalTax,
+        updDiscount,
+        ...itemsWithGst.map((l) => l.lineTotal)
+      );
+      // Replace the lines in the same statement as the header update: a failure keeps the old
+      // lines instead of leaving an order with none.
       updateData.items = {
+        deleteMany: {},
         create: itemsWithGst.map((l, idx) => ({
           productId: l.productId,
           salesProductId: data.items![idx]?.salesProductId

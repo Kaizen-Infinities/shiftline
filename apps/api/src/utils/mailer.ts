@@ -1,5 +1,7 @@
 import { decryptText } from "./crypto";
-import nodemailer, { type Attachment } from "nodemailer";
+import nodemailer from "nodemailer";
+import type { SendMailOptions } from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { prisma } from "../config/prisma";
 import { logger } from "../lib/logger";
 
@@ -8,8 +10,30 @@ export interface SendEmailOptions {
   subject: string;
   text?: string;
   html?: string;
-  attachments?: Attachment[];
+  attachments?: SendMailOptions["attachments"];
 }
+
+export interface SmtpTransportInput {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  encryption?: string;
+}
+
+/**
+ * Transport options for the configured SMTP server. Port 465 (or encryption "SSL") is implicit
+ * TLS; every other port, 587 included, starts plain and upgrades with STARTTLS. Certificates are
+ * validated (nodemailer's default); there is no opt-out flag.
+ */
+export const buildSmtpTransportOptions = (input: SmtpTransportInput): SMTPTransport.Options => ({
+  host: input.host,
+  port: input.port,
+  secure: input.port === 465 || input.encryption?.toUpperCase() === "SSL",
+  auth: { user: input.user, pass: input.pass },
+  connectionTimeout: 10000,
+  socketTimeout: 10000,
+});
 
 export const sendEmail = async (options: SendEmailOptions) => {
   let smtpHost = process.env.SMTP_HOST || "";
@@ -37,24 +61,15 @@ export const sendEmail = async (options: SendEmailOptions) => {
       throw new Error("SMTP configuration is incomplete. Please check database or .env file.");
     }
 
-    // Railway blocks port 587 — force port 465 (SSL) for production compatibility
-    const effectivePort = smtpPort === 587 ? 465 : smtpPort;
-    const isSSL = effectivePort === 465 || encryption === "SSL";
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: effectivePort,
-      secure: isSSL,
-      auth: {
+    const transporter = nodemailer.createTransport(
+      buildSmtpTransportOptions({
+        host: smtpHost,
+        port: smtpPort,
         user: smtpUser,
         pass: smtpPass,
-      },
-      connectionTimeout: 10000,
-      socketTimeout: 10000,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    } as any);
+        encryption,
+      })
+    );
 
     const info = await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,

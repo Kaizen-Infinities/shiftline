@@ -2,7 +2,7 @@
 
 ## Why
 
-`docs/handoff/2026-09-14-P2-08-job-work-completion.md` and `P2-10-gst-followups.md` left six
+`docs/archive/handoff/2026-09-14-P2-08-job-work-completion.md` and `P2-10-gst-followups.md` left six
 follow-ons: ITC-04's filing gate is company-wide although the registry marks it per business
 place; a challan can carry both `parentChallanId` and `fromJobWorkerId` at once, which makes no
 sense; the GST hub's ITC-04 tab just points at the Job Work screen instead of showing the
