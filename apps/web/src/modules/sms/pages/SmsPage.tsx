@@ -122,11 +122,11 @@ const SmsPage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="SMS and OTP"
+        title="SMS & OTP"
         icon={<MessageSquare size={22} />}
-        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "SMS and OTP" }]}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "SMS & OTP" }]}
         subtitle="Templates registered on DLT, what has been sent, and the account it goes out through."
       />
 
@@ -180,6 +180,7 @@ const SmsPage: React.FC = () => {
                         <input
                           className={`${field} w-44`}
                           value={dltEdits[t.code] ?? t.dltTemplateId ?? ""}
+                          aria-label={`DLT template id, ${t.code}`}
                           placeholder="not registered"
                           onChange={(e) => setDltEdits({ ...dltEdits, [t.code]: e.target.value })}
                         />

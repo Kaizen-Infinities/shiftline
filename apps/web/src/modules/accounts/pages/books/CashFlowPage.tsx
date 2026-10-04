@@ -114,9 +114,9 @@ const CashFlowPage: React.FC = () => {
     });
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="sl-page">
       <PageHeader
-        title="Cash Flow Statement"
+        title="Cash flow"
         subtitle="Indirect method. Figures in brackets are outflows. Depreciation is assumed to be posted against a Fixed Assets ledger."
         icon={<Waves size={20} />}
         className="!mb-0"

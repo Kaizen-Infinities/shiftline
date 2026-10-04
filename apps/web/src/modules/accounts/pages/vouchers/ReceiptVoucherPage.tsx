@@ -140,7 +140,7 @@ const ReceiptVoucherPage: React.FC = () => {
     return (
       <div className="w-full">
         <PageHeader
-          title="Receipt Register"
+          title="Receipt vouchers"
           subtitle="Money received into your bank and cash accounts"
           icon={<ArrowDownLeft size={20} />}
           primaryAction={newButton}
@@ -221,7 +221,7 @@ const ReceiptVoucherPage: React.FC = () => {
   return (
     <div className="w-full">
       <PageHeader
-        title="Receipt Register"
+        title="Receipt vouchers"
         subtitle={
           <>
             Series {applied.voucherSeries} · {fmtDate(applied.startDate)} to{" "}

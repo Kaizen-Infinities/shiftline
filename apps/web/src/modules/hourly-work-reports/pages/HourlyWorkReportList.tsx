@@ -652,7 +652,7 @@ const HourlyWorkReportList: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Hourly Production Logs"
+        title="Hourly work reports"
         icon={<Timer size={22} />}
         subtitle={`${filterDate ? formatDate(filterDate) : "All dates"}${isToday ? " (today)" : ""} · ${groupedData.length} machine shift${groupedData.length === 1 ? "" : "s"}. Tap a row for its hour-by-hour timeline.`}
         actions={

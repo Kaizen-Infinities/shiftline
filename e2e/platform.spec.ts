@@ -45,7 +45,7 @@ test("the console lists tenants and a platform admin can act as a tenant owner",
 }) => {
   const failures = trackApi(page);
   await page.goto("/platform");
-  await expect(page.getByText(/Platform Overview/).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/overview/i).first()).toBeVisible({ timeout: 20_000 });
 
   await page.goto("/platform/tenants");
   await expect(page.getByText(/^Tenants$/).first()).toBeVisible({ timeout: 20_000 });

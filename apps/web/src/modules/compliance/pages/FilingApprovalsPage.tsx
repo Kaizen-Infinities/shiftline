@@ -86,9 +86,9 @@ const FilingApprovalsPage: React.FC = () => {
   const filtered = status !== "" || filingType !== "";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="Filing Approvals"
+        title="Filing approvals"
         icon={<ShieldCheck size={22} />}
         subtitle="Every GST, TDS and payroll filing is approved by someone other than its preparer before it leaves Shiftline. Figures that change after approval need approving again."
         meta={

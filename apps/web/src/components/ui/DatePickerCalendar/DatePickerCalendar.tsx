@@ -26,6 +26,8 @@ export interface DatePickerCalendarProps {
   disabled?: boolean;
   /** Place label and input side by side in one row */
   horizontal?: boolean;
+  /** Accessible name when no visible `label` is rendered. */
+  ariaLabel?: string;
 }
 
 interface DayCell {
@@ -131,6 +133,7 @@ export default function DatePickerCalendar({
   error,
   disabled = false,
   horizontal = false,
+  ariaLabel,
 }: DatePickerCalendarProps) {
   const [open, setOpen] = useState<boolean>(false);
 
@@ -235,6 +238,7 @@ export default function DatePickerCalendar({
         {/* Input trigger */}
         <button
           id={triggerId}
+          aria-label={label ? undefined : ariaLabel}
           type="button"
           disabled={disabled}
           aria-haspopup="dialog"

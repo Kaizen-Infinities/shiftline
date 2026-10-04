@@ -469,7 +469,7 @@ const WeeklyMachineScheduleList: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Weekly Machine Schedules"
+        title="Weekly schedules"
         icon={<CalendarRange size={22} />}
         subtitle="Which orders run on which machine each week. Tap a week to see its orders."
         actions={

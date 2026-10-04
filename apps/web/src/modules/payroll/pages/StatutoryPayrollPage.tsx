@@ -115,11 +115,11 @@ const StatutoryPayrollPage: React.FC = () => {
   };
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
         title="Statutory Payroll"
         icon={<Landmark size={20} />}
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Statutory" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Statutory payroll" }]}
         subtitle="What the month owes the provident fund, the insurance scheme, the state and the income-tax department — and the files each of them wants."
         actions={
           <select

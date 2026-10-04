@@ -420,7 +420,7 @@ const AllSalesOrderList: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Sales Order Management"
+        title="Sales orders"
         subtitle={`${(total || 0).toLocaleString("en-IN")} order${total === 1 ? "" : "s"} · confirmed orders flow on to production and invoicing`}
         primaryAction={createButton}
         actions={

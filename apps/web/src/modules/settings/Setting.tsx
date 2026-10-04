@@ -182,7 +182,7 @@ const SettingPage: React.FC = () => {
   const allowed = (item: SettingLink) => !item.permissions || item.permissions.some((p) => can(p));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="Settings"
         icon={<Settings2 size={22} />}

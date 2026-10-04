@@ -181,9 +181,9 @@ const ShiftList: React.FC = () => {
   return (
     <div>
       <div>
-        <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+        <div className="sl-page">
           <PageHeader
-            title="Shift Management"
+            title="Shifts"
             icon={<Clock size={20} />}
             subtitle="Shift timings used by attendance, overtime and the daily plan."
             actions={

@@ -12,6 +12,7 @@ import {
   type StatementLineRow,
   type UnlinkedBankLedger,
 } from "../../../services/bankingService";
+import { PageHeader } from "../../../components/ui/v2";
 import {
   Card,
   danger,
@@ -47,6 +48,7 @@ const BankReconciliationPage: React.FC = () => {
   const { can } = usePermission();
   const [tab, setTab] = useState<Tab>("lines");
   const [accounts, setAccounts] = useState<BankAccountRow[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [unlinked, setUnlinked] = useState<UnlinkedBankLedger[]>([]);
   const [newBankName, setNewBankName] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
@@ -67,9 +69,12 @@ const BankReconciliationPage: React.FC = () => {
       const out = await bankingService.accounts();
       setAccounts(out.accounts);
       setUnlinked(out.unlinked);
-      setBankAccountId((cur) => cur || out.accounts[0]?.id || "");
+      const first = out.accounts.find((r) => r.isDefault) ?? out.accounts[0];
+      setBankAccountId((cur) => cur || first?.id || "");
     } catch {
       // The picker is empty until an account exists; the tabs say so themselves.
+    } finally {
+      setAccountsLoaded(true);
     }
   }, []);
   useEffect(() => {
@@ -112,48 +117,45 @@ const BankReconciliationPage: React.FC = () => {
   const unmatched = lines.filter((l) => l.status === "UNMATCHED");
 
   return (
-    <div className="w-full space-y-4">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="sl-h1 m-0 leading-tight">Bank Reconciliation</h1>
-          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
-            The statement against the cash book, and the cheques that have not turned into money
-            yet.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select
-            className={field}
-            value={bankAccountId}
-            onChange={(e) => setBankAccountId(e.target.value)}
-            aria-label="Bank account"
-          >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.bankName}
-                {a.accountNumber ? ` · ${a.accountNumber}` : ""}
-              </option>
-            ))}
-            {accounts.length === 0 && <option value="">No bank account yet</option>}
-          </select>
-          {tab === "lines" && can("banking.manage") && bankAccountId && (
-            <button
-              className={primary}
-              disabled={busy}
-              onClick={() =>
-                act(async () => {
-                  const out = await bankingService.autoMatch(bankAccountId);
-                  toast.info(
-                    `${out.matched} matched, ${out.leftForAPerson} left for you to look at`
-                  );
-                }, "Matched")
-              }
+    <div className="sl-page">
+      <PageHeader
+        title="Bank reconciliation"
+        subtitle="The statement against the cash book, and the cheques that have not turned into money yet."
+        actions={
+          <>
+            <select
+              className={field}
+              value={bankAccountId}
+              onChange={(e) => setBankAccountId(e.target.value)}
+              aria-label="Bank account"
             >
-              Match what it can
-            </button>
-          )}
-        </div>
-      </header>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.bankName}
+                  {a.accountNumber ? ` · ${a.accountNumber}` : ""}
+                </option>
+              ))}
+              {accounts.length === 0 && <option value="">No bank account yet</option>}
+            </select>
+            {tab === "lines" && can("banking.manage") && bankAccountId && (
+              <button
+                className={primary}
+                disabled={busy}
+                onClick={() =>
+                  act(async () => {
+                    const out = await bankingService.autoMatch(bankAccountId);
+                    toast.info(
+                      `${out.matched} matched, ${out.leftForAPerson} left for you to look at`
+                    );
+                  }, "Matched")
+                }
+              >
+                Match what it can
+              </button>
+            )}
+          </>
+        }
+      />
 
       {unlinked.length > 0 && can("banking.manage") && (
         <Card title="Bank details missing">
@@ -213,6 +215,13 @@ const BankReconciliationPage: React.FC = () => {
           </button>
         ))}
       </nav>
+
+      {accountsLoaded && accounts.length === 0 && tab !== "cheques" && (
+        <div className="sl-tile p-5 text-sm text-ink-muted" role="status">
+          No bank account yet. Add one in the company setup, then come back to import a statement
+          and reconcile it.
+        </div>
+      )}
 
       {loading && (
         <div className="sl-tile space-y-3 p-5" role="status" aria-label="Loading">

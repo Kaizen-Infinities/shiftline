@@ -156,9 +156,9 @@ const ComplianceCalendarPage: React.FC = () => {
   const allOverdue = rows.filter((r) => r.overdue).length;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="Compliance Calendar"
+        title="Compliance calendar"
         icon={<CalendarClock size={22} />}
         subtitle="Every statutory date, where it stands, and what is already late."
         meta={
@@ -299,7 +299,7 @@ const ComplianceCalendarPage: React.FC = () => {
                       <span className="text-[15px] font-bold tabular-nums">
                         {new Date(r.dueDate).getDate()}
                       </span>
-                      <span className="text-[10px] font-semibold uppercase">
+                      <span className="text-[11px] font-semibold uppercase">
                         {new Date(r.dueDate).toLocaleDateString("en-IN", { month: "short" })}
                       </span>
                     </span>

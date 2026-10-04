@@ -74,12 +74,12 @@ const DevicesPage: React.FC = () => {
 
   const visible = rows.filter((r) => showRevoked || !r.revokedAt);
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="Field Devices"
+        title="Field devices"
         icon={<Smartphone size={22} />}
         subtitle="Phones signed in to the field app. Revoke a lost phone: it is signed out at once and wipes itself the next time it connects."
-        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Field Devices" }]}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Field devices" }]}
         actions={
           <>
             <label className="sl-btn sl-pill-sm cursor-pointer">

@@ -169,15 +169,15 @@ const WeeklyMachineScheduleCreate: React.FC = () => {
   const selectedCount = Object.values(selectedOrders).filter(Boolean).length;
 
   return (
-    <PageBody className="max-w-[1200px]">
+    <PageBody className="sl-page-form">
       <PageHeader
-        title="Allocate Weekly Schedule"
+        title="New weekly schedule"
         subtitle="Select a week and assign ready production orders"
         back="/weekly-machine-schedules"
         backLabel="Back to List"
         breadcrumbs={[
           { label: "Weekly schedules", to: "/weekly-machine-schedules" },
-          { label: "Plan week" },
+          { label: "New weekly schedule" },
         ]}
       />
 

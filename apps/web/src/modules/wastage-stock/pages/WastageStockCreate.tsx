@@ -66,9 +66,9 @@ const WastageStockCreate: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title="Log Wastage Stock Entry"
+        title="New wastage stock"
         back="/wastage-stock"
         backLabel="Back to list"
         breadcrumbs={[

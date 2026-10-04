@@ -1614,9 +1614,9 @@ const EmployeeForm: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page sl-page-form">
         <PageHeader
-          title={isEdit ? "Edit Employee" : "Create Employee"}
+          title={isEdit ? "Edit employee" : "New employee"}
           subtitle="Loading employee data…"
         />
         <SkeletonTile lines={6} label="Loading employee data" />
@@ -1627,14 +1627,11 @@ const EmployeeForm: React.FC = () => {
   const saveLabel = isSubmitting ? "Saving..." : isEdit ? "Save Changes" : "Save Employee";
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-5 py-1 sm:py-2">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEdit ? "Edit Employee" : "Create Employee"}
+        title={isEdit ? "Edit employee" : "New employee"}
         back={() => navigate(-1)}
-        breadcrumbs={[
-          { label: "Employees", to: "/employees" },
-          { label: isEdit ? "Edit" : "New employee" },
-        ]}
+        breadcrumbs={[{ label: "Employees", to: "/employees" }, { label: isEdit ? "Edit" : "New" }]}
         subtitle={
           isEdit && (form.empCode || form.fullName) ? (
             <>
@@ -1681,7 +1678,7 @@ const EmployeeForm: React.FC = () => {
       <div className="sl-tile min-h-[350px] p-5 sm:p-6">{tabRenderers[activeTab]()}</div>
 
       {/* Sticky footer */}
-      <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
+      <div className="sl-sticky-footer z-20 [--sl-footer-gap:0px]flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <ActionPill
             variant="secondary"

@@ -58,7 +58,7 @@ const UOMList: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="UOM Management"
+        title="Units of measure"
         subtitle={`${units.length} units of measure · system defined, used on items and stock`}
         icon={<Ruler size={22} />}
       />

@@ -40,11 +40,11 @@ const GoodsDispatchGateApproval: React.FC = () => {
   }, [dispatchData, id, navigate]);
 
   if (loading && !dispatchData) {
-    return <DispatchPlaceholder loading title="Gate Approval" />;
+    return <DispatchPlaceholder loading title="Gate approval" />;
   }
 
   if (!dispatchData) {
-    return <DispatchPlaceholder loading={false} title="Gate Approval" />;
+    return <DispatchPlaceholder loading={false} title="Gate approval" />;
   }
 
   const handleApprove = async () => {
@@ -77,7 +77,7 @@ const GoodsDispatchGateApproval: React.FC = () => {
 
   return (
     <div className="w-full min-w-0">
-      <DispatchHeader data={dispatchData} prefix="Gate Approval" />
+      <DispatchHeader data={dispatchData} prefix="Gate approval" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
           <DispatchItemsTable items={dispatchData.items || []} />

@@ -375,7 +375,7 @@ export default function EmployeeViewPage() {
 
   if (loading)
     return (
-      <div className="mx-auto w-full max-w-[1200px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page sl-page-form">
         <PageHeader title="Employee" back="/employees" subtitle="Loading…" />
         <SkeletonTile lines={3} />
         <SkeletonTile lines={6} />
@@ -397,7 +397,7 @@ export default function EmployeeViewPage() {
   const totalCTC = onRecordGross + cashInHand;
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] space-y-5 py-1 sm:py-2">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title={employee.fullName}
         back="/employees"

@@ -293,10 +293,10 @@ export const MachineAssignmentForm: React.FC = () => {
     }
   };
 
-  const title = isEdit ? "Edit Machine Assignment" : "Assign Machine Operation";
+  const title = isEdit ? "Edit machine assignment" : "New machine assignment";
   const crumbs = [
     { label: "Machines", to: "/machines" },
-    { label: "Assignments", to: "/machines/assignments" },
+    { label: "Machine assignments", to: "/machines/assignments" },
     { label: isEdit ? "Edit" : "New" },
   ];
 
@@ -318,7 +318,7 @@ export const MachineAssignmentForm: React.FC = () => {
   const selectedEmpIds = new Set(formData.operators.map((op) => op.employeeId).filter(Boolean));
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title={title}
         subtitle="Pick the week, machine and shift, then the operators who run it."

@@ -135,9 +135,9 @@ const PaymentLinksPage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="Payment Links"
+        title="Payment links"
         icon={<Link2 size={22} />}
         subtitle="Links a customer can pay, and what the gateway kept out of each collection."
       />

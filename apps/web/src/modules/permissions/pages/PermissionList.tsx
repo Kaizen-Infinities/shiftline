@@ -202,9 +202,9 @@ const PermissionList: React.FC = () => {
 
   return (
     <div>
-      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page">
         <PageHeader
-          title="Permission Management"
+          title="Permissions"
           icon={<KeyRound size={20} />}
           subtitle="The permission keys roles are built from."
           actions={undefined}

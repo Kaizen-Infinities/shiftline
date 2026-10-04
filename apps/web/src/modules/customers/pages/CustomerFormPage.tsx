@@ -335,9 +335,9 @@ const CustomerFormPage: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEditMode ? "Edit Customer" : "Create Customer"}
+        title={isEditMode ? "Edit customer" : "New customer"}
         meta={
           watch("customerId") ? (
             <Chip size="sm" tone="muted" className="tabular-nums">

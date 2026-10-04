@@ -125,7 +125,7 @@ const StockAdjustmentView: React.FC = () => {
     return (
       <div className="w-full min-w-0">
         <PageHeader
-          title="Stock Adjustment Details"
+          title="Stock adjustment details"
           back="/inventory/stock-adjustments"
           backLabel="Back to stock adjustments"
         />
@@ -263,7 +263,7 @@ const StockAdjustmentView: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Stock Adjustment Details"
+        title="Stock adjustment details"
         subtitle={`${currentAdjustment.adjustmentNumber} · ${typeLabel}`}
         back="/inventory/stock-adjustments"
         backLabel="Back to stock adjustments"

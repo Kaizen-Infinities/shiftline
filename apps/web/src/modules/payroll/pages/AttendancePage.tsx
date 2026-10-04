@@ -216,7 +216,7 @@ const StatusCell: React.FC<{
         onClick={onClick}
         onContextMenu={onContextMenu}
         disabled={isLocked}
-        className={`w-[32px] h-[28px] rounded flex items-center justify-center font-bold text-[9px] transition-all select-none ${
+        className={`w-[32px] h-[28px] rounded flex items-center justify-center font-bold text-[11px] transition-all select-none ${
           isLocked
             ? cell.status
               ? `${S[cell.status].cell} opacity-90 cursor-not-allowed border border-line`
@@ -293,7 +293,7 @@ const CellEditPanel: React.FC<{
                 key={st}
                 disabled={isLocked}
                 onClick={() => onChange({ ...cell, status: cell.status === st ? null : st })}
-                className={`py-1.5 rounded-lg text-[10px] font-bold transition-all border-2 ${
+                className={`py-1.5 rounded-lg text-[11px] font-bold transition-all border-2 ${
                   cell.status === st
                     ? `${S[st].cell} border-transparent`
                     : "bg-card text-ink-subtle border-line-soft hover:border-line"
@@ -305,7 +305,7 @@ const CellEditPanel: React.FC<{
             <button
               disabled={isLocked}
               onClick={() => onChange({ ...cell, status: null })}
-              className={`py-1.5 rounded-lg text-[10px] font-bold border-2 transition-all ${
+              className={`py-1.5 rounded-lg text-[11px] font-bold border-2 transition-all ${
                 cell.status === null
                   ? "bg-ink text-page border-transparent"
                   : "bg-card text-ink-subtle border-line-soft hover:border-line"
@@ -773,10 +773,9 @@ const AttendancePage: React.FC = () => {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4 py-1 sm:py-2">
+    <div className="sl-page">
       <PageHeader
-        className="!mb-1"
-        title="Attendance Entry"
+        title="Attendance"
         back="/payroll"
         backLabel="Back to payroll"
         breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Attendance" }]}
@@ -950,14 +949,14 @@ const AttendancePage: React.FC = () => {
           <span className="mx-1 hidden h-4 w-px bg-line-soft sm:block" aria-hidden="true" />
           {STATUSES.map((st) => (
             <span key={st} className="flex items-center gap-1">
-              <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${S[st].cell}`}>
+              <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${S[st].cell}`}>
                 {S[st].abbr}
               </span>
               <span className="text-[11px] text-ink-muted">{S[st].label}</span>
             </span>
           ))}
           <span className="flex items-center gap-1">
-            <span className="rounded-md border border-line-soft bg-card-2 px-1.5 py-0.5 text-[10px] font-bold text-ink-muted">
+            <span className="rounded-md border border-line-soft bg-card-2 px-1.5 py-0.5 text-[11px] font-bold text-ink-muted">
               —
             </span>
             <span className="text-[11px] text-ink-subtle">Unset</span>
@@ -989,13 +988,13 @@ const AttendancePage: React.FC = () => {
             return (
               <span
                 key={w.num}
-                className={`inline-flex items-center gap-1 text-[10px] font-semibold border rounded-md px-2 py-0.5 ${
+                className={`inline-flex items-center gap-1 text-[11px] font-semibold border rounded-md px-2 py-0.5 ${
                   isWkLocked
                     ? "bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] text-[color:var(--color-warning)] border-[color-mix(in_srgb,var(--color-warning)_40%,transparent)]"
                     : "bg-card text-ink-muted border-line-soft"
                 }`}
               >
-                <span className="w-3 h-3 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[8px] font-bold">
+                <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] leading-none font-bold">
                   {w.num}
                 </span>
                 {w.label.replace(`Week ${w.num}  `, "")} →{" "}
@@ -1073,12 +1072,12 @@ const AttendancePage: React.FC = () => {
                             {locked && <Lock size={8} className="text-ink-subtle" />}
                           </div>
                           <div
-                            className={`text-[9px] ${locked ? "text-ink-subtle" : isOff ? (isSun ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-warning)]") : "text-ink-subtle"}`}
+                            className={`text-[11px] ${locked ? "text-ink-subtle" : isOff ? (isSun ? "text-[color:var(--color-danger)]" : "text-[color:var(--color-warning)]") : "text-ink-subtle"}`}
                           >
                             {DAY_ABBR[dow]}
                           </div>
                           {isWeekStart && (
-                            <div className="text-[8px] text-primary font-bold">
+                            <div className="text-[11px] text-primary font-bold">
                               W{Math.ceil(day / 7)}
                             </div>
                           )}
@@ -1128,7 +1127,7 @@ const AttendancePage: React.FC = () => {
                               <p className="font-semibold text-ink text-xs truncate">
                                 {emp.fullName}
                               </p>
-                              <p className="text-[10px] text-ink-subtle">
+                              <p className="text-[11px] text-ink-subtle">
                                 {emp.empCode} ·{" "}
                                 {(emp.payrollConfig?.salaryType ?? "—").replace(/_/g, " ")}
                               </p>
@@ -1138,7 +1137,7 @@ const AttendancePage: React.FC = () => {
                                 onClick={() => markEmployeeRow(empId, "PRESENT")}
                                 title="All Present"
                                 disabled={allDatesLocked}
-                                className="w-5 h-5 rounded text-[8px] font-bold bg-[color-mix(in_srgb,var(--color-success)_20%,transparent)] text-[color:var(--color-success)] hover:bg-[color-mix(in_srgb,var(--color-success)_30%,transparent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-5 h-5 rounded text-[11px] font-bold bg-[color-mix(in_srgb,var(--color-success)_20%,transparent)] text-[color:var(--color-success)] hover:bg-[color-mix(in_srgb,var(--color-success)_30%,transparent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 P
                               </button>
@@ -1146,7 +1145,7 @@ const AttendancePage: React.FC = () => {
                                 onClick={() => markEmployeeRow(empId, "ABSENT")}
                                 title="All Absent"
                                 disabled={allDatesLocked}
-                                className="w-5 h-5 rounded text-[8px] font-bold bg-[color-mix(in_srgb,var(--color-danger)_20%,transparent)] text-[color:var(--color-danger)] hover:bg-[color-mix(in_srgb,var(--color-danger)_30%,transparent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-5 h-5 rounded text-[11px] font-bold bg-[color-mix(in_srgb,var(--color-danger)_20%,transparent)] text-[color:var(--color-danger)] hover:bg-[color-mix(in_srgb,var(--color-danger)_30%,transparent)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 A
                               </button>

@@ -325,6 +325,7 @@ const Step1: React.FC<Step1Props> = ({
                     Select Month
                   </label>
                   <select
+                    aria-label="Month"
                     value={month}
                     onChange={(e) => setMonth(Number(e.target.value))}
                     className="w-full bg-card-2 border border-line-soft rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
@@ -341,6 +342,7 @@ const Step1: React.FC<Step1Props> = ({
                     Select Year
                   </label>
                   <select
+                    aria-label="Year"
                     value={year}
                     onChange={(e) => setYear(Number(e.target.value))}
                     className="w-full bg-card-2 border border-line-soft rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
@@ -361,7 +363,7 @@ const Step1: React.FC<Step1Props> = ({
                     <CalendarDays size={18} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-extrabold text-primary uppercase tracking-widest">
+                    <p className="text-[11px] font-extrabold text-primary uppercase tracking-widest">
                       Active Period
                     </p>
                     <p className="text-base font-extrabold text-ink">
@@ -370,7 +372,7 @@ const Step1: React.FC<Step1Props> = ({
                   </div>
                 </div>
                 <div className="text-right border-l border-[color-mix(in_srgb,var(--color-accent)_30%,transparent)] pl-5">
-                  <p className="text-[10px] font-extrabold text-ink-subtle uppercase tracking-widest">
+                  <p className="text-[11px] font-extrabold text-ink-subtle uppercase tracking-widest">
                     Calendar Days
                   </p>
                   <p className="text-base font-extrabold text-primary tabular-nums">
@@ -387,6 +389,7 @@ const Step1: React.FC<Step1Props> = ({
                     Select Month
                   </label>
                   <select
+                    aria-label="Month"
                     value={weekMonth}
                     onChange={(e) => {
                       setWeekMonth(Number(e.target.value));
@@ -406,6 +409,7 @@ const Step1: React.FC<Step1Props> = ({
                     Select Year
                   </label>
                   <select
+                    aria-label="Year"
                     value={year}
                     onChange={(e) => {
                       setYear(Number(e.target.value));
@@ -461,7 +465,7 @@ const Step1: React.FC<Step1Props> = ({
                       <CalendarDays size={18} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-extrabold text-primary uppercase tracking-widest">
+                      <p className="text-[11px] font-extrabold text-primary uppercase tracking-widest">
                         Active Weekly Period
                       </p>
                       <p className="text-base font-extrabold text-ink">
@@ -470,7 +474,7 @@ const Step1: React.FC<Step1Props> = ({
                     </div>
                   </div>
                   <div className="text-right border-l border-[color-mix(in_srgb,var(--color-accent)_60%,transparent)] pl-5">
-                    <p className="text-[10px] font-extrabold text-ink-subtle uppercase tracking-widest">
+                    <p className="text-[11px] font-extrabold text-ink-subtle uppercase tracking-widest">
                       Days
                     </p>
                     <p className="text-base font-extrabold text-primary tabular-nums">
@@ -828,7 +832,7 @@ const Step2: React.FC<{
       render: (row) => (
         <div>
           <p className="font-semibold text-ink text-xs">{row.name}</p>
-          <p className="text-[10px] text-ink-subtle">
+          <p className="text-[11px] text-ink-subtle">
             {row.code} · {row.salaryType.replace(/_/g, " ")}
           </p>
         </div>
@@ -960,19 +964,19 @@ const Step2: React.FC<{
         const missingDays = calDays - totalTracked;
         const overCap = totalTracked > calDays;
         return totalTracked === 0 ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[color-mix(in_srgb,var(--color-danger)_14%,transparent)] text-[color:var(--color-danger)]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[color-mix(in_srgb,var(--color-danger)_14%,transparent)] text-[color:var(--color-danger)]">
             <AlertTriangle size={9} /> No Data
           </span>
         ) : overCap ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[color-mix(in_srgb,var(--color-danger)_14%,transparent)] text-[color:var(--color-danger)]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[color-mix(in_srgb,var(--color-danger)_14%,transparent)] text-[color:var(--color-danger)]">
             <AlertTriangle size={9} /> Over
           </span>
         ) : missingDays > 3 ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[color:var(--color-warning)]">
             <Info size={9} /> {missingDays}d unset
           </span>
         ) : (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[color-mix(in_srgb,var(--color-success)_14%,transparent)] text-[color:var(--color-success)]">
             OK
           </span>
         );
@@ -1025,7 +1029,7 @@ const Step2: React.FC<{
           },
         ].map((c) => (
           <div key={c.label} className={`rounded-xl border p-3.5 ${c.cls}`}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
+            <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">
               {c.label}
             </p>
             <p className="text-xl font-bold mt-0.5">{c.value}</p>
@@ -1064,7 +1068,7 @@ const Step2: React.FC<{
                   <Users size={18} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest">
+                  <p className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest">
                     Total Employees
                   </p>
                   <p className="text-sm font-bold text-ink">{rows.length}</p>
@@ -1075,7 +1079,7 @@ const Step2: React.FC<{
             {/* Middle: Attendance Breakdown Metrics */}
             <div className="flex-1 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 px-6 py-4 text-sm border-b xl:border-b-0 border-line-soft">
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   Present
                 </span>
                 <span className="tabular-nums font-bold text-[color:var(--color-success)]">
@@ -1085,7 +1089,7 @@ const Step2: React.FC<{
               <div className="h-8 w-px bg-line-soft hidden sm:block"></div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   Absent
                 </span>
                 <span className="tabular-nums font-bold text-[color:var(--color-danger)]">
@@ -1095,7 +1099,7 @@ const Step2: React.FC<{
               <div className="h-8 w-px bg-line-soft hidden sm:block"></div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   Half Days
                 </span>
                 <span className="tabular-nums font-bold text-[color:var(--color-warning)]">
@@ -1105,7 +1109,7 @@ const Step2: React.FC<{
               <div className="h-8 w-px bg-line-soft hidden sm:block"></div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   OT Hours
                 </span>
                 <span className="tabular-nums font-bold text-accent">
@@ -1115,7 +1119,7 @@ const Step2: React.FC<{
               <div className="h-8 w-px bg-line-soft hidden sm:block"></div>
 
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   Salary Advance
                 </span>
                 <span className="tabular-nums font-bold text-[color:var(--chart-series-4)]">
@@ -1127,7 +1131,7 @@ const Step2: React.FC<{
             {/* Right side: Attendance Rate / Total Tracked */}
             <div className="flex items-stretch xl:border-l border-line-soft bg-card-2 w-full xl:w-auto">
               <div className="px-6 py-4 flex flex-col items-end justify-center flex-1 xl:flex-none">
-                <span className="text-[10px] font-bold text-[color:var(--color-success)] uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-[color:var(--color-success)] uppercase tracking-widest mb-1">
                   Total Tracked
                 </span>
                 <span className="tabular-nums text-xl font-black text-[color:var(--color-success)]">
@@ -1288,7 +1292,7 @@ const Step3: React.FC<{
           )}
           <div>
             <p className="font-semibold text-ink text-xs">{r.employeeName}</p>
-            <p className="text-[10px] text-ink-subtle">{r.employeeCode}</p>
+            <p className="text-[11px] text-ink-subtle">{r.employeeCode}</p>
           </div>
         </div>
       ),
@@ -1494,7 +1498,7 @@ const Step3: React.FC<{
             {fmtRs(Number(r.netSalary))}
           </span>
           {Number(r.cashInHand || 0) > 0 && (
-            <span className="text-[10px] tabular-nums text-accent block">
+            <span className="text-[11px] tabular-nums text-accent block">
               (incl. Cash: {fmtRs(Number(r.cashInHand || 0))})
             </span>
           )}
@@ -1583,7 +1587,7 @@ const Step3: React.FC<{
         ].map((c) => (
           <div key={c.label} className="sl-tile p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-semibold text-ink-subtle uppercase tracking-wider">
+              <p className="text-[11px] font-semibold text-ink-subtle uppercase tracking-wider">
                 {c.label}
               </p>
               <div className={`p-1.5 rounded-lg ${c.cls}`}>
@@ -1661,7 +1665,7 @@ const Step3: React.FC<{
                   <Users size={18} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest">
+                  <p className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest">
                     Total Employees
                   </p>
                   <p className="text-sm font-bold text-ink">{results.length}</p>
@@ -1672,7 +1676,7 @@ const Step3: React.FC<{
             {/* Middle: Breakdowns */}
             <div className="flex-1 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 px-6 py-4 text-sm border-b xl:border-b-0 border-line-soft">
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   Earned
                 </span>
                 <span className="tabular-nums font-semibold text-ink">
@@ -1681,7 +1685,7 @@ const Step3: React.FC<{
               </div>
               <div className="h-8 w-px bg-line-soft hidden sm:block"></div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   OT
                 </span>
                 <span className="tabular-nums font-semibold text-[color:var(--color-success)]">
@@ -1690,14 +1694,14 @@ const Step3: React.FC<{
               </div>
               <div className="h-8 w-px bg-line-soft hidden sm:block"></div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-ink-subtle uppercase tracking-widest mb-1">
                   Gross
                 </span>
                 <span className="tabular-nums font-bold text-ink">{fmtRs(run.totalGross)}</span>
               </div>
               <div className="h-8 w-px bg-line-soft hidden sm:block"></div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold text-[color:var(--color-danger)] uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-[color:var(--color-danger)] uppercase tracking-widest mb-1">
                   Deductions
                 </span>
                 <span className="tabular-nums font-semibold text-[color:var(--color-danger)]">
@@ -1710,7 +1714,7 @@ const Step3: React.FC<{
             {/* Right side: Final numbers */}
             <div className="flex items-stretch xl:border-l border-line-soft bg-card-2 w-full xl:w-auto">
               <div className="px-6 py-4 flex flex-col items-end justify-center border-r border-line-soft flex-1 xl:flex-none">
-                <span className="text-[10px] font-bold text-[color:var(--color-success)] uppercase tracking-widest mb-1">
+                <span className="text-[11px] font-bold text-[color:var(--color-success)] uppercase tracking-widest mb-1">
                   Net Pay
                 </span>
                 <span className="tabular-nums text-xl font-black text-[color:var(--color-success)]">
@@ -1720,7 +1724,7 @@ const Step3: React.FC<{
 
               {totalCashInHand > 0 && (
                 <div className="px-6 py-4 flex flex-col items-end justify-center bg-[color-mix(in_srgb,var(--color-accent)_9%,transparent)] flex-1 xl:flex-none">
-                  <span className="text-[10px] font-bold text-accent uppercase tracking-widest mb-1">
+                  <span className="text-[11px] font-bold text-accent uppercase tracking-widest mb-1">
                     Cash in Hand
                   </span>
                   <span className="tabular-nums text-xl font-black text-accent">
@@ -1868,7 +1872,7 @@ const Step4: React.FC<{
                       {fmtRs(Number(r.netSalary))}
                     </span>
                     {Number(r.cashInHand || 0) > 0 && (
-                      <div className="text-[10px] text-ink-subtle tabular-nums leading-tight">
+                      <div className="text-[11px] text-ink-subtle tabular-nums leading-tight">
                         (incl. Cash: {fmtRs(Number(r.cashInHand || 0))})
                       </div>
                     )}
@@ -1946,7 +1950,7 @@ const Step5: React.FC<{
       render: (r) => (
         <div>
           <p className="font-semibold text-ink text-xs">{r.employeeName}</p>
-          <p className="text-[10px] text-ink-subtle">{r.employeeCode}</p>
+          <p className="text-[11px] text-ink-subtle">{r.employeeCode}</p>
         </div>
       ),
     },
@@ -1958,7 +1962,7 @@ const Step5: React.FC<{
           {(r as any).employee?.accountNumber ? (
             <div>
               <p className="font-semibold text-ink text-xs">{(r as any).employee.accountNumber}</p>
-              <p className="text-[10px] text-ink-subtle">
+              <p className="text-[11px] text-ink-subtle">
                 {(r as any).employee.bankName || ""} · {(r as any).employee.ifscCode || ""}
               </p>
             </div>
@@ -1977,7 +1981,7 @@ const Step5: React.FC<{
             {fmtRs(Number(r.netSalary))}
           </span>
           {Number(r.cashInHand || 0) > 0 && (
-            <div className="text-[9px] text-ink-subtle tabular-nums leading-tight">
+            <div className="text-[11px] text-ink-subtle tabular-nums leading-tight">
               (incl. Cash: {fmtRs(Number(r.cashInHand || 0))})
             </div>
           )}
@@ -1993,7 +1997,7 @@ const Step5: React.FC<{
       render: (r) => (
         <div>
           <p className="font-semibold text-ink text-xs">{r.employeeName}</p>
-          <p className="text-[10px] text-ink-subtle">{r.employeeCode}</p>
+          <p className="text-[11px] text-ink-subtle">{r.employeeCode}</p>
         </div>
       ),
     },
@@ -2013,7 +2017,7 @@ const Step5: React.FC<{
             {fmtRs(Number(r.netSalary))}
           </span>
           {Number(r.cashInHand || 0) > 0 && (
-            <div className="text-[9px] text-ink-subtle tabular-nums leading-tight">
+            <div className="text-[11px] text-ink-subtle tabular-nums leading-tight">
               (incl. Cash: {fmtRs(Number(r.cashInHand || 0))})
             </div>
           )}
@@ -2866,13 +2870,13 @@ const PayrollRun: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1480px] flex-col py-1 sm:py-2">
+    <div className="sl-page">
       <PageHeader
-        title="Run Payroll"
+        title="Run payroll"
         subtitle={`${periodLabel} · ${runType === "MONTHLY" ? "Monthly" : "Weekly"} Run`}
         back="/payroll"
         backLabel="Back to payroll"
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Run Payroll" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Run payroll" }]}
         meta={
           step > 1 && currentRun ? (
             <>

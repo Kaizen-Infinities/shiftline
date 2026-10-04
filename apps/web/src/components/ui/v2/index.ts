@@ -34,3 +34,5 @@ export { Field, fieldControlClass } from "./Field";
 export type { FieldProps, FieldRenderProps } from "./Field";
 export { LoadError, StaleNotice } from "./LoadError";
 export type { LoadErrorProps, StaleNoticeProps } from "./LoadError";
+export { ConfirmDialog, useConfirm } from "./ConfirmDialog";
+export type { ConfirmDialogProps, ConfirmOptions } from "./ConfirmDialog";

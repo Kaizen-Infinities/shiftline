@@ -13,7 +13,6 @@ import {
   ActionPill,
   Chip,
   PageHeader,
-  Tile,
   Toolbar,
   actionPillClass,
   type ChipTone,
@@ -140,9 +139,9 @@ const EInvoicesPage: React.FC = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="E-invoice Register"
+        title="E-invoice register"
         icon={<FileCheck2 size={22} />}
         subtitle="Every IRN raised or refused by the portal for invoices, credit notes and debit notes. Failed ones can be retried from the document."
         meta={
@@ -198,35 +197,33 @@ const EInvoicesPage: React.FC = () => {
         }
       />
 
-      <Tile padding="none" className="overflow-hidden">
-        <DataTable
-          ariaLabel="E-invoices"
-          columns={columns}
-          data={shown}
-          rowKey={(r) => r.id}
-          loading={loading}
-          emptyMessage={
-            filtered
-              ? "No e-invoices match these filters."
-              : "No e-invoices yet. Raise one from a B2B invoice once e-invoicing is enabled in Settings."
-          }
-          emptyAction={
-            filtered ? (
-              <ActionPill
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setStatus("");
-                  setDocType("");
-                  setSearch("");
-                }}
-              >
-                Clear filters
-              </ActionPill>
-            ) : undefined
-          }
-        />
-      </Tile>
+      <DataTable
+        ariaLabel="E-invoices"
+        columns={columns}
+        data={shown}
+        rowKey={(r) => r.id}
+        loading={loading}
+        emptyMessage={
+          filtered
+            ? "No e-invoices match these filters."
+            : "No e-invoices yet. Raise one from a B2B invoice once e-invoicing is enabled in Settings."
+        }
+        emptyAction={
+          filtered ? (
+            <ActionPill
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setStatus("");
+                setDocType("");
+                setSearch("");
+              }}
+            >
+              Clear filters
+            </ActionPill>
+          ) : undefined
+        }
+      />
     </div>
   );
 };

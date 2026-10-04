@@ -186,14 +186,14 @@ const BankAccountsPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full space-y-4">
+    <div className="sl-page">
       <PageHeader
         title={
           filterType === "cash"
-            ? "Cash Accounts"
+            ? "Cash accounts"
             : filterType === "bank"
-              ? "Bank Accounts"
-              : "Bank & Cash Accounts"
+              ? "Bank accounts"
+              : "Bank & cash accounts"
         }
         subtitle="Every bank, overdraft and cash ledger with its current balance"
         icon={<Landmark size={20} />}

@@ -71,7 +71,7 @@ const NotificationsPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 text-ink" data-testid="notifications-page">
+    <div className="sl-page text-ink" data-testid="notifications-page">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="sl-h1">Notifications</h1>

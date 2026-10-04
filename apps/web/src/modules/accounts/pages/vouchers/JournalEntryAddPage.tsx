@@ -210,13 +210,13 @@ const JournalEntryAddPage: React.FC = () => {
   return (
     <form onSubmit={handleSubmit} onKeyDown={ctrlEnterSubmit} className="w-full">
       <PageHeader
-        title="New journal voucher"
+        title="New journal entry"
         subtitle={VOUCHER_KINDS.JOURNAL.hint}
         back="/accounts/journal-entry"
         backLabel="Back to journal register"
         breadcrumbs={[
           { label: "Accounts" },
-          { label: "Journal Register", to: "/accounts/journal-entry" },
+          { label: "Journal entries", to: "/accounts/journal-entry" },
           { label: "New" },
         ]}
         meta={<Chip tone="muted">Vch no. assigned on save</Chip>}
@@ -320,6 +320,7 @@ const JournalEntryAddPage: React.FC = () => {
                           ledgers={ledgers}
                           onChange={(val) => updateRow(row.id, "ledgerId", val)}
                           placeholder={unlocked ? "Type to search ledgers" : ""}
+                          ariaLabel={`Account, line ${idx + 1}`}
                           accentColor="purple-500"
                           variant="cell"
                           onSelected={() => focusCell(idx, "amount")}

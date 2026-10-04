@@ -310,20 +310,20 @@ const WeeklyMachineScheduleEdit: React.FC = () => {
   const uom = currentPo?.uom?.toLowerCase() === "ea" ? "pcs" : currentPo?.uom;
   const header = (
     <PageHeader
-      title="Edit Weekly Assignment"
+      title="Edit weekly schedule"
       subtitle="Update the planned quantity and machine for this week"
       back="/weekly-machine-schedules"
       backLabel="Back to List"
       breadcrumbs={[
         { label: "Weekly schedules", to: "/weekly-machine-schedules" },
-        { label: "Edit assignment" },
+        { label: "Edit weekly schedule" },
       ]}
     />
   );
 
   if (loadingPo || !currentPo) {
     return (
-      <PageBody className="max-w-[1100px]">
+      <PageBody className="sl-page-form">
         {header}
         <SkeletonTile lines={4} label="Loading assignment details..." />
         <SkeletonTile lines={2} />
@@ -332,7 +332,7 @@ const WeeklyMachineScheduleEdit: React.FC = () => {
   }
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       {header}
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <Tile title="Assignment Context">

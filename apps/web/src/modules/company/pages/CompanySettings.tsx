@@ -352,7 +352,7 @@ const CompanySettings: React.FC = () => {
 
   // Normal Settings/Edit Screen Design
   return (
-    <div className="mx-auto max-w-6xl p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
         title="Company settings"
         icon={<Building2 size={22} />}
@@ -609,7 +609,7 @@ const CompanySettings: React.FC = () => {
 
         {/* Footer */}
         {canEdit && (
-          <div className="sl-tile sticky bottom-3 z-10 mt-5 flex items-center justify-end gap-2 px-4 py-3">
+          <div className="sl-tile sl-sticky-footer z-10 mt-5 flex items-center justify-end gap-2 px-4 py-3">
             <ActionPill variant="secondary" onClick={() => navigate(-1)}>
               Cancel
             </ActionPill>

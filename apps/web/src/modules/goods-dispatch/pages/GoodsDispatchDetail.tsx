@@ -25,11 +25,11 @@ const GoodsDispatchDetail: React.FC = () => {
   }, [dispatch, id]);
 
   if (loading && !dispatchData) {
-    return <DispatchPlaceholder loading title="Goods Dispatch" />;
+    return <DispatchPlaceholder loading title="Goods dispatch" />;
   }
 
   if (!dispatchData) {
-    return <DispatchPlaceholder loading={false} title="Goods Dispatch" />;
+    return <DispatchPlaceholder loading={false} title="Goods dispatch" />;
   }
 
   const items: any[] = dispatchData.items || [];

@@ -224,7 +224,7 @@ const ExpensesList: React.FC = () => {
   return (
     <div className="w-full">
       <PageHeader
-        title="Expense Management"
+        title="Expenses & claims"
         subtitle="Business expenses and staff claims, posted to the books when approved"
         icon={<Receipt size={20} />}
         primaryAction={
@@ -472,7 +472,7 @@ const ExpensesList: React.FC = () => {
                                 href={selectedExpense.receiptInvoice}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="btn btn-outline-primary btn-sm"
+                                className="sl-btn sl-pill-sm"
                                 style={{
                                   display: "inline-flex",
                                   alignItems: "center",
@@ -503,7 +503,7 @@ const ExpensesList: React.FC = () => {
                                   href={selectedExpense.receiptInvoice}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="btn btn-link btn-sm text-decoration-none p-0 text-start"
+                                  className="text-start text-sm font-semibold text-accent hover:underline"
                                   style={{ width: "fit-content" }}
                                 >
                                   Open in New Tab

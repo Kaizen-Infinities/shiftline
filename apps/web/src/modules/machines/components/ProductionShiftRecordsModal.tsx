@@ -58,7 +58,7 @@ const ProductionShiftRecordsModal: React.FC<Props> = ({ show, onHide, productId,
           <>
             {highest && (
               <div className="bg-success bg-opacity-10 border border-success rounded-3 p-3 mb-4">
-                <div className="d-flex justify-content-between align-items-center">
+                <div className="flex items-center justify-between">
                   <div>
                     <span className="badge bg-success mb-2">CURRENT HIGHEST RECORD</span>
                     <h3 className="fw-bold text-success mb-0">

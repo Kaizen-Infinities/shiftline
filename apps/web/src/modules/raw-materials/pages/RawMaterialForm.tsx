@@ -318,7 +318,7 @@ const RawMaterialForm: React.FC = () => {
 
   const header = (
     <PageHeader
-      title={isEditMode ? "Edit Raw Material" : "Create Raw Material"}
+      title={isEditMode ? "Edit raw material" : "New raw material"}
       subtitle="A material you buy and consume in production, with its stock levels"
       back="/raw-materials"
       backLabel="Back to raw materials"
@@ -343,7 +343,7 @@ const RawMaterialForm: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       {header}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

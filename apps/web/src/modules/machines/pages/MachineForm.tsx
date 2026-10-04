@@ -241,7 +241,7 @@ const MachineForm: React.FC = () => {
     }
   };
 
-  const title = isEdit ? "Edit Machine" : "Create Machine";
+  const title = isEdit ? "Edit machine" : "New machine";
 
   if (loading) {
     return (
@@ -259,7 +259,7 @@ const MachineForm: React.FC = () => {
   }
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title={title}
         subtitle={

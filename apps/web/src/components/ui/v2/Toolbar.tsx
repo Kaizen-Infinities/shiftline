@@ -103,7 +103,7 @@ export function Toolbar<K extends string = string>({
   return (
     <div
       className={cx(
-        "mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
+        "sl-toolbar flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
         className
       )}
     >

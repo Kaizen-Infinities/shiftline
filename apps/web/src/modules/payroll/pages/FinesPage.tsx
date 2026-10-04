@@ -171,11 +171,11 @@ const FinesPage: React.FC = () => {
   };
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
-        title="Fines and deductions"
+        title="Fines & deductions"
         icon={<Gavel size={20} />}
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Fines and deductions" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Fines & deductions" }]}
         subtitle="Fines (Payment of Wages Act s.8) and deductions for damage or loss (s.10) — recorded, shown to the employee, approved, and recovered once in the payroll run for the wage period."
         primaryAction={
           can("fines.manage") ? (

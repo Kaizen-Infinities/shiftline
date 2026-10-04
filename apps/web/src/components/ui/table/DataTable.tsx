@@ -167,7 +167,7 @@ function DataTable<T>({
   const skeletonRows = density === "compact" ? 4 : 5;
 
   return (
-    <div className={`sl-tile w-full overflow-hidden ${className}`}>
+    <div className={`sl-tile sl-table-tile w-full overflow-hidden ${className}`}>
       {staleRows && <StaleNotice onRetry={onRetry} className="m-3 mb-0" />}
       <div
         className={`flex flex-col ${showingPlaceholder ? minHeightClassName : ""} ${maxHeightClassName}`}

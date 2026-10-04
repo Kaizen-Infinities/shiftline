@@ -211,8 +211,9 @@ export const QuickActions: React.FC = () => {
         )}
       </div>
 
-      {/* Tablet and up: each pill with its chips beneath, as in the concept. */}
-      <div className="hidden flex-wrap items-start gap-x-5 gap-y-6 sm:flex">
+      {/* Tablet and up: each pill with its chips beneath, as in the concept, in aligned
+          columns so a sixth action never wraps onto a row of its own. */}
+      <div className="hidden items-start gap-x-5 gap-y-6 sm:grid sm:grid-cols-2 lg:grid-cols-3 min-[1760px]:grid-cols-6">
         {groups.map((g) => (
           <div key={g.key} className="flex flex-col items-start gap-3">
             <Link to={g.to} className="sl-cta">

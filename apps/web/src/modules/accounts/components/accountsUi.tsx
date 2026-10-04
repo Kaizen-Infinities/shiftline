@@ -266,7 +266,7 @@ export const ReportFilterBar: React.FC<{ children: React.ReactNode; className?: 
 }) => (
   <div
     className={cx(
-      "sl-tile mb-4 flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:flex-wrap lg:items-end",
+      "sl-tile flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:flex-wrap lg:items-end",
       className
     )}
   >
@@ -369,7 +369,7 @@ export const EntryFooter: React.FC<{
   hints?: React.ReactNode;
   children: React.ReactNode;
 }> = ({ hints, children }) => (
-  <div className="sticky bottom-0 z-20 -mx-1 mt-4 bg-[linear-gradient(to_top,var(--color-page)_70%,transparent)] px-1 pb-3 pt-4">
+  <div className="sl-sticky-footer z-20 [--sl-footer-gap:0px]-mx-1 mt-4 bg-[linear-gradient(to_top,var(--color-page)_70%,transparent)] px-1 pb-3 pt-4">
     <div className="sl-tile flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="hidden min-w-0 sm:block">{hints}</div>
       <div className="flex shrink-0 items-center justify-end gap-2.5">{children}</div>

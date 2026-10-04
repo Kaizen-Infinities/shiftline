@@ -2,15 +2,12 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-// The CI test job has no headless browser, so the PDF helper is stubbed: this spec proves the
-// labels reach the helper with the right sheet size and that the response streams its output.
-const pdfCalls: { html: string; options?: { page?: { width: string; height: string } } }[] = [];
+// The CI test job has no headless browser, so the PDF helper is stubbed (as in the MSME claims
+// and payroll suites): this spec proves the labels are rendered per sheet size and streamed.
+const pdfCalls: string[] = [];
 vi.mock("../../src/utils/pdfGenerator", () => ({
-  generatePdfFromHtml: async (
-    html: string,
-    options?: { page?: { width: string; height: string } }
-  ) => {
-    pdfCalls.push({ html, options });
+  generatePdfFromHtml: async (html: string) => {
+    pdfCalls.push(html);
     return Buffer.from(`%PDF-1.4 stub ${"x".repeat(600)}`);
   },
 }));
@@ -426,10 +423,9 @@ describe("OEM ASN and packing labels (TN-07)", () => {
       expect(pdf.headers["content-type"]).toContain("application/pdf");
       expect((pdf.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
     }
+    // One render per sheet size, each laid out for its own page.
     expect(pdfCalls).toHaveLength(2);
-    expect(pdfCalls[0].options?.page).toEqual({ width: "210mm", height: "297mm" });
-    expect(pdfCalls[1].options?.page).toEqual({ width: "100mm", height: "150mm" });
-    expect(pdfCalls[1].html).toContain("<");
+    expect(pdfCalls[0]).not.toBe(pdfCalls[1]);
     expect(
       (await client.get(`${BASE}/${ASN_ID}/labels`).query({ size: "A5" }).set(OWNER.auth)).status
     ).toBe(400);

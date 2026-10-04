@@ -807,15 +807,15 @@ const MonthlyPayrollReport: React.FC = () => {
   // ── Empty ──
   if (runs.length === 0) {
     return (
-      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page">
         {/* Header */}
         <PageHeader
           className="print:hidden"
-          title="Monthly Payroll Report"
+          title="Monthly payroll report"
           icon={<FileText size={20} />}
           back="/payroll"
           backLabel="Back to payroll"
-          breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Monthly Payroll Report" }]}
+          breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Monthly payroll report" }]}
           subtitle={"No payroll runs found for selected filters."}
           meta={undefined}
           actions={
@@ -880,15 +880,15 @@ const MonthlyPayrollReport: React.FC = () => {
   const pagedData = activeData.slice((page - 1) * pageSize, page * pageSize);
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+    <div className="sl-page">
       {/* Header */}
       <PageHeader
         className="print:hidden"
-        title="Monthly Payroll Report"
+        title="Monthly payroll report"
         icon={<FileText size={20} />}
         back="/payroll"
         backLabel="Back to payroll"
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Monthly Payroll Report" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Monthly payroll report" }]}
         subtitle={run ? `${run.runCode} · ${periodLabel(run.period)}` : undefined}
         meta={run ? <StatusBadge status={run.status} /> : undefined}
         actions={

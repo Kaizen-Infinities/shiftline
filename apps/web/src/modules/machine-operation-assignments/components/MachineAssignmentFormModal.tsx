@@ -83,11 +83,14 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
   const refreshEmployees = useCallback(() => {
     // Re-fetch employees for all currently selected roles
     const roleIds = new Set<string>();
-    formData.operators.forEach(op => { if (op.roleId) roleIds.add(op.roleId); });
-    roleIds.forEach(roleId => {
-      machineOperationAssignmentService.getEmployeesByRole(Number(roleId))
-        .then(res => setEmployeesByRole(prev => ({ ...prev, [roleId]: res.data || [] })))
-        .catch(err => console.error(err));
+    formData.operators.forEach((op) => {
+      if (op.roleId) roleIds.add(op.roleId);
+    });
+    roleIds.forEach((roleId) => {
+      machineOperationAssignmentService
+        .getEmployeesByRole(Number(roleId))
+        .then((res) => setEmployeesByRole((prev) => ({ ...prev, [roleId]: res.data || [] })))
+        .catch((err) => console.error(err));
     });
   }, [formData.operators]);
 
@@ -111,12 +114,13 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
         const machineList = Array.isArray(mRes) ? mRes : mRes.data || [];
         setMachines(machineList.filter((m: any) => m.isActive !== false));
 
-        const roleList = (rRes.data || []).filter((r: any) => 
-          !r.name?.toLowerCase().includes("super admin") &&
-          !r.name?.toLowerCase().includes("superadmin") &&
-          !r.code?.toLowerCase().includes("super_admin") &&
-          !r.code?.toLowerCase().includes("superadmin") &&
-          r.code?.toLowerCase() !== "role_admin"
+        const roleList = (rRes.data || []).filter(
+          (r: any) =>
+            !r.name?.toLowerCase().includes("super admin") &&
+            !r.name?.toLowerCase().includes("superadmin") &&
+            !r.code?.toLowerCase().includes("super_admin") &&
+            !r.code?.toLowerCase().includes("superadmin") &&
+            r.code?.toLowerCase() !== "role_admin"
         );
         setRoles(roleList);
 
@@ -136,12 +140,18 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
       setFormData({
         machineId: initialData.machineId || "",
         shiftId: initialData.shiftId || "",
-        weekStartDate: initialData.weekStartDate ? initialData.weekStartDate.split("T")[0] : currentWeek.start,
-        weekEndDate: initialData.weekEndDate ? initialData.weekEndDate.split("T")[0] : currentWeek.end,
-        operators: initialData.operators ? initialData.operators.map((o: any) => ({
-          roleId: String(o.roleId),
-          employeeId: String(o.employeeId),
-        })) : [],
+        weekStartDate: initialData.weekStartDate
+          ? initialData.weekStartDate.split("T")[0]
+          : currentWeek.start,
+        weekEndDate: initialData.weekEndDate
+          ? initialData.weekEndDate.split("T")[0]
+          : currentWeek.end,
+        operators: initialData.operators
+          ? initialData.operators.map((o: any) => ({
+              roleId: String(o.roleId),
+              employeeId: String(o.employeeId),
+            }))
+          : [],
         remarks: initialData.remarks || "",
         isActive: initialData.isActive !== false,
       });
@@ -156,9 +166,7 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
         shiftId: "",
         weekStartDate: currentWeek.start,
         weekEndDate: currentWeek.end,
-        operators: [
-          { roleId: "", employeeId: "" }
-        ],
+        operators: [{ roleId: "", employeeId: "" }],
         remarks: "",
         isActive: true,
       });
@@ -167,7 +175,7 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
   }, [initialData, isOpen]);
 
   const [assignedShifts, setAssignedShifts] = useState<string[]>([]);
-  
+
   useEffect(() => {
     if (formData.machineId && formData.weekStartDate && isOpen) {
       fetchAssignedShifts();
@@ -178,16 +186,18 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
 
   const fetchAssignedShifts = async () => {
     try {
-      const res = await machineOperationAssignmentService.getAssignments({ 
+      const res = await machineOperationAssignmentService.getAssignments({
         machineId: formData.machineId,
         weekStartDate: formData.weekStartDate,
         isActive: true,
-        limit: 100
+        limit: 100,
       });
       // Ensure we don't disable the shift if we are currently editing it
       const existingShifts = res.data.map((a: any) => String(a.shiftId));
       if (isEdit && initialData?.shiftId) {
-        setAssignedShifts(existingShifts.filter((id: string) => id !== String(initialData.shiftId)));
+        setAssignedShifts(
+          existingShifts.filter((id: string) => id !== String(initialData.shiftId))
+        );
       } else {
         setAssignedShifts(existingShifts);
       }
@@ -195,7 +205,6 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
       console.error("Failed to load existing assignments", err);
     }
   };
-
 
   const fetchEmployeesForRole = async (roleId: string) => {
     if (!roleId) return;
@@ -210,24 +219,24 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
   // Fetch initial employees if editing
   useEffect(() => {
     if (isOpen && formData.operators.length > 0) {
-      formData.operators.forEach(op => {
+      formData.operators.forEach((op) => {
         if (op.roleId) fetchEmployeesForRole(op.roleId);
       });
     }
   }, [isOpen, formData.operators]);
 
   const handleAddOperator = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operators: [...prev.operators, { roleId: "", employeeId: "" }]
+      operators: [...prev.operators, { roleId: "", employeeId: "" }],
     }));
   };
 
   const handleRemoveOperator = (index: number) => {
     if (formData.operators.length <= 1) return;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      operators: prev.operators.filter((_, i) => i !== index)
+      operators: prev.operators.filter((_, i) => i !== index),
     }));
   };
 
@@ -235,7 +244,7 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
     if (field === "roleId" && value) {
       fetchEmployeesForRole(value);
     }
-    setFormData(prev => {
+    setFormData((prev) => {
       const newOps = [...prev.operators];
       newOps[index] = { ...newOps[index], [field]: value };
       if (field === "roleId") newOps[index].employeeId = ""; // Reset employee if role changes
@@ -246,7 +255,6 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
   const handleMachineSelect = (selectedMachineId: string) => {
     setFormData((prev) => ({ ...prev, machineId: selectedMachineId }));
   };
-
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -294,7 +302,7 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
         shiftId: formData.shiftId,
         weekStartDate: formData.weekStartDate,
         weekEndDate: formData.weekEndDate,
-        operators: formData.operators.map(o => ({
+        operators: formData.operators.map((o) => ({
           roleId: Number(o.roleId),
           employeeId: String(o.employeeId),
         })),
@@ -322,27 +330,24 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
-  const selectedEmpIds = new Set(formData.operators.map(op => op.employeeId).filter(Boolean));
+  const selectedEmpIds = new Set(formData.operators.map((op) => op.employeeId).filter(Boolean));
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[var(--sl-scrim)] backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-card rounded-2xl shadow-xl border border-line-soft w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-4 bg-card-2 border-b border-line-soft">
           <div className="flex items-center gap-3">
-           
             <div>
-              <h3 className="text-lg font-bold text-slate-800">
+              <h3 className="text-lg font-bold text-ink">
                 {isEdit ? "Edit Weekly Machine Assignment" : "New Weekly Machine Assignment"}
               </h3>
-              <p className="text-xs text-slate-500">
-                Assign Weekly Operator
-              </p>
+              <p className="text-xs text-ink-muted">Assign Weekly Operator</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            className="text-ink-subtle hover:text-ink p-2 rounded-lg hover:bg-card-2 transition-colors"
           >
             <FaTimes size={16} />
           </button>
@@ -352,7 +357,7 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Section 1: Machine & Week Period */}
           <div className="space-y-4">
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <h4 className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
               1. Week, Machine & Shift Selection
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -407,7 +412,7 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
                     ...shifts.map((s) => ({
                       label: `${s.shiftName} (${s.startTime} - ${s.endTime})`,
                       value: s.shiftCode,
-                      disabled: assignedShifts.includes(s.shiftCode)
+                      disabled: assignedShifts.includes(s.shiftCode),
                     })),
                   ]}
                 />
@@ -416,10 +421,10 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
           </div>
 
           {/* Section 2: Operator Assignment */}
-          <div className="space-y-4 pt-2 border-t border-slate-100">
+          <div className="space-y-4 pt-2 border-t border-line-soft">
             <div className="flex justify-between items-center">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              2. Machine Operator Assignment (Weekly)
+              <h4 className="text-xs font-semibold text-ink-subtle uppercase tracking-wider">
+                2. Machine Operator Assignment (Weekly)
               </h4>
               <CustomButton
                 type="button"
@@ -429,17 +434,22 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
                 icon={FaPlus}
               />
             </div>
-            {errors.operators && <p className="text-red-500 text-xs font-medium">{errors.operators}</p>}
-            
+            {errors.operators && (
+              <p className="text-[var(--color-danger)] text-xs font-medium">{errors.operators}</p>
+            )}
+
             {formData.operators.map((operator, index) => (
-              <div key={index} className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4 relative group">
+              <div
+                key={index}
+                className="bg-card-2 p-4 rounded-xl border border-line-soft space-y-4 relative group"
+              >
                 <div className="flex justify-between items-center">
-                  <h5 className="text-sm font-medium text-slate-700">Operator {index + 1}</h5>
+                  <h5 className="text-sm font-medium text-ink">Operator {index + 1}</h5>
                   {formData.operators.length > 1 && (
                     <button
                       type="button"
                       onClick={() => handleRemoveOperator(index)}
-                      className="text-red-400 hover:text-red-600 p-1 bg-red-50 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="text-[var(--color-danger)] p-1 bg-[var(--color-danger)]/10 hover:bg-[var(--color-danger)]/20 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Remove Operator"
                     >
                       <FaTimes size={12} />
@@ -478,7 +488,9 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
                         return {
                           label: `${e.fullName} (${e.empCode})${roleName ? ` - ${roleName}` : ""}`,
                           value: String(e.id),
-                          disabled: selectedEmpIds.has(String(e.id)) && operator.employeeId !== String(e.id)
+                          disabled:
+                            selectedEmpIds.has(String(e.id)) &&
+                            operator.employeeId !== String(e.id),
                         };
                       }),
                     ]}
@@ -488,9 +500,8 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
             ))}
           </div>
 
-
           {/* Section 3: Remarks */}
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-4 border-t border-line-soft">
             <TextInput
               label="Remarks / Notes (Optional)"
               name="remarks"
@@ -501,7 +512,7 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-line-soft">
             <CustomButton
               type="button"
               text="Cancel"

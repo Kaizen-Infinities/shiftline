@@ -544,7 +544,7 @@ const SalesInvoiceView: React.FC = () => {
     Boolean(invoice) && can("sales-invoices.edit") && !invoice?.cancelledAt && outstanding > 0;
 
   return (
-    <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] print:block">
+    <div className="sl-page-doc grid w-full grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] print:block">
       {/* ── Left rail: other invoices ── */}
       <aside
         aria-label="Sales invoices"
@@ -628,7 +628,7 @@ const SalesInvoiceView: React.FC = () => {
           <div className="mx-auto max-w-5xl">
             <div className="no-print">
               <PageHeader
-                title={`Sales Invoice #${invoice.invoiceNo}`}
+                title={`Sales invoice #${invoice.invoiceNo}`}
                 meta={
                   isCancelled ? (
                     <Chip dot tone="danger">

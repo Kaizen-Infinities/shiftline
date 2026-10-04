@@ -151,7 +151,7 @@ const FinishedStockList: React.FC<FinishedStockListProps> = ({ storeId: propStor
     <div>
       <div className="w-full min-w-0">
         <PageHeader
-          title="Finished Goods Stock"
+          title="Finished goods stock"
           subtitle={`${total || 0} stock lines · finished products on hand, by store`}
           icon={<PackageCheck size={22} />}
           actions={

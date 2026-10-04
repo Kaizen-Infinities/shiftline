@@ -142,9 +142,9 @@ const ShiftForm: React.FC = () => {
     );
   }
   return (
-    <div className="mx-auto w-full max-w-[1100px] py-1 sm:py-2">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title={isEdit ? "Edit Shift" : "Create Shift"}
+        title={isEdit ? "Edit shift" : "New shift"}
         subtitle="Timings, break and grace used by attendance and overtime."
         back="/shifts"
         backLabel="Back to List"
@@ -216,7 +216,7 @@ const ShiftForm: React.FC = () => {
           </div>
         </Tile>
 
-        <div className="sticky bottom-0 z-20 flex justify-end gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
+        <div className="sl-sticky-footer z-20 [--sl-footer-gap:0px]flex justify-end gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 backdrop-blur">
           <Link to="/shifts" className={actionPillClass({ variant: "secondary" })}>
             Cancel
           </Link>

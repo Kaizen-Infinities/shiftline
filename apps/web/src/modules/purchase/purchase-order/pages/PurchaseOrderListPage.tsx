@@ -315,7 +315,7 @@ const PurchaseOrderListPage: React.FC = () => {
     <div className={PAGE_CLASS}>
       <div>
         <PageHeader
-          title="Purchase Orders Management"
+          title="Purchase orders"
           subtitle={`${(allPurchaseOrders?.length || 0).toLocaleString("en-IN")} purchase order${allPurchaseOrders?.length === 1 ? "" : "s"} · approved orders are received against a GRN invoice`}
           primaryAction={createButton}
           actions={

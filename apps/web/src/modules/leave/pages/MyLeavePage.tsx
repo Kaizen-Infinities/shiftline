@@ -113,8 +113,8 @@ const MyLeavePage: React.FC = () => {
 
   if (loading && !data) {
     return (
-      <PageShell className="space-y-5">
-        <PageHeader title="My Leave" subtitle="Loading…" />
+      <PageShell>
+        <PageHeader title="My leave" subtitle="Loading…" />
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
             <StatTile key={i} label=" " value="" loading />
@@ -127,8 +127,8 @@ const MyLeavePage: React.FC = () => {
 
   if (data && !data.linked) {
     return (
-      <PageShell className="space-y-5">
-        <PageHeader title="My Leave" icon={<Umbrella size={20} />} />
+      <PageShell>
+        <PageHeader title="My leave" icon={<Umbrella size={20} />} />
         <div className="sl-tile">
           <EmptyState
             icon={<Umbrella size={28} strokeWidth={1.75} />}
@@ -145,9 +145,9 @@ const MyLeavePage: React.FC = () => {
   const pending = requests.filter((r) => r.status === "PENDING").length;
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
-        title="My Leave"
+        title="My leave"
         icon={<Umbrella size={20} />}
         subtitle={data?.employee?.fullName}
         meta={

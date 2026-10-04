@@ -259,7 +259,7 @@ const StorageStoreForm: React.FC = () => {
 
   const header = (
     <PageHeader
-      title={isEditMode ? "Edit Storage Store" : "Create Storage Store"}
+      title={isEditMode ? "Edit storage store" : "New storage store"}
       subtitle={
         isEditMode
           ? `Editing details for Store ID: ${formData.storeId}`
@@ -269,7 +269,7 @@ const StorageStoreForm: React.FC = () => {
       backLabel="Back to stores"
       breadcrumbs={[
         { label: "Inventory" },
-        { label: "Stores", to: "/storage-stores" },
+        { label: "Storage stores", to: "/storage-stores" },
         { label: isEditMode ? "Edit" : "New" },
       ]}
     />
@@ -288,7 +288,7 @@ const StorageStoreForm: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       {header}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>

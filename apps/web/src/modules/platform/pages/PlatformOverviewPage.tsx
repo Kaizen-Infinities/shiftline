@@ -38,9 +38,9 @@ const PlatformOverviewPage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="Platform Overview"
+        title="Overview"
         icon={<Building2 size={22} />}
         subtitle="Every tenant on this Shiftline instance. Numbers refresh on each visit."
         actions={

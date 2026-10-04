@@ -217,9 +217,9 @@ const EwayBillsPage: React.FC = () => {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="E-way Bills"
+        title="E-way bills"
         icon={<Truck size={22} />}
         subtitle="Every e-way bill raised for invoices and dispatch challans, with validity. Tick live bills on one vehicle to make a trip sheet."
         meta={
@@ -309,27 +309,25 @@ const EwayBillsPage: React.FC = () => {
         </Tile>
       )}
 
-      <Tile padding="none" className="overflow-hidden">
-        <DataTable
-          ariaLabel="E-way bills"
-          columns={columns}
-          data={rows}
-          rowKey={(r) => r.id}
-          loading={loading}
-          emptyMessage={
-            filter
-              ? "No e-way bills match this filter."
-              : "No e-way bills yet. Raise one from an invoice or a goods dispatch."
-          }
-          emptyAction={
-            filter ? (
-              <ActionPill variant="secondary" size="sm" onClick={() => onFilter("")}>
-                Clear filters
-              </ActionPill>
-            ) : undefined
-          }
-        />
-      </Tile>
+      <DataTable
+        ariaLabel="E-way bills"
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.id}
+        loading={loading}
+        emptyMessage={
+          filter
+            ? "No e-way bills match this filter."
+            : "No e-way bills yet. Raise one from an invoice or a goods dispatch."
+        }
+        emptyAction={
+          filter ? (
+            <ActionPill variant="secondary" size="sm" onClick={() => onFilter("")}>
+              Clear filters
+            </ActionPill>
+          ) : undefined
+        }
+      />
 
       {sheets.length > 0 && (
         <Tile title="Trip sheets" icon={<Route size={18} />} padding="none" divider>

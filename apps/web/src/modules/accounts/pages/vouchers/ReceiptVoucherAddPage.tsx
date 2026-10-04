@@ -267,7 +267,7 @@ const ReceiptVoucherAddPage: React.FC = () => {
         backLabel="Back to receipt register"
         breadcrumbs={[
           { label: "Accounts" },
-          { label: "Receipt Register", to: "/accounts/receipt-voucher" },
+          { label: "Receipt vouchers", to: "/accounts/receipt-voucher" },
           { label: "New" },
         ]}
         meta={
@@ -385,6 +385,7 @@ const ReceiptVoucherAddPage: React.FC = () => {
                           ledgers={ledgers}
                           onChange={(val) => updateRow(row.id, "creditLedgerId", val)}
                           placeholder={unlocked ? "Type to search ledgers" : ""}
+                          ariaLabel={`Account, line ${idx + 1}`}
                           filterFn={(l) => !isBankOrCashLedger(l)}
                           accentColor="emerald-500"
                           variant="cell"

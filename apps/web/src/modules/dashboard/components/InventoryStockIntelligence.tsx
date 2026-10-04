@@ -775,12 +775,12 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                     axisLine={false}
                     tickLine={false}
                     interval={0}
-                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
+                    tick={{ fontSize: 11, fill: "var(--color-ink-subtle)" }}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
+                    tick={{ fontSize: 11, fill: "var(--color-ink-subtle)" }}
                   />
                   <Tooltip cursor={{ fill: "var(--color-card-2)" }} content={<StockTooltip />} />
                   <Bar dataKey="quantity" fill={tabColor} radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -862,12 +862,12 @@ export const InventoryStockIntelligence: React.FC<InventoryStockIntelligenceProp
                     axisLine={false}
                     tickLine={false}
                     interval={0}
-                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
+                    tick={{ fontSize: 11, fill: "var(--color-ink-subtle)" }}
                   />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 10, fill: "var(--color-ink-subtle)" }}
+                    tick={{ fontSize: 11, fill: "var(--color-ink-subtle)" }}
                   />
                   <Tooltip
                     cursor={{ stroke: "var(--color-line)", strokeWidth: 1 }}

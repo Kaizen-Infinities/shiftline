@@ -284,9 +284,9 @@ export const ChartOfAccountsPage: React.FC = () => {
   ];
 
   return (
-    <div className="w-full">
+    <div className="sl-page">
       <PageHeader
-        title="Chart of Accounts"
+        title="Chart of accounts"
         subtitle={`${summary.total} ledgers in ${summary.groupsCount} groups · grouped per Schedule III`}
         icon={<Network size={20} />}
         primaryAction={
@@ -316,7 +316,7 @@ export const ChartOfAccountsPage: React.FC = () => {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile
           label="Total ledgers"
           value={summary.total}
@@ -327,7 +327,7 @@ export const ChartOfAccountsPage: React.FC = () => {
         <StatTile label="Groups" value={summary.groupsCount} loading={loading && !ledgers.length} />
       </div>
 
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div
           role="group"
           aria-label="Account type"
@@ -382,7 +382,7 @@ export const ChartOfAccountsPage: React.FC = () => {
           ) : undefined
         }
       />
-      <p className="sl-muted m-0 mt-2 text-right text-[12.5px] tabular-nums">
+      <p className="sl-muted m-0 text-right text-[12.5px] tabular-nums">
         Showing {filteredLedgers.length} of {ledgers.length}
       </p>
 

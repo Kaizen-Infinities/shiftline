@@ -339,7 +339,7 @@ const DeliverySchedulesPage: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Delivery Schedules"
+        title="Delivery schedules"
         subtitle="Customer schedules, what is due this week, and schedule adherence the way the OEM rates it."
         icon={<CalendarClock size={22} />}
         primaryAction={newButton}

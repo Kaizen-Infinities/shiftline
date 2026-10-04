@@ -11,7 +11,7 @@ import {
 } from "../../../../services/yearEndService";
 import { formatDate, formatDateTime } from "../../../../utils/dateUtils";
 import { CalendarCheck } from "lucide-react";
-import { LoadError, PageHeader } from "../../../../components/ui/v2";
+import { LoadError, PageHeader, useConfirm } from "../../../../components/ui/v2";
 
 /**
  * Year-end closing (P1-09e). Preview the closing journal for a financial year, prepare it, have
@@ -37,6 +37,7 @@ const message = (err: unknown) =>
   "Something went wrong";
 
 const YearEndPage: React.FC = () => {
+  const [confirm, confirmDialog] = useConfirm();
   const { can } = usePermission();
   const [fyCode, setFyCode] = useState(previousFyCode());
   const [applied, setApplied] = useState(previousFyCode());
@@ -107,13 +108,14 @@ const YearEndPage: React.FC = () => {
 
   const prepare = () =>
     run(`${applied} prepared for approval`, () => yearEndService.prepare(applied, notes));
-  const approve = (c: YearEndClosing) => {
-    if (
-      !window.confirm(
-        `Close ${c.fyCode}? The closing journal is posted on ${formatDate(c.fyEnd)}, the year's periods close and the books freeze up to that date.`
-      )
-    )
-      return;
+  const approve = async (c: YearEndClosing) => {
+    const ok = await confirm({
+      title: "Close financial year",
+      message: `Close ${c.fyCode}? The closing journal is posted on ${formatDate(c.fyEnd)}, the year's periods close and the books freeze up to that date.`,
+      confirmText: "Close year",
+      destructive: true,
+    });
+    if (!ok) return;
     return run(`${c.fyCode} closed`, () => yearEndService.approve(c.id));
   };
   const discard = (c: YearEndClosing) =>
@@ -129,9 +131,10 @@ const YearEndPage: React.FC = () => {
   const existing = preview?.existing ?? null;
 
   return (
-    <div className="w-full space-y-4">
+    <div className="sl-page">
+      {confirmDialog}
       <PageHeader
-        title="Year-End Closing"
+        title="Year-end closing"
         subtitle="Transfer the year's result to Retained Earnings, close the year's periods, open the next year and freeze the books. Prepared by one person, approved by another."
         icon={<CalendarCheck size={20} />}
       />
@@ -145,6 +148,7 @@ const YearEndPage: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           <input
             type="date"
+            aria-label="Books frozen up to"
             className={input}
             value={freeze}
             onChange={(e) => setFreeze(e.target.value)}
@@ -303,6 +307,7 @@ const YearEndPage: React.FC = () => {
                 <>
                   <input
                     className={`${input} w-72`}
+                    aria-label="Note for the approver (optional)"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Note for the approver (optional)"

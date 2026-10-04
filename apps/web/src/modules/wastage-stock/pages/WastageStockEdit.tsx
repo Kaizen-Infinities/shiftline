@@ -75,9 +75,9 @@ const WastageStockEdit: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title="Edit Wastage Stock Entry"
+        title="Edit wastage stock"
         back="/wastage-stock"
         backLabel="Back to list"
         breadcrumbs={[

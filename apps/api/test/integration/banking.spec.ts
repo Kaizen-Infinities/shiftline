@@ -36,6 +36,50 @@ describe("bank reconciliation and cheques", () => {
     BANK_ACCOUNT_ID = account!.id;
   });
 
+  it("lists the tenant's bank accounts for the picker", async () => {
+    const client = await api();
+    const res = await client.get("/api/banking/accounts").set(OWNER.auth);
+    expect(res.status).toBe(200);
+    const rows = res.body.data.accounts as Record<string, unknown>[];
+    expect(Array.isArray(res.body.data.unlinked)).toBe(true);
+    const mine = rows.find((r) => r.id === BANK_ACCOUNT_ID);
+    expect(mine).toBeDefined();
+    expect(mine).toMatchObject({ bankName: expect.any(String), isDefault: expect.any(Boolean) });
+    expect(typeof mine!.ledgerId).toBe("number");
+    expect(typeof mine!.bookBalance).toBe("number");
+    // The id the picker hands back is the one the other endpoints accept.
+    const lines = await client
+      .get(`/api/banking/lines?bankAccountId=${BANK_ACCOUNT_ID}`)
+      .set(OWNER.auth);
+    expect(lines.status).toBe(200);
+  });
+
+  it("refuses the account list without banking.view and never shows another tenant's accounts", async () => {
+    const client = await api();
+    const production = await authed("demo.production");
+    expect((await client.get("/api/banking/accounts").set(production.auth)).status).toBe(403);
+
+    const prisma = await getPrisma();
+    const { runAsTenant, withoutTenant } = await import("../../src/lib/tenant-context");
+    const other = await withoutTenant(() =>
+      prisma.company.create({ data: { companyName: "Bank List B", companyCode: `BLB-${sfx}` } })
+    );
+    const foreign = await runAsTenant(other.id, async () => {
+      const ledger = await prisma.accountLedger.create({
+        data: { code: `BNK-${sfx}`, name: "Foreign Bank", type: "ASSET", group: "Bank Accounts" },
+      });
+      return prisma.bankAccount.create({
+        data: { ledgerId: ledger.id, bankName: `Foreign Bank ${sfx}`, accountNumber: "999000111" },
+      });
+    });
+    const res = await client.get("/api/banking/accounts").set(OWNER.auth);
+    const ids = (res.body.data.accounts as { id: string }[]).map((r) => r.id);
+    expect(ids).not.toContain(foreign.id);
+    expect(JSON.stringify(res.body)).not.toContain(`Foreign Bank ${sfx}`);
+    const theirs = await runAsTenant(other.id, () => prisma.bankAccount.findMany());
+    expect(theirs.map((r) => r.id)).toEqual([foreign.id]);
+  });
+
   it("reads dates in every order a bank writes them, day first", () => {
     // Day first, because an Indian bank does not write 03/04 to mean the fourth of March.
     expect(parseBankDate("03/04/2034")?.toISOString().slice(0, 10)).toBe("2034-04-03");

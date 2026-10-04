@@ -285,8 +285,8 @@ const PayrollDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <PageShell className="space-y-5">
-        <PageHeader title="Payroll" subtitle="Loading payroll data…" />
+      <PageShell>
+        <PageHeader title="Payroll overview" subtitle="Loading payroll data…" />
         <div className="grid gap-4 lg:grid-cols-3">
           <SkeletonTile lines={4} height={220} className="lg:col-span-2" />
           <SkeletonTile lines={4} height={220} />
@@ -314,9 +314,9 @@ const PayrollDashboard: React.FC = () => {
   ) : null;
 
   return (
-    <PageShell className="space-y-6">
+    <PageShell>
       <PageHeader
-        title="Payroll"
+        title="Payroll overview"
         subtitle={
           <>
             {company?.companyName || "Company"} · salaries, statutory dues and payslips for{" "}
@@ -582,7 +582,7 @@ const PayrollDashboard: React.FC = () => {
             {runsLoading && <span className="sl-spinner" aria-label="Loading" />}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="sr-only" htmlFor="payroll-month">
+            <label className="sl-label !mb-0 whitespace-nowrap" htmlFor="payroll-month">
               Month
             </label>
             <input

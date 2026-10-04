@@ -188,9 +188,9 @@ const WhatsappCreatePage: React.FC = () => {
   if (loading) return <CommonLoader text="Loading ..." fullScreen={false} />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title="WhatsApp Business Configuration"
+        title="WhatsApp"
         icon={<MessageCircle size={22} />}
         subtitle="The WhatsApp Business account invoices, payslips and reminders are shared through."
         breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "WhatsApp" }]}
@@ -300,7 +300,7 @@ const WhatsappCreatePage: React.FC = () => {
 
           {/* Footer */}
           {canEditWhatsapp && (
-            <div className="sl-tile sticky bottom-3 z-10 flex justify-end gap-2 px-4 py-3">
+            <div className="sl-tile sl-sticky-footer z-10 flex justify-end gap-2 px-4 py-3">
               <ActionPill variant="secondary" icon={<Eraser size={16} />} onClick={handleClear}>
                 Clear
               </ActionPill>

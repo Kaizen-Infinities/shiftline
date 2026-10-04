@@ -183,7 +183,7 @@ const SupplierList: React.FC = () => {
     <div className={PAGE_CLASS}>
       <div>
         <PageHeader
-          title="Supplier Master"
+          title="Suppliers"
           subtitle={`${(allSuppliers?.length || 0).toLocaleString("en-IN")} supplier${allSuppliers?.length === 1 ? "" : "s"} · vendors you buy raw material and services from`}
           primaryAction={createButton}
           actions={

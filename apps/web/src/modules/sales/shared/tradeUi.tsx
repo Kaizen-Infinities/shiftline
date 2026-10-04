@@ -76,7 +76,7 @@ export const FormFooter: React.FC<{
 }> = ({ children, start, className }) => (
   <div
     className={cx(
-      "sl-tile sticky bottom-3 z-20 mt-4 flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5",
+      "sl-tile sl-sticky-footer z-20 mt-4 flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5",
       className
     )}
   >

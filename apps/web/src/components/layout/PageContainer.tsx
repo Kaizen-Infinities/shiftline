@@ -13,11 +13,14 @@ import { Outlet } from "react-router-dom";
  * layout wrapper's, giving the table three nested gutters. Horizontal spacing
  * now comes solely from the max-w-[1024px] wrapper in BaseLayout.
  *
+ * It adds no vertical margin either: the shell sets the top offset, so a title
+ * starts at the same height on every screen (docs/specs/UI-v2.md, "Page layout").
+ *
  * Only list/content pages sit under this route. Create/edit forms were never
  * inside a tab wrapper and stay full-width, exactly as before.
  */
 const PageContainer = () => (
-  <div className="w-full min-w-0 my-3">
+  <div className="w-full min-w-0">
     <Outlet />
   </div>
 );

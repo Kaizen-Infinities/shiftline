@@ -200,9 +200,9 @@ const GstReturnsPage: React.FC = () => {
         : months.find((m) => m.value === period)?.label;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="GST Returns"
+        title="GST returns"
         icon={<Landmark size={22} />}
         subtitle="Computed from the books. Nothing is filed until it is approved."
         meta={periodText ? <Chip size="sm">{periodText}</Chip> : undefined}

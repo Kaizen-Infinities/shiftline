@@ -232,7 +232,7 @@ const InventoryReportsCenter: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title="Inventory Reports"
+        title="Inventory reports"
         subtitle={
           asOfDate
             ? `Data as of: ${new Date(asOfDate).toLocaleDateString("en-IN")}`
@@ -259,6 +259,7 @@ const InventoryReportsCenter: React.FC = () => {
             <label className="sl-label">Snapshot Date</label>
             <DatePickerCalendar
               name="draftDate"
+              ariaLabel="Snapshot date"
               value={draftDate}
               onChange={(e) => setDraftDate(e.target.value)}
             />
@@ -267,6 +268,7 @@ const InventoryReportsCenter: React.FC = () => {
             <label className="sl-label">Category</label>
             <SelectInput
               name="draftCategory"
+              ariaLabel="Category"
               value={draftCategory}
               options={[
                 { label: "Raw Materials", value: "RAW_MATERIAL" },
@@ -281,6 +283,7 @@ const InventoryReportsCenter: React.FC = () => {
             <label className="sl-label">Store</label>
             <SelectInput
               name="draftStoreId"
+              ariaLabel="Store"
               value={draftStoreId}
               options={stores.map((s) => ({
                 label: s.storeName,
@@ -292,8 +295,11 @@ const InventoryReportsCenter: React.FC = () => {
             />
           </div>
           <div>
-            <label className="sl-label">Search Item</label>
+            <label htmlFor="inventory-report-search" className="sl-label">
+              Search Item
+            </label>
             <input
+              id="inventory-report-search"
               type="text"
               className="sl-input h-11 w-full px-4"
               value={draftSearch}

@@ -213,7 +213,7 @@ const CategoryForm: React.FC = () => {
 
   const header = (
     <PageHeader
-      title={isEditMode ? "Edit Category" : "Create Category"}
+      title={isEditMode ? "Edit category" : "New category"}
       subtitle="Categories group products, raw materials and wastage items"
       back="/categories"
       backLabel="Back to categories"
@@ -235,7 +235,7 @@ const CategoryForm: React.FC = () => {
   }
 
   return (
-    <div className="w-full min-w-0 max-w-[960px]">
+    <div className="sl-page sl-page-form">
       {header}
 
       <form onSubmit={handleSubmit} noValidate>
