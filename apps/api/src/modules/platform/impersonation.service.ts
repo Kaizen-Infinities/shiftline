@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../config/prisma";
 import { tenantStorage, withoutTenant } from "../../lib/tenant-context";
 import { logger } from "../../lib/logger";
+import { disconnectImpersonation } from "../../lib/realtime";
 import { ApiError } from "../../utils/ApiError";
 import { generateAccessToken } from "../../utils/generateAccessToken";
 import { authRepository } from "../auth/auth.repository";
@@ -154,6 +155,7 @@ class ImpersonationService {
         where: { id },
         data: { endedAt: new Date(), endedReason: by.reason },
       });
+      disconnectImpersonation(id);
       logger.info({ impersonationId: id, reason: by.reason }, "impersonation ended");
       return ended;
     });

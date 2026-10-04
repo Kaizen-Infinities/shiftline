@@ -10,6 +10,7 @@ import { auditTrailService } from "../audit-trail/audit-trail.service";
 import { entitlementService } from "../entitlements/entitlement.service";
 import { mobileDeviceService } from "../mobile/mobile.device.service";
 import { impersonationService } from "./impersonation.service";
+import { disconnectCompany } from "../../lib/realtime";
 
 /**
  * Platform console (P1-02): what an operator needs about a tenant without entering it —
@@ -154,6 +155,7 @@ export const consoleController = {
           data: { isActive: false, logoutAt: new Date() },
         })
       );
+      disconnectCompany(company.id);
     }
     entitlementService.changed(company.id);
     res.json(

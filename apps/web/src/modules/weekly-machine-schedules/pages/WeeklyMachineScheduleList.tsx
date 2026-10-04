@@ -17,8 +17,6 @@ import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   fetchWeeklyPrograms,
   deleteWeeklyProgram,
-  weeklyProgramCreated,
-  weeklyProgramUpdated,
   weeklyProgramDeleted,
 } from "../../../features/weekly-programs/weeklyProgramSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -180,10 +178,14 @@ const WeeklyMachineScheduleList: React.FC = () => {
     }
   }, [error]);
 
-  useSocketSync("weeklyProgram", {
-    created: weeklyProgramCreated,
-    updated: weeklyProgramUpdated,
-    deleted: weeklyProgramDeleted,
+  // Realtime events carry no record (F04): refetch the current view.
+  useSocketSync("weeklyProgram", { deleted: weeklyProgramDeleted }, () => {
+    dispatch(
+      fetchWeeklyPrograms({
+        weekStartDate: filterWeekStartDate || undefined,
+        search: debouncedSearchTerm || undefined,
+      })
+    );
   });
 
   const handleDateChange = (e: React.ChangeEvent<any>) => {

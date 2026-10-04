@@ -27,8 +27,6 @@ import {
   fetchDailyPlans,
   updateDailyPlan,
   deleteDailyPlan,
-  dailyPlanCreated,
-  dailyPlanUpdated,
   dailyPlanDeleted,
 } from "../../../features/daily-plans/dailyPlanSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -244,15 +242,7 @@ const DailyProductionPlanningPage: React.FC = () => {
     loadDailyPlans();
   }, [loadDailyPlans, location.key]);
 
-  useSocketSync(
-    "dailyPlan",
-    {
-      created: dailyPlanCreated,
-      updated: dailyPlanUpdated,
-      deleted: dailyPlanDeleted,
-    },
-    loadDailyPlans
-  );
+  useSocketSync("dailyPlan", { deleted: dailyPlanDeleted }, loadDailyPlans);
 
   useSocketSync("hourlyProduction", undefined, loadDailyPlans);
   useSocketSync("weeklyProgram", undefined, loadDailyPlans);

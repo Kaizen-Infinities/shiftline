@@ -36,17 +36,6 @@ export interface FieldAgentPosition {
   };
 }
 
-/** Socket payload for agentPosition:updated (see mobile.position.service.ts). */
-interface PositionEvent {
-  agentUserId: string;
-  deviceId: string | null;
-  latitude: number;
-  longitude: number;
-  speedKmh: number | null;
-  batteryPct: number | null;
-  recordedAt: string;
-}
-
 type Freshness = "live" | "recent" | "stale";
 type TileLayerType = "theme_default" | "satellite";
 
@@ -150,30 +139,22 @@ export const SalesPersonLiveMap: React.FC = () => {
   // Live updates from the tenant room.
   useEffect(() => {
     if (!socket) return;
-    const onPosition = (p: PositionEvent) => {
-      setAgents((prev) => {
-        const idx = prev.findIndex((a) => a.agentUserId === p.agentUserId);
-        if (idx === -1) {
-          // New agent: fetch the full row (name, counters) instead of guessing.
-          void load();
-          return prev;
-        }
-        const next = [...prev];
-        next[idx] = {
-          ...next[idx],
-          deviceId: p.deviceId,
-          latitude: p.latitude,
-          longitude: p.longitude,
-          speedKmh: p.speedKmh,
-          batteryPct: p.batteryPct,
-          recordedAt: p.recordedAt,
-          receivedAt: new Date().toISOString(),
-        };
-        return next;
-      });
+    // The event carries no coordinates (F04, they would reach every user of the tenant):
+    // refetch the positions through the REST API, at most once every few seconds.
+    let last = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onPosition = () => {
+      const wait = Math.max(0, last + 3000 - Date.now());
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        last = Date.now();
+        void load();
+      }, wait);
     };
     socket.on("agentPosition:updated", onPosition);
     return () => {
+      if (timer) clearTimeout(timer);
       socket.off("agentPosition:updated", onPosition);
     };
   }, [socket, load]);

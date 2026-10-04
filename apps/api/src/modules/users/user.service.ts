@@ -1,5 +1,6 @@
 import { toLocale, type Locale } from "@shiftline/shared";
 import { ApiError } from "../../utils/ApiError";
+import { disconnectUser } from "../../lib/realtime";
 import { UserResponse } from "../../types/user.types";
 import { userRepository } from "./user.repository";
 import { UserStatus } from "../../types/auth.types";
@@ -83,6 +84,7 @@ export class UserService {
 
     const status = isActive ? UserStatus.ACTIVE : UserStatus.SUSPENDED;
     const updatedUser = await userRepository.updateUserStatus(userId, status);
+    if (!isActive) disconnectUser(userId);
 
     return this.formatUser(updatedUser);
   }
