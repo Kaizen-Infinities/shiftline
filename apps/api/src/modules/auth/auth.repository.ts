@@ -5,6 +5,7 @@ import { UserStatus, CreateAuditLogDto, LoginAttemptDto } from "../../types/auth
 
 interface PrismaUser {
   userId: string;
+  companyId: string;
   username: string;
   email: string | null;
   passwordHash: string;
@@ -292,6 +293,19 @@ export class AuthRepository {
     return result.count;
   }
 
+  /** Ends every active session of the user except `keepSessionId` (password change). */
+  async logoutOtherUserSessions(userId: string, keepSessionId?: string): Promise<number> {
+    const result = await prisma.userSession.updateMany({
+      where: {
+        userId,
+        isActive: true,
+        ...(keepSessionId ? { id: { not: keepSessionId } } : {}),
+      },
+      data: { logoutAt: new Date(), isActive: false },
+    });
+    return result.count;
+  }
+
   async getActiveSessions(userId?: string, adminId?: bigint): Promise<any[]> {
     return prisma.userSession.findMany({
       where: {
@@ -406,13 +420,20 @@ export class AuthRepository {
   // PERMISSIONS
   // ============================================================
 
-  async findPermissionsByRole(roleId?: number | null): Promise<string[]> {
+  /**
+   * With `companyId` (every tenant user) only grants of an active role of that company count,
+   * so a row planted by another tenant never reaches a token (F01). Platform admins pass none.
+   */
+  async findPermissionsByRole(roleId?: number | null, companyId?: string): Promise<string[]> {
     if (roleId === undefined || roleId === null) {
       return [];
     }
 
     const permissions = await prisma.rolePermission.findMany({
-      where: { roleId },
+      where: {
+        roleId,
+        ...(companyId ? { companyId, role: { companyId, status: "active" as const } } : {}),
+      },
       select: { permission: { select: { key: true } } },
     });
 

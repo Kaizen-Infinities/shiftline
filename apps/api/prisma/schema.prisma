@@ -188,7 +188,7 @@ model User {
   sessions            UserSession[]
   notifications       Notification[]
   employee            Employee?            @relation(fields: [employeeId], references: [id])
-  role                Role?                @relation(fields: [roleId], references: [id])
+  role                Role?                @relation(fields: [companyId, roleId], references: [companyId, id])
 
   company Company @relation("CompanyUser", fields: [companyId], references: [id], onDelete: Restrict)
 
@@ -412,6 +412,8 @@ model Role {
   invitations Invitation[]
 
   @@unique([companyId, code])
+  /// Target of the composite tenant FKs from users and role_permissions (a role is only usable inside its own tenant).
+  @@unique([companyId, id])
   @@map("roles")
 }
 
@@ -420,7 +422,7 @@ model RolePermission {
   roleId       Int
   permissionId Int
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [companyId, roleId], references: [companyId, id], onDelete: Cascade)
 
   company Company @relation("CompanyRolePermission", fields: [companyId], references: [id], onDelete: Restrict)
 

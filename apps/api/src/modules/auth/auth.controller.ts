@@ -133,7 +133,8 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
     payload.oldPassword,
     payload.newPassword,
     req.ip,
-    req.get("user-agent") ?? undefined
+    req.get("user-agent") ?? undefined,
+    req.user?.sessionId
   );
 
   res.status(200).json(new ApiResponse("Password changed successfully"));
