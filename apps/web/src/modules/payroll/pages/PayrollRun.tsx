@@ -2543,8 +2543,14 @@ const PayrollRun: React.FC = () => {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("payroll:computing", (data: { runCode: string; total: number }) => {
-      setProgress({ current: 0, total: data.total, currentEmployee: "…", runCode: data.runCode });
+    // The event carries only the run code (F04); the headcount shows once progress arrives.
+    socket.on("payroll:computing", (data: { runCode?: string; total?: number }) => {
+      setProgress({
+        current: 0,
+        total: data.total ?? 0,
+        currentEmployee: "…",
+        runCode: data.runCode ?? "",
+      });
       setComputing(true);
     });
 

@@ -65,6 +65,18 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     socketInstance.on("disconnect", (reason) => {
       console.log("🔴 Socket disconnected:", reason);
       setIsConnected(false);
+      // The server drops a socket when its token expires or its session is revoked (F05) and
+      // the client does not retry on its own. Try one refresh: a new token reconnects through
+      // this effect, a refused refresh means the session is over.
+      if (reason === "io server disconnect") {
+        void import("../api/refresh").then(async ({ refreshAccessToken }) => {
+          const refreshed = await refreshAccessToken();
+          if (refreshed) {
+            const { setAccessToken } = await import("../features/auth/authSlice");
+            dispatch(setAccessToken(refreshed));
+          }
+        });
+      }
     });
 
     socketInstance.io.on("reconnect_attempt", (n) => {
@@ -85,6 +97,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     socketInstance.on("connect_error", (err) => {
       console.warn("⚠️ Socket connect error:", err?.message ?? err);
       setIsConnected(false);
+      // A refused handshake (expired token, revoked session) does not fix itself by retrying
+      // with the same token; the effect reconnects when the token changes.
+      if (err?.message === "Unauthorized") socketInstance.disconnect();
     });
 
     socketInstance.io.on("reconnect_error", (err) => {

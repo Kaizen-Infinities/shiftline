@@ -295,9 +295,15 @@ const SupplierForm: React.FC = () => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleUpdated = (data: any) => {
-      if (isEdit && data.id === Number(id)) {
-        populateForm(data);
+    // Realtime events carry only the id (F04): refetch the record through the REST API.
+    const handleUpdated = (data: { id?: number | string }) => {
+      if (isEdit && Number(data?.id) === Number(id)) {
+        supplierService
+          .fetchById(id!)
+          .then((supplier) => populateForm(supplier))
+          .catch(() => {
+            /* keep what the form shows */
+          });
       }
     };
 

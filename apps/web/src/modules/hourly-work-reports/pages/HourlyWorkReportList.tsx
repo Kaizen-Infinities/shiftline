@@ -23,8 +23,6 @@ import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   fetchHourlyProductions,
   deleteHourlyProduction,
-  hourlyProductionCreated,
-  hourlyProductionUpdated,
   hourlyProductionDeleted,
 } from "../../../features/hourly-productions/hourlyProductionSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -90,10 +88,12 @@ const HourlyWorkReportList: React.FC = () => {
     }
   }, [error]);
 
-  useSocketSync("hourlyProduction", {
-    created: hourlyProductionCreated,
-    updated: hourlyProductionUpdated,
-    deleted: hourlyProductionDeleted,
+  // Realtime events carry no record (F04): refetch the current view.
+  useSocketSync("hourlyProduction", { deleted: hourlyProductionDeleted }, () => {
+    const params: any = {};
+    if (filterDate) params.productionDate = filterDate;
+    if (searchTerm) params.search = searchTerm;
+    dispatch(fetchHourlyProductions(Object.keys(params).length ? params : undefined));
   });
 
   const [expandedGroups, setExpandedGroups] = useState<{ [key: string]: boolean }>({});

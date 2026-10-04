@@ -65,6 +65,10 @@ function buildLedgerLookup(): Map<number, CachedLedger> {
 function extractAffectedLedgerIds(payload: any): Set<number> {
   const ids = new Set<number>();
   if (!payload) return ids;
+  // Realtime events are invalidation-only (F04): the server lists the ledgers touched.
+  if (Array.isArray(payload.ledgerIds)) {
+    for (const id of payload.ledgerIds) ids.add(Number(id));
+  }
   if (Array.isArray(payload.items)) {
     for (const it of payload.items) {
       if (it?.debitLedgerId != null) ids.add(Number(it.debitLedgerId));
@@ -90,7 +94,10 @@ function refreshCustomerBreakdown(customerId: string): void {
   invalidateCache(`accounts:customer-breakdown-${customerId}::`);
   invalidateDetailCache(`accounts:customer-breakdown-${customerId}::`);
   prefetchCache(`accounts:customer-breakdown-${customerId}::`, async () => {
-    const data = await receivableService.getCustomerDetail(customerId, { startDate: "", endDate: "" });
+    const data = await receivableService.getCustomerDetail(customerId, {
+      startDate: "",
+      endDate: "",
+    });
     return { data: data ? [data] : [], total: data ? 1 : 0 };
   });
 }
@@ -230,8 +237,8 @@ const AccountsRealtimeSync: React.FC = () => {
   const pendingPayloadRef = useRef<any>(null);
 
   const scheduleRefresh = (payload: any) => {
-    // Keep the richest payload (the one with items[]) between coalesced events
-    if (!pendingPayloadRef.current || Array.isArray(payload?.items)) {
+    // Keep the richest payload (the one naming ledgers) between coalesced events
+    if (!pendingPayloadRef.current || Array.isArray(payload?.ledgerIds)) {
       pendingPayloadRef.current = payload;
     }
     if (timerRef.current != null) return;
@@ -251,16 +258,36 @@ const AccountsRealtimeSync: React.FC = () => {
     if (!socket) return;
 
     const events = [
-      "voucher:created", "voucher:updated", "voucher:deleted",
-      "payment:created", "payment:updated", "payment:deleted",
-      "journalItem:created", "journalItem:updated", "journalItem:deleted",
-      "accountLedger:created", "accountLedger:updated", "accountLedger:deleted",
-      "pettyCashEntry:created", "pettyCashEntry:updated", "pettyCashEntry:deleted",
-      "expense:created", "expense:updated", "expense:deleted",
-      "grnInvoice:created", "grnInvoice:updated", "grnInvoice:deleted",
-      "salesInvoice:created", "salesInvoice:updated", "salesInvoice:deleted",
-      "salesReturn:created", "salesReturn:updated", "salesReturn:deleted",
-      "purchaseReturn:created", "purchaseReturn:updated", "purchaseReturn:deleted",
+      "voucher:created",
+      "voucher:updated",
+      "voucher:deleted",
+      "payment:created",
+      "payment:updated",
+      "payment:deleted",
+      "journalItem:created",
+      "journalItem:updated",
+      "journalItem:deleted",
+      "accountLedger:created",
+      "accountLedger:updated",
+      "accountLedger:deleted",
+      "pettyCashEntry:created",
+      "pettyCashEntry:updated",
+      "pettyCashEntry:deleted",
+      "expense:created",
+      "expense:updated",
+      "expense:deleted",
+      "grnInvoice:created",
+      "grnInvoice:updated",
+      "grnInvoice:deleted",
+      "salesInvoice:created",
+      "salesInvoice:updated",
+      "salesInvoice:deleted",
+      "salesReturn:created",
+      "salesReturn:updated",
+      "salesReturn:deleted",
+      "purchaseReturn:created",
+      "purchaseReturn:updated",
+      "purchaseReturn:deleted",
     ];
 
     const handlers: Array<[string, (payload: any) => void]> = events.map((name) => [

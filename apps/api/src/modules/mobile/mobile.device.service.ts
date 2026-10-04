@@ -10,6 +10,7 @@ import type { Request } from "express";
 import { prisma } from "../../config/prisma";
 import { requireTenantId, withoutTenant } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
+import { disconnectDevice } from "../../lib/realtime";
 import {
   AgentContext,
   CLOCK_SKEW_TOLERANCE_MS,
@@ -138,6 +139,7 @@ class MobileDeviceService {
         data: { isActive: false, logoutAt: new Date() },
       })
     );
+    disconnectDevice(device.deviceId);
     return updated;
   }
 
