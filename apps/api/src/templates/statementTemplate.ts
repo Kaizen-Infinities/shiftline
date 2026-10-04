@@ -1,13 +1,8 @@
+import { escapeHtml as esc } from "../utils/escapeHtml";
 import type { statementService } from "../modules/accounts/statement.service";
 
 type Statement = Awaited<ReturnType<typeof statementService.statement>>;
 
-const esc = (v: unknown) =>
-  String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 const money = (n: number) =>
   Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const drcr = (n: number) => `${money(n)} ${n < 0 ? "Cr" : "Dr"}`;

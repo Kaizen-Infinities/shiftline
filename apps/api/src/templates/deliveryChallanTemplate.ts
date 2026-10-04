@@ -1,3 +1,4 @@
+import { escapeHtml as esc } from "../utils/escapeHtml";
 /**
  * The delivery challan a driver carries (P1-14).
  *
@@ -47,11 +48,6 @@ const KIND_LABEL: Record<string, string> = {
   OTHER: "Delivery Challan",
 };
 
-const esc = (v: unknown) =>
-  String(v ?? "").replace(
-    /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string
-  );
 const money = (n: number | string) =>
   new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
     Number(n ?? 0)

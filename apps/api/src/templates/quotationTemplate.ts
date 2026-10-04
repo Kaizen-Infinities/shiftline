@@ -1,3 +1,4 @@
+import { escapeHtml } from "../utils/escapeHtml";
 export const generateQuotationHtml = (order: any, _company: any): string => {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -22,12 +23,12 @@ export const generateQuotationHtml = (order: any, _company: any): string => {
     // ─── Data ─────────────────────────────────────────────────────────────────
 
     const cust            = order.customer || {};
-    const customerName    = (cust.displayName || cust.firmName || "—").toUpperCase();
-    const customerCode    = cust.customerCode || cust.id || "—";
+    const customerName    = escapeHtml((cust.displayName || cust.firmName || "—").toUpperCase());
+    const customerCode    = escapeHtml(cust.customerCode || cust.id || "—");
     const openingBalance  = Number(cust.openingBalance ?? 0);
     const opBalType       = (cust.openingBalanceType || "CREDIT").toUpperCase() === "DEBIT" ? "Dr" : "Cr";
 
-    const orderNo         = order.orderNo   || "—";
+    const orderNo         = escapeHtml(order.orderNo   || "—");
     const orderDate       = fmtDate(order.orderDate);
 
     const subtotal        = Number(order.subtotal    ?? 0);
@@ -101,7 +102,7 @@ export const generateQuotationHtml = (order: any, _company: any): string => {
     // ─── Items rows ───────────────────────────────────────────────────────────
 
     const itemRows = items.map((item: any, idx: number) => {
-        const name   = item.product?.productName || `Product #${item.productId}`;
+        const name   = escapeHtml(item.product?.productName || `Product #${item.productId}`);
         const qty    = Number(item.quantity  ?? 0);
         const rate   = Number(item.unitPrice ?? 0);
         const amount = Number(item.lineTotal ?? qty * rate);
