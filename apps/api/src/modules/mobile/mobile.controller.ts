@@ -164,13 +164,14 @@ class MobileController {
   });
 
   chequeOcr = asyncHandler(async (req: Request, res: Response) => {
-    await agentFromRequest(req);
+    const agent = await agentFromRequest(req);
     const file = req.file;
     if (!file) throw new ApiError(400, "No image uploaded (field name: image)");
     const fields = await readCheque(
       file.buffer,
       file.mimetype,
-      new Date().toISOString().slice(0, 10)
+      new Date().toISOString().slice(0, 10),
+      { companyId: req.user?.companyId ?? "platform", userId: agent.userId }
     );
     res.json(new ApiResponse("Cheque read", fields));
   });

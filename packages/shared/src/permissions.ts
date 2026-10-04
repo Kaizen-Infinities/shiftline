@@ -403,7 +403,12 @@ export const PERMISSION_REGISTRY: ModulePermission[] = [
     actions: ["view", "create", "edit", "delete", "export"],
     description: "Stock Adjustments",
   },
-  { module: "eod-stock", actions: ["view", "create", "edit", "export"], description: "EOD Stock" },
+  {
+    // `run` is the manual snapshot rerun (it can rewrite a past day's stock snapshot).
+    module: "eod-stock",
+    actions: ["view", "create", "edit", "export", "run"],
+    description: "EOD Stock",
+  },
 
   // ── Store ──────────────────────────────────────────────────────────────────
   {
