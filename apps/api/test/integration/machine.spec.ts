@@ -6,7 +6,7 @@ import { asDemoTenant } from "../factories";
 import { runAsTenant, withoutTenant } from "../../src/lib/tenant-context";
 
 /**
- * Machine master (characterisation, Phase 2-T #4 — docs/handoff/2026-09-13-commission-phase-2-
+ * Machine master (characterisation, Phase 2-T #4 — docs/archive/handoff/2026-09-13-commission-phase-2-
  * transition.md). This locks down today's behaviour of `apps/api/src/modules/machine/` so that
  * Phase 2 (P2-02, P2-04, P2-12) has a red test the moment it changes one of these paths:
  *

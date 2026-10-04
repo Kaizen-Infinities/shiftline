@@ -2,7 +2,7 @@
 
 ## Why
 
-`docs/handoff/2026-09-14-P2-15-hr-shared.md` notes that the leave request list still shows a raw employee id, not a name — the calendar (built from the same list) shows names, and the picker closed the _input_ gap, but the _display_ was not changed. `docs/handoff/2026-09-14-P2-18-gst-jobwork-followups.md` notes that the follow-up panel still groups by supplier in the UI even though the backend now splits correctly. `docs/handoff/2026-09-14-P2-20-costing-followups.md` notes that the backfill endpoint was never wired to a button. `docs/handoff/2026-09-14-P2-16-payroll-followups.md` notes that the overtime register's `payrollBreach` column has no visual treatment, and the nudge notifications are not surfaced distinctly.
+`docs/archive/handoff/2026-09-14-P2-15-hr-shared.md` notes that the leave request list still shows a raw employee id, not a name — the calendar (built from the same list) shows names, and the picker closed the _input_ gap, but the _display_ was not changed. `docs/archive/handoff/2026-09-14-P2-18-gst-jobwork-followups.md` notes that the follow-up panel still groups by supplier in the UI even though the backend now splits correctly. `docs/archive/handoff/2026-09-14-P2-20-costing-followups.md` notes that the backfill endpoint was never wired to a button. `docs/archive/handoff/2026-09-14-P2-16-payroll-followups.md` notes that the overtime register's `payrollBreach` column has no visual treatment, and the nudge notifications are not surfaced distinctly.
 
 ## Scope
 

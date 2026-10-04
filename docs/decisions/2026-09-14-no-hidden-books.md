@@ -4,7 +4,7 @@ Date: 2026-09-14 · Status: accepted · Owner: platform
 
 ## Context
 
-The Phase 2 research pass (`docs/research/phase-2/`) covers eleven domains and surfaces close to
+The Phase 2 research pass (`docs/archive/research/phase-2/`) covers eleven domains and surfaces close to
 200 candidate features, several of them touching cash handling directly: a cash-sales counter
 mode, a cash-denomination register, cash purchase quick-entry, UPI/QR collection. Indian
 secondary-sector SMEs — the product's stated market — run real cash tills, and it would be easy
@@ -30,7 +30,7 @@ Shiftline will not build, in Phase 2 or after:
 
 Cash workflows are explicitly in scope and explicitly first-class: a cash-sales counter, a cash
 till, a cash-denomination register are all being built (P2-08, P2-09 in
-`2026-09-14-phase-2-roadmap.md`). They are built to the same standard as every other document —
+`docs/archive/handoff/2026-09-14-phase-2-roadmap.md`). They are built to the same standard as every other document —
 a voucher, a party (or a recorded cash-sale counter-party), a document number from
 `documentNumberService`, and an audit row — not built with a door left open to skip that standard.
 

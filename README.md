@@ -2,7 +2,9 @@
 
 Multi-tenant ERP for secondary-sector manufacturing: sales, purchase, inventory,
 production, accounts, GST and statutory compliance, payroll, and a field-sales
-mobile app. Remastered from Sun Sea ERP.
+mobile app.
+
+Live at https://shiftline.apps.kaizeninfinities.com ([hosting runbook](docs/runbooks/hosting.md)).
 
 ## Layout
 
@@ -10,9 +12,13 @@ mobile app. Remastered from Sun Sea ERP.
 apps/api        Express 5 + Prisma 6 + PostgreSQL API, the pg-boss worker and the Field app sync API (/api/mobile)
 apps/web        React 19 + Vite SPA
 packages/*      shared code (permission registry, zod schemas, config)
-docs/specs      half-page specs written before each work package
-docs/handoff    session hand-off notes
-docs/runbooks   operational procedures
+docs/AS-BUILT.md   what is live, seen running
+docs/STATUS.md     current state
+docs/ROADMAP.md    what to build next (R-xx packages)
+docs/specs         half-page specs written before each work package
+docs/handoff       session hand-off notes
+docs/runbooks      operational procedures
+docs/archive       historical material, not current
 ```
 
 ## Run locally
@@ -58,11 +64,10 @@ make dev                                    # api (embedded worker) + web
 (or `make e2e`) runs the Playwright smoke suite against a seeded database; `npm run audit:gate`
 is the dependency gate CI runs. The API answers `GET /health` and `GET /ready`; logs are pino
 JSON with an `x-request-id` that also appears in error responses. Backups: `make backup`,
-`make restore` (see `docs/runbooks/backup-restore.md`). For a production deployment, follow the
-Railway and Cloudflare runbook in `docs/runbooks/railway-cloudflare.md`.
+`make restore` (see `docs/runbooks/backup-restore.md`).
 
 ## Working model
 
 Every change is a branch and a pull request that passes CI. Work is organised in
-PR-sized packages (see the plan in `docs/`), each with a spec in `docs/specs/`
-and a hand-off note in `docs/handoff/`.
+PR-sized packages. New packages come from `docs/ROADMAP.md` as `R-xx` ids, each with a spec in
+`docs/specs/` and a hand-off note in `docs/handoff/`.

@@ -2,7 +2,7 @@
 
 ## Why
 
-`docs/handoff/2026-09-12-P1-17b-labour-code.md` left the leave ledger real but unused day to day:
+`docs/archive/handoff/2026-09-12-P1-17b-labour-code.md` left the leave ledger real but unused day to day:
 nothing accrues automatically (`labourService.accrue` has to be called by hand), leave taken is a
 bare number on the ledger rather than a dated, approvable request, and no employee can see their
 own balance. This package puts a request in front of the ledger and a job in front of `accrue`.

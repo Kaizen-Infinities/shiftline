@@ -2,11 +2,11 @@
 
 ## Why
 
-`docs/handoff/2026-09-14-P2-04-valuation-wiring.md` names two conservative stopping points: the
+`docs/archive/handoff/2026-09-14-P2-04-valuation-wiring.md` names two conservative stopping points: the
 gap backfill skips an item/store pair entirely once it carries even one valuation entry, so any
 history _before_ that first wired movement never gets valued; and wastage's recovered material is
 received at `estimatedValue / quantity`, or zero when the log carries no estimate. And
-`docs/handoff/2026-09-14-P2-14-wip-posting.md` names a small UI gap: the stock tab has no period
+`docs/archive/handoff/2026-09-14-P2-14-wip-posting.md` names a small UI gap: the stock tab has no period
 picker of its own, so its Post button and WIP card are stuck on whatever period the cost-centres
 tab happens to be showing.
 

@@ -8,7 +8,7 @@ import { periodService } from "../../src/modules/accounts/period.service";
 
 /**
  * GRN / supplier invoice receipt (P1-08b GST, P1-09 books) — characterisation only
- * (Phase 2-T, docs/handoff/2026-09-13-commission-phase-2-transition.md §4).
+ * (Phase 2-T, docs/archive/handoff/2026-09-13-commission-phase-2-transition.md §4).
  *
  * Read off `grn-invoice.service.ts` and `voucherPosting.service.ts` as they stand today:
  *  - the tax split, the purchase voucher (PURCH-001 + *-REC-001 ITC ledgers vs. the supplier

@@ -2,7 +2,7 @@
 
 ## Why
 
-`docs/handoff/2026-09-14-P2-03-registers.md` built the fines and deductions registers over the
+`docs/archive/handoff/2026-09-14-P2-03-registers.md` built the fines and deductions registers over the
 new `EmployeeFineDeduction` model, but nothing writes to it — both registers stay empty in the
 running app. The Code on Wages limits a fine to 3% of wages in a wage period, requires the
 employee be given a chance to show cause before it is imposed, and requires it be recovered
