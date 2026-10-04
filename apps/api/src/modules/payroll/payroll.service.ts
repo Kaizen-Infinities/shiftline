@@ -1066,13 +1066,14 @@ class PayrollService {
       },
     });
 
-    // Also fetch advance deductions in active runs (DRAFT/APPROVED) for prior periods
+    // Also fetch advance deductions in DRAFT runs for prior periods (APPROVED/LOCKED runs have
+    // already been subtracted from recoveredAmount at approval)
     const priorResults = await prisma.payrollResult.findMany({
       where: {
         employeeId: { in: employees.map((e) => e.id) },
         payrollRun: {
           period: { lt: opts.period },
-          status: { in: ["DRAFT", "APPROVED"] },
+          status: "DRAFT",
         },
         salaryAdvance: { gt: 0 },
       },
@@ -1332,46 +1333,60 @@ class PayrollService {
     return run ? { ...run, missingTaxDeclarations } : run;
   }
 
+  /**
+   * Approval is the single point where salary advances are recovered: from here a run can no
+   * longer be deleted, and the next run's availability query (DRAFT runs only) reads
+   * recoveredAmount instead. lockRun must NOT recover again (BL-01). Runs approved before this
+   * change were already recovered at approval, so locking them stays a pure status change.
+   */
   async approveRun(id: number, userId: string) {
     const run = await prisma.payrollRun.findUnique({ where: { id } });
     if (!run) throw new ApiError(404, "Payroll run not found");
     if (run.status !== "DRAFT")
       throw new ApiError(400, `Run is ${run.status}, can only approve DRAFT runs`);
 
-    const updated = await prisma.payrollRun.update({
-      where: { id },
-      data: { status: "APPROVED", approvedById: userId, approvedAt: new Date() },
-      include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      // Atomic claim: only one concurrent/replayed approve can move DRAFT -> APPROVED.
+      const claimed = await tx.payrollRun.updateMany({
+        where: { id, status: "DRAFT" },
+        data: { status: "APPROVED", approvedById: userId, approvedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new ApiError(409, "Payroll run was already approved");
 
-    // ── Auto-recover SalaryAdvance records for each employee ─────────────────
-    for (const result of updated.results) {
-      const toRecover = Number(result.salaryAdvance);
-      if (toRecover <= 0) continue;
-
-      const advances = await prisma.salaryAdvance.findMany({
-        where: { employeeId: result.employee.id, status: { in: ["PENDING", "PARTIAL"] } },
-        orderBy: { disbursedDate: "asc" },
+      const approved = await tx.payrollRun.findUniqueOrThrow({
+        where: { id },
+        include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
       });
 
-      let remaining = toRecover;
-      for (const adv of advances) {
-        if (remaining <= 0) break;
-        const outstanding = Number(adv.amount) - Number(adv.recoveredAmount);
-        if (outstanding <= 0) continue;
+      for (const result of approved.results) {
+        const toRecover = Number(result.salaryAdvance);
+        if (toRecover <= 0) continue;
 
-        const recoverNow = Math.min(remaining, outstanding);
-        const newRecovered = Number(adv.recoveredAmount) + recoverNow;
-        const newStatus = newRecovered >= Number(adv.amount) ? "CLEARED" : "PARTIAL";
-
-        await prisma.salaryAdvance.update({
-          where: { id: adv.id },
-          data: { recoveredAmount: newRecovered, status: newStatus },
+        const advances = await tx.salaryAdvance.findMany({
+          where: { employeeId: result.employee.id, status: { in: ["PENDING", "PARTIAL"] } },
+          orderBy: { disbursedDate: "asc" },
         });
 
-        remaining -= recoverNow;
+        let remaining = toRecover;
+        for (const adv of advances) {
+          if (remaining <= 0) break;
+          const outstanding = Number(adv.amount) - Number(adv.recoveredAmount);
+          if (outstanding <= 0) continue;
+
+          const recoverNow = Math.min(remaining, outstanding);
+          const newRecovered = Number(adv.recoveredAmount) + recoverNow;
+          const newStatus = newRecovered >= Number(adv.amount) ? "CLEARED" : "PARTIAL";
+
+          await tx.salaryAdvance.update({
+            where: { id: adv.id },
+            data: { recoveredAmount: newRecovered, status: newStatus },
+          });
+
+          remaining -= recoverNow;
+        }
       }
-    }
+      return approved;
+    });
 
     emitToTenant("payroll:approved", { runId: id, period: run.period, approvedById: userId });
     return updated;
@@ -1383,42 +1398,16 @@ class PayrollService {
     if (run.status !== "APPROVED")
       throw new ApiError(400, `Run is ${run.status}, can only lock APPROVED runs`);
 
-    const updated = await prisma.payrollRun.update({
-      where: { id },
+    // Status transition only; advances were recovered at approval (BL-01).
+    const claimed = await prisma.payrollRun.updateMany({
+      where: { id, status: "APPROVED" },
       data: { status: "LOCKED", lockedById: userId, lockedAt: new Date() },
+    });
+    if (claimed.count !== 1) throw new ApiError(409, "Payroll run was already locked");
+    const updated = await prisma.payrollRun.findUniqueOrThrow({
+      where: { id },
       include: { results: { orderBy: { employeeCode: "asc" }, include: { employee: true } } },
     });
-
-    // ── Auto-recover SalaryAdvance records for each employee ─────────────────
-    for (const result of updated.results) {
-      const toRecover = Number(result.salaryAdvance);
-      if (toRecover <= 0) continue;
-
-      // Load PENDING/PARTIAL advances for this employee, oldest first
-      const advances = await prisma.salaryAdvance.findMany({
-        where: { employeeId: result.employee.id, status: { in: ["PENDING", "PARTIAL"] } },
-        orderBy: { disbursedDate: "asc" },
-      });
-
-      let remaining = toRecover;
-      for (const adv of advances) {
-        if (remaining <= 0) break;
-        const outstanding = Number(adv.amount) - Number(adv.recoveredAmount);
-        if (outstanding <= 0) continue;
-
-        const recoverNow = Math.min(remaining, outstanding);
-        const newRecovered = Number(adv.recoveredAmount) + recoverNow;
-        const newStatus = newRecovered >= Number(adv.amount) ? "CLEARED" : "PARTIAL";
-
-        await prisma.salaryAdvance.update({
-          where: { id: adv.id },
-          data: { recoveredAmount: newRecovered, status: newStatus },
-        });
-
-        remaining -= recoverNow;
-      }
-    }
-    // ─────────────────────────────────────────────────────────────────────────
 
     emitToTenant("payroll:locked", { runId: id, period: run.period, lockedById: userId });
     return updated;

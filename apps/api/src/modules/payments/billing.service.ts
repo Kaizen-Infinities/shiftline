@@ -100,46 +100,80 @@ class BillingService {
   }
 
   /**
-   * A charge succeeded: the period's invoice is paid and the account is active. Idempotent on the
+   * A charge succeeded: the matching invoice is paid and the account is active. Idempotent on the
    * gateway's payment id, because a redelivered callback must not extend the period twice.
+   *
+   * The invoice is matched by the gateway's invoice id when there is one, otherwise the oldest
+   * open invoice for exactly this amount. A charge that matches nothing (wrong invoice, short or
+   * wrong amount, no open invoice) settles nothing and leaves the subscription's status alone:
+   * it is logged for billing staff and answered with `UNMATCHED`, which the webhook treats as
+   * handled, so the gateway does not retry it forever (BL-02, BL-03).
    */
   async recordCharge(
     companyId: string,
     input: { providerInvoiceId: string | null; providerPaymentId: string | null; amount: number }
   ) {
-    return runAsTenant(companyId, async () => {
-      if (input.providerPaymentId) {
-        const already = await prisma.subscriptionInvoice.findFirst({
-          where: { providerPaymentId: input.providerPaymentId, status: "PAID" },
+    return runAsTenant(companyId, () =>
+      prisma.$transaction(async (tx) => {
+        // Serialise charges per tenant so a duplicate delivered concurrently sees the first one's
+        // PAID row instead of settling a second invoice.
+        await tx.$queryRaw`SELECT id FROM subscriptions WHERE company_id = ${companyId}::uuid FOR UPDATE`;
+
+        if (input.providerPaymentId) {
+          const already = await tx.subscriptionInvoice.findFirst({
+            where: { providerPaymentId: input.providerPaymentId },
+          });
+          if (already) return { result: "DUPLICATE" as const, invoice: already };
+        }
+
+        const amount = new Prisma.Decimal(input.amount);
+        const open = { status: { in: ["DUE", "FAILED"] as SubscriptionInvoiceStatus[] } };
+        const invoice = input.providerInvoiceId
+          ? ((await tx.subscriptionInvoice.findFirst({
+              where: { ...open, providerInvoiceId: input.providerInvoiceId },
+              orderBy: { periodStart: "asc" },
+            })) ??
+            // The gateway's id is only bound once a charge lands; fall back on the amount.
+            (await tx.subscriptionInvoice.findFirst({
+              where: { ...open, providerInvoiceId: null, amount },
+              orderBy: { periodStart: "asc" },
+            })))
+          : await tx.subscriptionInvoice.findFirst({
+              where: { ...open, amount },
+              orderBy: { periodStart: "asc" },
+            });
+
+        if (!invoice || !new Prisma.Decimal(invoice.amount).equals(amount)) {
+          logger.warn(
+            {
+              companyId,
+              providerInvoiceId: input.providerInvoiceId,
+              providerPaymentId: input.providerPaymentId,
+              amount: input.amount,
+              invoiceId: invoice?.id ?? null,
+              invoiceAmount: invoice ? String(invoice.amount) : null,
+            },
+            "unmatched subscription charge: nothing settled, subscription status unchanged"
+          );
+          return { result: "UNMATCHED" as const, invoice: null };
+        }
+
+        const claimed = await tx.subscriptionInvoice.updateMany({
+          where: { id: invoice.id, status: { in: ["DUE", "FAILED"] } },
+          data: {
+            status: "PAID",
+            paidAt: new Date(),
+            providerInvoiceId: input.providerInvoiceId ?? invoice.providerInvoiceId,
+            providerPaymentId: input.providerPaymentId,
+            failureReason: null,
+          },
         });
-        if (already) return already;
-      }
-      const invoice =
-        (await prisma.subscriptionInvoice.findFirst({
-          where: { status: { in: ["DUE", "FAILED"] } },
-          orderBy: { periodStart: "asc" },
-        })) ?? null;
-      if (!invoice) {
-        // Money arrived for a period nobody raised an invoice for. Recording it as an orphan
-        // would hide it; refusing it would lose it. The subscription is activated and the
-        // platform is told to raise the invoice.
-        logger.warn({ companyId }, "subscription charge with no open invoice");
-        await this.setStatus(companyId, "ACTIVE", null);
-        throw new ApiError(409, "No open subscription invoice for that charge", "NO_OPEN_INVOICE");
-      }
-      const paid = await prisma.subscriptionInvoice.update({
-        where: { id: invoice.id },
-        data: {
-          status: "PAID",
-          paidAt: new Date(),
-          providerInvoiceId: input.providerInvoiceId,
-          providerPaymentId: input.providerPaymentId,
-          failureReason: null,
-        },
-      });
-      await this.setStatus(companyId, "ACTIVE", invoice.periodEnd);
-      return paid;
-    });
+        if (claimed.count !== 1) return { result: "UNMATCHED" as const, invoice: null };
+        await this.setStatus(companyId, "ACTIVE", invoice.periodEnd, tx);
+        const paid = await tx.subscriptionInvoice.findUniqueOrThrow({ where: { id: invoice.id } });
+        return { result: "PAID" as const, invoice: paid };
+      })
+    );
   }
 
   /** A charge failed: the account is past due, which is what gates the features. */
@@ -213,12 +247,13 @@ class BillingService {
   private async setStatus(
     companyId: string,
     status: "ACTIVE" | "PAST_DUE",
-    periodEnd: Date | null
+    periodEnd: Date | null,
+    db: Prisma.TransactionClient | typeof prisma = prisma
   ) {
-    const subscription = await prisma.subscription.findFirst();
+    const subscription = await db.subscription.findFirst();
     if (!subscription) return;
     if (subscription.status === "CANCELLED") return;
-    await prisma.subscription.update({
+    await db.subscription.update({
       where: { id: subscription.id },
       data: {
         status,
