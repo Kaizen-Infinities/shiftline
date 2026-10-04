@@ -633,7 +633,7 @@ const QuotationList: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Quotation List"
+        title="Quotations"
         subtitle={`${(total || 0).toLocaleString("en-IN")} open quotation${total === 1 ? "" : "s"} · convert an accepted quote into a sales order`}
         primaryAction={createButton}
         actions={

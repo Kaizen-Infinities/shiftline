@@ -16,6 +16,7 @@ import SearchInput from "../../../../components/ui/SearchInput/SearchInput";
 import FilterPopover from "../../../../components/ui/FilterPopover/FilterPopover";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import DataTable, { type DataTableColumn } from "../../../../components/ui/table/DataTable";
+import { PageHeader } from "../../../../components/ui/v2";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
 import CommonViewModal from "../../../../components/ui/CommonViewModal/CommonViewModal";
 import StatusBadge from "../../../../components/ui/StatusBadge/Badge";
@@ -496,80 +497,78 @@ export const PurchaseReturnPage: React.FC = () => {
   return (
     <div>
       <div className="w-full">
-        {/* Header */}
-        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="sl-h1 m-0 leading-tight">Purchase Returns</h1>
-            <p className="sl-muted m-0 mt-1 text-sm">
-              Goods you send back to suppliers; each return raises a debit note.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
-            <SearchInput
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Return no, supplier, reason..."
-            />
-
-            <FilterPopover
-              activeFilterCount={activeFilterCount}
-              hasActiveFilters={hasActiveFilters}
-              onOpen={handleFilterOpen}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            >
-              <div className="space-y-3">
-                <div>
-                  <label className="sl-label">Supplier</label>
-                  <SelectInput
-                    name="filterSupplier"
-                    value={draftFilters.supplierId}
-                    options={supplierOptions}
-                    defaultOptionLabel="All Suppliers"
-                    searchable={true}
-                    noMargin
-                    onChange={(e) => setDraftFilters((p) => ({ ...p, supplierId: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="sl-label">Status</label>
-                  <SelectInput
-                    name="filterStatus"
-                    value={draftFilters.status}
-                    options={[
-                      { value: "APPROVED", label: "Approved" },
-                      { value: "COMPLETED", label: "Completed" },
-                    ]}
-                    defaultOptionLabel="All Statuses"
-                    searchable={false}
-                    noMargin
-                    onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </FilterPopover>
-
-            {can("purchase-returns.export") && (
-              <ExportCSVButton
-                fetchData={fetchPurchaseReturnsForExport}
-                columns={csvColumns}
-                filename={csvFilename}
-                text="Export"
+        <PageHeader
+          title="Purchase returns"
+          subtitle="Goods you send back to suppliers; each return raises a debit note."
+          actions={
+            <div className="flex flex-wrap items-center gap-3 relative w-full md:w-auto">
+              <SearchInput
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Return no, supplier, reason..."
               />
-            )}
 
-            <CustomButton
-              text="New Purchase Return"
-              icon={FaPlus}
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-            />
-          </div>
-        </div>
+              <FilterPopover
+                activeFilterCount={activeFilterCount}
+                hasActiveFilters={hasActiveFilters}
+                onOpen={handleFilterOpen}
+                onApply={handleApplyFilters}
+                onClear={handleClearFilters}
+              >
+                <div className="space-y-3">
+                  <div>
+                    <label className="sl-label">Supplier</label>
+                    <SelectInput
+                      name="filterSupplier"
+                      value={draftFilters.supplierId}
+                      options={supplierOptions}
+                      defaultOptionLabel="All Suppliers"
+                      searchable={true}
+                      noMargin
+                      onChange={(e) =>
+                        setDraftFilters((p) => ({ ...p, supplierId: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="sl-label">Status</label>
+                    <SelectInput
+                      name="filterStatus"
+                      value={draftFilters.status}
+                      options={[
+                        { value: "APPROVED", label: "Approved" },
+                        { value: "COMPLETED", label: "Completed" },
+                      ]}
+                      defaultOptionLabel="All Statuses"
+                      searchable={false}
+                      noMargin
+                      onChange={(e) => setDraftFilters((p) => ({ ...p, status: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </FilterPopover>
+
+              {can("purchase-returns.export") && (
+                <ExportCSVButton
+                  fetchData={fetchPurchaseReturnsForExport}
+                  columns={csvColumns}
+                  filename={csvFilename}
+                  text="Export"
+                />
+              )}
+
+              <CustomButton
+                text="New Purchase Return"
+                icon={FaPlus}
+                onClick={() => {
+                  resetForm();
+                  setShowModal(true);
+                }}
+              />
+            </div>
+          }
+        />
 
         {/* Active filter chips */}
         {hasActiveFilters && (

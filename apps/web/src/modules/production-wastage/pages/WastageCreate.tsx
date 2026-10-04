@@ -231,10 +231,10 @@ const WastageForm: React.FC = () => {
     }
   };
 
-  const title = isEdit ? "Edit Wastage Audit Log" : "Log Production Wastage";
+  const title = isEdit ? "Edit production wastage" : "New production wastage";
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title={title}
         subtitle={
@@ -245,7 +245,7 @@ const WastageForm: React.FC = () => {
         back="/production-wastages"
         backLabel="Back to List"
         breadcrumbs={[
-          { label: "Production Wastage", to: "/production-wastages" },
+          { label: "Production wastage", to: "/production-wastages" },
           { label: isEdit ? "Edit" : "New" },
         ]}
       />

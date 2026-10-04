@@ -295,9 +295,9 @@ const RawMaterialList: React.FC = () => {
   ) : null;
 
   return (
-    <div className="w-full min-w-0">
+    <div className="sl-page min-w-0">
       <PageHeader
-        title="Raw Materials Management"
+        title="Raw materials"
         subtitle={`${stats.total} materials · on hand, reserved for orders and free to issue`}
         icon={<Boxes size={22} />}
         actions={
@@ -313,7 +313,7 @@ const RawMaterialList: React.FC = () => {
         primaryAction={createCta}
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile label="Materials" value={stats.total.toLocaleString("en-IN")} loading={loading} />
         <StatTile label="Active" value={stats.active.toLocaleString("en-IN")} loading={loading} />
         <StatTile
@@ -393,7 +393,7 @@ const RawMaterialList: React.FC = () => {
           totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
         }
       />
-      <p className="sl-muted m-0 mt-2 text-right text-xs">Total: {total} record(s)</p>
+      <p className="sl-muted m-0 text-right text-xs">Total: {total} record(s)</p>
 
       {/* View Modal */}
       <CommonViewModal

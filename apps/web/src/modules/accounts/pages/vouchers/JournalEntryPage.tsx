@@ -155,7 +155,7 @@ const JournalEntryPage: React.FC = () => {
     return (
       <div className="w-full">
         <PageHeader
-          title="Journal Register"
+          title="Journal entries"
           subtitle="Adjustments between ledgers; every journal balances debit against credit"
           icon={<BookOpen size={20} />}
           primaryAction={newButton}
@@ -229,7 +229,7 @@ const JournalEntryPage: React.FC = () => {
   return (
     <div className="w-full">
       <PageHeader
-        title="Journal Register"
+        title="Journal entries"
         subtitle={
           <>
             Series {applied.voucherSeries} · {fmtDate(applied.startDate)} to{" "}

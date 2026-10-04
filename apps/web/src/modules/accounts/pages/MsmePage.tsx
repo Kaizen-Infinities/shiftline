@@ -8,6 +8,7 @@ import {
   type MsmeDisallowance,
   type MsmeForm1,
 } from "../../../services/msmeService";
+import { PageHeader } from "../../../components/ui/v2";
 import {
   Card,
   day,
@@ -79,45 +80,43 @@ const MsmePage: React.FC = () => {
   const soon = bills.filter((b) => !b.overdue && b.daysLeft <= 15);
 
   return (
-    <div className="w-full space-y-4">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="sl-h1 m-0 leading-tight">MSME Dues</h1>
-          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
-            Micro and small suppliers have to be paid within 15 days, or 45 where there is a written
-            agreement. Past that, section 43B(h) moves the deduction to the year the money actually
-            leaves.
-          </p>
-        </div>
-        {tab === "yearEnd" && (
-          <select
-            className={field}
-            value={fyCode}
-            onChange={(e) => setFyCode(e.target.value)}
-            aria-label="Financial year"
-          >
-            {years.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        )}
-        {tab === "form1" && (
-          <select
-            className={field}
-            value={half}
-            onChange={(e) => setHalf(e.target.value)}
-            aria-label="Half year"
-          >
-            {halves.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        )}
-      </header>
+    <div className="sl-page">
+      <PageHeader
+        title="MSME dues"
+        subtitle="Micro and small suppliers have to be paid within 15 days, or 45 where there is a written agreement. Past that, section 43B(h) moves the deduction to the year the money actually leaves."
+        actions={
+          <>
+            {tab === "yearEnd" && (
+              <select
+                className={field}
+                value={fyCode}
+                onChange={(e) => setFyCode(e.target.value)}
+                aria-label="Financial year"
+              >
+                {years.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tab === "form1" && (
+              <select
+                className={field}
+                value={half}
+                onChange={(e) => setHalf(e.target.value)}
+                aria-label="Half year"
+              >
+                {halves.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </>
+        }
+      />
 
       <nav className="flex flex-wrap gap-2" role="tablist">
         {(

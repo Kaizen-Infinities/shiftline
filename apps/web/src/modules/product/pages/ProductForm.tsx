@@ -641,7 +641,7 @@ const ProductForm: React.FC = () => {
     return (
       <div className="w-full min-w-0">
         <PageHeader
-          title={isEditMode ? "Edit Product" : "Create Product"}
+          title={isEditMode ? "Edit production product" : "New production product"}
           back="/products"
           backLabel="Back to products"
         />
@@ -657,7 +657,7 @@ const ProductForm: React.FC = () => {
   return (
     <div className="w-full min-w-0">
       <PageHeader
-        title={isEditMode ? "Edit Product" : "Create Product"}
+        title={isEditMode ? "Edit production product" : "New production product"}
         subtitle={
           isEditMode
             ? `${formData.productCode} · ${formData.productName || "Production product"}`
@@ -667,7 +667,7 @@ const ProductForm: React.FC = () => {
         backLabel="Back to products"
         breadcrumbs={[
           { label: "Inventory" },
-          { label: "Products", to: "/products" },
+          { label: "Production products", to: "/products" },
           { label: isEditMode ? "Edit" : "New" },
         ]}
         meta={isEditMode ? <Chip size="sm">{formData.productCode}</Chip> : undefined}

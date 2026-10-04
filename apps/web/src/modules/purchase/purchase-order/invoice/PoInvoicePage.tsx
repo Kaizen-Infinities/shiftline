@@ -221,7 +221,7 @@ const PoInvoicePage: React.FC = () => {
       <div className="mx-auto max-w-5xl">
         <div className="no-print">
           <PageHeader
-            title={`PO Invoice #${po.poNumber}`}
+            title={`PO invoice #${po.poNumber}`}
             meta={po.status ? <StatusBadge status={po.status} /> : null}
             subtitle={`${supplier?.supplierName || supplier?.legalName || "Supplier"} · ${formatDate(po.poDate)} · ₹${formatMoney(po.netAmount)}`}
             back="/purchase-orders"

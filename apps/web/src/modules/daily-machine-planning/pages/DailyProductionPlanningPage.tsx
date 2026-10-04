@@ -1126,7 +1126,7 @@ const DailyProductionPlanningPage: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Daily Production Planning"
+        title="Daily machine planning"
         icon={<CalendarDays size={22} />}
         subtitle={`${filterDate ? formatDate(filterDate) : "All dates"}${filterDate === todayStr ? " (today)" : ""} · ${formatQty(stats.totalPlanned)} pcs planned across ${stats.total} plan${stats.total === 1 ? "" : "s"}`}
         actions={

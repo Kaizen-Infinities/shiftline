@@ -197,9 +197,13 @@ export function useListCache<T = any>({
         if (!pending) {
           pending = fetcherRef.current(ctrl.signal);
           inflight.set(key, pending);
-          pending.finally(() => {
-            if (inflight.get(key) === pending) inflight.delete(key);
-          });
+          // finally() returns a new promise that re-rejects; the awaiter below handles the
+          // failure, so swallow it here or it surfaces as an unhandled rejection.
+          pending
+            .finally(() => {
+              if (inflight.get(key) === pending) inflight.delete(key);
+            })
+            .catch(() => {});
         }
         const result = await pending;
         if (ctrl.signal.aborted) return;

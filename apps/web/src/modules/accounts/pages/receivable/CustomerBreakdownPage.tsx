@@ -340,10 +340,10 @@ export const CustomerBreakdownPage: React.FC = () => {
         back="/accounts/receivable"
         backLabel="Back to receivables"
         breadcrumbs={[
-          { label: "Amount Receivable", to: "/accounts/receivable" },
+          { label: "Receivables", to: "/accounts/receivable" },
           { label: customerDetail?.customer.firmName || "Customer" },
         ]}
-        title={customerDetail?.customer.firmName || "Customer Breakdown"}
+        title={customerDetail?.customer.firmName || "Customer breakdown"}
         subtitle="Invoices, receipts and the running balance for this customer"
         meta={
           customerDetail?.customer.customerCode ? (

@@ -410,9 +410,9 @@ const BalanceSheetPage: React.FC = () => {
   ) : null;
 
   return (
-    <div className="w-full">
+    <div className="sl-page">
       <PageHeader
-        title="Balance Sheet"
+        title="Balance sheet"
         subtitle={`${activeConfig.label} · as on ${fmtDate(asOnDate)}`}
         icon={<Scale size={20} />}
         actions={
@@ -475,7 +475,7 @@ const BalanceSheetPage: React.FC = () => {
         </FilterGroup>
       </ReportFilterBar>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile
           label="Total assets"
           value={

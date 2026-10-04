@@ -90,12 +90,12 @@ const AccountExportPage: React.FC = () => {
 
   const inProgress = rows.some((r) => r.status === "QUEUED" || r.status === "RUNNING");
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title="Account Export"
+        title="Account export"
         icon={<Archive size={22} />}
         subtitle="Everything your company holds in Shiftline, every table as JSON lines plus your uploaded files, in one archive. Passwords, tokens and integration credentials are never included. Archives can be downloaded for 24 hours."
-        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Account Export" }]}
+        breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Account export" }]}
         primaryAction={
           can("account-export.create") ? (
             <ActionPill

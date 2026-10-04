@@ -262,11 +262,11 @@ const ProductionDashboard: React.FC = () => {
   const ringC = 2 * Math.PI * ringR;
 
   return (
-    <div className="flex w-full flex-col gap-6 pb-10">
+    <div className="sl-page">
       {/* ── Header ── */}
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="sl-h1">Production</h1>
+          <h1 className="sl-h1">Production dashboard</h1>
           <p className="sl-muted mt-1 text-sm">
             Live output against target, factory OEE and machine status
           </p>

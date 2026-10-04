@@ -164,12 +164,11 @@ const AuditTrailPage: React.FC = () => {
   const last = result ? Math.min(result.total, result.page * result.pageSize) : 0;
 
   return (
-    <div className="w-full min-w-0 space-y-4">
+    <div className="sl-page">
       <PageHeader
-        title="Audit Trail"
+        title="Audit trail"
         subtitle="Every change to the books, documents, payroll and masters, recorded by the database and never editable."
         icon={<History size={22} />}
-        className="!mb-1"
         actions={
           can("audit-reports.export") && (
             <button

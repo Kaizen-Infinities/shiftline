@@ -1206,7 +1206,7 @@ const ProductionOrderCreate: React.FC = () => {
     }
   };
 
-  const title = isEditMode ? "Edit Production Order" : "Create Production Order";
+  const title = isEditMode ? "Edit production order" : "New production order";
   const addProductButton = !watchSalesOrderId ? (
     <ActionPill
       variant="secondary"

@@ -32,6 +32,8 @@ interface SelectInputProps {
   searchable?: boolean;
   /** Place label and input side by side in one row */
   horizontal?: boolean;
+  /** Accessible name when the visible label is hidden; falls back to `label`, then the default option text. */
+  ariaLabel?: string;
   onChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
@@ -50,8 +52,10 @@ const SelectInput: React.FC<SelectInputProps> = ({
   noMargin = false,
   searchable = true,
   horizontal = false,
+  ariaLabel,
   onChange,
 }) => {
+  const accessibleName = hideLabel ? ariaLabel || label || defaultOptionLabel || name : undefined;
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -279,6 +283,7 @@ const SelectInput: React.FC<SelectInputProps> = ({
           {searchable ? (
             <input
               id={triggerId}
+              aria-label={accessibleName}
               type="text"
               autoComplete="off"
               ref={triggerRef}
@@ -312,6 +317,7 @@ const SelectInput: React.FC<SelectInputProps> = ({
           ) : (
             <button
               id={triggerId}
+              aria-label={accessibleName}
               type="button"
               ref={triggerRef}
               disabled={disabled}

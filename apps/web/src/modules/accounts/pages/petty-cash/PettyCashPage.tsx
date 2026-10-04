@@ -265,7 +265,7 @@ export const PettyCashPage: React.FC = () => {
     return (
       <div className="w-full">
         <PageHeader
-          title="Petty Cash Register"
+          title="Petty cash"
           subtitle="Small cash spends and top-ups, with a running balance"
           icon={<Coins size={20} />}
           primaryAction={recordButton}
@@ -336,7 +336,7 @@ export const PettyCashPage: React.FC = () => {
   return (
     <div className="w-full">
       <PageHeader
-        title="Petty Cash Register"
+        title="Petty cash"
         subtitle={`${fmtDate(applied.startDate)} to ${fmtDate(applied.endDate)} · ${
           applied.entryType === "ALL"
             ? "All entries"

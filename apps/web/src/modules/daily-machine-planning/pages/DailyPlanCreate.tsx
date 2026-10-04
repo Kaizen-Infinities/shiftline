@@ -817,7 +817,7 @@ const DailyPlanCreate: React.FC = () => {
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
-  const title = isEdit ? "Edit Daily Production Plan" : "New Daily Production Plan";
+  const title = isEdit ? "Edit daily plan" : "New daily plan";
   const poForBanner = selectedWeeklyProg?.productionOrder;
   const poTargetForBanner = Number(poForBanner?.targetQty || 0);
   const poNetProducedForBanner = Math.max(
@@ -830,15 +830,15 @@ const DailyPlanCreate: React.FC = () => {
   const selectedShiftForHint = shifts.find((s: any) => s.shiftCode === shiftId);
 
   return (
-    <PageBody className="max-w-[1100px]">
+    <PageBody className="sl-page-form">
       <PageHeader
         title={title}
         subtitle="Pick the week's program, then the date, machine, shift, operators and quantity."
         back="/daily-machine-planning"
         backLabel="Back to Daily Planning"
         breadcrumbs={[
-          { label: "Daily planning", to: "/daily-machine-planning" },
-          { label: isEdit ? "Edit plan" : "New plan" },
+          { label: "Daily machine planning", to: "/daily-machine-planning" },
+          { label: isEdit ? "Edit daily plan" : "New daily plan" },
         ]}
         meta={isEdit && status ? <StatusBadge status={status} /> : undefined}
       />

@@ -1146,6 +1146,7 @@ const QuotationForm: React.FC = () => {
               value={itemValue?.salesProductId || ""}
               options={opts}
               placeholder="Type to search..."
+              ariaLabel={`Item, line ${index + 1}`}
               error={(errors.items as any)?.[index]?.salesProductId?.message}
               onChange={(spId) => {
                 const sp = salesProducts.find((s: any) => String(s.id) === spId);
@@ -1184,6 +1185,7 @@ const QuotationForm: React.FC = () => {
                 setValue(`items.${index}.components`, updated);
               }}
               className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0 h-full"
+              aria-label={`Quantity, line ${index + 1}`}
               placeholder="0"
             />
           );
@@ -1203,6 +1205,7 @@ const QuotationForm: React.FC = () => {
               value={itemValue?.unitPrice ?? ""}
               onChange={(e) => setValue(`items.${index}.unitPrice`, e.target.value)}
               className="w-full bg-transparent text-[13px] text-ink text-right outline-none border-none p-0 h-full"
+              aria-label={`Unit price, line ${index + 1}`}
               placeholder="0"
             />
           );
@@ -1250,6 +1253,7 @@ const QuotationForm: React.FC = () => {
         width: "1fr",
         render: (row: SundryRow, _index: number, update: (patch: Partial<SundryRow>) => void) => (
           <select
+            aria-label={`Bill sundry, line ${_index + 1}`}
             value={row.type}
             onChange={(e) => update({ type: e.target.value })}
             style={{
@@ -1294,6 +1298,7 @@ const QuotationForm: React.FC = () => {
                   const calcAmount = ((totals.subtotal * rateNum) / 100).toFixed(2);
                   update({ rate, amount: rateNum > 0 ? calcAmount : "" });
                 }}
+                aria-label={`Sundry rate percent, line ${_index + 1}`}
                 placeholder="0.000"
                 className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right"
               />
@@ -1315,6 +1320,7 @@ const QuotationForm: React.FC = () => {
               inputMode="decimal"
               value={row.amount}
               onChange={(e) => update({ amount: e.target.value.replace(/[^0-9.]/g, ""), rate: "" })}
+              aria-label={`Sundry amount, line ${_index + 1}`}
               placeholder="0.00"
               className="w-full bg-transparent text-[13px] outline-none border-none p-0 h-full text-right font-semibold"
               style={{ color: isNeg ? "var(--color-danger)" : "var(--color-ink)" }}
@@ -1426,9 +1432,9 @@ const QuotationForm: React.FC = () => {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1600px]">
+    <div className="sl-page sl-page-doc">
       <PageHeader
-        title={isEditMode ? "Edit Quotation" : "Create Quotation"}
+        title={isEditMode ? "Edit quotation" : "New quotation"}
         meta={
           watch("quotationNo") ? (
             <Chip size="sm" tone="muted" className="tabular-nums">

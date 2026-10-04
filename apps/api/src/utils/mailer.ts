@@ -1,5 +1,5 @@
 import { decryptText } from "./crypto";
-import nodemailer from "nodemailer";
+import nodemailer, { type Attachment } from "nodemailer";
 import { prisma } from "../config/prisma";
 import { logger } from "../lib/logger";
 
@@ -8,7 +8,7 @@ export interface SendEmailOptions {
   subject: string;
   text?: string;
   html?: string;
-  attachments?: nodemailer.SendMailOptions["attachments"];
+  attachments?: Attachment[];
 }
 
 export const sendEmail = async (options: SendEmailOptions) => {

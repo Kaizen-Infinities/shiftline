@@ -67,9 +67,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     );
 
   return (
-    <header className={cx("mb-5 flex flex-col gap-4", className)}>
+    <header className={cx("sl-page-header flex flex-col gap-4", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
-        <nav aria-label="Breadcrumb" className="-mb-1">
+        // From lg up the top bar already shows the full trail; below it the top bar
+        // shows only the current page, so the trail is repeated here.
+        <nav aria-label="Breadcrumb" className="-mb-1 lg:hidden">
           <ol className="flex flex-wrap items-center gap-1 text-[13px] font-medium text-ink-subtle">
             {breadcrumbs.map((crumb, index) => {
               const last = index === breadcrumbs.length - 1;
@@ -78,7 +80,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                   {crumb.to && !last ? (
                     <Link
                       to={crumb.to}
-                      className="rounded-full px-1 hover:text-ink hover:underline underline-offset-4"
+                      className="relative rounded-full px-1 before:absolute before:inset-x-0 before:-inset-y-3 before:content-[''] hover:text-ink hover:underline underline-offset-4"
                     >
                       {crumb.label}
                     </Link>
@@ -99,7 +101,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+        {/* On a narrow screen the title block can wrap, so the back button sits level with
+            the title's first line rather than the middle of the block. */}
+        <div className="flex min-w-0 items-start gap-3 sm:items-center">
           {backButton}
           {icon && (
             <span
@@ -111,7 +115,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="sl-h1 m-0 truncate leading-tight">{title}</h1>
+              <h1 className="sl-h1 m-0 leading-tight [overflow-wrap:anywhere] sm:truncate">
+                {title}
+              </h1>
               {meta}
             </div>
             {subtitle && <p className="sl-muted m-0 mt-1 text-sm leading-snug">{subtitle}</p>}

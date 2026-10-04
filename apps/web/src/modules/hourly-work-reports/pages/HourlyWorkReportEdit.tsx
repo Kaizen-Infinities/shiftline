@@ -124,15 +124,15 @@ const HourlyWorkReportEdit: React.FC = () => {
   };
 
   return (
-    <PageBody className="max-w-[1180px]">
+    <PageBody className="sl-page-form">
       <PageHeader
-        title="Edit Hourly Production Log"
+        title="Edit hourly report"
         subtitle={`${productionOrderId || "—"} · Hour ${hourIndex}`}
         back="/hourly-work-reports"
         backLabel="Back to List"
         breadcrumbs={[
-          { label: "Hourly logs", to: "/hourly-work-reports" },
-          { label: "Edit entry" },
+          { label: "Hourly work reports", to: "/hourly-work-reports" },
+          { label: "Edit hourly report" },
         ]}
         meta={
           isEditDisabled ? (

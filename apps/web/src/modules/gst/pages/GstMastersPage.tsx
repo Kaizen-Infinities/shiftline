@@ -189,12 +189,12 @@ const GstMastersPage: React.FC = () => {
 
   return (
     <>
-      <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+      <div className="sl-page">
         <PageHeader
-          title="GST rates and HSN/SAC codes"
+          title="GST & HSN rates"
           icon={<Percent size={22} />}
           subtitle="Every product and raw material takes its GST rate from its HSN or SAC code unless it carries an override. Rates here are your starting point; they change by notification."
-          breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "GST masters" }]}
+          breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "GST & HSN rates" }]}
         >
           <ChipTabs<Tab>
             ariaLabel="GST masters"

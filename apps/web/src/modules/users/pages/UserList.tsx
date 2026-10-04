@@ -168,9 +168,9 @@ const UserList: React.FC = () => {
 
   return (
     <div>
-      <div className="mx-auto w-full max-w-[1480px] space-y-5 py-1 sm:py-2">
+      <div className="sl-page">
         <PageHeader
-          title="User Management"
+          title="Users"
           icon={<UserCog size={20} />}
           subtitle="Everyone who can sign in to this company."
           actions={

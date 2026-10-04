@@ -53,10 +53,10 @@ const BankStatementPage: React.FC = () => {
         back="/accounts/bank-accounts"
         backLabel="Back to bank accounts"
         breadcrumbs={[
-          { label: "Bank & Cash Accounts", to: "/accounts/bank-accounts" },
+          { label: "Bank & cash accounts", to: "/accounts/bank-accounts" },
           { label: data?.ledger?.name || "Statement" },
         ]}
-        title={data?.ledger?.name || "Bank Statement"}
+        title={data?.ledger?.name || "Bank statement"}
         subtitle={data?.ledger ? `${data.ledger.code} · ${data.ledger.group}` : "Running statement"}
         icon={<Landmark size={20} />}
         actions={

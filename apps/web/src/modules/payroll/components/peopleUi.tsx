@@ -204,7 +204,7 @@ export const Avatar: React.FC<{ name?: string | null; size?: number; className?:
 export const PageShell: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
   className,
-}) => <div className={cx("mx-auto w-full max-w-[1480px] py-1 sm:py-2", className)}>{children}</div>;
+}) => <div className={cx("sl-page", className)}>{children}</div>;
 
 /* ── Drop-in v2 replacements for the old GST-screen helpers ─────────────────── */
 

@@ -703,7 +703,7 @@ const ProductionOrderHistoryView: React.FC = () => {
   return (
     <PageBody>
       <PageHeader
-        title="Production Order Details"
+        title="Production order details"
         meta={
           <>
             <Chip size="sm" tone="muted" className="font-mono">

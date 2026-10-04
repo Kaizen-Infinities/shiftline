@@ -13,7 +13,7 @@ const FormFooter: React.FC<{
 }> = ({ children, hint, className }) => (
   <div
     className={cx(
-      "sticky bottom-3 z-20 mt-5 flex flex-col gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur sm:flex-row sm:items-center sm:justify-between",
+      "sl-sticky-footer z-20 mt-5 flex flex-col gap-3 rounded-[18px] border border-line-soft bg-card/95 px-4 py-3 shadow-[var(--shadow-md)] backdrop-blur sm:flex-row sm:items-center sm:justify-between",
       className
     )}
   >

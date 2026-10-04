@@ -826,7 +826,7 @@ const StockAdjustmentForm: React.FC = () => {
     <div className="w-full min-w-0">
       <div className="w-full min-w-0">
         <PageHeader
-          title={isEditMode ? "Edit Stock Adjustment" : "New Stock Adjustment"}
+          title={isEditMode ? "Edit stock adjustment" : "New stock adjustment"}
           subtitle={
             isPMI
               ? "Issue reserved raw material to a production order"
@@ -1066,6 +1066,7 @@ const StockAdjustmentForm: React.FC = () => {
                     <SelectInput
                       label=""
                       hideLabel
+                      ariaLabel="Category filter"
                       noMargin
                       name="categoryFilter"
                       value={selectedCategoryFilter}

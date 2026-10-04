@@ -62,9 +62,9 @@ const FinishedStockCreate: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-w-0 max-w-[1100px]">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title="Create Finished Stock"
+        title="New finished goods stock"
         back="/finished-stock"
         backLabel="Back to list"
         breadcrumbs={[

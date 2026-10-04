@@ -82,10 +82,48 @@ news; figures where a rise is bad (payables) pass `upIsGood={false}`.
   command palette and the breadcrumbs all read from it. A unit test asserts that every path in the
   old `sidebar.data.ts` appears in the new config, so no screen is lost.
 
+## Page layout
+
+One frame for every screen, so the title and the content edge never move between screens:
+
+- **The shell owns the frame.** `BaseLayout` sets the gutters (16 px, 20 px from `sm`, 32 px from
+  `lg`) and the top offset. A page root adds no padding and no top margin of its own.
+- **The page root is `.sl-page`.** It is a column with 20 px (`gap-5`) between blocks. A
+  `PageHeader` inside it drops its own bottom margin (`.sl-page > .sl-page-header`), so the
+  header sits 20 px above the content like every other block. `PageBody` in
+  `modules/production/ui` renders `.sl-page`.
+- **Width tiers move only the right edge.** They are always left-aligned, never centred:
+  - no tier: full width, for lists, dashboards, reports, boards and consoles;
+  - `.sl-page-form` (1120 px): create and edit forms, single-column settings and detail
+    summaries;
+  - `.sl-page-doc` (1440 px): document editors and views (orders, quotations, invoices, POs,
+    GRNs).
+
+  Do not add a `max-w-[…]` of your own on a page root.
+
+- **A toolbar belongs to its table.** Filters and search (`Toolbar`, `.sl-toolbar`) sit 16 px
+  above the table they filter, on every page.
+- **A table inside a tile is a framed region, not a second card.** `DataTable` drops its shadow
+  and uses the inner radius there (`.sl-tile .sl-table-tile`). Do not wrap a `DataTable` in
+  another `Tile` just to hold it.
+- **Titles wrap on phones.** The `PageHeader` title wraps below `sm` and truncates from `sm` up.
+  The in-page breadcrumb shows below `lg` only, because the top bar shows the full trail from
+  `lg` up.
+- **Touch targets.** On touch screens every chip, tab and pill button is at least 40 px tall
+  (`@media (pointer: coarse)`); mouse layouts keep their density.
+- **Inside a page.** Tiles use the `Tile` padding scale (`sm`/`md`/`lg`), and sections within a
+  tile are 16 px apart. Tables scroll inside their tile, never the page.
+
 ## Page patterns
 
 - **Page header:** title (`.sl-h1`), one line of context (`.sl-muted`), the primary `.sl-cta` on
   the right, and secondary `.sl-btn`s.
+- **Titles:** sentence case (capitalise the first word and proper nouns; keep acronyms and brand
+  terms such as GST, HSN/SAC, TDS, EOD, OEE, UOM, WhatsApp, Tally as written). A page's title is its
+  nav label from `nav.config.ts`; a screen without a nav entry drops suffixes like "Management",
+  "List", "Master" and "Entry". Create and edit pages read "New <thing>" / "Edit <thing>". Titles
+  never carry greetings (the profile page is "My profile"; only the dashboard's "Welcome back" is a
+  deliberate greeting). Breadcrumb labels and the page's `document.title` use the same wording.
 - **List screen:** header, a row of filter chips and a search `.sl-input`, then the table inside a
   `.sl-tile`. Rows are 52px with a hairline between them, the header row is `bg-card-2` with small
   slate labels, row actions sit in a trailing "…" menu or icon pills, and statuses are chips. The

@@ -152,9 +152,9 @@ const TdsPage: React.FC = () => {
     ) : undefined;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 md:p-6">
+    <div className="sl-page">
       <PageHeader
-        title="TDS and TCS"
+        title="TDS & TCS"
         icon={<Percent size={22} />}
         subtitle="Tax held back from what you pay, and collected on what you sell. It has to reach the government by the 7th of the next month and be reported every quarter."
         meta={

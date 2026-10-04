@@ -142,8 +142,14 @@ const CustomerListPage: React.FC = () => {
   }, []);
 
   const fetchCustomersForExport = useCallback(async () => {
-    const res = await customerService.fetchAll({ page: 1, limit: 100000 });
-    return res?.customers || (Array.isArray(res) ? res : []);
+    // The API caps page size at 200, so walk the pages.
+    const all: any[] = [];
+    for (let page = 1; ; page++) {
+      const res = await customerService.fetchAll({ page, limit: 200 });
+      all.push(...(res?.customers || []));
+      if (page >= (res?.totalPages || 1)) break;
+    }
+    return all;
   }, []);
 
   const { csvColumns, csvFilename } = useMemo(() => {
@@ -232,7 +238,7 @@ const CustomerListPage: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Customer Management"
+        title="Customers"
         subtitle={
           listError && (customers ?? []).length === 0
             ? "Parties you sell to, with their GSTIN, grade and credit terms"

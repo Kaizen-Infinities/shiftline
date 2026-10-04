@@ -20,6 +20,8 @@ interface LedgerSearchInputProps {
   /** Called after a ledger is selected (via keyboard or click). Use to auto-advance focus. */
   onSelected?: (ledger: AccountLedger) => void;
   disabled?: boolean;
+  /** Accessible name when no visible `label` is rendered (e.g. voucher grid cells). */
+  ariaLabel?: string;
 }
 
 /** True if a ledger's group looks like a bank or cash account. */
@@ -42,6 +44,7 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
   variant = "default",
   onSelected,
   disabled,
+  ariaLabel,
 }) => {
   const [searchText, setSearchText] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -203,6 +206,7 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
         ref={inputRef}
         id={inputId}
         type="text"
+        aria-label={label ? undefined : (ariaLabel ?? "Account")}
         role="combobox"
         aria-expanded={isOpen}
         aria-autocomplete="list"

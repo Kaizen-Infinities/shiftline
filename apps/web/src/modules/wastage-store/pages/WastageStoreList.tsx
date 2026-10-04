@@ -228,9 +228,9 @@ const WastageStoreList: React.FC = () => {
   ) : null;
 
   return (
-    <div className="w-full min-w-0">
+    <div className="sl-page min-w-0">
       <PageHeader
-        title="Wastage Products"
+        title="Wastage store"
         subtitle={`${allWastageItems.length} items · scrap, regrind and rejects kept in wastage stores`}
         icon={<Recycle size={22} />}
         actions={
@@ -307,7 +307,7 @@ const WastageStoreList: React.FC = () => {
           totalPages > 1 ? { currentPage, totalPages, onPageChange: setCurrentPage } : undefined
         }
       />
-      <p className="sl-muted m-0 mt-2 text-right text-xs">Total: {total} record(s)</p>
+      <p className="sl-muted m-0 text-right text-xs">Total: {total} record(s)</p>
 
       {/* View Modal */}
       <CommonViewModal

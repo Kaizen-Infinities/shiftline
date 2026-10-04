@@ -58,22 +58,22 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
 
     socketInstance.on("connect", () => {
-      console.log("🟢 Socket connected:", socketInstance.id);
+      if (import.meta.env.DEV) console.debug("Socket connected:", socketInstance.id);
       setIsConnected(true);
     });
 
     socketInstance.on("disconnect", (reason) => {
-      console.log("🔴 Socket disconnected:", reason);
+      if (import.meta.env.DEV) console.debug("Socket disconnected:", reason);
       setIsConnected(false);
     });
 
     socketInstance.io.on("reconnect_attempt", (n) => {
-      console.log(`🟡 Socket reconnect attempt ${n}`);
+      if (import.meta.env.DEV) console.debug(`Socket reconnect attempt ${n}`);
       setIsConnected(false);
     });
 
     socketInstance.io.on("reconnect", (n) => {
-      console.log(`🟢 Socket reconnected after ${n} attempts`);
+      if (import.meta.env.DEV) console.debug(`Socket reconnected after ${n} attempts`);
       setIsConnected(true);
     });
 
@@ -83,7 +83,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     });
 
     socketInstance.on("connect_error", (err) => {
-      console.warn("⚠️ Socket connect error:", err?.message ?? err);
+      console.warn("Socket connect error:", err?.message ?? err);
       setIsConnected(false);
     });
 

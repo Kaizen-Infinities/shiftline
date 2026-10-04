@@ -21,9 +21,9 @@ import { ChipTabs, PageHeader } from "../../../../components/ui/v2";
  */
 type Book = "day" | "cash" | "bank";
 const TABS: { key: Book; title: string; path: string }[] = [
-  { key: "day", title: "Day Book", path: "/accounts/day-book" },
-  { key: "cash", title: "Cash Book", path: "/accounts/cash-book" },
-  { key: "bank", title: "Bank Book", path: "/accounts/bank-book" },
+  { key: "day", title: "Day book", path: "/accounts/day-book" },
+  { key: "cash", title: "Cash book", path: "/accounts/cash-book" },
+  { key: "bank", title: "Bank book", path: "/accounts/bank-book" },
 ];
 const VOUCHER_TYPES = [
   "PAYMENT",
@@ -165,7 +165,7 @@ const BooksPage: React.FC = () => {
     });
 
   return (
-    <div className="w-full space-y-4">
+    <div className="sl-page">
       <PageHeader
         title={TABS.find((t) => t.key === tab)?.title}
         subtitle={

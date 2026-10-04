@@ -143,7 +143,7 @@ const PaymentVoucherPage: React.FC = () => {
     return (
       <div className="w-full">
         <PageHeader
-          title="Payment Register"
+          title="Payment vouchers"
           subtitle="Money paid out of your bank and cash accounts"
           icon={<ArrowUpRight size={20} />}
           primaryAction={newButton}
@@ -221,7 +221,7 @@ const PaymentVoucherPage: React.FC = () => {
   return (
     <div className="w-full">
       <PageHeader
-        title="Payment Register"
+        title="Payment vouchers"
         subtitle={
           <>
             Series {applied.voucherSeries} · {fmtDate(applied.startDate)} to{" "}

@@ -2,6 +2,9 @@ import apiClient from "../api/apiClient";
 import config from "../api/config";
 import type { Customer, CreateCustomerDto, UpdateCustomerDto } from "../features/customer/types";
 
+// The API rejects limit > 200 (MAX_PAGE_SIZE in apps/api/src/utils/pagination.ts).
+const MAX_PAGE_SIZE = 200;
+
 export const customerService = {
   // BUG-CUST-004 fix: added page and limit params for server-side pagination
   fetchAll: async (params?: {
@@ -16,7 +19,7 @@ export const customerService = {
       params: {
         search: params?.search,
         page: params?.page ?? 1,
-        limit: params?.limit ?? 10,
+        limit: Math.min(params?.limit ?? 10, MAX_PAGE_SIZE),
         status: params?.status,
         customerTypeId: params?.customerTypeId,
         customerGradeId: params?.customerGradeId,

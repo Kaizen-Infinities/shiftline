@@ -79,7 +79,18 @@ export interface ChequeRow {
 
 const p = API_PATHS.banking;
 
+export interface BankAccountOption {
+  id: string;
+  bankName: string;
+  accountNumber: string | null;
+  ledgerId: number;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
 export const bankingService = {
+  accounts: async (): Promise<BankAccountOption[]> =>
+    (await apiClient.get(`${p.base}/accounts`)).data.data,
   statements: async (bankAccountId?: string): Promise<StatementRow[]> =>
     (await apiClient.get(p.statements, { params: { bankAccountId } })).data.data,
   importStatement: async (body: {

@@ -14,6 +14,7 @@ import {
   type ItBlocks,
   type OpeningRowError,
 } from "../../../services/assetService";
+import { PageHeader } from "../../../components/ui/v2";
 import {
   Card,
   day,
@@ -102,62 +103,58 @@ const FixedAssetsPage: React.FC = () => {
   const runFor = runs.find((r) => r.periodKey === periodKey);
 
   return (
-    <div className="w-full space-y-4">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="sl-h1 m-0 leading-tight">Fixed Assets</h1>
-          <p className="sl-muted m-0 mt-1 max-w-3xl text-sm leading-snug">
-            The register, the monthly charge under Schedule II, and the income-tax block
-            depreciation that goes on the return. The two are separate calculations and are not
-            meant to agree.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tab === "depreciation" && (
-            <select
-              className={field}
-              value={periodKey}
-              onChange={(e) => setPeriodKey(e.target.value)}
-              aria-label="Month"
-            >
-              {months.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {(tab === "yearEnd" || tab === "tax") && (
-            <select
-              className={field}
-              value={fyCode}
-              onChange={(e) => setFyCode(e.target.value)}
-              aria-label="Financial year"
-            >
-              {years.map((y) => (
-                <option key={y.value} value={y.value}>
-                  {y.label}
-                </option>
-              ))}
-            </select>
-          )}
-          {tab === "register" && can("assets.manage") && (
-            <button className={secondary} onClick={() => setImportingOpening(true)}>
-              Import opening balances
-            </button>
-          )}
-          {tab === "register" && can("assets.create") && (
-            <button className={primary} onClick={() => setAdding(true)}>
-              Add an asset
-            </button>
-          )}
-          {tab === "classes" && can("assets.manage") && (
-            <button className={primary} onClick={() => setEditingClass("new")}>
-              Add a class
-            </button>
-          )}
-        </div>
-      </header>
+    <div className="sl-page">
+      <PageHeader
+        title="Fixed assets"
+        subtitle="The register, the monthly charge under Schedule II, and the income-tax block depreciation that goes on the return. The two are separate calculations and are not meant to agree."
+        actions={
+          <>
+            {tab === "depreciation" && (
+              <select
+                className={field}
+                value={periodKey}
+                onChange={(e) => setPeriodKey(e.target.value)}
+                aria-label="Month"
+              >
+                {months.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {(tab === "yearEnd" || tab === "tax") && (
+              <select
+                className={field}
+                value={fyCode}
+                onChange={(e) => setFyCode(e.target.value)}
+                aria-label="Financial year"
+              >
+                {years.map((y) => (
+                  <option key={y.value} value={y.value}>
+                    {y.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tab === "register" && can("assets.manage") && (
+              <button className={secondary} onClick={() => setImportingOpening(true)}>
+                Import opening balances
+              </button>
+            )}
+            {tab === "register" && can("assets.create") && (
+              <button className={primary} onClick={() => setAdding(true)}>
+                Add an asset
+              </button>
+            )}
+            {tab === "classes" && can("assets.manage") && (
+              <button className={primary} onClick={() => setEditingClass("new")}>
+                Add a class
+              </button>
+            )}
+          </>
+        }
+      />
 
       <nav className="flex flex-wrap gap-2" role="tablist">
         {(

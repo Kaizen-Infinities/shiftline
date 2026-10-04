@@ -831,6 +831,66 @@ input:-webkit-autofill:active {
    Every screen composes from these; do not re-invent them per page.
 ===================================================================== */
 @layer components {
+  /* ── Page frame (docs/specs/UI-v2.md, "Page layout") ──────────────────────
+     Every screen's root. The shell (BaseLayout) owns the gutters and the top
+     offset, so a page adds neither: every title starts at the same point and
+     the left edge never moves between screens. Blocks are 20px apart; the
+     width tier only moves the right edge. */
+  .sl-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+    min-width: 0;
+  }
+  /* Create/edit forms and settings: one readable column. */
+  .sl-page-form {
+    max-width: 70rem;
+  }
+  /* Documents: invoice, quotation and order editors and views. */
+  .sl-page-doc {
+    max-width: 90rem;
+  }
+  /* The page header keeps 20px below it on a page that is not (yet) an
+     .sl-page; inside one, the page gap already provides it. Both live here,
+     not in a utility, because Tailwind utilities outrank component rules and
+     an `mb-5` on the header could never be taken back. */
+  .sl-page-header {
+    margin-bottom: 1.25rem;
+  }
+  .sl-page > .sl-page-header {
+    margin-bottom: 0;
+  }
+  /* A toolbar (filters, search) belongs to the table under it: 16px apart on
+     every page, which inside an .sl-page means taking 4px back from the gap. */
+  .sl-toolbar {
+    margin-bottom: 1rem;
+  }
+  .sl-page > .sl-toolbar {
+    margin-bottom: -0.25rem;
+  }
+
+  /* Touch screens: every chip, tab and pill button is at least 40px tall
+     (docs/specs/P1-UI-remake.md, Interaction). Mouse layouts keep their density. */
+  @media (pointer: coarse) {
+    button.sl-chip,
+    a.sl-chip,
+    .sl-chip[role="tab"],
+    .sl-btn,
+    .sl-btn-blue,
+    .sl-btn-danger,
+    .sl-cta {
+      min-height: 2.5rem;
+    }
+  }
+
+  /* A table inside another tile (a form section's line items, a BOM) is a
+     framed region of that tile, not a second floating card. */
+  .sl-tile .sl-table-tile {
+    box-shadow: none;
+    border-radius: 14px;
+  }
+
   /* A resting white tile: cards, nav rows, list rows, panels. */
   .sl-tile {
     background: var(--color-card);
@@ -1267,6 +1327,12 @@ body {
     padding: 0 0.95rem;
     font-size: 0.8125rem;
     gap: 0.4rem;
+  }
+  /* The touch rule above is overridden by this later one, so small pills restate it. */
+  @media (pointer: coarse) {
+    .sl-pill-sm {
+      min-height: 2.5rem;
+    }
   }
   .sl-pill-md {
     min-height: 2.75rem;
@@ -1944,6 +2010,20 @@ body {
   }
 
   /* Mobile bottom tab bar. */
+  /* A form's sticky action bar sits 12px above the bottom edge, and above the phone tab bar
+     while that bar is on screen (it is fixed, so a plain bottom offset lands under it). */
+  .sl-sticky-footer {
+    position: sticky;
+    bottom: var(--sl-footer-gap, 0.75rem);
+  }
+  body:has(.sl-tabbar) .sl-sticky-footer {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom) + var(--sl-footer-gap, 0.75rem));
+  }
+  @media (min-width: 1024px) {
+    body:has(.sl-tabbar) .sl-sticky-footer {
+      bottom: var(--sl-footer-gap, 0.75rem);
+    }
+  }
   .sl-tabbar {
     background: color-mix(in srgb, var(--color-card) 92%, transparent);
     backdrop-filter: blur(12px);

@@ -238,11 +238,11 @@ const SalaryAdvancePage: React.FC = () => {
     st === "ALL" ? advances.length : advances.filter((a) => a.status === st).length;
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell>
       <PageHeader
-        title="Salary Advance"
+        title="Salary advances"
         icon={<Wallet size={20} />}
-        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Salary Advance" }]}
+        breadcrumbs={[{ label: "Payroll", to: "/payroll" }, { label: "Salary advances" }]}
         subtitle="Record and track advances given to employees; recoveries come off the next payroll runs."
         primaryAction={
           canCreateAdvance ? (

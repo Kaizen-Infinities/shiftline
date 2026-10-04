@@ -174,9 +174,9 @@ const EmailConfigPage: React.FC = () => {
   if (loading) return <CommonLoader text="Loading..." fullScreen={false} />;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 p-4 md:p-6">
+    <div className="sl-page sl-page-form">
       <PageHeader
-        title="Email Configuration"
+        title="Email"
         icon={<Mail size={22} />}
         subtitle="The mail server that invoices, reminders and invitations go out through. The password is stored encrypted and never shown again."
         breadcrumbs={[{ label: "Settings", to: "/settings" }, { label: "Email" }]}

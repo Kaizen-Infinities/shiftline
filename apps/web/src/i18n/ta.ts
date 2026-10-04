@@ -127,7 +127,7 @@ export const ta: Messages = {
 
   // ── My profile ────────────────────────────────────────────────────────────
   "profile.loading": "சுயவிவரம் ஏற்றுகிறது",
-  "profile.hello": "வணக்கம்",
+  "profile.title": "என் சுயவிவரம்",
   "profile.employee": "பணியாளர்",
   "profile.yourDetails": "உங்கள் விவரங்கள்",
   "profile.empCode": "பணியாளர் குறியீடு",

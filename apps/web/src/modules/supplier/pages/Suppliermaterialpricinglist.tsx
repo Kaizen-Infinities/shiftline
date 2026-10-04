@@ -286,7 +286,7 @@ const SupplierMaterialPricingList: React.FC = () => {
   return (
     <div className={PAGE_CLASS}>
       <PageHeader
-        title="Raw Material Pricing"
+        title="Raw material pricing"
         subtitle={
           supplierName
             ? `${supplierName} · a revision closes the current price and keeps it in history`

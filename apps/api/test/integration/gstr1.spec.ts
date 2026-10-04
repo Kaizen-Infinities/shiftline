@@ -81,6 +81,9 @@ describe("GSTR-1", () => {
       .send({
         customerId: b2bCustomer.id,
         salesInvoiceId: b2b.id,
+        // Pinned inside PERIOD: left to default, the note takes today's date and falls out of
+        // the September return once the calendar moves on.
+        returnDate: "2026-09-20",
         reason: "Short supply",
         items: [
           {

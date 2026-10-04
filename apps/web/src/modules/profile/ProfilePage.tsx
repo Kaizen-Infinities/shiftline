@@ -85,16 +85,16 @@ const ProfilePage: React.FC = () => {
   ];
 
   return (
-    <div className="flex max-w-[1024px] flex-col gap-6">
-      <section className="flex flex-col gap-5 pt-2 sm:flex-row sm:items-center">
+    <div className="sl-page sl-page-form">
+      <section className="flex flex-col gap-5 sm:flex-row sm:items-center">
         <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-brand text-2xl font-bold text-[color:var(--color-white)] shadow-[0_5px_0_color-mix(in_srgb,var(--color-brand)_65%,var(--color-black))]">
           {getInitials(employee.fullName)}
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="sl-welcome">
-            {t("profile.hello")} <strong>{employee.fullName || na}</strong>
-          </h1>
-          <p className="sl-muted mt-1">{employee.department?.name || t("profile.employee")}</p>
+          <h1 className="sl-h1">{t("profile.title")}</h1>
+          <p className="sl-muted mt-1">
+            {employee.fullName || na} · {employee.department?.name || t("profile.employee")}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="sl-chip sl-chip-success">

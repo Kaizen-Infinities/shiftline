@@ -102,7 +102,7 @@ export const AmountReceivablePage: React.FC = () => {
   useEffect(() => {
     const loadCustomers = async () => {
       try {
-        const res = await customerService.fetchAll({ limit: 10000 });
+        const res = await customerService.fetchAll({ limit: 200 });
         const list = Array.isArray(res) ? res : res?.customers || [];
         setCustomersList(list);
       } catch (err) {
@@ -305,7 +305,7 @@ export const AmountReceivablePage: React.FC = () => {
   return (
     <div className="w-full text-ink">
       <PageHeader
-        title="Amount Receivable"
+        title="Receivables"
         subtitle="What customers owe you, with ageing and overdue bills"
         icon={<HandCoins size={20} />}
         primaryAction={
@@ -405,8 +405,11 @@ export const AmountReceivablePage: React.FC = () => {
           </div>
 
           <div className="w-full sm:w-[220px]">
-            <label className="sl-label">Search</label>
+            <label htmlFor="ar-search" className="sl-label">
+              Search
+            </label>
             <input
+              id="ar-search"
               type="text"
               className="sl-input h-11 w-full text-sm"
               value={draftSearch}
@@ -426,6 +429,7 @@ export const AmountReceivablePage: React.FC = () => {
               }))}
               defaultOptionLabel="All Customers"
               hideLabel
+              ariaLabel="Customer"
               searchable
               onChange={(e) => setDraftCustomerId(e.target.value)}
             />
@@ -475,6 +479,7 @@ export const AmountReceivablePage: React.FC = () => {
                   Sort:
                 </label>
                 <select
+                  aria-label="Sort by"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   className="sl-input h-9 !w-auto text-[13px] cursor-pointer"
