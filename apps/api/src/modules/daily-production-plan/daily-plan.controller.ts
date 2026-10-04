@@ -3,6 +3,15 @@ import dailyPlanService from "./daily-plan.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { emitToTenant } from "../../lib/realtime";
+import { ApiError } from "../../utils/ApiError";
+
+/** A page or limit query value: absent, or a positive whole number (never NaN or negative). */
+const positiveInt = (value: unknown, name: string): number | undefined => {
+  if (value === undefined || value === "") return undefined;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) throw new ApiError(400, `${name} must be a positive whole number`);
+  return n;
+};
 
 class DailyPlanController {
   create = asyncHandler(async (req: Request, res: Response) => {
@@ -68,8 +77,8 @@ class DailyPlanController {
       shiftId: shiftId ? String(shiftId) : undefined,
       productionDate: productionDate ? String(productionDate) : undefined,
       status: status ? String(status) : undefined,
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
+      page: positiveInt(page, "page"),
+      limit: positiveInt(limit, "limit"),
     };
 
     const dailyPlans = await dailyPlanService.findAll(filters);

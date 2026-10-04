@@ -1,5 +1,8 @@
 import apiClient from "../api/apiClient";
 
+/** A screen's opening request gives up after this long and shows its error state. */
+const LOAD_TIMEOUT_MS = 30_000;
+
 const BASE = "/payroll";
 
 // ─── Types (API response shapes) ──────────────────────────────────────────────
@@ -150,7 +153,11 @@ export interface ApiPayrollRun {
   results: ApiPayrollResult[];
   /** Active employees with no EmployeeTaxDeclaration on file for the run's financial year (P2-16),
    *  MONTHLY runs only. */
-  missingTaxDeclarations?: Array<{ employeeId: string; employeeCode: string; employeeName: string }>;
+  missingTaxDeclarations?: Array<{
+    employeeId: string;
+    employeeCode: string;
+    employeeName: string;
+  }>;
 }
 
 export interface ApiSalaryAdvance {
@@ -268,7 +275,7 @@ export const payrollService = {
   // Employees
   listEmployees: async (category?: string): Promise<ApiEmployeePayroll[]> => {
     const params = category ? { category } : {};
-    const { data } = await apiClient.get(`${BASE}/employees`, { params });
+    const { data } = await apiClient.get(`${BASE}/employees`, { params, timeout: LOAD_TIMEOUT_MS });
     return data.data;
   },
 

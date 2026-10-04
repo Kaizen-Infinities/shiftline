@@ -1,8 +1,14 @@
 /* Formatting helpers shared by the dashboard widgets. */
 
-/** Rupees without paise, Indian grouping. */
-export const inr = (n: number | string | null | undefined) =>
-  `₹${Math.abs(Number(n) || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+/**
+ * Rupees without paise, Indian grouping. The sign is kept: an overdrawn bank account reads
+ * "-₹1,200", never "₹1,200" (the TV board and the cash tiles must agree on the sign).
+ */
+export const inr = (n: number | string | null | undefined) => {
+  const v = Math.round(Number(n) || 0);
+  const body = Math.abs(v).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  return `${v < 0 ? "-" : ""}₹${body}`;
+};
 
 /** "1 account", "2 accounts". */
 export const plural = (n: number | null | undefined, one: string, many = `${one}s`) =>

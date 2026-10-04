@@ -121,14 +121,18 @@ export const createSupplierSchema = z.object({
   }),
 });
 
+/** Supplier ids are 32-bit integers; anything else is a client error, not a database error. */
+const supplierIdParam = z.string().regex(/^\d{1,9}$/, "Supplier id must be a whole number");
+
 /**
  * Update Supplier Validation
  */
 export const updateSupplierSchema = z.object({
-  // openingBalance is intentionally excluded from updates — it is immutable after creation
-  body: createSupplierSchema.shape.body.omit({ openingBalance: true }).partial(),
+  // openingBalance is intentionally excluded from updates — it is immutable after creation.
+  // companyId is excluded too: the tenant comes from the token and a supplier never moves.
+  body: createSupplierSchema.shape.body.omit({ openingBalance: true, companyId: true }).partial(),
   params: z.object({
-    id: z.string(),
+    id: supplierIdParam,
   }),
 });
 
@@ -137,7 +141,7 @@ export const updateSupplierSchema = z.object({
  */
 export const supplierIdSchema = z.object({
   params: z.object({
-    id: z.string(),
+    id: supplierIdParam,
   }),
 });
 

@@ -77,9 +77,37 @@ export interface ChequeRow {
   sourceDocId?: string | null;
 }
 
+export interface BankAccountRow {
+  id: string;
+  bankName: string;
+  accountName: string | null;
+  accountNumber: string | null;
+  ifsc: string | null;
+  isDefault: boolean;
+  ledgerId: number;
+  ledgerCode: string;
+  ledgerName: string;
+  bookBalance: number;
+}
+
+/** A bank ledger the books know about but that has no bank details yet. */
+export interface UnlinkedBankLedger {
+  ledgerId: number;
+  code: string;
+  name: string;
+}
+
 const p = API_PATHS.banking;
 
 export const bankingService = {
+  accounts: async (): Promise<{ accounts: BankAccountRow[]; unlinked: UnlinkedBankLedger[] }> =>
+    (await apiClient.get(p.accounts)).data.data,
+  linkLedger: async (body: {
+    ledgerId: number;
+    bankName: string;
+    accountNumber?: string | null;
+    ifsc?: string | null;
+  }) => (await apiClient.post(p.accounts, body)).data.data,
   statements: async (bankAccountId?: string): Promise<StatementRow[]> =>
     (await apiClient.get(p.statements, { params: { bankAccountId } })).data.data,
   importStatement: async (body: {

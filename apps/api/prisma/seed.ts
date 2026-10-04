@@ -8,7 +8,9 @@
 import "dotenv/config";
 import { prisma } from "../src/config/prisma";
 import { bootstrapAdmin } from "../src/utils/bootstrapAdmin";
+import { withoutTenant } from "../src/lib/tenant-context";
 import { seedTenant } from "./seed-lib";
+import { seedDemoActivity } from "./seed-demo-activity";
 
 const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "Demo@12345678";
 const log = (msg: string) => process.stdout.write(`[seed] ${msg}\n`);
@@ -20,7 +22,7 @@ async function main() {
   // Platform admin and the permission catalogue (global), same as on server boot.
   await bootstrapAdmin(prisma);
 
-  await seedTenant({
+  const company = await seedTenant({
     companyCode: "DEMO",
     companyName: "Shiftline Demo Industries",
     slug: "demo",
@@ -28,6 +30,14 @@ async function main() {
     password: SEED_PASSWORD,
     log,
   });
+  // Invoices and receipts, so the demo books show money in as well as money out. The integration
+  // suite builds its own data on top of the plain masters and skips this.
+  if (process.env.NODE_ENV !== "test") {
+    const owner = await withoutTenant(() =>
+      prisma.user.findUniqueOrThrow({ where: { username: "demo.owner" } })
+    );
+    await seedDemoActivity({ companyId: company.id, ownerUserId: owner.userId, log });
+  }
   log(
     "users demo.owner, demo.accounts, demo.stores, demo.production, demo.sales, demo.auditor (password: SEED_PASSWORD)"
   );

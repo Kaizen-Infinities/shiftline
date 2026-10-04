@@ -14,6 +14,7 @@ const NOT_YEAR_END: Prisma.VoucherWhereInput[] = [
   { refDocType: { not: YEAR_END_REF } },
 ];
 import { BALANCE_SHEET_LAYOUT, PROFIT_AND_LOSS_LAYOUT } from "./ledgerGroups";
+import { bankCashLedgerWhere } from "./bank-cash-ledgers";
 
 /**
  * Default seed ledgers — created once when the DB has zero ledger rows.
@@ -518,24 +519,8 @@ class AccountsService {
     // Throttled + memoized, so this is effectively free on hot path.
     await this.ensureSystemLedgersExist();
 
-    const bankGroups = [
-      "Cash & Bank",
-      "Bank Accounts",
-      "Cash in Hand",
-      "BANK ACCOUNTS",
-      "CASH IN HAND",
-    ];
-
-    // P1-10d: the tree group decides; the name list only catches ledgers never attached to it.
     const ledgers = await prisma.accountLedger.findMany({
-      where: {
-        type: LedgerType.ASSET,
-        isActive: true,
-        OR: [
-          { ledgerGroup: { code: { in: ["CASH_IN_HAND", "BANK_ACCOUNTS"] } } },
-          { groupId: null, group: { in: bankGroups, mode: "insensitive" } },
-        ],
-      },
+      where: bankCashLedgerWhere,
       orderBy: { name: "asc" },
     });
     if (ledgers.length === 0) return { accounts: [], totalBalance: 0 };

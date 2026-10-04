@@ -1,6 +1,9 @@
 import apiClient from "../api/apiClient";
 import config from "../api/config";
 
+/** A screen's opening request gives up after this long and shows its error state. */
+const LOAD_TIMEOUT_MS = 30_000;
+
 /** Year-end closing (P1-09e) and the freeze date it moves. */
 export interface ClosingLine {
   ledgerId: number;
@@ -69,11 +72,12 @@ export const previousFyCode = (today = new Date()): string => {
 
 export const yearEndService = {
   list: async (): Promise<YearEndClosing[]> =>
-    (await apiClient.get(config.yearEnd.base)).data.data as YearEndClosing[],
+    (await apiClient.get(config.yearEnd.base, { timeout: LOAD_TIMEOUT_MS })).data
+      .data as YearEndClosing[],
 
   preview: async (fyCode: string): Promise<YearEndPreview> =>
-    (await apiClient.get(config.yearEnd.preview, { params: { fyCode } })).data
-      .data as YearEndPreview,
+    (await apiClient.get(config.yearEnd.preview, { params: { fyCode }, timeout: LOAD_TIMEOUT_MS }))
+      .data.data as YearEndPreview,
 
   prepare: async (fyCode: string, notes?: string): Promise<YearEndClosing> =>
     (await apiClient.post(config.yearEnd.prepare, { fyCode, notes: notes || null })).data
@@ -90,7 +94,8 @@ export const yearEndService = {
     (await apiClient.post(`${config.yearEnd.base}/${id}/discard`)).data.data as YearEndClosing,
 
   periodControl: async (): Promise<PeriodControl> =>
-    (await apiClient.get(config.yearEnd.periodControl)).data.data as PeriodControl,
+    (await apiClient.get(config.yearEnd.periodControl, { timeout: LOAD_TIMEOUT_MS })).data
+      .data as PeriodControl,
 
   setFreezeDate: async (
     booksFrozenUpTo: string | null,

@@ -294,7 +294,7 @@ class SupplierService {
     const supplier = await this.getSupplierById(id);
 
     if (data.supplierCode && data.supplierCode !== supplier.supplierCode) {
-      const companyId = data.companyId || supplier.companyId;
+      const companyId = supplier.companyId;
       const existingSupplier = await supplierRepository.findByCode(companyId, data.supplierCode);
 
       if (existingSupplier) {

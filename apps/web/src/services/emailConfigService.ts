@@ -1,12 +1,14 @@
 import apiClient from "../api/apiClient";
 import config from "../api/config";
 
-// We will add the endpoint base to config later, for now we can use hardcoded string or update config.
+/** A screen's opening request gives up after this long and shows its error state. */
+const LOAD_TIMEOUT_MS = 30_000;
 
+// We will add the endpoint base to config later, for now we can use hardcoded string or update config.
 
 export const emailConfigService = {
   getConfig: async () => {
-    const response = await apiClient.get(config?.email?.base);
+    const response = await apiClient.get(config?.email?.base, { timeout: LOAD_TIMEOUT_MS });
     return response.data?.data || null;
   },
 
@@ -27,5 +29,5 @@ export const emailConfigService = {
       },
     });
     return response.data;
-  }
+  },
 };

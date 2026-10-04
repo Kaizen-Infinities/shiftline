@@ -408,42 +408,43 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       {
         customerCode: "C001",
         firmName: `Aster Traders (${opts.companyCode})`,
-        displayName: "Aster Traders",
+        displayName: `Aster Traders (${opts.companyCode})`,
         creditLimit: 200000,
         creditDays: 30,
       },
       {
         customerCode: "C002",
         firmName: `Bluebell Stores (${opts.companyCode})`,
-        displayName: "Bluebell Stores",
+        displayName: `Bluebell Stores (${opts.companyCode})`,
         creditLimit: 100000,
         creditDays: 15,
       },
       {
         customerCode: "C003",
         firmName: `Cedar Enterprises (${opts.companyCode})`,
-        displayName: "Cedar Enterprises",
+        displayName: `Cedar Enterprises (${opts.companyCode})`,
         creditLimit: 350000,
         creditDays: 45,
       },
       {
         customerCode: "C004",
         firmName: `Dune Plastics Mart (${opts.companyCode})`,
-        displayName: "Dune Plastics",
+        displayName: `Dune Plastics (${opts.companyCode})`,
         creditLimit: 50000,
         creditDays: 7,
       },
       {
         customerCode: "C005",
         firmName: `Elm Institutional Supplies (${opts.companyCode})`,
-        displayName: "Elm Supplies",
+        displayName: `Elm Supplies (${opts.companyCode})`,
         creditLimit: 500000,
         creditDays: 60,
       },
     ]) {
       await prisma.customer.upsert({
         where: { companyId_customerCode: { companyId: company.id, customerCode: c.customerCode } },
-        update: {},
+        // Reseeding repairs the naming: every demo party carries the "(<company code>)" suffix.
+        update: { firmName: c.firmName, displayName: c.displayName },
         create: {
           ...c,
           creditLimit: D(c.creditLimit),
@@ -458,7 +459,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       {
         supplierCode: "S001",
         legalName: `Polymer Source (${opts.companyCode}) Pvt Ltd`,
-        displayName: "Polymer Source",
+        displayName: `Polymer Source (${opts.companyCode})`,
         billingCity: "Chennai",
         billingState: "Tamil Nadu",
         stateCode: "33",
@@ -467,7 +468,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       {
         supplierCode: "S002",
         legalName: `Colour Masters (${opts.companyCode}) LLP`,
-        displayName: "Colour Masters",
+        displayName: `Colour Masters (${opts.companyCode})`,
         billingCity: "Coimbatore",
         billingState: "Tamil Nadu",
         stateCode: "33",
@@ -476,7 +477,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       {
         supplierCode: "S003",
         legalName: `Packwell Cartons (${opts.companyCode})`,
-        displayName: "Packwell",
+        displayName: `Packwell (${opts.companyCode})`,
         billingCity: "Bengaluru",
         billingState: "Karnataka",
         stateCode: "29",
@@ -485,7 +486,7 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
     ]) {
       await prisma.supplier.upsert({
         where: { companyId_supplierCode: { companyId: company.id, supplierCode: s.supplierCode } },
-        update: {},
+        update: { legalName: s.legalName, displayName: s.displayName },
         create: {
           ...s,
           billingAddressLine1: "Demo address",

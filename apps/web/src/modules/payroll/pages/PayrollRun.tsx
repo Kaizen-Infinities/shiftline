@@ -36,7 +36,7 @@ import type {
 } from "../../../services/payrollService";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import { StatusBadge } from "../../../components/ui/StatusBadge/Badge";
-import { Chip, PageHeader } from "../../../components/ui/v2";
+import { Chip, LoadError, PageHeader } from "../../../components/ui/v2";
 
 // ─── Steps ───────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -2363,6 +2363,7 @@ const PayrollRun: React.FC = () => {
   // Data from API
   const [employees, setEmployees] = useState<ApiEmployeePayroll[]>([]);
   const [loadingEmp, setLoadingEmp] = useState(true);
+  const [empLoadFailed, setEmpLoadFailed] = useState(false);
 
   // Step 2 state
   const [attRows, setAttRows] = useState<AttRow[]>([]);
@@ -2383,14 +2384,20 @@ const PayrollRun: React.FC = () => {
     employees: { name: string; code: string; entered: number; expected: number }[];
   } | null>(null);
 
-  // Load employees on mount
-  useEffect(() => {
+  // Load employees on mount. A failure shows an error with a retry, not an empty list that
+  // reads as "no employees".
+  const loadEmployees = React.useCallback(() => {
+    setLoadingEmp(true);
+    setEmpLoadFailed(false);
     payrollService
       .listEmployees()
       .then(setEmployees)
-      .catch(console.error)
+      .catch(() => setEmpLoadFailed(true))
       .finally(() => setLoadingEmp(false));
   }, []);
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
 
   const loadedDraftRef = React.useRef(false);
   useEffect(() => {
@@ -2886,6 +2893,8 @@ const PayrollRun: React.FC = () => {
         {step === 1 &&
           (loadingEmp ? (
             <CommonLoader text="Loading employees…" fullScreen={false} />
+          ) : empLoadFailed ? (
+            <LoadError title="Couldn't load your employees" onRetry={loadEmployees} />
           ) : (
             <Step1
               runType={runType}

@@ -449,7 +449,9 @@ const AppRoutes = () => {
               <Route path="/company/view" element={<ProfilePage />} />
               <Route path="/settings/company" element={<CompanySettings />} />
               <Route path="/whatsapp" element={<WhatsappSettings />} />
-              <Route path="/email-config" element={<EmailConfigPage />} />
+              <Route element={<ProtectedRoute permission="email-config.view" />}>
+                <Route path="/email-config" element={<EmailConfigPage />} />
+              </Route>
               <Route path="/settings/invoice" element={<InvoiceSettings />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route

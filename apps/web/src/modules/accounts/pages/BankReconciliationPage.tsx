@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 import { usePermission } from "../../../hooks/usePermission";
-import apiClient from "../../../api/apiClient";
 import {
   bankingService,
+  type BankAccountRow,
   type Brs,
   type ChequeRow,
   type MatchCandidate,
   type StatementFormat,
   type StatementLineRow,
+  type UnlinkedBankLedger,
 } from "../../../services/bankingService";
 import {
   Card,
@@ -42,16 +43,12 @@ const CHEQUE_STYLE: Record<ChequeRow["status"], string> = {
   CANCELLED: "sl-chip-muted",
 };
 
-interface BankAccountOption {
-  id: string;
-  bankName: string;
-  accountNumber?: string | null;
-}
-
 const BankReconciliationPage: React.FC = () => {
   const { can } = usePermission();
   const [tab, setTab] = useState<Tab>("lines");
-  const [accounts, setAccounts] = useState<BankAccountOption[]>([]);
+  const [accounts, setAccounts] = useState<BankAccountRow[]>([]);
+  const [unlinked, setUnlinked] = useState<UnlinkedBankLedger[]>([]);
+  const [newBankName, setNewBankName] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
   const [lines, setLines] = useState<StatementLineRow[]>([]);
   const [brs, setBrs] = useState<Brs | null>(null);
@@ -63,20 +60,21 @@ const BankReconciliationPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        // The endpoint answers { accounts, totalBalance }; older builds returned the bare list.
-        const body = (await apiClient.get("/accounts/bank-accounts")).data.data as
-          BankAccountOption[] | { accounts?: BankAccountOption[] };
-        const rows = Array.isArray(body) ? body : (body?.accounts ?? []);
-        setAccounts(rows);
-        if (rows[0]) setBankAccountId(rows[0].id);
-      } catch {
-        // The picker is empty until an account exists; the tabs say so themselves.
-      }
-    })();
+  // The accounts come from the bank-account register (BankAccount rows), the ids that statements,
+  // lines and cheques use. Bank ledgers without a row are offered for set-up below.
+  const loadAccounts = useCallback(async () => {
+    try {
+      const out = await bankingService.accounts();
+      setAccounts(out.accounts);
+      setUnlinked(out.unlinked);
+      setBankAccountId((cur) => cur || out.accounts[0]?.id || "");
+    } catch {
+      // The picker is empty until an account exists; the tabs say so themselves.
+    }
   }, []);
+  useEffect(() => {
+    void loadAccounts();
+  }, [loadAccounts]);
 
   const load = useCallback(async () => {
     if (!bankAccountId && tab !== "cheques") {
@@ -156,6 +154,44 @@ const BankReconciliationPage: React.FC = () => {
           )}
         </div>
       </header>
+
+      {unlinked.length > 0 && can("banking.manage") && (
+        <Card title="Bank details missing">
+          <p className="m-0 text-sm">
+            {unlinked.length === 1 ? "This bank ledger has" : "These bank ledgers have"} no bank
+            details yet, so {unlinked.length === 1 ? "it" : "they"} cannot be reconciled:{" "}
+            {unlinked.map((u) => u.name).join(", ")}.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input
+              className={field}
+              placeholder="Bank name"
+              aria-label="Bank name"
+              value={newBankName}
+              onChange={(e) => setNewBankName(e.target.value)}
+            />
+            {unlinked.map((u) => (
+              <button
+                key={u.ledgerId}
+                className={secondary}
+                disabled={busy || !newBankName.trim()}
+                onClick={() =>
+                  act(async () => {
+                    await bankingService.linkLedger({
+                      ledgerId: u.ledgerId,
+                      bankName: newBankName.trim(),
+                    });
+                    setNewBankName("");
+                    await loadAccounts();
+                  }, "Bank details added")
+                }
+              >
+                Add details for {u.name}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <nav className="flex flex-wrap gap-2" role="tablist">
         {(

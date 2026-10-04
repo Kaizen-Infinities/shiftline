@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 
 import { usePermission } from "../../../../hooks/usePermission";
@@ -11,7 +11,7 @@ import {
 } from "../../../../services/yearEndService";
 import { formatDate, formatDateTime } from "../../../../utils/dateUtils";
 import { CalendarCheck } from "lucide-react";
-import { PageHeader } from "../../../../components/ui/v2";
+import { LoadError, PageHeader } from "../../../../components/ui/v2";
 
 /**
  * Year-end closing (P1-09e). Preview the closing journal for a financial year, prepare it, have
@@ -48,24 +48,44 @@ const YearEndPage: React.FC = () => {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Each of the three mount requests fails on its own: one the user may not read (the freeze
+  // date needs accounts.view) or a mistyped year must not blank the rest of the page.
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [closingsFailed, setClosingsFailed] = useState(false);
+  const [controlFailed, setControlFailed] = useState(false);
+  const loadSeq = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
-    try {
-      const [p, list, pc] = await Promise.all([
-        yearEndService.preview(applied),
-        yearEndService.list(),
-        yearEndService.periodControl(),
-      ]);
-      setPreview(p);
-      setClosings(list);
-      setControl(pc);
-      setFreeze(pc.booksFrozenUpTo ?? "");
-    } catch (err) {
-      toast.error(message(err));
-    } finally {
-      setLoading(false);
+    const [p, list, pc] = await Promise.allSettled([
+      yearEndService.preview(applied),
+      yearEndService.list(),
+      yearEndService.periodControl(),
+    ]);
+    if (seq !== loadSeq.current) return; // a newer load is under way; it owns the state
+    if (p.status === "fulfilled") {
+      setPreview(p.value);
+      setPreviewError(null);
+    } else {
+      setPreview(null);
+      const status = (p.reason as { response?: { status?: number } })?.response?.status;
+      setPreviewError(status === 400 ? message(p.reason) : "Couldn't load the closing preview.");
     }
+    if (list.status === "fulfilled") {
+      setClosings(list.value);
+      setClosingsFailed(false);
+    } else {
+      setClosingsFailed(true);
+    }
+    if (pc.status === "fulfilled") {
+      setControl(pc.value);
+      setFreeze(pc.value.booksFrozenUpTo ?? "");
+      setControlFailed(false);
+    } else {
+      setControlFailed(true);
+    }
+    setLoading(false);
   }, [applied]);
 
   useEffect(() => {
@@ -128,7 +148,7 @@ const YearEndPage: React.FC = () => {
             className={input}
             value={freeze}
             onChange={(e) => setFreeze(e.target.value)}
-            disabled={!can("accounts.edit")}
+            disabled={!can("accounts.edit") || controlFailed}
           />
           <label className="flex items-center gap-2 text-sm text-ink">
             <input
@@ -139,13 +159,24 @@ const YearEndPage: React.FC = () => {
             Allow moving it back
           </label>
           {can("accounts.edit") && (
-            <button type="button" className={secondary} onClick={saveFreeze} disabled={busy}>
+            <button
+              type="button"
+              className={secondary}
+              onClick={saveFreeze}
+              disabled={busy || controlFailed}
+            >
               Save
             </button>
           )}
           <span className="text-xs text-ink-muted">
-            Currently:{" "}
-            {control?.booksFrozenUpTo ? formatDate(control.booksFrozenUpTo) : "not frozen"}
+            {controlFailed ? (
+              "Couldn't load the freeze date."
+            ) : (
+              <>
+                Currently:{" "}
+                {control?.booksFrozenUpTo ? formatDate(control.booksFrozenUpTo) : "not frozen"}
+              </>
+            )}
           </span>
         </div>
       </section>
@@ -173,6 +204,15 @@ const YearEndPage: React.FC = () => {
           </button>
         </form>
 
+        {previewError && (
+          <LoadError compact title={previewError} onRetry={() => void load()} retrying={loading} />
+        )}
+        {loading && !preview && !previewError && (
+          <div className="space-y-3" role="status" aria-label="Loading">
+            <div className="sl-skeleton h-4 w-2/5" />
+            <div className="sl-skeleton h-3 w-3/4" />
+          </div>
+        )}
         {preview && (
           <>
             <div className="flex flex-wrap items-center gap-3">
@@ -329,7 +369,19 @@ const YearEndPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {closings.length === 0 && (
+              {closingsFailed && (
+                <tr>
+                  <td colSpan={7}>
+                    <LoadError
+                      compact
+                      title="Couldn't load the closing history"
+                      onRetry={() => void load()}
+                      retrying={loading}
+                    />
+                  </td>
+                </tr>
+              )}
+              {!closingsFailed && !loading && closings.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-3 text-center text-ink-muted">
                     No year has been closed yet.
