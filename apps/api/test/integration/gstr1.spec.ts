@@ -81,6 +81,7 @@ describe("GSTR-1", () => {
       .send({
         customerId: b2bCustomer.id,
         salesInvoiceId: b2b.id,
+        returnDate: "2026-09-20", // inside PERIOD; without it the note takes today's date
         reason: "Short supply",
         items: [
           {
