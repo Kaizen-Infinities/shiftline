@@ -111,6 +111,13 @@ class LeaveService {
     });
   }
 
+  /** The caller's own employee id, resolved server-side from the linked user row. */
+  private async ownEmployeeId(userId?: string): Promise<bigint | null> {
+    if (!userId) return null;
+    const user = await prisma.user.findUnique({ where: { userId }, select: { employeeId: true } });
+    return user?.employeeId ?? null;
+  }
+
   // ── Requests ─────────────────────────────────────────────────────────────
   async listRequests(filters: {
     employeeId?: string;
@@ -146,8 +153,15 @@ class LeaveService {
       halfDayEnd?: boolean;
       reason?: string;
     },
-    actor: { userId?: string }
+    actor: { userId?: string; canManage?: boolean }
   ) {
+    if (!actor.canManage) {
+      // Self-service: with only leave.request a user applies for their own linked employee.
+      const own = await this.ownEmployeeId(actor.userId);
+      if (own === null || String(own) !== String(input.employeeId)) {
+        throw new ApiError(403, "You can only request leave for yourself", "NOT_YOUR_LEAVE");
+      }
+    }
     const employee = await this.employee(input.employeeId);
     const type = await this.leaveType(input.leaveTypeCode);
     const fromDate = asDate(input.fromDate);
@@ -292,17 +306,50 @@ class LeaveService {
     return updated;
   }
 
-  /** Cancels a request. A pending one is simply withdrawn; an approved one gives the days back. */
-  async cancel(id: string, actor: { userId?: string }, comments?: string) {
+  /**
+   * Cancels a request. A pending one is simply withdrawn; an approved one gives the days back.
+   * Without `canManage` (leave.approve) the caller may only withdraw their own PENDING request.
+   */
+  async cancel(id: string, actor: { userId?: string; canManage?: boolean }, comments?: string) {
+    const own = actor.canManage ? null : await this.ownEmployeeId(actor.userId);
     const updated = await prisma.$transaction(async (tx) => {
       const row = await tx.leaveRequest.findUnique({ where: { id } });
       if (!row) throw new ApiError(404, "That leave request does not exist");
+      if (!actor.canManage) {
+        // A foreign request looks the same as a missing one.
+        if (own === null || row.employeeId !== own) {
+          throw new ApiError(404, "That leave request does not exist");
+        }
+        if (row.status === "APPROVED") {
+          throw new ApiError(
+            403,
+            "An approved leave can only be cancelled by someone who approves leave",
+            "APPROVED_NEEDS_MANAGER"
+          );
+        }
+      }
       if (row.status !== "PENDING" && row.status !== "APPROVED") {
         throw new ApiError(
           409,
           `That request is already ${row.status.toLowerCase()}`,
           "NOT_CANCELLABLE"
         );
+      }
+      // Atomic transition: only one concurrent cancel can win, so the balance is restored once.
+      const moved = await tx.leaveRequest.updateMany({
+        where: { id, status: row.status },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          comments: comments?.slice(0, 255) ?? row.comments,
+          approverId:
+            row.status === "PENDING"
+              ? row.approverId
+              : (actor.userId?.slice(0, 36) ?? row.approverId),
+        },
+      });
+      if (moved.count !== 1) {
+        throw new ApiError(409, "That request has just been changed", "NOT_CANCELLABLE");
       }
       if (row.status === "APPROVED") {
         // Restore rather than delete: the ledger's `taken` moves back down, and the request
@@ -315,18 +362,7 @@ class LeaveService {
           -Number(row.days)
         );
       }
-      return tx.leaveRequest.update({
-        where: { id },
-        data: {
-          status: "CANCELLED",
-          cancelledAt: new Date(),
-          comments: comments?.slice(0, 255) ?? row.comments,
-          approverId:
-            row.status === "PENDING"
-              ? row.approverId
-              : (actor.userId?.slice(0, 36) ?? row.approverId),
-        },
-      });
+      return tx.leaveRequest.findUniqueOrThrow({ where: { id } });
     });
     await this.notifyDecision(updated.id, "cancelled");
     return updated;

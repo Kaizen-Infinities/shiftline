@@ -418,9 +418,11 @@ class MobileSyncService {
 
     const visits = body.changes.visits;
     if (visits) {
-      for (const v of [...visits.created, ...visits.updated]) {
+      const pushed = [...visits.created, ...visits.updated];
+      const refs = pushed.length ? await mobileVisitService.knownRefs(pushed) : undefined;
+      for (const v of pushed) {
         try {
-          const { merged } = await mobileVisitService.upsertFromDevice(agent, v, body.lastPulledAt);
+          const { merged } = await mobileVisitService.upsertFromDevice(agent, v, refs);
           results.visits.ok++;
           if (merged) results.visits.merged.push(v.id);
         } catch (err: unknown) {

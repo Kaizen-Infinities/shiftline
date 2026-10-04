@@ -7,9 +7,9 @@
  *
  * Conflict rule for visits (A2): the office owns the planning fields
  * (customer, route, date, time, sequence), the agent owns the execution
- * fields (status, outcome, check-in/out, position, notes). When the server row
- * changed after the device's last pull, the two halves are merged instead of
- * the device overwriting the office's plan.
+ * fields (status, outcome, check-in/out, position, notes). A device update of
+ * an existing visit never carries planning fields, whatever cursor it sends;
+ * planning is only taken when the device creates a visit that did not exist.
  */
 import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
@@ -44,15 +44,66 @@ const planningData = (raw: VisitRaw) => ({
   sequence: raw.sequence ?? 0,
 });
 
+/** Ids in `ids` that no tenant row matches (one query; the tenant-scoped client hides foreign rows). */
+const missing = (ids: Iterable<string>, found: { id: string }[]) => {
+  const have = new Set(found.map((r) => r.id));
+  return [...new Set(ids)].filter((id) => !have.has(id));
+};
+
 class MobileVisitService {
+  /** 404 unless every customer id belongs to this tenant. One query. */
+  async assertCustomersExist(customerIds: Iterable<string>) {
+    const ids = [...new Set(customerIds)];
+    if (ids.length === 0) return;
+    const found = await prisma.customer.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    if (missing(ids, found).length > 0) throw new ApiError(404, "Customer not found");
+  }
+
+  /** 404 unless every user id is a user of this tenant. One query. */
+  async assertAgentsExist(userIds: Iterable<string>) {
+    const ids = [...new Set([...userIds].map((u) => u.slice(0, 36)))];
+    if (ids.length === 0) return;
+    const found = await prisma.user.findMany({
+      where: { userId: { in: ids } },
+      select: { userId: true },
+    });
+    const have = new Set(found.map((u) => u.userId));
+    if (ids.some((id) => !have.has(id))) throw new ApiError(404, "Agent not found");
+  }
+
+  /**
+   * For a push: which customer and route ids on the device's visits exist in this tenant.
+   * Two queries at most, whatever the number of visits.
+   */
+  async knownRefs(visits: VisitRaw[]) {
+    const customerIds = [...new Set(visits.map((v) => v.customer_id))];
+    const routeIds = [...new Set(visits.map((v) => v.route_id).filter((r): r is string => !!r))];
+    const [customers, routes] = await Promise.all([
+      customerIds.length
+        ? prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true } })
+        : [],
+      routeIds.length
+        ? prisma.route.findMany({ where: { id: { in: routeIds } }, select: { id: true } })
+        : [],
+    ]);
+    return {
+      customers: new Set(customers.map((c) => c.id)),
+      routes: new Set(routes.map((r) => r.id)),
+    };
+  }
+
   /**
    * Device → server. Only the owning agent may change a visit. Returns whether
-   * the office's planning fields were kept over the device's copy.
+   * the device's planning fields were ignored because the office owns them.
+   * `refs` (from `knownRefs`) vets the customer and route of a visit being created.
    */
   async upsertFromDevice(
     agent: AgentContext,
     raw: VisitRaw,
-    lastPulledAt: number | null | undefined
+    refs?: { customers: Set<string>; routes: Set<string> }
   ): Promise<{ merged: boolean }> {
     const agentId = agent.userId.slice(0, 36);
     const existing = await prisma.mobileVisit.findUnique({ where: { id: raw.id } });
@@ -61,6 +112,12 @@ class MobileVisitService {
     }
 
     if (!existing) {
+      if (refs && !refs.customers.has(raw.customer_id)) {
+        throw new ApiError(404, `Customer for visit ${raw.id} not found`);
+      }
+      if (refs && raw.route_id && !refs.routes.has(raw.route_id)) {
+        throw new ApiError(404, `Route for visit ${raw.id} not found`);
+      }
       await prisma.mobileVisit.create({
         data: {
           id: raw.id,
@@ -73,19 +130,19 @@ class MobileVisitService {
       return { merged: false };
     }
 
-    // The office changed this visit after the device last pulled: keep the
-    // office's plan, take the agent's execution fields.
-    const serverChangedSincePull =
-      lastPulledAt != null && existing.updatedAt.getTime() > lastPulledAt;
+    // Planning fields are office-owned: a device update only ever carries execution fields,
+    // so a null, stale or future cursor cannot be used to overwrite the plan.
+    const planningDiffers =
+      existing.customerId !== raw.customer_id ||
+      (existing.routeId ?? null) !== (raw.route_id ?? null) ||
+      existing.plannedDate.getTime() !== dateOnly(raw.planned_date).getTime() ||
+      (existing.plannedTime ?? null) !== (raw.planned_time ?? null) ||
+      existing.sequence !== (raw.sequence ?? 0);
     await prisma.mobileVisit.update({
       where: { id: raw.id },
-      data: {
-        ...(serverChangedSincePull ? {} : planningData(raw)),
-        ...executionData(raw),
-        deletedAt: null,
-      },
+      data: { ...executionData(raw), deletedAt: null },
     });
-    return { merged: serverChangedSincePull };
+    return { merged: planningDiffers };
   }
 
   /** Soft-deletes the agent's own visits; returns ids that were not theirs. */
@@ -191,6 +248,7 @@ class MobileVisitService {
   ) {
     const route = await prisma.route.findUnique({ where: { id: routeId } });
     if (!route) throw new ApiError(404, "Route not found");
+    await this.assertCustomersExist(customers.map((c) => c.customerId));
     await prisma.$transaction(async (tx) => {
       const keep = new Set(customers.map((c) => c.customerId));
       await tx.mobileRouteCustomer.updateMany({
@@ -226,6 +284,7 @@ class MobileVisitService {
   ) {
     const route = await prisma.route.findUnique({ where: { id: routeId } });
     if (!route) throw new ApiError(404, "Route not found");
+    await this.assertAgentsExist(assignments.map((a) => a.agentUserId));
     await prisma.$transaction(async (tx) => {
       await tx.mobileRouteAssignment.deleteMany({ where: { routeId } });
       if (assignments.length > 0) {
@@ -253,6 +312,10 @@ class MobileVisitService {
   }) {
     const date = dateOnly(input.plannedDate);
     const agentId = input.agentUserId.slice(0, 36);
+    await Promise.all([
+      this.assertAgentsExist([agentId]),
+      this.assertCustomersExist(input.visits.map((v) => v.customerId)),
+    ]);
     const existing = await prisma.mobileVisit.findMany({
       where: { agentUserId: agentId, plannedDate: date, deletedAt: null },
       select: { customerId: true, sequence: true },

@@ -2,7 +2,8 @@ import { Router } from "express";
 import inventoryController from "./inventory.controller";
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { validateMiddleware } from "../../middleware/validate.middleware";
-import { getEodStockSchema } from "./inventory.validation";
+import { requirePermission } from "../../middleware/permission.middleware";
+import { getEodStockSchema, runEodStockSchema } from "./inventory.validation";
 
 import { requireFeature } from "../../middleware/feature.middleware";
 const router = Router();
@@ -15,6 +16,7 @@ router.get(
   "/eod-stock",
   authMiddleware,
   requireFeature("inventory"),
+  requirePermission("eod-stock.view"),
   validateMiddleware(getEodStockSchema),
   inventoryController.getEodStock
 );
@@ -27,6 +29,8 @@ router.post(
   "/eod-stock/run-now",
   authMiddleware,
   requireFeature("inventory"),
+  requirePermission("eod-stock.run"),
+  validateMiddleware(runEodStockSchema),
   inventoryController.runNow
 );
 

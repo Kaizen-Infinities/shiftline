@@ -350,7 +350,8 @@ describe("Field app (mobile) module", () => {
     expect(merged.status).toBe("COMPLETED"); // agent wins
     expect(merged.notes).toBe("Met the owner");
 
-    // A push whose pull is newer than the office change applies the device's plan.
+    // Planning stays office-owned whatever the cursor says: a newer pull no longer lets the
+    // device's plan through (F08).
     const fresh = await (
       await api()
     )
@@ -361,11 +362,11 @@ describe("Field app (mobile) module", () => {
         lastPulledAt: Date.now(),
         changes: { visits: { updated: [{ ...deviceCopy, planned_time: "12:00" }] } },
       });
-    expect(fresh.body.results.visits.merged).toEqual([]);
+    expect(fresh.body.results.visits.merged).toEqual([visit.id]);
     const applied = await asDemoTenant(() =>
       prisma.mobileVisit.findUniqueOrThrow({ where: { id: visit.id } })
     );
-    expect(applied.plannedTime).toBe("12:00");
+    expect(applied.plannedTime).toBe("11:30");
 
     // Another agent's visit cannot be deleted from this device.
     const foreign = await asDemoTenant(() =>
