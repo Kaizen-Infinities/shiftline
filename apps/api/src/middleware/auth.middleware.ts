@@ -105,6 +105,17 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
             roleId: true,
             companyId: true,
             company: { select: { isActive: true } },
+            // One query for the account and its role grants (hot path). Rows are re-checked
+            // against the user's own company below because this read runs across tenants.
+            role: {
+              select: {
+                companyId: true,
+                status: true,
+                rolePermissions: {
+                  select: { companyId: true, permission: { select: { key: true } } },
+                },
+              },
+            },
           },
         });
 
@@ -121,13 +132,15 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         }
         companyId = user.companyId;
 
-        if (user.roleId) {
-          const rolePermissions = await prisma.rolePermission.findMany({
-            where: { roleId: user.roleId },
-            select: { permission: { select: { key: true } } },
-          });
-          decoded.permissions = rolePermissions.map((p) => p.permission.key);
-        }
+        // Fail closed (JWT-01): whatever the token claims, a tenant user's effective permissions
+        // start empty and come only from an active role and grants of the user's own company.
+        const role = user.role;
+        decoded.permissions =
+          role && role.status === "active" && role.companyId === user.companyId
+            ? role.rolePermissions
+                .filter((rp) => rp.companyId === user.companyId)
+                .map((rp) => rp.permission.key)
+            : [];
       }
       return { companyId };
     });

@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { redactUrl } from "../lib/redact-url";
 import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 
@@ -54,8 +55,8 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
 
   if (err instanceof ApiError) {
     if (err.statusCode >= 500) {
-      logger.error({ err, method: req.method, url: req.originalUrl }, "API error");
-      captureError(err, { method: req.method, url: req.originalUrl });
+      logger.error({ err, method: req.method, url: redactUrl(req.originalUrl) }, "API error");
+      captureError(err, { method: req.method, url: redactUrl(req.originalUrl) });
     }
     return send(res, err.statusCode, err.message, [], undefined, {
       code: err.code,
@@ -83,7 +84,11 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
       /out of range|Could not convert|invalid input syntax/i.test((err as Error).message))
   ) {
     logger.warn(
-      { method: req.method, url: req.originalUrl, reason: (err as Error).message.split("\n")[0] },
+      {
+        method: req.method,
+        url: redactUrl(req.originalUrl),
+        reason: (err as Error).message.split("\n")[0],
+      },
       "Invalid request"
     );
     return send(res, 400, "Invalid request data.", [], (err as Error).message);
@@ -103,15 +108,20 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
         return send(res, 404, "Record not found.");
       default:
         logger.error(
-          { code: known.code, method: req.method, url: req.originalUrl, detail: known.message },
+          {
+            code: known.code,
+            method: req.method,
+            url: redactUrl(req.originalUrl),
+            detail: known.message,
+          },
           "Prisma error"
         );
         return send(res, 500, "Internal server error", [], `${known.code}: ${known.message}`);
     }
   }
 
-  logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
-  captureError(err, { method: req.method, url: req.originalUrl });
+  logger.error({ err, method: req.method, url: redactUrl(req.originalUrl) }, "Unhandled error");
+  captureError(err, { method: req.method, url: redactUrl(req.originalUrl) });
   return send(
     res,
     500,

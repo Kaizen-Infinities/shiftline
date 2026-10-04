@@ -4,13 +4,13 @@ import { z } from "zod";
  * Shared password validation rules
  * used across authentication workflows.
  */
-const passwordSchema = z
+export const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters")
   .max(72, "Password must not exceed 72 characters")
   .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
     message:
-      "Password must contain at least one uppercase letter, one lowercase letter, and one digit"
+      "Password must contain at least one uppercase letter, one lowercase letter, and one digit",
   });
 
 /**
@@ -22,9 +22,9 @@ export const registerSchema = z.object({
     email: z.string().email("Invalid email format"),
     username: z.string().min(3, "Username must be at least 3 characters").max(50),
     password: passwordSchema,
-    roleId: z.union([z.string(), z.coerce.bigint()]).optional(),
-    employeeId: z.string().optional()
-  })
+    roleId: z.coerce.number().int().positive().optional(),
+    employeeId: z.string().optional(),
+  }),
 });
 
 /**
@@ -33,8 +33,8 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   body: z.object({
     email: z.string().min(3, "Username or email must be at least 3 characters"),
-    password: z.string().min(1, "Password is required")
-  })
+    password: z.string().min(1, "Password is required"),
+  }),
 });
 
 /**
@@ -42,8 +42,8 @@ export const loginSchema = z.object({
  */
 export const passwordResetRequestSchema = z.object({
   body: z.object({
-    email: z.string().email("Invalid email format")
-  })
+    email: z.string().email("Invalid email format"),
+  }),
 });
 
 /**
@@ -52,8 +52,8 @@ export const passwordResetRequestSchema = z.object({
 export const passwordResetSchema = z.object({
   body: z.object({
     token: z.string().min(1, "Reset token is required"),
-    newPassword: passwordSchema
-  })
+    newPassword: passwordSchema,
+  }),
 });
 
 /**
@@ -62,6 +62,6 @@ export const passwordResetSchema = z.object({
 export const changePasswordSchema = z.object({
   body: z.object({
     oldPassword: z.string().min(1, "Current password is required"),
-    newPassword: passwordSchema
-  })
+    newPassword: passwordSchema,
+  }),
 });

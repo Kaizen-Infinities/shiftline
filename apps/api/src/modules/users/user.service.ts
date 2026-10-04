@@ -10,6 +10,7 @@ import { sendEmail } from "../../utils/mailer";
 import { generateWelcomeEmailHtml } from "../../templates/welcomeEmailTemplate";
 import { entitlementService } from "../entitlements/entitlement.service";
 import { logger } from "../../lib/logger";
+import { assertTenantRole } from "../role-permissions/role-permission.service";
 export class UserService {
   async getProfile(userId: string): Promise<UserResponse> {
     const user = await userRepository.findUserById(userId);
@@ -100,6 +101,11 @@ export class UserService {
       throw new ApiError(400, "Username already exists");
     }
 
+    // The role must belong to this tenant (F01); checked, with the seat, before any row is written.
+    await assertTenantRole(data.roleId);
+    // Plan seats (P1-01): active users plus pending invitations.
+    await entitlementService.assertSeatAvailable();
+
     const passwordHash = await bcrypt.hash(data.password, 10);
 
     let finalEmployeeId: bigint;
@@ -117,9 +123,6 @@ export class UserService {
       });
       finalEmployeeId = employee.id;
     }
-
-    // Plan seats (P1-01): active users plus pending invitations.
-    await entitlementService.assertSeatAvailable();
 
     const user = await userRepository.createUser({
       username: data.username,

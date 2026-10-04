@@ -9,6 +9,7 @@ import path from "path";
 
 import apiRoutes from "./routes/index.routes";
 import { logger } from "./lib/logger";
+import { redactUrl } from "./lib/redact-url";
 import { requestContextMiddleware } from "./lib/request-context";
 import healthRoutes from "./routes/health.routes";
 
@@ -105,7 +106,7 @@ app.use(
     customLogLevel: (_req, res, err) =>
       err || res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info",
     serializers: {
-      req: (req) => ({ method: req.method, url: req.url }),
+      req: (req) => ({ method: req.method, url: redactUrl(req.url) }),
       res: (res) => ({ statusCode: res.statusCode }),
     },
   })
@@ -116,6 +117,9 @@ app.use(
     "/api/auth/login",
     "/api/auth/forgot-password",
     "/api/auth/reset-password",
+    // The real reset routes (API-02); the two paths above do not exist.
+    "/api/auth/password-reset-request",
+    "/api/auth/password-reset",
     "/api/auth/register",
     // A password check like login, so it gets login's brute-force limit.
     "/api/shift-execution/supervisor-override",
