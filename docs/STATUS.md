@@ -26,11 +26,11 @@ The app runs at https://shiftline.apps.kaizeninfinities.com on version `a8c7fca2
 
 ## CI
 
-GitHub Actions billing blocks CI. Checks run locally before merge.
+GitHub Actions runs again as of 2026-10-04 (typecheck/lint/format, schema and migration gate, API tests). Run the checks locally before pushing too.
 
 ## Local checks
 
-Last recorded on 2026-09-29: API suite 115 files / 853 tests passing, typecheck clean, lint clean. Re-run them; this is not a live result.
+Last recorded on 2026-10-04 (PR #40): 133 test files / 1,101 tests passing, typecheck clean, lint with 0 errors, web build clean. Re-run them; this is not a live result.
 
 ## Not built yet
 
