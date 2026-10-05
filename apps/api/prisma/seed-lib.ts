@@ -320,7 +320,12 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
         bom: [[`${P}RM003`, 0.008]],
       },
     ] as const;
+    // Finished goods the demo sells: invoiceable type plus an HSN (the GST rate defaults from it).
+    const hsnByCode = new Map((await prisma.hsnCode.findMany()).map((h) => [h.code, h.id]));
     for (const p of products) {
+      const hsn =
+        hsnByCode.get(p.productCode === "P001" || p.productCode === "P002" ? "3924" : "3923") ??
+        null;
       const product = await prisma.product.upsert({
         where: { companyId_productCode: { companyId: company.id, productCode: p.productCode } },
         update: {},
@@ -332,8 +337,15 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
           weightPerPiece: D(p.weightPerPiece),
           rate: D(p.rate),
           categoryId: catHouse.id,
+          productType: "SALES_PRODUCTION",
+          hsnCodeId: hsn,
           createdBy: owner,
         },
+      });
+      // Demo databases seeded before this carried untyped products without an HSN.
+      await prisma.product.updateMany({
+        where: { id: product.id, hsnCodeId: null },
+        data: { productType: "SALES_PRODUCTION", hsnCodeId: hsn },
       });
       if ((await prisma.billOfMaterial.count({ where: { productId: product.id } })) === 0) {
         await prisma.billOfMaterial.createMany({

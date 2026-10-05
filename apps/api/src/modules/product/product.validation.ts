@@ -26,7 +26,11 @@ export const createProductSchema = z.object({
 
     categoryId: z.coerce.number().int().positive().optional().nullable(),
     hsnCodeId: z.string().uuid().optional().nullable().or(z.literal("")),
-    gstRate: z.coerce.number().min(0).max(100).optional().nullable(),
+    // FormData sends "" for a cleared override; that means no override, not 0%.
+    gstRate: z.preprocess(
+      (v) => (v === "" ? null : v),
+      z.coerce.number().min(0).max(100).optional().nullable()
+    ),
 
     // FormData booleans also arrive as the literal strings "true"/"false"
     isActive: z.union([z.literal("true"), z.literal("false")]).optional(),

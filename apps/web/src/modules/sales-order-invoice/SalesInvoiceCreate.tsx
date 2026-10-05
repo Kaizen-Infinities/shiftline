@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useFormShortcuts } from "../../hooks/useFormShortcuts";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { ListOrdered, Receipt, Save, UserRound } from "lucide-react";
 import { ActionPill, Chip, PageHeader, Tile } from "../../components/ui/v2";
@@ -65,7 +65,13 @@ interface ItemOption {
   defaultRate: number;
   gstRate: number;
   hsnCode: string | null;
+  /** Why the product cannot be invoiced yet; null when it can. */
+  blockedReason: string | null;
 }
+
+const NOT_SELLABLE_HINT =
+  "Production-only item. Set its Product Type to Sales Production to invoice it";
+const MISSING_TAX_HINT = "Add HSN and GST rate in the product to invoice it";
 
 const emptyLine = (): InvoiceLineItem => ({
   id: crypto.randomUUID(),
@@ -412,20 +418,33 @@ const SalesInvoiceForm: React.FC = () => {
           setCustomersRaw(customersArray);
           setProductsRaw(productList || []);
 
+          // Every active product is listed. Items that cannot be invoiced yet stay visible but
+          // disabled with the reason, so the picker is never silently empty (QA F1).
           setItems(
             (productList || [])
-              .filter((p: any) => p.productType === "SALES_PRODUCTION")
-              .map((p: any) => ({
-                id: String(p.id),
-                name: p.productName,
-                defaultRate: Number(p.mrp) || Number(p.b2b) || 0,
-                // The product's own rate, else its HSN's default (P1-08).
-                gstRate:
-                  p.gstRate !== null && p.gstRate !== undefined && p.gstRate !== ""
-                    ? Number(p.gstRate)
-                    : Number(p.hsnCode?.gstRate ?? 0),
-                hsnCode: p.hsnCode?.code ?? null,
-              }))
+              .filter((p: any) => p.isActive !== false)
+              .map((p: any) => {
+                const hasGst =
+                  (p.gstRate !== null && p.gstRate !== undefined && p.gstRate !== "") ||
+                  Boolean(p.hsnCode?.code);
+                return {
+                  id: String(p.id),
+                  name: p.productName,
+                  defaultRate: Number(p.rate) || 0,
+                  // The product's own rate, else its HSN's default (P1-08).
+                  gstRate:
+                    p.gstRate !== null && p.gstRate !== undefined && p.gstRate !== ""
+                      ? Number(p.gstRate)
+                      : Number(p.hsnCode?.gstRate ?? 0),
+                  hsnCode: p.hsnCode?.code ?? null,
+                  blockedReason:
+                    p.productType !== "SALES_PRODUCTION"
+                      ? NOT_SELLABLE_HINT
+                      : !hasGst
+                        ? MISSING_TAX_HINT
+                        : null,
+                };
+              })
           );
 
           const ordersList = ordersResponse?.data || (ordersResponse as any)?.orders || [];
@@ -1130,9 +1149,15 @@ const SalesInvoiceForm: React.FC = () => {
           value: i.id,
           selectedLabel: i.name,
           badge,
+          disabled: Boolean(i.blockedReason),
           label: (
             <div className="flex items-center justify-between w-full gap-2">
-              <span className="truncate">{i.name}</span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate">{i.name}</span>
+                {i.blockedReason && (
+                  <span className="truncate text-[11px] text-ink-subtle">{i.blockedReason}</span>
+                )}
+              </span>
               {badge}
             </div>
           ),
@@ -1711,6 +1736,16 @@ const SalesInvoiceForm: React.FC = () => {
             </div>
           )}
         </Tile>
+
+        {!loading && !selectedSalesOrderId && !items.some((i) => !i.blockedReason) && (
+          <div role="status" className="sl-tile m-0 px-4 py-3 text-sm text-ink">
+            No product can be invoiced yet. A product needs the type Sales Production plus an HSN
+            code or GST rate.{" "}
+            <Link to="/products" className="font-semibold text-accent hover:underline">
+              Open products
+            </Link>
+          </div>
+        )}
 
         {errors.lines && (
           <div role="alert" className="sl-field-error sl-tile m-0 px-4 py-3">
