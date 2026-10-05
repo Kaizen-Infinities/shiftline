@@ -5,6 +5,9 @@ import { FormFooter, KeyHint } from "../../sales/shared/tradeUi";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import { applyServerErrors } from "../../../utils/serverErrors";
+import { isRequiredField } from "../../../utils/zodRequired";
+import { isValidGstin } from "@shiftline/shared";
 import { z } from "zod";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,16 +59,25 @@ const customerFormSchema = z.object({
   email: z.string().min(1, "Email is required").email("Invalid email address"),
   gstin: z
     .string()
-    .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$/, "Invalid GSTIN format")
+    .refine(
+      (v) => !v || isValidGstin(v.trim().toUpperCase()),
+      "Invalid GSTIN (format, state or check digit)"
+    )
+    .optional(),
+  // The API defaults a blank opening balance and credit limit to 0.
+  openingBalance: z
+    .string()
     .optional()
-    .or(z.literal("")),
-  openingBalance: z.string().min(1, "Opening Balance is required"),
+    .refine(
+      (v) => !v || (!isNaN(Number(v)) && Number(v) >= 0),
+      "Opening Balance cannot be negative"
+    ),
   openingBalanceType: z.string().min(1, "Opening Balance Type is required"),
   creditLimit: z
     .string()
-    .min(1, "Credit Limit is required")
-    .refine((val) => !isNaN(Number(val)) && Number(val) >= 25000, {
-      message: "Credit Limit must be at least ₹25000",
+    .optional()
+    .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), {
+      message: "Credit Limit cannot be negative",
     }),
   creditDays: z.string().optional(),
   overdueInterestRate: z
@@ -103,7 +115,7 @@ const initialFormData: CustomerFormValues = {
   creditLimit: "",
   creditDays: "",
   overdueInterestRate: "",
-  openingBalance: "",
+  openingBalance: "0",
   openingBalanceType: "DEBIT",
   transports: [],
   addresses: [
@@ -164,7 +176,7 @@ const CtrlText = ({
     onChange={field.onChange}
     onBlur={field.onBlur}
     placeholder={placeholder}
-    required={required}
+    required={required ?? isRequiredField(customerFormSchema, field.name)}
     type={type}
     disabled={disabled}
     error={error}
@@ -213,6 +225,7 @@ const CustomerFormPage: React.FC = () => {
     watch,
     setValue,
     reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -320,13 +333,18 @@ const CustomerFormPage: React.FC = () => {
 
       navigate("/customers");
     } catch (error: any) {
-      const msg =
-        typeof error === "string"
-          ? error
-          : error?.message ||
-            error?.response?.data?.message ||
-            `Failed to ${isEditMode ? "update" : "create"} customer`;
-      toast.error(msg);
+      toast.error(
+        applyServerErrors(
+          error,
+          setError,
+          `Failed to ${isEditMode ? "update" : "create"} customer`,
+          {
+            mobile: "phones",
+            customerCode: "customerId",
+            status: "isActive",
+          }
+        )
+      );
     }
   };
 
@@ -538,7 +556,7 @@ const CustomerFormPage: React.FC = () => {
                     field={field}
                     label="Opening Balance ₹"
                     type="number"
-                    placeholder="0.00"
+                    placeholder="e.g. 0.00"
                     preventNegative
                     error={errors.openingBalance?.message}
                     disabled={isEditMode}
@@ -572,7 +590,7 @@ const CustomerFormPage: React.FC = () => {
                     field={field}
                     label="Credit Limit ₹"
                     type="number"
-                    placeholder="30000"
+                    placeholder="e.g. 30000 (blank for no limit)"
                     preventNegative
                     error={errors.creditLimit?.message}
                   />

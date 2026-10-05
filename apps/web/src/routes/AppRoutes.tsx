@@ -25,6 +25,18 @@ const GstMastersPage = lazy(() => import("../modules/gst/pages/GstMastersPage"))
 const NotificationsPage = lazy(() => import("../modules/notifications/pages/NotificationsPage"));
 const UpgradePage = lazy(() => import("../modules/upgrade/pages/UpgradePage"));
 const ResetPassword = lazy(() => import("../modules/passwordreset/pages/ResetPassword"));
+const HUB_AREAS = [
+  "sales",
+  "purchases",
+  "inventory",
+  "production",
+  "exports",
+  "accounts",
+  "banking",
+  "compliance",
+  "reports",
+  "people",
+];
 const AreaHubPage = lazy(() => import("../modules/hub/pages/AreaHubPage"));
 
 // ===========================================================================
@@ -430,6 +442,14 @@ const AppRoutes = () => {
             {/* Area hubs (UI v2): one page per navigation area, built from the nav config;
                 each tile shows only when the user holds that screen's permission. */}
             <Route path="/hub/:area" element={<AreaHubPage />} />
+            {/* A bare area path (/sales) lands on its hub instead of a 404. */}
+            {HUB_AREAS.map((area) => (
+              <Route
+                key={area}
+                path={`/${area}`}
+                element={<Navigate to={`/hub/${area}`} replace />}
+              />
+            ))}
 
             {/* Administration pages that ship their own `.inner-container` */}
             <Route element={<ProtectedRoute permission="users.view" />}>

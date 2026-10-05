@@ -1084,6 +1084,7 @@ const SalesInvoiceForm: React.FC = () => {
         return {
           value: String(c.id),
           label: name,
+          keywords: [c.displayName, c.firmName, c.customerCode].filter(Boolean).join(" "),
           selectedLabel: `${name} · ${group} · ${grade} · ${balLabel}`,
           info: (
             <div className="flex items-center gap-3 text-[11px]">

@@ -118,7 +118,7 @@ function BusyItemsTable<T extends Record<string, any>>({
 }: BusyItemsTableProps<T>) {
   const ROW = 32;
   const SN = "40px";
-  const colW = columns.map((c) => c.width || "1fr").join(" ");
+  const colW = columns.map((c) => c.width || "minmax(160px, 1fr)").join(" ");
   const grid = `${SN} ${colW}${expandable ? " 32px" : ""}${editable ? " 36px" : ""}`;
 
   const updateRow = useCallback(
@@ -234,12 +234,25 @@ function BusyItemsTable<T extends Record<string, any>>({
     [rows.length, colCount, focus, doAdd]
   );
 
+  const selectOnFocus = useCallback((e: React.FocusEvent<HTMLElement>) => {
+    const t = e.target;
+    if (
+      t instanceof HTMLInputElement &&
+      !["checkbox", "radio", "button", "file"].includes(t.type)
+    ) {
+      t.select();
+    }
+  }, []);
+
   return (
-    <div className={className}>
+    <div className={className} style={{ overflowX: "auto", paddingBottom: 4 }}>
+      {/* Below ~840px the grid scrolls sideways instead of squeezing Product to a sliver. */}
       <div
         ref={tableRef}
+        onFocusCapture={selectOnFocus}
         onKeyDownCapture={onKey}
         style={{
+          minWidth: 760,
           border: B2,
           overflow: "hidden",
           borderRadius: 14,

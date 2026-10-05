@@ -1013,7 +1013,8 @@ const InvoiceDetailPage: React.FC = () => {
       { value: "", label: t("grn.select") },
       ...(suppliers || []).map((s: any) => ({
         value: String(s.id || ""),
-        label: `${s.supplierCode || ""} - ${s.legalName || s.displayName || ""}`,
+        // Same name the PO and GRN lists show.
+        label: s.displayName || s.legalName || s.supplierCode || "",
       })),
     ],
     [suppliers]
