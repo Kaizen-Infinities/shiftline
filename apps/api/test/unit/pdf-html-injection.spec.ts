@@ -8,7 +8,11 @@ import { generateQuotationHtml } from "../../src/templates/quotationTemplate";
 import { renderStatementHtml } from "../../src/templates/statementTemplate";
 import { generateWelcomeEmailHtml } from "../../src/templates/welcomeEmailTemplate";
 import { escapeHtml, safeUrl } from "../../src/utils/escapeHtml";
-import { closePdfBrowser, generatePdfFromHtml, openPdfContexts } from "../../src/utils/pdfGenerator";
+import {
+  closePdfBrowser,
+  generatePdfFromHtml,
+  openPdfContexts,
+} from "../../src/utils/pdfGenerator";
 import { logger } from "../../src/lib/logger";
 
 /** API-01: stored HTML in tenant/user fields must reach the PDF renderer only as text. */
@@ -52,7 +56,9 @@ describe("escapeHtml / safeUrl", () => {
     expect(safeUrl("data:image/svg+xml;base64,PHN2Zz4=")).toBe("");
     expect(safeUrl('https://a.example/x" onerror="alert(1)')).toBe("");
     expect(safeUrl(null)).toBe("");
-    expect(safeUrl("http://localhost:5173", { allowLocalHttp: true })).toBe("http://localhost:5173");
+    expect(safeUrl("http://localhost:5173", { allowLocalHttp: true })).toBe(
+      "http://localhost:5173"
+    );
   });
 });
 
@@ -85,11 +91,9 @@ describe("templates escape user-controlled data", () => {
 
   it("invoice keeps a data:image QR code", () => {
     const qr = "data:image/png;base64,iVBORw0KGgo=";
-    const html = generateInvoiceHtml(
-      { invoiceNo: "I-1", items: [], customer: {} },
-      company,
-      { eInvoice: { irn: "x", ackNo: null, ackDate: null, qrDataUrl: qr, cancelled: false } }
-    );
+    const html = generateInvoiceHtml({ invoiceNo: "I-1", items: [], customer: {} }, company, {
+      eInvoice: { irn: "x", ackNo: null, ackDate: null, qrDataUrl: qr, cancelled: false },
+    });
     expect(html).toContain(`<img src="${qr}"`);
   });
 
@@ -158,7 +162,14 @@ describe("templates escape user-controlled data", () => {
       vehicleNumber: MARKER,
       remarks: MARKER,
       items: [
-        { description: MARKER, hsnCode: null, uom: null, quantitySent: 1, rate: 10, taxableAmount: 10 },
+        {
+          description: MARKER,
+          hsnCode: null,
+          uom: null,
+          quantitySent: 1,
+          rate: 10,
+          taxableAmount: 10,
+        },
       ],
       company: { name: MARKER, address: MARKER },
       consignee: { name: MARKER, address: MARKER },
