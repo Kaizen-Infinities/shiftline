@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import { Boxes, Eraser, Package, Plus, Save } from "lucide-react";
 import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
 import { FormFooter } from "../../sales/shared/tradeUi";
@@ -190,15 +190,26 @@ const SalesProductForm: React.FC = () => {
     }
   };
 
+  // Every active product is listed; production-only items are disabled with the reason instead
+  // of vanishing, so the picker never looks empty for no visible cause (QA F1).
   const componentProductOptions = useMemo(() => {
     return products
-      .filter((p: any) => p.productType === "SALES_PRODUCTION")
-      .map((p: any) => ({
-        value: String(p.id),
-        label: productLabel(p),
-        disabled: currentItems.some((it: any) => String(it.productCode) === String(p.id)),
-      }));
+      .filter((p: any) => p.isActive !== false)
+      .map((p: any) => {
+        const sellable = p.productType === "SALES_PRODUCTION";
+        return {
+          value: String(p.id),
+          label: sellable
+            ? productLabel(p)
+            : `${productLabel(p)} (Production only: set Product Type to Sales Production to use it)`,
+          disabled:
+            !sellable || currentItems.some((it: any) => String(it.productCode) === String(p.id)),
+        };
+      });
   }, [products, currentItems]);
+
+  const noEligibleComponents =
+    products.length > 0 && !products.some((p: any) => p.productType === "SALES_PRODUCTION");
 
   if (isLoadingData) {
     return (
@@ -254,6 +265,15 @@ const SalesProductForm: React.FC = () => {
             ) : null
           }
         >
+          {noEligibleComponents && (
+            <p role="status" className="m-0 mb-3 text-sm text-ink-subtle">
+              No product has the type Sales Production yet, so there is nothing to pick.{" "}
+              <Link to="/products" className="font-semibold text-accent hover:underline">
+                Open products
+              </Link>{" "}
+              and change the type of the item you sell.
+            </p>
+          )}
           {fields.length > 0 ? (
             <OrderItemsTable
               control={control}
