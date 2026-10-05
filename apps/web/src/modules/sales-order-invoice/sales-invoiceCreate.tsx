@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import TextInput from "../../components/form/TextInput/TextInput";
 import CommonLoader from "../../components/ui/Loader/CommonLoader";
 import { usePermission } from "../../hooks/usePermission";
+import { documentsService } from "../../services/documentsService";
 import { useDetailCache, invalidateDetailCache } from "../../hooks/useDetailCache";
 
 import {
@@ -181,31 +182,19 @@ const SalesInvoiceCreate: React.FC = () => {
     }
   };
 
-  // ---- Live preview ----
-  const livePreview = useMemo(() => {
-    const fyVal = (() => {
-      if (!formData.financialYearStart) return "YYYY-YY";
-      const start = new Date(formData.financialYearStart);
-      if (isNaN(start.getTime())) return "YYYY-YY";
-      const end = new Date(start);
-      end.setFullYear(start.getFullYear() + 1);
-      end.setDate(start.getDate() - 1);
-      const startYear = start.getFullYear();
-      const endYearTwoDigits = String(end.getFullYear()).slice(-2);
-      return `${startYear}-${endYearTwoDigits}`;
-    })();
-
-    const paddedSeq = String(formData.currentSequenceNumber).padStart(
-      Number(formData.sequenceLength) || 4,
-      "0"
-    );
-
-    let preview = formData.formatTemplate || "{PREFIX}-{FY}-{SEQ}";
-    preview = preview.replace(/{PREFIX}/g, formData.invoicePrefix || "");
-    preview = preview.replace(/{FY}/g, fyVal);
-    preview = preview.replace(/{SEQ}/g, paddedSeq);
-    return preview;
-  }, [formData]);
+  // The server numbers invoices from the document series, not from the template above: show
+  // the number the next invoice will take, as the invoice form does.
+  const [nextInvoiceNo, setNextInvoiceNo] = useState("");
+  useEffect(() => {
+    let alive = true;
+    documentsService
+      .nextNumber("SALES_INVOICE")
+      .then((n) => alive && setNextInvoiceNo(n))
+      .catch(() => alive && setNextInvoiceNo(""));
+    return () => {
+      alive = false;
+    };
+  }, [saving]);
 
   if (loading) {
     return <CommonLoader text="Loading settings..." fullScreen={false} />;
@@ -341,13 +330,16 @@ const SalesInvoiceCreate: React.FC = () => {
               </p>
             </div>
             <div>
-              <span className="sl-label">Preview</span>
+              <span className="sl-label">Next invoice number</span>
               <div
                 aria-live="polite"
                 className="flex h-11 items-center justify-center rounded-[12px] bg-chip px-3 font-mono text-base font-bold tracking-widest text-chip-fg"
               >
-                {livePreview}
+                {nextInvoiceNo || "…"}
               </div>
+              <p className="sl-field-hint m-0">
+                Assigned from the invoice series when you save an invoice.
+              </p>
             </div>
           </div>
         </Tile>

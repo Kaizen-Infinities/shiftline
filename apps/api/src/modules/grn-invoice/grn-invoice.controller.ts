@@ -94,7 +94,12 @@ class GrnInvoiceController {
   });
 
   getNextCode = asyncHandler(async (req: Request, res: Response) => {
-    const nextCode = await grnInvoiceService.getNextGrnNumber();
+    const on = req.query.date ? new Date(String(req.query.date)) : undefined;
+    const place = req.query.businessPlaceId ? String(req.query.businessPlaceId) : undefined;
+    const nextCode = await grnInvoiceService.getNextGrnNumber({
+      date: on && !isNaN(on.getTime()) ? on : undefined,
+      businessPlaceId: place && /^\d+$/.test(place) ? BigInt(place) : undefined,
+    });
 
     return res.status(200).json(new ApiResponse("Next GRN number fetched successfully", nextCode));
   });

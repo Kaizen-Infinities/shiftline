@@ -47,8 +47,8 @@ function getUomMultiplier(uom: string = "", baseUom: string = ""): number {
 
 class GrnInvoiceService {
   // ── Next GRN number (from the tenant's GRN series, not consumed until the GRN is saved) ──
-  async getNextGrnNumber() {
-    return documentNumberService.peek("GRN");
+  async getNextGrnNumber(opts: { date?: Date; businessPlaceId?: bigint } = {}) {
+    return documentNumberService.peek("GRN", opts);
   }
 
   // ── Calculate totals ────────────────────────────────────────────────────────

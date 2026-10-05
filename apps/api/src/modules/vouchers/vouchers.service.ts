@@ -4,6 +4,7 @@ import { ApiError } from "../../utils/ApiError";
 import { CreateVoucherInput, GetVouchersQueryInput } from "./vouchers.types";
 import { logger } from "../../lib/logger";
 import { periodService } from "../accounts/period.service";
+import { documentNumberService } from "../documents/document-number.service";
 import { cancellationService } from "../accounts/cancellation.service";
 
 /** Ledger groups that hold money (P1-09c tree codes). */
@@ -22,14 +23,30 @@ class VouchersService {
     EXPENSE: "EXP",
   };
 
+  /** Voucher types that draw from a document series (P1-08); the rest keep the legacy scheme. */
+  private readonly seriesByType: Partial<Record<VoucherType, string>> = {
+    PAYMENT: "PAYMENT",
+    RECEIPT: "RECEIPT",
+    JOURNAL: "JOURNAL",
+    CONTRA: "CONTRA",
+    SALES_RETURN: "SALES_RETURN",
+    PURCHASE_RETURN: "PURCHASE_RETURN",
+    EXPENSE: "EXPENSE",
+  };
+
   /**
-   * Busy-style sequential numbering: PAY-00001, PAY-00002, ...
-   * We count existing vouchers of this type whose voucherNo matches
-   * the sequential pattern and pick next. Older random-formatted numbers
-   * (e.g. PAY-123456-7890) are ignored by the pattern match so they
-   * don't collide with the new sequence.
+   * Manual vouchers are numbered from the same per-type, per-year series as every other
+   * document (`RCT/2026-27/0001`), so the number is the same whether the form previews it or the
+   * save assigns it, and vouchers posted by other documents cannot make the sequence restart.
+   * Without a series the old `PREFIX-N` scheme is kept.
    */
-  async peekNextVoucherNo(type: VoucherType): Promise<string> {
+  async peekNextVoucherNo(type: VoucherType, date?: Date): Promise<string> {
+    const series = this.seriesByType[type];
+    if (series) return documentNumberService.peek(series, { date });
+    return this.legacyNextVoucherNo(type);
+  }
+
+  private async legacyNextVoucherNo(type: VoucherType): Promise<string> {
     const prefix = this.prefixMap[type] || "VCH";
     const rows = await prisma.voucher.findMany({
       where: {
@@ -47,25 +64,21 @@ class VouchersService {
         if (n > maxSeq) maxSeq = n;
       }
     }
-    // Busy shows plain integers ("Vch No. 1", "2", ...). We keep the type
-    // prefix for cross-type uniqueness (voucherNo is @unique globally), but
-    // no zero-padding — the UI strips the prefix so the operator sees just N.
     return `${prefix}-${maxSeq + 1}`;
   }
 
-  private async generateVoucherNo(type: VoucherType): Promise<string> {
-    // Retry a few times to survive a race where two creates read the same
-    // maxSeq at once — the DB unique constraint on voucherNo is the source
-    // of truth, so on conflict we peek again.
+  private async generateVoucherNo(type: VoucherType, date: Date): Promise<string> {
+    const series = this.seriesByType[type];
+    if (series) return documentNumberService.next(series, { date });
+    // Legacy scheme: the unique constraint on voucherNo settles a race, so peek again on conflict.
     for (let attempt = 0; attempt < 5; attempt++) {
-      const candidate = await this.peekNextVoucherNo(type);
+      const candidate = await this.legacyNextVoucherNo(type);
       const exists = await prisma.voucher.findFirst({
         where: { voucherNo: candidate },
         select: { id: true },
       });
       if (!exists) return candidate;
     }
-    // Fallback: append time-based suffix if we can't settle on a sequence
     const prefix = this.prefixMap[type] || "VCH";
     return `${prefix}-${Date.now().toString().slice(-6)}`;
   }
@@ -353,9 +366,9 @@ class VouchersService {
   }
 
   async createVoucher(data: CreateVoucherInput, createdBy?: string) {
-    const voucherNo = data.voucherNo || (await this.generateVoucherNo(data.type));
     const voucherDate = data.date ? new Date(data.date) : new Date();
     await periodService.assertPostingAllowed(voucherDate);
+    const voucherNo = data.voucherNo || (await this.generateVoucherNo(data.type, voucherDate));
 
     let totalDebit = 0;
     let totalCredit = 0;

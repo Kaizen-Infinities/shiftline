@@ -9,6 +9,7 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { requireTenantId } from "../../lib/tenant-context";
+import { companyGstProfile, resolveIssuingPlace } from "../gst/gst.context";
 import { ApiError } from "../../utils/ApiError";
 
 type Db = Prisma.TransactionClient | typeof prisma;
@@ -37,6 +38,8 @@ export const DOCUMENT_PREFIXES: Record<string, string> = {
   JOB_WORK_CHALLAN: "JW",
   /** TN-05: an MSME delayed-payment claim on a buyer (not a tax document). */
   MSME_CLAIM: "MSC",
+  /** QA F4: distinct from purchase orders ("PO"); new series only, existing codes are untouched. */
+  PRODUCTION_ORDER: "MO",
   /** TN-10: a subsidy / scheme claim to a government body (not a tax document). */
   SUBSIDY_CLAIM: "SUB",
 };
@@ -67,19 +70,23 @@ class DocumentNumberService {
     return `${prefix}/${fyCode}/${String(n).padStart(padding, "0")}`;
   }
 
+  /** A branch series starts from the head-office prefix plus the place code. */
+  private async prefixFor(db: Db, docType: string, businessPlaceId: bigint | null) {
+    const prefix = DOCUMENT_PREFIXES[docType];
+    if (!prefix) throw new ApiError(400, `No numbering series for ${docType}`);
+    if (businessPlaceId) {
+      const place = await db.businessPlace.findUnique({ where: { id: businessPlaceId } });
+      if (place && !place.isHeadOffice) return `${prefix}-${place.code}`.slice(0, 8);
+    }
+    return prefix;
+  }
+
   private async ensureRow(db: Db, docType: string, businessPlaceId: bigint | null, fyCode: string) {
     const found = await db.documentSequence.findFirst({
       where: { docType, businessPlaceId, fyCode },
     });
     if (found) return found;
-    const prefix = DOCUMENT_PREFIXES[docType];
-    if (!prefix) throw new ApiError(400, `No numbering series for ${docType}`);
-    // A branch series starts from the head-office prefix plus the place code.
-    let fullPrefix = prefix;
-    if (businessPlaceId) {
-      const place = await db.businessPlace.findUnique({ where: { id: businessPlaceId } });
-      if (place && !place.isHeadOffice) fullPrefix = `${prefix}-${place.code}`.slice(0, 8);
-    }
+    const fullPrefix = await this.prefixFor(db, docType, businessPlaceId);
     return db.documentSequence.create({
       data: { docType, businessPlaceId, fyCode, prefix: fullPrefix },
     });
@@ -111,13 +118,50 @@ class DocumentNumberService {
     return this.format(r.prefix, fyCode, Number(r.next), r.padding);
   }
 
-  /** The number `next()` would return, without consuming it. */
+  /**
+   * The number `next()` would return, without consuming it, locking the series or creating its
+   * row. With no `businessPlaceId` it uses the place a document is raised from by default (the
+   * head office), exactly as the document services resolve it, so a form's preview is the number
+   * the save assigns.
+   */
   async peek(docType: string, opts: NumberOptions = {}): Promise<string> {
     const db = opts.tx ?? prisma;
     const date = opts.date ?? new Date();
     const fyCode = fyCodeFor(date, await this.fyStartMonth(db));
-    const row = await this.ensureRow(db, docType, opts.businessPlaceId ?? null, fyCode);
-    return this.format(row.prefix, fyCode, row.next, row.padding);
+    let businessPlaceId = opts.businessPlaceId ?? null;
+    let row = null;
+    if (opts.businessPlaceId === undefined) {
+      businessPlaceId = (await resolveIssuingPlace(null, await companyGstProfile(db), db)).id;
+      row = await db.documentSequence.findFirst({ where: { docType, businessPlaceId, fyCode } });
+      if (!row && businessPlaceId) {
+        // Services that number without a place (year-end, claims) keep a company-wide series.
+        const company = await db.documentSequence.findFirst({
+          where: { docType, businessPlaceId: null, fyCode },
+        });
+        if (company) {
+          row = company;
+          businessPlaceId = null;
+        }
+      }
+    } else {
+      row = await db.documentSequence.findFirst({ where: { docType, businessPlaceId, fyCode } });
+    }
+    if (row) return this.format(row.prefix, fyCode, row.next, row.padding);
+    // No row yet: the number a fresh series would start at (schema defaults: next 1, padding 4).
+    return this.format(await this.prefixFor(db, docType, businessPlaceId), fyCode, 1, 4);
+  }
+
+  /**
+   * Forms that submit the number they were shown (the production order screen) take the series
+   * past it when it is still the next one; any other value (a legacy code) leaves the series alone.
+   */
+  async consumeIfNext(docType: string, number: string, opts: NumberOptions = {}): Promise<boolean> {
+    if (!opts.tx) {
+      return prisma.$transaction((tx) => this.consumeIfNext(docType, number, { ...opts, tx }));
+    }
+    if ((await this.peek(docType, opts)) !== number) return false;
+    await this.next(docType, opts);
+    return true;
   }
 }
 

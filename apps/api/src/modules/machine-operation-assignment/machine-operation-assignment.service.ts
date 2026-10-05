@@ -1,3 +1,4 @@
+import { weekEnd, weekStart } from "@shiftline/shared";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { logger } from "../../lib/logger";
@@ -36,7 +37,13 @@ export class MachineOperationAssignmentService {
         status: "active",
         ...(roleId
           ? {
-              OR: [{ roleId: Number(roleId) }, { user: { roleId: Number(roleId) } }],
+              // Tagged with the role (on the employee or on their login), or not tagged with any
+              // role yet: an active employee with no role must still be assignable.
+              OR: [
+                { roleId: Number(roleId) },
+                { user: { roleId: Number(roleId) } },
+                { roleId: null, user: { is: null } },
+              ],
             }
           : {}),
       },
@@ -251,8 +258,9 @@ export class MachineOperationAssignmentService {
       }
     }
 
-    const startDate = new Date(weekStartDate);
-    const endDate = new Date(weekEndDate);
+    // One week definition: Monday to Sunday (packages/shared/src/week.ts).
+    const startDate = new Date(weekStart(weekStartDate));
+    const endDate = new Date(weekEnd(weekEndDate));
 
     // 5. Prevent duplicate weekly assignments for the same machine AND SAME SHIFT during overlapping dates
     const existingOverlap = await prisma.machineOperationAssignment.findFirst({
@@ -372,8 +380,8 @@ export class MachineOperationAssignmentService {
     }
 
     const { shiftId, weekStartDate, weekEndDate } = data;
-    const startDate = weekStartDate ? new Date(weekStartDate) : existing.weekStartDate;
-    const endDate = weekEndDate ? new Date(weekEndDate) : existing.weekEndDate;
+    const startDate = weekStartDate ? new Date(weekStart(weekStartDate)) : existing.weekStartDate;
+    const endDate = weekEndDate ? new Date(weekEnd(weekEndDate)) : existing.weekEndDate;
 
     const newMachineId = data.machineId || existing.machineId;
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { addDays, todayIn, weekRange } from "@shiftline/shared";
 import { FaTimes, FaCogs, FaCheck, FaInfoCircle, FaPlus } from "react-icons/fa";
 import { toast } from "react-toastify";
 import CustomButton from "../../../components/ui/Button/Button";
@@ -25,19 +26,8 @@ export const MachineAssignmentFormModal: React.FC<Props> = ({
 }) => {
   const isEdit = !!initialData?.id;
 
-  const getMondayAndSunday = (offsetWeeks: number = 0) => {
-    const d = new Date();
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1) + offsetWeeks * 7;
-    const monday = new Date(d.setDate(diff));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    return {
-      start: monday.toISOString().split("T")[0],
-      end: sunday.toISOString().split("T")[0],
-    };
-  };
+  const getMondayAndSunday = (offsetWeeks: number = 0) =>
+    weekRange(addDays(todayIn(), offsetWeeks * 7));
 
   const currentWeek = getMondayAndSunday(0);
 

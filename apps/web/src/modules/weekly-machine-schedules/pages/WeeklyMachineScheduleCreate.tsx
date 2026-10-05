@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { weekRange } from "@shiftline/shared";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { CalendarRange, Check, Lock, Save } from "lucide-react";
 import { ActionPill, EmptyState, PageHeader, SkeletonRows, Tile } from "../../../components/ui/v2";
@@ -62,20 +63,10 @@ const WeeklyMachineScheduleCreate: React.FC = () => {
   const handleDateChange = useCallback((e: React.ChangeEvent<any>) => {
     const val = e.target.value;
     if (val) {
-      const date = new Date(val);
-      if (!isNaN(date.getTime())) {
-        const day = date.getDay();
-        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-        const mondayDate = new Date(date.setDate(diff));
-        const yyyy = mondayDate.getFullYear();
-        const mm = String(mondayDate.getMonth() + 1).padStart(2, "0");
-        const dd = String(mondayDate.getDate()).padStart(2, "0");
-        setWeekStartDate(`${yyyy}-${mm}-${dd}`);
-        const endDate = new Date(mondayDate);
-        endDate.setDate(mondayDate.getDate() + 6);
-        setWeekEndDate(
-          `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`
-        );
+      if (!isNaN(new Date(val).getTime())) {
+        const range = weekRange(val);
+        setWeekStartDate(range.start);
+        setWeekEndDate(range.end);
       }
     } else {
       setWeekStartDate("");
