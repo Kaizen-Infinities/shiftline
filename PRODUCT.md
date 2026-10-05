@@ -40,10 +40,18 @@ and the ERP is never the reason a filing is late or a book is wrong.
 
 ## Positioning
 
-**Undecided — not yet confirmed by the product owner.** Do not invent a
-competitive claim (e.g. "vs. Tally", "vs. SAP B1", "shop-floor-first") in
-copy or design work; ask before anything implies one. Revisit this section
-once the owner states the claim.
+**Stated by the product owner (2026-10-05):** run your factory and know what is
+happening, no matter where you are. The USP is the plain usefulness of one system
+that shows orders, production, stock, money owed and owing, and compliance status
+to the owner from any device, not a clever differentiator.
+
+Still not confirmed: any competitive claim (e.g. "vs. Tally", "vs. SAP B1",
+"shop-floor-first"). Do not invent one in copy or design work; ask before anything
+implies one. Cash must always be recorded, never hidden (see
+`docs/decisions/2026-09-14-no-hidden-books.md`).
+
+No customer evidence exists yet. Desk research and the ranked problems are in the
+Shiftline project doc `market-research-v1`.
 
 ## Operating Context
 
