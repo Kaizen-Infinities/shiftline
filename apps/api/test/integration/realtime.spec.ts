@@ -341,6 +341,41 @@ describe("realtime rooms", () => {
     expect(sb.connected).toBe(true);
   });
 
+  it("a password change drops the other sessions' sockets and keeps the current one", async () => {
+    const current = await signIn();
+    const other = await signIn();
+    const sCurrent = await open({ token: current.token });
+    const sOther = await open({ token: other.token });
+    const { authRepository } = await import("../../src/modules/auth/auth.repository");
+    const { withoutTenant } = await import("../../src/lib/tenant-context");
+
+    const gone = disconnected(sOther);
+    const revoked = await withoutTenant(() =>
+      authRepository.logoutOtherUserSessions(current.userId, current.sessionId)
+    );
+    expect(revoked).toBeGreaterThanOrEqual(1);
+    expect(await gone).toBe("io server disconnect");
+    expect(sCurrent.connected).toBe(true);
+  });
+
+  it("logout of one session and logout-all drop the matching sockets", async () => {
+    const a = await signIn();
+    const b = await signIn();
+    const sa = await open({ token: a.token });
+    const sb = await open({ token: b.token });
+    const { authRepository } = await import("../../src/modules/auth/auth.repository");
+    const { withoutTenant } = await import("../../src/lib/tenant-context");
+
+    const goneA = disconnected(sa);
+    await withoutTenant(() => authRepository.logoutSession(a.sessionId));
+    expect(await goneA).toBe("io server disconnect");
+    expect(sb.connected).toBe(true);
+
+    const goneB = disconnected(sb);
+    await withoutTenant(() => authRepository.logoutAllUserSessions(b.userId));
+    expect(await goneB).toBe("io server disconnect");
+  });
+
   it("drops the socket when its token expires", async () => {
     const short = await signIn({ expiresIn: "2s" });
     const s = await open({ token: short.token });

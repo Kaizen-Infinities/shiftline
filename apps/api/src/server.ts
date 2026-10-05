@@ -12,6 +12,7 @@ import { env } from "./config/env";
 import { startJobs, stopJobs } from "./lib/jobs";
 import { registerSchedules, registerWorkers } from "./jobs";
 import { logger } from "./lib/logger";
+import { closePdfBrowser } from "./utils/pdfGenerator";
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -49,6 +50,7 @@ const startServer = async (): Promise<void> => {
       server.close(async () => {
         try {
           await stopJobs();
+          await closePdfBrowser();
           await prisma.$disconnect();
           await flushSentry();
 

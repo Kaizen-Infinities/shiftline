@@ -105,12 +105,14 @@ export const authenticateSocket = async (input: {
 
     // The tenant user: the session's own row when the token is the user's, a lookup when an
     // admin is impersonating (the session then belongs to the admin).
-    const user = impersonating
-      ? await prisma.user.findUnique({
-          where: { userId: decoded.userId },
-          select: { status: true, companyId: true, company: { select: { isActive: true } } },
-        })
-      : session.user;
+    // The joined user is the normal one-query path; a missing join (it can come back empty
+    // when the row is not visible to the joined read) falls back to a direct lookup.
+    const user =
+      (!impersonating ? session.user : null) ??
+      (await prisma.user.findUnique({
+        where: { userId: decoded.userId },
+        select: { status: true, companyId: true, company: { select: { isActive: true } } },
+      }));
     if (!user || user.status !== "active") return reject();
     if (user.company && !user.company.isActive) return reject();
     companyId = user.companyId;

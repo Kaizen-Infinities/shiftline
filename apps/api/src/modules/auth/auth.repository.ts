@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
-import { AuditAction } from "@prisma/client";
+import { AuditAction, Prisma } from "@prisma/client";
+import { disconnectSession } from "../../lib/realtime";
 import { serializeBigInt } from "../../utils/serializeBigInt";
 import { UserStatus, CreateAuditLogDto, LoginAttemptDto } from "../../types/auth.types";
 
@@ -269,41 +270,49 @@ export class AuthRepository {
   }
 
   async logoutSession(sessionId: string): Promise<any> {
-    return prisma.userSession.update({
+    const updated = await prisma.userSession.update({
       where: { id: sessionId },
       data: {
         logoutAt: new Date(),
         isActive: false,
       },
     });
+    disconnectSession(sessionId);
+    return updated;
+  }
+
+  /**
+   * Ends the matching active sessions and drops the sockets opened with exactly those sessions
+   * (the ids are read first so a session that was never revoked keeps its socket).
+   */
+  private async revokeActiveSessions(where: Prisma.UserSessionWhereInput): Promise<number> {
+    const live = await prisma.userSession.findMany({
+      where: { ...where, isActive: true },
+      select: { id: true },
+    });
+    if (live.length === 0) return 0;
+    const ids = live.map((s) => s.id);
+    const result = await prisma.userSession.updateMany({
+      where: { id: { in: ids }, isActive: true },
+      data: { logoutAt: new Date(), isActive: false },
+    });
+    for (const id of ids) disconnectSession(id);
+    return result.count;
   }
 
   async logoutAllUserSessions(userId?: string, adminId?: bigint): Promise<number> {
-    const result = await prisma.userSession.updateMany({
-      where: {
-        ...(userId ? { userId } : {}),
-        ...(adminId ? { adminId } : {}),
-        isActive: true,
-      },
-      data: {
-        logoutAt: new Date(),
-        isActive: false,
-      },
+    return this.revokeActiveSessions({
+      ...(userId ? { userId } : {}),
+      ...(adminId ? { adminId } : {}),
     });
-    return result.count;
   }
 
   /** Ends every active session of the user except `keepSessionId` (password change). */
   async logoutOtherUserSessions(userId: string, keepSessionId?: string): Promise<number> {
-    const result = await prisma.userSession.updateMany({
-      where: {
-        userId,
-        isActive: true,
-        ...(keepSessionId ? { id: { not: keepSessionId } } : {}),
-      },
-      data: { logoutAt: new Date(), isActive: false },
+    return this.revokeActiveSessions({
+      userId,
+      ...(keepSessionId ? { id: { not: keepSessionId } } : {}),
     });
-    return result.count;
   }
 
   async getActiveSessions(userId?: string, adminId?: bigint): Promise<any[]> {

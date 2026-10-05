@@ -13,6 +13,10 @@ The app runs at https://shiftline.apps.kaizeninfinities.com on version `a8c7fca2
 - PR #37, TN features beta: TN-04 Tamil UI, TN-05 MSME delayed-payment claims, TN-06 multi-step process routes, TN-07 OEM ASN and labels, TN-09 job costing.
 - PR #38: TN-08 buyer audit readiness, TN-10 subsidy tracker.
 
+## Security fixes, not deployed
+
+The IDOR and business-logic assessment fixes (F01-F10, JWT-01/02, API-01..04, BL-01..04, ABUSE-01) are merged on `claude/clever-curie-ymam25`, pending human review. Two migrations (`20260928090000_tenant_role_fks`, `20260928091000_eod_stock_run_permission`) and the new `eod-stock.run` key ship with them. Run the reconciliation queries before deploying. See [handoff/2026-10-04-security-fixes.md](handoff/2026-10-04-security-fixes.md).
+
 ## Simulator or unconfigured
 
 | Integration              | State                                                                    |
@@ -30,7 +34,7 @@ GitHub Actions runs again as of 2026-10-04 (typecheck/lint/format, schema and mi
 
 ## Local checks
 
-Last recorded on 2026-10-04 (PR #40): 133 test files / 1,101 tests passing, typecheck clean, lint with 0 errors, web build clean. Re-run them; this is not a live result.
+Last recorded on 2026-10-05 (security-fix merge, non-superuser DB role): 135 test files / 1,143 API tests passing, 3 shared, 29 web, typecheck clean, lint with 0 errors, web build clean. Re-run them; this is not a live result.
 
 ## Not built yet
 

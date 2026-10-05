@@ -10,6 +10,15 @@ import { seedTenant } from "../../prisma/seed-lib";
  * closed, a password change ends the other sessions and the reset routes sit behind the tight
  * credential limiter. Tenant A is the demo tenant; tenant B is seeded here.
  */
+/** Raw SQL gets no tenant settings from the client extension; lift RLS for this one transaction. */
+const rawBypassingRls = async (prisma: any, sql: string) =>
+  withoutTenant(() =>
+    prisma.$transaction(async (tx: any) => {
+      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', TRUE)`;
+      await tx.$executeRawUnsafe(sql);
+    })
+  );
+
 describe("tenant-bound roles and sessions", () => {
   let tenantA: string;
   let tenantB: string;
@@ -134,10 +143,9 @@ describe("tenant-bound roles and sessions", () => {
   it("the database refuses a role grant that crosses tenants", async () => {
     const prisma = await getPrisma();
     await expect(
-      withoutTenant(() =>
-        prisma.$executeRawUnsafe(
-          `INSERT INTO role_permissions (company_id, "roleId", "permissionId") VALUES ('${tenantA}'::uuid, ${roleB}, ${permissionId})`
-        )
+      rawBypassingRls(
+        prisma,
+        `INSERT INTO role_permissions (company_id, "roleId", "permissionId") VALUES ('${tenantA}'::uuid, ${roleB}, ${permissionId})`
       )
     ).rejects.toThrow();
   });
@@ -156,10 +164,9 @@ describe("tenant-bound roles and sessions", () => {
     // Reproduce pre-migration data: drop the FK, plant A's grant on B's role, then restore.
     await prisma.$executeRawUnsafe(`ALTER TABLE role_permissions DROP CONSTRAINT "${fkA}"`);
     try {
-      await withoutTenant(() =>
-        prisma.$executeRawUnsafe(
-          `INSERT INTO role_permissions (company_id, "roleId", "permissionId") VALUES ('${tenantA}'::uuid, ${sales.roleId}, ${usersView.id})`
-        )
+      await rawBypassingRls(
+        prisma,
+        `INSERT INTO role_permissions (company_id, "roleId", "permissionId") VALUES ('${tenantA}'::uuid, ${sales.roleId}, ${usersView.id})`
       );
       const auth = { Authorization: `Bearer ${await loginAs("rolesb.sales")}` };
       const me = await (await api()).get("/api/auth/me").set(auth);
@@ -168,10 +175,9 @@ describe("tenant-bound roles and sessions", () => {
       // The middleware ignores the foreign grant too (it would otherwise let this through).
       expect((await (await api()).get("/api/users").set(auth)).status).toBe(403);
     } finally {
-      await withoutTenant(() =>
-        prisma.$executeRawUnsafe(
-          `DELETE FROM role_permissions WHERE company_id = '${tenantA}'::uuid AND "roleId" = ${sales.roleId}`
-        )
+      await rawBypassingRls(
+        prisma,
+        `DELETE FROM role_permissions WHERE company_id = '${tenantA}'::uuid AND "roleId" = ${sales.roleId}`
       );
       await prisma.$executeRawUnsafe(
         `ALTER TABLE role_permissions ADD CONSTRAINT "${fkA}" FOREIGN KEY (company_id, "roleId") REFERENCES roles(company_id, id) ON DELETE CASCADE ON UPDATE CASCADE`
