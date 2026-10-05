@@ -38,11 +38,17 @@ export interface AccountLedger {
   customer?: {
     id: string;
     firmName: string;
+    displayName?: string | null;
     customerCode: string;
     customerGrade?: { name: string } | null;
     customerType?: { name: string } | null;
   } | null;
-  supplier?: { id: number; legalName: string; supplierCode: string } | null;
+  supplier?: {
+    id: number;
+    legalName: string;
+    displayName?: string | null;
+    supplierCode: string;
+  } | null;
   createdAt?: string;
   updatedAt?: string;
 }

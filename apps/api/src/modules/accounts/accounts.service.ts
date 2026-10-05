@@ -398,6 +398,13 @@ class AccountsService {
           { code: { contains: params.search, mode: "insensitive" } },
           { name: { contains: params.search, mode: "insensitive" } },
           { group: { contains: params.search, mode: "insensitive" } },
+          // A party ledger is found by either of its names or its party code.
+          { customer: { firmName: { contains: params.search, mode: "insensitive" } } },
+          { customer: { displayName: { contains: params.search, mode: "insensitive" } } },
+          { customer: { customerCode: { contains: params.search, mode: "insensitive" } } },
+          { supplier: { legalName: { contains: params.search, mode: "insensitive" } } },
+          { supplier: { displayName: { contains: params.search, mode: "insensitive" } } },
+          { supplier: { supplierCode: { contains: params.search, mode: "insensitive" } } },
         ],
       }),
     };
@@ -415,12 +422,15 @@ class AccountsService {
             select: {
               id: true,
               firmName: true,
+              displayName: true,
               customerCode: true,
               customerGrade: { select: { name: true } },
               customerType: { select: { name: true } },
             },
           },
-          supplier: { select: { id: true, legalName: true, supplierCode: true } },
+          supplier: {
+            select: { id: true, legalName: true, displayName: true, supplierCode: true },
+          },
           ledgerGroup: {
             select: { id: true, code: true, name: true, scheduleHead: true, parentId: true },
           },
@@ -448,12 +458,15 @@ class AccountsService {
             select: {
               id: true,
               firmName: true,
+              displayName: true,
               customerCode: true,
               customerGrade: { select: { name: true } },
               customerType: { select: { name: true } },
             },
           },
-          supplier: { select: { id: true, legalName: true, supplierCode: true } },
+          supplier: {
+            select: { id: true, legalName: true, displayName: true, supplierCode: true },
+          },
           ledgerGroup: {
             select: { id: true, code: true, name: true, scheduleHead: true, parentId: true },
           },

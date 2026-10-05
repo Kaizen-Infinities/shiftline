@@ -15,6 +15,8 @@ export interface AutocompleteOption {
   info?: React.ReactNode;
   /** Text shown in input when selected (defaults to label) */
   selectedLabel?: string;
+  /** Extra searchable text (alternate names, codes) that is matched but not shown */
+  keywords?: string;
   disabled?: boolean;
 }
 
@@ -72,7 +74,8 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
       (o) =>
         !o.disabled &&
         (o.label.toLowerCase().includes(term) ||
-          (o.selectedLabel || "").toLowerCase().includes(term))
+          (o.selectedLabel || "").toLowerCase().includes(term) ||
+          (o.keywords || "").toLowerCase().includes(term))
     );
   }, [options, search]);
 

@@ -1,3 +1,4 @@
+import { getServerErrorMessage, getServerFieldErrors } from "../../../utils/serverErrors";
 import React, { useState, useEffect, useCallback } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useSelector } from "react-redux";
@@ -565,21 +566,17 @@ const SupplierForm: React.FC = () => {
       }
       navigate("/suppliers");
     } catch (err: any) {
-      const apiErrors = err?.errors || err?.response?.data?.errors;
-      if (Array.isArray(apiErrors) && apiErrors.length > 0) {
-        const fieldErrors: Record<string, string> = {};
-        apiErrors.forEach((item: any) => {
-          let fieldName = (item.path || "").replace(/^body\./, "");
-          if (fieldName === "billingPincode") fieldName = "billingAddressPincode";
-          if (fieldName === "billingCity") fieldName = "billingAddressCity";
-          if (fieldName === "billingState") fieldName = "billingAddressState";
-          fieldErrors[fieldName] = item.message;
-        });
-        setErrors(fieldErrors);
-        toast.error(apiErrors[0]?.message || "Validation failed.");
-      } else {
-        toast.error(err?.message || "Operation failed.");
-      }
+      const aliases: Record<string, string> = {
+        billingPincode: "billingAddressPincode",
+        billingCity: "billingAddressCity",
+        billingState: "billingAddressState",
+      };
+      const fieldErrors: Record<string, string> = {};
+      getServerFieldErrors(err).forEach(({ path, message }) => {
+        fieldErrors[aliases[path] ?? path] = message;
+      });
+      if (Object.keys(fieldErrors).length > 0) setErrors(fieldErrors);
+      toast.error(getServerErrorMessage(err, "Operation failed."));
     } finally {
       setIsSubmitting(false);
     }
