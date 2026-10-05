@@ -36,6 +36,25 @@ function toIdArray(value: any): number[] {
 }
 
 class ProductService {
+  /** The HSN must exist for this tenant and an override rate must be one of its GST slabs. */
+  private async assertTaxFields(hsnCodeId: unknown, gstRate: unknown) {
+    if (hsnCodeId) {
+      const hsn = await prisma.hsnCode.findFirst({
+        where: { id: String(hsnCodeId) },
+        select: { id: true },
+      });
+      if (!hsn) throw new ApiError(400, "Choose an HSN code from the HSN master");
+    }
+    const rate = toNumberOrNull(gstRate);
+    if (rate !== null) {
+      const slab = await prisma.gstRate.findFirst({
+        where: { rate, isActive: true },
+        select: { id: true },
+      });
+      if (!slab) throw new ApiError(400, "GST rate must be one of the configured GST slabs");
+    }
+  }
+
   // Every Production Product's stock (FinishedGoodsStock.onHandQty) is a
   // plain piece count, never a weight — so the product's stock-counting UOM
   // is always "pcs", regardless of weightPerPiece (which is separate,
@@ -55,6 +74,7 @@ class ProductService {
   }
 
   async create(data: any, files?: Express.Multer.File[]) {
+    await this.assertTaxFields(data.hsnCodeId, data.gstRate);
     const uploadedImages: any[] = [];
     if (files && files.length > 0) {
       for (let index = 0; index < files.length; index++) {
@@ -310,6 +330,7 @@ class ProductService {
 
   async update(id: bigint, data: any, files?: Express.Multer.File[]) {
     await this.findById(id);
+    await this.assertTaxFields(data.hsnCodeId, data.gstRate);
 
     let isStockChanged = false;
     let qtyDiff = 0;
@@ -451,15 +472,32 @@ class ProductService {
       }
 
       if (rawMaterialsList !== null) {
+        // Lines kept by the edit form carry no quantity of their own: keep the stored per-piece
+        // quantity, unit and remarks so saving never zeroes the recipe production orders explode.
+        const previous = new Map(
+          (await tx.billOfMaterial.findMany({ where: { productId: id } })).map((b) => [
+            b.rawMaterialId,
+            b,
+          ])
+        );
         await tx.billOfMaterial.deleteMany({ where: { productId: id } });
         if (rawMaterialsList.length > 0) {
           await tx.billOfMaterial.createMany({
-            data: rawMaterialsList.map((rm: any) => ({
-              productId: id,
-              rawMaterialId: String(rm.rawMaterialId),
-              requiredQuantity: new Prisma.Decimal(rm.requiredQuantity || 0),
-              percentage: toNumberOrNull(rm.percentage),
-            })),
+            data: rawMaterialsList.map((rm: any) => {
+              const old = previous.get(String(rm.rawMaterialId));
+              const sent = Number(rm.requiredQuantity);
+              return {
+                productId: id,
+                rawMaterialId: String(rm.rawMaterialId),
+                requiredQuantity:
+                  sent > 0
+                    ? new Prisma.Decimal(sent)
+                    : (old?.requiredQuantity ?? new Prisma.Decimal(0)),
+                percentage: toNumberOrNull(rm.percentage),
+                uom: old?.uom ?? null,
+                remarks: old?.remarks ?? null,
+              };
+            }),
           });
         }
       }

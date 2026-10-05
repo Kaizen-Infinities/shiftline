@@ -340,12 +340,10 @@ describe("inventory — EOD stock view and manual snapshot trigger", () => {
     expect(res.body.data).toEqual([]);
   });
 
-  it("has no permission gate at all: unlike most modules, any authenticated role reaches it as long as the plan includes the feature", async () => {
-    // This router is authMiddleware + requireFeature("inventory") only — no requirePermission —
-    // so an auditor, who holds no inventory-reports permission, still gets a normal 200.
+  it("is gated by eod-stock.view: a role without it (the auditor) is refused", async () => {
     const auditor = await authed("demo.auditor");
     const res = await (await api()).get("/api/inventory/eod-stock").set(auditor.auth);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
   });
 
   it("refuses when the tenant's inventory feature is switched off, and hides another tenant's snapshots", async () => {

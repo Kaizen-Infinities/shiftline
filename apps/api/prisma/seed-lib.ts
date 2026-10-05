@@ -194,11 +194,25 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       { empCode: "E001", fullName: `${opts.companyCode} Operator One` },
       { empCode: "E002", fullName: `${opts.companyCode} Operator Two` },
     ]) {
-      if (!(await prisma.employee.findFirst({ where: { empCode: e.empCode } }))) {
+      const existing = await prisma.employee.findFirst({ where: { empCode: e.empCode } });
+      if (existing) {
+        // Older seeds left demo operators without a role, so the assignment picker was empty.
+        if (existing.roleId === null) {
+          await prisma.employee.update({
+            where: { id: existing.id },
+            data: {
+              roleId: roles.PRODUCTION,
+              departmentId: existing.departmentId ?? deptProduction.id,
+            },
+          });
+        }
+      } else {
         await prisma.employee.create({
           data: {
             ...e,
             departmentId: deptProduction.id,
+            roleId: roles.PRODUCTION,
+            designation: "Machine Operator",
             shiftId: shiftA.shiftCode,
             createdBy: owner,
           },
@@ -320,7 +334,12 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
         bom: [[`${P}RM003`, 0.008]],
       },
     ] as const;
+    // Finished goods the demo sells: invoiceable type plus an HSN (the GST rate defaults from it).
+    const hsnByCode = new Map((await prisma.hsnCode.findMany()).map((h) => [h.code, h.id]));
     for (const p of products) {
+      const hsn =
+        hsnByCode.get(p.productCode === "P001" || p.productCode === "P002" ? "3924" : "3923") ??
+        null;
       const product = await prisma.product.upsert({
         where: { companyId_productCode: { companyId: company.id, productCode: p.productCode } },
         update: {},
@@ -332,9 +351,24 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
           weightPerPiece: D(p.weightPerPiece),
           rate: D(p.rate),
           categoryId: catHouse.id,
+          productType: "SALES_PRODUCTION",
+          hsnCodeId: hsn,
           createdBy: owner,
         },
       });
+      // Demo databases seeded before this carried untyped products without an HSN. Repair the
+      // type (only the legacy PRODUCTION default) and the HSN (only when empty) independently, so
+      // a product that got one of them by hand still gets the other.
+      await prisma.product.updateMany({
+        where: { id: product.id, productType: "PRODUCTION" },
+        data: { productType: "SALES_PRODUCTION" },
+      });
+      if (hsn) {
+        await prisma.product.updateMany({
+          where: { id: product.id, hsnCodeId: null },
+          data: { hsnCodeId: hsn },
+        });
+      }
       if ((await prisma.billOfMaterial.count({ where: { productId: product.id } })) === 0) {
         await prisma.billOfMaterial.createMany({
           data: p.bom.map(([rawMaterialId, qty]) => ({

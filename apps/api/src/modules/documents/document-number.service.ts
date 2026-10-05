@@ -9,6 +9,7 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
 import { requireTenantId } from "../../lib/tenant-context";
+import { companyGstProfile, resolveIssuingPlace } from "../gst/gst.context";
 import { ApiError } from "../../utils/ApiError";
 
 type Db = Prisma.TransactionClient | typeof prisma;
@@ -37,6 +38,8 @@ export const DOCUMENT_PREFIXES: Record<string, string> = {
   JOB_WORK_CHALLAN: "JW",
   /** TN-05: an MSME delayed-payment claim on a buyer (not a tax document). */
   MSME_CLAIM: "MSC",
+  /** QA F4: distinct from purchase orders ("PO"); new series only, existing codes are untouched. */
+  PRODUCTION_ORDER: "MO",
   /** TN-10: a subsidy / scheme claim to a government body (not a tax document). */
   SUBSIDY_CLAIM: "SUB",
 };
@@ -67,19 +70,23 @@ class DocumentNumberService {
     return `${prefix}/${fyCode}/${String(n).padStart(padding, "0")}`;
   }
 
+  /** A branch series starts from the head-office prefix plus the place code. */
+  private async prefixFor(db: Db, docType: string, businessPlaceId: bigint | null) {
+    const prefix = DOCUMENT_PREFIXES[docType];
+    if (!prefix) throw new ApiError(400, `No numbering series for ${docType}`);
+    if (businessPlaceId) {
+      const place = await db.businessPlace.findUnique({ where: { id: businessPlaceId } });
+      if (place && !place.isHeadOffice) return `${prefix}-${place.code}`.slice(0, 8);
+    }
+    return prefix;
+  }
+
   private async ensureRow(db: Db, docType: string, businessPlaceId: bigint | null, fyCode: string) {
     const found = await db.documentSequence.findFirst({
       where: { docType, businessPlaceId, fyCode },
     });
     if (found) return found;
-    const prefix = DOCUMENT_PREFIXES[docType];
-    if (!prefix) throw new ApiError(400, `No numbering series for ${docType}`);
-    // A branch series starts from the head-office prefix plus the place code.
-    let fullPrefix = prefix;
-    if (businessPlaceId) {
-      const place = await db.businessPlace.findUnique({ where: { id: businessPlaceId } });
-      if (place && !place.isHeadOffice) fullPrefix = `${prefix}-${place.code}`.slice(0, 8);
-    }
+    const fullPrefix = await this.prefixFor(db, docType, businessPlaceId);
     return db.documentSequence.create({
       data: { docType, businessPlaceId, fyCode, prefix: fullPrefix },
     });
@@ -111,13 +118,89 @@ class DocumentNumberService {
     return this.format(r.prefix, fyCode, Number(r.next), r.padding);
   }
 
-  /** The number `next()` would return, without consuming it. */
+  /**
+   * The number `next()` would return, without consuming it, locking the series or creating its
+   * row. With no `businessPlaceId` it uses the place a document is raised from by default (the
+   * head office), exactly as the document services resolve it, so a form's preview is the number
+   * the save assigns.
+   */
   async peek(docType: string, opts: NumberOptions = {}): Promise<string> {
     const db = opts.tx ?? prisma;
     const date = opts.date ?? new Date();
     const fyCode = fyCodeFor(date, await this.fyStartMonth(db));
-    const row = await this.ensureRow(db, docType, opts.businessPlaceId ?? null, fyCode);
-    return this.format(row.prefix, fyCode, row.next, row.padding);
+    const { row, businessPlaceId } = await this.findRow(db, docType, fyCode, opts);
+    if (row) return this.format(row.prefix, fyCode, row.next, row.padding);
+    // No row yet: the number a fresh series would start at (schema defaults: next 1, padding 4).
+    return this.format(await this.prefixFor(db, docType, businessPlaceId), fyCode, 1, 4);
+  }
+
+  /** Read-only: the series row `next()` would use for these options (null if not created yet). */
+  private async findRow(db: Db, docType: string, fyCode: string, opts: NumberOptions) {
+    let businessPlaceId = opts.businessPlaceId ?? null;
+    let row = null;
+    if (opts.businessPlaceId === undefined) {
+      businessPlaceId = (await resolveIssuingPlace(null, await companyGstProfile(db), db)).id;
+      row = await db.documentSequence.findFirst({ where: { docType, businessPlaceId, fyCode } });
+      if (!row && businessPlaceId) {
+        // Services that number without a place (year-end, claims) keep a company-wide series.
+        const company = await db.documentSequence.findFirst({
+          where: { docType, businessPlaceId: null, fyCode },
+        });
+        if (company) {
+          row = company;
+          businessPlaceId = null;
+        }
+      }
+    } else {
+      row = await db.documentSequence.findFirst({ where: { docType, businessPlaceId, fyCode } });
+    }
+    return { row, businessPlaceId };
+  }
+
+  /**
+   * Forms that submit the number they were shown (the production order screen) get that number
+   * when it is still the series' next one; if somebody else took it meanwhile (or the number is
+   * stale or from the future) they get a fresh `next()` number instead. Never a duplicate and
+   * never a failure. The check and the increment are one conditional UPDATE, so two saves of the
+   * same preview cannot both win. An empty `shown` just allocates the next number. Call inside the saving transaction (pass `tx`) so a failed save
+   * does not burn a number.
+   */
+  async takeShownOrNext(docType: string, shown: string, opts: NumberOptions = {}): Promise<string> {
+    if (!opts.tx) {
+      return prisma.$transaction((tx) => this.takeShownOrNext(docType, shown, { ...opts, tx }));
+    }
+    const db = opts.tx;
+    const date = opts.date ?? new Date();
+    const fyCode = fyCodeFor(date, await this.fyStartMonth(db));
+    const { row, businessPlaceId } = await this.findRow(db, docType, fyCode, opts);
+    const seq = shown ? Number(shown.split("/")[2]) : NaN;
+    if (
+      !row ||
+      !Number.isInteger(seq) ||
+      this.format(row.prefix, fyCode, seq, row.padding) !== shown
+    ) {
+      // A fresh series (no row yet) still starts at 1; anything not matching the live row is stale.
+      if (!row && Number.isInteger(seq) && seq === 1) {
+        const fresh = await this.ensureRow(db, docType, businessPlaceId, fyCode);
+        if (this.format(fresh.prefix, fyCode, 1, fresh.padding) === shown) {
+          return (await this.claimExact(db, fresh.id, seq)) ? shown : this.next(docType, opts);
+        }
+      }
+      return this.next(docType, { ...opts, businessPlaceId });
+    }
+    return (await this.claimExact(db, row.id, seq))
+      ? shown
+      : this.next(docType, { ...opts, businessPlaceId });
+  }
+
+  /** Advances the series past `seq` only if `seq` is still the next number. */
+  private async claimExact(db: Db, rowId: string, seq: number): Promise<boolean> {
+    const claimed = await db.$queryRaw<{ id: string }[]>`
+      UPDATE document_sequences
+         SET next = next + 1, updated_at = now()
+       WHERE id = ${rowId}::uuid AND next = ${seq}
+      RETURNING id`;
+    return claimed.length > 0;
   }
 }
 

@@ -1,22 +1,41 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "./reduxHooks";
-import { fetchEmployees, createEmployee, updateEmployee, deleteEmployee, employeeCreated, employeeUpdated, employeeDeleted } from "../features/employee/employeeSlice";
-import type { Employee, CreateEmployeeDto, UpdateEmployeeDto } from "../features/employee/types";
+import {
+  fetchEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+  employeeDeleted,
+} from "../features/employee/employeeSlice";
+import type { CreateEmployeeDto, UpdateEmployeeDto } from "../features/employee/types";
 import { useSocketSync } from "./useSocketSync";
 
 export const useEmployees = () => {
   const dispatch = useAppDispatch();
-  const { employees, loading, error, total, page, totalPages } = useAppSelector((state) => state.employees);
+  const { employees, loading, error, total, page, totalPages } = useAppSelector(
+    (state) => state.employees
+  );
 
-  useSocketSync<Employee>("employee", {
-    created: employeeCreated,
-    updated: employeeUpdated,
-    deleted: employeeDeleted,
+  // Realtime events carry no record (F04): refetch with the params of the last load.
+  const lastParams = useRef<{ params: Parameters<typeof fetchEmployees>[0] } | null>(null);
+  useSocketSync("employee", { deleted: employeeDeleted }, () => {
+    if (lastParams.current) dispatch(fetchEmployees(lastParams.current.params));
   });
 
-  const loadEmployees = useCallback((params?: { search?: string; departmentId?: string | number; roleId?: string | number; status?: string; page?: number; limit?: number }) => {
-    dispatch(fetchEmployees(params));
-  }, [dispatch]);
+  const loadEmployees = useCallback(
+    (params?: {
+      search?: string;
+      departmentId?: string | number;
+      roleId?: string | number;
+      status?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      lastParams.current = { params };
+      dispatch(fetchEmployees(params));
+    },
+    [dispatch]
+  );
 
   const addEmployee = useCallback(
     async (data: CreateEmployeeDto) => {

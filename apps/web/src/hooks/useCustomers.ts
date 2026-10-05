@@ -1,28 +1,51 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "./reduxHooks";
-import { fetchCustomers, createCustomer, updateCustomer, deleteCustomer, customerCreated, customerUpdated, customerDeleted } from "../features/customer/customerSlice";
-import type { Customer, CreateCustomerDto, UpdateCustomerDto } from "../features/customer/types";
+import {
+  fetchCustomers,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+  customerDeleted,
+} from "../features/customer/customerSlice";
+import type { CreateCustomerDto, UpdateCustomerDto } from "../features/customer/types";
 import { useSocketSync } from "./useSocketSync";
 
 export const useCustomers = () => {
   const dispatch = useAppDispatch();
   // BUG-CUST-004 fix: expose pagination metadata from state
-  const { customers, loading, error, total, page, totalPages } = useAppSelector((state) => state.customers);
+  const { customers, loading, error, total, page, totalPages } = useAppSelector(
+    (state) => state.customers
+  );
 
-  useSocketSync<Customer>("customer", {
-    created: customerCreated,
-    updated: customerUpdated,
-    deleted: customerDeleted,
+  // Realtime events carry no record (F04): refetch with the params of the last load.
+  const lastParams = useRef<Parameters<typeof fetchCustomers>[0] | null>(null);
+  useSocketSync("customer", { deleted: customerDeleted }, () => {
+    if (lastParams.current) dispatch(fetchCustomers(lastParams.current));
   });
 
   // BUG-CUST-004 fix: accept page, limit, and status params for server-side pagination and filtering
-  const loadCustomers = useCallback((params?: { search?: string; page?: number; limit?: number; status?: string; customerTypeId?: number; customerGradeId?: number } | string) => {
-    if (typeof params === "string") {
-      dispatch(fetchCustomers({ search: params }));
-    } else {
-      dispatch(fetchCustomers(params ?? {}));
-    }
-  }, [dispatch]);
+  const loadCustomers = useCallback(
+    (
+      params?:
+        | {
+            search?: string;
+            page?: number;
+            limit?: number;
+            status?: string;
+            customerTypeId?: number;
+            customerGradeId?: number;
+          }
+        | string
+    ) => {
+      lastParams.current = typeof params === "string" ? { search: params } : (params ?? {});
+      if (typeof params === "string") {
+        dispatch(fetchCustomers({ search: params }));
+      } else {
+        dispatch(fetchCustomers(params ?? {}));
+      }
+    },
+    [dispatch]
+  );
 
   const addCustomer = useCallback(
     async (data: CreateCustomerDto) => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { getServerErrorMessage, getServerFieldErrors } from "../../../utils/serverErrors";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useNavigate, useParams } from "react-router-dom";
 import { Eraser, Gauge, Image as ImageIcon, ImagePlus, Plus, Save, X } from "lucide-react";
@@ -11,6 +12,7 @@ import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import { useProducts } from "../../../hooks/useProducts";
 import { productService } from "../../../services/productService";
 import { storeService } from "../../../services/storeService";
+import { gstService, type GstSlab, type HsnCode } from "../../../services/gstService";
 import { rawMaterialService } from "../../../services/rawMaterialService";
 import { getImageUrl } from "../../../utils/ImageUrls";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -54,9 +56,11 @@ const initialFormState = {
   minimumQty: "",
   openingStockQty: "",
   openingStockStoreId: "",
+  hsnCodeId: "",
+  gstRate: "",
 };
 
-type RawMaterialRow = { rawMaterialId: string; percentage: string };
+type RawMaterialRow = { rawMaterialId: string; percentage: string; requiredQuantity: string };
 type InitialCapacityRow = {
   capDate: string;
   capShiftId: string;
@@ -86,6 +90,8 @@ const ProductForm: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
 
   const [rawMaterials, setRawMaterials] = useState<RawMaterialRow[]>([]);
+  const [hsnCodes, setHsnCodes] = useState<HsnCode[]>([]);
+  const [gstSlabs, setGstSlabs] = useState<GstSlab[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<any[]>([]);
   const [initialCapacities, setInitialCapacities] = useState<InitialCapacityRow[]>([]);
 
@@ -240,16 +246,18 @@ const ProductForm: React.FC = () => {
       minimumQty: productData.minimumQty != null ? String(productData.minimumQty) : "",
       openingStockQty: latestStock ? String(latestStock.onHandQty) : "",
       openingStockStoreId: latestStock ? String(latestStock.storeId) : "",
+      hsnCodeId: productData.hsnCodeId ?? productData.hsnCode?.id ?? "",
+      gstRate: productData.gstRate != null ? String(Number(productData.gstRate)) : "",
     });
 
     if (productData.billOfMaterials) {
       setRawMaterials(
-        productData.billOfMaterials
-          .filter((bom: any) => bom.percentage !== null)
-          .map((bom: any) => ({
-            rawMaterialId: bom.rawMaterialId,
-            percentage: bom.percentage ? String(bom.percentage) : "",
-          }))
+        productData.billOfMaterials.map((bom: any) => ({
+          rawMaterialId: bom.rawMaterialId,
+          percentage: bom.percentage != null ? String(Number(bom.percentage)) : "",
+          requiredQuantity:
+            bom.requiredQuantity != null ? String(Number(bom.requiredQuantity)) : "",
+        }))
       );
     } else {
       setRawMaterials([]);
@@ -270,6 +278,17 @@ const ProductForm: React.FC = () => {
     images.sort((a: any, b: any) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
     setExistingImages(images);
     setRemovedImageIds([]);
+  }, []);
+
+  useEffect(() => {
+    gstService
+      .listHsn({ type: "HSN", limit: 500 })
+      .then(setHsnCodes)
+      .catch(() => {});
+    gstService
+      .listRates()
+      .then(setGstSlabs)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -362,8 +381,10 @@ const ProductForm: React.FC = () => {
       newErrors.rawMaterials = "At least one raw material is required for BOM composition.";
       toast.error("At least one raw material is required for BOM composition.");
     } else {
-      const totalPercent = rawMaterials.reduce((acc, rm) => acc + Number(rm.percentage), 0);
-      if (Math.abs(totalPercent - 100) > 0.01) {
+      const totalPercent = rawMaterials.reduce((acc, rm) => acc + Number(rm.percentage || 0), 0);
+      // Recipes entered as quantity per piece carry no percentages; only a percentage recipe
+      // has to add up to 100.
+      if (totalPercent > 0 && Math.abs(totalPercent - 100) > 0.01) {
         newErrors.rawMaterials = "Total percentage must be exactly 100%";
         toast.error("Total Raw Material percentage must be exactly 100%");
       }
@@ -377,8 +398,8 @@ const ProductForm: React.FC = () => {
 
       rawMaterials.forEach((rm, index) => {
         if (!rm.rawMaterialId) newErrors[`rawMaterials.${index}.rawMaterialId`] = "Required";
-        if (!rm.percentage || Number(rm.percentage) <= 0)
-          newErrors[`rawMaterials.${index}.percentage`] = "Invalid %";
+        if (Number(rm.percentage || 0) <= 0 && Number(rm.requiredQuantity || 0) <= 0)
+          newErrors[`rawMaterials.${index}.percentage`] = "Enter % or qty";
       });
     }
 
@@ -410,7 +431,10 @@ const ProductForm: React.FC = () => {
   };
 
   const handleAddRawMaterial = () => {
-    setRawMaterials((prev) => [...prev, { rawMaterialId: "", percentage: "" }]);
+    setRawMaterials((prev) => [
+      ...prev,
+      { rawMaterialId: "", percentage: "", requiredQuantity: "" },
+    ]);
   };
 
   const handleRemoveRawMaterial = (index: number) => {
@@ -536,6 +560,9 @@ const ProductForm: React.FC = () => {
       if (formData.weightUom) payload.append("weightUom", formData.weightUom);
 
       payload.append("productType", formData.productType);
+      // Always sent so clearing the HSN or the rate override persists.
+      payload.append("hsnCodeId", formData.hsnCodeId);
+      payload.append("gstRate", formData.gstRate);
       if (formData.description) payload.append("description", formData.description);
       payload.append("isActive", String(formData.isActive === "true"));
       payload.append("isScrap", String(formData.isScrap === "true"));
@@ -563,7 +590,7 @@ const ProductForm: React.FC = () => {
       const combinedBOM = rawMaterials.map((rm) => ({
         rawMaterialId: rm.rawMaterialId,
         percentage: rm.percentage,
-        requiredQuantity: 0,
+        requiredQuantity: Number(rm.requiredQuantity) || 0,
       }));
       payload.append("rawMaterials", JSON.stringify(combinedBOM));
 
@@ -599,8 +626,16 @@ const ProductForm: React.FC = () => {
       }
       navigate("/products");
     } catch (err: any) {
+      const fieldErrors: Record<string, string> = {};
+      getServerFieldErrors(err).forEach(({ path, message }) => {
+        fieldErrors[path] = message;
+      });
+      if (Object.keys(fieldErrors).length > 0) setErrors(fieldErrors);
       toast.error(
-        err.message || (isEditMode ? "Failed to update product" : "Failed to create product")
+        getServerErrorMessage(
+          err,
+          isEditMode ? "Failed to update product" : "Failed to create product"
+        )
       );
     } finally {
       setIsSubmitting(false);
@@ -635,6 +670,19 @@ const ProductForm: React.FC = () => {
   const hasAnyImage = existingImages.length > 0 || newImagePreviews.length > 0;
 
   const bomTotal = rawMaterials.reduce((sum, rm) => sum + (Number(rm.percentage) || 0), 0);
+  const hsnOptions = useMemo(
+    () =>
+      hsnCodes.map((h) => ({
+        value: h.id,
+        label: `${h.code} · ${h.description} (${Number(h.gstRate)}%)`,
+      })),
+    [hsnCodes]
+  );
+  const gstOptions = useMemo(
+    () => gstSlabs.map((g) => ({ value: String(Number(g.rate)), label: `${Number(g.rate)}%` })),
+    [gstSlabs]
+  );
+
   const gridClass = "grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-4";
 
   if (isLoadingData) {
@@ -717,6 +765,23 @@ const ProductForm: React.FC = () => {
               required
               onChange={handleChange}
               error={errors.productType}
+            />
+            <SelectInput
+              label="HSN Code"
+              name="hsnCodeId"
+              value={formData.hsnCodeId}
+              options={hsnOptions}
+              defaultOptionLabel="-- Select HSN --"
+              onChange={handleChange}
+              error={errors.hsnCodeId}
+            />
+            <SelectInput
+              label="GST Rate (overrides HSN)"
+              name="gstRate"
+              value={formData.gstRate}
+              options={gstOptions}
+              defaultOptionLabel="-- Use HSN rate --"
+              onChange={handleChange}
             />
             <SelectInput
               label="Status"
@@ -977,7 +1042,7 @@ const ProductForm: React.FC = () => {
           subtitle="The recipe: share of each raw material in one piece"
           actions={
             <>
-              {rawMaterials.length > 0 && (
+              {bomTotal > 0 && (
                 <Chip
                   size="sm"
                   tone={Math.abs(bomTotal - 100) < 0.001 ? "success" : "warning"}
@@ -1013,6 +1078,25 @@ const ProductForm: React.FC = () => {
                         handleRawMaterialChange(idx, "rawMaterialId", e.target.value)
                       }
                       error={errors[`rawMaterials.${idx}.rawMaterialId`]}
+                    />
+                  ),
+                },
+                {
+                  header: "Qty per piece (kg)",
+                  width: "180px",
+                  render: (_, idx) => (
+                    <TextInput
+                      label=""
+                      bottom
+                      name={`qty-${idx}`}
+                      type="number"
+                      step="0.001"
+                      inputMode="decimal"
+                      value={rawMaterials[idx]?.requiredQuantity ?? ""}
+                      placeholder="0.000"
+                      onChange={(e) =>
+                        handleRawMaterialChange(idx, "requiredQuantity", e.target.value)
+                      }
                     />
                   ),
                 },

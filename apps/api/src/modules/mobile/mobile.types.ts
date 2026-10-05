@@ -209,8 +209,18 @@ const anyTableChanges = z
   })
   .partial();
 
+/**
+ * A device cursor: epoch milliseconds, never in the future beyond clock skew. It orders pulls
+ * only; it no longer decides who owns a visit's planning fields.
+ */
+const deviceCursor = z.coerce
+  .number()
+  .finite("lastPulledAt must be a timestamp")
+  .nonnegative("lastPulledAt must be a timestamp")
+  .refine((v) => v <= Date.now() + CLOCK_SKEW_TOLERANCE_MS, "lastPulledAt is in the future");
+
 export const pushBodySchema = z.object({
-  lastPulledAt: z.coerce.number().nullable().optional(),
+  lastPulledAt: deviceCursor.nullable().optional(),
   changes: z
     .object({
       visits: tableChanges(visitRawSchema).optional(),

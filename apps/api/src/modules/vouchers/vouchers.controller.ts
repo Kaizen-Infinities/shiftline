@@ -42,7 +42,10 @@ class VouchersController {
           message: `Invalid or missing 'type'. Allowed: ${validTypes.join(", ")}`,
         });
       }
-      const voucherNo = await vouchersService.peekNextVoucherNo(raw as VoucherType);
+      const voucherNo = await vouchersService.peekNextVoucherNo(
+        raw as VoucherType,
+        req.query.date ? new Date(String(req.query.date)) : undefined
+      );
       return res.status(200).json({ success: true, data: { voucherNo } });
     } catch (error) {
       next(error);

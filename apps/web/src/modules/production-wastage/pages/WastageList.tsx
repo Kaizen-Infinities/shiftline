@@ -8,8 +8,6 @@ import {
   deleteProductionWastage,
   approveProductionWastage,
   rejectProductionWastage,
-  productionWastageCreated,
-  productionWastageUpdated,
   productionWastageDeleted,
 } from "../../../features/production-wastage/productionWastageSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -73,10 +71,9 @@ const WastageList: React.FC = () => {
     );
   }, [dispatch, currentPage]);
 
-  useSocketSync<any>("productionWastage", {
-    created: productionWastageCreated,
-    updated: productionWastageUpdated,
-    deleted: productionWastageDeleted,
+  // Realtime events carry no record (F04): refetch the current page.
+  useSocketSync("productionWastage", { deleted: productionWastageDeleted }, () => {
+    dispatch(fetchProductionWastages({ page: currentPage, limit: ITEMS_PER_PAGE }));
   });
 
   useEffect(() => {

@@ -20,7 +20,13 @@ import {
  */
 const router = Router();
 router.use(authMiddleware);
-const actorOf = (req: Request) => ({ userId: req.user?.userId });
+/** `canManage`: may act for other employees and cancel approved leave (leave.approve). */
+const actorOf = (req: Request) => ({
+  userId: req.user?.userId,
+  canManage:
+    !!req.user?.isSuperAdmin ||
+    (Array.isArray(req.user?.permissions) && req.user.permissions.includes("leave.approve")),
+});
 
 router.get(
   "/requests",

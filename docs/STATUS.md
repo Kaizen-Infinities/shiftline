@@ -1,6 +1,6 @@
 # Status
 
-Dated 2026-10-04. Update this file and [ROADMAP.md](ROADMAP.md) at the end of every package.
+Dated 2026-10-05. Update this file and [ROADMAP.md](ROADMAP.md) at the end of every package.
 
 ## Live
 
@@ -12,6 +12,14 @@ The app runs at https://shiftline.apps.kaizeninfinities.com on version `a8c7fca2
 
 - PR #37, TN features beta: TN-04 Tamil UI, TN-05 MSME delayed-payment claims, TN-06 multi-step process routes, TN-07 OEM ASN and labels, TN-09 job costing.
 - PR #38: TN-08 buyer audit readiness, TN-10 subsidy tracker.
+
+## Security fixes, not deployed
+
+The IDOR and business-logic assessment fixes (F01-F10, JWT-01/02, API-01..04, BL-01..04, ABUSE-01) are merged on `claude/clever-curie-ymam25`, pending human review. Two migrations (`20260928090000_tenant_role_fks`, `20260928091000_eod_stock_run_permission`) and the new `eod-stock.run` key ship with them. Run the reconciliation queries before deploying. See [handoff/2026-10-04-security-fixes.md](handoff/2026-10-04-security-fixes.md).
+
+## QA fixes, not deployed
+
+The 19 findings from the live demo QA pass (F1-F19) are fixed or partly fixed on `claude/clever-curie-ymam25`, pending human review. Seed fixes reach the live tenant only through the `demo-seed` job after `backup` and `update`. See [handoff/2026-10-05-qa-fixes.md](handoff/2026-10-05-qa-fixes.md) for the verdict per finding, what is not done, and one decision for the owner (the credit-limit rule).
 
 ## Simulator or unconfigured
 
@@ -30,7 +38,7 @@ GitHub Actions runs again as of 2026-10-04 (typecheck/lint/format, schema and mi
 
 ## Local checks
 
-Last recorded on 2026-10-04 (PR #40): 133 test files / 1,101 tests passing, typecheck clean, lint with 0 errors, web build clean. Re-run them; this is not a live result.
+Last recorded on 2026-10-05 (QA-fix merge, non-superuser DB role): 138 test files / 1,163 API tests passing, 8 shared, 33 web, typecheck clean, lint with 0 errors, web build clean. The e2e suite was not run (no browser in the merge environment). Re-run them; this is not a live result.
 
 ## Not built yet
 

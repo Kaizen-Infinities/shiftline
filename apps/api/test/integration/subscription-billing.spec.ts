@@ -75,7 +75,9 @@ describe("subscription billing", () => {
     });
     expect(again.status).toBe(200);
     expect(
-      await asDemoTenant(() => prisma.subscriptionInvoice.count({ where: { status: "PAID" } }))
+      await asDemoTenant(() =>
+        prisma.subscriptionInvoice.count({ where: { status: "PAID", providerPaymentId: "pay_1" } })
+      )
     ).toBe(1);
   });
 

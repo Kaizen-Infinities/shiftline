@@ -89,6 +89,11 @@ const envSchema = z
     /** Field app: cheque OCR (optional; the app falls back to manual entry). */
     ANTHROPIC_API_KEY: optionalString,
     MOBILE_OCR_MODEL: z.string().default("claude-opus-5"),
+    /** Cheque OCR spend guard: calls per user per hour, per tenant per day, in flight at once. */
+    MOBILE_OCR_USER_PER_HOUR: z.coerce.number().int().min(1).max(10_000).default(30),
+    MOBILE_OCR_TENANT_PER_DAY: z.coerce.number().int().min(1).max(1_000_000).default(500),
+    MOBILE_OCR_MAX_CONCURRENT: z.coerce.number().int().min(1).max(100).default(4),
+    MOBILE_OCR_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
     /** Field app attachment storage: ImageKit (default) or S3. */
     MOBILE_STORAGE_DRIVER: z.enum(["imagekit", "s3"]).optional(),
     AWS_S3_BUCKET: optionalString,

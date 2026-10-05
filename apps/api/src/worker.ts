@@ -8,6 +8,7 @@ import { flushSentry, initSentry } from "./lib/sentry";
 import { startJobs, stopJobs } from "./lib/jobs";
 import { registerSchedules, registerWorkers } from "./jobs";
 import { logger } from "./lib/logger";
+import { closePdfBrowser } from "./utils/pdfGenerator";
 
 /**
  * Background worker entrypoint (`npm run worker -w @shiftline/api`). Runs the
@@ -26,6 +27,7 @@ const main = async (): Promise<void> => {
     logger.info(`\n⚠️ ${signal} received. Stopping worker...`);
     try {
       await stopJobs();
+      await closePdfBrowser();
       await prisma.$disconnect();
       await flushSentry();
       process.exit(0);

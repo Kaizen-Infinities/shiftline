@@ -71,6 +71,10 @@ const LedgerSearchInput: React.FC<LedgerSearchInputProps> = ({
       l.code.toLowerCase().includes(term) ||
       l.group.toLowerCase().includes(term) ||
       (l.customer?.firmName || "").toLowerCase().includes(term) ||
+      (l.customer?.displayName || "").toLowerCase().includes(term) ||
+      (l.customer?.customerCode || "").toLowerCase().includes(term) ||
+      (l.supplier?.displayName || "").toLowerCase().includes(term) ||
+      (l.supplier?.supplierCode || "").toLowerCase().includes(term) ||
       (l.supplier?.legalName || "").toLowerCase().includes(term)
     );
   });

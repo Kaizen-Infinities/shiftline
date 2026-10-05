@@ -79,9 +79,13 @@ describe("gst on documents", () => {
       expect(first).toMatch(seriesRe("INV"));
       expect(n(second.split("/")[2])).toBe(n(first.split("/")[2]) + 1);
 
-      const peeked = await documentNumberService.peek("SALES_INVOICE");
+      // `next()` with no place uses the company-wide series, so peek that one (a bare peek()
+      // follows the head-office place, which other specs in the same worker may have advanced).
+      const peeked = await documentNumberService.peek("SALES_INVOICE", { businessPlaceId: null });
       expect(n(peeked.split("/")[2])).toBe(n(second.split("/")[2]) + 1);
-      expect(await documentNumberService.peek("SALES_INVOICE")).toBe(peeked);
+      expect(await documentNumberService.peek("SALES_INVOICE", { businessPlaceId: null })).toBe(
+        peeked
+      );
 
       // A branch runs its own series under the place code.
       const factory = await prisma.businessPlace.findFirstOrThrow({ where: { code: "F1" } });

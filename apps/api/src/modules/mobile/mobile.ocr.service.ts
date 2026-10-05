@@ -60,45 +60,96 @@ function getClient() {
       "Cheque OCR is not configured (ANTHROPIC_API_KEY missing) — enter the details manually"
     );
   }
-  if (!client) client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  if (!client) {
+    client = new Anthropic({
+      apiKey: env.ANTHROPIC_API_KEY,
+      timeout: env.MOBILE_OCR_TIMEOUT_MS,
+      maxRetries: 0,
+    });
+  }
   return client;
+}
+
+// ─── Spend guard: per-user and per-tenant budgets plus a process-wide concurrency cap ──────────
+// In-memory fixed windows, enough for one API process (same trade-off as lib/tenant-rate-limit).
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const budgets = new Map<string, { count: number; resetAt: number }>();
+let inFlight = 0;
+
+const overBudget = () =>
+  new ApiError(
+    429,
+    "Cheque reading limit reached for now — please enter the details manually or try again later",
+    "OCR_LIMIT_REACHED"
+  );
+
+/** Test hook: forget every budget and in-flight call. */
+export const resetOcrBudgets = () => {
+  budgets.clear();
+  inFlight = 0;
+};
+
+/** Counts one call against the user and tenant budgets; throws 429 when either is spent. */
+function takeBudget(who: { companyId: string; userId: string }, now = Date.now()) {
+  for (const [k, w] of budgets) if (w.resetAt <= now) budgets.delete(k);
+  const spend = (key: string, limit: number, windowMs: number) => {
+    const w = budgets.get(key) ?? { count: 0, resetAt: now + windowMs };
+    budgets.set(key, w);
+    return { w, ok: w.count < limit };
+  };
+  const user = spend(`u:${who.companyId}:${who.userId}`, env.MOBILE_OCR_USER_PER_HOUR, HOUR_MS);
+  const tenant = spend(`t:${who.companyId}`, env.MOBILE_OCR_TENANT_PER_DAY, DAY_MS);
+  if (!user.ok || !tenant.ok) throw overBudget();
+  user.w.count++;
+  tenant.w.count++;
 }
 
 export async function readCheque(
   image: Buffer,
   mimeType: string,
-  todayIso: string
+  todayIso: string,
+  who: { companyId: string; userId: string }
 ): Promise<ChequeFields> {
   if (!SUPPORTED_MEDIA.includes(mimeType as ImageMediaType)) {
     throw new ApiError(400, "Cheque OCR accepts JPG, PNG or WEBP images");
   }
   const anthropic = getClient();
 
-  const response = await anthropic.messages.parse({
-    model: env.MOBILE_OCR_MODEL,
-    max_tokens: 2048,
-    system:
-      "You read Indian bank cheques for a field-collection app. Extract only what is legibly printed or handwritten on the cheque. " +
-      "Never guess a digit: if a field is unreadable return null and add a warning. " +
-      `Today's date is ${todayIso}; use it to decide isPostDated. Dates on Indian cheques are written DD MM YYYY.`,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mimeType as ImageMediaType,
-              data: image.toString("base64"),
+  // Gate before the paid call: concurrency first (cheap to refuse, costs the caller no budget).
+  if (inFlight >= env.MOBILE_OCR_MAX_CONCURRENT) throw overBudget();
+  takeBudget(who);
+  inFlight++;
+  let response;
+  try {
+    response = await anthropic.messages.parse({
+      model: env.MOBILE_OCR_MODEL,
+      max_tokens: 2048,
+      system:
+        "You read Indian bank cheques for a field-collection app. Extract only what is legibly printed or handwritten on the cheque. " +
+        "Never guess a digit: if a field is unreadable return null and add a warning. " +
+        `Today's date is ${todayIso}; use it to decide isPostDated. Dates on Indian cheques are written DD MM YYYY.`,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mimeType as ImageMediaType,
+                data: image.toString("base64"),
+              },
             },
-          },
-          { type: "text", text: "Extract the cheque details." },
-        ],
-      },
-    ],
-    output_config: { format: zodOutputFormat(chequeFieldsSchema) },
-  });
+            { type: "text", text: "Extract the cheque details." },
+          ],
+        },
+      ],
+      output_config: { format: zodOutputFormat(chequeFieldsSchema) },
+    });
+  } finally {
+    inFlight--;
+  }
 
   if (response.stop_reason === "refusal") {
     throw new ApiError(

@@ -31,8 +31,11 @@ export const grnInvoiceService = {
     await apiClient.delete(`${config.grnInvoice.base}/${id}`);
   },
 
-  fetchNextCode: async (): Promise<string> => {
-    const response = await apiClient.get(config.grnInvoice.nextCode);
+  /** The number a save on `date` would take (the series is per financial year); not consumed. */
+  fetchNextCode: async (date?: string): Promise<string> => {
+    const response = await apiClient.get(config.grnInvoice.nextCode, {
+      params: date ? { date } : undefined,
+    });
     return response.data?.data || "";
   },
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { todayIn, weekStart } from "@shiftline/shared";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { z } from "zod";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -88,6 +89,13 @@ const DailyPlanCreate: React.FC = () => {
   // ── Fetch active assignment ──────────────────────────────────────────────
   const loadedPlanRef = useRef<{ machineId?: string; shiftId?: string; prodDate?: string } | null>(
     null
+  );
+  const sortedShifts = useMemo(
+    () =>
+      [...(shifts || [])].sort((a: any, b: any) =>
+        String(a.startTime ?? "").localeCompare(String(b.startTime ?? ""))
+      ),
+    [shifts]
   );
   const [availableOperators, setAvailableOperators] = useState<any[]>([]);
   const [selectedOperators, setSelectedOperators] = useState<string[]>([]);
@@ -320,14 +328,7 @@ const DailyPlanCreate: React.FC = () => {
   const loadWeeklyPrograms = useCallback(async () => {
     setLoadingWeekly(true);
     try {
-      const d = new Date(productionDate || new Date());
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(d.setDate(diff));
-      const year = monday.getFullYear();
-      const month = String(monday.getMonth() + 1).padStart(2, "0");
-      const dateStr = String(monday.getDate()).padStart(2, "0");
-      const selectedWeekPrefix = `${year}-${month}-${dateStr}`;
+      const selectedWeekPrefix = weekStart(productionDate || todayIn());
 
       const res = await weeklyProgramService.getAll({});
       const list: any[] = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
@@ -999,7 +1000,7 @@ const DailyPlanCreate: React.FC = () => {
                 onChange={(e: any) => setShiftId(e.target.value)}
                 error={formErrors.shiftId}
                 defaultOptionLabel="— Select Shift —"
-                options={shifts.map((s: any) => {
+                options={sortedShifts.map((s: any) => {
                   const totalHrs = computeShiftHours(s.startTime, s.endTime);
                   const remainingHrs = remainingShiftsHours[s.shiftCode] ?? totalHrs;
                   return {
@@ -1060,11 +1061,14 @@ const DailyPlanCreate: React.FC = () => {
                       ? "No operators assigned to this machine..."
                       : "-- Select Assigned Operators --"
                   }
+                  // One message: with no operator assigned the hint below says so.
                   error={
-                    formErrors.selectedOperators ||
-                    (selectedOperators.length === 0 && assignmentError
-                      ? assignmentError
-                      : undefined)
+                    availableOperators.length === 0
+                      ? undefined
+                      : formErrors.selectedOperators ||
+                        (selectedOperators.length === 0 && assignmentError
+                          ? assignmentError
+                          : undefined)
                   }
                 />
               )}

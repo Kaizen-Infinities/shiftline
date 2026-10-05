@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { redactUrl } from "./redact-url";
 import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
@@ -27,7 +28,12 @@ export const requestContextMiddleware = (req: Request, res: Response, next: Next
   const requestId = incoming && SAFE_ID.test(incoming) ? incoming : randomUUID();
   res.setHeader("x-request-id", requestId);
   requestStorage.run(
-    { requestId, method: req.method, path: req.originalUrl, startedAt: Date.now() },
+    {
+      requestId,
+      method: req.method,
+      path: redactUrl(req.originalUrl) ?? req.originalUrl,
+      startedAt: Date.now(),
+    },
     () => next()
   );
 };

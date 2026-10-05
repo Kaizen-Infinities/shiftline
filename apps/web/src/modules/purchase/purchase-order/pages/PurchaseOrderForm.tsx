@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { getServerErrorMessage, getServerFieldErrors } from "../../../../utils/serverErrors";
 import { useFormShortcuts } from "../../../../hooks/useFormShortcuts";
 import {
   AlertTriangle,
@@ -925,7 +926,14 @@ const PurchaseOrderForm: React.FC = () => {
       }
       navigate("/purchase-orders");
     } catch (error: any) {
-      toast.error(error?.message || `Failed to ${isEdit ? "update" : "create"} purchase order`);
+      const fieldErrors: Record<string, string> = {};
+      getServerFieldErrors(error).forEach(({ path, message }) => {
+        fieldErrors[path] = message;
+      });
+      if (Object.keys(fieldErrors).length > 0) setErrors((prev) => ({ ...prev, ...fieldErrors }));
+      toast.error(
+        getServerErrorMessage(error, `Failed to ${isEdit ? "update" : "create"} purchase order`)
+      );
     } finally {
       setIsSubmitting(false);
       setIsSubmittingForApproval(false);

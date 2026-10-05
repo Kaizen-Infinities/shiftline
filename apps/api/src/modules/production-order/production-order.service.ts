@@ -1,3 +1,4 @@
+import { documentNumberService } from "../documents/document-number.service";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import {
@@ -95,6 +96,9 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   COMPLETED: ["READY_FOR_DISPATCH", "DISPATCHED"],
 };
 
+/** "MO/2026-27/0001-1": a series number (any prefix) plus the first-line suffix the screen adds. */
+const SERIES_FIRST_LINE = /^[A-Za-z0-9-]+\/\d{4}(?:-\d{2})?\/\d+-1$/;
+
 class ProductionOrderService {
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -142,11 +146,22 @@ class ProductionOrderService {
       ? BigInt(data.sourceSalesOrderLineId)
       : null;
 
-    const existing = await prisma.productionOrder.findUnique({
-      where: byCode("productionOrderId", data.productionOrderId),
-    });
-    if (existing) {
-      throw new ApiError(409, `Production Order with ID ${data.productionOrderId} already exists`);
+    // The screen submits the number it was shown, "MO/2026-27/0001-1": the order number from the
+    // MO series plus a line suffix. A first line ("-1") in that shape takes the number inside the
+    // save transaction if it is still the next one, otherwise a fresh one (someone else saved
+    // first), so it is never a duplicate. Other lines of the same order, and legacy codes such as
+    // "PO-2609-014", are kept as submitted and a duplicate is a 409.
+    const seriesFirstLine = SERIES_FIRST_LINE.test(data.productionOrderId);
+    if (!seriesFirstLine) {
+      const existing = await prisma.productionOrder.findUnique({
+        where: byCode("productionOrderId", data.productionOrderId),
+      });
+      if (existing) {
+        throw new ApiError(
+          409,
+          `Production Order with ID ${data.productionOrderId} already exists`
+        );
+      }
     }
 
     const product = await prisma.product.findUnique({
@@ -214,9 +229,18 @@ class ProductionOrderService {
     // ✅ STEP 1 RULE: Status is always CREATED on creation. No exceptions.
     const result = await prisma.$transaction(
       async (tx) => {
+        let orderCode = data.productionOrderId;
+        if (seriesFirstLine) {
+          const base = orderCode.replace(/-1$/, "");
+          orderCode = `${await documentNumberService.takeShownOrNext("PRODUCTION_ORDER", base, { tx })}-1`;
+          // A legacy row that happens to hold the next series number: move on, never fail.
+          while (await tx.productionOrder.findFirst({ where: { productionOrderId: orderCode } })) {
+            orderCode = `${await documentNumberService.takeShownOrNext("PRODUCTION_ORDER", "", { tx })}-1`;
+          }
+        }
         const createdOrder = await tx.productionOrder.create({
           data: {
-            productionOrderId: data.productionOrderId,
+            productionOrderId: orderCode,
             orderDate: new Date(data.orderDate),
             dueDate: new Date(data.dueDate),
             productItemId,
@@ -251,7 +275,7 @@ class ProductionOrderService {
         // ✅ Log creation history
         await this.addHistory(
           tx,
-          data.productionOrderId,
+          orderCode,
           null,
           data.status === "DRAFT" ? "DRAFT" : "CREATED",
           userId,
@@ -1390,24 +1414,9 @@ class ProductionOrderService {
   }
 
   // ── Get next ID ───────────────────────────────────────────────────────────
+  /** The number the next production order takes (series "MO"), without consuming it. */
   async getNextProductionOrderId() {
-    const lastItem = await prisma.productionOrder.findFirst({
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!lastItem) return "PRO0001";
-
-    let lastId = lastItem.productionOrderId;
-    if (lastId.includes("-")) lastId = lastId.split("-")[0];
-
-    const match = lastId.match(/\d+/);
-    if (!match) return lastId + "0001";
-
-    const numberStr = match[0];
-    const nextNumber = parseInt(numberStr, 10) + 1;
-    const paddedNumber = String(nextNumber).padStart(numberStr.length, "0");
-    const suffix = lastId.substring(lastId.indexOf(numberStr) + numberStr.length);
-    return `PRO${paddedNumber}${suffix}`;
+    return documentNumberService.peek("PRODUCTION_ORDER");
   }
 
   // ── Get Production Order History ──────────────────────────────────────────

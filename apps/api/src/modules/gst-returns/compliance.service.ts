@@ -196,7 +196,7 @@ class ComplianceService {
         title: `${def?.name ?? row.filingType} for ${row.periodKey} is due on ${row.dueDate}`,
         body:
           row.status === "NOT_STARTED"
-            ? `Nothing has been prepared yet. ${row.daysLeft} day(s) left.`
+            ? `No filing has been started for approval yet. Figures on the GST screen are a live preview, not a filing. ${row.daysLeft} day(s) left.`
             : `It is ${row.status.toLowerCase()}. ${row.daysLeft} day(s) left.`,
         link,
         to: { permission: "filings.prepare" },

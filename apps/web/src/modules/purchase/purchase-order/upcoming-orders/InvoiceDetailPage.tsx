@@ -140,7 +140,7 @@ const InvoiceDetailPage: React.FC = () => {
   // ── Form ─────────────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
     poId: "",
-    grnNumber: "GRN-" + new Date().getFullYear() + "-001",
+    grnNumber: "",
     invoiceNo: "",
     grnDate: new Date().toISOString().split("T")[0],
     supplierId: "",
@@ -189,6 +189,20 @@ const InvoiceDetailPage: React.FC = () => {
     exchangeRate: 1,
   });
 
+  // The GRN number is assigned by the server's series on save (per financial year of the GRN
+  // date); show the number that save would take.
+  useEffect(() => {
+    if (id) return;
+    let alive = true;
+    grnInvoiceService
+      .fetchNextCode(form.grnDate || undefined)
+      .then((code) => alive && setForm((prev) => ({ ...prev, grnNumber: code })))
+      .catch(() => alive && setForm((prev) => ({ ...prev, grnNumber: "" })));
+    return () => {
+      alive = false;
+    };
+  }, [id, form.grnDate]);
+
   const [items, setItems] = useState<GRNItem[]>([]);
   // GST nature of the inward supply (P1-08): state codes (GSTIN prefix), state names only as a fallback.
   const stateCodeOf = (code?: string | null, gstin?: string | null, stateName?: string | null) =>
@@ -228,17 +242,6 @@ const InvoiceDetailPage: React.FC = () => {
       })
       .catch(() => toast.error(t("grn.toast.loadOrders")))
       .finally(() => setLoadingPOs(false));
-
-    if (!id) {
-      grnInvoiceService
-        .fetchNextCode()
-        .then((code) => {
-          if (code) {
-            setForm((prev) => ({ ...prev, grnNumber: code }));
-          }
-        })
-        .catch((err) => console.error("Failed to fetch next GRN number:", err));
-    }
 
     currencyService
       .list(false)
@@ -1010,7 +1013,8 @@ const InvoiceDetailPage: React.FC = () => {
       { value: "", label: t("grn.select") },
       ...(suppliers || []).map((s: any) => ({
         value: String(s.id || ""),
-        label: `${s.supplierCode || ""} - ${s.legalName || s.displayName || ""}`,
+        // Same name the PO and GRN lists show.
+        label: s.displayName || s.legalName || s.supplierCode || "",
       })),
     ],
     [suppliers]
@@ -1315,6 +1319,7 @@ const InvoiceDetailPage: React.FC = () => {
                   name="grnNumber"
                   value={form.grnNumber}
                   onChange={handleChange}
+                  placeholder="Assigned on save"
                   disabled
                 />
                 <TextInput

@@ -10,6 +10,9 @@ import type { WebhookEnvelope } from "./payments.types";
 import { paymentProviderFor } from "./providers";
 import { signatureMatches } from "./providers/signature";
 
+/** A RECEIVED event older than this was abandoned mid-flight and may be taken over. */
+const STALE_RECEIVED_MS = 5 * 60 * 1000;
+
 export interface CallbackResult {
   status: "PROCESSED" | "IGNORED" | "DUPLICATE";
   detail: string;
@@ -47,20 +50,37 @@ class WebhookService {
       const eventId =
         envelope?.eventId ?? `unsigned-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+      // Only a finished event is a duplicate (BL-04). A FAILED one, or a RECEIVED one nobody
+      // finished (the worker died), is claimed again atomically and re-processed; a fresh
+      // RECEIVED one is still in flight on another request.
       const existing = await prisma.paymentWebhookEvent.findFirst({
         where: { providerEventId: eventId },
       });
-      if (existing) return { status: "DUPLICATE" as const, detail: "Already handled" };
-
-      const event = await prisma.paymentWebhookEvent.create({
-        data: {
-          providerEventId: eventId,
-          eventType: String(envelope?.eventType ?? "unknown").slice(0, 60),
-          signatureValid: valid,
-          status: "RECEIVED",
-          payload: payload as object,
-        },
-      });
+      let event: { id: string };
+      if (existing) {
+        const staleBefore = new Date(Date.now() - STALE_RECEIVED_MS);
+        const claimed = await prisma.paymentWebhookEvent.updateMany({
+          where: {
+            id: existing.id,
+            OR: [{ status: "FAILED" }, { status: "RECEIVED", receivedAt: { lt: staleBefore } }],
+          },
+          data: { status: "RECEIVED", receivedAt: new Date(), error: null, processedAt: null },
+        });
+        if (claimed.count !== 1) {
+          return { status: "DUPLICATE" as const, detail: "Already handled" };
+        }
+        event = existing;
+      } else {
+        event = await prisma.paymentWebhookEvent.create({
+          data: {
+            providerEventId: eventId,
+            eventType: String(envelope?.eventType ?? "unknown").slice(0, 60),
+            signatureValid: valid,
+            status: "RECEIVED",
+            payload: payload as object,
+          },
+        });
+      }
 
       if (!valid) {
         await this.close(event.id, "FAILED", "Signature did not verify");
@@ -98,11 +118,15 @@ class WebhookService {
 
     const s = envelope.subscription;
     if (s.outcome === "PAID") {
-      await billingService.recordCharge(companyId, {
+      const charge = await billingService.recordCharge(companyId, {
         providerInvoiceId: s.providerInvoiceId,
         providerPaymentId: s.providerPaymentId,
         amount: s.amount,
       });
+      // Unmatched money is logged by billing and answered as handled: a retry cannot fix it.
+      if (charge.result === "UNMATCHED") {
+        return { status: "IGNORED", detail: "Charge matched no open invoice" };
+      }
     } else if (s.outcome === "FAILED") {
       await billingService.recordFailure(companyId, s.reason);
     } else {

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import type { Prisma } from "@prisma/client";
 
 import { ApiError } from "../utils/ApiError";
 import { logger } from "../lib/logger";
@@ -9,6 +10,31 @@ import { prisma } from "../config/prisma";
 import { tenantStorage, withoutTenant } from "../lib/tenant-context";
 import { enforceTenantApiCap } from "../lib/tenant-rate-limit";
 import { impersonationService } from "../modules/platform/impersonation.service";
+
+/**
+ * What the hot path reads about a tenant user: the account, its company and its role grants in
+ * one query. Rows are re-checked against the user's own company by the caller because this read
+ * runs across tenants.
+ */
+const authUserSelect = {
+  status: true,
+  roleId: true,
+  companyId: true,
+  company: { select: { isActive: true } },
+  // One query for the account and its role grants (hot path). Rows are re-checked
+  // against the user's own company below because this read runs across tenants.
+  role: {
+    select: {
+      companyId: true,
+      status: true,
+      rolePermissions: {
+        select: { companyId: true, permission: { select: { key: true } } },
+      },
+    },
+  },
+} satisfies Prisma.UserSelect;
+
+type AuthUser = Prisma.UserGetPayload<{ select: typeof authUserSelect }>;
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -51,6 +77,13 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
             : { userId: sessionOwner }),
           isActive: true,
           expiresAt: { gt: new Date() },
+        },
+        // A tenant user's own session carries the account and grants (one query on the hot
+        // path); admins and impersonation read what they need below.
+        select: {
+          id: true,
+          deviceId: true,
+          ...(!ownerIsAdmin && !impersonating && { user: { select: authUserSelect } }),
         },
       });
 
@@ -98,15 +131,12 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
           companyId = company.id;
         }
       } else {
-        const user = await prisma.user.findUnique({
-          where: { userId: decoded.userId },
-          select: {
-            status: true,
-            roleId: true,
-            companyId: true,
-            company: { select: { isActive: true } },
-          },
-        });
+        const user: AuthUser | null =
+          (session as { user?: AuthUser | null }).user ??
+          (await prisma.user.findUnique({
+            where: { userId: decoded.userId },
+            select: authUserSelect,
+          }));
 
         if (!user || user.status !== "active") {
           throw new ApiError(401, "Account is suspended or inactive");
@@ -121,13 +151,15 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         }
         companyId = user.companyId;
 
-        if (user.roleId) {
-          const rolePermissions = await prisma.rolePermission.findMany({
-            where: { roleId: user.roleId },
-            select: { permission: { select: { key: true } } },
-          });
-          decoded.permissions = rolePermissions.map((p) => p.permission.key);
-        }
+        // Fail closed (JWT-01): whatever the token claims, a tenant user's effective permissions
+        // start empty and come only from an active role and grants of the user's own company.
+        const role = user.role;
+        decoded.permissions =
+          role && role.status === "active" && role.companyId === user.companyId
+            ? role.rolePermissions
+                .filter((rp) => rp.companyId === user.companyId)
+                .map((rp) => rp.permission.key)
+            : [];
       }
       return { companyId };
     });

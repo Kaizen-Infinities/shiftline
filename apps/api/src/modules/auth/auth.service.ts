@@ -6,6 +6,7 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { entitlementService } from "../entitlements/entitlement.service";
 import { authRepository } from "./auth.repository";
+import { assertTenantRole } from "../role-permissions/role-permission.service";
 import { hashPassword, comparePassword } from "../../utils/hashPassword";
 import { generateAccessToken } from "../../utils/generateAccessToken";
 import {
@@ -54,6 +55,12 @@ export class AuthService {
       throw new ApiError(409, "Username already taken");
     }
 
+    // Same guards as UserService.create: the role is this tenant's (F01) and a seat is free.
+    if (payload.roleId !== undefined && payload.roleId !== null && payload.roleId !== "") {
+      await assertTenantRole(Number(payload.roleId));
+    }
+    await entitlementService.assertSeatAvailable();
+
     const passwordHash = await hashPassword(payload.password);
 
     const user = await authRepository.createUser({
@@ -64,6 +71,7 @@ export class AuthService {
       roleId: payload.roleId,
       createdBy: payload.createdBy,
     });
+    entitlementService.invalidate();
 
     await authRepository.createAuditLog({
       entityName: "User",
@@ -208,7 +216,10 @@ export class AuthService {
     }
 
     // Successful login
-    const permissions = await authRepository.findPermissionsByRole(user.roleId);
+    const permissions = await authRepository.findPermissionsByRole(
+      user.roleId,
+      isAdminLogin ? undefined : user.companyId
+    );
     const roleCode = user.role?.code ?? (user.roleId !== null ? user.roleId.toString() : "");
 
     // The refresh token is the session secret; only its hash is stored.
@@ -378,7 +389,10 @@ export class AuthService {
       }
     }
 
-    const permissions = await authRepository.findPermissionsByRole(user.roleId);
+    const permissions = await authRepository.findPermissionsByRole(
+      user.roleId,
+      session.adminId ? undefined : user.companyId
+    );
     const roleCode = user.role?.code ?? (user.roleId !== null ? String(user.roleId) : "");
 
     const nextRaw = newRefreshToken();
@@ -511,7 +525,8 @@ export class AuthService {
     oldPassword: string,
     newPassword: string,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    currentSessionId?: string
   ): Promise<void> {
     const user = await authRepository.findUserById(userId);
 
@@ -540,6 +555,9 @@ export class AuthService {
 
     // Invalidate all password reset tokens
     await authRepository.invalidatePasswordResetTokens(userId);
+
+    // JWT-02: a new password ends every other session; the caller's own stays signed in.
+    await authRepository.logoutOtherUserSessions(userId, currentSessionId);
 
     await authRepository.createAuditLog({
       entityName: "User",
@@ -653,7 +671,7 @@ export class AuthService {
       throw new ApiError(404, "User not found");
     }
 
-    const permissions = await authRepository.findPermissionsByRole(user.roleId);
+    const permissions = await authRepository.findPermissionsByRole(user.roleId, user.companyId);
 
     return {
       user: this.formatUserResponse(user, false),

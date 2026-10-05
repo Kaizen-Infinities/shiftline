@@ -2,15 +2,18 @@ import React from "react";
 import { useSocket } from "../providers/SocketProvider";
 import { useAppDispatch } from "./reduxHooks";
 
-interface SocketActions<T> {
-  created?: (payload: T) => any;
-  updated?: (payload: T) => any;
-  deleted?: (payload: any) => any;
+/**
+ * Realtime events are invalidation-only (F04): the payload is `{ id }` at most, never the
+ * record. A handler must refetch through the REST API (`onAnyEvent`); only `deleted` may act
+ * on the id, to drop a row that is already gone.
+ */
+interface SocketActions {
+  deleted?: (id: any) => any;
 }
 
-export const useSocketSync = <T,>(
-  moduleName: string, 
-  actions?: SocketActions<T>,
+export const useSocketSync = (
+  moduleName: string,
+  actions?: SocketActions,
   onAnyEvent?: () => void
 ) => {
   const dispatch = useAppDispatch();
@@ -40,13 +43,11 @@ export const useSocketSync = <T,>(
       }, 50);
     };
 
-    const handleCreated = (payload: T) => {
-      if (actionsRef.current?.created) dispatch(actionsRef.current.created(payload));
+    const handleCreated = () => {
       fireOnAny();
     };
 
-    const handleUpdated = (payload: T) => {
-      if (actionsRef.current?.updated) dispatch(actionsRef.current.updated(payload));
+    const handleUpdated = () => {
       fireOnAny();
     };
 
@@ -66,7 +67,6 @@ export const useSocketSync = <T,>(
       socket.off(`${moduleName}:updated`, handleUpdated);
       socket.off(`${moduleName}:deleted`, handleDeleted);
     };
-  // We stringify the function references or omit them to prevent infinite loops if they aren't wrapped in useCallback
-   
+    // We stringify the function references or omit them to prevent infinite loops if they aren't wrapped in useCallback
   }, [socket, dispatch, moduleName]);
 };

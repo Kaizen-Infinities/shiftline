@@ -3,7 +3,7 @@ import { Router } from "express";
 import customerController from "./customer.controller";
 
 import { authMiddleware } from "../../middleware/auth.middleware";
-import { requirePermission } from "../../middleware/permission.middleware";
+import { requireAnyPermission, requirePermission } from "../../middleware/permission.middleware";
 import { validateMiddleware } from "../../middleware/validate.middleware";
 import {
   createCustomerRequestSchema,
@@ -35,7 +35,14 @@ router.get(
   customerController.getNextCode
 );
 
-router.get("/:id/credit-status", authMiddleware, customerController.getCreditStatus);
+// Customer viewers, and the sales-order users whose screens run the same credit check.
+router.get(
+  "/:id/credit-status",
+  authMiddleware,
+  requireAnyPermission("customers.view", "sales-orders.create", "sales-orders.edit"),
+  validateMiddleware(customerIdRequestSchema),
+  customerController.getCreditStatus
+);
 
 router.get(
   "/:id",

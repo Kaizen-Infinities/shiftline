@@ -30,6 +30,32 @@ const deriveGstFields = (
 import { logger } from "../../lib/logger";
 
 class CustomerService {
+  /**
+   * 400 unless the customer type / grade belong to this tenant. The tenant-scoped client returns
+   * null for a foreign id; the foreign keys alone only check that the id exists somewhere.
+   */
+  private async assertTypeAndGrade(data: {
+    customerTypeId?: number | null;
+    customerGradeId?: number | null;
+  }) {
+    const [type, grade] = await Promise.all([
+      data.customerTypeId == null
+        ? true
+        : prisma.customerType.findFirst({
+            where: { id: data.customerTypeId },
+            select: { id: true },
+          }),
+      data.customerGradeId == null
+        ? true
+        : prisma.customerGrade.findFirst({
+            where: { id: data.customerGradeId },
+            select: { id: true },
+          }),
+    ]);
+    if (!type) throw new ApiError(400, "That customer type does not exist");
+    if (!grade) throw new ApiError(400, "That customer grade does not exist");
+  }
+
   async createCustomer(
     data: CreateCustomerInput,
     currentUser: { userId: string; companyId: string }
@@ -44,6 +70,7 @@ class CustomerService {
     if (existingCustomer) {
       throw new Error("Customer code already exists for this company");
     }
+    await this.assertTypeAndGrade(data);
 
     // Also strip `openingBalancePaidThroughLedgerId` — it's a workflow-only field
     // used to route the auto-posted opening voucher to a bank/cash ledger; the
@@ -350,6 +377,8 @@ class CustomerService {
         throw new ApiError(409, "Customer code already exists for this company");
       }
     }
+
+    await this.assertTypeAndGrade(data);
 
     const { phones, addresses, ...restData } = data as any;
     const mobileData = phones !== undefined ? phones : restData.mobile;

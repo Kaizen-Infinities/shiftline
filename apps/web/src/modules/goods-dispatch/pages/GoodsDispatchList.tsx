@@ -4,8 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../../hooks/reduxHooks";
 import {
   fetchGoodsDispatches,
-  goodsDispatchCreated,
-  goodsDispatchUpdated,
   goodsDispatchDeleted,
 } from "../../../features/goods-dispatch/goodsDispatchSlice";
 import { useSocketSync } from "../../../hooks/useSocketSync";
@@ -78,10 +76,18 @@ const GoodsDispatchList: React.FC = () => {
     );
   }, [dispatch, currentPage, debouncedSearch, filterStatus, filterDateFrom, filterDateTo]);
 
-  useSocketSync("goodsDispatch", {
-    created: goodsDispatchCreated,
-    updated: goodsDispatchUpdated,
-    deleted: goodsDispatchDeleted,
+  // Realtime events carry no record (F04): refetch the current view.
+  useSocketSync("goodsDispatch", { deleted: goodsDispatchDeleted }, () => {
+    dispatch(
+      fetchGoodsDispatches({
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        search: debouncedSearch,
+        status: filterStatus || undefined,
+        dateFrom: filterDateFrom || undefined,
+        dateTo: filterDateTo || undefined,
+      })
+    );
   });
 
   const handleApplyFilters = () => {

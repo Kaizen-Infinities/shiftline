@@ -10,7 +10,11 @@ import { prisma } from "../src/config/prisma";
 import { bootstrapAdmin } from "../src/utils/bootstrapAdmin";
 import { withoutTenant } from "../src/lib/tenant-context";
 import { seedTenant } from "./seed-lib";
-import { seedDemoActivity } from "./seed-demo-activity";
+import {
+  seedDemoActivity,
+  seedDemoProductionOrders,
+  seedDemoStockMinimums,
+} from "./seed-demo-activity";
 
 const SEED_PASSWORD = process.env.SEED_PASSWORD ?? "Demo@12345678";
 const log = (msg: string) => process.stdout.write(`[seed] ${msg}\n`);
@@ -37,6 +41,8 @@ async function main() {
       prisma.user.findUniqueOrThrow({ where: { username: "demo.owner" } })
     );
     await seedDemoActivity({ companyId: company.id, ownerUserId: owner.userId, log });
+    await seedDemoStockMinimums({ companyId: company.id, log });
+    await seedDemoProductionOrders({ companyId: company.id, ownerUserId: owner.userId, log });
   }
   log(
     "users demo.owner, demo.accounts, demo.stores, demo.production, demo.sales, demo.auditor (password: SEED_PASSWORD)"

@@ -47,6 +47,7 @@ const TextInput: React.FC<TextInputProps> = ({
   onChange,
   onKeyDown,
   onPaste,
+  onFocus,
   as = "input",
   rows = 3,
   ...rest
@@ -128,6 +129,11 @@ const TextInput: React.FC<TextInputProps> = ({
               onChange={handleChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
+              onFocus={(e) => {
+                // Typing over an auto-filled number replaces it instead of appending.
+                if (isNumberType) e.currentTarget.select();
+                onFocus?.(e);
+              }}
               min={isNumberType ? (rest.min ?? "0") : rest.min}
               step={step}
               disabled={disabled}

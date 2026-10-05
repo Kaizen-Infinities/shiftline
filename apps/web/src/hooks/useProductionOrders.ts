@@ -5,20 +5,19 @@ import {
   createProductionOrder,
   updateProductionOrder,
   deleteProductionOrder,
-  productionOrderCreated,
-  productionOrderUpdated,
   productionOrderDeleted,
 } from "../features/production-orders/productionOrderSlice";
 import { useSocketSync } from "./useSocketSync";
 
 export const useProductionOrders = () => {
   const dispatch = useAppDispatch();
-  const { data, loading, error } = useAppSelector((state) => state.productionOrders || { data: [], loading: false, error: null });
+  const { data, loading, error } = useAppSelector(
+    (state) => state.productionOrders || { data: [], loading: false, error: null }
+  );
 
-  useSocketSync<any>("productionOrder", {
-    created: productionOrderCreated,
-    updated: productionOrderUpdated,
-    deleted: productionOrderDeleted,
+  // Realtime events carry no record (F04): refetch.
+  useSocketSync("productionOrder", { deleted: productionOrderDeleted }, () => {
+    dispatch(fetchProductionOrders());
   });
 
   const loadProductionOrders = useCallback(() => {

@@ -10,7 +10,7 @@ import {
   checkUsername,
   updateMyLocale,
 } from "./user.controller";
-import { updateMyLocaleSchema } from "./user.validation";
+import { createUserSchema, updateMyLocaleSchema } from "./user.validation";
 
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
@@ -43,7 +43,13 @@ router.patch(
 |--------------------------------------------------------------------------
 */
 
-router.post("/", authMiddleware, requirePermission("users.create"), createUser);
+router.post(
+  "/",
+  authMiddleware,
+  requirePermission("users.create"),
+  validateMiddleware(createUserSchema),
+  createUser
+);
 
 router.get("/", authMiddleware, requirePermission("users.view"), getAllUsers);
 

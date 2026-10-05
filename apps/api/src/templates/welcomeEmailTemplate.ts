@@ -1,3 +1,4 @@
+import { escapeHtml, safeUrl } from "../utils/escapeHtml";
 import { env } from "../config/env";
 
 export interface WelcomeEmailData {
@@ -15,14 +16,19 @@ export interface WelcomeEmailData {
  * Generates a grand, modern, big-brand styled HTML Email Template for Shiftline portal welcome & credential emails.
  */
 export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
-  const portalUrl = data.portalUrl || process.env.FRONTEND_URL || env.FRONTEND_URL || "http://localhost:5173";
-  const fullName = data.fullName || "Team Member";
-  const empCode = data.empCode;
-  const username = data.username;
-  const password = data.password;
-  const title = data.title || "Welcome to Shiftline!";
-  const subtitle = data.subtitle || "Your official employee account and login credentials are ready.";
-  const teamName = data.teamName || "Shiftline HR & IT Team";
+  const portalUrl =
+    safeUrl(data.portalUrl || process.env.FRONTEND_URL || env.FRONTEND_URL || "http://localhost:5173", {
+      allowLocalHttp: true,
+    }) || "#";
+  const fullName = escapeHtml(data.fullName || "Team Member");
+  const empCode = data.empCode ? escapeHtml(data.empCode) : data.empCode;
+  const username = escapeHtml(data.username);
+  const password = data.password ? escapeHtml(data.password) : data.password;
+  const title = escapeHtml(data.title || "Welcome to Shiftline!");
+  const subtitle = escapeHtml(
+    data.subtitle || "Your official employee account and login credentials are ready."
+  );
+  const teamName = escapeHtml(data.teamName || "Shiftline HR & IT Team");
 
   return `
 <!DOCTYPE html>
