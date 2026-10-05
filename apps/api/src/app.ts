@@ -64,6 +64,8 @@ app.use(
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    // Same policy as CSP frame-ancestors 'none' (helmet defaults to SAMEORIGIN otherwise).
+    frameguard: { action: "deny" },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],

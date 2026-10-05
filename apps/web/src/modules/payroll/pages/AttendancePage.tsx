@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Save, RefreshCw, Users, PlayCircle, CalendarDays, Lock } from "lucide-react";
 import CommonLoader from "../../../components/ui/Loader/CommonLoader";
 import {
@@ -375,18 +375,33 @@ const CellEditPanel: React.FC<{
   );
 };
 
+/** Five years back to one ahead of today, plus the selected year (e.g. from a deep link). */
+function yearOptions(selected: number): number[] {
+  const now = new Date().getFullYear();
+  const from = Math.min(now - 5, selected);
+  const to = Math.max(now + 1, selected);
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const AttendancePage: React.FC = () => {
   const navigate = useNavigate();
   const { can } = usePermission();
   const canEditAttendance = can("payroll-attendance.edit");
   const now = new Date();
+  const [searchParams] = useSearchParams();
+  // Deep link from the payroll run: ?type=monthly|weekly&month=10&year=2026&week=2
+  const qMonth = Number(searchParams.get("month"));
+  const qYear = Number(searchParams.get("year"));
+  const qWeek = Number(searchParams.get("week"));
 
   // ── Period state ──────────────────────────────────────────────────────────
-  const [runType, setRunType] = useState<"MONTHLY" | "WEEKLY">("MONTHLY");
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
-  const [weekOfMonth, setWeekOfMonth] = useState(1); // 1-5, week within selected month
+  const [runType, setRunType] = useState<"MONTHLY" | "WEEKLY">(
+    searchParams.get("type") === "weekly" ? "WEEKLY" : "MONTHLY"
+  );
+  const [month, setMonth] = useState(qMonth >= 1 && qMonth <= 12 ? qMonth : now.getMonth() + 1);
+  const [year, setYear] = useState(qYear >= 2000 && qYear <= 2100 ? qYear : now.getFullYear());
+  const [weekOfMonth, setWeekOfMonth] = useState(qWeek >= 1 && qWeek <= 5 ? qWeek : 1); // 1-5, week within selected month
   const [fullMonthMode, setFullMonthMode] = useState(false); // show all days of month in WEEKLY view
 
   // ── Data state ────────────────────────────────────────────────────────────
@@ -876,7 +891,7 @@ const AttendancePage: React.FC = () => {
               <SelectInput
                 name="year"
                 value={String(year)}
-                options={[2024, 2025, 2026, 2027].map((y) => ({
+                options={yearOptions(year).map((y) => ({
                   value: String(y),
                   label: String(y),
                 }))}

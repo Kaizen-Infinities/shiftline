@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   CalendarRange,
   CalendarDays,
@@ -82,6 +82,14 @@ const fmtDec = (n: number) =>
   `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // ─── Date Helpers ─────────────────────────────────────────────────────────────
+/** Years offered in the period pickers: five back to one ahead of today, plus whatever is selected. */
+function yearOptions(selected: number): number[] {
+  const now = new Date().getFullYear();
+  const from = Math.min(now - 5, selected);
+  const to = Math.max(now + 1, selected);
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+}
+
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
@@ -260,6 +268,13 @@ const Step1: React.FC<Step1Props> = ({
 
   // For weekly: compute available weeks for selected month
   const weekOptions = runType === "WEEKLY" ? getWeeksOfMonth(year, weekMonth) : [];
+
+  // Deep link to the attendance screen for the period being checked.
+  const attMonth = runType === "WEEKLY" ? weekMonth : month;
+  const attendanceHref =
+    `/payroll/attendance?type=${runType.toLowerCase()}&month=${attMonth}&year=${year}` +
+    (runType === "WEEKLY" ? `&week=${weekOfMonth}` : "");
+  const periodLabel = `${MONTHS[attMonth - 1]} ${year}`;
   const selectedWeek = weekOptions.find((w) => w.weekOfMonth === weekOfMonth) ?? weekOptions[0];
 
   return (
@@ -347,7 +362,7 @@ const Step1: React.FC<Step1Props> = ({
                     onChange={(e) => setYear(Number(e.target.value))}
                     className="w-full bg-card-2 border border-line-soft rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
                   >
-                    {[2024, 2025, 2026, 2027].map((y) => (
+                    {yearOptions(year).map((y) => (
                       <option key={y} value={y}>
                         {y}
                       </option>
@@ -417,7 +432,7 @@ const Step1: React.FC<Step1Props> = ({
                     }}
                     className="w-full bg-card-2 border border-line-soft rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-card transition-all cursor-pointer"
                   >
-                    {[2024, 2025, 2026, 2027].map((y) => (
+                    {yearOptions(year).map((y) => (
                       <option key={y} value={y}>
                         {y}
                       </option>
@@ -566,9 +581,15 @@ const Step1: React.FC<Step1Props> = ({
               </p>
               <p className="text-xs text-[color:var(--color-danger)] mt-1">
                 All {attValidationError.employees[0]?.expected}-day entries must be saved for every
-                employee before running payroll. Go to <strong>Attendance Entry</strong> and fill
-                all days, then try again.
+                employee before running payroll. Missing days are not assumed to be absent. Fill
+                them in on the attendance screen, then come back and press Next again.
               </p>
+              <Link
+                to={attendanceHref}
+                className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold underline text-[color:var(--color-danger)]"
+              >
+                <ClipboardList size={13} /> Open attendance for {periodLabel}
+              </Link>
             </div>
           </div>
           <div className="sl-tile border-[color-mix(in_srgb,var(--color-danger)_32%,transparent)] overflow-hidden">
@@ -2387,6 +2408,11 @@ const PayrollRun: React.FC = () => {
   const [attValidationError, setAttValidationError] = useState<{
     employees: { name: string; code: string; entered: number; expected: number }[];
   } | null>(null);
+
+  // A blocking message belongs to the period it was raised for.
+  useEffect(() => {
+    setAttValidationError(null);
+  }, [runType, year, month, weekMonth, weekOfMonth]);
 
   // Load employees on mount. A failure shows an error with a retry, not an empty list that
   // reads as "no employees".

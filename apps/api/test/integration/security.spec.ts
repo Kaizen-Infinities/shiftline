@@ -40,6 +40,12 @@ describe("security posture", () => {
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
   });
 
+  it("F16: X-Frame-Options and CSP frame-ancestors both forbid framing", async () => {
+    const res = await (await api()).get("/api/companies/public");
+    expect(res.headers["x-frame-options"]).toBe("DENY");
+    expect(res.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  });
+
   it("permission denied returns 403 for a role without the key", async () => {
     const { auth } = await authed("demo.sales");
     const res = await (await api()).get("/api/accounts/trial-balance").set(auth);
