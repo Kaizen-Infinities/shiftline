@@ -40,7 +40,10 @@ and the ERP is never the reason a filing is late or a book is wrong.
 
 ## Positioning
 
-**Run your factory. Know everything, from anywhere.**
+**Your whole factory, in your pocket.**
+
+*Chosen by the owner, 2026-10-05. Working alternative: "Run your factory. Know
+everything, from anywhere."*
 
 *Owner-stated, 2026-10-05.* One system shows the owner what is being made, what is in
 stock, who owes them, whom they owe, and where tax stands. It works from any device
@@ -51,8 +54,8 @@ Rules for copy and design:
   "shop-floor-first"). The owner has not confirmed one. Ask first.
 - Cash is always recorded, never hidden
   (`docs/decisions/2026-09-14-no-hidden-books.md`).
-- "From anywhere" is only true once the owner's mobile view is live. Until then, say
-  "on the web".
+- "In your pocket" is only true once the owner's mobile view is live. Until then,
+  keep the line out of live copy, or say "on the web".
 
 No customer evidence exists yet. The ranked problems are in the project doc
 `market-research-v1`.
