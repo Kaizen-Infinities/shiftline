@@ -1155,39 +1155,46 @@ const ProductionOrderCreate: React.FC = () => {
             : "Production Order updated successfully!"
         );
       } else {
-        await Promise.all(
-          data.products.map(async (prod, index) => {
-            const productRawMaterials = (prod.rawMaterials ?? []).map((rm) => ({
-              rawMaterialId: rm.rawMaterialId,
-              requiredQty: Number(rm.requiredQty),
-              uom: rm.uom,
-              storeId: rm.storeId,
-              remarks: rm.remarks || "",
-            }));
+        // The server may assign a different number if the previewed one was taken meanwhile, so the
+        // first line goes first and the other lines follow its order number.
+        let orderNo = data.productionOrderId;
+        const createLine = async (prod: (typeof data.products)[number], index: number) => {
+          const productRawMaterials = (prod.rawMaterials ?? []).map((rm) => ({
+            rawMaterialId: rm.rawMaterialId,
+            requiredQty: Number(rm.requiredQty),
+            uom: rm.uom,
+            storeId: rm.storeId,
+            remarks: rm.remarks || "",
+          }));
 
-            const payload = {
-              productionOrderId: `${data.productionOrderId}-${index + 1}`,
-              orderDate: new Date(data.orderDate).toISOString(),
-              dueDate: new Date(data.dueDate).toISOString(),
-              priority: data.priority,
-              orderType: data.orderType,
-              batchNo: data.batchNo || null,
-              lotNo: data.lotNo || null,
-              sourceSalesOrderId: data.sourceSalesOrderId || null,
-              sourceSalesOrderLineId: prod.sourceSalesOrderLineId || null,
-              sourceStoreId: data.sourceStoreId || null,
-              destinationStoreId: data.destinationStoreId || null,
-              status: data.status,
-              remarks: data.remarks || null,
-              productItemId: prod.productItemId,
-              targetQty: prod.targetQty,
-              damageQty: prod.damageQty !== undefined ? Number(prod.damageQty) : 0,
-              uom: prod.uom,
-              rawMaterials: productRawMaterials,
-            };
-            return productionOrderService.create(payload as any);
-          })
-        );
+          const payload = {
+            productionOrderId: `${orderNo}-${index + 1}`,
+            orderDate: new Date(data.orderDate).toISOString(),
+            dueDate: new Date(data.dueDate).toISOString(),
+            priority: data.priority,
+            orderType: data.orderType,
+            batchNo: data.batchNo || null,
+            lotNo: data.lotNo || null,
+            sourceSalesOrderId: data.sourceSalesOrderId || null,
+            sourceSalesOrderLineId: prod.sourceSalesOrderLineId || null,
+            sourceStoreId: data.sourceStoreId || null,
+            destinationStoreId: data.destinationStoreId || null,
+            status: data.status,
+            remarks: data.remarks || null,
+            productItemId: prod.productItemId,
+            targetQty: prod.targetQty,
+            damageQty: prod.damageQty !== undefined ? Number(prod.damageQty) : 0,
+            uom: prod.uom,
+            rawMaterials: productRawMaterials,
+          };
+          return productionOrderService.create(payload as any);
+        };
+        const first = await createLine(data.products[0], 0);
+        const savedCode = first?.productionOrderId;
+        if (typeof savedCode === "string" && savedCode.endsWith("-1")) {
+          orderNo = savedCode.slice(0, -2);
+        }
+        await Promise.all(data.products.slice(1).map((prod, i) => createLine(prod, i + 1)));
         toast.success(
           data.status === "DRAFT"
             ? "Production Order saved as draft successfully!"

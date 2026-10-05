@@ -13,7 +13,6 @@
  */
 import { prisma } from "../src/config/prisma";
 import { runAsTenant } from "../src/lib/tenant-context";
-import { byCode } from "../src/lib/prisma";
 import { salesInvoiceService } from "../src/modules/sales-invoice/sales-invoice.service";
 
 export interface DemoActivityOptions {
@@ -163,16 +162,16 @@ export async function seedDemoStockMinimums(opts: {
  */
 const ORDERS = [
   // [code, product, qty, status, orderedDaysAgo, dueInDays, producedShare]
-  ["PO-D01", "P001", 2000, "COMPLETED", 40, -28, 1],
-  ["PO-D02", "P003", 3000, "COMPLETED", 34, -22, 1],
-  ["PO-D03", "P005", 50000, "COMPLETED", 25, -12, 1],
-  ["PO-D04", "P004", 600, "IN_PRODUCTION", 10, 4, 0.45],
-  ["PO-D05", "P002", 800, "IN_PRODUCTION", 7, 6, 0.2],
-  ["PO-D06", "P001", 1500, "DAILY_PLANNED", 4, 9, 0],
-  ["PO-D07", "P003", 2500, "WEEKLY_SCHEDULED", 3, 12, 0],
-  ["PO-D08", "P005", 40000, "READY_FOR_PLANNING", 2, 16, 0],
-  ["PO-D09", "P004", 900, "READY_FOR_PLANNING", 1, 21, 0],
-  ["PO-D10", "P002", 1200, "CREATED", 0, 28, 0],
+  ["MO-DEMO-01", "P001", 2000, "COMPLETED", 40, -28, 1],
+  ["MO-DEMO-02", "P003", 3000, "COMPLETED", 34, -22, 1],
+  ["MO-DEMO-03", "P005", 50000, "COMPLETED", 25, -12, 1],
+  ["MO-DEMO-04", "P004", 600, "IN_PRODUCTION", 10, 4, 0.45],
+  ["MO-DEMO-05", "P002", 800, "IN_PRODUCTION", 7, 6, 0.2],
+  ["MO-DEMO-06", "P001", 1500, "DAILY_PLANNED", 4, 9, 0],
+  ["MO-DEMO-07", "P003", 2500, "WEEKLY_SCHEDULED", 3, 12, 0],
+  ["MO-DEMO-08", "P005", 40000, "READY_FOR_PLANNING", 2, 16, 0],
+  ["MO-DEMO-09", "P004", 900, "READY_FOR_PLANNING", 1, 21, 0],
+  ["MO-DEMO-10", "P002", 1200, "CREATED", 0, 28, 0],
 ] as const;
 
 export async function seedDemoProductionOrders(opts: {
@@ -182,8 +181,7 @@ export async function seedDemoProductionOrders(opts: {
 }) {
   await runAsTenant(opts.companyId, async () => {
     for (const [code, productCode, qty, status, orderedDaysAgo, dueInDays, share] of ORDERS) {
-      if (await prisma.productionOrder.findFirst({ where: byCode("productionOrderId", code) }))
-        continue;
+      if (await prisma.productionOrder.findFirst({ where: { productionOrderId: code } })) continue;
       const product = await prisma.product.findFirst({
         where: { productCode },
         select: { id: true },

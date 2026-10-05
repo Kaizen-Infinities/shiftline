@@ -128,6 +128,14 @@ class DocumentNumberService {
     const db = opts.tx ?? prisma;
     const date = opts.date ?? new Date();
     const fyCode = fyCodeFor(date, await this.fyStartMonth(db));
+    const { row, businessPlaceId } = await this.findRow(db, docType, fyCode, opts);
+    if (row) return this.format(row.prefix, fyCode, row.next, row.padding);
+    // No row yet: the number a fresh series would start at (schema defaults: next 1, padding 4).
+    return this.format(await this.prefixFor(db, docType, businessPlaceId), fyCode, 1, 4);
+  }
+
+  /** Read-only: the series row `next()` would use for these options (null if not created yet). */
+  private async findRow(db: Db, docType: string, fyCode: string, opts: NumberOptions) {
     let businessPlaceId = opts.businessPlaceId ?? null;
     let row = null;
     if (opts.businessPlaceId === undefined) {
@@ -146,22 +154,53 @@ class DocumentNumberService {
     } else {
       row = await db.documentSequence.findFirst({ where: { docType, businessPlaceId, fyCode } });
     }
-    if (row) return this.format(row.prefix, fyCode, row.next, row.padding);
-    // No row yet: the number a fresh series would start at (schema defaults: next 1, padding 4).
-    return this.format(await this.prefixFor(db, docType, businessPlaceId), fyCode, 1, 4);
+    return { row, businessPlaceId };
   }
 
   /**
-   * Forms that submit the number they were shown (the production order screen) take the series
-   * past it when it is still the next one; any other value (a legacy code) leaves the series alone.
+   * Forms that submit the number they were shown (the production order screen) get that number
+   * when it is still the series' next one; if somebody else took it meanwhile (or the number is
+   * stale or from the future) they get a fresh `next()` number instead. Never a duplicate and
+   * never a failure. The check and the increment are one conditional UPDATE, so two saves of the
+   * same preview cannot both win. An empty `shown` just allocates the next number. Call inside the saving transaction (pass `tx`) so a failed save
+   * does not burn a number.
    */
-  async consumeIfNext(docType: string, number: string, opts: NumberOptions = {}): Promise<boolean> {
+  async takeShownOrNext(docType: string, shown: string, opts: NumberOptions = {}): Promise<string> {
     if (!opts.tx) {
-      return prisma.$transaction((tx) => this.consumeIfNext(docType, number, { ...opts, tx }));
+      return prisma.$transaction((tx) => this.takeShownOrNext(docType, shown, { ...opts, tx }));
     }
-    if ((await this.peek(docType, opts)) !== number) return false;
-    await this.next(docType, opts);
-    return true;
+    const db = opts.tx;
+    const date = opts.date ?? new Date();
+    const fyCode = fyCodeFor(date, await this.fyStartMonth(db));
+    const { row, businessPlaceId } = await this.findRow(db, docType, fyCode, opts);
+    const seq = shown ? Number(shown.split("/")[2]) : NaN;
+    if (
+      !row ||
+      !Number.isInteger(seq) ||
+      this.format(row.prefix, fyCode, seq, row.padding) !== shown
+    ) {
+      // A fresh series (no row yet) still starts at 1; anything not matching the live row is stale.
+      if (!row && Number.isInteger(seq) && seq === 1) {
+        const fresh = await this.ensureRow(db, docType, businessPlaceId, fyCode);
+        if (this.format(fresh.prefix, fyCode, 1, fresh.padding) === shown) {
+          return (await this.claimExact(db, fresh.id, seq)) ? shown : this.next(docType, opts);
+        }
+      }
+      return this.next(docType, { ...opts, businessPlaceId });
+    }
+    return (await this.claimExact(db, row.id, seq))
+      ? shown
+      : this.next(docType, { ...opts, businessPlaceId });
+  }
+
+  /** Advances the series past `seq` only if `seq` is still the next number. */
+  private async claimExact(db: Db, rowId: string, seq: number): Promise<boolean> {
+    const claimed = await db.$queryRaw<{ id: string }[]>`
+      UPDATE document_sequences
+         SET next = next + 1, updated_at = now()
+       WHERE id = ${rowId}::uuid AND next = ${seq}
+      RETURNING id`;
+    return claimed.length > 0;
   }
 }
 

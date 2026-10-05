@@ -356,11 +356,19 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
           createdBy: owner,
         },
       });
-      // Demo databases seeded before this carried untyped products without an HSN.
+      // Demo databases seeded before this carried untyped products without an HSN. Repair the
+      // type (only the legacy PRODUCTION default) and the HSN (only when empty) independently, so
+      // a product that got one of them by hand still gets the other.
       await prisma.product.updateMany({
-        where: { id: product.id, hsnCodeId: null },
-        data: { productType: "SALES_PRODUCTION", hsnCodeId: hsn },
+        where: { id: product.id, productType: "PRODUCTION" },
+        data: { productType: "SALES_PRODUCTION" },
       });
+      if (hsn) {
+        await prisma.product.updateMany({
+          where: { id: product.id, hsnCodeId: null },
+          data: { hsnCodeId: hsn },
+        });
+      }
       if ((await prisma.billOfMaterial.count({ where: { productId: product.id } })) === 0) {
         await prisma.billOfMaterial.createMany({
           data: p.bom.map(([rawMaterialId, qty]) => ({

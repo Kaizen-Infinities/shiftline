@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { getServerErrorMessage, getServerFieldErrors } from "../../../utils/serverErrors";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
 import { useNavigate, useParams } from "react-router-dom";
 import { Eraser, Gauge, Image as ImageIcon, ImagePlus, Plus, Save, X } from "lucide-react";
@@ -625,8 +626,16 @@ const ProductForm: React.FC = () => {
       }
       navigate("/products");
     } catch (err: any) {
+      const fieldErrors: Record<string, string> = {};
+      getServerFieldErrors(err).forEach(({ path, message }) => {
+        fieldErrors[path] = message;
+      });
+      if (Object.keys(fieldErrors).length > 0) setErrors(fieldErrors);
       toast.error(
-        err.message || (isEditMode ? "Failed to update product" : "Failed to create product")
+        getServerErrorMessage(
+          err,
+          isEditMode ? "Failed to update product" : "Failed to create product"
+        )
       );
     } finally {
       setIsSubmitting(false);

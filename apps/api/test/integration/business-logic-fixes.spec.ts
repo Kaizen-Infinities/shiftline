@@ -52,7 +52,7 @@ describe("BL-01: salary advance is recovered exactly once", () => {
     )
       .post("/api/payroll/advances")
       .set(OWNER.auth)
-      .send({ employeeId: Number(employee.id), amount: 300, disbursedDate: "2033-04-15" });
+      .send({ employeeId: Number(employee.id), amount: 300, disbursedDate: "2033-07-15" });
     expect(advance.status).toBe(201);
 
     const run = await (
@@ -61,7 +61,7 @@ describe("BL-01: salary advance is recovered exactly once", () => {
       .post("/api/payroll/runs")
       .set(OWNER.auth)
       .send({
-        period: "2033-05",
+        period: "2033-08",
         type: "MONTHLY",
         employeeCategory: "FIXED_MONTHLY",
         calendarDays: 31,
@@ -298,9 +298,11 @@ describe("BL-04: a FAILED payment event is retried and posts once", () => {
     expect(again.body.data.status).toBe("DUPLICATE");
     spy.mockRestore();
 
-    expect(await asDemoTenant(() => prisma.paymentCapture.count({ where: { amount: 2000 } }))).toBe(
-      1
-    );
+    expect(
+      await asDemoTenant(() =>
+        prisma.paymentCapture.count({ where: { paymentLinkId: link.body.data.id } })
+      )
+    ).toBe(1);
     const link2 = await client.get(`/api/payments/links/${link.body.data.id}`).set(OWNER.auth);
     expect(n(link2.body.data.amountPaid)).toBe(2000);
   });

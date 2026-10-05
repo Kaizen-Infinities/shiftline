@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
+import { foreignTenant } from "../helpers/foreign-tenant";
+import { runAsTenant } from "../../src/lib/tenant-context";
 import {
   asDemoTenant,
   createCustomer,
@@ -57,6 +59,32 @@ describe("F3 employees by role", () => {
     );
     expect(seeded.roleId).toBe(production.id);
     expect(ids).toContain(seeded.id.toString());
+  });
+
+  it("is tenant-scoped: a foreign tenant sees none of the demo employees, and they none of its own", async () => {
+    const prisma = await getPrisma();
+    const foreign = await foreignTenant(`xr${sfx.slice(0, 4).toLowerCase()}`);
+    const demoEmployee = await createEmployee({});
+    const production = (
+      (await get("/api/machine-operation-assignments/roles")).body.data as {
+        id: number;
+        code: string;
+      }[]
+    ).find((r) => r.code === "PRODUCTION")!;
+
+    const theirs = await (
+      await api()
+    )
+      .get(`/api/machine-operation-assignments/employees-by-role?roleId=${production.id}`)
+      .set(foreign.auth);
+    expect(theirs.status).toBe(200);
+    const theirIds = (theirs.body.data as { id: string }[]).map((e) => e.id);
+    expect(theirIds).not.toContain(demoEmployee.id.toString());
+    const foreignRows = await runAsTenant(foreign.companyId, () => prisma.employee.findMany());
+    const mine = (
+      await get(`/api/machine-operation-assignments/employees-by-role?roleId=${production.id}`)
+    ).body.data as { id: string }[];
+    for (const e of foreignRows) expect(mine.map((m) => m.id)).not.toContain(e.id.toString());
   });
 });
 
@@ -162,6 +190,63 @@ describe("F4 preview equals the assigned number", () => {
     const second = await create(`${peek}-2`);
     expect(second.status).toBe(201);
     expect((await get("/api/production-orders/next-id")).body.data.nextId).toBe(next);
+  });
+
+  it("production order: a preview somebody else already saved still gets a unique number", async () => {
+    const peek = (await get("/api/production-orders/next-id")).body.data.nextId as string;
+    const product = await createProduct();
+    const rm = await createRawMaterial();
+    const create = async (productionOrderId: string) =>
+      (await api())
+        .post("/api/production-orders")
+        .set(OWNER.auth)
+        .send({
+          productionOrderId,
+          orderDate: "2026-09-01T00:00:00.000Z",
+          dueDate: "2026-12-01T00:00:00.000Z",
+          targetQty: 10,
+          uom: "PCS",
+          productItemId: product.id.toString(),
+          rawMaterials: [
+            { rawMaterialId: rm.rawMaterialId, requiredQty: 1, uom: "KG", storeId: "ST-RM" },
+          ],
+        });
+
+    // Two people open the form and see the same number; both save "-1" at the same time.
+    const [a, b] = await Promise.all([create(`${peek}-1`), create(`${peek}-1`)]);
+    expect(a.status, JSON.stringify(a.body).slice(0, 300)).toBe(201);
+    expect(b.status, JSON.stringify(b.body).slice(0, 300)).toBe(201);
+    const codes = [a, b].map((r) => r.body.data.productionOrderId as string);
+    expect(new Set(codes).size).toBe(2);
+    expect(codes).toContain(`${peek}-1`);
+    for (const c of codes) expect(c).toMatch(/^MO\/\d{4}-\d{2}\/\d{4}-1$/);
+
+    // A later save of the same stale preview gets the following free number, not a 409.
+    const late = await create(`${peek}-1`);
+    expect(late.status, JSON.stringify(late.body).slice(0, 300)).toBe(201);
+    const all = [...codes, late.body.data.productionOrderId];
+    expect(new Set(all).size).toBe(3);
+    // The series moved past every number handed out.
+    const nextId = (await get("/api/production-orders/next-id")).body.data.nextId as string;
+    expect(all.map((c) => c.replace(/-1$/, ""))).not.toContain(nextId);
+    // A failed save (unknown product) does not burn a number.
+    const before = (await get("/api/production-orders/next-id")).body.data.nextId;
+    const bad = await (
+      await api()
+    )
+      .post("/api/production-orders")
+      .set(OWNER.auth)
+      .send({
+        productionOrderId: `${before}-1`,
+        orderDate: "2026-09-01T00:00:00.000Z",
+        dueDate: "2026-12-01T00:00:00.000Z",
+        targetQty: 10,
+        uom: "PCS",
+        productItemId: "999999999",
+        rawMaterials: [],
+      });
+    expect(bad.status).toBe(404);
+    expect((await get("/api/production-orders/next-id")).body.data.nextId).toBe(before);
   });
 
   it.each([

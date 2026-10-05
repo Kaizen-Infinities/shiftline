@@ -30,8 +30,23 @@ describe("demo seed consistency (F11)", () => {
     await seedDemoStockMinimums(opts);
     await seedDemoProductionOrders(opts);
 
-    // (a) No seeded cash or bank ledger is overdrawn.
+    // (a) The seeded receipts leave no cash or bank ledger overdrawn. Other specs in the same
+    // worker post to the same ledgers, so only the demo invoices' receipt vouchers count.
     const rows = await asDemoTenant(async () => {
+      const demoInvoices = await prisma.salesInvoice.findMany({
+        where: { notes: { startsWith: "Demo activity" } },
+        select: { invoiceNo: true },
+      });
+      expect(demoInvoices.length).toBeGreaterThan(0);
+      const receipts = await prisma.voucher.findMany({
+        where: {
+          refDocType: "SALES_PAYMENT",
+          OR: demoInvoices.map((i) => ({ narration: { contains: i.invoiceNo } })),
+        },
+        select: { id: true },
+      });
+      expect(receipts.length).toBeGreaterThan(0);
+      const seeded = { voucherId: { in: receipts.map((v) => v.id) } };
       const ledgers = await prisma.accountLedger.findMany({
         where: { ledgerGroup: { code: { in: ["CASH_IN_HAND", "BANK_ACCOUNTS"] } } },
         select: { id: true, code: true },
@@ -40,11 +55,11 @@ describe("demo seed consistency (F11)", () => {
       for (const l of ledgers) {
         const [d, c] = await Promise.all([
           prisma.journalItem.aggregate({
-            where: { debitLedgerId: l.id },
+            where: { debitLedgerId: l.id, ...seeded },
             _sum: { debitAmount: true },
           }),
           prisma.journalItem.aggregate({
-            where: { creditLedgerId: l.id },
+            where: { creditLedgerId: l.id, ...seeded },
             _sum: { creditAmount: true },
           }),
         ]);
@@ -65,7 +80,7 @@ describe("demo seed consistency (F11)", () => {
 
     // (c) Orders are in several states, finished ones are not overdue, and some are in the future.
     const orders = await asDemoTenant(() =>
-      prisma.productionOrder.findMany({ where: { productionOrderId: { startsWith: "PO-D" } } })
+      prisma.productionOrder.findMany({ where: { productionOrderId: { startsWith: "MO-DEMO-" } } })
     );
     expect(new Set(orders.map((o) => o.status)).size).toBeGreaterThanOrEqual(4);
     const now = Date.now();
@@ -80,7 +95,7 @@ describe("demo seed consistency (F11)", () => {
     await seedDemoProductionOrders(opts);
     expect(
       await asDemoTenant(() =>
-        prisma.productionOrder.count({ where: { productionOrderId: { startsWith: "PO-D" } } })
+        prisma.productionOrder.count({ where: { productionOrderId: { startsWith: "MO-DEMO-" } } })
       )
     ).toBe(orders.length);
   });

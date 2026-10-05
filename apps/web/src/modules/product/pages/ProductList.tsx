@@ -358,7 +358,9 @@ const ProductList: React.FC = () => {
   const columns: DataTableColumn<any>[] = [
     { header: "#", render: (_, index) => startIndex + index + 1, width: "56px", align: "center" },
     {
+      // Min widths keep the name readable at 600-768px; the table scrolls sideways instead.
       header: "Product",
+      width: "minmax(220px, 2fr)",
       render: (product) => (
         <div className="flex min-w-0 flex-col">
           <button
@@ -372,9 +374,14 @@ const ProductList: React.FC = () => {
         </div>
       ),
     },
-    { header: "Category", render: (product) => product.category?.name || "—" },
+    {
+      header: "Category",
+      width: "minmax(120px, 1fr)",
+      render: (product) => product.category?.name || "—",
+    },
     {
       header: "Product Type",
+      width: "minmax(140px, 1fr)",
       render: (product) => (
         <Chip size="sm" tone={product.productType === "SALES_PRODUCTION" ? "info" : "default"}>
           {product.productType === "SALES_PRODUCTION" ? "Sales Production" : "Production"}
@@ -383,6 +390,7 @@ const ProductList: React.FC = () => {
     },
     {
       header: "Rate (₹)",
+      width: "minmax(90px, 0.6fr)",
       render: (product) => (
         <span className="font-semibold tabular-nums text-ink">{inr(product.rate)}</span>
       ),
@@ -390,6 +398,7 @@ const ProductList: React.FC = () => {
     },
     {
       header: "Stock (Min)",
+      width: "minmax(110px, 0.8fr)",
       render: (product) => {
         const onHandQty = onHandOf(product);
         const minQty = Number(product.minimumQty) || 0;
@@ -409,11 +418,13 @@ const ProductList: React.FC = () => {
     },
     {
       header: "Status",
+      width: "minmax(100px, 0.6fr)",
       render: (product) => <StatusBadge status={product.isActive ? "ACTIVE" : "INACTIVE"} />,
       align: "center",
     },
     {
       header: "Actions",
+      width: "minmax(190px, max-content)",
       render: (product) => (
         <div className="table-action-group w-full justify-end">
           <ViewButton onClick={() => handleView(product)} />
