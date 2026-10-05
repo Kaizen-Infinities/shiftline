@@ -1,3 +1,4 @@
+import { documentNumberService } from "../documents/document-number.service";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import {
@@ -148,6 +149,12 @@ class ProductionOrderService {
     if (existing) {
       throw new ApiError(409, `Production Order with ID ${data.productionOrderId} already exists`);
     }
+    // The screen submits the number it was shown ("MO/2026-27/0001-1": order number plus a line
+    // suffix); take the series past it so the next order gets the following number.
+    await documentNumberService.consumeIfNext(
+      "PRODUCTION_ORDER",
+      data.productionOrderId.replace(/-\d+$/, "")
+    );
 
     const product = await prisma.product.findUnique({
       where: { id: productItemId },
@@ -1390,24 +1397,9 @@ class ProductionOrderService {
   }
 
   // ── Get next ID ───────────────────────────────────────────────────────────
+  /** The number the next production order takes (series "MO"), without consuming it. */
   async getNextProductionOrderId() {
-    const lastItem = await prisma.productionOrder.findFirst({
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (!lastItem) return "PRO0001";
-
-    let lastId = lastItem.productionOrderId;
-    if (lastId.includes("-")) lastId = lastId.split("-")[0];
-
-    const match = lastId.match(/\d+/);
-    if (!match) return lastId + "0001";
-
-    const numberStr = match[0];
-    const nextNumber = parseInt(numberStr, 10) + 1;
-    const paddedNumber = String(nextNumber).padStart(numberStr.length, "0");
-    const suffix = lastId.substring(lastId.indexOf(numberStr) + numberStr.length);
-    return `PRO${paddedNumber}${suffix}`;
+    return documentNumberService.peek("PRODUCTION_ORDER");
   }
 
   // ── Get Production Order History ──────────────────────────────────────────

@@ -194,11 +194,25 @@ export async function seedTenant(opts: SeedTenantOptions): Promise<Company> {
       { empCode: "E001", fullName: `${opts.companyCode} Operator One` },
       { empCode: "E002", fullName: `${opts.companyCode} Operator Two` },
     ]) {
-      if (!(await prisma.employee.findFirst({ where: { empCode: e.empCode } }))) {
+      const existing = await prisma.employee.findFirst({ where: { empCode: e.empCode } });
+      if (existing) {
+        // Older seeds left demo operators without a role, so the assignment picker was empty.
+        if (existing.roleId === null) {
+          await prisma.employee.update({
+            where: { id: existing.id },
+            data: {
+              roleId: roles.PRODUCTION,
+              departmentId: existing.departmentId ?? deptProduction.id,
+            },
+          });
+        }
+      } else {
         await prisma.employee.create({
           data: {
             ...e,
             departmentId: deptProduction.id,
+            roleId: roles.PRODUCTION,
+            designation: "Machine Operator",
             shiftId: shiftA.shiftCode,
             createdBy: owner,
           },

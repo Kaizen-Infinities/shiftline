@@ -4,3 +4,4 @@ export * from "./gst-states.js";
 export * from "./features.js";
 export * from "./filings.js";
 export * from "./locales.js";
+export * from "./week.js";

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { addDays, todayIn, weekRange } from "@shiftline/shared";
 import { Eraser, Plus, Save, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate, useParams } from "react-router-dom";
@@ -17,32 +18,12 @@ export const MachineAssignmentForm: React.FC = () => {
   const navigate = useNavigate();
   const isEdit = !!id;
 
-  const getMondayAndSunday = (offsetWeeks: number = 0) => {
-    const d = new Date();
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1) + offsetWeeks * 7;
-    const monday = new Date(d.setDate(diff));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return {
-      start: monday.toISOString().split("T")[0],
-      end: sunday.toISOString().split("T")[0],
-    };
-  };
+  const getMondayAndSunday = (offsetWeeks: number = 0) =>
+    weekRange(addDays(todayIn(), offsetWeeks * 7));
 
   const getWeekRangeForDate = (dateString: string) => {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return null;
-    const day = d.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const monday = new Date(d);
-    monday.setDate(d.getDate() + diffToMonday);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return {
-      start: monday.toISOString().split("T")[0],
-      end: sunday.toISOString().split("T")[0],
-    };
+    if (!dateString || isNaN(new Date(dateString).getTime())) return null;
+    return weekRange(dateString);
   };
 
   const currentWeek = getMondayAndSunday(0);

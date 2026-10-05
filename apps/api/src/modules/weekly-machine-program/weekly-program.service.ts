@@ -1,3 +1,4 @@
+import { weekEnd, weekStart } from "@shiftline/shared";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { CreateWeeklyProgramInput, UpdateWeeklyProgramInput } from "./weekly-program.validation";
@@ -20,7 +21,7 @@ class WeeklyProgramService {
       where: {
         machineId: data.machineId,
         shiftId: data.shiftId,
-        weekStartDate: new Date(data.weekStartDate),
+        weekStartDate: new Date(weekStart(data.weekStartDate)),
         dayOfWeek: data.dayOfWeek,
       },
       orderBy: { sequenceNo: "desc" },
@@ -40,7 +41,7 @@ class WeeklyProgramService {
         where: {
           machineId: data.machineId,
           shiftId: data.shiftId,
-          weekStartDate: new Date(data.weekStartDate),
+          weekStartDate: new Date(weekStart(data.weekStartDate)),
           dayOfWeek: data.dayOfWeek,
           status: { in: ["PLANNED", "IN_PROGRESS", "APPROVED", "RELEASED"] },
         },
@@ -176,8 +177,8 @@ class WeeklyProgramService {
             weeklyProgramId: data.weeklyProgramId,
             productionOrderId: data.productionOrderId,
 
-            weekStartDate: new Date(data.weekStartDate),
-            weekEndDate: new Date(data.weekEndDate),
+            weekStartDate: new Date(weekStart(data.weekStartDate)),
+            weekEndDate: new Date(weekEnd(data.weekEndDate)),
 
             machineId: targetMachineId,
             shiftId: data.shiftId,
@@ -337,14 +338,14 @@ class WeeklyProgramService {
 
     const updateData: any = { ...data, updatedBy: userId };
 
-    if (data.weekStartDate) updateData.weekStartDate = new Date(data.weekStartDate);
-    if (data.weekEndDate) updateData.weekEndDate = new Date(data.weekEndDate);
+    if (data.weekStartDate) updateData.weekStartDate = new Date(weekStart(data.weekStartDate));
+    if (data.weekEndDate) updateData.weekEndDate = new Date(weekEnd(data.weekEndDate));
 
     const checkMachineId =
       data.machineId !== undefined ? data.machineId : existingProgram.machineId;
     const checkShiftId = data.shiftId !== undefined ? data.shiftId : existingProgram.shiftId;
     const checkWeekStartDate = data.weekStartDate
-      ? new Date(data.weekStartDate)
+      ? new Date(weekStart(data.weekStartDate))
       : existingProgram.weekStartDate;
     const checkDayOfWeek =
       data.dayOfWeek !== undefined ? data.dayOfWeek : existingProgram.dayOfWeek;

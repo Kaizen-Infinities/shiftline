@@ -35,7 +35,7 @@ interface DayCell {
   inMonth: boolean;
 }
 
-const WEEKDAYS: string[] = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const WEEKDAYS: string[] = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const MONTHS: string[] = [
   "January",
   "February",
@@ -73,7 +73,8 @@ function isDisabled(date: Date, minDate?: Date | null, maxDate?: Date | null): b
 
 function buildMonthGrid(year: number, month: number): DayCell[] {
   const firstOfMonth = new Date(year, month, 1);
-  const startWeekday = firstOfMonth.getDay();
+  // Weeks run Monday to Sunday everywhere in the product.
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
 
