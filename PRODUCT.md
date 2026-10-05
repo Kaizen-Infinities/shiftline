@@ -40,18 +40,22 @@ and the ERP is never the reason a filing is late or a book is wrong.
 
 ## Positioning
 
-**Stated by the product owner (2026-10-05):** run your factory and know what is
-happening, no matter where you are. The USP is the plain usefulness of one system
-that shows orders, production, stock, money owed and owing, and compliance status
-to the owner from any device, not a clever differentiator.
+**Run your factory. Know everything, from anywhere.**
 
-Still not confirmed: any competitive claim (e.g. "vs. Tally", "vs. SAP B1",
-"shop-floor-first"). Do not invent one in copy or design work; ask before anything
-implies one. Cash must always be recorded, never hidden (see
-`docs/decisions/2026-09-14-no-hidden-books.md`).
+*Owner-stated, 2026-10-05.* One system shows the owner what is being made, what is in
+stock, who owes them, whom they owe, and where tax stands. It works from any device
+and shows it as it happens. The USP is that usefulness, not a clever differentiator.
 
-No customer evidence exists yet. Desk research and the ranked problems are in the
-Shiftline project doc `market-research-v1`.
+Rules for copy and design:
+- Do not claim anything against a competitor ("vs. Tally", "vs. SAP B1",
+  "shop-floor-first"). The owner has not confirmed one. Ask first.
+- Cash is always recorded, never hidden
+  (`docs/decisions/2026-09-14-no-hidden-books.md`).
+- "From anywhere" is only true once the owner's mobile view is live. Until then, say
+  "on the web".
+
+No customer evidence exists yet. The ranked problems are in the project doc
+`market-research-v1`.
 
 ## Operating Context
 
