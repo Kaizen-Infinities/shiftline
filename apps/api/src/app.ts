@@ -173,7 +173,7 @@ app.get("/", (req, res) => {
     success: true,
     message: "Shiftline API",
     version: "1.0.0",
-    environment: process.env.NODE_ENV || "development",
+    environment: env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
 });

@@ -21,6 +21,8 @@ const envSchema = z
     /** Optional error reporting; nothing is sent when unset. */
     SENTRY_DSN: z.string().url().optional(),
     SENTRY_ENVIRONMENT: optionalString,
+    /** Release tag attached to Sentry events (usually the git commit). */
+    GIT_SHA: optionalString,
 
     DATABASE_URL: z.string().min(1, "Database URL is required"),
 
@@ -103,6 +105,14 @@ const envSchema = z
     AWS_S3_BUCKET: optionalString,
     AWS_REGION: optionalString,
     AWS_S3_PUBLIC_URL: optionalString,
+
+    /** Daily exchange-rate source for the scheduled pull (P1-17). Unknown names are refused at boot. */
+    RATE_PROVIDER: z.preprocess(
+      (v) => (typeof v === "string" && v.trim() ? v.trim().toUpperCase() : undefined),
+      z.enum(["FIXTURE", "RBI"]).default("FIXTURE")
+    ),
+    /** RBI reference-rate feed URL; without it the RBI provider returns no rates. */
+    RBI_RATE_URL: optionalString,
   })
   .superRefine((v, ctx) => {
     if (v.NODE_ENV === "production") {

@@ -17,7 +17,7 @@ export interface WelcomeEmailData {
  */
 export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
   const portalUrl =
-    safeUrl(data.portalUrl || process.env.FRONTEND_URL || env.FRONTEND_URL || "http://localhost:5173", {
+    safeUrl(data.portalUrl || env.FRONTEND_URL || "http://localhost:5173", {
       allowLocalHttp: true,
     }) || "#";
   const fullName = escapeHtml(data.fullName || "Team Member");
@@ -119,7 +119,9 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
                     </div>
 
                     <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                      ${empCode ? `
+                      ${
+                        empCode
+                          ? `
                       <tr>
                         <td style="padding: 8px 0; font-size: 14px; color: #64748b; font-weight: 600; width: 140px; vertical-align: middle;">
                           Employee Code:
@@ -130,7 +132,9 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
                           </span>
                         </td>
                       </tr>
-                      ` : ''}
+                      `
+                          : ""
+                      }
 
                       <tr>
                         <td style="padding: 8px 0; font-size: 14px; color: #64748b; font-weight: 600; width: 140px; vertical-align: middle;">
@@ -143,7 +147,9 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
                         </td>
                       </tr>
 
-                      ${password ? `
+                      ${
+                        password
+                          ? `
                       <tr>
                         <td style="padding: 8px 0; font-size: 14px; color: #64748b; font-weight: 600; width: 140px; vertical-align: middle;">
                           Password:
@@ -154,7 +160,9 @@ export const generateWelcomeEmailHtml = (data: WelcomeEmailData): string => {
                           </span>
                         </td>
                       </tr>
-                      ` : ''}
+                      `
+                          : ""
+                      }
                     </table>
                   </td>
                 </tr>

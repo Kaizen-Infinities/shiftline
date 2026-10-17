@@ -2,11 +2,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { Request } from "express";
+import { isProduction } from "../config/env";
 import { logger } from "../lib/logger";
 
 // In production (Vercel), filesystem is read-only - ALWAYS use memory storage
 // In development, use disk storage for easier testing
-const isProduction = process.env.NODE_ENV === "production";
 
 // Helper function to ensure directory exists (only for development)
 function ensureUploadDir(dir: string): void {

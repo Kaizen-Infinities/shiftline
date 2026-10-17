@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { env } from "../config/env";
 import authRoutes from "../modules/auth/auth.routes";
 import userRoutes from "../modules/users/user.routes";
 import roleRoutes from "../modules/role/role.routes";
@@ -247,7 +248,7 @@ router.get("/", (req, res) => {
     success: true,
     message: "Shiftline API",
     version: "1.0.0",
-    environment: process.env.NODE_ENV || "development",
+    environment: env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
 });

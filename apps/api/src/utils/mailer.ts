@@ -2,6 +2,7 @@ import { decryptText } from "./crypto";
 import nodemailer from "nodemailer";
 import type { SendMailOptions } from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
+import { env } from "../config/env";
 import { prisma } from "../config/prisma";
 import { logger } from "../lib/logger";
 
@@ -36,13 +37,13 @@ export const buildSmtpTransportOptions = (input: SmtpTransportInput): SMTPTransp
 });
 
 export const sendEmail = async (options: SendEmailOptions) => {
-  let smtpHost = process.env.SMTP_HOST || "";
-  let smtpPort = Number(process.env.SMTP_PORT) || 587;
-  let smtpUser = process.env.SMTP_USER || "";
-  let smtpPass = process.env.SMTP_PASS || "";
-  let fromEmail = process.env.SMTP_FROM || "";
-  let fromName = process.env.FROM_NAME || "Shiftline";
-  let encryption = process.env.SMTP_ENCRYPTION || "TLS";
+  let smtpHost = env.SMTP_HOST || "";
+  let smtpPort = env.SMTP_PORT || 587;
+  let smtpUser = env.SMTP_USER || "";
+  let smtpPass = env.SMTP_PASS || "";
+  let fromEmail = env.SMTP_FROM || "";
+  let fromName = env.FROM_NAME || "Shiftline";
+  let encryption = env.SMTP_ENCRYPTION || "TLS";
 
   try {
     const config = await prisma.emailConfig.findFirst();

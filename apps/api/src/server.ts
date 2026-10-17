@@ -14,7 +14,7 @@ import { registerSchedules, registerWorkers } from "./jobs";
 import { logger } from "./lib/logger";
 import { closePdfBrowser } from "./utils/pdfGenerator";
 
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = env.PORT;
 
 const startServer = async (): Promise<void> => {
   try {
