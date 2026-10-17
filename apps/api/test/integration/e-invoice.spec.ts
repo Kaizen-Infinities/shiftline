@@ -262,7 +262,8 @@ describe("e-invoice", () => {
     expect(late.body.code).toBe("IRN_WINDOW_CLOSED");
 
     // Cancellation after 24 hours is refused (ack date pushed back).
-    const { invoice: fresh } = await invoiceFor(customer.id);
+    // Dated today: a fixed date drifts past the 30-day window for this large business.
+    const { invoice: fresh } = await invoiceFor(customer.id, new Date().toISOString().slice(0, 10));
     const gen = await client
       .post("/api/e-invoice/generate")
       .set(owner.auth)

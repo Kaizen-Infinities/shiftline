@@ -29,8 +29,9 @@ A convention audit of `main` (tenancy, error text, auth, books/GST, concurrency,
   `limit` capped at 100; forged payment callbacks write nothing; GSTR-2B pulls decrypt the GSP
   secret; `process.env` read only through `config/env.ts` (backup job's `pg_dump` child excepted).
 
-Verified: `npm run typecheck`, lint, prettier, web and shared tests green; API suite 1218/1219 — the
-one failure (`e-invoice.spec.ts` "refuses a B2C document…") also fails on `main` and is not touched.
+Verified: `npm run typecheck`, lint, prettier, web and shared tests green; API suite 1219/1219 (the
+e-invoice test that failed on `main` used a fixed invoice date that drifted past the 30-day IRN window;
+it now dates that invoice today).
 
 ## Half-done
 
