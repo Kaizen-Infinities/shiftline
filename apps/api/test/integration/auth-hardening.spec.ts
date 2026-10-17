@@ -49,15 +49,29 @@ describe("password reset request", () => {
   it("answers identically, never returns a token, and emails real accounts only", async () => {
     const prisma = await getPrisma();
     const email = "demo.owner@test.shiftline.local";
+    // demo.owner is shared with other specs on this worker: restore its email afterwards.
+    const original = await withoutTenant(() =>
+      prisma.user.findUniqueOrThrow({ where: { username: "demo.owner" }, select: { email: true } })
+    );
     await withoutTenant(() =>
       prisma.user.update({ where: { username: "demo.owner" }, data: { email } })
     );
     const client = await api();
 
-    const real = await client.post("/api/auth/password-reset-request").send({ email });
-    const ghost = await client
-      .post("/api/auth/password-reset-request")
-      .send({ email: "nobody-here@test.shiftline.local" });
+    let real, ghost;
+    try {
+      real = await client.post("/api/auth/password-reset-request").send({ email });
+      ghost = await client
+        .post("/api/auth/password-reset-request")
+        .send({ email: "nobody-here@test.shiftline.local" });
+    } finally {
+      await withoutTenant(() =>
+        prisma.user.update({
+          where: { username: "demo.owner" },
+          data: { email: original.email },
+        })
+      );
+    }
 
     for (const res of [real, ghost]) {
       expect(res.status).toBe(200);
