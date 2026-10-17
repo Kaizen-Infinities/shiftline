@@ -138,7 +138,7 @@ class MobileController {
 
   pull = asyncHandler(async (req: Request, res: Response) => {
     const agent = await agentFromRequest(req);
-    await deviceFromRequest(req, agent, { required: false, sync: true });
+    await deviceFromRequest(req, agent, { required: true, sync: true });
     const q = pullQuerySchema.parse(req.query);
     const result = await mobileSyncService.pull(agent, q.lastPulledAt, q.full);
     res.json(result);
@@ -154,7 +154,7 @@ class MobileController {
 
   uploadAttachment = asyncHandler(async (req: Request, res: Response) => {
     const agent = await agentFromRequest(req);
-    await deviceFromRequest(req, agent, { required: false });
+    await deviceFromRequest(req, agent, { required: true });
     const file = req.file;
     if (!file) throw new ApiError(400, "No file uploaded (field name: file)");
     const kind = String(req.body?.kind || "OTHER").toUpperCase();

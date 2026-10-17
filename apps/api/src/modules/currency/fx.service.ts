@@ -1,5 +1,6 @@
 import { Prisma, VoucherType } from "@prisma/client";
 
+import { env } from "../../config/env";
 import { prisma } from "../../config/prisma";
 import { logger } from "../../lib/logger";
 import { requireTenantId, runAsTenant, withoutTenant } from "../../lib/tenant-context";
@@ -415,7 +416,7 @@ class FxService {
     for (const c of companies) {
       try {
         const res = await runAsTenant(c.id, () =>
-          this.pullRates({ on, provider: process.env.RATE_PROVIDER ?? "FIXTURE" })
+          this.pullRates({ on, provider: env.RATE_PROVIDER })
         );
         pulled += res.fetched;
       } catch (err) {

@@ -44,9 +44,13 @@ class WebhookService {
 
     return runAsTenant(config.companyId, async () => {
       const secret = config.webhookSecret ? decryptText(config.webhookSecret) : null;
-      const valid = signatureMatches(rawBody, signature, secret);
+      // A bad signature is refused before anything is written: a forged request leaves no row.
+      if (!signatureMatches(rawBody, signature, secret)) {
+        logger.warn({ companyId: config.companyId }, "payment callback with a bad signature");
+        throw new ApiError(401, "Callback rejected", "BAD_CALLBACK");
+      }
       const payload = this.parseBody(rawBody);
-      const envelope = valid ? paymentProviderFor(config.provider).parseWebhook(payload) : null;
+      const envelope = paymentProviderFor(config.provider).parseWebhook(payload);
       const eventId =
         envelope?.eventId ?? `unsigned-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -75,18 +79,13 @@ class WebhookService {
           data: {
             providerEventId: eventId,
             eventType: String(envelope?.eventType ?? "unknown").slice(0, 60),
-            signatureValid: valid,
+            signatureValid: true,
             status: "RECEIVED",
             payload: payload as object,
           },
         });
       }
 
-      if (!valid) {
-        await this.close(event.id, "FAILED", "Signature did not verify");
-        logger.warn({ companyId: config.companyId }, "payment callback with a bad signature");
-        throw new ApiError(401, "Callback rejected", "BAD_CALLBACK");
-      }
       if (!envelope) {
         await this.close(event.id, "IGNORED", "Not an event we act on");
         return { status: "IGNORED" as const, detail: "Not an event we act on" };

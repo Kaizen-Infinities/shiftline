@@ -3,6 +3,7 @@ import { prisma } from "../../config/prisma";
 import axios from "axios";
 import { encryptText, decryptText } from "../../utils/crypto";
 import { logger } from "../../lib/logger";
+import { ApiError } from "../../utils/ApiError";
 
 export class WhatsappService {
   /** Encrypts a stored credential (AES-256-GCM, DATA_ENCRYPTION_KEY). */
@@ -59,12 +60,10 @@ export class WhatsappService {
       return response.data;
     } catch (error: any) {
       logger.error(
-        { err: error?.response?.data || error.message },
-        "Error sending WhatsApp message:"
+        { status: error?.response?.status, code: error?.response?.data?.error?.code },
+        "whatsapp text message refused"
       );
-      throw new Error(
-        `Failed to send WhatsApp message: ${error?.response?.data?.error?.message || error.message}`
-      );
+      throw new ApiError(502, "WhatsApp could not send the message", "WHATSAPP_REFUSED");
     }
   }
 
@@ -116,14 +115,10 @@ export class WhatsappService {
       return response.data;
     } catch (error: any) {
       logger.error(
-        { err: error?.response?.data || error.message },
-        "Error sending WhatsApp Template message:"
+        { status: error?.response?.status, code: error?.response?.data?.error?.code },
+        "whatsapp template message refused"
       );
-      throw new Error(
-        `Failed to send WhatsApp Template message: ${
-          error?.response?.data?.error?.message || error.message
-        }`
-      );
+      throw new ApiError(502, "WhatsApp could not send the message", "WHATSAPP_REFUSED");
     }
   }
 
@@ -173,14 +168,10 @@ export class WhatsappService {
       return response.data.id;
     } catch (error: any) {
       logger.error(
-        { err: error?.response?.data || error.message },
-        "Error uploading media to WhatsApp:"
+        { status: error?.response?.status, code: error?.response?.data?.error?.code },
+        "whatsapp media upload refused"
       );
-      throw new Error(
-        `Failed to upload media to WhatsApp: ${
-          error?.response?.data?.error?.message || error.message
-        }`
-      );
+      throw new ApiError(502, "WhatsApp could not send the message", "WHATSAPP_REFUSED");
     }
   }
 
@@ -236,14 +227,10 @@ export class WhatsappService {
       return response.data;
     } catch (error: any) {
       logger.error(
-        { err: error?.response?.data || error.message },
-        "Error sending WhatsApp document message:"
+        { status: error?.response?.status, code: error?.response?.data?.error?.code },
+        "whatsapp document message refused"
       );
-      throw new Error(
-        `Failed to send WhatsApp document message: ${
-          error?.response?.data?.error?.message || error.message
-        }`
-      );
+      throw new ApiError(502, "WhatsApp could not send the message", "WHATSAPP_REFUSED");
     }
   }
 }

@@ -45,6 +45,8 @@ const AUTH_ENDPOINTS = [
   "/auth/refresh",
   "/auth/logout",
   "/auth/logout-all-sessions",
+  // Also covers /auth/password-reset-request: a bad reset token is not an expired session.
+  "/auth/password-reset",
 ];
 
 apiClient.interceptors.response.use(

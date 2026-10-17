@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import jwt from "jsonwebtoken";
 
-import { api, SEED_PASSWORD } from "../helpers/app";
+import { ADMIN, api, SEED_PASSWORD } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
 
 const OWNER = { email: "owner@demo.shiftline.local", password: SEED_PASSWORD };
@@ -103,6 +103,51 @@ describe("access tokens and refresh sessions", () => {
     const again = await (await api()).post("/api/auth/refresh").set("Cookie", first);
     expect(again.status).toBe(200);
     expect(again.body.data.accessToken).toBeTruthy();
+  });
+
+  it("two concurrent refreshes with the same token both succeed and the session survives", async () => {
+    const login = await (await api()).post("/api/auth/login").send(OWNER);
+    const first = cookieOf(login)!.split(";")[0];
+    const sessionId = (jwt.decode(login.body.data.accessToken) as { sessionId: string }).sessionId;
+    const client = await api();
+    const [a, b] = await Promise.all([
+      client.post("/api/auth/refresh").set("Cookie", first),
+      client.post("/api/auth/refresh").set("Cookie", first),
+    ]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    const prisma = await getPrisma();
+    const session = await prisma.userSession.findUniqueOrThrow({ where: { id: sessionId } });
+    expect(session.isActive).toBe(true);
+  });
+
+  it("the previous token is good for one grace use only; a second replay revokes the session", async () => {
+    const login = await (await api()).post("/api/auth/login").send(OWNER);
+    const first = cookieOf(login)!.split(";")[0];
+    const sessionId = (jwt.decode(login.body.data.accessToken) as { sessionId: string }).sessionId;
+    const client = await api();
+    expect((await client.post("/api/auth/refresh").set("Cookie", first)).status).toBe(200);
+    expect((await client.post("/api/auth/refresh").set("Cookie", first)).status).toBe(200); // grace use
+    const replay = await client.post("/api/auth/refresh").set("Cookie", first);
+    expect(replay.status).toBe(401);
+    expect(replay.body.message).toMatch(/reuse/i);
+    const prisma = await getPrisma();
+    const session = await prisma.userSession.findUniqueOrThrow({ where: { id: sessionId } });
+    expect(session.isActive).toBe(false);
+  });
+
+  it("an admin token on a tenant route is refused with 403, not a 500", async () => {
+    const res = await (
+      await api()
+    )
+      .post("/api/auth/login")
+      .send({ email: ADMIN.email, password: ADMIN.password });
+    const auth = { Authorization: `Bearer ${res.body.data.accessToken}` };
+    for (const path of ["/api/customers", "/api/roles"]) {
+      const r = await (await api()).get(path).set(auth);
+      expect(r.status).toBe(403);
+      expect(r.body.message).toMatch(/impersonation/i);
+    }
   });
 
   it("logout clears the cookie and ends the session", async () => {

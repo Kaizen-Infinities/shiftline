@@ -141,6 +141,13 @@ describe("daily production plans", () => {
       expect(N(b.body.data.dailyPlanId.slice(2))).toBe(N(a.body.data.dailyPlanId.slice(2)) + 1);
     });
 
+    it("gives plans created at the same time distinct generated ids", async () => {
+      const made = await Promise.all([create(), create(), create()]);
+      expect(made.map((r) => r.status)).toEqual([201, 201, 201]);
+      const ids = made.map((r) => r.body.data.dailyPlanId as string);
+      expect(new Set(ids).size).toBe(3);
+    });
+
     it("fetches a plan with its operators, order steps and neighbours", async () => {
       const made = await create();
       const res = await getOne(made.body.data.dailyPlanId);

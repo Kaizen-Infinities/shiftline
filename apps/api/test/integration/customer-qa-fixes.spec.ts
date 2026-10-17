@@ -32,6 +32,14 @@ describe("customer validation and search", () => {
     expect(JSON.stringify(res.body)).not.toMatch(/ZodError|stack|at .*\.ts/);
   });
 
+  it("refuses a customer list limit above 100 and accepts 100", async () => {
+    const { auth } = await authed("demo.owner");
+    const over = await (await api()).get("/api/customers").query({ limit: "101" }).set(auth);
+    expect(over.status).toBe(400);
+    const ok = await (await api()).get("/api/customers").query({ limit: "100" }).set(auth);
+    expect(ok.status).toBe(200);
+  });
+
   it("accepts a valid GSTIN", async () => {
     const { auth } = await authed("demo.owner");
     const res = await (

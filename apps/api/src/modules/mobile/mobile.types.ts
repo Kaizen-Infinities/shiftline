@@ -508,12 +508,14 @@ export interface PushResults {
     status: "POSTED" | "FAILED" | "SKIPPED";
     receiptNo?: string;
     error?: string;
+    code?: string;
   }[];
   orders: {
     id: string;
     status: "CREATED" | "FAILED" | "SKIPPED";
     orderNo?: string;
     error?: string;
+    code?: string;
   }[];
   rejected: SyncRejection[];
   warnings: SyncWarning[];

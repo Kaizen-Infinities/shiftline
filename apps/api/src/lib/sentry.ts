@@ -18,7 +18,7 @@ export const initSentry = (service: string): boolean => {
   Sentry.init({
     dsn: env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT ?? env.NODE_ENV,
-    release: process.env.GIT_SHA,
+    release: env.GIT_SHA,
     serverName: service,
     sendDefaultPii: false,
     tracesSampleRate: 0,

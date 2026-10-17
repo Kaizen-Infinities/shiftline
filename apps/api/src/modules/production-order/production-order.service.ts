@@ -10,7 +10,18 @@ import { Prisma } from "@prisma/client";
 import { StatusSyncService } from "../../utils/status-sync.util";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
+import { requireTenantId } from "../../lib/tenant-context";
 import { valuationService } from "../costing/valuation.service";
+
+/**
+ * Takes a row lock on a raw material for the rest of the transaction, so the stock read that
+ * follows (and the guard and write built on it) cannot interleave with a concurrent issue.
+ */
+async function lockRawMaterial(tx: Prisma.TransactionClient, rawMaterialId: string) {
+  await tx.$queryRaw`SELECT 1 FROM raw_materials
+    WHERE company_id = ${requireTenantId()}::uuid AND raw_material_id = ${rawMaterialId}
+    FOR UPDATE`;
+}
 
 /** Normalize UOM aliases to canonical short form */
 function normalizeUom(uom: string): string {
@@ -1023,6 +1034,7 @@ class ProductionOrderService {
           const qty = parseFloat((fullQty * qtyRatio).toFixed(6));
           if (!rawMaterialId || qty <= 0) continue;
 
+          await lockRawMaterial(tx, rawMaterialId);
           const stock = await tx.rawMaterial.findUnique({
             where: byCode("rawMaterialId", rawMaterialId),
             include: { store: true },
@@ -1302,6 +1314,7 @@ class ProductionOrderService {
         for (const item of items) {
           const { rawMaterialId, storeId, qty, selectedUom, remarks } = item;
 
+          await lockRawMaterial(tx, rawMaterialId);
           const rm = await tx.rawMaterial.findUnique({
             where: byCode("rawMaterialId", rawMaterialId),
           });

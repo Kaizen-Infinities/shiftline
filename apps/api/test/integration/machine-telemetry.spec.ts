@@ -361,6 +361,24 @@ describe("machine telemetry", () => {
     expect(gone.status).toBe(404);
   });
 
+  it("a failing test-connection returns a fixed detail, not the adapter's internal error text", async () => {
+    const client = await api();
+    const machine = await makeMachine();
+    // EUROMAP63_FILE without connectionSettings.filePath makes connect() throw an internal message.
+    const gateway = await makeGateway(machine.machineId, "EUROMAP63_FILE");
+
+    const res = await client
+      .post(`/api/machine-gateways/${gateway.id}/test-connection`)
+      .set(OWNER.auth)
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.data.ok).toBe(false);
+    expect(res.body.data.detail).toBe(
+      "Could not reach the gateway. Check the connection settings and credentials."
+    );
+    expect(JSON.stringify(res.body)).not.toMatch(/filePath/);
+  });
+
   it("the signal-map editor round-trips via HTTP, retiring rather than deleting a removed mapping", async () => {
     const client = await api();
     const machine = await makeMachine();

@@ -1,5 +1,6 @@
 import fs from "fs";
 import { ApiError } from "./ApiError";
+import { env } from "../config/env";
 import { logger } from "../lib/logger";
 
 /**
@@ -17,7 +18,7 @@ export async function uploadToImageKit(
   fileName: string,
   folder: string
 ): Promise<string> {
-  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+  const privateKey = env.IMAGEKIT_PRIVATE_KEY;
 
   if (!privateKey) {
     throw new ApiError(500, "ImageKit private key is not configured in backend .env file");

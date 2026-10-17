@@ -35,6 +35,18 @@ export const authService = {
     const response = await apiClient.post(`${config?.auth?.logoutAllSessions}`);
     return response.data;
   },
+
+  /** Emails a reset link. The API answers the same way whether or not the account exists. */
+  requestPasswordReset: async (email: string) => {
+    const response = await apiClient.post("/auth/password-reset-request", { email });
+    return response.data;
+  },
+
+  /** Sets a new password from the token in the emailed link. */
+  resetPassword: async (token: string, newPassword: string) => {
+    const response = await apiClient.post("/auth/password-reset", { token, newPassword });
+    return response.data;
+  },
 };
 
 export default authService;

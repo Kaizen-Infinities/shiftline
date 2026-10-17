@@ -18,7 +18,10 @@ import { emitToTenant } from "../../lib/realtime";
 import { requireTenantId } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { accountsService } from "../accounts/accounts.service";
-import { voucherPostingService } from "../accounts/voucherPosting.service";
+import { periodService } from "../accounts/period.service";
+import { safeCreateVoucher, voucherPostingService } from "../accounts/voucherPosting.service";
+import { documentNumberService } from "../documents/document-number.service";
+import { describeFailure } from "./mobile.errors";
 import { extractPaymentsArray, num } from "./mobile.mappers";
 import { AgentContext, CollectionRaw, DeviceInfo } from "./mobile.types";
 
@@ -47,7 +50,8 @@ class MobileCollectionService {
           device
         );
       } catch (err: unknown) {
-        // Receipt number race with another agent — regenerate and retry.
+        // Receipt numbers come from the atomic document series; a P2002 can still come from a
+        // concurrent push of the same collection id — retry and the idempotency check wins.
         if ((err as { code?: string })?.code === "P2002" && attempt < 3) continue;
         throw err;
       }
@@ -64,6 +68,9 @@ class MobileCollectionService {
     const agentId = agent.userId.slice(0, 36);
     const collection = await prisma.$transaction(
       async (tx) => {
+        // Period control: a collection dated in a closed or frozen period is rejected whole.
+        await periodService.assertPostingAllowed(ctx.collectedAt, undefined, tx);
+
         const customer = await tx.customer.findUnique({ where: { id: raw.customer_id } });
         if (!customer) throw new ApiError(404, "Customer not found");
         if (customer.deletedAt) throw new ApiError(400, "Customer has been deleted");
@@ -145,16 +152,11 @@ class MobileCollectionService {
           }
         }
 
-        // ── 3. Receipt number (per tenant; RLS scopes the lookup) ──────────
-        const year = ctx.collectedAt.getFullYear();
-        const prefix = `MC-${year}-`;
-        const last = await tx.mobileCollection.findFirst({
-          where: { receiptNo: { startsWith: prefix } },
-          orderBy: { receiptNo: "desc" },
-          select: { receiptNo: true },
+        // ── 3. Receipt number from the RECEIPT series (branch/FY aware, atomic) ─
+        const receiptNo = await documentNumberService.next("RECEIPT", {
+          date: ctx.collectedAt,
+          tx,
         });
-        const lastNum = last ? parseInt(last.receiptNo.slice(prefix.length), 10) || 0 : 0;
-        const receiptNo = `${prefix}${String(lastNum + 1).padStart(5, "0")}`;
 
         // ── 4. On-account receipt (unallocated remainder) ──────────────────
         if (ctx.onAccount > 0) {
@@ -168,9 +170,10 @@ class MobileCollectionService {
             throw new ApiError(500, "Cash/Bank ledger missing — open Accounts once in the web app");
           }
           const amountDec = new Prisma.Decimal(ctx.onAccount);
-          const voucher = await tx.voucher.create({
-            data: {
-              voucherNo: `RCT-${receiptNo}`,
+          const voucher = await safeCreateVoucher(
+            tx,
+            {
+              voucherNo: receiptNo,
               type: VoucherType.RECEIPT,
               date: ctx.collectedAt,
               narration: `On-account receipt from ${customer.firmName} via ${raw.payment_mode}${
@@ -196,7 +199,9 @@ class MobileCollectionService {
                 ],
               },
             },
-          });
+            "MOBILE_COLLECTION",
+            raw.id
+          );
           voucherIds.push(voucher.id);
         }
 
@@ -371,12 +376,7 @@ class MobileCollectionService {
     try {
       return await this.post(agent, raw, device);
     } catch (err: unknown) {
-      await this.recordFailure(
-        agent,
-        raw,
-        err instanceof Error ? err.message : String(err),
-        device
-      );
+      await this.recordFailure(agent, raw, describeFailure(err, { collectionId }).message, device);
       throw err;
     }
   }

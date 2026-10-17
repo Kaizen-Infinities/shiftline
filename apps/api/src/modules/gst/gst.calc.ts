@@ -6,6 +6,8 @@
  */
 import type { GstRegistrationType, SalesDocumentType, SupplyType } from "@prisma/client";
 
+import { ApiError } from "../../utils/ApiError";
+
 export interface SupplyContext {
   /** State code of the place the supply is made from (the business place). */
   fromStateCode: string | null | undefined;
@@ -14,6 +16,7 @@ export interface SupplyContext {
   partyRegistration?: GstRegistrationType | string | null;
 }
 
+/** Throws ApiError(400) when a state code needed for the split is unknown (export and SEZ need none). */
 export const supplyTypeFor = ({
   fromStateCode,
   toStateCode,
@@ -21,7 +24,19 @@ export const supplyTypeFor = ({
 }: SupplyContext): SupplyType => {
   if (partyRegistration === "OVERSEAS") return "EXPORT";
   if (partyRegistration === "SEZ") return "SEZ";
-  if (!fromStateCode || !toStateCode) return "INTRA_STATE"; // unknown counter-party state: local B2C
+  // An unknown state is never assumed local: it would silently mis-tax the document.
+  if (!toStateCode) {
+    throw new ApiError(
+      400,
+      "Place of supply state code is missing for this customer — set the state (or GSTIN) on the customer or shipping address"
+    );
+  }
+  if (!fromStateCode) {
+    throw new ApiError(
+      400,
+      "State code is missing for the issuing business place — set the state (or GSTIN) on the business place or company"
+    );
+  }
   return fromStateCode === toStateCode ? "INTRA_STATE" : "INTER_STATE";
 };
 
