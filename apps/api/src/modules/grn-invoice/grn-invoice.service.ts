@@ -549,49 +549,50 @@ class GrnInvoiceService {
         // the whole creation back.
         await this.postPurchaseVouchersOrThrow(tx, grnInvoice.id);
 
+        // P2-05: accepting the TDS preview records the deduction and posts its journal — the
+        // supplier's payable balance and TDS-<section> ledger both move. It commits with the
+        // bill: a failure here rolls the whole GRN back.
+        if (data.deductTds && data.tdsSectionCode) {
+          await tdsService.lockPayee(tx, Number(data.supplierId));
+          const deduction = await tdsService.deduct(
+            {
+              sectionCode: data.tdsSectionCode,
+              supplierId: Number(data.supplierId),
+              docType: "GRN_INVOICE",
+              docId: grnInvoice.id,
+              docNo: grnInvoice.grnNumber,
+              deductionDate: grnInvoice.grnDate,
+              amount: tdsBaseAmount,
+            },
+            { userId: currentUser.userId },
+            tx
+          );
+          const tdsAmount = Number(deduction.tdsAmount);
+          if (tdsAmount > 0) {
+            // A section with no payable ledger configured returns null (logged) and the bill
+            // still stands, as before; any posting error throws and rolls the GRN back.
+            await tdsService.postDeductionVoucher(deduction.id, tx);
+            const payable = Number(grnInvoice.netAmount) - tdsAmount;
+            const totalPaid =
+              Math.round(
+                (Array.isArray(grnInvoice.payments) ? (grnInvoice.payments as any[]) : []).reduce(
+                  (s: number, p: any) => s + Number(p.amount || 0),
+                  0
+                ) * 100
+              ) / 100;
+            const paymentStatus =
+              totalPaid === 0 ? "Unpaid" : totalPaid >= payable ? "Closed" : "Partial";
+            await tx.grnInvoice.update({
+              where: { id: grnInvoice.id },
+              data: { tdsAmount, tdsSectionCode: data.tdsSectionCode, paymentStatus },
+            });
+          }
+        }
+
         return grnInvoice;
       },
       { timeout: 30000, maxWait: 10000 }
     );
-
-    // P2-05: accepting the TDS preview records the deduction and posts its journal — the
-    // supplier's payable balance and TDS-<section> ledger both move.
-    if (data.deductTds && data.tdsSectionCode) {
-      try {
-        const deduction = await tdsService.deduct(
-          {
-            sectionCode: data.tdsSectionCode,
-            supplierId: Number(data.supplierId),
-            docType: "GRN_INVOICE",
-            docId: grnInvoice.id,
-            docNo: grnInvoice.grnNumber,
-            deductionDate: grnInvoice.grnDate,
-            amount: tdsBaseAmount,
-          },
-          { userId: currentUser.userId }
-        );
-        const tdsAmount = Number(deduction.tdsAmount);
-        if (tdsAmount > 0) {
-          await tdsService.postDeductionVoucher(deduction.id, prisma);
-          const payable = Number(grnInvoice.netAmount) - tdsAmount;
-          const totalPaid =
-            Math.round(
-              (Array.isArray(grnInvoice.payments) ? (grnInvoice.payments as any[]) : []).reduce(
-                (s: number, p: any) => s + Number(p.amount || 0),
-                0
-              ) * 100
-            ) / 100;
-          const paymentStatus =
-            totalPaid === 0 ? "Unpaid" : totalPaid >= payable ? "Closed" : "Partial";
-          await prisma.grnInvoice.update({
-            where: { id: grnInvoice.id },
-            data: { tdsAmount, tdsSectionCode: data.tdsSectionCode, paymentStatus },
-          });
-        }
-      } catch (tdsErr) {
-        logger.error({ err: tdsErr }, "[GRN TDS] Failed to record TDS deduction:");
-      }
-    }
 
     const finalInvoice = await prisma.grnInvoice.findUniqueOrThrow({
       where: { id: grnInvoice.id },

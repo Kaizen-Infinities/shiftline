@@ -10,6 +10,9 @@ A convention audit of `main` (tenancy, error text, auth, books/GST, concurrency,
   document transaction; a posting failure rolls the document back (422). Edits reverse the old
   voucher and post a new one. Sales invoices with a live IRN or e-way bill cannot be edited
   (409 `IRN_LIVE` / `EWB_LIVE`).
+- **TDS:** an expense created as Approved and a GRN with TDS record the deduction, its journal and
+  the document's voucher in one transaction, under a per-payee lock for the cumulative threshold.
+  Expenses with `deductTds: true` previously always failed (the flag was written as a column); fixed.
 - **Stock:** raw-material issue locks the row; finished-goods stock moves by increment; purchase
   returns use a guarded decrement; SA/PW and daily-plan numbers allocate under an advisory lock.
 - **GST:** a place of supply that was given but cannot be resolved is refused (400); a party with no
@@ -32,8 +35,6 @@ one failure (`e-invoice.spec.ts` "refuses a B2C document…") also fails on `mai
 ## Half-done
 
 - Login page has no "Forgot password?" link to `/reset` (needs an i18n key).
-- `createExpense` for an expense created directly as Approved, and GRN TDS, still post/record after
-  commit with swallow-and-log (TDS flow needs restructuring).
 - `GET /api/companies` returns 500 for an admin token without a tenant (route has no permission
   middleware).
 - Master codes (customer, supplier, machine, shift, raw material) are client-supplied; a collision is

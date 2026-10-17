@@ -48,78 +48,84 @@ class ExpenseService {
 
     await periodService.assertPostingAllowed(new Date(data.date), currentUser);
     const tax = await computeExpenseTax(prisma, { ...data, amount: Number(data.amount) });
-    const newExpense = await prisma.expense.create({
-      data: {
-        ...data,
-        ...tax,
-        date: data.date ? new Date(data.date) : undefined,
-        amount: data.amount !== undefined ? Number(data.amount) : undefined,
-        supplierId: data.supplierId ? Number(data.supplierId) : null,
-        companyId: currentUser.companyId,
-        createdBy: currentUser.userId,
-      },
-      include: {
-        supplier: true,
-      },
-    });
-
+    // The expense, its TDS deduction and (for an Approved one) its EXPENSE voucher commit together;
+    // any failure rolls all of it back and reaches the caller as an ApiError.
     // P2-05: offer or accept the TDS deduction on this bill. Accepting it re-derives the
     // authoritative rate/amount (threshold, 206AA/206AB) through tdsService and records a
     // TdsDeduction row so it feeds the quarterly return; the raw tdsRate/tdsAmount the caller
     // sent are only a preview unless deductTds is true.
-    let tdsPreview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
-    if (data.tdsSection) {
-      const taxable = Number(newExpense.taxableAmount ?? newExpense.amount);
-      if (data.deductTds) {
-        try {
-          const deduction = await tdsService.deduct(
-            {
-              sectionCode: data.tdsSection,
-              supplierId: newExpense.supplierId ?? undefined,
-              docType: "EXPENSE",
-              docId: newExpense.id,
-              docNo: newExpense.expenseNumber,
-              deductionDate: newExpense.date,
-              amount: taxable,
-            },
-            { userId: currentUser.userId }
-          );
-          await prisma.expense.update({
-            where: { id: newExpense.id },
-            data: {
-              tdsSection: data.tdsSection,
-              tdsRate: deduction.rate,
-              tdsAmount: deduction.tdsAmount,
-            },
-          });
-          newExpense.tdsRate = deduction.rate;
-          newExpense.tdsAmount = deduction.tdsAmount;
-        } catch (tdsErr) {
-          logger.error({ err: tdsErr }, "[Expense TDS] Failed to record TDS deduction:");
-        }
-      } else {
-        tdsPreview = await tdsService.rateFor({
-          sectionCode: data.tdsSection,
-          supplierId: newExpense.supplierId ?? undefined,
-          amount: taxable,
-          on: newExpense.date,
-        });
-      }
-    }
-
     // P1-10d: an expense claim reaches the books only once it is approved. A record created
-    // straight as Approved (a paid-and-filed bill) posts its EXPENSE voucher at once.
-    if (newExpense.status === APPROVED) {
-      try {
-        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-        await voucherPostingService.postExpenseVoucher(newExpense.id, data.paymentMethod);
-      } catch (voucherErr) {
-        logger.error(
-          { err: voucherErr },
-          "[Expense Voucher Posting Error]: Failed to post expense voucher"
-        );
-      }
-    }
+    // straight as Approved (a paid-and-filed bill) posts its EXPENSE voucher at once; the voucher
+    // reads the deducted tdsAmount, so the deduction is recorded first.
+    const { newExpense, tdsPreview } = await prisma.$transaction(
+      async (tx) => {
+        // deductTds is a request flag, not a column.
+        const { deductTds: _deductTds, ...expenseData } = data;
+        const created = await tx.expense.create({
+          data: {
+            ...expenseData,
+            ...tax,
+            date: data.date ? new Date(data.date) : undefined,
+            amount: data.amount !== undefined ? Number(data.amount) : undefined,
+            supplierId: data.supplierId ? Number(data.supplierId) : null,
+            companyId: currentUser.companyId,
+            createdBy: currentUser.userId,
+          },
+          include: {
+            supplier: true,
+          },
+        });
+
+        let preview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
+        if (data.tdsSection) {
+          const taxable = Number(created.taxableAmount ?? created.amount);
+          if (data.deductTds) {
+            // Serialise concurrent deductions for the same payee so the cumulative threshold
+            // check cannot be skipped by two transactions reading the same prior total.
+            await tdsService.lockPayee(tx, created.supplierId ?? undefined);
+            const deduction = await tdsService.deduct(
+              {
+                sectionCode: data.tdsSection,
+                supplierId: created.supplierId ?? undefined,
+                docType: "EXPENSE",
+                docId: created.id,
+                docNo: created.expenseNumber,
+                deductionDate: created.date,
+                amount: taxable,
+              },
+              { userId: currentUser.userId },
+              tx
+            );
+            await tx.expense.update({
+              where: { id: created.id },
+              data: {
+                tdsSection: data.tdsSection,
+                tdsRate: deduction.rate,
+                tdsAmount: deduction.tdsAmount,
+              },
+            });
+            created.tdsRate = deduction.rate;
+            created.tdsAmount = deduction.tdsAmount;
+          } else {
+            preview = await tdsService.rateFor(
+              {
+                sectionCode: data.tdsSection,
+                supplierId: created.supplierId ?? undefined,
+                amount: taxable,
+                on: created.date,
+              },
+              tx
+            );
+          }
+        }
+
+        if (created.status === APPROVED) {
+          await this.postExpenseVoucherOrThrow(created.id, data.paymentMethod, tx);
+        }
+        return { newExpense: created, tdsPreview: preview };
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
 
     // Also create a Petty Cash entry for petty cash tracking (record-keeping only, no voucher posting)
     try {

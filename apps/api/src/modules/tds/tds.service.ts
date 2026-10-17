@@ -225,6 +225,17 @@ class TdsService {
     };
   }
 
+  /**
+   * Takes a transaction-scoped advisory lock on a payee so two concurrent deductions for the
+   * same supplier cannot both read the same prior total and skip a cumulative threshold. Held
+   * until the transaction commits or rolls back.
+   */
+  async lockPayee(tx: Prisma.TransactionClient, supplierId?: number | null) {
+    if (!supplierId) return;
+    const key = `${requireTenantId()}:tds:${supplierId}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+  }
+
   /** Records a deduction against a document. One per document per section. */
   async deduct(input: DeductionInput, actor: { userId?: string }, db: Db = prisma) {
     const on = new Date(input.deductionDate);
