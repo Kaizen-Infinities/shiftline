@@ -308,20 +308,23 @@ export class AuthService {
     userAgent?: string,
     deviceId?: string
   ): Promise<AuthResult> {
-    return withoutTenant(() => this.refreshInner(rawToken, ipAddress, userAgent, deviceId));
+    return withoutTenant(() => this.refreshInner(rawToken, ipAddress, userAgent, deviceId, 0));
   }
 
   private async refreshInner(
     rawToken: string,
-    ipAddress?: string,
-    userAgent?: string,
-    deviceId?: string
+    ipAddress: string | undefined,
+    userAgent: string | undefined,
+    deviceId: string | undefined,
+    attempt: number
   ): Promise<AuthResult> {
     const now = new Date();
     const hash = hashToken(rawToken);
     let session = await prisma.userSession.findFirst({
       where: { sessionToken: hash, isActive: true, expiresAt: { gt: now } },
     });
+    // True when this request presents the previous token inside the grace window.
+    let graceReplay = false;
 
     if (!session) {
       const replayed = await prisma.userSession.findFirst({
@@ -346,6 +349,7 @@ export class AuthService {
         throw new ApiError(401, "Session revoked: refresh token reuse detected");
       }
       session = replayed;
+      graceReplay = true;
     }
 
     // Device-bound sessions (P1-02 B1): the device must be the same and not revoked.
@@ -404,17 +408,31 @@ export class AuthService {
       session.loginAt.getTime() + SESSION_MAX_DAYS * 24 * 60 * 60 * 1000
     );
     const sliding = new Date(now.getTime() + refreshTtlMs());
-    await prisma.userSession.update({
-      where: { id: session.id },
+    // Rotation is a compare-and-swap on the token we read, so two requests can never both
+    // rotate from the same state. Rule for the grace window (concurrent tabs): the previous
+    // token may be replayed exactly once. That use rotates again and clears `rotatedAt`, so any
+    // further replay of the old token is outside the grace window and revokes the session.
+    // A request that loses the swap (count 0) re-reads the session once: a fresh token that
+    // was just rotated away is then handled as a grace replay, a consumed one as reuse.
+    const swapped = await prisma.userSession.updateMany({
+      where: {
+        id: session.id,
+        sessionToken: session.sessionToken,
+        ...(graceReplay ? { prevTokenHash: hash, rotatedAt: { not: null } } : {}),
+      },
       data: {
         sessionToken: hashToken(nextRaw),
         prevTokenHash: hash,
-        rotatedAt: now,
+        rotatedAt: graceReplay ? null : now,
         lastUsedAt: now,
         expiresAt: sliding < absoluteMax ? sliding : absoluteMax,
         ...(ipAddress ? { ipAddress } : {}),
       },
     });
+    if (swapped.count === 0) {
+      if (attempt >= 2) throw new ApiError(401, "Session expired or invalid");
+      return this.refreshInner(rawToken, ipAddress, userAgent, deviceId, attempt + 1);
+    }
 
     const accessToken = generateAccessToken({
       userId: user.userId,
