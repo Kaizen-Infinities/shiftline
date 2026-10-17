@@ -3,6 +3,10 @@ import { withoutTenant } from "../../lib/tenant-context";
 import crypto from "crypto";
 
 import { prisma } from "../../config/prisma";
+import { env } from "../../config/env";
+import { logger } from "../../lib/logger";
+import { sendResendEmail } from "../../utils/resend";
+import { generatePasswordResetEmail } from "../../templates/passwordResetEmailTemplate";
 import { ApiError } from "../../utils/ApiError";
 import { entitlementService } from "../entitlements/entitlement.service";
 import { authRepository } from "./auth.repository";
@@ -569,17 +573,19 @@ export class AuthService {
     });
   }
 
-  async requestPasswordReset(email: string, ipAddress?: string): Promise<string> {
+  /**
+   * Creates a reset token for a real account and emails the link. Returns nothing so callers
+   * cannot leak the token; the email goes out after the caller has responded.
+   */
+  async requestPasswordReset(email: string, ipAddress?: string): Promise<void> {
     return withoutTenant(() => this.requestPasswordResetInner(email, ipAddress));
   }
 
-  private async requestPasswordResetInner(email: string, ipAddress?: string): Promise<string> {
+  private async requestPasswordResetInner(email: string, ipAddress?: string): Promise<void> {
     const user = await authRepository.findUserByEmail(email);
 
     // Don't reveal if user exists
-    if (!user) {
-      return crypto.randomUUID(); // Return dummy token
-    }
+    if (!user) return;
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = this.hashToken(resetToken);
@@ -597,7 +603,13 @@ export class AuthService {
       ipAddress,
     });
 
-    return resetToken;
+    if (!user.email) return;
+    const resetUrl = `${env.FRONTEND_URL.replace(/\/+$/, "")}/reset?token=${resetToken}`;
+    const mail = generatePasswordResetEmail(resetUrl);
+    // Fire and forget: the response must not depend on (or reveal) the send.
+    void sendResendEmail({ to: user.email, ...mail }).catch((err) =>
+      logger.error({ err }, "Password reset email failed")
+    );
   }
 
   async resetPassword(token: string, newPassword: string, ipAddress?: string): Promise<void> {

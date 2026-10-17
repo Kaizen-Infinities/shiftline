@@ -70,6 +70,10 @@ const envSchema = z
     FRONTEND_URL: z.string().url().default("http://localhost:5173"),
     BACKEND_URL: z.string().url().default("http://localhost:5000"),
 
+    /** Resend (https://resend.com) sends password-reset email; without both, resets are not emailed. */
+    RESEND_API_KEY: optionalString,
+    RESEND_FROM: optionalString,
+
     ADMIN_EMAIL: optionalString,
     ADMIN_USERNAME: optionalString,
     ADMIN_PASSWORD: optionalString,
