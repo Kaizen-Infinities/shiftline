@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import axios from "axios";
+import { apiClient } from "../../../api/apiClient";
 import { useAppDispatch } from "../../../hooks/reduxHooks";
 import { setAccessToken, getCurrentUser } from "../../../features/auth/authSlice";
 import AuthLayout from "../../../components/layout/AuthLayout";
@@ -12,8 +12,6 @@ interface InvitationPreview {
   roleName: string;
   expiresAt: string;
 }
-
-const API = import.meta.env.VITE_API_URL;
 
 /**
  * Public page opened from an invitation email: shows who invited you and for
@@ -38,8 +36,8 @@ const AcceptInvitationPage: React.FC = () => {
       setError("This invitation link is not valid.");
       return;
     }
-    axios
-      .get(`${API}/invitations/token/${token}`)
+    apiClient
+      .get(`/invitations/token/${token}`)
       .then((res) => {
         const data = res.data?.data as InvitationPreview;
         setPreview(data);
@@ -70,11 +68,11 @@ const AcceptInvitationPage: React.FC = () => {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await axios.post(
-        `${API}/invitations/token/${token}/accept`,
-        { fullName, username, password },
-        { withCredentials: true }
-      );
+      const res = await apiClient.post(`/invitations/token/${token}/accept`, {
+        fullName,
+        username,
+        password,
+      });
       const data = res.data?.data;
       dispatch(
         setAccessToken({
