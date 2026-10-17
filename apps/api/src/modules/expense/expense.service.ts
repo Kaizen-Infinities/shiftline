@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { logger } from "../../lib/logger";
@@ -284,30 +285,30 @@ class ExpenseService {
       }),
     };
 
-    const updatedExpense = await prisma.expense.update({
-      where: { id },
-      data: updateData,
-      include: {
-        supplier: true,
-      },
-    });
-
-    // Cancel (reverse) the old EXPENSE voucher and post a fresh one for the updated figures (P1-09).
+    // The update, the reversal of the old voucher and the new posting commit together (P1-09).
     // Unapproved claims have no voucher yet, so nothing to re-post.
-    if (updatedExpense.status === APPROVED) {
-      try {
-        const oldVoucher = await prisma.voucher.findFirst({
-          where: { refDocType: "EXPENSE", refDocId: id, status: "POSTED" },
+    const updatedExpense = await prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.expense.update({
+          where: { id },
+          data: updateData,
+          include: {
+            supplier: true,
+          },
         });
-        if (oldVoucher) {
-          await cancellationService.cancelVoucher(oldVoucher.id, { reason: "Expense edited" });
+        if (updated.status === APPROVED) {
+          await cancellationService.cancelVouchersFor(
+            ["EXPENSE"],
+            [id],
+            { reason: "Expense edited" },
+            tx
+          );
+          await this.postExpenseVoucherOrThrow(id, updated.paymentMethod, tx);
         }
-        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-        await voucherPostingService.postExpenseVoucher(id, updatedExpense.paymentMethod);
-      } catch (voucherErr) {
-        logger.error({ err: voucherErr }, "[Expense Voucher Update Error]:");
-      }
-    }
+        return updated;
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
 
     // Update corresponding petty cash entry if exists
     try {
@@ -364,19 +365,40 @@ class ExpenseService {
       throw new ApiError(403, "An expense cannot be approved by the person who claimed it");
     }
     await periodService.assertPostingAllowed(expense.date, actor);
-    const approved = await prisma.expense.update({
-      where: { id },
-      data: {
-        status: APPROVED,
-        approvedBy: actor.userId ?? null,
-        approvedAt: new Date(),
-        rejectReason: null,
+    return prisma.$transaction(
+      async (tx) => {
+        const approved = await tx.expense.update({
+          where: { id },
+          data: {
+            status: APPROVED,
+            approvedBy: actor.userId ?? null,
+            approvedAt: new Date(),
+            rejectReason: null,
+          },
+          include: { supplier: true },
+        });
+        await this.postExpenseVoucherOrThrow(id, approved.paymentMethod, tx);
+        return approved;
       },
-      include: { supplier: true },
-    });
+      { maxWait: 10000, timeout: 30000 }
+    );
+  }
+
+  /** Posts the EXPENSE voucher inside `tx`; a null result is a failure that rolls everything back. */
+  private async postExpenseVoucherOrThrow(
+    expenseId: string,
+    paymentMethod: string | undefined,
+    tx: Prisma.TransactionClient
+  ) {
     const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-    await voucherPostingService.postExpenseVoucher(id, approved.paymentMethod);
-    return approved;
+    const voucher = await voucherPostingService.postExpenseVoucher(expenseId, paymentMethod, tx);
+    if (!voucher) {
+      logger.error({ expenseId }, "[Expense] Voucher could not be posted");
+      throw new ApiError(
+        422,
+        "The expense voucher could not be posted; check the ledgers and the GST/TDS figures on the expense"
+      );
+    }
   }
 
   async rejectExpense(

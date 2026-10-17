@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { CreateGrnInvoiceInput, UpdateGrnInvoiceInput } from "./grn-invoice.validation";
@@ -544,22 +545,14 @@ class GrnInvoiceService {
           });
         }
 
+        // The books move with the GRN: a posting failure (closed period, missing ledger) rolls
+        // the whole creation back.
+        await this.postPurchaseVouchersOrThrow(tx, grnInvoice.id);
+
         return grnInvoice;
       },
       { timeout: 30000, maxWait: 10000 }
     );
-
-    // Auto-post double-entry PURCHASE Voucher & PAYMENT Vouchers after GRN transaction has committed
-    try {
-      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-      await voucherPostingService.postPurchaseVoucher(grnInvoice.id);
-      await voucherPostingService.postPaymentVouchersForGRN(grnInvoice.id);
-    } catch (vErr) {
-      logger.error(
-        { err: vErr },
-        "[Auto-Post Voucher Error] Failed to post Purchase/Payment Voucher for GRN:"
-      );
-    }
 
     // P2-05: accepting the TDS preview records the deduction and posts its journal — the
     // supplier's payable balance and TDS-<section> ledger both move.
@@ -771,427 +764,225 @@ class GrnInvoiceService {
         : data.payments
       : undefined;
 
-    const updated = await prisma.$transaction(async (tx) => {
-      let subtotal = Number(existing.subtotal);
-      let totalDiscount = Number(existing.totalDiscount);
-      let totalTax = Number(existing.totalTax);
-      let totalCgst = Number(existing.totalCgst);
-      let totalSgst = Number(existing.totalSgst);
-      let totalIgst = Number(existing.totalIgst);
-      let totalCess = Number(existing.totalCess);
-      let netAmount = Number(existing.netAmount);
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        let subtotal = Number(existing.subtotal);
+        let totalDiscount = Number(existing.totalDiscount);
+        let totalTax = Number(existing.totalTax);
+        let totalCgst = Number(existing.totalCgst);
+        let totalSgst = Number(existing.totalSgst);
+        let totalIgst = Number(existing.totalIgst);
+        let totalCess = Number(existing.totalCess);
+        let netAmount = Number(existing.netAmount);
 
-      let itemsToCreate = existing.items;
-      let currencyCode = existing.currencyCode ?? "INR";
-      let exchangeRate = Number(existing.exchangeRate ?? 1);
-      let foreignTotal =
-        existing.foreignTotal !== null && existing.foreignTotal !== undefined
-          ? Number(existing.foreignTotal)
-          : null;
+        let itemsToCreate = existing.items;
+        let currencyCode = existing.currencyCode ?? "INR";
+        let exchangeRate = Number(existing.exchangeRate ?? 1);
+        let foreignTotal =
+          existing.foreignTotal !== null && existing.foreignTotal !== undefined
+            ? Number(existing.foreignTotal)
+            : null;
 
-      if (data.currencyCode !== undefined) currencyCode = String(data.currencyCode).toUpperCase();
-      if (currencyCode !== "INR" && data.exchangeRate !== undefined) {
-        exchangeRate = Number(data.exchangeRate);
-      } else if (currencyCode === "INR") {
-        exchangeRate = 1;
-      } else if (!exchangeRate || exchangeRate <= 0) {
-        exchangeRate = await currencyService.rateFor(
-          currencyCode,
-          data.grnDate ? new Date(data.grnDate) : existing.grnDate
-        );
-      }
-
-      if (items) {
-        const itemsInInr =
-          exchangeRate === 1
-            ? items
-            : items.map((i: any) => ({
-                ...i,
-                unitPrice: Number(i.unitPrice) * exchangeRate,
-                discountAmount: Number(i.discountAmount ?? 0) * exchangeRate,
-              }));
-        const totals = await this.calculateTotals(
-          itemsInInr,
-          gst,
-          discountType,
-          discountValue,
-          roundingAdjust
-        );
-        subtotal = totals.subtotal;
-        totalDiscount = totals.totalDiscount;
-        totalTax = totals.totalTax;
-        totalCgst = totals.totalCgst;
-        totalSgst = totals.totalSgst;
-        totalIgst = totals.totalIgst;
-        totalCess = totals.totalCess;
-        netAmount = totals.netAmount;
-        itemsToCreate = totals.itemsWithTotals as any;
-
-        // Delete old items
-        await tx.grnInvoiceItem.deleteMany({
-          where: { grnInvoiceId: id },
-        });
-      }
-      foreignTotal = exchangeRate === 1 ? null : Math.round((netAmount / exchangeRate) * 100) / 100;
-
-      let processedPayments = existing.payments
-        ? ((typeof existing.payments === "string"
-            ? JSON.parse(existing.payments)
-            : existing.payments) as any[])
-        : [];
-      let computedStatus = existing.paymentStatus;
-
-      if (rawPayments) {
-        processedPayments = rawPayments.map((p: any) => ({
-          id: p.id || crypto.randomUUID(),
-          amount: Math.round(Number(p.amount) * 100) / 100,
-          paymentMethod: p.paymentMethod,
-          referenceNumber: p.referenceNumber || "",
-          paymentDate: p.paymentDate,
-          recordedBy: "System",
-          createdAt: p.createdAt || new Date().toISOString(),
-          instrumentType: p.instrumentType ?? undefined,
-          chequeNo: p.chequeNo ?? undefined,
-          chequeDate: p.chequeDate ?? undefined,
-          chequeBank: p.chequeBank ?? undefined,
-          chequeParty: p.chequeParty ?? undefined,
-          settlementRate: p.settlementRate ?? undefined,
-        }));
-        const totalPaid =
-          Math.round(
-            processedPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0) * 100
-          ) / 100;
-        computedStatus =
-          totalPaid === 0 ? "Unpaid" : totalPaid >= Number(netAmount) ? "Closed" : "Partial";
-      }
-
-      // Update GRN record
-      const updated = await tx.grnInvoice.update({
-        where: { id },
-        data: {
-          invoiceNo: data.invoiceNo || existing.invoiceNo,
-          grnDate: data.grnDate ? new Date(data.grnDate) : existing.grnDate,
-          supplierInvoiceDate: data.supplierInvoiceDate
-            ? new Date(data.supplierInvoiceDate)
-            : existing.supplierInvoiceDate,
-          supplierId,
-          storeId,
-          businessPlaceId: gst.place.id,
-          placeOfSupply: gst.placeOfSupply,
-          supplyType: gst.supplyType,
-          supplierGstin: supplier.gstin ?? null,
-          reverseCharge: gst.reverseCharge,
-          totalCess,
-          billingAddressLine1: data.billingAddressLine1 || existing.billingAddressLine1,
-          billingCity: data.billingCity || existing.billingCity,
-          billingState: data.billingState || existing.billingState,
-          billingPincode: data.billingPincode || existing.billingPincode,
-          billingCountry: data.billingCountry || existing.billingCountry || "India",
-          shippingAddressLine1: data.shippingAddressLine1 || existing.shippingAddressLine1,
-          shippingCity: data.shippingCity || existing.shippingCity,
-          shippingState: data.shippingState || existing.shippingState,
-          shippingPincode: data.shippingPincode || existing.shippingPincode,
-          shippingCountry: data.shippingCountry || existing.shippingCountry || "India",
-          sameAsBilling: sameAsBilling ?? existing.sameAsBilling,
-          updateStock: updateStockEnabled,
-
-          receiveDate: data.receiveDate ? new Date(data.receiveDate) : existing.receiveDate,
-          billDueDate: data.billDueDate
-            ? new Date(data.billDueDate)
-            : (existing.billDueDate ??
-              dueDateFrom(
-                data.supplierInvoiceDate
-                  ? new Date(data.supplierInvoiceDate)
-                  : data.grnDate
-                    ? new Date(data.grnDate)
-                    : existing.grnDate,
-                supplier.creditDays
-              )),
-          challanNo: data.challanNo !== undefined ? data.challanNo : existing.challanNo,
-          transport: data.transport !== undefined ? data.transport : existing.transport,
-          eWayBill: data.eWayBill !== undefined ? data.eWayBill : existing.eWayBill,
-          invoiceImage: file
-            ? invoiceImageUrl
-            : data.invoiceImage !== undefined
-              ? data.invoiceImage
-              : existing.invoiceImage,
-          remarks: data.remarks !== undefined ? data.remarks : existing.remarks,
-
-          discountType,
-          discountValue,
-          roundingAdjust,
-
-          paymentStatus: computedStatus,
-          payments: processedPayments as any,
-          paymentMethod:
-            rawPayments && processedPayments.length > 0
-              ? processedPayments[processedPayments.length - 1].paymentMethod
-              : data.paymentMethod !== undefined
-                ? data.paymentMethod
-                : existing.paymentMethod,
-          referenceNumber:
-            rawPayments && processedPayments.length > 0
-              ? processedPayments[processedPayments.length - 1].referenceNumber
-              : data.referenceNumber !== undefined
-                ? data.referenceNumber
-                : existing.referenceNumber,
-          paymentDate:
-            rawPayments && processedPayments.length > 0
-              ? new Date(processedPayments[processedPayments.length - 1].paymentDate)
-              : data.paymentDate
-                ? new Date(data.paymentDate)
-                : existing.paymentDate,
-
-          subtotal,
-          totalDiscount,
-          totalTax,
-          totalCgst,
-          totalSgst,
-          totalIgst,
-          netAmount,
-          currencyCode,
-          exchangeRate,
-          foreignTotal,
-          poId: data.poId !== undefined ? data.poId : existing.poId,
-
-          ...(data.items && {
-            items: {
-              create: itemsToCreate.map((item: any) => ({
-                productId: item.productId,
-                description: item.description,
-                uom: item.uom,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                discountAmount: item.discountAmount || 0,
-                tax: item.tax || 0,
-                taxableAmount: item.taxableAmount || 0,
-                cgstRate: item.cgstRate || 0,
-                cgstAmount: item.cgstAmount || 0,
-                sgstRate: item.sgstRate || 0,
-                sgstAmount: item.sgstAmount || 0,
-                igstRate: item.igstRate || 0,
-                igstAmount: item.igstAmount || 0,
-                hsnCode: item.hsnCode ?? null,
-                cessRate: item.cessRate || 0,
-                cessAmount: item.cessAmount || 0,
-                lineTotal: item.lineTotal,
-              })),
-            },
-          }),
-        },
-        include: {
-          items: true,
-        },
-      });
-
-      // Handle transitions
-      if (existing.updateStock && !updateStockEnabled) {
-        // Toggle reversed: Revert old stock levels using a Reversal stock adjustment
-        const revAdjustmentNumber = `ADJ-REV-${existing.grnNumber}-${Date.now().toString().slice(-4)}`;
-        const revAdjustmentItems = [];
-
-        for (const item of existing.items) {
-          const rawMaterial = await tx.rawMaterial.findUnique({
-            where: byCode("rawMaterialId", item.productId),
-          });
-          if (!rawMaterial) continue;
-
-          const itemTypeStr = rawMaterial.itemType || "Raw Material";
-          let enumType: any = "RAW_MATERIAL";
-          const normalized = itemTypeStr.toUpperCase().replace(/\s+/g, "_");
-          if (normalized === "RAW_MATERIAL" || normalized === "RAW_MATERIALS") {
-            enumType = "RAW_MATERIAL";
-          } else if (normalized === "FINISHED_GOOD" || normalized === "FINISHED_GOODS") {
-            enumType = "FINISHED_GOODS";
-          } else if (normalized === "SEMI_FINISHED") {
-            enumType = "SEMI_FINISHED";
-          } else if (normalized === "CONSUMABLE" || normalized === "CONSUMABLES") {
-            enumType = "CONSUMABLE";
-          }
-
-          const mult = getUomMultiplier(item.uom, rawMaterial.baseUom);
-          const currentQtyNum = Number(rawMaterial.onHandQty) || 0;
-          const revertQtyNum = Number(item.quantity) * mult;
-          const adjustedQtyNum = currentQtyNum - revertQtyNum;
-
-          revAdjustmentItems.push({
-            itemType: enumType,
-            rawMaterialId: item.productId,
-            storeId: existing.storeId,
-            currentQty: currentQtyNum,
-            adjustedQty: adjustedQtyNum,
-            difference: -revertQtyNum,
-            unitCost: Number(item.unitPrice),
-            batchNo: rawMaterial.batchNo || null,
-            remarks: `Reversal of GRN ${existing.grnNumber} due to update stock disabled`,
-          });
-
-          await tx.rawMaterial.update({
-            where: byCode("rawMaterialId", item.productId),
-            data: {
-              onHandQty: {
-                decrement: revertQtyNum,
-              },
-            },
-          });
-
-          await tx.rawMaterialTransaction.create({
-            data: {
-              storeId: existing.storeId,
-              rawMaterialId: item.productId,
-              txnType: "STOCK_ADJUSTMENT_OUT",
-              qty: revertQtyNum,
-              txnDateTime: new Date(),
-              remarks: `GRN Reversal: ${existing.grnNumber}`,
-            },
-          });
+        if (data.currencyCode !== undefined) currencyCode = String(data.currencyCode).toUpperCase();
+        if (currencyCode !== "INR" && data.exchangeRate !== undefined) {
+          exchangeRate = Number(data.exchangeRate);
+        } else if (currencyCode === "INR") {
+          exchangeRate = 1;
+        } else if (!exchangeRate || exchangeRate <= 0) {
+          exchangeRate = await currencyService.rateFor(
+            currencyCode,
+            data.grnDate ? new Date(data.grnDate) : existing.grnDate
+          );
         }
 
-        if (revAdjustmentItems.length > 0) {
-          await tx.stockAdjustment.create({
-            data: {
-              adjustmentNumber: revAdjustmentNumber,
-              adjustmentDate: new Date(),
-              reason: `Auto-generated Reversal due to Update Stock disabled on Bill: ${existing.invoiceNo}`,
-              status: "APPROVED",
-              approvedBy: existing.createdBy,
-              approvedAt: new Date(),
-              createdBy: existing.createdBy,
-              updatedBy: existing.createdBy,
-              autoGenerated: true,
-              sourceDocument: "GrnInvoice",
-              sourceDocId: existing.id,
-              type: "Reversal",
-              items: {
-                create: revAdjustmentItems,
-              },
-            },
-          });
-        }
-      } else if (!existing.updateStock && updateStockEnabled) {
-        // Toggle enabled: Apply stock levels using a Receipt stock adjustment
-        const newAdjustmentNumber = `ADJ-GRN-${existing.grnNumber}-${Date.now().toString().slice(-4)}`;
-        const newAdjustmentItems = [];
-
-        for (const item of itemsToCreate) {
-          const rawMaterial = await tx.rawMaterial.findUnique({
-            where: byCode("rawMaterialId", item.productId),
-          });
-          if (!rawMaterial) {
-            throw new ApiError(404, `Raw Material ${item.productId} not found`);
-          }
-
-          let itemTypeStr = rawMaterial.itemType;
-          if (!itemTypeStr) {
-            itemTypeStr = "Raw Material";
-            await tx.rawMaterial.update({
-              where: byCode("rawMaterialId", item.productId),
-              data: {
-                itemType: "Raw Material",
-                flaggedForReview: true,
-              },
-            });
-          }
-
-          let enumType: any = "RAW_MATERIAL";
-          const normalized = itemTypeStr.toUpperCase().replace(/\s+/g, "_");
-          if (normalized === "RAW_MATERIAL" || normalized === "RAW_MATERIALS") {
-            enumType = "RAW_MATERIAL";
-          } else if (normalized === "FINISHED_GOOD" || normalized === "FINISHED_GOODS") {
-            enumType = "FINISHED_GOODS";
-          } else if (normalized === "SEMI_FINISHED") {
-            enumType = "SEMI_FINISHED";
-          } else if (normalized === "CONSUMABLE" || normalized === "CONSUMABLES") {
-            enumType = "CONSUMABLE";
-          }
-
-          const mult = getUomMultiplier(item.uom, rawMaterial.baseUom);
-          const currentQtyNum = Number(rawMaterial.onHandQty) || 0;
-          const newQtyNum = Number(item.quantity) * mult;
-          const adjustedQtyNum = currentQtyNum + newQtyNum;
-
-          newAdjustmentItems.push({
-            itemType: enumType,
-            rawMaterialId: item.productId,
-            storeId: storeId,
-            currentQty: currentQtyNum,
-            adjustedQty: adjustedQtyNum,
-            difference: newQtyNum,
-            unitCost: Number(item.unitPrice),
-            batchNo: rawMaterial.batchNo || null,
-            remarks: `Receipt from GRN ${existing.grnNumber} after update stock enabled`,
-          });
-
-          await tx.rawMaterial.update({
-            where: byCode("rawMaterialId", item.productId),
-            data: {
-              onHandQty: {
-                increment: newQtyNum,
-              },
-              lastMovementAt: new Date(),
-            },
-          });
-
-          await tx.rawMaterialTransaction.create({
-            data: {
-              storeId: storeId,
-              rawMaterialId: item.productId,
-              txnType: "RECEIPT",
-              qty: newQtyNum,
-              txnDateTime: new Date(data.grnDate || existing.grnDate),
-              remarks: `GRN Created (Auto Adjustment): ${existing.grnNumber}`,
-            },
-          });
-        }
-
-        if (newAdjustmentItems.length > 0) {
-          await tx.stockAdjustment.create({
-            data: {
-              adjustmentNumber: newAdjustmentNumber,
-              adjustmentDate: new Date(data.grnDate || existing.grnDate),
-              reason: `Auto-generated on Update Stock enabled for Bill: ${data.invoiceNo || existing.invoiceNo}`,
-              status: "APPROVED",
-              approvedBy: existing.createdBy,
-              approvedAt: new Date(),
-              createdBy: existing.createdBy,
-              updatedBy: existing.createdBy,
-              autoGenerated: true,
-              sourceDocument: "GrnInvoice",
-              sourceDocId: existing.id,
-              type: "Receipt",
-              items: {
-                create: newAdjustmentItems,
-              },
-            },
-          });
-        }
-      } else if (existing.updateStock && updateStockEnabled) {
-        // Both true: only update if there are changes
-        let itemsChanged = false;
         if (items) {
-          if (existing.items.length !== itemsToCreate.length) {
-            itemsChanged = true;
-          } else {
-            for (const oldItem of existing.items) {
-              const newItem = itemsToCreate.find((i) => i.productId === oldItem.productId);
-              if (
-                !newItem ||
-                Number(newItem.quantity) !== Number(oldItem.quantity) ||
-                Number(newItem.unitPrice) !== Number(oldItem.unitPrice)
-              ) {
-                itemsChanged = true;
-                break;
-              }
-            }
-          }
-        }
-        const storeChanged = data.storeId !== undefined && data.storeId !== existing.storeId;
-        const dateChanged =
-          data.grnDate !== undefined &&
-          new Date(data.grnDate).getTime() !== new Date(existing.grnDate).getTime();
+          const itemsInInr =
+            exchangeRate === 1
+              ? items
+              : items.map((i: any) => ({
+                  ...i,
+                  unitPrice: Number(i.unitPrice) * exchangeRate,
+                  discountAmount: Number(i.discountAmount ?? 0) * exchangeRate,
+                }));
+          const totals = await this.calculateTotals(
+            itemsInInr,
+            gst,
+            discountType,
+            discountValue,
+            roundingAdjust
+          );
+          subtotal = totals.subtotal;
+          totalDiscount = totals.totalDiscount;
+          totalTax = totals.totalTax;
+          totalCgst = totals.totalCgst;
+          totalSgst = totals.totalSgst;
+          totalIgst = totals.totalIgst;
+          totalCess = totals.totalCess;
+          netAmount = totals.netAmount;
+          itemsToCreate = totals.itemsWithTotals as any;
 
-        if (itemsChanged || storeChanged || dateChanged) {
-          // Revert old stock levels
+          // Delete old items
+          await tx.grnInvoiceItem.deleteMany({
+            where: { grnInvoiceId: id },
+          });
+        }
+        foreignTotal =
+          exchangeRate === 1 ? null : Math.round((netAmount / exchangeRate) * 100) / 100;
+
+        let processedPayments = existing.payments
+          ? ((typeof existing.payments === "string"
+              ? JSON.parse(existing.payments)
+              : existing.payments) as any[])
+          : [];
+        let computedStatus = existing.paymentStatus;
+
+        if (rawPayments) {
+          processedPayments = rawPayments.map((p: any) => ({
+            id: p.id || crypto.randomUUID(),
+            amount: Math.round(Number(p.amount) * 100) / 100,
+            paymentMethod: p.paymentMethod,
+            referenceNumber: p.referenceNumber || "",
+            paymentDate: p.paymentDate,
+            recordedBy: "System",
+            createdAt: p.createdAt || new Date().toISOString(),
+            instrumentType: p.instrumentType ?? undefined,
+            chequeNo: p.chequeNo ?? undefined,
+            chequeDate: p.chequeDate ?? undefined,
+            chequeBank: p.chequeBank ?? undefined,
+            chequeParty: p.chequeParty ?? undefined,
+            settlementRate: p.settlementRate ?? undefined,
+          }));
+          const totalPaid =
+            Math.round(
+              processedPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0) *
+                100
+            ) / 100;
+          computedStatus =
+            totalPaid === 0 ? "Unpaid" : totalPaid >= Number(netAmount) ? "Closed" : "Partial";
+        }
+
+        // Update GRN record
+        const updated = await tx.grnInvoice.update({
+          where: { id },
+          data: {
+            invoiceNo: data.invoiceNo || existing.invoiceNo,
+            grnDate: data.grnDate ? new Date(data.grnDate) : existing.grnDate,
+            supplierInvoiceDate: data.supplierInvoiceDate
+              ? new Date(data.supplierInvoiceDate)
+              : existing.supplierInvoiceDate,
+            supplierId,
+            storeId,
+            businessPlaceId: gst.place.id,
+            placeOfSupply: gst.placeOfSupply,
+            supplyType: gst.supplyType,
+            supplierGstin: supplier.gstin ?? null,
+            reverseCharge: gst.reverseCharge,
+            totalCess,
+            billingAddressLine1: data.billingAddressLine1 || existing.billingAddressLine1,
+            billingCity: data.billingCity || existing.billingCity,
+            billingState: data.billingState || existing.billingState,
+            billingPincode: data.billingPincode || existing.billingPincode,
+            billingCountry: data.billingCountry || existing.billingCountry || "India",
+            shippingAddressLine1: data.shippingAddressLine1 || existing.shippingAddressLine1,
+            shippingCity: data.shippingCity || existing.shippingCity,
+            shippingState: data.shippingState || existing.shippingState,
+            shippingPincode: data.shippingPincode || existing.shippingPincode,
+            shippingCountry: data.shippingCountry || existing.shippingCountry || "India",
+            sameAsBilling: sameAsBilling ?? existing.sameAsBilling,
+            updateStock: updateStockEnabled,
+
+            receiveDate: data.receiveDate ? new Date(data.receiveDate) : existing.receiveDate,
+            billDueDate: data.billDueDate
+              ? new Date(data.billDueDate)
+              : (existing.billDueDate ??
+                dueDateFrom(
+                  data.supplierInvoiceDate
+                    ? new Date(data.supplierInvoiceDate)
+                    : data.grnDate
+                      ? new Date(data.grnDate)
+                      : existing.grnDate,
+                  supplier.creditDays
+                )),
+            challanNo: data.challanNo !== undefined ? data.challanNo : existing.challanNo,
+            transport: data.transport !== undefined ? data.transport : existing.transport,
+            eWayBill: data.eWayBill !== undefined ? data.eWayBill : existing.eWayBill,
+            invoiceImage: file
+              ? invoiceImageUrl
+              : data.invoiceImage !== undefined
+                ? data.invoiceImage
+                : existing.invoiceImage,
+            remarks: data.remarks !== undefined ? data.remarks : existing.remarks,
+
+            discountType,
+            discountValue,
+            roundingAdjust,
+
+            paymentStatus: computedStatus,
+            payments: processedPayments as any,
+            paymentMethod:
+              rawPayments && processedPayments.length > 0
+                ? processedPayments[processedPayments.length - 1].paymentMethod
+                : data.paymentMethod !== undefined
+                  ? data.paymentMethod
+                  : existing.paymentMethod,
+            referenceNumber:
+              rawPayments && processedPayments.length > 0
+                ? processedPayments[processedPayments.length - 1].referenceNumber
+                : data.referenceNumber !== undefined
+                  ? data.referenceNumber
+                  : existing.referenceNumber,
+            paymentDate:
+              rawPayments && processedPayments.length > 0
+                ? new Date(processedPayments[processedPayments.length - 1].paymentDate)
+                : data.paymentDate
+                  ? new Date(data.paymentDate)
+                  : existing.paymentDate,
+
+            subtotal,
+            totalDiscount,
+            totalTax,
+            totalCgst,
+            totalSgst,
+            totalIgst,
+            netAmount,
+            currencyCode,
+            exchangeRate,
+            foreignTotal,
+            poId: data.poId !== undefined ? data.poId : existing.poId,
+
+            ...(data.items && {
+              items: {
+                create: itemsToCreate.map((item: any) => ({
+                  productId: item.productId,
+                  description: item.description,
+                  uom: item.uom,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice,
+                  discountAmount: item.discountAmount || 0,
+                  tax: item.tax || 0,
+                  taxableAmount: item.taxableAmount || 0,
+                  cgstRate: item.cgstRate || 0,
+                  cgstAmount: item.cgstAmount || 0,
+                  sgstRate: item.sgstRate || 0,
+                  sgstAmount: item.sgstAmount || 0,
+                  igstRate: item.igstRate || 0,
+                  igstAmount: item.igstAmount || 0,
+                  hsnCode: item.hsnCode ?? null,
+                  cessRate: item.cessRate || 0,
+                  cessAmount: item.cessAmount || 0,
+                  lineTotal: item.lineTotal,
+                })),
+              },
+            }),
+          },
+          include: {
+            items: true,
+          },
+        });
+
+        // Handle transitions
+        if (existing.updateStock && !updateStockEnabled) {
+          // Toggle reversed: Revert old stock levels using a Reversal stock adjustment
           const revAdjustmentNumber = `ADJ-REV-${existing.grnNumber}-${Date.now().toString().slice(-4)}`;
           const revAdjustmentItems = [];
 
@@ -1228,7 +1019,7 @@ class GrnInvoiceService {
               difference: -revertQtyNum,
               unitCost: Number(item.unitPrice),
               batchNo: rawMaterial.batchNo || null,
-              remarks: `Reversal of GRN ${existing.grnNumber} due to update`,
+              remarks: `Reversal of GRN ${existing.grnNumber} due to update stock disabled`,
             });
 
             await tx.rawMaterial.update({
@@ -1257,7 +1048,7 @@ class GrnInvoiceService {
               data: {
                 adjustmentNumber: revAdjustmentNumber,
                 adjustmentDate: new Date(),
-                reason: `Auto-generated Reversal due to update of Bill: ${existing.invoiceNo}`,
+                reason: `Auto-generated Reversal due to Update Stock disabled on Bill: ${existing.invoiceNo}`,
                 status: "APPROVED",
                 approvedBy: existing.createdBy,
                 approvedAt: new Date(),
@@ -1273,8 +1064,8 @@ class GrnInvoiceService {
               },
             });
           }
-
-          // Apply new stock levels
+        } else if (!existing.updateStock && updateStockEnabled) {
+          // Toggle enabled: Apply stock levels using a Receipt stock adjustment
           const newAdjustmentNumber = `ADJ-GRN-${existing.grnNumber}-${Date.now().toString().slice(-4)}`;
           const newAdjustmentItems = [];
 
@@ -1324,7 +1115,7 @@ class GrnInvoiceService {
               difference: newQtyNum,
               unitCost: Number(item.unitPrice),
               batchNo: rawMaterial.batchNo || null,
-              remarks: `Updated receipt from GRN ${existing.grnNumber}`,
+              remarks: `Receipt from GRN ${existing.grnNumber} after update stock enabled`,
             });
 
             await tx.rawMaterial.update({
@@ -1344,7 +1135,7 @@ class GrnInvoiceService {
                 txnType: "RECEIPT",
                 qty: newQtyNum,
                 txnDateTime: new Date(data.grnDate || existing.grnDate),
-                remarks: `GRN Updated (Auto Adjustment): ${existing.grnNumber}`,
+                remarks: `GRN Created (Auto Adjustment): ${existing.grnNumber}`,
               },
             });
           }
@@ -1354,7 +1145,7 @@ class GrnInvoiceService {
               data: {
                 adjustmentNumber: newAdjustmentNumber,
                 adjustmentDate: new Date(data.grnDate || existing.grnDate),
-                reason: `Auto-generated on update of Bill: ${data.invoiceNo || existing.invoiceNo}`,
+                reason: `Auto-generated on Update Stock enabled for Bill: ${data.invoiceNo || existing.invoiceNo}`,
                 status: "APPROVED",
                 approvedBy: existing.createdBy,
                 approvedAt: new Date(),
@@ -1370,23 +1161,244 @@ class GrnInvoiceService {
               },
             });
           }
+        } else if (existing.updateStock && updateStockEnabled) {
+          // Both true: only update if there are changes
+          let itemsChanged = false;
+          if (items) {
+            if (existing.items.length !== itemsToCreate.length) {
+              itemsChanged = true;
+            } else {
+              for (const oldItem of existing.items) {
+                const newItem = itemsToCreate.find((i) => i.productId === oldItem.productId);
+                if (
+                  !newItem ||
+                  Number(newItem.quantity) !== Number(oldItem.quantity) ||
+                  Number(newItem.unitPrice) !== Number(oldItem.unitPrice)
+                ) {
+                  itemsChanged = true;
+                  break;
+                }
+              }
+            }
+          }
+          const storeChanged = data.storeId !== undefined && data.storeId !== existing.storeId;
+          const dateChanged =
+            data.grnDate !== undefined &&
+            new Date(data.grnDate).getTime() !== new Date(existing.grnDate).getTime();
+
+          if (itemsChanged || storeChanged || dateChanged) {
+            // Revert old stock levels
+            const revAdjustmentNumber = `ADJ-REV-${existing.grnNumber}-${Date.now().toString().slice(-4)}`;
+            const revAdjustmentItems = [];
+
+            for (const item of existing.items) {
+              const rawMaterial = await tx.rawMaterial.findUnique({
+                where: byCode("rawMaterialId", item.productId),
+              });
+              if (!rawMaterial) continue;
+
+              const itemTypeStr = rawMaterial.itemType || "Raw Material";
+              let enumType: any = "RAW_MATERIAL";
+              const normalized = itemTypeStr.toUpperCase().replace(/\s+/g, "_");
+              if (normalized === "RAW_MATERIAL" || normalized === "RAW_MATERIALS") {
+                enumType = "RAW_MATERIAL";
+              } else if (normalized === "FINISHED_GOOD" || normalized === "FINISHED_GOODS") {
+                enumType = "FINISHED_GOODS";
+              } else if (normalized === "SEMI_FINISHED") {
+                enumType = "SEMI_FINISHED";
+              } else if (normalized === "CONSUMABLE" || normalized === "CONSUMABLES") {
+                enumType = "CONSUMABLE";
+              }
+
+              const mult = getUomMultiplier(item.uom, rawMaterial.baseUom);
+              const currentQtyNum = Number(rawMaterial.onHandQty) || 0;
+              const revertQtyNum = Number(item.quantity) * mult;
+              const adjustedQtyNum = currentQtyNum - revertQtyNum;
+
+              revAdjustmentItems.push({
+                itemType: enumType,
+                rawMaterialId: item.productId,
+                storeId: existing.storeId,
+                currentQty: currentQtyNum,
+                adjustedQty: adjustedQtyNum,
+                difference: -revertQtyNum,
+                unitCost: Number(item.unitPrice),
+                batchNo: rawMaterial.batchNo || null,
+                remarks: `Reversal of GRN ${existing.grnNumber} due to update`,
+              });
+
+              await tx.rawMaterial.update({
+                where: byCode("rawMaterialId", item.productId),
+                data: {
+                  onHandQty: {
+                    decrement: revertQtyNum,
+                  },
+                },
+              });
+
+              await tx.rawMaterialTransaction.create({
+                data: {
+                  storeId: existing.storeId,
+                  rawMaterialId: item.productId,
+                  txnType: "STOCK_ADJUSTMENT_OUT",
+                  qty: revertQtyNum,
+                  txnDateTime: new Date(),
+                  remarks: `GRN Reversal: ${existing.grnNumber}`,
+                },
+              });
+            }
+
+            if (revAdjustmentItems.length > 0) {
+              await tx.stockAdjustment.create({
+                data: {
+                  adjustmentNumber: revAdjustmentNumber,
+                  adjustmentDate: new Date(),
+                  reason: `Auto-generated Reversal due to update of Bill: ${existing.invoiceNo}`,
+                  status: "APPROVED",
+                  approvedBy: existing.createdBy,
+                  approvedAt: new Date(),
+                  createdBy: existing.createdBy,
+                  updatedBy: existing.createdBy,
+                  autoGenerated: true,
+                  sourceDocument: "GrnInvoice",
+                  sourceDocId: existing.id,
+                  type: "Reversal",
+                  items: {
+                    create: revAdjustmentItems,
+                  },
+                },
+              });
+            }
+
+            // Apply new stock levels
+            const newAdjustmentNumber = `ADJ-GRN-${existing.grnNumber}-${Date.now().toString().slice(-4)}`;
+            const newAdjustmentItems = [];
+
+            for (const item of itemsToCreate) {
+              const rawMaterial = await tx.rawMaterial.findUnique({
+                where: byCode("rawMaterialId", item.productId),
+              });
+              if (!rawMaterial) {
+                throw new ApiError(404, `Raw Material ${item.productId} not found`);
+              }
+
+              let itemTypeStr = rawMaterial.itemType;
+              if (!itemTypeStr) {
+                itemTypeStr = "Raw Material";
+                await tx.rawMaterial.update({
+                  where: byCode("rawMaterialId", item.productId),
+                  data: {
+                    itemType: "Raw Material",
+                    flaggedForReview: true,
+                  },
+                });
+              }
+
+              let enumType: any = "RAW_MATERIAL";
+              const normalized = itemTypeStr.toUpperCase().replace(/\s+/g, "_");
+              if (normalized === "RAW_MATERIAL" || normalized === "RAW_MATERIALS") {
+                enumType = "RAW_MATERIAL";
+              } else if (normalized === "FINISHED_GOOD" || normalized === "FINISHED_GOODS") {
+                enumType = "FINISHED_GOODS";
+              } else if (normalized === "SEMI_FINISHED") {
+                enumType = "SEMI_FINISHED";
+              } else if (normalized === "CONSUMABLE" || normalized === "CONSUMABLES") {
+                enumType = "CONSUMABLE";
+              }
+
+              const mult = getUomMultiplier(item.uom, rawMaterial.baseUom);
+              const currentQtyNum = Number(rawMaterial.onHandQty) || 0;
+              const newQtyNum = Number(item.quantity) * mult;
+              const adjustedQtyNum = currentQtyNum + newQtyNum;
+
+              newAdjustmentItems.push({
+                itemType: enumType,
+                rawMaterialId: item.productId,
+                storeId: storeId,
+                currentQty: currentQtyNum,
+                adjustedQty: adjustedQtyNum,
+                difference: newQtyNum,
+                unitCost: Number(item.unitPrice),
+                batchNo: rawMaterial.batchNo || null,
+                remarks: `Updated receipt from GRN ${existing.grnNumber}`,
+              });
+
+              await tx.rawMaterial.update({
+                where: byCode("rawMaterialId", item.productId),
+                data: {
+                  onHandQty: {
+                    increment: newQtyNum,
+                  },
+                  lastMovementAt: new Date(),
+                },
+              });
+
+              await tx.rawMaterialTransaction.create({
+                data: {
+                  storeId: storeId,
+                  rawMaterialId: item.productId,
+                  txnType: "RECEIPT",
+                  qty: newQtyNum,
+                  txnDateTime: new Date(data.grnDate || existing.grnDate),
+                  remarks: `GRN Updated (Auto Adjustment): ${existing.grnNumber}`,
+                },
+              });
+            }
+
+            if (newAdjustmentItems.length > 0) {
+              await tx.stockAdjustment.create({
+                data: {
+                  adjustmentNumber: newAdjustmentNumber,
+                  adjustmentDate: new Date(data.grnDate || existing.grnDate),
+                  reason: `Auto-generated on update of Bill: ${data.invoiceNo || existing.invoiceNo}`,
+                  status: "APPROVED",
+                  approvedBy: existing.createdBy,
+                  approvedAt: new Date(),
+                  createdBy: existing.createdBy,
+                  updatedBy: existing.createdBy,
+                  autoGenerated: true,
+                  sourceDocument: "GrnInvoice",
+                  sourceDocId: existing.id,
+                  type: "Receipt",
+                  items: {
+                    create: newAdjustmentItems,
+                  },
+                },
+              });
+            }
+          }
         }
-      }
 
-      return updated;
-    });
+        // Reverse the old purchase voucher and post one for the new figures, in this same
+        // transaction (payment vouchers are keyed by their own refs and re-posted idempotently).
+        await cancellationService.cancelVouchersFor(
+          ["GRN_INVOICE"],
+          [id],
+          { reason: `GRN ${existing.grnNumber} edited` },
+          tx
+        );
+        await this.postPurchaseVouchersOrThrow(tx, id);
 
-    try {
-      const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-      await voucherPostingService.postPaymentVouchersForGRN(updated.id);
-    } catch (vErr) {
-      logger.error(
-        { err: vErr },
-        "[Auto-Post Voucher Error] Failed to post Payment Vouchers for updated GRN:"
-      );
-    }
+        return updated;
+      },
+      { timeout: 30000, maxWait: 10000 }
+    );
 
     return updated;
+  }
+
+  /** Posts the PURCHASE voucher and its payment vouchers inside `tx`; a null result is a failure. */
+  private async postPurchaseVouchersOrThrow(tx: Prisma.TransactionClient, grnInvoiceId: string) {
+    const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
+    const voucher = await voucherPostingService.postPurchaseVoucher(grnInvoiceId, tx);
+    if (!voucher) {
+      logger.error({ grnInvoiceId }, "[GRN] Purchase voucher could not be posted");
+      throw new ApiError(
+        422,
+        "The purchase voucher could not be posted; check the ledgers and the GST totals on the bill"
+      );
+    }
+    await voucherPostingService.postPaymentVouchersForGRN(grnInvoiceId, tx);
   }
 
   /** Kept for the DELETE route: deleting a GRN now means cancelling it. */
