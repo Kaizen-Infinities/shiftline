@@ -125,6 +125,12 @@ export function requireAllPermissions(...permissions: string[]) {
       return next(new ApiError(403, `Access Denied: all of [${permissions.join(", ")}] required`));
     }
 
-    return next();
+    // Every listed permission must be usable: each one's feature has to be in the tenant's plan (P1-01).
+    // Checked in sequence so the tenant's entitlements are resolved once and cached on the request.
+    (async () => {
+      for (const p of permissions) {
+        await assertFeature(req, featureOf(p));
+      }
+    })().then(() => next(), next);
   };
 }

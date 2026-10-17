@@ -177,7 +177,7 @@ describe("payment links and the gateway", () => {
     );
   });
 
-  it("refuses a callback that is not signed with the webhook secret, and writes it down", async () => {
+  it("refuses a callback that is not signed with the webhook secret, and writes nothing", async () => {
     const client = await api();
     const created = await client
       .post("/api/payments/links")
@@ -189,18 +189,19 @@ describe("payment links and the gateway", () => {
       .send({});
     const { body } = prepared.body.data as { body: string };
 
+    const prisma = await getPrisma();
+    const rowsBefore = await asDemoTenant(() =>
+      prisma.paymentWebhookEvent.count({ where: { signatureValid: false } })
+    );
     const forged = await callback(body, "deadbeef");
     expect(forged.status).toBe(401);
     expect(forged.body.code).toBe("BAD_CALLBACK");
 
-    const prisma = await getPrisma();
-    const failed = await asDemoTenant(() =>
-      prisma.paymentWebhookEvent.findFirst({
-        where: { signatureValid: false },
-        orderBy: { receivedAt: "desc" },
-      })
+    // A forged request is refused before any event row is written.
+    const rowsAfter = await asDemoTenant(() =>
+      prisma.paymentWebhookEvent.count({ where: { signatureValid: false } })
     );
-    expect(failed?.status).toBe("FAILED");
+    expect(rowsAfter).toBe(rowsBefore);
     // Nothing was posted for it.
     expect(await asDemoTenant(() => prisma.paymentCapture.count({ where: { amount: 1000 } }))).toBe(
       0

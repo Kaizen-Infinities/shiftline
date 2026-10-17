@@ -63,7 +63,11 @@ export const storeReceiveSchema = z.object({
 export const goodsDispatchQuerySchema = z.object({
   query: z.object({
     page: z.string().optional(),
-    limit: z.string().optional(),
+    limit: z
+      .string()
+      .regex(/^\d+$/, "Limit must be a valid integer")
+      .refine((v) => Number(v) >= 1 && Number(v) <= 100, "Limit must be between 1 and 100")
+      .optional(),
     search: z.string().optional(),
     status: z.string().optional(),
     dateFrom: z.string().optional(),
