@@ -5,6 +5,7 @@ import {
   UpdateRawMaterialStockInput,
 } from "./raw-material-stock.validation";
 import { byCode } from "../../lib/prisma";
+import { requireTenantId } from "../../lib/tenant-context";
 
 class RawMaterialStockService {
   async create(data: CreateRawMaterialStockInput) {
@@ -139,22 +140,34 @@ class RawMaterialStockService {
   }
 
   async update(id: string, data: UpdateRawMaterialStockInput) {
-    const existing = await this.findById(id);
+    // The update sets absolute quantities, so lock the row for the transaction: the values we merge
+    // with are the committed ones and no concurrent movement lands between read and write.
+    return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM raw_materials
+        WHERE company_id = ${requireTenantId()}::uuid AND raw_material_id = ${id}
+        FOR UPDATE`;
+      const existing = await tx.rawMaterial.findUnique({
+        where: byCode("rawMaterialId", id),
+      });
+      if (!existing) {
+        throw new ApiError(404, `Raw Material with ID ${id} not found`);
+      }
 
-    return prisma.rawMaterial.update({
-      where: byCode("rawMaterialId", id),
-      data: {
-        onHandQty: data.onHandQty ?? existing.onHandQty,
-        reservedQty: data.reservedQty ?? existing.reservedQty,
-        locationId: data.locationId ?? existing.locationId,
-        batchNo: data.batchNo ?? existing.batchNo,
-        status: data.status ?? existing.status,
-        narration: data.remarks ?? (existing as any).narration,
-        lastMovementAt: new Date(),
-      },
-      include: {
-        store: true,
-      },
+      return tx.rawMaterial.update({
+        where: byCode("rawMaterialId", id),
+        data: {
+          onHandQty: data.onHandQty ?? existing.onHandQty,
+          reservedQty: data.reservedQty ?? existing.reservedQty,
+          locationId: data.locationId ?? existing.locationId,
+          batchNo: data.batchNo ?? existing.batchNo,
+          status: data.status ?? existing.status,
+          narration: data.remarks ?? existing.narration,
+          lastMovementAt: new Date(),
+        },
+        include: {
+          store: true,
+        },
+      });
     });
   }
 
@@ -178,30 +191,27 @@ class RawMaterialStockService {
   ) {
     const db = txClient || prisma;
     for (const item of items) {
-      const rawMaterial = await db.rawMaterial.findUnique({
-        where: { rawMaterialId: item.rawMaterialId },
-      });
-
-      if (!rawMaterial) {
-        throw new ApiError(404, `Raw material ${item.rawMaterialId} not found`);
-      }
-
-      const currentStock = Number(rawMaterial.onHandQty || 0);
-      if (currentStock < item.quantity) {
-        throw new ApiError(
-          400,
-          `Insufficient stock for raw material ${item.rawMaterialId} (current on-hand: ${currentStock}, attempted return: ${item.quantity})`
-        );
-      }
-
-      // Deduct onHandQty using update (throws P2025 if record missing)
-      await db.rawMaterial.update({
-        where: { rawMaterialId: item.rawMaterialId },
+      // Atomic guard: the decrement only matches while enough stock is on hand.
+      const res = await db.rawMaterial.updateMany({
+        where: { rawMaterialId: item.rawMaterialId, onHandQty: { gte: item.quantity } },
         data: {
           onHandQty: { decrement: item.quantity },
           lastMovementAt: new Date(),
         },
       });
+
+      if (res.count === 0) {
+        const rawMaterial = await db.rawMaterial.findFirst({
+          where: { rawMaterialId: item.rawMaterialId },
+        });
+        if (!rawMaterial) {
+          throw new ApiError(404, `Raw material ${item.rawMaterialId} not found`);
+        }
+        throw new ApiError(
+          400,
+          `Insufficient stock for raw material ${item.rawMaterialId} (current on-hand: ${Number(rawMaterial.onHandQty || 0)}, attempted return: ${item.quantity})`
+        );
+      }
 
       // Log RawMaterialTransaction audit entry
       await db.rawMaterialTransaction.create({

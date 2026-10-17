@@ -10,6 +10,16 @@ import { MachineOperationAssignmentService } from "../machine-operation-assignme
 import { emitToTenant } from "../../lib/realtime";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
+import { requireTenantId } from "../../lib/tenant-context";
+import type { Prisma } from "@prisma/client";
+
+/**
+ * Serialises number allocation for a prefix within a tenant until the transaction ends, so the
+ * "read the latest row, add one" that follows cannot hand the same number to two requests.
+ */
+async function lockNumberSeries(tx: Prisma.TransactionClient, prefix: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${requireTenantId()}:${prefix}`}))`;
+}
 
 /** Normalize UOM aliases to canonical short form (mirrors frontend normalizeUom) */
 function normalizeUom(uom: string): string {
@@ -598,6 +608,7 @@ class HourlyProductionService {
               : [];
 
           if (validWastages.length > 0 || validRmReturns.length > 0) {
+            await lockNumberSeries(tx, "SA");
             const latestSA = await tx.stockAdjustment.findFirst({ orderBy: { id: "desc" } });
             const saNextId = latestSA ? Number(latestSA.id) + 1 : 1;
             const adjustmentNumber = `SA${String(saNextId).padStart(4, "0")}`;
@@ -622,6 +633,7 @@ class HourlyProductionService {
 
             // 1. Process Wastage Items under single saRecord
             for (const wastage of validWastages) {
+              await lockNumberSeries(tx, "PW");
               const latestWastage = await tx.productionWastage.findFirst({
                 orderBy: { id: "desc" },
               });
