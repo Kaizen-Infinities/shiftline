@@ -561,23 +561,14 @@ class SalesInvoiceService {
           } // end productsToDeduct loop
         } // end items loop
 
+        // The books move with the invoice: a posting failure (closed period, missing ledger)
+        // rolls the whole creation back.
+        await this.postInvoiceVoucher(tx, invoice.id);
+
         return invoice;
       },
       { maxWait: 10000, timeout: 30000 }
     );
-
-    // Auto-post SALES Voucher
-    {
-      try {
-        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-        await voucherPostingService.postSalesVoucher(invoice.id);
-      } catch (vErr) {
-        logger.error(
-          { err: vErr },
-          "[Auto-Post Voucher Error] Failed to post Sales Voucher for invoice:"
-        );
-      }
-    }
 
     // P2-05: accepting the TCS preview records the collection (for the quarterly return and the
     // buyer threshold); the payable ledger itself is credited inside postSalesVoucher above,
@@ -900,6 +891,28 @@ class SalesInvoiceService {
         await periodService.assertPostingAllowed(existing.invoiceDate, currentUser, tx);
         await periodService.assertPostingAllowed(new Date(data.invoiceDate), currentUser, tx);
 
+        // A live IRN or e-way bill pins the document to what the portal holds.
+        const liveIrn = await tx.eInvoice.findFirst({
+          where: { docType: "INV", docId: id, status: "GENERATED" },
+        });
+        if (liveIrn) {
+          throw new ApiError(
+            409,
+            `Invoice ${existing.invoiceNo} has a live e-invoice (IRN) and cannot be edited. Cancel the IRN or raise a credit note instead.`,
+            "IRN_LIVE"
+          );
+        }
+        const liveEwb = await tx.ewayBill.findFirst({
+          where: { docType: "INV", docRef: id, status: "ACTIVE" },
+        });
+        if (liveEwb) {
+          throw new ApiError(
+            409,
+            `Invoice ${existing.invoiceNo} has a live e-way bill and cannot be edited. Cancel the e-way bill first.`,
+            "EWB_LIVE"
+          );
+        }
+
         // Revert old accounting/stock
         {
           const oldUnpaidPortion = Math.max(0, Math.round(Number(existing.grandTotal) * 100) / 100);
@@ -1152,10 +1165,32 @@ class SalesInvoiceService {
           }
         }
 
+        // Reverse the old voucher and post one for the new figures, in this same transaction.
+        await cancellationService.cancelVouchersFor(
+          ["SALES_INVOICE"],
+          [id],
+          { reason: `Invoice ${updatedInvoice.invoiceNo} edited` },
+          tx
+        );
+        await this.postInvoiceVoucher(tx, id);
+
         return serializeInvoice(updatedInvoice);
       },
       { maxWait: 10000, timeout: 30000 }
     );
+  }
+
+  /** Posts the SALES voucher (and any receipt vouchers) inside `tx`; a null result is a failure. */
+  private async postInvoiceVoucher(tx: Db, invoiceId: string) {
+    const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
+    const voucher = await voucherPostingService.postSalesVoucher(invoiceId, tx as any);
+    if (!voucher) {
+      logger.error({ invoiceId }, "[Sales Invoice] Voucher could not be posted");
+      throw new ApiError(
+        422,
+        "The sales voucher could not be posted; check the ledgers and the GST totals on the invoice"
+      );
+    }
   }
 
   /**
