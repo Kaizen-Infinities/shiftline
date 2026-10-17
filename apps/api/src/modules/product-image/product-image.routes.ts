@@ -1,7 +1,5 @@
 import { Router } from "express";
 
-
-
 import { authMiddleware } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 import { validateMiddleware } from "../../middleware/validate.middleware";
@@ -12,7 +10,10 @@ import {
   productImageIdSchema,
 } from "./product-image.validation";
 import { uploadProductImage } from "../../middleware/upload.middleware";
-import { normalizeImageBody, normalizeImageBodyOptional } from "../../middleware/normalizeImageBody.middleware";
+import {
+  normalizeImageBody,
+  normalizeImageBodyOptional,
+} from "../../middleware/normalizeImageBody.middleware";
 import productImageController from "./product-image.controller";
 
 const router = Router();
@@ -24,7 +25,7 @@ const router = Router();
 router.post(
   "/",
   authMiddleware,
-  requirePermission("product-images.view"),
+  requirePermission("product-images.edit"),
   uploadProductImage.single("image"),
   normalizeImageBody,
   validateMiddleware(createProductImageSchema),

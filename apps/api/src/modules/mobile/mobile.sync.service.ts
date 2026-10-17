@@ -28,6 +28,7 @@ import {
   routeToRaw,
   visitToRaw,
 } from "./mobile.mappers";
+import { describeFailure } from "./mobile.errors";
 import { mobileCollectionService } from "./mobile.collection.service";
 import { mobileOrderService } from "./mobile.order.service";
 import { mobileVisitService, tombstoneCutoff } from "./mobile.visit.service";
@@ -428,7 +429,7 @@ class MobileSyncService {
         } catch (err: unknown) {
           results.visits.failed.push({
             id: v.id,
-            error: err instanceof Error ? err.message : String(err),
+            error: describeFailure(err, { visitId: v.id }).message,
           });
         }
       }
@@ -450,9 +451,9 @@ class MobileSyncService {
           const posted = await mobileCollectionService.post(agent, c, device);
           results.collections.push({ id: c.id, status: "POSTED", receiptNo: posted.receiptNo });
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
+          const { message, code } = describeFailure(err, { collectionId: c.id });
           await mobileCollectionService.recordFailure(agent, c, message, device);
-          results.collections.push({ id: c.id, status: "FAILED", error: message });
+          results.collections.push({ id: c.id, status: "FAILED", error: message, code });
         }
       }
     }
@@ -471,9 +472,9 @@ class MobileSyncService {
           const order = await mobileOrderService.create(agent, o, device);
           results.orders.push({ id: o.id, status: "CREATED", orderNo: order?.orderNo });
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
+          const { message, code } = describeFailure(err, { orderId: o.id });
           await mobileOrderService.recordFailure(agent, o, message, device);
-          results.orders.push({ id: o.id, status: "FAILED", error: message });
+          results.orders.push({ id: o.id, status: "FAILED", error: message, code });
         }
       }
     }

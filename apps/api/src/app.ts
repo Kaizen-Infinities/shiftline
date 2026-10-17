@@ -24,7 +24,26 @@ if (isProduction) {
 }
 
 /** CORS Configuration*/
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+// Uploads are public (referenced from <img> tags, no auth headers): serve images only, never execute or sniff.
+const UPLOAD_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
+app.use("/uploads", (req, res, next) => {
+  if (!UPLOAD_EXTENSIONS.has(path.extname(req.path).toLowerCase())) {
+    return res.sendStatus(404);
+  }
+  next();
+});
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "../uploads"), {
+    dotfiles: "deny",
+    index: false,
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'");
+      res.setHeader("Content-Disposition", "inline");
+    },
+  })
+);
 
 // Build CORS origin list from environment variables
 export const allowedOrigins = [
