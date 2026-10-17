@@ -48,7 +48,7 @@ function printPayslip(el: HTMLDivElement, companyName: string) {
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Payslip — ${companyName}</title>
+  <title>Payslip</title>
   <style>
     @page { size: A4 portrait; margin: 0; }
     html, body { margin: 0; padding: 0; background: #fff; width: 210mm; }
@@ -60,6 +60,8 @@ function printPayslip(el: HTMLDivElement, companyName: string) {
 <body>${el.outerHTML}</body>
 </html>`);
   win.document.close();
+  // Company name goes through the DOM setter (textContent), never into the HTML string.
+  win.document.title = `Payslip — ${companyName}`;
   win.focus();
   setTimeout(() => {
     win.print();

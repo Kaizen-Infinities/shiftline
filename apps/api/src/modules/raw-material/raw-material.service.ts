@@ -5,6 +5,32 @@ import { CreateRawMaterialInput, UpdateRawMaterialInput } from "./raw-material.v
 import { byCode } from "../../lib/prisma";
 
 class RawMaterialService {
+  /**
+   * 400 unless the category, storage location and HSN code belong to this tenant. The foreign
+   * keys only check that the id exists somewhere; the tenant-scoped client returns null for a
+   * foreign id. HSN codes are tenant-scoped too (HsnCode.companyId).
+   */
+  private async assertTenantRefs(data: {
+    categoryId?: number | null;
+    locationId?: string | null;
+    hsnCodeId?: string | null;
+  }) {
+    const [category, location, hsn] = await Promise.all([
+      data.categoryId == null
+        ? true
+        : prisma.category.findFirst({ where: { id: data.categoryId }, select: { id: true } }),
+      data.locationId == null
+        ? true
+        : prisma.storeLocation.findFirst({ where: { id: data.locationId }, select: { id: true } }),
+      data.hsnCodeId == null
+        ? true
+        : prisma.hsnCode.findFirst({ where: { id: data.hsnCodeId }, select: { id: true } }),
+    ]);
+    if (!category) throw new ApiError(400, "Unknown category");
+    if (!location) throw new ApiError(400, "Unknown location");
+    if (!hsn) throw new ApiError(400, "Unknown HSN code");
+  }
+
   async create(data: CreateRawMaterialInput, userId?: string) {
     const existingId = await prisma.rawMaterial.findUnique({
       where: byCode("rawMaterialId", data.rawMaterialId),
@@ -13,6 +39,8 @@ class RawMaterialService {
     if (existingId) {
       throw new ApiError(409, `Raw Material with ID ${data.rawMaterialId} already exists`);
     }
+
+    await this.assertTenantRefs(data);
 
     return prisma.$transaction(async (tx) => {
       const rawMaterial = await tx.rawMaterial.create({
@@ -160,6 +188,7 @@ class RawMaterialService {
 
   async update(rawMaterialId: string, data: UpdateRawMaterialInput, userId?: string) {
     await this.findById(rawMaterialId);
+    await this.assertTenantRefs(data);
 
     const { categoryId, storeId, locationId, hsnCodeId, ...restData } = data;
 

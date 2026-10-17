@@ -515,6 +515,14 @@ describe("goods-dispatch (finished goods: shop floor to store, via gate + store 
     expect(twice.body.message).toMatch(/cannot gate-approve/i);
   });
 
+  it("refuses a list limit above 100 and accepts 100", async () => {
+    const client = await api();
+    const over = await client.get("/api/goods-dispatches").query({ limit: "101" }).set(OWNER.auth);
+    expect(over.status).toBe(400);
+    const ok = await client.get("/api/goods-dispatches").query({ limit: "100" }).set(OWNER.auth);
+    expect(ok.status).toBe(200);
+  });
+
   it("refuses a user without production_orders permission and hides another tenant's dispatches", async () => {
     const accounts = await authed("demo.accounts");
     const refused = await (await api()).get("/api/goods-dispatches").set(accounts.auth);

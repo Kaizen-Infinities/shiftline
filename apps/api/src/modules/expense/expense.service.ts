@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { logger } from "../../lib/logger";
@@ -47,78 +48,84 @@ class ExpenseService {
 
     await periodService.assertPostingAllowed(new Date(data.date), currentUser);
     const tax = await computeExpenseTax(prisma, { ...data, amount: Number(data.amount) });
-    const newExpense = await prisma.expense.create({
-      data: {
-        ...data,
-        ...tax,
-        date: data.date ? new Date(data.date) : undefined,
-        amount: data.amount !== undefined ? Number(data.amount) : undefined,
-        supplierId: data.supplierId ? Number(data.supplierId) : null,
-        companyId: currentUser.companyId,
-        createdBy: currentUser.userId,
-      },
-      include: {
-        supplier: true,
-      },
-    });
-
+    // The expense, its TDS deduction and (for an Approved one) its EXPENSE voucher commit together;
+    // any failure rolls all of it back and reaches the caller as an ApiError.
     // P2-05: offer or accept the TDS deduction on this bill. Accepting it re-derives the
     // authoritative rate/amount (threshold, 206AA/206AB) through tdsService and records a
     // TdsDeduction row so it feeds the quarterly return; the raw tdsRate/tdsAmount the caller
     // sent are only a preview unless deductTds is true.
-    let tdsPreview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
-    if (data.tdsSection) {
-      const taxable = Number(newExpense.taxableAmount ?? newExpense.amount);
-      if (data.deductTds) {
-        try {
-          const deduction = await tdsService.deduct(
-            {
-              sectionCode: data.tdsSection,
-              supplierId: newExpense.supplierId ?? undefined,
-              docType: "EXPENSE",
-              docId: newExpense.id,
-              docNo: newExpense.expenseNumber,
-              deductionDate: newExpense.date,
-              amount: taxable,
-            },
-            { userId: currentUser.userId }
-          );
-          await prisma.expense.update({
-            where: { id: newExpense.id },
-            data: {
-              tdsSection: data.tdsSection,
-              tdsRate: deduction.rate,
-              tdsAmount: deduction.tdsAmount,
-            },
-          });
-          newExpense.tdsRate = deduction.rate;
-          newExpense.tdsAmount = deduction.tdsAmount;
-        } catch (tdsErr) {
-          logger.error({ err: tdsErr }, "[Expense TDS] Failed to record TDS deduction:");
-        }
-      } else {
-        tdsPreview = await tdsService.rateFor({
-          sectionCode: data.tdsSection,
-          supplierId: newExpense.supplierId ?? undefined,
-          amount: taxable,
-          on: newExpense.date,
-        });
-      }
-    }
-
     // P1-10d: an expense claim reaches the books only once it is approved. A record created
-    // straight as Approved (a paid-and-filed bill) posts its EXPENSE voucher at once.
-    if (newExpense.status === APPROVED) {
-      try {
-        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-        await voucherPostingService.postExpenseVoucher(newExpense.id, data.paymentMethod);
-      } catch (voucherErr) {
-        logger.error(
-          { err: voucherErr },
-          "[Expense Voucher Posting Error]: Failed to post expense voucher"
-        );
-      }
-    }
+    // straight as Approved (a paid-and-filed bill) posts its EXPENSE voucher at once; the voucher
+    // reads the deducted tdsAmount, so the deduction is recorded first.
+    const { newExpense, tdsPreview } = await prisma.$transaction(
+      async (tx) => {
+        // deductTds is a request flag, not a column.
+        const { deductTds: _deductTds, ...expenseData } = data;
+        const created = await tx.expense.create({
+          data: {
+            ...expenseData,
+            ...tax,
+            date: data.date ? new Date(data.date) : undefined,
+            amount: data.amount !== undefined ? Number(data.amount) : undefined,
+            supplierId: data.supplierId ? Number(data.supplierId) : null,
+            companyId: currentUser.companyId,
+            createdBy: currentUser.userId,
+          },
+          include: {
+            supplier: true,
+          },
+        });
+
+        let preview: Awaited<ReturnType<typeof tdsService.rateFor>> | null = null;
+        if (data.tdsSection) {
+          const taxable = Number(created.taxableAmount ?? created.amount);
+          if (data.deductTds) {
+            // Serialise concurrent deductions for the same payee so the cumulative threshold
+            // check cannot be skipped by two transactions reading the same prior total.
+            await tdsService.lockPayee(tx, created.supplierId ?? undefined);
+            const deduction = await tdsService.deduct(
+              {
+                sectionCode: data.tdsSection,
+                supplierId: created.supplierId ?? undefined,
+                docType: "EXPENSE",
+                docId: created.id,
+                docNo: created.expenseNumber,
+                deductionDate: created.date,
+                amount: taxable,
+              },
+              { userId: currentUser.userId },
+              tx
+            );
+            await tx.expense.update({
+              where: { id: created.id },
+              data: {
+                tdsSection: data.tdsSection,
+                tdsRate: deduction.rate,
+                tdsAmount: deduction.tdsAmount,
+              },
+            });
+            created.tdsRate = deduction.rate;
+            created.tdsAmount = deduction.tdsAmount;
+          } else {
+            preview = await tdsService.rateFor(
+              {
+                sectionCode: data.tdsSection,
+                supplierId: created.supplierId ?? undefined,
+                amount: taxable,
+                on: created.date,
+              },
+              tx
+            );
+          }
+        }
+
+        if (created.status === APPROVED) {
+          await this.postExpenseVoucherOrThrow(created.id, data.paymentMethod, tx);
+        }
+        return { newExpense: created, tdsPreview: preview };
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
 
     // Also create a Petty Cash entry for petty cash tracking (record-keeping only, no voucher posting)
     try {
@@ -284,30 +291,30 @@ class ExpenseService {
       }),
     };
 
-    const updatedExpense = await prisma.expense.update({
-      where: { id },
-      data: updateData,
-      include: {
-        supplier: true,
-      },
-    });
-
-    // Cancel (reverse) the old EXPENSE voucher and post a fresh one for the updated figures (P1-09).
+    // The update, the reversal of the old voucher and the new posting commit together (P1-09).
     // Unapproved claims have no voucher yet, so nothing to re-post.
-    if (updatedExpense.status === APPROVED) {
-      try {
-        const oldVoucher = await prisma.voucher.findFirst({
-          where: { refDocType: "EXPENSE", refDocId: id, status: "POSTED" },
+    const updatedExpense = await prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.expense.update({
+          where: { id },
+          data: updateData,
+          include: {
+            supplier: true,
+          },
         });
-        if (oldVoucher) {
-          await cancellationService.cancelVoucher(oldVoucher.id, { reason: "Expense edited" });
+        if (updated.status === APPROVED) {
+          await cancellationService.cancelVouchersFor(
+            ["EXPENSE"],
+            [id],
+            { reason: "Expense edited" },
+            tx
+          );
+          await this.postExpenseVoucherOrThrow(id, updated.paymentMethod, tx);
         }
-        const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-        await voucherPostingService.postExpenseVoucher(id, updatedExpense.paymentMethod);
-      } catch (voucherErr) {
-        logger.error({ err: voucherErr }, "[Expense Voucher Update Error]:");
-      }
-    }
+        return updated;
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
 
     // Update corresponding petty cash entry if exists
     try {
@@ -364,19 +371,40 @@ class ExpenseService {
       throw new ApiError(403, "An expense cannot be approved by the person who claimed it");
     }
     await periodService.assertPostingAllowed(expense.date, actor);
-    const approved = await prisma.expense.update({
-      where: { id },
-      data: {
-        status: APPROVED,
-        approvedBy: actor.userId ?? null,
-        approvedAt: new Date(),
-        rejectReason: null,
+    return prisma.$transaction(
+      async (tx) => {
+        const approved = await tx.expense.update({
+          where: { id },
+          data: {
+            status: APPROVED,
+            approvedBy: actor.userId ?? null,
+            approvedAt: new Date(),
+            rejectReason: null,
+          },
+          include: { supplier: true },
+        });
+        await this.postExpenseVoucherOrThrow(id, approved.paymentMethod, tx);
+        return approved;
       },
-      include: { supplier: true },
-    });
+      { maxWait: 10000, timeout: 30000 }
+    );
+  }
+
+  /** Posts the EXPENSE voucher inside `tx`; a null result is a failure that rolls everything back. */
+  private async postExpenseVoucherOrThrow(
+    expenseId: string,
+    paymentMethod: string | undefined,
+    tx: Prisma.TransactionClient
+  ) {
     const { voucherPostingService } = await import("../accounts/voucherPosting.service.js");
-    await voucherPostingService.postExpenseVoucher(id, approved.paymentMethod);
-    return approved;
+    const voucher = await voucherPostingService.postExpenseVoucher(expenseId, paymentMethod, tx);
+    if (!voucher) {
+      logger.error({ expenseId }, "[Expense] Voucher could not be posted");
+      throw new ApiError(
+        422,
+        "The expense voucher could not be posted; check the ledgers and the GST/TDS figures on the expense"
+      );
+    }
   }
 
   async rejectExpense(

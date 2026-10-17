@@ -233,7 +233,7 @@ const UpComingOrderDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div
-        className="inner-container d-flex justify-content-center align-items-center"
+        className="inner-container flex justify-center items-center"
         style={{ minHeight: "300px" }}
       >
         <div className="animate-spin rounded-full border-b-2 border-accent h-8 w-8"></div>
@@ -356,7 +356,7 @@ const UpComingOrderDetailPage: React.FC = () => {
                         </div>
                         <div className="text-muted small">{item.productId}</div>
                       </td>
-                      <td className="master-data-cell d-flex">
+                      <td className="master-data-cell flex">
                         <div className="fw-semibold">{item.quantity || "â€”"}</div>
                         <div className="fw-semibold ms-2">{item?.uom || "â€”"}</div>
                       </td>
@@ -385,7 +385,7 @@ const UpComingOrderDetailPage: React.FC = () => {
 
           {/* â”€â”€ Form Actions â”€â”€ */}
           <div
-            className="form-actions d-flex justify-content-end gap-3 mt-4"
+            className="form-actions flex justify-end gap-3 mt-4"
             style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1.5rem" }}
           >
             <CustomButton

@@ -120,9 +120,14 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         if (!admin || admin.status !== "active") {
           throw new ApiError(401, "Admin account is suspended or inactive");
         }
-        // Platform admins act on a tenant only when they name one.
+        // Platform routes may name a tenant; everywhere else an admin acts on a tenant only
+        // through impersonation.
         const header = req.header("x-company-id");
         if (header) {
+          const path = (req.originalUrl || "").split("?")[0];
+          if (path !== "/api/platform" && !path.startsWith("/api/platform/")) {
+            throw new ApiError(403, "Platform admins act on a tenant only through impersonation");
+          }
           const company = await prisma.company.findUnique({
             where: { id: header },
             select: { id: true },

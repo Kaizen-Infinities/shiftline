@@ -1,6 +1,7 @@
 import { requireTenantId } from "../../lib/tenant-context";
 import { parsePagination } from "../../utils/pagination";
 import { Request, Response } from "express";
+import { customerListLimitSchema } from "./customer.validation";
 
 import customerService from "./customer.service";
 import { prisma } from "../../config/prisma";
@@ -45,7 +46,11 @@ class CustomerController {
   findAll = asyncHandler(async (req: Request, res: Response) => {
     // BUG-CUST-004 fix: pass page and limit for server-side pagination
     const search = req.query.search ? String(req.query.search) : undefined;
-    const { page, limit } = parsePagination(req.query as Record<string, unknown>, 10);
+    const { limit: rawLimit } = customerListLimitSchema.parse(req.query);
+    const { page, limit } = parsePagination(
+      { ...(req.query as Record<string, unknown>), limit: rawLimit },
+      10
+    );
     const status = req.query.status ? String(req.query.status) : undefined;
     const customerTypeId = req.query.customerTypeId
       ? parseInt(String(req.query.customerTypeId), 10)

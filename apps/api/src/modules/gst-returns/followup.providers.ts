@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { isProduction } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { sendEmail } from "../../utils/mailer";
 import { WhatsappService } from "../whatsappservice/whatsapp.service";
@@ -69,6 +70,6 @@ export const liveFollowUpProvider = new LiveFollowUpProvider();
  * instead, so a test process never reaches a real gateway even before the row exists.
  */
 export const followUpProvider = (kind?: "FIXTURE" | "LIVE"): FollowUpProvider => {
-  const resolved = kind ?? (process.env.NODE_ENV === "production" ? "LIVE" : "FIXTURE");
+  const resolved = kind ?? (isProduction ? "LIVE" : "FIXTURE");
   return resolved === "LIVE" ? liveFollowUpProvider : fixtureFollowUpProvider;
 };

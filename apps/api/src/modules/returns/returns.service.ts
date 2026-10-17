@@ -197,7 +197,7 @@ class ReturnsService {
         const returnNo = await documentNumberService.next("SALES_RETURN", numbering);
         const creditNoteNo = await documentNumberService.next("CREDIT_NOTE", numbering);
 
-        return tx.salesReturn.create({
+        const created = await tx.salesReturn.create({
           data: {
             returnNo,
             creditNoteNo,
@@ -219,16 +219,12 @@ class ReturnsService {
           },
           include: { items: true, customer: true },
         });
+        // The books move with the return: a posting failure rolls the whole creation back.
+        await this.postSalesReturnVoucherOrThrow(tx, created.id);
+        return created;
       },
       { maxWait: 10000, timeout: 30000 }
     );
-
-    // Post the accounting voucher after the return has committed.
-    try {
-      await voucherPostingService.postSalesReturnVoucher(salesReturn.id);
-    } catch (vErr) {
-      logger.error({ err: vErr }, "[Auto-Post Voucher Error] Failed to post Sales Return Voucher:");
-    }
 
     return salesReturn;
   }
@@ -264,49 +260,77 @@ class ReturnsService {
     if (!customer) throw new ApiError(404, "Customer not found");
 
     if (existing.cancelledAt) throw new ApiError(409, "Cancelled returns cannot be edited");
-    const updated = await prisma.$transaction(async (tx) => {
-      await periodService.assertPostingAllowed(existing.returnDate, undefined, tx);
-      if (data.returnDate)
-        await periodService.assertPostingAllowed(new Date(data.returnDate), undefined, tx);
-      await tx.salesReturnItem.deleteMany({ where: { salesReturnId: id } });
-      const { gst, supplyType, itemsData, totals } = await this.buildSalesReturnLines(
-        tx,
-        { ...data, businessPlaceId: data.businessPlaceId ?? existing.businessPlaceId },
-        customer,
-        id
-      );
-      return tx.salesReturn.update({
-        where: { id },
-        data: {
-          customerId: data.customerId,
-          salesInvoiceId: data.salesInvoiceId || null,
-          kind: data.kind,
-          returnDate: data.returnDate ? new Date(data.returnDate) : existing.returnDate,
-          reason: data.reason || null,
-          refundMode: data.refundMode ?? existing.refundMode,
-          businessPlaceId: gst.place.id,
-          placeOfSupply: gst.placeOfSupply,
-          supplyType,
-          customerGstin: customer.gstin ?? null,
-          ...totals,
-          status: "APPROVED",
-          narration: data.narration || null,
-          items: { create: itemsData },
-        },
-        include: { items: true, customer: true },
-      });
-    });
-
-    try {
-      await voucherPostingService.postSalesReturnVoucher(updated.id);
-    } catch (vErr) {
-      logger.error(
-        { err: vErr },
-        "[Auto-Post Voucher Error] Failed to post Sales Return Voucher on update:"
-      );
-    }
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        await periodService.assertPostingAllowed(existing.returnDate, undefined, tx);
+        if (data.returnDate)
+          await periodService.assertPostingAllowed(new Date(data.returnDate), undefined, tx);
+        await tx.salesReturnItem.deleteMany({ where: { salesReturnId: id } });
+        const { gst, supplyType, itemsData, totals } = await this.buildSalesReturnLines(
+          tx,
+          { ...data, businessPlaceId: data.businessPlaceId ?? existing.businessPlaceId },
+          customer,
+          id
+        );
+        const result = await tx.salesReturn.update({
+          where: { id },
+          data: {
+            customerId: data.customerId,
+            salesInvoiceId: data.salesInvoiceId || null,
+            kind: data.kind,
+            returnDate: data.returnDate ? new Date(data.returnDate) : existing.returnDate,
+            reason: data.reason || null,
+            refundMode: data.refundMode ?? existing.refundMode,
+            businessPlaceId: gst.place.id,
+            placeOfSupply: gst.placeOfSupply,
+            supplyType,
+            customerGstin: customer.gstin ?? null,
+            ...totals,
+            status: "APPROVED",
+            narration: data.narration || null,
+            items: { create: itemsData },
+          },
+          include: { items: true, customer: true },
+        });
+        // Reverse the old credit note (and any refund voucher) and post one for the new figures,
+        // in this same transaction.
+        await cancellationService.cancelVouchersFor(
+          ["SALES_RETURN", "SALES_RETURN_REFUND"],
+          [id],
+          { reason: `Sales return ${existing.returnNo} edited` },
+          tx
+        );
+        await this.postSalesReturnVoucherOrThrow(tx, id);
+        return result;
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
 
     return updated;
+  }
+
+  /** Posts the credit note inside `tx`; a null result is a failure that rolls everything back. */
+  private async postSalesReturnVoucherOrThrow(tx: Prisma.TransactionClient, id: string) {
+    const voucher = await voucherPostingService.postSalesReturnVoucher(id, tx);
+    if (!voucher) {
+      logger.error({ id }, "[Sales Return] Voucher could not be posted");
+      throw new ApiError(
+        422,
+        "The credit note could not be posted; check the ledgers and the GST totals on the return"
+      );
+    }
+  }
+
+  /** Posts the debit note inside `tx`; a null result is a failure that rolls everything back. */
+  private async postPurchaseReturnVoucherOrThrow(tx: Prisma.TransactionClient, id: string) {
+    const voucher = await voucherPostingService.postPurchaseReturnVoucher(id, tx);
+    if (!voucher) {
+      logger.error({ id }, "[Purchase Return] Voucher could not be posted");
+      throw new ApiError(
+        422,
+        "The debit note could not be posted; check the ledgers and the GST totals on the return"
+      );
+    }
   }
 
   /**
@@ -319,34 +343,34 @@ class ReturnsService {
     if (existing.cancelledAt) throw new ApiError(409, "Cancelled returns cannot be edited");
     const newDate = data.returnDate ? new Date(`${data.returnDate}T00:00:00.000Z`) : null;
     const dateChanged = newDate !== null && newDate.getTime() !== existing.returnDate.getTime();
-    const updated = await prisma.$transaction(async (tx) => {
-      if (dateChanged) {
-        await periodService.assertPostingAllowed(existing.returnDate, undefined, tx);
-        await periodService.assertPostingAllowed(newDate!, undefined, tx);
-      }
-      return tx.purchaseReturn.update({
-        where: { id },
-        data: {
-          ...(dateChanged && { returnDate: newDate! }),
-          ...(data.reason !== undefined && { reason: data.reason || null }),
-          ...(data.narration !== undefined && { narration: data.narration || null }),
-        },
-        include: { items: true, supplier: true },
-      });
-    });
-    if (dateChanged) {
-      await cancellationService.cancelVouchersFor(
-        ["PURCHASE_RETURN"],
-        [id],
-        { reason: "Purchase return re-dated" },
-        prisma
-      );
-      try {
-        await voucherPostingService.postPurchaseReturnVoucher(id);
-      } catch (vErr) {
-        logger.error({ err: vErr }, "[Auto-Post Voucher Error] purchase return update");
-      }
-    }
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        if (dateChanged) {
+          await periodService.assertPostingAllowed(existing.returnDate, undefined, tx);
+          await periodService.assertPostingAllowed(newDate!, undefined, tx);
+        }
+        const result = await tx.purchaseReturn.update({
+          where: { id },
+          data: {
+            ...(dateChanged && { returnDate: newDate! }),
+            ...(data.reason !== undefined && { reason: data.reason || null }),
+            ...(data.narration !== undefined && { narration: data.narration || null }),
+          },
+          include: { items: true, supplier: true },
+        });
+        if (dateChanged) {
+          await cancellationService.cancelVouchersFor(
+            ["PURCHASE_RETURN"],
+            [id],
+            { reason: "Purchase return re-dated" },
+            tx
+          );
+          await this.postPurchaseReturnVoucherOrThrow(tx, id);
+        }
+        return result;
+      },
+      { maxWait: 10000, timeout: 30000 }
+    );
     return updated;
   }
 
@@ -515,7 +539,11 @@ class ReturnsService {
           include: { items: true, supplier: true },
         });
 
-        if (!movesStock) return purchaseReturn;
+        if (!movesStock) {
+          // A price adjustment moves no stock; its debit note still posts in this transaction.
+          await this.postPurchaseReturnVoucherOrThrow(tx, purchaseReturn.id);
+          return purchaseReturn;
+        }
 
         // 4. Deduct raw material stock and record the adjustment
         await rawMaterialStockService.deductForPurchaseReturn(
@@ -580,20 +608,14 @@ class ReturnsService {
           });
         }
 
+        // 5. Post the debit note (Dr Supplier | Cr Purchase Return, Cr input credit reversed);
+        // a posting failure rolls the whole return back.
+        await this.postPurchaseReturnVoucherOrThrow(tx, purchaseReturn.id);
+
         return purchaseReturn;
       },
       { maxWait: 10000, timeout: 30000 }
     );
-
-    // 5. Post the debit note (Dr Supplier | Cr Purchase Return, Cr input credit reversed)
-    try {
-      await voucherPostingService.postPurchaseReturnVoucher(purchaseReturn.id);
-    } catch (vErr) {
-      logger.error(
-        { err: vErr },
-        "[Auto-Post Voucher Error] Failed to post Purchase Return Voucher:"
-      );
-    }
 
     return purchaseReturn;
   }

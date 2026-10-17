@@ -12,9 +12,6 @@ import { generatePdfFromHtml } from "../../utils/pdfGenerator";
 import { sendEmail } from "../../utils/mailer";
 import { emitToTenant } from "../../lib/realtime";
 
-import { voucherPostingService } from "../accounts/voucherPosting.service";
-import { logger } from "../../lib/logger";
-
 class SalesInvoiceController {
   create = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.userId;
@@ -32,13 +29,6 @@ class SalesInvoiceController {
       userId,
       companyId,
     });
-
-    // Auto-post sales and receipt vouchers immediately on creation
-    try {
-      await voucherPostingService.postSalesVoucher(salesInvoice.id);
-    } catch (err) {
-      logger.error({ err: err }, "[Sales Invoice Controller] Voucher posting failed:");
-    }
 
     emitToTenant("salesInvoice:created", salesInvoice);
     try {
@@ -134,13 +124,6 @@ class SalesInvoiceController {
       userId,
       companyId,
     });
-
-    // Auto-post sales and receipt vouchers immediately on update
-    try {
-      await voucherPostingService.postSalesVoucher(salesInvoice.id);
-    } catch (err) {
-      logger.error({ err: err }, "[Sales Invoice Controller] Voucher posting failed:");
-    }
 
     emitToTenant("salesInvoice:updated", salesInvoice);
     try {

@@ -178,7 +178,11 @@ export class GspProvider implements EInvoiceProvider {
       await this.token(creds);
       return { ok: true, detail: "Authenticated with the GSP" };
     } catch (err) {
-      return { ok: false, detail: err instanceof Error ? err.message : "Authentication failed" };
+      logger.warn({ err }, "gsp verify failed");
+      return {
+        ok: false,
+        detail: "Could not reach the GSP. Check the credentials and URL.",
+      };
     }
   }
 }

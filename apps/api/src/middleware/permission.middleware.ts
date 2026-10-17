@@ -20,6 +20,16 @@ function checkSuperAdmin(req: Request): boolean {
   return false;
 }
 
+/**
+ * Admins have no tenant outside /api/platform (authMiddleware refuses X-Company-Id elsewhere
+ * and leaves req.user.companyId null). Passing them into a tenant route would reach tenant-scoped
+ * Prisma without a company, so they are refused unless they impersonate (a tenant user token).
+ */
+function adminWithoutTenant(req: Request): boolean {
+  return checkSuperAdmin(req) && !req.user?.companyId;
+}
+const NO_TENANT_ERROR = "Platform admins act on a tenant only through impersonation";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // requireSuperAdmin — route accessible only to Super Admin
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,7 +59,7 @@ export function requirePermission(permission: string) {
 
     // Super Admins are never blocked
     if (checkSuperAdmin(req)) {
-      return next();
+      return adminWithoutTenant(req) ? next(new ApiError(403, NO_TENANT_ERROR)) : next();
     }
 
     if (!Array.isArray(user.permissions) || !user.permissions.includes(permission)) {
@@ -74,7 +84,7 @@ export function requireAnyPermission(...permissions: string[]) {
     }
 
     if (checkSuperAdmin(req)) {
-      return next();
+      return adminWithoutTenant(req) ? next(new ApiError(403, NO_TENANT_ERROR)) : next();
     }
 
     const hasAny =
@@ -115,7 +125,7 @@ export function requireAllPermissions(...permissions: string[]) {
     }
 
     if (checkSuperAdmin(req)) {
-      return next();
+      return adminWithoutTenant(req) ? next(new ApiError(403, NO_TENANT_ERROR)) : next();
     }
 
     const hasAll =
@@ -125,6 +135,12 @@ export function requireAllPermissions(...permissions: string[]) {
       return next(new ApiError(403, `Access Denied: all of [${permissions.join(", ")}] required`));
     }
 
-    return next();
+    // Every listed permission must be usable: each one's feature has to be in the tenant's plan (P1-01).
+    // Checked in sequence so the tenant's entitlements are resolved once and cached on the request.
+    (async () => {
+      for (const p of permissions) {
+        await assertFeature(req, featureOf(p));
+      }
+    })().then(() => next(), next);
   };
 }

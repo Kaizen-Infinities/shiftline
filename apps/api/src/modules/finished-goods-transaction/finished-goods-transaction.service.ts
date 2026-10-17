@@ -5,6 +5,36 @@ import {
   UpdateFinishedGoodsTransactionInput,
 } from "./finished-goods-transaction.validation";
 import { byCode } from "../../lib/prisma";
+import { Prisma } from "@prisma/client";
+
+/**
+ * Moves a finished-goods stock row by `delta` with a database-side increment (no read-modify-write),
+ * creating the row when the first receipt arrives. A concurrent first receipt that loses the
+ * insert race retries as an increment.
+ */
+async function adjustFgStock(
+  tx: Prisma.TransactionClient,
+  storeId: string,
+  productItemId: bigint,
+  delta: number,
+  createIfMissing = true
+) {
+  const bump = () =>
+    tx.finishedGoodsStock.updateMany({
+      where: { storeId, productItemId },
+      data: { onHandQty: { increment: delta } },
+    });
+  if ((await bump()).count > 0 || !createIfMissing) return;
+  try {
+    await tx.$executeRaw`SAVEPOINT fg_stock_create`;
+    await tx.finishedGoodsStock.create({ data: { storeId, productItemId, onHandQty: delta } });
+    await tx.$executeRaw`RELEASE SAVEPOINT fg_stock_create`;
+  } catch (e) {
+    if ((e as { code?: string }).code !== "P2002") throw e;
+    await tx.$executeRaw`ROLLBACK TO SAVEPOINT fg_stock_create`;
+    await bump();
+  }
+}
 
 class FinishedGoodsTransactionService {
   async create(data: CreateFinishedGoodsTransactionInput, userId?: string) {
@@ -60,39 +90,8 @@ class FinishedGoodsTransactionService {
         },
       });
 
-      // 2. Find or create the corresponding Finished Goods Stock entry
-      const stock = await tx.finishedGoodsStock.findUnique({
-        where: {
-          storeId_productItemId: {
-            storeId: data.storeId,
-            productItemId,
-          },
-        },
-      });
-
-      if (stock) {
-        // Update existing stock
-        await tx.finishedGoodsStock.update({
-          where: {
-            storeId_productItemId: {
-              storeId: data.storeId,
-              productItemId,
-            },
-          },
-          data: {
-            onHandQty: Number(stock.onHandQty) + data.qty,
-          },
-        });
-      } else {
-        // Create new stock entry
-        await tx.finishedGoodsStock.create({
-          data: {
-            storeId: data.storeId,
-            productItemId,
-            onHandQty: data.qty,
-          },
-        });
-      }
+      // 2. Increment the corresponding Finished Goods Stock entry (created on first receipt)
+      await adjustFgStock(tx, data.storeId, productItemId, data.qty);
 
       return txn;
     });
@@ -140,60 +139,17 @@ class FinishedGoodsTransactionService {
     const newQty = data.qty ?? Number(existing.qty);
 
     return prisma.$transaction(async (tx) => {
-      // 1. Reverse old stock adjustment
-      const oldStock = await tx.finishedGoodsStock.findUnique({
-        where: {
-          storeId_productItemId: {
-            storeId: existing.storeId,
-            productItemId: existing.productItemId,
-          },
-        },
-      });
-      if (oldStock) {
-        await tx.finishedGoodsStock.update({
-          where: {
-            storeId_productItemId: {
-              storeId: existing.storeId,
-              productItemId: existing.productItemId,
-            },
-          },
-          data: {
-            onHandQty: Number(oldStock.onHandQty) - Number(existing.qty),
-          },
-        });
-      }
+      // 1. Reverse old stock adjustment (only if the old row exists)
+      await adjustFgStock(
+        tx,
+        existing.storeId,
+        existing.productItemId,
+        -Number(existing.qty),
+        false
+      );
 
       // 2. Apply new stock adjustment
-      const targetStock = await tx.finishedGoodsStock.findUnique({
-        where: {
-          storeId_productItemId: {
-            storeId: newStoreId,
-            productItemId: newProductItemId,
-          },
-        },
-      });
-
-      if (targetStock) {
-        await tx.finishedGoodsStock.update({
-          where: {
-            storeId_productItemId: {
-              storeId: newStoreId,
-              productItemId: newProductItemId,
-            },
-          },
-          data: {
-            onHandQty: Number(targetStock.onHandQty) + newQty,
-          },
-        });
-      } else {
-        await tx.finishedGoodsStock.create({
-          data: {
-            storeId: newStoreId,
-            productItemId: newProductItemId,
-            onHandQty: newQty,
-          },
-        });
-      }
+      await adjustFgStock(tx, newStoreId, newProductItemId, newQty);
 
       // 3. Update the transaction
       return tx.finishedGoodsTransaction.update({
@@ -224,27 +180,13 @@ class FinishedGoodsTransactionService {
 
     return prisma.$transaction(async (tx) => {
       // Reverse stock adjustment on delete
-      const stock = await tx.finishedGoodsStock.findUnique({
-        where: {
-          storeId_productItemId: {
-            storeId: existing.storeId,
-            productItemId: existing.productItemId,
-          },
-        },
-      });
-      if (stock) {
-        await tx.finishedGoodsStock.update({
-          where: {
-            storeId_productItemId: {
-              storeId: existing.storeId,
-              productItemId: existing.productItemId,
-            },
-          },
-          data: {
-            onHandQty: Number(stock.onHandQty) - Number(existing.qty),
-          },
-        });
-      }
+      await adjustFgStock(
+        tx,
+        existing.storeId,
+        existing.productItemId,
+        -Number(existing.qty),
+        false
+      );
 
       return tx.finishedGoodsTransaction.delete({
         where: { fgTxnId },

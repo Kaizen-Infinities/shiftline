@@ -3,6 +3,7 @@ import type { GatewayAdapterKind, MachineSignalName, Prisma } from "@prisma/clie
 
 import { prisma } from "../../config/prisma";
 import { byCode } from "../../lib/prisma";
+import { logger } from "../../lib/logger";
 import { requireTenantId } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
 import { decryptText, encryptText } from "../../utils/crypto";
@@ -218,7 +219,11 @@ class MachineTelemetryService {
       await adapter.disconnect();
       return { ok: true, detail: `Connected via ${adapter.describe().kind}` };
     } catch (err) {
-      return { ok: false, detail: err instanceof Error ? err.message : "Connection failed" };
+      logger.warn({ err, gatewayId: id }, "machine gateway connection test failed");
+      return {
+        ok: false,
+        detail: "Could not reach the gateway. Check the connection settings and credentials.",
+      };
     }
   }
 

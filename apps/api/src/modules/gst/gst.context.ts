@@ -160,8 +160,10 @@ export const purchaseGstContext = async (
   const place = await resolveIssuingPlace(data.businessPlaceId, profile, db);
   const reverseCharge = Boolean(data.reverseCharge);
   const registration = supplier.gstRegType ?? (supplier.gstin ? "REGULAR" : "UNREGISTERED");
+  // A supplier with no state code and no GSTIN is treated as local, as on the sales side.
+  const supplierState = supplier.stateCode || stateOfGstin(supplier.gstin) || place.stateCode;
   const supplyType = supplyTypeFor({
-    fromStateCode: supplier.stateCode,
+    fromStateCode: supplierState,
     toStateCode: place.stateCode,
     partyRegistration: registration === "SEZ" ? "SEZ" : null,
   });

@@ -143,6 +143,16 @@ describe("supplier master", () => {
     expect(upd.body.data.contactPerson).toBe("Changed");
   });
 
+  it("refuses a list limit above 100 or below 1, and accepts 100", async () => {
+    const client = await api();
+    for (const limit of ["101", "0", "abc"]) {
+      const res = await client.get("/api/suppliers").query({ limit }).set(OWNER.auth);
+      expect(res.status).toBe(400);
+    }
+    const ok = await client.get("/api/suppliers").query({ limit: "100" }).set(OWNER.auth);
+    expect(ok.status).toBe(200);
+  });
+
   it("lists with search, status filter and pagination, with creator names", async () => {
     const client = await api();
     const res = await client

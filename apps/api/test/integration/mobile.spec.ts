@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { periodService } from "../../src/modules/accounts/period.service";
 import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
 import {
@@ -112,7 +113,7 @@ describe("Field app (mobile) module", () => {
     expect(JSON.stringify(changes)).not.toContain("companyId");
   });
 
-  it("push requires a device id; a pull without one still works", async () => {
+  it("push, pull and attachment upload require a device id", async () => {
     const noDevice = await (
       await api()
     )
@@ -120,7 +121,21 @@ describe("Field app (mobile) module", () => {
       .set(sales.auth)
       .send({ changes: {} });
     expect(noDevice.status).toBe(400);
-    const pull = await (await api()).get("/api/mobile/sync/pull").set(sales.auth);
+    const pullNoDevice = await (await api()).get("/api/mobile/sync/pull").set(sales.auth);
+    expect(pullNoDevice.status).toBe(400);
+    const upload = await (
+      await api()
+    )
+      .post("/api/mobile/attachments")
+      .set(sales.auth)
+      .attach("file", Buffer.from("x"), "x.txt");
+    expect(upload.status).toBe(400);
+    const pull = await (
+      await api()
+    )
+      .get("/api/mobile/sync/pull")
+      .set(sales.auth)
+      .set(dev(DEVICE_A));
     expect(pull.status).toBe(200);
   });
 
@@ -148,7 +163,7 @@ describe("Field app (mobile) module", () => {
       first.body.results.collections[0],
       JSON.stringify(first.body.results.collections[0])
     ).toMatchObject({ id: collection.id, status: "POSTED" });
-    expect(first.body.results.collections[0].receiptNo).toMatch(/^MC-\d{4}-\d{5}$/);
+    expect(first.body.results.collections[0].receiptNo).toMatch(/^RCT\/\d{4}(-\d{2})?\/\d+$/);
 
     // Same record from a second device: skipped, nothing posted twice.
     const second = await (
@@ -234,10 +249,75 @@ describe("Field app (mobile) module", () => {
     expect(push.body.results.orders[0]).toMatchObject({ id: order.id, status: "CREATED" });
     expect(push.body.results.orders[0].orderNo).toBeTruthy();
 
-    const pull = await (await api()).get("/api/mobile/sync/pull?full=1").set(sales.auth);
+    const pull = await (
+      await api()
+    )
+      .get("/api/mobile/sync/pull?full=1")
+      .set(sales.auth)
+      .set(dev(DEVICE_A));
     const echoed = pull.body.changes.orders.updated.find((o: { id: string }) => o.id === order.id);
     expect(echoed).toMatchObject({ status: "DRAFT", customer_id: customer.id });
     expect(echoed.order_no).toBe(push.body.results.orders[0].orderNo);
+  });
+
+  it("rejects a collection dated in a closed period with PERIOD_CLOSED and posts nothing", async () => {
+    const prisma = await getPrisma();
+    const customer = await createCustomer({ outstandingAmount: new Prisma.Decimal(500) });
+    await asDemoTenant(async () => {
+      const period = await periodService.createPeriod({
+        periodName: `Mobile closed ${randomUUID().slice(0, 8)}`,
+        startDate: "1998-06-01",
+        endDate: "1998-06-30",
+      });
+      await periodService.closePeriod(period.id);
+    });
+    const c = validCollection(customer.id, { collected_at: Date.parse("1998-06-15T10:00:00Z") });
+    const push = await (
+      await api()
+    )
+      .post("/api/mobile/sync/push")
+      .set(sales.auth)
+      .set(dev(DEVICE_A))
+      .send({ changes: { collections: { created: [c] } } });
+    expect(push.status).toBe(200);
+    expect(push.body.results.collections[0]).toMatchObject({
+      id: c.id,
+      status: "FAILED",
+      code: "PERIOD_CLOSED",
+    });
+    await asDemoTenant(async () => {
+      const row = await prisma.mobileCollection.findUniqueOrThrow({ where: { id: c.id } });
+      expect(row.status).toBe("FAILED");
+      expect(await prisma.voucher.count({ where: { refDocId: c.id } })).toBe(0);
+      const cust = await prisma.customer.findUniqueOrThrow({ where: { id: customer.id } });
+      expect(Number(cust.outstandingAmount)).toBe(500);
+    });
+  });
+
+  it("hides the text of an unexpected error from the device", async () => {
+    // The outstanding balance would overflow its column: the database throws, not an ApiError.
+    const customer = await createCustomer({ outstandingAmount: new Prisma.Decimal(-990000000000) });
+    const c = validCollection(customer.id, { amount: 500000000000 });
+    const push = await (
+      await api()
+    )
+      .post("/api/mobile/sync/push")
+      .set(sales.auth)
+      .set(dev(DEVICE_A))
+      .send({ changes: { collections: { created: [c] } } });
+    expect(push.status).toBe(200);
+    const r = push.body.results.collections[0];
+    expect(r).toMatchObject({ id: c.id, status: "FAILED", code: "RECORD_FAILED" });
+    expect(r.error).toMatch(/^Could not save this record/);
+    expect(r.error).not.toMatch(/numeric|prisma|overflow|value/i);
+    const pull = await (
+      await api()
+    )
+      .get("/api/mobile/sync/pull?full=1")
+      .set(sales.auth)
+      .set(dev(DEVICE_A));
+    const echoed = pull.body.changes.collections.updated.find((x: { id: string }) => x.id === c.id);
+    expect(echoed.sync_error).toMatch(/^Could not save this record/);
   });
 
   it("echoes a failed record with its error", async () => {
@@ -253,7 +333,12 @@ describe("Field app (mobile) module", () => {
     expect(push.body.results.collections[0]).toMatchObject({ id: bad.id, status: "FAILED" });
     expect(push.body.results.collections[0].error).toMatch(/Customer not found/);
 
-    const pull = await (await api()).get("/api/mobile/sync/pull?full=1").set(sales.auth);
+    const pull = await (
+      await api()
+    )
+      .get("/api/mobile/sync/pull?full=1")
+      .set(sales.auth)
+      .set(dev(DEVICE_A));
     const echoed = pull.body.changes.collections.updated.find(
       (c: { id: string }) => c.id === bad.id
     );
@@ -413,7 +498,12 @@ describe("Field app (mobile) module", () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(keep.length);
 
-    const pull = await (await api()).get("/api/mobile/sync/pull?full=1").set(sales.auth);
+    const pull = await (
+      await api()
+    )
+      .get("/api/mobile/sync/pull?full=1")
+      .set(sales.auth)
+      .set(dev(DEVICE_A));
     expect(pull.body.changes.route_customers.deleted).toContain(removed.id);
     expect(
       pull.body.changes.route_customers.updated.map((r: { id: string }) => r.id)
@@ -454,6 +544,14 @@ describe("Field app (mobile) module", () => {
       .send({ changes: {} });
     expect(push.status).toBe(403);
     expect(push.body.message).toBe("DEVICE_REVOKED");
+    const revokedPull = await (
+      await api()
+    )
+      .get("/api/mobile/sync/pull")
+      .set(sales.auth)
+      .set(dev(DEVICE_B));
+    expect(revokedPull.status).toBe(403);
+    expect(revokedPull.body.message).toBe("DEVICE_REVOKED");
     const pos = await (
       await api()
     )

@@ -6,6 +6,7 @@ import { StatusSyncService } from "../../utils/status-sync.util";
 import { MachineOperationAssignmentService } from "../machine-operation-assignment/machine-operation-assignment.service";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
+import { withCodeLock } from "../../lib/code-allocator";
 
 class DailyPlanService {
   async generateNextDailyPlanId(tx?: any): Promise<string> {
@@ -174,27 +175,31 @@ class DailyPlanService {
           );
         }
 
-        const nextId = await this.generateNextDailyPlanId(tx);
+        // The id is generated here, so the next-id read and the insert happen under the lock.
+        const { nextId, created } = await withCodeLock(tx, "daily-plan", async () => {
+          const nextId = await this.generateNextDailyPlanId(tx);
 
-        const created = await dailyPlanRepository.create(
-          {
-            dailyPlanId: nextId,
-            weeklyProgramId: data.weeklyProgramId,
-            productionOrderId: data.productionOrderId,
-            productionDate: prodDate,
-            machineId: data.machineId,
-            shiftId: data.shiftId,
-            plannedQty: data.plannedQty,
-            plannedHours: data.plannedHours ?? null,
-            priority: data.priority ?? "MEDIUM",
-            status: data.status ?? "DRAFT",
-            remarks: data.remarks ?? null,
-            carryForwardFromPlanId: data.carryForwardFromPlanId ?? null,
-            selectedOperatorIds: data.selectedOperatorIds ?? null,
-            createdBy: userId,
-          },
-          tx
-        );
+          const created = await dailyPlanRepository.create(
+            {
+              dailyPlanId: nextId,
+              weeklyProgramId: data.weeklyProgramId,
+              productionOrderId: data.productionOrderId,
+              productionDate: prodDate,
+              machineId: data.machineId,
+              shiftId: data.shiftId,
+              plannedQty: data.plannedQty,
+              plannedHours: data.plannedHours ?? null,
+              priority: data.priority ?? "MEDIUM",
+              status: data.status ?? "DRAFT",
+              remarks: data.remarks ?? null,
+              carryForwardFromPlanId: data.carryForwardFromPlanId ?? null,
+              selectedOperatorIds: data.selectedOperatorIds ?? null,
+              createdBy: userId,
+            },
+            tx
+          );
+          return { nextId, created };
+        });
 
         // ✅ STEP 4: Transition Production Order to DAILY_PLANNED after first daily plan created
         if (

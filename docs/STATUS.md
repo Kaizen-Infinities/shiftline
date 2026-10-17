@@ -21,6 +21,10 @@ The IDOR and business-logic assessment fixes (F01-F10, JWT-01/02, API-01..04, BL
 
 The 19 findings from the live demo QA pass (F1-F19) are fixed or partly fixed on `claude/clever-curie-ymam25`, pending human review. Seed fixes reach the live tenant only through the `demo-seed` job after `backup` and `update`. See [handoff/2026-10-05-qa-fixes.md](handoff/2026-10-05-qa-fixes.md) for the verdict per finding, what is not done, and one decision for the owner (the credit-limit rule).
 
+## Audit fixes, not merged
+
+A convention audit of `main` and its fixes (books posted atomically, stock races, GST place of supply, admin tenant access, Resend password reset, error-text leaks) are on `claude/confident-edison-ycd0yk`, pending human review. Hosted needs `RESEND_API_KEY` and `RESEND_FROM`; the mobile app must send `x-device-id` on pull. See [handoff/2026-10-17-main-audit-fixes.md](handoff/2026-10-17-main-audit-fixes.md).
+
 ## Simulator or unconfigured
 
 | Integration              | State                                                                    |

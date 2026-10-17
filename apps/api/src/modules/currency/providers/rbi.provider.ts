@@ -1,3 +1,4 @@
+import { env } from "../../../config/env";
 import { logger } from "../../../lib/logger";
 import type { ExchangeRateProvider, RateQuote } from "./index";
 
@@ -16,7 +17,7 @@ import type { ExchangeRateProvider, RateQuote } from "./index";
 export const rbiRateProvider: ExchangeRateProvider = {
   name: "RBI",
   async fetch(on: Date, currencies: string[]): Promise<RateQuote[]> {
-    const base = process.env.RBI_RATE_URL?.trim();
+    const base = env.RBI_RATE_URL?.trim();
     if (!base) {
       logger.warn(
         { on: on.toISOString().slice(0, 10) },

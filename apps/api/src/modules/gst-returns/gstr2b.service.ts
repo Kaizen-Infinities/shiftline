@@ -4,6 +4,7 @@ import { prisma } from "../../config/prisma";
 import { logger } from "../../lib/logger";
 import { requireTenantId } from "../../lib/tenant-context";
 import { ApiError } from "../../utils/ApiError";
+import { decryptText } from "../../utils/crypto";
 import { monthRange, placeFilter, scopeFor, type GstinScope } from "./gst-period";
 import { gstr2bSettingsService } from "./gstr2b-settings.service";
 import { envelopeOf, normaliseDocNo, parse2b } from "./gstr2b.parse";
@@ -203,9 +204,9 @@ class Gstr2bService {
     const json = await provider.fetch2b(periodKey, {
       baseUrl: config?.baseUrl ?? null,
       clientId: config?.clientId ?? null,
-      clientSecret: config?.clientSecret ?? null,
+      clientSecret: config?.clientSecret ? decryptText(config.clientSecret) : null,
       username: config?.username ?? null,
-      password: config?.password ?? null,
+      password: config?.password ? decryptText(config.password) : null,
       gstin: scope.gstin,
     });
     const records = parse2b(json);

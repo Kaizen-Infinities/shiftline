@@ -144,15 +144,12 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
 export const requestPasswordReset = asyncHandler(async (req: Request, res: Response) => {
   const payload = req.body as PasswordResetRequestDto;
 
-  const resetToken = await authService.requestPasswordReset(payload.email, req.ip);
+  await authService.requestPasswordReset(payload.email, req.ip);
 
-  // In production, send email with reset link containing the token
-  // For now, return it (only for development/testing)
-  if (process.env.NODE_ENV !== "production") {
-    res.status(200).json(new ApiResponse("Password reset email sent", { resetToken }));
-  } else {
-    res.status(200).json(new ApiResponse("If email exists, you will receive a reset link"));
-  }
+  // Same answer whether or not the account exists; the token only ever travels by email.
+  res
+    .status(200)
+    .json(new ApiResponse("If an account exists for this email, you will receive a reset link"));
   return;
 });
 
