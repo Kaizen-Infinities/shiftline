@@ -66,7 +66,7 @@ describe("password reset request", () => {
       expect(res.body.data ?? null).toBeNull();
     }
     await vi.waitFor(() => expect(sendResendEmail).toHaveBeenCalledTimes(1));
-    const sent = sendResendEmail.mock.calls[0][0] as { to: string; text: string };
+    const sent = (sendResendEmail.mock.calls as unknown as [{ to: string; text: string }][])[0][0];
     expect(sent.to).toBe(email);
     expect(sent.text).toMatch(/\/reset\?token=[0-9a-f]{64}/);
   });

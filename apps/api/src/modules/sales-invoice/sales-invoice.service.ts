@@ -69,7 +69,7 @@ export async function saleGstContext(
   const place = await resolveIssuingPlace(data.businessPlaceId, profile, db);
   const billing = customer.addresses?.find((a) => a.is_default) || customer.addresses?.[0];
   const billingState = (billing?.address as { state?: string } | undefined)?.state;
-  const placeOfSupply =
+  const resolvedPlaceOfSupply =
     data.placeOfSupply ||
     customer.stateCode ||
     stateOfGstin(customer.gstin) ||
@@ -77,6 +77,18 @@ export async function saleGstContext(
     billing?.state_code ||
     stateNameToCode(billingState) ||
     null;
+  // No state information at all (typical B2C): the supply is local to the issuing place. A state
+  // that was given but cannot be resolved stays null so supplyTypeFor refuses it.
+  const stateHintGiven = [
+    data.placeOfSupply,
+    customer.stateCode,
+    customer.gstin,
+    data.shippingAddress?.state,
+    billing?.state_code,
+    billingState,
+  ].some((v) => typeof v === "string" && v.trim() !== "");
+  const placeOfSupply =
+    resolvedPlaceOfSupply ?? (stateHintGiven ? null : (place.stateCode ?? null));
   const supplyType = supplyTypeFor({
     fromStateCode: place.stateCode,
     toStateCode: placeOfSupply,
