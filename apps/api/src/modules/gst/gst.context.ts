@@ -160,8 +160,15 @@ export const purchaseGstContext = async (
   const place = await resolveIssuingPlace(data.businessPlaceId, profile, db);
   const reverseCharge = Boolean(data.reverseCharge);
   const registration = supplier.gstRegType ?? (supplier.gstin ? "REGULAR" : "UNREGISTERED");
+  const supplierState = supplier.stateCode || stateOfGstin(supplier.gstin);
+  if (!supplierState && registration !== "OVERSEAS" && registration !== "SEZ") {
+    throw new ApiError(
+      400,
+      "State code is missing for this supplier — set the state (or GSTIN) on the supplier"
+    );
+  }
   const supplyType = supplyTypeFor({
-    fromStateCode: supplier.stateCode,
+    fromStateCode: supplierState,
     toStateCode: place.stateCode,
     partyRegistration: registration === "SEZ" ? "SEZ" : null,
   });

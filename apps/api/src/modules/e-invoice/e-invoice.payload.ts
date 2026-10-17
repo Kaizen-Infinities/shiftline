@@ -296,7 +296,8 @@ const buyerFromCustomer = (
     Loc: str(a.city, 50, "-"),
     Pin: pin(a.pincode),
     Stcd: stcd,
-    Pos: placeOfSupply ?? stateCodeOf(a.state) ?? stcd,
+    // The code stored on the document wins; never re-derived from a free-text state name.
+    Pos: placeOfSupply ?? customer.stateCode ?? entry?.state_code ?? stcd,
     Em: str(customer.email, 100) || undefined,
   };
 };
