@@ -133,6 +133,8 @@ interface EmployeePayrollData {
     paymentMode: string;
   } | null;
   department: { name: string } | null;
+  dateOfJoining: Date | null;
+  relievingDate: Date | null;
 }
 
 // ─── Payroll Engine (server-side) ─────────────────────────────────────────────
@@ -243,6 +245,19 @@ interface StatutoryContext {
   companyStateCode: string | null;
   rulesByState: Map<string, { ptEnabled: boolean; ptSlabs: PtSlab[] }>;
   declarationByEmployee: Map<string, { regime: "OLD" | "NEW"; deductions: number }>;
+}
+
+/**
+ * Days of a monthly period on which the employee is not on the rolls: before dateOfJoining and
+ * after relievingDate (QA C10). They are not payable, so the caller adds them to LOP.
+ */
+function nonEmployedDaysInMonth(period: string, joined: Date | null, relieved: Date | null): number {
+  const { start, end } = periodToDateRange(period);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const from = joined && iso(joined) > start ? iso(joined) : start;
+  const to = relieved && iso(relieved) < end ? iso(relieved) : end;
+  const employed = to < from ? 0 : Number(to.slice(8)) - Number(from.slice(8)) + 1;
+  return Number(end.slice(8)) - employed;
 }
 
 async function computeResult(
@@ -1178,9 +1193,16 @@ class PayrollService {
       const pendingAdvance = salaryAdvanceMap.get(emp.id) ?? 0;
       const advanceToUse =
         attInput.advance !== undefined ? Number(attInput.advance) : pendingAdvance;
+      // QA C10: a monthly employee is not paid for days outside employment, whatever attendance says.
+      const outsideDays =
+        opts.type === "MONTHLY"
+          ? nonEmployedDaysInMonth(opts.period, emp.dateOfJoining, emp.relievingDate)
+          : 0;
+      const paidAtt =
+        outsideDays > 0 ? { ...attInput, absentDays: attInput.absentDays + outsideDays } : attInput;
       const result = await computeResult(
         emp,
-        attInput,
+        paidAtt,
         settings,
         opts.calendarDays,
         permDed.loan,
