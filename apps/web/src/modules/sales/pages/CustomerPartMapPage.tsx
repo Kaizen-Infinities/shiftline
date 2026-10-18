@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 import { Check, Plus, Tags, Trash2, X } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
-import { customerService } from "../../../services/customerService";
+import { CUSTOMER_LOAD_ERROR, customerService } from "../../../services/customerService";
 import { productService } from "../../../services/productService";
 import { asnService, type PartMap, type PartMapPatch } from "../../../services/asnService";
 import {
@@ -110,7 +111,7 @@ const CustomerPartMapPage: React.FC = () => {
 
   useEffect(() => {
     customerService
-      .fetchAll({ limit: 200 })
+      .fetchAll({ limit: CUSTOMER_LIST_MAX_LIMIT })
       .then((r) =>
         setCustomers(
           r.customers.map((c) => ({
@@ -119,7 +120,10 @@ const CustomerPartMapPage: React.FC = () => {
           }))
         )
       )
-      .catch(() => setCustomers([]));
+      .catch(() => {
+        setCustomers([]);
+        toast.error(CUSTOMER_LOAD_ERROR);
+      });
     productService
       .fetchAll()
       .then((list) =>

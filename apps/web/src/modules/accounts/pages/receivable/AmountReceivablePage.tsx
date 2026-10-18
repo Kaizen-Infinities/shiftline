@@ -11,6 +11,7 @@ import {
 } from "../../../../components/ui/v2";
 import { fmtDrCr, fmtINR, fmtINRCompact } from "../../components/accountsUi";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 import DatePickerCalendar from "../../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import SelectInput from "../../../../components/form/SelectInput/SelectInput";
 import ExportCSVButton from "../../../../components/ui/ExportCSVButton/ExportCSVButton";
@@ -19,7 +20,7 @@ import {
   receivableService,
   type CustomerReceivableSummary,
 } from "../../../../services/receivableService";
-import { customerService } from "../../../../services/customerService";
+import { CUSTOMER_LOAD_ERROR, customerService } from "../../../../services/customerService";
 import { useListCache, prefetchCache } from "../../../../hooks/useListCache";
 import { usePermission } from "../../../../hooks/usePermission";
 import AgeingTable from "../../components/AgeingTable";
@@ -102,11 +103,12 @@ export const AmountReceivablePage: React.FC = () => {
   useEffect(() => {
     const loadCustomers = async () => {
       try {
-        const res = await customerService.fetchAll({ limit: 200 });
+        const res = await customerService.fetchAll({ limit: CUSTOMER_LIST_MAX_LIMIT });
         const list = Array.isArray(res) ? res : res?.customers || [];
         setCustomersList(list);
       } catch (err) {
         console.error("Failed to load customers dropdown", err);
+        toast.error(CUSTOMER_LOAD_ERROR);
       }
     };
     loadCustomers();

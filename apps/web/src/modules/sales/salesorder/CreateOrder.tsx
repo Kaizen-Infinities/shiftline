@@ -8,6 +8,8 @@ import BusyItemsTable from "../../../components/form/OrderItemsTable/BusyItemsTa
 import type { BusyColumn } from "../../../components/form/OrderItemsTable/BusyItemsTable";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
+import { CUSTOMER_LOAD_ERROR } from "../../../services/customerService";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -512,7 +514,9 @@ const SalesOrderForm: React.FC = () => {
 
   // ─── Load on mount ───────────────────────────────────────────────
   useEffect(() => {
-    loadCustomers({ limit: 1000 });
+    loadCustomers({ limit: CUSTOMER_LIST_MAX_LIMIT }).then((loaded) => {
+      if (!loaded) toast.error(CUSTOMER_LOAD_ERROR);
+    });
     if (can("employees.view")) loadEmployees({ limit: 500 });
   }, [loadCustomers, loadEmployees, can]);
 

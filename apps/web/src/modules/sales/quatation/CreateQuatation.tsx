@@ -14,6 +14,7 @@ import { FormFooter, KeyHint, formatINR } from "../shared/tradeUi";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,7 +33,7 @@ import { useProducts } from "../../../hooks/useProducts";
 import { salesProductService } from "../../../services/salesProductService";
 import { useEmployees } from "../../../hooks/useEmployees";
 import { salesOrderService, type SalesOrder } from "../../../services/salesOrderService";
-import { customerService } from "../../../services/customerService";
+import { CUSTOMER_LOAD_ERROR, customerService } from "../../../services/customerService";
 import {
   ORDER_SOURCE_NEEDS_EMPLOYEE,
   ORDER_SOURCE_NEEDS_REFERRAL,
@@ -716,7 +717,9 @@ const QuotationForm: React.FC = () => {
 
   // ─── Load Customers, Products, SalesProducts & Employees ──────────────
   useEffect(() => {
-    loadCustomers({ limit: 1000 });
+    loadCustomers({ limit: CUSTOMER_LIST_MAX_LIMIT }).then((loaded) => {
+      if (!loaded) toast.error(CUSTOMER_LOAD_ERROR);
+    });
     loadProducts();
     if (can("employees.view")) loadEmployees({ limit: 500 });
     setSalesProductsLoading(true);

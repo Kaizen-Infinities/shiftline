@@ -1,12 +1,15 @@
-import { GST_STATE_BY_CODE, isValidGstin } from "@shiftline/shared";
+import { CUSTOMER_LIST_MAX_LIMIT, GST_STATE_BY_CODE, isValidGstin } from "@shiftline/shared";
 import { z } from "zod";
 
-/** Customer list page size: digits only, at most 100 rows per page. */
+/** Customer list page size: digits only, at most CUSTOMER_LIST_MAX_LIMIT rows per page. */
 export const customerListLimitSchema = z.object({
   limit: z
     .string()
     .regex(/^\d+$/, "Limit must be a valid integer")
-    .refine((v) => Number(v) >= 1 && Number(v) <= 100, "Limit must be between 1 and 100")
+    .refine(
+      (v) => Number(v) >= 1 && Number(v) <= CUSTOMER_LIST_MAX_LIMIT,
+      `Limit must be between 1 and ${CUSTOMER_LIST_MAX_LIMIT}`
+    )
     .optional(),
 });
 

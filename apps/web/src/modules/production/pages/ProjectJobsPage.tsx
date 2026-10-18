@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 import { Check, Plus, Truck, X } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
-import { customerService } from "../../../services/customerService";
+import { CUSTOMER_LOAD_ERROR, customerService } from "../../../services/customerService";
 import {
   projectJobsService,
   type JobRow,
@@ -99,9 +100,12 @@ const ProjectJobsPage: React.FC = () => {
       .then(setPlans)
       .catch(() => setPlans([]));
     customerService
-      .fetchAll({ limit: 200 })
+      .fetchAll({ limit: CUSTOMER_LIST_MAX_LIMIT })
       .then((r) => setCustomers(r.customers.map((c) => ({ id: c.id, firmName: c.firmName }))))
-      .catch(() => setCustomers([]));
+      .catch(() => {
+        setCustomers([]);
+        toast.error(CUSTOMER_LOAD_ERROR);
+      });
   }, [showForm]);
 
   const counts = useMemo(() => {

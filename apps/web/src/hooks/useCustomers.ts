@@ -37,12 +37,12 @@ export const useCustomers = () => {
           }
         | string
     ) => {
-      lastParams.current = typeof params === "string" ? { search: params } : (params ?? {});
-      if (typeof params === "string") {
-        dispatch(fetchCustomers({ search: params }));
-      } else {
-        dispatch(fetchCustomers(params ?? {}));
-      }
+      const request = typeof params === "string" ? { search: params } : (params ?? {});
+      lastParams.current = request;
+      // Resolves true when the list loaded, so a picker can say so instead of staying empty.
+      return dispatch(fetchCustomers(request)).then((action) =>
+        fetchCustomers.fulfilled.match(action)
+      );
     },
     [dispatch]
   );

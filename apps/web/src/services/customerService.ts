@@ -1,9 +1,10 @@
 import apiClient from "../api/apiClient";
 import config from "../api/config";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 import type { Customer, CreateCustomerDto, UpdateCustomerDto } from "../features/customer/types";
 
-// The API rejects limit > 200 (MAX_PAGE_SIZE in apps/api/src/utils/pagination.ts).
-const MAX_PAGE_SIZE = 200;
+/** Shown in place of a silently empty customer picker when the list cannot be loaded. */
+export const CUSTOMER_LOAD_ERROR = "Could not load customers. Try again.";
 
 export const customerService = {
   // BUG-CUST-004 fix: added page and limit params for server-side pagination
@@ -19,7 +20,7 @@ export const customerService = {
       params: {
         search: params?.search,
         page: params?.page ?? 1,
-        limit: Math.min(params?.limit ?? 10, MAX_PAGE_SIZE),
+        limit: Math.min(params?.limit ?? 10, CUSTOMER_LIST_MAX_LIMIT),
         status: params?.status,
         customerTypeId: params?.customerTypeId,
         customerGradeId: params?.customerGradeId,

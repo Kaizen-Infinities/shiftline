@@ -26,14 +26,14 @@ import DatePickerCalendar from "../../components/ui/DatePickerCalendar/DatePicke
 
 import { fetchCompany } from "../../features/company/companySlice";
 import { invoiceSettingsService } from "../../services/invoiceSettingsService";
-import { customerService } from "../../services/customerService";
+import { CUSTOMER_LOAD_ERROR, customerService } from "../../services/customerService";
 import { productService } from "../../services/productService";
 import { salesInvoiceService } from "../../services/salesInvoiceService";
 import { salesOrderService } from "../../services/salesOrderService";
 import { salesProductService } from "../../services/salesProductService";
 import { finishedGoodsStockService } from "../../services/finishedGoodsStockService";
 import { useSocketSync } from "../../hooks/useSocketSync";
-import { GST_STATES } from "@shiftline/shared";
+import { CUSTOMER_LIST_MAX_LIMIT, GST_STATES } from "@shiftline/shared";
 import { documentsService } from "../../services/documentsService";
 import apiClient from "../../api/apiClient";
 
@@ -388,7 +388,10 @@ const SalesInvoiceForm: React.FC = () => {
   // ---- Load dropdown data ----
   useEffect(() => {
     Promise.all([
-      customerService.fetchAll({ limit: 1000 } as any).catch(() => ({ customers: [] })),
+      customerService.fetchAll({ limit: CUSTOMER_LIST_MAX_LIMIT }).catch(() => {
+        toast.error(CUSTOMER_LOAD_ERROR);
+        return { customers: [] };
+      }),
       productService.fetchAll().catch(() => []),
       invoiceSettingsService.getConfig().catch(() => null),
       salesInvoiceService.fetchAll({ pageSize: 100 }).catch(() => ({ data: [] }) as any),

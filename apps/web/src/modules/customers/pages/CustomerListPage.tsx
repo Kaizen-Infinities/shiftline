@@ -5,6 +5,7 @@ import { ActionPill, Chip, PageHeader, Toolbar } from "../../../components/ui/v2
 import { PAGE_CLASS, formatINR } from "../../sales/shared/tradeUi";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import EditButton from "../../../components/ui/EditButton/EditButton";
@@ -142,10 +143,10 @@ const CustomerListPage: React.FC = () => {
   }, []);
 
   const fetchCustomersForExport = useCallback(async () => {
-    // The API caps page size at 200, so walk the pages.
+    // The API caps page size at CUSTOMER_LIST_MAX_LIMIT, so walk the pages.
     const all: any[] = [];
     for (let page = 1; ; page++) {
-      const res = await customerService.fetchAll({ page, limit: 200 });
+      const res = await customerService.fetchAll({ page, limit: CUSTOMER_LIST_MAX_LIMIT });
       all.push(...(res?.customers || []));
       if (page >= (res?.totalPages || 1)) break;
     }
