@@ -68,6 +68,8 @@ export const AmountPayablePage: React.FC = () => {
   const [draftSearch, setDraftSearch] = useState<string>(search);
 
   const [suppliersList, setSuppliersList] = useState<any[]>([]);
+  const [suppliersError, setSuppliersError] = useState<string | null>(null);
+  const [supplierReloadKey, setSupplierReloadKey] = useState(0);
 
   // Row selection for status bar
   const [selectedRow, setSelectedRow] = useState<string | number | null>(null);
@@ -98,19 +100,26 @@ export const AmountPayablePage: React.FC = () => {
 
   const isVisible = (id: ColumnKey) => visibleColumns.includes(id);
 
-  // Load suppliers list for filter dropdown
+  // Load suppliers list for filter dropdown (every page, at the API cap)
   useEffect(() => {
+    let cancelled = false;
     const loadSuppliers = async () => {
       try {
-        const res = await supplierService.fetchAll({ limit: 10000 });
-        const list = Array.isArray(res) ? res : res?.suppliers || [];
-        setSuppliersList(list);
+        const list = await supplierService.fetchAllSuppliers();
+        if (!cancelled) {
+          setSuppliersList(list);
+          setSuppliersError(null);
+        }
       } catch (err) {
         console.error("Failed to load suppliers dropdown", err);
+        if (!cancelled) setSuppliersError("Could not load the supplier filter.");
       }
     };
     loadSuppliers();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [supplierReloadKey]);
 
   const cacheKey = `accounts:amount-payable:${asOnDate}:${startDate}:${endDate}:${supplierId}:${search}`;
 
@@ -442,6 +451,18 @@ export const AmountPayablePage: React.FC = () => {
               searchable
               onChange={(e) => setDraftSupplierId(e.target.value)}
             />
+            {suppliersError && (
+              <p role="alert" className="mt-1 text-xs text-[color:var(--color-danger)]">
+                {suppliersError}{" "}
+                <button
+                  type="button"
+                  className="font-semibold underline"
+                  onClick={() => setSupplierReloadKey((k) => k + 1)}
+                >
+                  Retry
+                </button>
+              </p>
+            )}
           </div>
 
           <button onClick={handleClearFilters} className="sl-btn sl-pill-sm">

@@ -8,6 +8,12 @@ export const fetchSuppliers = createAsyncThunk(
   async (params: { search?: string; page?: number; limit?: number } | string | undefined, { rejectWithValue }) => {
     try {
       const normalized = typeof params === "string" ? { search: params } : (params ?? {});
+      // No page asked for: load the whole list (dropdowns need every supplier). The API caps one
+      // request at 100 rows, so this walks the pages instead of sending one large limit.
+      if (normalized.page === undefined) {
+        const suppliers = await supplierService.fetchAllSuppliers({ search: normalized.search });
+        return { suppliers, total: suppliers.length, page: 1, totalPages: 1 };
+      }
       const res = await supplierService.fetchAll(normalized);
       if (res.suppliers) {
         return {

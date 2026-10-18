@@ -170,9 +170,12 @@ const PurchaseOrderForm: React.FC = () => {
 
   const { addPurchaseOrder, editPurchaseOrder } = usePurchaseOrders();
   const user = useSelector((state: any) => state?.auth?.user);
-  const { suppliers, loadSuppliers } = useSuppliers();
+  const { suppliers, loadSuppliers, error: suppliersError } = useSuppliers();
 
   const [formData, setFormData] = useState<PurchaseOrderFormData>(initialFormData);
+  // Supplier returned with the saved PO (GET /purchase-orders/:id). Shown even if the list
+  // does not hold that supplier, so a saved PO never displays a blank supplier.
+  const [poSupplier, setPoSupplier] = useState<any | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([]);
   const { data: company } = useSelector((state: any) => state.company);
@@ -189,8 +192,10 @@ const PurchaseOrderForm: React.FC = () => {
   useFormShortcuts({});
 
   const selectedSupplier = useMemo(
-    () => (suppliers || []).find((s) => String(s?.id) === String(formData.supplierId)),
-    [suppliers, formData.supplierId]
+    () =>
+      (suppliers || []).find((s) => String(s?.id) === String(formData.supplierId)) ??
+      (poSupplier && String(poSupplier.id) === String(formData.supplierId) ? poSupplier : undefined),
+    [suppliers, formData.supplierId, poSupplier]
   );
 
   const isLocked = useMemo(() => {
@@ -292,7 +297,7 @@ const PurchaseOrderForm: React.FC = () => {
   }, [formData.items, rawMaterials]);
 
   const refreshSuppliers = useCallback(() => {
-    loadSuppliers({ limit: 1000 });
+    loadSuppliers();
   }, [loadSuppliers]);
 
   const refreshRawMaterials = useCallback(async () => {
@@ -385,6 +390,7 @@ const PurchaseOrderForm: React.FC = () => {
           }
           const poData = mapPOToFormData(po);
           setFormData(poData);
+          setPoSupplier(po.supplier ?? null);
         }
       } catch {
         if (mounted) {
@@ -981,6 +987,12 @@ const PurchaseOrderForm: React.FC = () => {
     value: s?.id ? String(s.id) : "",
     label: s?.displayName || s?.legalName || "",
   }));
+  if (poSupplier?.id && !supplierOptions.some((o) => o.value === String(poSupplier.id))) {
+    supplierOptions.unshift({
+      value: String(poSupplier.id),
+      label: poSupplier.displayName || poSupplier.legalName || "",
+    });
+  }
 
   const uomOptions = [
     { value: "", label: "-- Select UOM --" },
@@ -1082,7 +1094,10 @@ const PurchaseOrderForm: React.FC = () => {
               onChange={handleChange}
               required
               searchable
-              error={errors.supplierId}
+              error={
+                errors.supplierId ||
+                (suppliersError ? "Suppliers could not be loaded. Reload the page to retry." : "")
+              }
               disabled={isLocked || isEdit}
             />
             <SelectInput
