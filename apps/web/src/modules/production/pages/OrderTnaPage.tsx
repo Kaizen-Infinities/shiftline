@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 
 import { usePermission } from "../../../hooks/usePermission";
-import { customerService } from "../../../services/customerService";
+import { CUSTOMER_LOAD_ERROR, customerService } from "../../../services/customerService";
 import {
   orderTnaService,
   type OrderTnaDetail,
@@ -173,9 +174,12 @@ const OrderTnaPage: React.FC = () => {
       .then(setTemplates)
       .catch(() => setTemplates([]));
     customerService
-      .fetchAll({ limit: 200 })
+      .fetchAll({ limit: CUSTOMER_LIST_MAX_LIMIT })
       .then((r) => setBuyers(r.customers.map((c) => ({ id: c.id, firmName: c.firmName }))))
-      .catch(() => setBuyers([]));
+      .catch(() => {
+        setBuyers([]);
+        toast.error(CUSTOMER_LOAD_ERROR);
+      });
   }, []);
 
   const open = async (id: string) => {

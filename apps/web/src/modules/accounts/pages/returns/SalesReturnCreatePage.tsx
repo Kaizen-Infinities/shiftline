@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { FaPlus } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 import { returnService } from "../../../../services/returnService";
 import { customerService } from "../../../../services/customerService";
 import { productService } from "../../../../services/productService";
@@ -72,7 +73,7 @@ export const SalesReturnCreatePage: React.FC = () => {
       setLoading(true);
       try {
         const [cRes, pList, spList] = await Promise.all([
-          customerService.fetchAll({ page: 1, limit: 500 }),
+          customerService.fetchAll({ page: 1, limit: CUSTOMER_LIST_MAX_LIMIT }),
           productService.fetchAll(),
           salesProductService.fetchAll(),
         ]);

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
 import { CalendarClock, Plus, Truck, X } from "lucide-react";
 
 import { usePermission } from "../../../hooks/usePermission";
-import { customerService } from "../../../services/customerService";
+import { CUSTOMER_LOAD_ERROR, customerService } from "../../../services/customerService";
 import {
   deliveryScheduleService,
   parseSchedulePaste,
@@ -114,7 +115,7 @@ const DeliverySchedulesPage: React.FC = () => {
   useEffect(() => {
     if (!canCreate) return;
     customerService
-      .fetchAll({ limit: 200 })
+      .fetchAll({ limit: CUSTOMER_LIST_MAX_LIMIT })
       .then((r) =>
         setCustomers(
           r.customers.map((c) => ({
@@ -123,7 +124,10 @@ const DeliverySchedulesPage: React.FC = () => {
           }))
         )
       )
-      .catch(() => setCustomers([]));
+      .catch(() => {
+        setCustomers([]);
+        toast.error(CUSTOMER_LOAD_ERROR);
+      });
   }, [canCreate]);
 
   const open = async (id: string) => {
