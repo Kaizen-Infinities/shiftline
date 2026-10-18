@@ -43,17 +43,13 @@ const SupplierList: React.FC = () => {
   const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // The API caps one page at 100 rows, so the full list is walked page by page.
   const fetchSuppliersForExport = useCallback(async () => {
-    const res = await supplierService.fetchAll({ page: 1, limit: 100000 });
-    const list =
-      res?.suppliers || (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
-    return Array.isArray(list) ? list : [];
+    return supplierService.fetchAllSuppliers();
   }, []);
 
   const fetcher = useCallback(async (_signal: AbortSignal) => {
-    const res = await supplierService.fetchAll({ limit: 10000 });
-    const list =
-      res?.suppliers || (Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []);
+    const list = await supplierService.fetchAllSuppliers();
     return { data: list, total: list.length };
   }, []);
 

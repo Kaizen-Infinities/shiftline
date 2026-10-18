@@ -50,6 +50,7 @@ export const PurchaseReturnPage: React.FC = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [selectedViewReturn, setSelectedViewReturn] = useState<PurchaseReturn | null>(null);
@@ -91,26 +92,42 @@ export const PurchaseReturnPage: React.FC = () => {
 
   const cacheKey = `accounts:purchase-returns`;
 
+  // The returns are the page's data. Suppliers, materials and stores only feed the form, so they
+  // settle separately: one failed lookup shows a message and leaves the others loaded.
   const fetcher = useCallback(async (_signal: AbortSignal) => {
-    try {
-      const [rData, sRes, mRes, stRes] = await Promise.all([
-        returnService.fetchPurchaseReturns(),
-        supplierService.fetchAll({ limit: 1000 }),
-        rawMaterialService.fetchAll(),
-        storeService.fetchAll({ limit: 100 }),
-      ]);
-      const list = rData || [];
-      const sList = Array.isArray(sRes) ? sRes : sRes?.suppliers || [];
-      setSuppliers(sList);
-      const mList = Array.isArray(mRes) ? mRes : (mRes?.rawMaterials ?? []);
-      setMaterials(mList);
-      const stList = Array.isArray(stRes) ? stRes : stRes?.stores || stRes?.data || [];
-      setStores(stList);
-      return { data: list, total: list.length };
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to load purchase returns");
-      throw err;
+    const [rRes, sRes, mRes, stRes] = await Promise.allSettled([
+      returnService.fetchPurchaseReturns(),
+      supplierService.fetchAllSuppliers(),
+      rawMaterialService.fetchAll(),
+      storeService.fetchAll({ limit: 100 }),
+    ]);
+    if (rRes.status === "rejected") {
+      toast.error(rRes.reason?.message || "Failed to load purchase returns");
+      throw rRes.reason;
     }
+    const failed: string[] = [];
+    if (sRes.status === "fulfilled") {
+      setSuppliers(Array.isArray(sRes.value) ? sRes.value : []);
+    } else {
+      failed.push("suppliers");
+    }
+    if (mRes.status === "fulfilled") {
+      const v: any = mRes.value;
+      setMaterials(Array.isArray(v) ? v : (v?.rawMaterials ?? []));
+    } else {
+      failed.push("raw materials");
+    }
+    if (stRes.status === "fulfilled") {
+      const v: any = stRes.value;
+      setStores(Array.isArray(v) ? v : v?.stores || v?.data || []);
+    } else {
+      failed.push("stores");
+    }
+    setOptionsError(
+      failed.length ? `Could not load ${failed.join(", ")}. Retry to load them again.` : null
+    );
+    const list = rRes.value || [];
+    return { data: list, total: list.length };
   }, []);
 
   const {
@@ -594,6 +611,18 @@ export const PurchaseReturnPage: React.FC = () => {
                 />
               </span>
             )}
+          </div>
+        )}
+
+        {optionsError && (
+          <div
+            role="alert"
+            className="mb-3 flex items-center justify-between gap-3 rounded border border-line bg-card-2 px-3 py-2 text-xs text-[color:var(--color-danger)]"
+          >
+            <span>{optionsError}</span>
+            <button type="button" onClick={refresh} className="font-semibold underline">
+              Retry
+            </button>
           </div>
         )}
 
