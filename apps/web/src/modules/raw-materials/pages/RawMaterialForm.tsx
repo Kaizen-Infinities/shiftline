@@ -288,8 +288,14 @@ const RawMaterialForm: React.FC = () => {
         minimumStock: convertedMinStock,
         reorderLevel: convertedReorderLevel,
         rate: formData.rate ? Number(formData.rate) : null,
-        onHandQty: convertedOnHandQty,
-        reservedQty: formData.reservedQty ? Number(formData.reservedQty) : 0,
+        // Opening stock is set on create only. Edits never send stock: the API refuses it, and
+        // stock moves only through stock transactions and adjustments.
+        ...(isEditMode
+          ? {}
+          : {
+              onHandQty: convertedOnHandQty,
+              reservedQty: formData.reservedQty ? Number(formData.reservedQty) : 0,
+            }),
         batchNo: formData.batchNo || null,
         narration: formData.narration || null,
         status: formData.status,

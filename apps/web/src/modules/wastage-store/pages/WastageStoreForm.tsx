@@ -199,7 +199,8 @@ const WastageStoreForm: React.FC = () => {
         categoryId: formData.categoryId ? Number(formData.categoryId) : null,
         storeId: formData.storeId || null,
         baseUom: formData.baseUom,
-        onHandQty: convertedOnHandQty,
+        // Opening stock is set on create only; the API refuses stock on update.
+        ...(isEditMode ? {} : { onHandQty: convertedOnHandQty }),
         narration: formData.narration || null,
         status: formData.status,
         isActive: formData.status === "Active",
