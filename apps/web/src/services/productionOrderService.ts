@@ -1,6 +1,10 @@
 import apiClient from "../api/apiClient";
 import config from "../api/config";
 
+// Order numbers such as MO/2026-27/0001-1 contain "/". Unencoded, they split the path and the
+// API answers "Route not found", so every id is encoded as one path segment.
+const orderSegment = (id: number | string) => encodeURIComponent(String(id));
+
 // ─── Types ────────────────────────────────────────────────────
 
 export interface ProductionOrder {
@@ -91,7 +95,7 @@ export const productionOrderService = {
 
     // ─── 2️⃣ GET METHOD - Fetch Single Order by ID ────────────
     getById: async (id: number | string): Promise<ProductionOrder> => {
-        const response = await apiClient.get(`${config.productionOrder.base}/${id}`);
+        const response = await apiClient.get(`${config.productionOrder.base}/${orderSegment(id)}`);
         return response.data?.data || response.data;
     },
 
@@ -108,38 +112,38 @@ export const productionOrderService = {
 
     // ─── 4️⃣ PUT METHOD - Update Entire Order ─────────────────
     update: async (id: number | string, data: UpdateProductionOrderDto): Promise<ProductionOrder> => {
-        const response = await apiClient.put(`${config.productionOrder.base}/${id}`, data);
+        const response = await apiClient.put(`${config.productionOrder.base}/${orderSegment(id)}`, data);
         return response.data?.data || response.data;
     },
 
     // ─── 6️⃣ DELETE METHOD - Delete Order ─────────────────────
     delete: async (id: number | string): Promise<{ success: boolean; message: string }> => {
-        const response = await apiClient.delete(`${config.productionOrder.base}/${id}`);
+        const response = await apiClient.delete(`${config.productionOrder.base}/${orderSegment(id)}`);
         return response.data?.data || response.data;
     },
 
     issueMaterials: async (id: number | string, data: { items: Array<{ rawMaterialId: string; storeId: string; qty: number; remarks?: string }> }): Promise<any> => {
-        const response = await apiClient.post(`${config.productionOrder.base}/${id}/issue-materials`, data);
+        const response = await apiClient.post(`${config.productionOrder.base}/${orderSegment(id)}/issue-materials`, data);
         return response.data?.data || response.data;
     },
 
     checkMaterialAvailability: async (id: number | string): Promise<any> => {
-        const response = await apiClient.post(`${config.productionOrder.base}/${id}/check-materials`);
+        const response = await apiClient.post(`${config.productionOrder.base}/${orderSegment(id)}/check-materials`);
         return response.data?.data || response.data;
     },
 
     startProduction: async (id: number | string, dailyPlanId?: string): Promise<any> => {
-        const response = await apiClient.post(`${config.productionOrder.base}/${id}/start-production`, dailyPlanId ? { dailyPlanId } : {});
+        const response = await apiClient.post(`${config.productionOrder.base}/${orderSegment(id)}/start-production`, dailyPlanId ? { dailyPlanId } : {});
         return response.data?.data || response.data;
     },
 
     completePostProduction: async (id: number | string, producedQty: number): Promise<any> => {
-        const response = await apiClient.post(`${config.productionOrder.base}/${id}/complete-post-production`, { producedQty });
+        const response = await apiClient.post(`${config.productionOrder.base}/${orderSegment(id)}/complete-post-production`, { producedQty });
         return response.data?.data || response.data;
     },
 
     getHistory: async (id: number | string): Promise<any> => {
-        const response = await apiClient.get(`${config.productionOrder.base}/${id}/history`);
+        const response = await apiClient.get(`${config.productionOrder.base}/${orderSegment(id)}/history`);
         return response.data?.data || response.data;
     },
 };

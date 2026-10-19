@@ -113,7 +113,7 @@ const AllProductionOrderList: React.FC = () => {
 
   const handleOpenView = useCallback(
     (item: any) => {
-      navigate(`/production-orders/history/view/${item.productionOrderId}`, {
+      navigate(`/production-orders/history/view/${encodeURIComponent(item.productionOrderId)}`, {
         state: { order: item },
       });
     },

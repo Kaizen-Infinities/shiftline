@@ -403,7 +403,7 @@ const ProductionOrderList: React.FC = () => {
   };
 
   const handleOpenEdit = (po: any) => {
-    navigate(`/production-orders/edit/${po.productionOrderId}`);
+    navigate(`/production-orders/edit/${encodeURIComponent(po.productionOrderId)}`);
   };
 
   const handleAllocateRM = async (order: any) => {

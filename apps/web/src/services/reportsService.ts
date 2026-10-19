@@ -14,7 +14,7 @@ export const reportsService = {
   },
 
   getProductionOrderReport: async (productionOrderId: string) => {
-    const response = await apiClient.get(`/reports/production-orders/${productionOrderId}`);
+    const response = await apiClient.get(`/reports/production-orders/${encodeURIComponent(productionOrderId)}`);
     return response.data;
   },
 
