@@ -19,7 +19,11 @@ describe("sales return stock", () => {
       gstRegType: "REGULAR",
       stateCode: "33",
     });
-    const product = await createProduct();
+    // The invoice confirm now refuses lines without HSN/GST rate, so the product carries both.
+    const hsn = await asDemoTenant(() =>
+      prisma.hsnCode.findFirstOrThrow({ where: { code: "3923" } })
+    );
+    const product = await createProduct({ gstRate: 18, hsnCodeId: hsn.id });
     const store = await asDemoTenant(() => prisma.store.findFirstOrThrow());
     const stockKey = { storeId: store.storeId, productItemId: product.id };
     const onHand = async () =>
