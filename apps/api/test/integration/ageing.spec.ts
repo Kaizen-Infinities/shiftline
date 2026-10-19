@@ -40,7 +40,7 @@ describe("due dates and ageing", () => {
   it("dates invoices due after the customer's credit days and ages the unpaid balance", async () => {
     const owner = await authed("demo.owner");
     const client = await api();
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
     const slow = await createCustomer({
       stateCode: "33",
       creditDays: 30,

@@ -22,7 +22,7 @@ describe("period control", () => {
   it("refuses documents and vouchers dated inside a closed period, and allows them again after reopening", async () => {
     const owner = await authed("demo.owner");
     const customer = await createCustomer({ stateCode: "33" });
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
 
     const created = await (
       await api()
@@ -84,7 +84,7 @@ describe("period control", () => {
   it("freezes the books up to a date, only moves the freeze forward unless told otherwise, and blocks reopening behind it", async () => {
     const owner = await authed("demo.owner");
     const customer = await createCustomer({ stateCode: "33" });
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
 
     const set = await (
       await api()

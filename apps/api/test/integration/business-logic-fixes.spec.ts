@@ -115,7 +115,7 @@ describe("ABUSE-01: overlapping receipts", () => {
     const prisma = await getPrisma();
     const client = await api();
     const customer = await createCustomer();
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
     const created = await client
       .post("/api/sales-invoices")
       .set(OWNER.auth)

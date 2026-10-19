@@ -8,7 +8,12 @@ import { asDemoTenant, createCustomer, createProduct, demoCompany } from "../fac
 describe("sales invoice place of supply without a resolvable state", () => {
   const post = async (customerId: string) => {
     const owner = await authed("demo.owner");
-    const product = await createProduct();
+    const prisma = await getPrisma();
+    const hsn = await asDemoTenant(() =>
+      prisma.hsnCode.findFirstOrThrow({ where: { code: "3923" } })
+    );
+    // A taxable line needs an HSN and rate on its master (a sale refuses one without).
+    const product = await createProduct({ gstRate: 18, hsnCodeId: hsn.id });
     return (await api())
       .post("/api/sales-invoices")
       .set(owner.auth)

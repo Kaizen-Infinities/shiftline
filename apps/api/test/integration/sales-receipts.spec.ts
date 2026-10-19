@@ -42,7 +42,7 @@ const sideOf = async (refDocType: string, refDocId: string) => {
 const makeInvoice = async (owner: { auth: Record<string, string> }, rate: number) => {
   const client = await api();
   const customer = await createCustomer();
-  const product = await createProduct();
+  const product = await createProduct({ gstRate: 0 });
   const res = await client
     .post("/api/sales-invoices")
     .set(owner.auth)

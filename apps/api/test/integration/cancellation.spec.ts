@@ -50,7 +50,7 @@ describe("cancellation", () => {
     const prisma = await getPrisma();
     const owner = await authed("demo.owner");
     const customer = await createCustomer({ stateCode: "33" });
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
     const before = n(customer.outstandingAmount);
 
     const created = await (
@@ -61,7 +61,9 @@ describe("cancellation", () => {
       .send({
         invoiceDate: "2026-09-07",
         customerId: customer.id,
-        items: [{ productId: product.id.toString(), qty: 2, rate: 500, taxPercent: 18 }],
+        items: [
+          { productId: product.id.toString(), qty: 2, rate: 500, taxPercent: 18, hsnCode: "3923" },
+        ],
       });
     expect(created.status).toBe(201);
     const invoice = created.body.data;

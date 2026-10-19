@@ -90,7 +90,7 @@ describe("F3 employees by role", () => {
 
 describe("F4 preview equals the assigned number", () => {
   it("sales invoice", async () => {
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
     const customer = await createCustomer({});
     const peek = (await get("/api/documents/next-number?docType=SALES_INVOICE")).body.data.number;
     const res = await (
@@ -158,7 +158,7 @@ describe("F4 preview equals the assigned number", () => {
     expect(peek).toMatch(/^MO\/\d{4}-\d{2}\/\d{4}$/);
     expect(peek.startsWith("PO")).toBe(false);
 
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
     const rm = await createRawMaterial();
     const create = async (productionOrderId: string) =>
       (await api())
@@ -194,7 +194,7 @@ describe("F4 preview equals the assigned number", () => {
 
   it("production order: a preview somebody else already saved still gets a unique number", async () => {
     const peek = (await get("/api/production-orders/next-id")).body.data.nextId as string;
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
     const rm = await createRawMaterial();
     const create = async (productionOrderId: string) =>
       (await api())

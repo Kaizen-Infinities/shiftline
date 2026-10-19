@@ -13,7 +13,7 @@ describe("statements of account", () => {
   it("builds a customer statement from the ledger and the ageing", async () => {
     const owner = await authed("demo.owner");
     const client = await api();
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
     const customer = await createCustomer({
       stateCode: "33",
       creditDays: 15,
