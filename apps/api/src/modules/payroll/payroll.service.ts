@@ -1211,6 +1211,20 @@ class PayrollService {
         }));
     }
 
+    // 3d. An advance deduction cannot exceed what the employee still owes (QA C11). Approval
+    // recovers at most the outstanding balance, so a larger deduction would cut net pay by more
+    // than is recorded as recovered. Checked here, before any write.
+    for (const emp of employees) {
+      const entered = opts.attendance.find((a) => BigInt(a.employeeId) === emp.id)?.advance;
+      const owed = salaryAdvanceMap.get(emp.id) ?? 0;
+      if (entered !== undefined && Number(entered) > owed) {
+        throw new ApiError(
+          400,
+          `Advance deduction of ${Number(entered)} for ${emp.empCode} is more than the outstanding advance (${owed}). Enter at most ${owed}.`
+        );
+      }
+    }
+
     // 4. Emit start
     const runCode = `PR-${opts.period}-${Date.now().toString().slice(-5)}`;
     emitToTenant("payroll:computing", { runCode, period: opts.period, total: employees.length });
