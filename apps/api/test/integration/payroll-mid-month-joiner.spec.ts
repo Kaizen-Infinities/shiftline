@@ -37,7 +37,9 @@ const mkEmp = (empCode: string, fullName: string, dates: { joined?: string; reli
   );
 
 const configure = async (employeeId: bigint, monthlySalary: number) => {
-  const res = await (await api())
+  const res = await (
+    await api()
+  )
     .put(`/api/payroll/employees/${employeeId}/config`)
     .set(OWNER.auth)
     .send({
