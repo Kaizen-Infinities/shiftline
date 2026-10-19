@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+/** An optional reference the form leaves blank ("") means no reference, the same as null. */
+const blankToNull = (value: unknown) => (value === "" ? null : value);
+
 export const WastageTypeEnum = z.enum([
   "STARTUP",
   "MACHINE_SETUP",
@@ -24,13 +27,13 @@ export const createProductionWastageSchema = z.object({
   body: z.object({
     wastageDate: z.string().min(1, "Wastage Date is required"),
     productionOrderId: z.string().min(1, "Production Order ID is required").max(20),
-    hourlyProductionId: z.number().int().optional().nullable(),
+    hourlyProductionId: z.preprocess(blankToNull, z.number().int().optional().nullable()),
     machineId: z.string().min(1, "Machine ID is required").max(20),
     shiftId: z.string().min(1, "Shift ID is required").max(20),
     productId: z.number().int().min(1, "Product ID is required"),
-    rawMaterialId: z.string().max(20).optional().nullable(),
-    targetWastageProductId: z.string().max(20).optional().nullable(),
-    storeId: z.string().max(20).optional().nullable(),
+    rawMaterialId: z.preprocess(blankToNull, z.string().max(20).optional().nullable()),
+    targetWastageProductId: z.preprocess(blankToNull, z.string().max(20).optional().nullable()),
+    storeId: z.preprocess(blankToNull, z.string().max(20).optional().nullable()),
     wastageType: WastageTypeEnum,
     quantity: z.number().positive("Quantity must be greater than 0"),
     uom: z.string().min(1, "UOM is required").max(10),
@@ -41,7 +44,7 @@ export const createProductionWastageSchema = z.object({
     isRecyclable: z.boolean().optional().default(false),
     sentForRework: z.boolean().optional().default(false),
     status: WastageStatusEnum.optional().default("DRAFT"),
-    categoryId: z.number().int().positive().optional().nullable(),
+    categoryId: z.preprocess(blankToNull, z.number().int().positive().optional().nullable()),
   }),
 });
 
