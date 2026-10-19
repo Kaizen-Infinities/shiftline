@@ -1,197 +1,29 @@
-import React, { useState } from "react";
-import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
-import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
-import TextInput from "../../../components/form/TextInput/TextInput";
-import SelectInput from "../../../components/form/SelectInput/SelectInput";
-import { Eraser, Save } from "lucide-react";
-import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
-import FormFooter from "../../stock/lib/FormFooter";
+import React from "react";
+import { PageHeader } from "../../../components/ui/v2";
+import StockRecordingNotice from "../../stock/lib/StockRecordingNotice";
 
-const CATEGORY_OPTIONS = [
-  { label: "T-Shirt", value: "T-Shirt" },
-  { label: "Shirt", value: "Shirt" },
-  { label: "Trouser", value: "Trouser" },
-  { label: "Jacket", value: "Jacket" },
-  { label: "Shorts", value: "Shorts" },
-  { label: "Accessories", value: "Accessories" },
+const RECORDING_LINKS = [
+  { label: "Production orders", to: "/production-orders" },
+  { label: "Stock adjustments", to: "/inventory/stock-adjustments" },
 ];
 
-const SIZE_OPTIONS = [
-  { label: "XS", value: "XS" },
-  { label: "S", value: "S" },
-  { label: "M", value: "M" },
-  { label: "L", value: "L" },
-  { label: "XL", value: "XL" },
-  { label: "XXL", value: "XXL" },
-  { label: "Free Size", value: "Free Size" },
-];
-
-const initialFormState = {
-  productCode: "",
-  productName: "",
-  category: "",
-  size: "",
-  color: "",
-  quantity: "",
-  batchNo: "",
-  storeName: "",
-  manufactureDate: "",
-  unitPrice: "",
-};
-
-const FinishedStockCreate: React.FC = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState(initialFormState);
-
-  useFormShortcuts({});
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleClear = () => {
-    setFormData(initialFormState);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success("Finished stock created successfully!");
-    navigate("/finished-stock");
-  };
-
-  return (
-    <div className="sl-page sl-page-form">
-      <PageHeader
-        title="New finished goods stock"
-        back="/finished-stock"
-        backLabel="Back to list"
-        breadcrumbs={[
-          { label: "Inventory" },
-          { label: "Finished goods stock", to: "/finished-stock" },
-          { label: "New" },
-        ]}
-      />
-
-      <form onSubmit={handleSubmit} noValidate>
-        <Tile title="Stock details">
-          <div className="grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
-            <div>
-              <TextInput
-                label="Product Code"
-                name="productCode"
-                value={formData.productCode}
-                placeholder="e.g. FP-001"
-                required
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <TextInput
-                label="Product Name"
-                name="productName"
-                value={formData.productName}
-                placeholder="e.g. Men's Polo T-Shirt"
-                required
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <SelectInput
-                label="Category"
-                name="category"
-                value={formData.category}
-                options={CATEGORY_OPTIONS}
-                required
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <SelectInput
-                label="Size"
-                name="size"
-                value={formData.size}
-                options={SIZE_OPTIONS}
-                required
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <TextInput
-                label="Color"
-                name="color"
-                value={formData.color}
-                placeholder="e.g. Navy Blue"
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <TextInput
-                label="Quantity"
-                name="quantity"
-                value={formData.quantity}
-                type="number"
-                placeholder="e.g. 250"
-                required
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <TextInput
-                label="Batch No"
-                name="batchNo"
-                value={formData.batchNo}
-                placeholder="e.g. BATCH-2024-001"
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <TextInput
-                label="Store Location"
-                name="storeName"
-                value={formData.storeName}
-                placeholder="e.g. Finished Goods Store"
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <TextInput
-                label="Manufacture Date"
-                name="manufactureDate"
-                value={formData.manufactureDate}
-                type="date"
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <TextInput
-                label="Unit Price (₹)"
-                name="unitPrice"
-                value={formData.unitPrice}
-                type="number"
-                step="0.01"
-                placeholder="e.g. 599.00"
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-        </Tile>
-
-        <FormFooter hint="F2 saves">
-          <ActionPill variant="secondary" onClick={() => navigate("/finished-stock")}>
-            Cancel
-          </ActionPill>
-          <ActionPill variant="secondary" icon={<Eraser size={16} />} onClick={handleClear}>
-            Clear
-          </ActionPill>
-          <ActionPill type="submit" icon={<Save size={17} />}>
-            Save Stock
-          </ActionPill>
-        </FormFooter>
-      </form>
-    </div>
-  );
-};
+/**
+ * No create API records finished goods stock from this form, so it does not offer a save (C14).
+ */
+const FinishedStockCreate: React.FC = () => (
+  <div className="sl-page sl-page-form">
+    <PageHeader
+      title="New finished goods stock"
+      back="/finished-stock"
+      backLabel="Back to list"
+      breadcrumbs={[
+        { label: "Inventory" },
+        { label: "Finished goods stock", to: "/finished-stock" },
+        { label: "New" },
+      ]}
+    />
+    <StockRecordingNotice links={RECORDING_LINKS} />
+  </div>
+);
 
 export default FinishedStockCreate;
