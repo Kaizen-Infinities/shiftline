@@ -7,6 +7,15 @@ import {
 import { byCode } from "../../lib/prisma";
 import { valuationService } from "../costing/valuation.service";
 
+/** A named target wastage product must exist; checked here so the 400 names the field on every engine. */
+const assertTargetWastageProduct = async (id: string | null | undefined) => {
+  if (!id) return;
+  const target = await prisma.rawMaterial.findUnique({ where: byCode("rawMaterialId", id) });
+  if (!target) {
+    throw new ApiError(400, `Invalid targetWastageProductId: no wastage product ${id} exists.`);
+  }
+};
+
 class ProductionWastageService {
   private async enrichWithApprovedByUser(wastage: any) {
     if (!wastage || !wastage.approvedBy) return wastage;
@@ -119,6 +128,9 @@ class ProductionWastageService {
         throw new ApiError(404, `Raw Material with ID ${data.rawMaterialId} not found`);
       }
     }
+
+    // 6. Verify target wastage product (optional)
+    await assertTargetWastageProduct(data.targetWastageProductId);
 
     // Calculate Estimated Value if not provided
     let finalEstimatedValue = data.estimatedValue ?? null;
@@ -281,6 +293,8 @@ class ProductionWastageService {
     if (data.shiftId) updatedData.shiftId = data.shiftId;
     if (data.productId) updatedData.productId = BigInt(data.productId);
     if (data.rawMaterialId !== undefined) updatedData.rawMaterialId = data.rawMaterialId ?? null;
+    if (data.targetWastageProductId !== undefined)
+      await assertTargetWastageProduct(data.targetWastageProductId);
     if (data.targetWastageProductId !== undefined)
       updatedData.targetWastageProductId = data.targetWastageProductId ?? null;
     if (data.storeId !== undefined) updatedData.storeId = data.storeId ?? null;
