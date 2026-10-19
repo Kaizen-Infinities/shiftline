@@ -772,23 +772,29 @@ class PayrollService {
       }
     }
 
-    const ops = records.map((r) => {
-      const { shiftId, ...rest } = r;
-      return prisma.attendanceRecord.upsert({
-        where: { employeeId_date: { employeeId: r.employeeId, date: r.date } },
-        update: {
-          status: r.status,
-          otHours: r.otHours,
-          lateMinutes: r.lateMinutes,
-          permissionMinutes: r.permissionMinutes,
-          salaryAdvance: r.salaryAdvance,
-          period: r.period,
-          shiftId: shiftId ?? null,
-        },
-        create: { ...rest, shiftId: shiftId ?? null },
-      });
+    // Interactive form: the tenant client does not accept the batch array form (QA C08).
+    return prisma.$transaction(async (tx) => {
+      const saved = [];
+      for (const r of records) {
+        const { shiftId, ...rest } = r;
+        saved.push(
+          await tx.attendanceRecord.upsert({
+            where: { employeeId_date: { employeeId: r.employeeId, date: r.date } },
+            update: {
+              status: r.status,
+              otHours: r.otHours,
+              lateMinutes: r.lateMinutes,
+              permissionMinutes: r.permissionMinutes,
+              salaryAdvance: r.salaryAdvance,
+              period: r.period,
+              shiftId: shiftId ?? null,
+            },
+            create: { ...rest, shiftId: shiftId ?? null },
+          })
+        );
+      }
+      return saved;
     });
-    return prisma.$transaction(ops);
   }
 
   async deleteAttendanceRecords(entries: Array<{ employeeId: bigint; date: string }>) {
