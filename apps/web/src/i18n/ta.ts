@@ -277,8 +277,6 @@ export const ta: Messages = {
   // ── Nav: create flows (by path) ───────────────────────────────────────────
   "nav.action./production/goods-dispatch/create": "புதிய அனுப்புதல்",
   "nav.action./invoice/create": "புதிய GRN",
-  "nav.action./finished-stock/create": "தயார் பொருள் இருப்பு சேர்",
-  "nav.action./wastage-stock/create": "கழிவு இருப்பு சேர்",
   "nav.action./inventory/stock-adjustments/create": "புதிய இருப்புத் திருத்தம்",
   "nav.action./raw-materials/create": "மூலப்பொருள் சேர்",
   "nav.action./production-orders/create": "புதிய உற்பத்தி ஆர்டர்",

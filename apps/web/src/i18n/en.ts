@@ -271,8 +271,6 @@ export const en = {
   // ── Nav: create flows (by path) ───────────────────────────────────────────
   "nav.action./production/goods-dispatch/create": "New dispatch",
   "nav.action./invoice/create": "New GRN",
-  "nav.action./finished-stock/create": "Add finished goods stock",
-  "nav.action./wastage-stock/create": "Add wastage stock",
   "nav.action./inventory/stock-adjustments/create": "New stock adjustment",
   "nav.action./raw-materials/create": "Add raw material",
   "nav.action./production-orders/create": "New production order",

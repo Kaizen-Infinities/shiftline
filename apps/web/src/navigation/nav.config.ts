@@ -540,13 +540,6 @@ export const NAV_AREAS: NavArea[] = [
             icon: Package,
             description: "Finished goods ready to dispatch.",
             keywords: ["fg stock", "finished goods"],
-            actions: [
-              {
-                title: "Add finished goods stock",
-                path: "/finished-stock/create",
-                permission: "finished_goods_stocks.create",
-              },
-            ],
           },
           {
             id: "inventory.wastage-stock",
@@ -556,13 +549,6 @@ export const NAV_AREAS: NavArea[] = [
             icon: Recycle,
             description: "Scrap and rejects held for disposal or reuse.",
             keywords: ["scrap", "rejects", "waste"],
-            actions: [
-              {
-                title: "Add wastage stock",
-                path: "/wastage-stock/create",
-                permission: "wastage-stock.create",
-              },
-            ],
           },
           {
             id: "inventory.eod-stock",
