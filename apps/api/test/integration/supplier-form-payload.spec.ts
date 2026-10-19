@@ -81,7 +81,9 @@ describe("supplier create from the web form payload", () => {
   });
 
   it("creates a supplier without a GSTIN as UNREGISTERED with the billing state's code (201)", async () => {
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/suppliers")
       .set(OWNER.auth)
       .send(formPayload({ tag: "N", gstRegType: "UNREGISTERED" }));
