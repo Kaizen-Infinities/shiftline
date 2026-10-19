@@ -5,6 +5,44 @@ import { emitToTenant } from "../../lib/realtime";
 import Decimal from "decimal.js";
 import { byCode } from "../../lib/prisma";
 import { valuationService } from "../costing/valuation.service";
+import { Prisma } from "@prisma/client";
+import {
+  assertNotBelowZero,
+  lockFinishedGoodsRow,
+  lockRawMaterialRow,
+  storeAllowsNegative,
+} from "../inventory/on-hand-guard";
+
+/**
+ * Checks one item against the locked stock row before it is posted. It must have been prepared
+ * against the stock that is there now, its difference must be adjustedQty minus currentQty, and it
+ * must not take on-hand below zero (unless the store allows negative stock).
+ */
+function assertAdjustmentCanApply(args: {
+  label: string;
+  item: { currentQty: any; adjustedQty: any; difference: any };
+  onHand: Decimal;
+  allowNegative: boolean;
+}): void {
+  const { label, item, onHand, allowNegative } = args;
+  const currentQty = new Decimal(item.currentQty.toString());
+  const adjustedQty = new Decimal(item.adjustedQty.toString());
+  const difference = new Decimal(item.difference.toString());
+
+  if (!difference.equals(adjustedQty.minus(currentQty))) {
+    throw new ApiError(
+      400,
+      `${label}: the difference ${difference.toString()} is not adjusted ${adjustedQty.toString()} minus current ${currentQty.toString()}. Prepare the adjustment again.`
+    );
+  }
+  if (!onHand.equals(currentQty)) {
+    throw new ApiError(
+      400,
+      `${label}: stock changed after this adjustment was prepared (on-hand is ${onHand.toString()}, the adjustment expects ${currentQty.toString()}). Refresh and submit it again.`
+    );
+  }
+  assertNotBelowZero({ label, onHand, delta: difference, allowNegative });
+}
 
 export class StockAdjustmentService {
   /**
@@ -50,43 +88,50 @@ export class StockAdjustmentService {
     }
 
     const targetStatus = adjustmentData.status || "DRAFT";
-    const created = await prisma.stockAdjustment.create({
-      data: {
-        ...adjustmentData,
-        status: "DRAFT",
-        adjustmentDate: adjustmentDate ? new Date(adjustmentDate) : new Date(),
-        adjustmentType: adjustmentType || "STOCK_INCREASE",
-        productionOrderId: productionOrderId || null,
-        createdBy: userId,
-        updatedBy: userId,
-        items: {
-          create: items.map((item: any) => ({
-            itemType: item.itemType,
-            rawMaterialId: item.rawMaterialId,
-            productItemId: item.productItemId ? BigInt(item.productItemId) : null,
-            storeId: item.storeId,
-            currentQty: item.currentQty,
-            adjustedQty: item.adjustedQty,
-            difference: item.difference,
-            remarks: item.remarks,
-            unitCost: item.unitCost ?? null,
-          })),
+    // Auto-approval runs in the same transaction as the create, so a refused stock check leaves
+    // no draft behind (a retry would otherwise collide with that draft's adjustment number).
+    const created = await prisma.$transaction(async (tx) => {
+      const row = await tx.stockAdjustment.create({
+        data: {
+          ...adjustmentData,
+          status: "DRAFT",
+          adjustmentDate: adjustmentDate ? new Date(adjustmentDate) : new Date(),
+          adjustmentType: adjustmentType || "STOCK_INCREASE",
+          productionOrderId: productionOrderId || null,
+          createdBy: userId,
+          updatedBy: userId,
+          items: {
+            create: items.map((item: any) => ({
+              itemType: item.itemType,
+              rawMaterialId: item.rawMaterialId,
+              productItemId: item.productItemId ? BigInt(item.productItemId) : null,
+              storeId: item.storeId,
+              currentQty: item.currentQty,
+              adjustedQty: item.adjustedQty,
+              difference: item.difference,
+              remarks: item.remarks,
+              unitCost: item.unitCost ?? null,
+            })),
+          },
         },
-      },
-      include: {
-        items: true,
-      },
+        include: {
+          items: true,
+        },
+      });
+      if (targetStatus !== "APPROVED") return row;
+
+      const full = await tx.stockAdjustment.findUniqueOrThrow({
+        where: { id: row.id },
+        include: { items: { include: { product: true } } },
+      });
+      return this.postApproval(tx, full, userId);
     });
 
     if (targetStatus === "APPROVED") {
-      return await this.approveStockAdjustment(
-        created.id,
-        "APPROVED",
-        "Auto-approved on creation",
-        userId
-      );
+      try {
+        emitToTenant("inventory:stockUpdated", { type: "stock_adjustment" });
+      } catch (_) {}
     }
-
     return created;
   }
 
@@ -359,138 +404,163 @@ export class StockAdjustmentService {
 
     // Process Approval
     return prisma
-      .$transaction(async (tx) => {
-        for (const item of existing.items) {
-          if (item.difference.toNumber() === 0) continue;
-
-          if (item.itemType === "RAW_MATERIAL" && item.rawMaterialId) {
-            // Update RM Stock
-            const rm = await tx.rawMaterial.findUnique({
-              where: byCode("rawMaterialId", item.rawMaterialId),
-            });
-            if (!rm) throw new ApiError(404, `Raw Material ${item.rawMaterialId} not found`);
-
-            const updatedReservedQty =
-              existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE"
-                ? Math.max(0, Number(rm.reservedQty) - Math.abs(item.difference.toNumber()))
-                : Number(rm.reservedQty);
-
-            await tx.rawMaterial.update({
-              where: byCode("rawMaterialId", item.rawMaterialId),
-              data: {
-                onHandQty: { increment: item.difference },
-                reservedQty: updatedReservedQty,
-                updatedBy: userId,
-              },
-            });
-
-            // Create Transaction
-            await tx.rawMaterialTransaction.create({
-              data: {
-                storeId: item.storeId,
-                rawMaterialId: item.rawMaterialId,
-                txnType:
-                  item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
-                qty: new Decimal(Math.abs(item.difference.toNumber())),
-                remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
-              },
-            });
-
-            // A positive adjustment values in at what was entered (or the item's own rate when
-            // nothing was entered); a negative one always leaves at the running average — the
-            // same rule as any other issue (P2-04).
-            const adjQty = Math.abs(item.difference.toNumber());
-            await valuationService.record(
-              {
-                itemType: "RAW_MATERIAL",
-                itemId: item.rawMaterialId,
-                storeId: item.storeId,
-                movedOn: existing.adjustmentDate,
-                kind: item.difference.toNumber() > 0 ? "RECEIPT" : "ADJUSTMENT",
-                quantity: adjQty,
-                rate:
-                  item.difference.toNumber() > 0
-                    ? Number(item.unitCost ?? rm.rate ?? 0)
-                    : undefined,
-                refDocType: "STOCK_ADJUSTMENT",
-                refDocId: String(existing.id),
-                narration: `Adjustment ${existing.adjustmentNumber}`,
-              },
-              { userId },
-              tx
-            );
-          } else if (item.itemType === "FINISHED_GOODS" && item.productItemId) {
-            // Find or create FG stock
-            const fgStock = await tx.finishedGoodsStock.findUnique({
-              where: {
-                storeId_productItemId: {
-                  storeId: item.storeId,
-                  productItemId: item.productItemId,
-                },
-              },
-            });
-
-            if (fgStock) {
-              await tx.finishedGoodsStock.update({
-                where: {
-                  storeId_productItemId: {
-                    storeId: item.storeId,
-                    productItemId: item.productItemId,
-                  },
-                },
-                data: { onHandQty: { increment: item.difference } },
-              });
-            } else {
-              await tx.finishedGoodsStock.create({
-                data: {
-                  storeId: item.storeId,
-                  productItemId: item.productItemId,
-                  onHandQty: item.difference,
-                },
-              });
-            }
-
-            // Create Transaction
-            await tx.finishedGoodsTransaction.create({
-              data: {
-                txnDateTime: new Date(),
-                storeId: item.storeId,
-                productItemId: item.productItemId,
-                txnType:
-                  item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
-                qty: new Decimal(Math.abs(item.difference.toNumber())),
-                relatedDocNo: existing.adjustmentNumber,
-                remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
-                createdBy: userId,
-              },
-            });
-          }
-        }
-
-        // If this is a PMI approval, update the production order status
-        if (existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE" && existing.productionOrderId) {
-          await tx.productionOrder.update({
-            where: byCode("productionOrderId", existing.productionOrderId),
-            data: { status: "MATERIAL_ISSUED", updatedBy: userId },
-          });
-        }
-
-        return tx.stockAdjustment.update({
-          where: { id: BigInt(id) },
-          data: {
-            status: "APPROVED",
-            approvedBy: userId,
-            approvedAt: new Date(),
-            updatedBy: userId,
-          },
-        });
-      })
+      .$transaction((tx) => this.postApproval(tx, existing, userId))
       .then((result) => {
         try {
           emitToTenant("inventory:stockUpdated", { type: "stock_adjustment" });
         } catch (_) {}
         return result;
       });
+  }
+
+  /**
+   * Posts an adjustment's stock movements and marks it APPROVED, inside the caller's transaction.
+   *
+   * Each stock row is locked before it is read. An item is posted only when it was prepared against
+   * the stock that is there now (currentQty equals the locked on-hand) and its difference is
+   * adjustedQty minus currentQty, so on-hand ends at adjustedQty. A refused item throws and the
+   * transaction rolls back, so nothing is partly posted.
+   */
+  private static async postApproval(tx: Prisma.TransactionClient, existing: any, userId: string) {
+    for (const item of existing.items) {
+      if (item.itemType === "RAW_MATERIAL" && item.rawMaterialId) {
+        await lockRawMaterialRow(tx, item.rawMaterialId);
+        const rm = await tx.rawMaterial.findUnique({
+          where: byCode("rawMaterialId", item.rawMaterialId),
+        });
+        if (!rm) throw new ApiError(404, `Raw Material ${item.rawMaterialId} not found`);
+
+        assertAdjustmentCanApply({
+          label: `Raw material "${rm.materialName}" (${item.rawMaterialId})`,
+          item,
+          onHand: new Decimal(rm.onHandQty.toString()),
+          allowNegative: await storeAllowsNegative(tx, item.storeId),
+        });
+        if (item.difference.toNumber() === 0) continue;
+
+        const updatedReservedQty =
+          existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE"
+            ? Math.max(0, Number(rm.reservedQty) - Math.abs(item.difference.toNumber()))
+            : Number(rm.reservedQty);
+
+        await tx.rawMaterial.update({
+          where: byCode("rawMaterialId", item.rawMaterialId),
+          data: {
+            onHandQty: { increment: item.difference },
+            reservedQty: updatedReservedQty,
+            updatedBy: userId,
+          },
+        });
+
+        // Create Transaction
+        await tx.rawMaterialTransaction.create({
+          data: {
+            storeId: item.storeId,
+            rawMaterialId: item.rawMaterialId,
+            txnType:
+              item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
+            qty: new Decimal(Math.abs(item.difference.toNumber())),
+            remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
+          },
+        });
+
+        // A positive adjustment values in at what was entered (or the item's own rate when
+        // nothing was entered); a negative one always leaves at the running average — the
+        // same rule as any other issue (P2-04).
+        const adjQty = Math.abs(item.difference.toNumber());
+        await valuationService.record(
+          {
+            itemType: "RAW_MATERIAL",
+            itemId: item.rawMaterialId,
+            storeId: item.storeId,
+            movedOn: existing.adjustmentDate,
+            kind: item.difference.toNumber() > 0 ? "RECEIPT" : "ADJUSTMENT",
+            quantity: adjQty,
+            rate:
+              item.difference.toNumber() > 0
+                ? Number(item.unitCost ?? rm.rate ?? 0)
+                : undefined,
+            refDocType: "STOCK_ADJUSTMENT",
+            refDocId: String(existing.id),
+            narration: `Adjustment ${existing.adjustmentNumber}`,
+          },
+          { userId },
+          tx
+        );
+      } else if (item.itemType === "FINISHED_GOODS" && item.productItemId) {
+        await lockFinishedGoodsRow(tx, item.storeId, item.productItemId);
+        const fgStock = await tx.finishedGoodsStock.findUnique({
+          where: {
+            storeId_productItemId: {
+              storeId: item.storeId,
+              productItemId: item.productItemId,
+            },
+          },
+        });
+
+        assertAdjustmentCanApply({
+          label: `Finished goods "${item.product?.productName ?? item.productItemId}" (store ${item.storeId})`,
+          item,
+          onHand: new Decimal((fgStock?.onHandQty ?? 0).toString()),
+          allowNegative: await storeAllowsNegative(tx, item.storeId),
+        });
+        if (item.difference.toNumber() === 0) continue;
+
+        // Find or create FG stock
+        if (fgStock) {
+          await tx.finishedGoodsStock.update({
+            where: {
+              storeId_productItemId: {
+                storeId: item.storeId,
+                productItemId: item.productItemId,
+              },
+            },
+            data: { onHandQty: { increment: item.difference } },
+          });
+        } else {
+          await tx.finishedGoodsStock.create({
+            data: {
+              storeId: item.storeId,
+              productItemId: item.productItemId,
+              onHandQty: item.difference,
+            },
+          });
+        }
+
+        // Create Transaction
+        await tx.finishedGoodsTransaction.create({
+          data: {
+            txnDateTime: new Date(),
+            storeId: item.storeId,
+            productItemId: item.productItemId,
+            txnType:
+              item.difference.toNumber() > 0 ? "STOCK_ADJUSTMENT_IN" : "STOCK_ADJUSTMENT_OUT",
+            qty: new Decimal(Math.abs(item.difference.toNumber())),
+            relatedDocNo: existing.adjustmentNumber,
+            remarks: `Adjustment ${existing.adjustmentNumber}: ${item.remarks || ""}`,
+            createdBy: userId,
+          },
+        });
+      }
+    }
+
+    // If this is a PMI approval, update the production order status
+    if (existing.adjustmentType === "PRODUCTION_MATERIAL_ISSUE" && existing.productionOrderId) {
+      await tx.productionOrder.update({
+        where: byCode("productionOrderId", existing.productionOrderId),
+        data: { status: "MATERIAL_ISSUED", updatedBy: userId },
+      });
+    }
+
+    return tx.stockAdjustment.update({
+      where: { id: BigInt(existing.id) },
+      data: {
+        status: "APPROVED",
+        approvedBy: userId,
+        approvedAt: new Date(),
+        updatedBy: userId,
+      },
+    });
   }
 
   static async deleteStockAdjustment(id: bigint | number | string) {

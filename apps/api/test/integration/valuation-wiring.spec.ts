@@ -249,7 +249,9 @@ describe("valuation wiring and WIP", () => {
     const rm = await createRawMaterial({
       rawMaterialId: `RM-ADJ-${sfx}`,
       storeId: STORE,
-      onHandQty: 0 as any,
+      // The 100-unit receipt below moves on-hand as well as the valuation ledger, so on-hand is 100
+      // (the adjustment's currentQty) before the adjustment is approved.
+      onHandQty: 100 as any,
       rate: 0 as any,
     });
     await asDemoTenant(() =>
