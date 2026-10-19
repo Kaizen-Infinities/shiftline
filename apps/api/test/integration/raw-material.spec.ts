@@ -127,7 +127,10 @@ describe("raw material update keeps stock", () => {
 
   it("a PUT with only rate keeps on-hand and reserved quantities", async () => {
     const prisma = await getPrisma();
-    const rm = await createRawMaterial({ onHandQty: new Prisma.Decimal(160.75), reservedQty: new Prisma.Decimal(12) });
+    const rm = await createRawMaterial({
+      onHandQty: new Prisma.Decimal(160.75),
+      reservedQty: new Prisma.Decimal(12),
+    });
 
     const res = await (
       await api()
