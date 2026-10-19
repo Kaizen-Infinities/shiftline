@@ -14,6 +14,7 @@ import {
   companyGstProfile,
   productTaxDefaults,
   resolveIssuingPlace,
+  salesProductTaxDefaults,
   stateOfGstin,
   type IssuingPlace,
 } from "../gst/gst.context";
@@ -112,23 +113,106 @@ export async function saleGstContext(
   };
 }
 
-/** Line arithmetic: rate from the payload, else the product or its HSN; split by the supply type. */
-export async function computeSaleLines(db: Db, items: SaleItemInput[], gst: SaleGstContext) {
-  const defaults = await productTaxDefaults(
-    items.map((i) => i.productId),
-    db
+const isSalesProductLine = (item: SaleItemInput) => item.salesProductId != null;
+
+/**
+ * Refuses confirmation while a taxable line has no HSN code or no resolvable GST rate. A rate
+ * that is explicitly 0 on the item master (an "Exempt / Nil" HSN, or a product rate of 0) is a
+ * deliberate nil rating and passes without an HSN.
+ */
+async function assertLinesTaxable(
+  db: Db,
+  items: SaleItemInput[],
+  problems: { index: number; hsnCode: string | null; rate: number | null; nilRated: boolean }[]
+) {
+  const blocking = problems.filter((p) => !p.nilRated && (p.hsnCode == null || p.rate == null));
+  if (blocking.length === 0) return;
+  const spIds = blocking
+    .map((p) => items[p.index])
+    .filter(isSalesProductLine)
+    .map((i) => BigInt(i.salesProductId!));
+  const pIds = blocking
+    .map((p) => items[p.index])
+    .filter((i) => !isSalesProductLine(i))
+    .map((i) => BigInt(i.productId));
+  const [sps, prods] = await Promise.all([
+    spIds.length
+      ? db.salesProduct.findMany({
+          where: { id: { in: spIds } },
+          select: { id: true, salesProductName: true },
+        })
+      : [],
+    pIds.length
+      ? db.product.findMany({
+          where: { id: { in: pIds } },
+          select: { id: true, productName: true },
+        })
+      : [],
+  ]);
+  const spName = new Map(sps.map((s) => [s.id.toString(), s.salesProductName]));
+  const pName = new Map(prods.map((p) => [p.id.toString(), p.productName]));
+  const named = blocking.map((p) => {
+    const item = items[p.index];
+    const name = isSalesProductLine(item)
+      ? spName.get(String(item.salesProductId))
+      : pName.get(String(item.productId));
+    return `line ${p.index + 1} "${name ?? "unknown item"}"`;
+  });
+  throw new ApiError(
+    400,
+    `Cannot confirm the invoice: ${named.join(", ")} has no HSN code or GST rate. Set them on the product (for a sales product, on its components, which must agree).`
   );
+}
+
+/**
+ * Line arithmetic and tax. A sales-product line takes its HSN and rate from the kit's components
+ * and ignores the payload's tax fields (the invoice form has no tax input for it, and the payload
+ * value came from a product lookup on the kit's id). A product line takes the payload's rate and
+ * HSN, else the item master's. Split by the supply type; refuses unresolved taxable lines.
+ */
+export async function computeSaleLines(db: Db, items: SaleItemInput[], gst: SaleGstContext) {
+  const [productDefaults, salesDefaults] = await Promise.all([
+    productTaxDefaults(
+      items.filter((i) => !isSalesProductLine(i)).map((i) => i.productId),
+      db
+    ),
+    salesProductTaxDefaults(
+      items.filter(isSalesProductLine).map((i) => i.salesProductId!),
+      db
+    ),
+  ]);
+  const UNRESOLVED = { hsnCode: null, gstRate: null, cessRate: 0 };
   let subTotal = 0;
   let taxTotal = 0;
   let cessTotal = 0;
-  const lines = items.map((item) => {
+  const problems: {
+    index: number;
+    hsnCode: string | null;
+    rate: number | null;
+    nilRated: boolean;
+  }[] = [];
+  const lines = items.map((item, index) => {
     const qty = Number(item.qty);
     const rate = Number(item.rate);
     const discount = Number(item.discountAmount) || 0;
     const lineSubtotal = qty * rate - discount;
-    const def = defaults.get(String(item.productId));
-    const taxRate = gst.chargeable ? (item.taxPercent ?? def?.gstRate ?? 0) : 0;
-    const cessRate = gst.chargeable ? (item.cessRate ?? def?.cessRate ?? 0) : 0;
+    const sales = isSalesProductLine(item);
+    const def = sales
+      ? (salesDefaults.get(String(item.salesProductId)) ?? UNRESOLVED)
+      : (productDefaults.get(String(item.productId)) ?? UNRESOLVED);
+    const resolvedRate = sales ? def.gstRate : (item.taxPercent ?? def.gstRate);
+    const resolvedHsn = sales ? def.hsnCode : (item.hsnCode ?? def.hsnCode);
+    const resolvedCess = sales ? def.cessRate : (item.cessRate ?? def.cessRate);
+    if (gst.chargeable) {
+      problems.push({
+        index,
+        hsnCode: resolvedHsn,
+        rate: resolvedRate,
+        nilRated: def.gstRate === 0 && resolvedRate === 0,
+      });
+    }
+    const taxRate = gst.chargeable ? (resolvedRate ?? 0) : 0;
+    const cessRate = gst.chargeable ? resolvedCess : 0;
     const split = splitGst(lineSubtotal, taxRate, gst.supplyType);
     const cessAmount = cessOn(lineSubtotal, cessRate);
     subTotal += lineSubtotal;
@@ -140,7 +224,7 @@ export async function computeSaleLines(db: Db, items: SaleItemInput[], gst: Sale
       unitPrice: rate,
       weight: Number(item.weight) || 0,
       discountAmount: discount,
-      hsnCode: item.hsnCode ?? def?.hsnCode ?? null,
+      hsnCode: resolvedHsn,
       tax: taxRate,
       taxableAmount: lineSubtotal,
       cgstRate: split.cgstRate,
@@ -154,6 +238,7 @@ export async function computeSaleLines(db: Db, items: SaleItemInput[], gst: Sale
       lineTotal: lineSubtotal + split.taxAmount + cessAmount,
     };
   });
+  await assertLinesTaxable(db, items, problems);
   return { items: lines, subTotal, taxTotal, cessTotal };
 }
 

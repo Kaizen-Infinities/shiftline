@@ -424,7 +424,7 @@ describe("banking, FX and TDS/TCS follow-ups (P2-17)", () => {
     // duplicate entered twice, which is exactly the case this pools instead of resetting.
     const customerA = await createCustomer({ gstin: "33AAAAA0000A1Z9", stateCode: "33" });
     const customerB = await createCustomer({ gstin: "27AAAAA0000A1Z5", stateCode: "27" });
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
 
     const invA = await client
       .post("/api/sales-invoices")

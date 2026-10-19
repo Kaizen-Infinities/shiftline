@@ -49,6 +49,8 @@ interface InvoiceLineItem {
   taxPercent: number;
   /** HSN/SAC printed on the line; defaults from the product master (server fills it when absent). */
   hsnCode?: string;
+  /** Set on a sales-product (kit) line: its tax comes from the kit's components on the server. */
+  salesProductId?: string;
   amount: number;
   taxAmount: number;
   total: number;
@@ -314,6 +316,7 @@ const SalesInvoiceForm: React.FC = () => {
                   rebuilt.push({
                     id: crypto.randomUUID(),
                     itemId: spId,
+                    salesProductId: compDef ? spId : undefined,
                     itemName: spName,
                     qty: orderQty,
                     rate: unitPrice,
@@ -608,6 +611,7 @@ const SalesInvoiceForm: React.FC = () => {
       result.push({
         id: crypto.randomUUID(),
         itemId: spIdStr,
+        salesProductId: spIdStr,
         itemName: sp?.salesProductName || sp?.salesProductCode || `Sales Product #${spIdStr}`,
         qty: orderQty,
         rate: unitPrice,
@@ -757,6 +761,7 @@ const SalesInvoiceForm: React.FC = () => {
         if (line.id !== lineId) return line;
         const updated = { ...line, [field]: value };
         if (field === "itemId") {
+          updated.salesProductId = undefined;
           const selected = items.find((i) => i.id === value);
           if (selected) {
             updated.itemName = selected.name;
@@ -1030,6 +1035,7 @@ const SalesInvoiceForm: React.FC = () => {
           .filter((l) => l.itemId && l.qty > 0)
           .map((l) => ({
             productId: l.itemId,
+            salesProductId: l.salesProductId || undefined,
             qty: l.qty,
             rate: l.rate,
             weight: l.weight || 0,
