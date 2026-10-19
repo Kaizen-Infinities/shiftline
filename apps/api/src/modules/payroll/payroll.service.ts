@@ -983,6 +983,35 @@ class PayrollService {
         return true;
       });
 
+    // 2b. One pay per employee per period and type (QA C09). Runs for disjoint categories may share
+    // a month; a live run that already pays any employee this run would pay (an ALL run covers
+    // everyone) blocks it. "Pays" means has attendance input, the same test as step 5. The same
+    // category is refused by the guard at the top.
+    const payableIds = employees
+      .filter((e) => opts.attendance.some((a) => BigInt(a.employeeId) === e.id))
+      .map((e) => e.id);
+    const alreadyCovered = await prisma.payrollResult.findFirst({
+      where: {
+        employeeId: { in: payableIds },
+        payrollRun: {
+          period: opts.period,
+          type: opts.type,
+          status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED", "LOCKED", "COMPLETED"] },
+        },
+      },
+      select: {
+        employeeCode: true,
+        payrollRun: { select: { runCode: true, status: true, employeeCategory: true } },
+      },
+    });
+    if (alreadyCovered) {
+      const run = alreadyCovered.payrollRun;
+      throw new ApiError(
+        400,
+        `Payroll run ${run.runCode} (${opts.type} - ${run.employeeCategory}, ${run.status}) already covers ${alreadyCovered.employeeCode} for period ${opts.period}. Manage or delete that run first.`
+      );
+    }
+
     // 3. Load permanent deductions for all employees in one query
     const permanentDeductionRows = await prisma.employeePermanentDeduction.findMany({
       where: {

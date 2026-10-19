@@ -216,10 +216,9 @@ describe("fines and deductions", () => {
     expect(cancelRes.status).toBe(409);
     expect(cancelRes.body.code).toBe("ALREADY_RECOVERED");
 
-    // A second run for the same period must not recover the same fine again. A run for the same
-    // period, type and employeeCategory is refused as a duplicate, so this uses the category
-    // that matches this employee's salary type directly — a legitimate second run over the same
-    // wage period, the scenario the "not-yet-recovered" filter exists for.
+    // A second run for the same period must not recover the same fine again. A second live run
+    // that would pay an employee already in a run for this period is refused outright (it would
+    // pay them twice), so the fine stays recovered once, against the first run.
     const secondRun = await client.post("/api/payroll/runs").set(OWNER.auth).send({
       period: RECOVERY_PERIOD,
       type: "MONTHLY",
@@ -227,13 +226,11 @@ describe("fines and deductions", () => {
       calendarDays: days,
       attendance,
     });
-    expect(secondRun.status, JSON.stringify(secondRun.body).slice(0, 500)).toBe(201);
-    const secondResult = secondRun.body.data.results.find(
-      (r: any) => r.employeeCode === employee.empCode
+    expect(secondRun.status, JSON.stringify(secondRun.body).slice(0, 500)).toBe(400);
+    const fineAfter = await asDemoTenant(() =>
+      prisma.employeeFineDeduction.findUniqueOrThrow({ where: { id: fineId } })
     );
-    expect(secondResult).toBeTruthy();
-    expect(Number(secondResult.otherDeductions)).toBe(0);
-    expect(Number(secondResult.netSalary)).toBe(30000);
+    expect(fineAfter.recoveredInPayrollResultId).toBe(firstResult.id);
   });
 
   it("shows only the approved item in the fines and deductions registers, with its recovery status", async () => {
