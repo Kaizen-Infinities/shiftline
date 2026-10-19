@@ -18,6 +18,8 @@ import { productTaxDefaults, purchaseGstContext, rawMaterialTaxDefaults } from "
 import { saleGstContext } from "../sales-invoice/sales-invoice.service";
 import { periodService } from "../accounts/period.service";
 import { cancellationService } from "../accounts/cancellation.service";
+import { adjustFgStock } from "../finished-goods-transaction/finished-goods-transaction.service";
+import { StockAdjustmentService } from "../stock-adjustment/stock-adjustment.service";
 
 const D = (n: number | string) => new Prisma.Decimal(n);
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -219,6 +221,10 @@ class ReturnsService {
           },
           include: { items: true, customer: true },
         });
+        // Goods that come back go back into stock; a price adjustment moves none.
+        if (created.kind === "GOODS_RETURN") {
+          await this.restockSalesReturn(tx, created, created.items, createdBy);
+        }
         // The books move with the return: a posting failure rolls the whole creation back.
         await this.postSalesReturnVoucherOrThrow(tx, created.id);
         return created;
@@ -246,7 +252,7 @@ class ReturnsService {
     return returnRecord;
   }
 
-  async updateSalesReturn(id: string, data: CreateSalesReturnInput, _updatedBy?: string) {
+  async updateSalesReturn(id: string, data: CreateSalesReturnInput, updatedBy?: string) {
     const existing = await prisma.salesReturn.findUnique({
       where: { id },
       include: { items: true },
@@ -292,6 +298,16 @@ class ReturnsService {
           },
           include: { items: true, customer: true },
         });
+        // Stock follows the lines: take back what the old lines put in, then restock the new ones.
+        await this.reverseSalesReturnStock(
+          tx,
+          existing,
+          updatedBy,
+          `Sales return ${existing.returnNo} edited`
+        );
+        if (result.kind === "GOODS_RETURN") {
+          await this.restockSalesReturn(tx, result, result.items, updatedBy);
+        }
         // Reverse the old credit note (and any refund voucher) and post one for the new figures,
         // in this same transaction.
         await cancellationService.cancelVouchersFor(
@@ -318,6 +334,222 @@ class ReturnsService {
         422,
         "The credit note could not be posted; check the ledgers and the GST totals on the return"
       );
+    }
+  }
+
+  /**
+   * The finished goods a returned line puts back. A kit returns its components, as the invoice
+   * deducts them; any other product returns itself.
+   */
+  private async finishedGoodsForReturnLine(tx: Db, productId: bigint, quantity: number) {
+    const kit = await tx.salesProduct.findUnique({
+      where: { id: productId },
+      include: { components: true },
+    });
+    if (kit && kit.components.length > 0) {
+      return kit.components.map((c) => ({
+        productItemId: c.componentProductId,
+        qty: Number(c.quantity || 1) * quantity,
+      }));
+    }
+    return [{ productItemId: productId, qty: quantity }];
+  }
+
+  /**
+   * The store a returned unit goes back to: the store the invoice dispatched it from, else the store
+   * holding the most of it (the invoice's own pick). Null when no store holds it, as an invoice
+   * with no stock row moves none.
+   */
+  private async returnStoreFor(tx: Db, salesInvoiceId: string | null, productItemId: bigint) {
+    if (salesInvoiceId) {
+      const dispatched = await tx.stockAdjustmentItem.findFirst({
+        where: {
+          itemType: "FINISHED_GOODS",
+          productItemId,
+          stockAdjustment: { sourceDocument: "SALES_INVOICE", sourceDocId: salesInvoiceId },
+        },
+        select: { storeId: true },
+      });
+      if (dispatched) return dispatched.storeId;
+    }
+    const held = await tx.finishedGoodsStock.findFirst({
+      where: { productItemId },
+      orderBy: { onHandQty: "desc" },
+      select: { storeId: true },
+    });
+    return held?.storeId ?? null;
+  }
+
+  /**
+   * Puts a goods return's units back into finished-goods stock inside `tx`: one stock adjustment
+   * (source SALES_RETURN) with a line and a movement record per store and product.
+   */
+  private async restockSalesReturn(
+    tx: Db,
+    ret: { id: string; returnNo: string; returnDate: Date; salesInvoiceId: string | null },
+    lines: { productId: bigint; quantity: Prisma.Decimal | number }[],
+    actorId?: string
+  ) {
+    const moves = new Map<string, { storeId: string; productItemId: bigint; qty: number }>();
+    for (const line of lines) {
+      const parts = await this.finishedGoodsForReturnLine(
+        tx,
+        line.productId,
+        Number(line.quantity)
+      );
+      for (const part of parts) {
+        const storeId = await this.returnStoreFor(tx, ret.salesInvoiceId, part.productItemId);
+        if (!storeId) continue;
+        const key = `${storeId}:${part.productItemId}`;
+        const qty = (moves.get(key)?.qty ?? 0) + part.qty;
+        moves.set(key, { storeId, productItemId: part.productItemId, qty });
+      }
+    }
+    if (moves.size === 0) return;
+
+    const adjustment = await tx.stockAdjustment.create({
+      data: {
+        adjustmentNumber: await StockAdjustmentService.getNextAdjustmentNumber(tx),
+        adjustmentDate: ret.returnDate,
+        adjustmentType: "SALES_RETURN",
+        reason: `Sales Return ${ret.returnNo}`,
+        status: "APPROVED",
+        createdBy: actorId ?? null,
+        updatedBy: actorId ?? null,
+        approvedBy: actorId ?? null,
+        approvedAt: new Date(),
+        autoGenerated: true,
+        sourceDocument: "SALES_RETURN",
+        sourceDocId: ret.id,
+      },
+    });
+    for (const move of moves.values()) {
+      const before = await tx.finishedGoodsStock.findUnique({
+        where: {
+          storeId_productItemId: { storeId: move.storeId, productItemId: move.productItemId },
+        },
+      });
+      const currentQty = before?.onHandQty ?? D(0);
+      await adjustFgStock(tx, move.storeId, move.productItemId, move.qty);
+      await tx.stockAdjustmentItem.create({
+        data: {
+          stockAdjustmentId: adjustment.id,
+          itemType: "FINISHED_GOODS",
+          productItemId: move.productItemId,
+          storeId: move.storeId,
+          currentQty,
+          adjustedQty: currentQty.plus(move.qty),
+          difference: D(move.qty),
+          remarks: `Sales return ${ret.returnNo}`,
+        },
+      });
+      await tx.finishedGoodsTransaction.create({
+        data: {
+          txnDateTime: new Date(),
+          storeId: move.storeId,
+          productItemId: move.productItemId,
+          txnType: "STOCK_ADJUSTMENT_IN",
+          qty: D(move.qty),
+          relatedDocNo: adjustment.adjustmentNumber,
+          remarks: `Sales return ${ret.returnNo}`,
+          createdBy: actorId ?? null,
+        },
+      });
+    }
+  }
+
+  /**
+   * Takes back what a return put into finished-goods stock: the net of its SALES_RETURN lines and
+   * its earlier reversals, per store and product. A return that restocked nothing (a price
+   * adjustment, or one made before restocking was recorded) nets to zero, so nothing moves.
+   */
+  private async reverseSalesReturnStock(
+    tx: Db,
+    ret: { id: string; returnNo: string },
+    actorId?: string,
+    reason?: string | null
+  ) {
+    const lines = await tx.stockAdjustmentItem.findMany({
+      where: {
+        itemType: "FINISHED_GOODS",
+        productItemId: { not: null },
+        stockAdjustment: {
+          sourceDocument: { in: ["SALES_RETURN", "SALES_RETURN_REVERSAL"] },
+          sourceDocId: ret.id,
+        },
+      },
+      select: { storeId: true, productItemId: true, difference: true },
+    });
+    const net = new Map<string, { storeId: string; productItemId: bigint; qty: Prisma.Decimal }>();
+    for (const line of lines) {
+      if (line.productItemId === null) continue;
+      const key = `${line.storeId}:${line.productItemId}`;
+      const qty = (net.get(key)?.qty ?? D(0)).plus(line.difference);
+      net.set(key, { storeId: line.storeId, productItemId: line.productItemId, qty });
+    }
+
+    const outstanding: {
+      storeId: string;
+      productItemId: bigint;
+      qty: Prisma.Decimal;
+      onHand: Prisma.Decimal;
+    }[] = [];
+    for (const move of net.values()) {
+      if (!move.qty.gt(0)) continue;
+      const stock = await tx.finishedGoodsStock.findUnique({
+        where: {
+          storeId_productItemId: { storeId: move.storeId, productItemId: move.productItemId },
+        },
+      });
+      if (stock) outstanding.push({ ...move, onHand: stock.onHandQty });
+    }
+    if (outstanding.length === 0) return;
+
+    const reversal = await tx.stockAdjustment.create({
+      data: {
+        adjustmentNumber: await StockAdjustmentService.getNextAdjustmentNumber(tx),
+        adjustmentDate: new Date(),
+        adjustmentType: "SALES_RETURN_REVERSAL",
+        reason: `Reversal of sales return ${ret.returnNo}${reason ? `: ${reason}` : ""}`.slice(
+          0,
+          255
+        ),
+        status: "APPROVED",
+        createdBy: actorId ?? null,
+        updatedBy: actorId ?? null,
+        approvedBy: actorId ?? null,
+        approvedAt: new Date(),
+        autoGenerated: true,
+        sourceDocument: "SALES_RETURN_REVERSAL",
+        sourceDocId: ret.id,
+      },
+    });
+    for (const move of outstanding) {
+      await adjustFgStock(tx, move.storeId, move.productItemId, -Number(move.qty), false);
+      await tx.stockAdjustmentItem.create({
+        data: {
+          stockAdjustmentId: reversal.id,
+          itemType: "FINISHED_GOODS",
+          productItemId: move.productItemId,
+          storeId: move.storeId,
+          currentQty: move.onHand,
+          adjustedQty: move.onHand.minus(move.qty),
+          difference: move.qty.neg(),
+          remarks: `Sales return ${ret.returnNo} reversed`,
+        },
+      });
+      await tx.finishedGoodsTransaction.create({
+        data: {
+          txnDateTime: new Date(),
+          storeId: move.storeId,
+          productItemId: move.productItemId,
+          txnType: "STOCK_ADJUSTMENT_OUT",
+          qty: move.qty,
+          relatedDocNo: reversal.adjustmentNumber,
+          remarks: `Sales return ${ret.returnNo} reversed`,
+          createdBy: actorId ?? null,
+        },
+      });
     }
   }
 
@@ -639,6 +871,8 @@ class ReturnsService {
         { reason, actor },
         tx
       );
+      // The goods that came back in leave stock again; a price adjustment restocked none.
+      await this.reverseSalesReturnStock(tx, ret, actor.userId, reason);
       return tx.salesReturn.update({
         where: { id },
         data: {

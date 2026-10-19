@@ -12,7 +12,7 @@ import { Prisma } from "@prisma/client";
  * creating the row when the first receipt arrives. A concurrent first receipt that loses the
  * insert race retries as an increment.
  */
-async function adjustFgStock(
+export async function adjustFgStock(
   tx: Prisma.TransactionClient,
   storeId: string,
   productItemId: bigint,
