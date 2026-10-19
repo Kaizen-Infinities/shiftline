@@ -15,9 +15,8 @@ import { FaExclamationTriangle } from "react-icons/fa";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { CUSTOMER_LIST_MAX_LIMIT } from "@shiftline/shared";
-import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
+import { useForm, useFieldArray, Controller, useWatch, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import BusyItemsTable, {
   DEFAULT_SUNDRY_OPTIONS,
 } from "../../../components/form/OrderItemsTable/BusyItemsTable";
@@ -43,58 +42,12 @@ import { useAppSelector } from "../../../hooks/reduxHooks";
 import { usePermission } from "../../../hooks/usePermission";
 import AutocompleteInput from "../../../components/form/AutocompleteInput/AutocompleteInput";
 import type { AutocompleteOption } from "../../../components/form/AutocompleteInput/AutocompleteInput";
-
-// ─── Zod Schema ─────────────────────────────────────────────────────────────
-
-const componentSchema = z.object({
-  componentProductId: z.string(),
-  productName: z.string(),
-  perUnit: z.number(),
-  included: z.boolean(),
-  quantity: z.string(),
-});
-
-type ComponentItem = z.infer<typeof componentSchema>;
-
-const orderItemSchema = z.object({
-  salesProductId: z.string().min(1, "Sales product is required"),
-  orderQuantity: z.string().min(1, "Required"),
-  unitPrice: z.string().optional(),
-  gstRate: z.string().optional(),
-  components: z.array(componentSchema),
-});
-
-const quotationSchema = z.object({
-  id: z.number().optional(),
-  quotationNo: z.string().min(1, "Quotation No is required"),
-  quotationDate: z.string().min(1, "Quotation Date is required"),
-  validUntil: z.string().optional(),
-  customerId: z.string().min(1, "Customer is required"),
-  mobile: z.string().optional().nullable(),
-  orderSource: z.string().optional().nullable(),
-  sourceEmployeeId: z.string().optional().nullable(),
-  referredByCustomerId: z.string().optional().nullable(),
-  referredByName: z.string().optional().nullable(),
-  paymentTermId: z.string().optional(),
-  billingAddressLine1: z.string().optional(),
-  billingCity: z.string().optional(),
-  billingState: z.string().optional(),
-  billingPincode: z.string().optional(),
-  sameAsBilling: z.boolean(),
-  shippingAddressLine1: z.string().optional(),
-  shippingCity: z.string().optional(),
-  shippingState: z.string().optional(),
-  shippingPincode: z.string().optional(),
-  items: z.array(orderItemSchema).min(1, "At least one sales product is required"),
-  isInterState: z.boolean(),
-  remarks: z.string().optional(),
-  internalNotes: z.string().optional(),
-  // ── Order-level discount (the ONLY discount input in this form) ──
-  orderDiscountType: z.enum(["PERCENT", "FLAT"]),
-  orderDiscountValue: z.string(),
-});
-
-type QuotationFormValues = z.infer<typeof quotationSchema>;
+import {
+  blockingFieldMessages,
+  quotationSchema,
+  type ComponentItem,
+  type QuotationFormValues,
+} from "./quotationForm.schema";
 
 // ─── Default values ──────────────────────────────────────────────────────────
 const today = new Date().toISOString().split("T")[0];
@@ -673,6 +626,19 @@ const QuotationForm: React.FC = () => {
       setMobile(null);
       reset(defaultValues);
       setSelectedDraftId(null);
+      // The form has no input for the number, so fill it with the one a save would take.
+      // Skip it if a reuse or edit load has already set a number.
+      const fillNextQuotationNo = async () => {
+        if (getValues("quotationNo")) return;
+        try {
+          const nextNo = await salesOrderService.getNextQuotationNo();
+          if (!nextNo) throw new Error("No quotation number returned");
+          if (!getValues("quotationNo")) setValue("quotationNo", nextNo);
+        } catch {
+          toast.error("Could not get the next quotation number. Reload the page to try again.");
+        }
+      };
+      fillNextQuotationNo();
       return;
     }
 
@@ -947,6 +913,23 @@ const QuotationForm: React.FC = () => {
 
   // ─── Submit Handler ────────────────────────────────────────
   const [isConfirming, setIsConfirming] = useState(false);
+
+  // Save and Confirm run react-hook-form validation first; without this, a failed check
+  // leaves no trace on screen (the required field may have no input).
+  const onInvalid = (errors: FieldErrors<QuotationFormValues>) => {
+    const messages = blockingFieldMessages(errors);
+    toast.error(
+      <div>
+        <div>Quotation not saved. Fix these first:</div>
+        <ul className="m-0 mt-1 list-disc pl-4">
+          {messages.map((message) => (
+            <li key={message}>{message}</li>
+          ))}
+        </ul>
+      </div>,
+      { toastId: "quotation-blocking-fields" }
+    );
+  };
 
   const onSubmit = async (data: QuotationFormValues, confirm: boolean = false) => {
     if (confirm) setIsConfirming(true);
@@ -1456,7 +1439,7 @@ const QuotationForm: React.FC = () => {
 
       <form
         className="space-y-4"
-        onSubmit={handleSubmit((data) => onSubmit(data, false))}
+        onSubmit={handleSubmit((data) => onSubmit(data, false), onInvalid)}
         noValidate
       >
         {/* ── Rejection banner (edit mode only) ── */}
@@ -1647,7 +1630,7 @@ const QuotationForm: React.FC = () => {
             loading={isSubmitting}
             loadingText="Saving..."
             disabled={isConfirming}
-            onClick={handleSubmit((data) => onSubmit(data, false))}
+            onClick={handleSubmit((data) => onSubmit(data, false), onInvalid)}
           >
             {isEditMode ? "Update Draft" : "Save as Draft"}
           </ActionPill>
@@ -1656,7 +1639,7 @@ const QuotationForm: React.FC = () => {
             loading={isConfirming}
             loadingText="Confirming..."
             disabled={isSubmitting}
-            onClick={handleSubmit((data) => onSubmit(data, true))}
+            onClick={handleSubmit((data) => onSubmit(data, true), onInvalid)}
           >
             Confirm Order
           </ActionPill>
