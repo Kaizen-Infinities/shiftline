@@ -65,7 +65,9 @@ describe("stock adjustments never take on-hand below zero", () => {
     const rm = await createRawMaterial({ onHandQty: D(65) });
     const number = `ADJ-NEG-${sfx}-1`;
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/stock-adjustments")
       .set(OWNER.auth)
       .send(
@@ -85,7 +87,9 @@ describe("stock adjustments never take on-hand below zero", () => {
     const rm = await createRawMaterial({ onHandQty: D(65) });
     const number = `ADJ-NEG-${sfx}-2`;
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/stock-adjustments")
       .set(OWNER.auth)
       .send(
@@ -106,7 +110,9 @@ describe("stock adjustments never take on-hand below zero", () => {
     const rm = await createRawMaterial({ onHandQty: D(65) });
     const number = `ADJ-NEG-${sfx}-3`;
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/stock-adjustments")
       .set(OWNER.auth)
       .send(
@@ -126,7 +132,9 @@ describe("stock adjustments never take on-hand below zero", () => {
     const rm = await createRawMaterial({ onHandQty: D(65) });
     const number = `ADJ-NEG-${sfx}-4`;
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/stock-adjustments")
       .set(OWNER.auth)
       .send(
@@ -146,7 +154,9 @@ describe("stock adjustments never take on-hand below zero", () => {
     const rm = await createRawMaterial({ onHandQty: D(12) });
     const number = `ADJ-NEG-${sfx}-5`;
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/stock-adjustments")
       .set(OWNER.auth)
       .send(
@@ -176,7 +186,9 @@ describe("legacy raw material transactions never take on-hand below zero", () =>
   it("rejects a negative qty beyond stock with 400, naming the item, and posts nothing", async () => {
     const rm = await createRawMaterial({ onHandQty: D(3) });
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/raw-material-transactions")
       .set(OWNER.auth)
       .send({ storeId: STORE, rawMaterialId: rm.rawMaterialId, txnType: "ISSUE", qty: -5 });
@@ -195,7 +207,9 @@ describe("legacy raw material transactions never take on-hand below zero", () =>
   it("applies a valid negative qty within stock", async () => {
     const rm = await createRawMaterial({ onHandQty: D(10) });
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/raw-material-transactions")
       .set(OWNER.auth)
       .send({ storeId: STORE, rawMaterialId: rm.rawMaterialId, txnType: "ISSUE", qty: -4 });
@@ -206,7 +220,9 @@ describe("legacy raw material transactions never take on-hand below zero", () =>
 
   it("refuses a delete that would reverse a receipt into negative stock", async () => {
     const rm = await createRawMaterial({ onHandQty: D(0) });
-    const created = await (await api())
+    const created = await (
+      await api()
+    )
       .post("/api/raw-material-transactions")
       .set(OWNER.auth)
       .send({ storeId: STORE, rawMaterialId: rm.rawMaterialId, txnType: "RECEIPT", qty: 10 });
@@ -214,13 +230,17 @@ describe("legacy raw material transactions never take on-hand below zero", () =>
     const rmTxnId = created.body.rmTxnId ?? created.body.data?.rmTxnId;
 
     // Consume 8 of the 10 received so reversing the receipt would leave -2.
-    await (await api())
+    await (
+      await api()
+    )
       .post("/api/raw-material-transactions")
       .set(OWNER.auth)
       .send({ storeId: STORE, rawMaterialId: rm.rawMaterialId, txnType: "ISSUE", qty: -8 });
     expect(await readOnHand(rm.rawMaterialId)).toBe(2);
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .delete(`/api/raw-material-transactions/${rmTxnId}`)
       .set(OWNER.auth);
 
@@ -235,7 +255,9 @@ describe("legacy raw material transactions never take on-hand below zero", () =>
     );
     const rm = await createRawMaterial({ onHandQty: D(3) });
 
-    const res = await (await api())
+    const res = await (
+      await api()
+    )
       .post("/api/raw-material-transactions")
       .set(OWNER.auth)
       .send({ storeId: STORE, rawMaterialId: rm.rawMaterialId, txnType: "ISSUE", qty: -5 });
