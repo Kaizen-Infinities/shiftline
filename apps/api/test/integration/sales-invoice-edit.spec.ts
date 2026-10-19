@@ -11,6 +11,14 @@ import { voucherPostingService } from "../../src/modules/accounts/voucherPosting
  */
 const n = (v: unknown) => Number(v);
 let owner: { auth: Record<string, string> };
+/** A taxable product with an HSN and rate on its master; a sale refuses a line without them. */
+const taxableProduct = async () => {
+  const prisma = await getPrisma();
+  const hsn = await asDemoTenant(() =>
+    prisma.hsnCode.findFirstOrThrow({ where: { code: "3923" } })
+  );
+  return createProduct({ gstRate: 18, hsnCodeId: hsn.id });
+};
 
 const body = (customerId: string, productId: bigint, rate: number, date = "2026-09-01") => ({
   invoiceDate: date,
@@ -38,7 +46,7 @@ describe("sales invoice edit and posting", () => {
   it("cancels the old voucher and posts a new one with the new amount on edit", async () => {
     const client = await api();
     const customer = await createCustomer({ stateCode: "33" });
-    const product = await createProduct();
+    const product = await taxableProduct();
     const created = await client
       .post("/api/sales-invoices")
       .set(owner.auth)
@@ -85,7 +93,7 @@ describe("sales invoice edit and posting", () => {
   it("refuses to edit an invoice with a live IRN", async () => {
     const client = await api();
     const customer = await createCustomer({ stateCode: "33" });
-    const product = await createProduct();
+    const product = await taxableProduct();
     const created = await client
       .post("/api/sales-invoices")
       .set(owner.auth)
@@ -121,7 +129,7 @@ describe("sales invoice edit and posting", () => {
   it("fails creation and commits nothing when the voucher cannot be posted", async () => {
     const client = await api();
     const customer = await createCustomer({ stateCode: "33" });
-    const product = await createProduct();
+    const product = await taxableProduct();
     vi.spyOn(voucherPostingService, "postSalesVoucher").mockResolvedValue(null);
     const res = await client
       .post("/api/sales-invoices")

@@ -7,6 +7,17 @@ const ItemSchema = z.object({
   productId: z
     .union([z.string(), z.number()])
     .refine((val) => !isNaN(Number(val)), "Product ID must be a valid number"),
+  /**
+   * Set when the line sells a sales product (kit): then `productId` is that sales product's id and
+   * its tax comes from the kit's components, never from the product table.
+   */
+  salesProductId: z.preprocess(
+    blankToUndefined,
+    z
+      .union([z.string(), z.number()])
+      .refine((val) => !isNaN(Number(val)), "Sales product ID must be a valid number")
+      .optional()
+  ),
   qty: z.coerce.number().min(0.001, "Qty must be > 0"),
   rate: z.coerce.number().min(0, "Rate must be ≥ 0"),
   weight: z.coerce.number().min(0).optional().default(0),

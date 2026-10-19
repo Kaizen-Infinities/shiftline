@@ -223,7 +223,7 @@ describe("TDS/TCS on documents", () => {
     const owner = await authed("demo.owner");
     const client = await api();
     const customer = await createCustomer({ gstin: "33AAAAA0000A1Z9", stateCode: "33" });
-    const product = await createProduct();
+    const product = await createProduct({ gstRate: 0 });
 
     const res = await client
       .post("/api/sales-invoices")

@@ -115,6 +115,50 @@ export const productTaxDefaults = async (
   return new Map(rows.map((r) => [r.id.toString(), defaultsOf(r)]));
 };
 
+/**
+ * HSN and rate for a sales product (kit), keyed by sales product id. A sales product carries no
+ * HSN or rate of its own: it is assembled from component products, so its tax is the components'
+ * tax, and only when they agree. Components that disagree, or a kit with none, resolve to nothing
+ * and the sale is refused at confirmation rather than taxed at a guessed rate.
+ */
+export const salesProductTaxDefaults = async (
+  salesProductIds: (bigint | number | string)[],
+  db: Db = prisma
+): Promise<Map<string, ItemTaxDefaults>> => {
+  const ids = [...new Set(salesProductIds.map((id) => BigInt(id)))];
+  if (!ids.length) return new Map();
+  const rows = await db.salesProduct.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      components: {
+        select: {
+          componentProduct: {
+            select: {
+              gstRate: true,
+              hsnCode: { select: { code: true, gstRate: true, cessRate: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  const unresolved: ItemTaxDefaults = { hsnCode: null, gstRate: null, cessRate: 0 };
+  return new Map(
+    rows.map((row) => {
+      const parts = row.components.map((c) => defaultsOf(c.componentProduct));
+      const first = parts[0];
+      const agree = (pick: (d: ItemTaxDefaults) => unknown) =>
+        parts.length > 0 && parts.every((d) => pick(d) === pick(first));
+      if (!first) return [row.id.toString(), unresolved];
+      const hsnCode = agree((d) => d.hsnCode) ? first.hsnCode : null;
+      const gstRate = agree((d) => d.gstRate) ? first.gstRate : null;
+      const cessRate = agree((d) => d.cessRate) ? first.cessRate : 0;
+      return [row.id.toString(), { hsnCode, gstRate, cessRate }];
+    })
+  );
+};
+
 /** HSN and rate defaults for raw materials, keyed by material code. */
 export const rawMaterialTaxDefaults = async (
   codes: string[],
