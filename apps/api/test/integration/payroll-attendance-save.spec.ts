@@ -54,31 +54,37 @@ describe("payroll attendance save", () => {
     expect(res.body.data.count).toBe(1);
 
     const rows = await asDemoTenant(async () =>
-      (await getPrisma()).attendanceRecord.findMany({ where: { employeeId: empA.id, period: PERIOD } })
+      (await getPrisma()).attendanceRecord.findMany({
+        where: { employeeId: empA.id, period: PERIOD },
+      })
     );
-    expect(rows.map((r) => [r.date, r.status])).toEqual([
-      ["2041-03-02", "ABSENT"],
-    ]);
+    expect(rows.map((r) => [r.date, r.status])).toEqual([["2041-03-02", "ABSENT"]]);
   });
 
   it("saves several records across two employees and updates an existing day", async () => {
     const client = await api();
-    const first = await client.post("/api/payroll/attendance").set(OWNER.auth).send({
-      period: PERIOD,
-      records: [
-        rec(empA.id, "2041-03-03"),
-        rec(empA.id, "2041-03-04", "HALF_DAY"),
-        rec(empB.id, "2041-03-03", "LEAVE_PAID"),
-      ],
-    });
+    const first = await client
+      .post("/api/payroll/attendance")
+      .set(OWNER.auth)
+      .send({
+        period: PERIOD,
+        records: [
+          rec(empA.id, "2041-03-03"),
+          rec(empA.id, "2041-03-04", "HALF_DAY"),
+          rec(empB.id, "2041-03-03", "LEAVE_PAID"),
+        ],
+      });
     expect(first.status, JSON.stringify(first.body).slice(0, 300)).toBe(200);
     expect(first.body.data.count).toBe(3);
 
     // Re-saving the same employee/day is an update, not a second row.
-    const again = await client.post("/api/payroll/attendance").set(OWNER.auth).send({
-      period: PERIOD,
-      records: [rec(empA.id, "2041-03-03", "LEAVE_UNPAID")],
-    });
+    const again = await client
+      .post("/api/payroll/attendance")
+      .set(OWNER.auth)
+      .send({
+        period: PERIOD,
+        records: [rec(empA.id, "2041-03-03", "LEAVE_UNPAID")],
+      });
     expect(again.status).toBe(200);
 
     const rows = await asDemoTenant(async () =>
@@ -87,11 +93,7 @@ describe("payroll attendance save", () => {
         orderBy: [{ employeeId: "asc" }, { date: "asc" }],
       })
     );
-    const summary = rows.map((r) => [
-      r.employeeId.toString(),
-      r.date,
-      r.status,
-    ]);
+    const summary = rows.map((r) => [r.employeeId.toString(), r.date, r.status]);
     expect(summary).toEqual([
       [empA.id.toString(), "2041-03-02", "ABSENT"],
       [empA.id.toString(), "2041-03-03", "LEAVE_UNPAID"],
