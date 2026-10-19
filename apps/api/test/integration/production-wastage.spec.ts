@@ -198,6 +198,31 @@ describe("production wastage", () => {
     expectCleanError(await client.get("/api/production-wastages/999999999").set(OWNER.auth), 404);
   });
 
+  it("accepts an empty optional target product (sent by the form) as none", async () => {
+    const made = await create({ targetWastageProductId: "" });
+    expect(made.status).toBe("DRAFT");
+    const one = await (await api()).get(`/api/production-wastages/${made.id}`).set(OWNER.auth);
+    expect(one.body.data.targetWastageProductId).toBeNull();
+  });
+
+  it("names the field in a 400 when the target product does not exist, on create and edit", async () => {
+    const client = await api();
+    const unknown = await client
+      .post("/api/production-wastages")
+      .set(OWNER.auth)
+      .send(body({ targetWastageProductId: "NOPE-TWP" }));
+    expectCleanError(unknown, 400);
+    expect(unknown.body.message).toContain("targetWastageProductId");
+
+    const made = await create();
+    const edited = await client
+      .put(`/api/production-wastages/${made.id}`)
+      .set(OWNER.auth)
+      .send({ targetWastageProductId: "NOPE-TWP" });
+    expectCleanError(edited, 400);
+    expect(edited.body.message).toContain("targetWastageProductId");
+  });
+
   it("gates each route on its own production-wastages key, not machines.view", async () => {
     const client = await api();
     const made = await create();

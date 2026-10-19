@@ -207,6 +207,7 @@ const WastageForm: React.FC = () => {
       quantity: Number(formData.quantity),
       estimatedValue: formData.estimatedValue ? Number(formData.estimatedValue) : null,
       rawMaterialId: formData.rawMaterialId || null,
+      targetWastageProductId: formData.targetWastageProductId || null,
       reason: formData.reason || null,
       correctiveAction: formData.correctiveAction || null,
       remarks: formData.remarks || null,
