@@ -21,7 +21,7 @@ const stockAdjustmentItemSchema = z.object({
   productItemId: z.union([z.string(), z.number(), z.bigint()]).optional().nullable(),
   storeId: z.string().min(1, "Store ID is required"),
   currentQty: z.number(),
-  adjustedQty: z.number(),
+  adjustedQty: z.number().nonnegative("Adjusted quantity cannot be negative"),
   difference: z.number(),
   remarks: z.string().max(255).optional().nullable(),
 }).refine(data => {

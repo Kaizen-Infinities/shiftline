@@ -5,6 +5,45 @@ import {
   UpdateRawMaterialTransactionInput,
 } from "./raw-material-transaction.validation";
 import { byCode } from "../../lib/prisma";
+import { Prisma } from "@prisma/client";
+import Decimal from "decimal.js";
+import {
+  assertNotBelowZero,
+  lockRawMaterialRow,
+  storeAllowsNegative,
+} from "../inventory/on-hand-guard";
+
+/**
+ * Moves raw material on-hand by a signed `delta` inside `tx`. The row is locked first, and the
+ * movement is refused when it would take on-hand below zero (unless the store allows negative stock).
+ */
+async function moveOnHand(
+  tx: Prisma.TransactionClient,
+  rawMaterialId: string,
+  storeId: string,
+  delta: Decimal
+): Promise<void> {
+  await lockRawMaterialRow(tx, rawMaterialId);
+  const rm = await tx.rawMaterial.findUnique({
+    where: byCode("rawMaterialId", rawMaterialId),
+  });
+  if (!rm) throw new ApiError(404, `Raw Material with ID ${rawMaterialId} not found`);
+
+  assertNotBelowZero({
+    label: `Raw material "${rm.materialName}" (${rawMaterialId})`,
+    onHand: new Decimal(rm.onHandQty.toString()),
+    delta,
+    allowNegative: await storeAllowsNegative(tx, storeId),
+  });
+
+  await tx.rawMaterial.update({
+    where: byCode("rawMaterialId", rawMaterialId),
+    data: {
+      onHandQty: { increment: delta.toNumber() },
+      lastMovementAt: new Date(),
+    },
+  });
+}
 
 class RawMaterialTransactionService {
   async create(data: CreateRawMaterialTransactionInput) {
@@ -44,15 +83,7 @@ class RawMaterialTransactionService {
       });
 
       // 2. Update the corresponding Raw Material Stock (which is the RawMaterial itself)
-      await tx.rawMaterial.update({
-        where: byCode("rawMaterialId", data.rawMaterialId),
-        data: {
-          onHandQty: {
-            increment: data.qty,
-          },
-          lastMovementAt: new Date(),
-        },
-      });
+      await moveOnHand(tx, data.rawMaterialId, data.storeId, new Decimal(data.qty));
 
       return txn;
     });
@@ -94,27 +125,21 @@ class RawMaterialTransactionService {
     const newQty = data.qty ?? Number(existing.qty);
     const txnDateTime = data.txnDateTime ? new Date(data.txnDateTime) : existing.txnDateTime;
 
-    return prisma.$transaction(async (tx) => {
-      // 1. Reverse old stock level
-      await tx.rawMaterial.update({
-        where: byCode("rawMaterialId", existing.rawMaterialId),
-        data: {
-          onHandQty: {
-            decrement: Number(existing.qty),
-          },
-        },
-      });
+    // Net change per raw material: the old qty is reversed and the new qty applied. Netting first
+    // means a move that is only valid as a whole is not refused halfway through.
+    const deltas = new Map<string, Decimal>();
+    const addDelta = (rawMaterialId: string, delta: Decimal) =>
+      deltas.set(rawMaterialId, (deltas.get(rawMaterialId) ?? new Decimal(0)).plus(delta));
+    addDelta(existing.rawMaterialId, new Decimal(existing.qty.toString()).negated());
+    addDelta(newRawMaterialId, new Decimal(newQty));
 
-      // 2. Apply new stock level
-      await tx.rawMaterial.update({
-        where: byCode("rawMaterialId", newRawMaterialId),
-        data: {
-          onHandQty: {
-            increment: newQty,
-          },
-          lastMovementAt: new Date(),
-        },
-      });
+    return prisma.$transaction(async (tx) => {
+      // 1 and 2. Reverse the old stock level and apply the new one
+      for (const rawMaterialId of [...deltas.keys()].sort()) {
+        const delta = deltas.get(rawMaterialId)!;
+        if (delta.isZero()) continue;
+        await moveOnHand(tx, rawMaterialId, newStoreId, delta);
+      }
 
       // 3. Update transaction entry
       return tx.rawMaterialTransaction.update({
@@ -140,15 +165,12 @@ class RawMaterialTransactionService {
 
     return prisma.$transaction(async (tx) => {
       // Reverse stock level on delete
-      await tx.rawMaterial.update({
-        where: byCode("rawMaterialId", existing.rawMaterialId),
-        data: {
-          onHandQty: {
-            decrement: Number(existing.qty),
-          },
-          lastMovementAt: new Date(),
-        },
-      });
+      await moveOnHand(
+        tx,
+        existing.rawMaterialId,
+        existing.storeId,
+        new Decimal(existing.qty.toString()).negated()
+      );
 
       return tx.rawMaterialTransaction.delete({
         where: { rmTxnId },
