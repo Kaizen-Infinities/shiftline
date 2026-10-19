@@ -57,7 +57,9 @@ describe("payroll advance deduction cap", () => {
         },
       })
     );
-    const cfg = await (await api())
+    const cfg = await (
+      await api()
+    )
       .put(`/api/payroll/employees/${employee.id}/config`)
       .set(OWNER.auth)
       .send({
@@ -93,7 +95,9 @@ describe("payroll advance deduction cap", () => {
     expect(Number(row.salaryAdvance)).toBe(5000);
     expect(Number(row.netSalary)).toBe(5000); // 10000 gross - 5000 recovered, nothing else on this employee
 
-    const approved = await (await api())
+    const approved = await (
+      await api()
+    )
       .post(`/api/payroll/runs/${res.body.data.id}/approve`)
       .set(OWNER.auth);
     expect(approved.status).toBe(200);
