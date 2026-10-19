@@ -22,6 +22,38 @@ type ErrorBody = {
   detail?: string;
 };
 
+const WRITE_METHODS = new Set(["POST", "PUT", "PATCH"]);
+
+/**
+ * The model field a failed foreign key belongs to. Prisma reports the database constraint name
+ * (`<table>_<column>[_<column>]_fkey`, sometimes with " (index)"; the driver-adapter path nests
+ * it). The field is the model scalar whose column ends that name, longest match first, so a
+ * composite key (companyId, x) resolves to x. Undefined when no field matches.
+ */
+const foreignKeyField = (meta: unknown): string | undefined => {
+  const m = (meta ?? {}) as {
+    modelName?: string;
+    field_name?: string;
+    driverAdapterError?: { cause?: { constraint?: { index?: string } } };
+  };
+  const constraint = (m.field_name ?? m.driverAdapterError?.cause?.constraint?.index ?? "").replace(
+    /\s*\(index\)$/,
+    ""
+  );
+  const model = Prisma.dmmf.datamodel.models.find((x) => x.name === m.modelName);
+  if (!constraint || !model) return undefined;
+
+  let best: { field: string; length: number } | undefined;
+  for (const f of model.fields) {
+    if (f.kind !== "scalar") continue;
+    for (const column of new Set([f.dbName ?? f.name, f.name])) {
+      if (!constraint.endsWith(`_${column}_fkey`)) continue;
+      if (!best || column.length > best.length) best = { field: f.name, length: column.length };
+    }
+  }
+  return best?.field;
+};
+
 const send = (
   res: Response,
   status: number,
@@ -102,8 +134,19 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
     switch (known.code) {
       case "P2002":
         return send(res, 409, "A record with this value already exists.");
-      case "P2003":
+      case "P2003": {
+        // A write that names a reference which does not exist is a client error, and the field says which.
+        // Deletes keep the 409: there the record itself is what is referenced.
+        if (WRITE_METHODS.has(req.method)) {
+          const field = foreignKeyField(known.meta);
+          if (field) {
+            const message = `Invalid ${field}: no matching record exists.`;
+            return send(res, 400, message, [{ path: field, message }]);
+          }
+          return send(res, 400, "A referenced record does not exist.");
+        }
         return send(res, 409, "This record is referenced by other records and cannot be changed.");
+      }
       case "P2025":
         return send(res, 404, "Record not found.");
       default:
