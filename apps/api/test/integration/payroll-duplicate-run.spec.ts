@@ -18,7 +18,9 @@ let fixedEmp: { id: bigint; empCode: string };
 let cashEmp: { id: bigint; empCode: string };
 
 const configure = async (employeeId: bigint, salaryType: string) => {
-  const res = await (await api())
+  const res = await (
+    await api()
+  )
     .put(`/api/payroll/employees/${employeeId}/config`)
     .set(OWNER.auth)
     .send({
@@ -123,9 +125,7 @@ describe("payroll duplicate run guard", () => {
     const blocked = await runFor("2044-07", "FIXED_MONTHLY", [fixedEmp.id]);
     expect(blocked.status).toBe(400);
 
-    const del = await (await api())
-      .delete(`/api/payroll/runs/${all.body.data.id}`)
-      .set(OWNER.auth);
+    const del = await (await api()).delete(`/api/payroll/runs/${all.body.data.id}`).set(OWNER.auth);
     expect(del.status, JSON.stringify(del.body).slice(0, 300)).toBe(200);
 
     const retry = await runFor("2044-07", "FIXED_MONTHLY", [fixedEmp.id]);
