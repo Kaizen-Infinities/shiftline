@@ -60,9 +60,24 @@ export const createRawMaterialSchema = z.object({
 
 /**
  * Update Raw Material Validation
+ *
+ * Stock is not part of the master record: on-hand and reserved quantities move only through stock
+ * transactions and adjustments. The create schema's `.default(0)` must not reach this schema, since
+ * `.partial()` would re-apply it on every PUT and zero the stock. A PUT that tries to set stock is
+ * refused with 400.
  */
+const stockNotEditable = z.never({
+  error: "Stock cannot be edited on the raw material. Use a stock adjustment or transaction.",
+});
+
 export const updateRawMaterialSchema = z.object({
-  body: createRawMaterialSchema.shape.body.omit({ rawMaterialId: true }).partial(),
+  body: createRawMaterialSchema.shape.body
+    .omit({ rawMaterialId: true, onHandQty: true, reservedQty: true })
+    .partial()
+    .extend({
+      onHandQty: stockNotEditable.optional(),
+      reservedQty: stockNotEditable.optional(),
+    }),
 
   params: z.object({
     rawMaterialId: z.string().min(1, "Raw Material ID is required").max(20),
