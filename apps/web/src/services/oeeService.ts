@@ -11,7 +11,7 @@ export const oeeService = {
 
   /** Get full OEE + production summary for a production order */
   getProductionOrderOee: (productionOrderId: string) => {
-    return apiClient.get(`${BASE}/production-order/${productionOrderId}`).then((r) => r.data?.data);
+    return apiClient.get(`${BASE}/production-order/${encodeURIComponent(productionOrderId)}`).then((r) => r.data?.data);
   },
 
   /** Get all machine statuses with today OEE (for live board) */
