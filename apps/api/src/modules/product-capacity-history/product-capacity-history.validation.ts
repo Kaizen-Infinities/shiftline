@@ -45,8 +45,13 @@ export const productIdSchema = z.object({
   }),
 });
 
-export const machineIdSchema = z.object({
+/**
+ * One params schema for the product + machine lookup. Two chained validators would each strip
+ * the other's key (validateMiddleware writes the parsed params back onto the request).
+ */
+export const productMachineParamsSchema = z.object({
   params: z.object({
-    machineId: z.string().min(1),
+    productId: z.coerce.number().min(1),
+    machineId: z.string().min(1).max(20),
   }),
 });

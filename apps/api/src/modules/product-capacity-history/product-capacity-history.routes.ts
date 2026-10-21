@@ -5,7 +5,7 @@ import { validateMiddleware } from "../../middleware/validate.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 import {
   productIdSchema,
-  machineIdSchema,
+  productMachineParamsSchema,
   manualCapacitySchema,
 } from "./product-capacity-history.validation";
 
@@ -26,8 +26,7 @@ router.get(
   authMiddleware,
   requireFeature("production"),
   requirePermission("products.view"),
-  validateMiddleware(productIdSchema),
-  validateMiddleware(machineIdSchema),
+  validateMiddleware(productMachineParamsSchema),
   productCapacityHistoryController.getLatestByProductAndMachine
 );
 
