@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { downloadFile } from "../../../api/downloadFile";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AlertTriangle, Download, FileText, Landmark, RefreshCw, Send } from "lucide-react";
@@ -398,14 +399,19 @@ const Gstr1View: React.FC<{ ret: Gstr1Return; period: string; gstin: string }> =
       title={`GSTR-1 · ${periodLabel(ret.fp)}`}
       subtitle="Documents by table, as the portal groups them."
       actions={
-        <a
+        <button
+          type="button"
           className="sl-btn sl-pill-sm"
-          href={`/api${gstReturnsService.gstr1JsonUrl(period, gstin)}`}
-          download
+          onClick={() =>
+            downloadFile(
+              gstReturnsService.gstr1JsonUrl(period, gstin),
+              `GSTR1-${period}.json`
+            ).catch(() => toast.error("Could not download the file. Try again."))
+          }
         >
           <Download size={15} aria-hidden="true" />
           Download the portal JSON
-        </a>
+        </button>
       }
     >
       {Object.keys(ret.totals.byTable).length === 0 ? (

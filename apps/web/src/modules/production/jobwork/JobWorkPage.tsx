@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { downloadFile } from "../../../api/downloadFile";
 import { toast } from "react-toastify";
 
 import CancelReasonModal from "../../../components/ui/CancelReasonModal/CancelReasonModal";
@@ -241,15 +242,20 @@ const JobWorkPage: React.FC = () => {
                           </td>
                           <td className={`${td} text-right`}>
                             <div className="flex flex-wrap justify-end gap-1.5">
-                              <a
+                              <button
+                                type="button"
                                 className="sl-btn sl-pill-sm"
-                                href={`/api${jobWorkService.pdfUrl(r.id)}`}
-                                target="_blank"
-                                rel="noreferrer"
+                                onClick={() =>
+                                  downloadFile(jobWorkService.pdfUrl(r.id), "challan.pdf", {
+                                    open: true,
+                                  }).catch(() =>
+                                    toast.error("Could not open the challan. Try again.")
+                                  )
+                                }
                               >
                                 <FileText size={14} aria-hidden="true" />
                                 Challan
-                              </a>
+                              </button>
                               {can("job-work.create") &&
                                 r.kind === "JOB_WORK_OUT" &&
                                 r.status !== "CANCELLED" &&

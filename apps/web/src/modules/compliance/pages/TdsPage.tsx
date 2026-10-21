@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { downloadFile } from "../../../api/downloadFile";
 import { toast } from "react-toastify";
 import { AlertTriangle, Download, Percent, Receipt, Send } from "lucide-react";
 
@@ -427,15 +428,19 @@ const TdsPage: React.FC = () => {
                     Filing {ret.filing.status.toLowerCase()}
                   </Chip>
                 )}
-                <a
+                <button
+                  type="button"
                   className={secondary}
-                  href={`/api${tdsService.fileUrl(form, fyCode, quarter)}`}
-                  target="_blank"
-                  rel="noreferrer"
+                  onClick={() =>
+                    downloadFile(
+                      tdsService.fileUrl(form, fyCode, quarter),
+                      `${form}-${fyCode}-${quarter}.txt`
+                    ).catch(() => toast.error("Could not download the file. Try again."))
+                  }
                 >
                   <Download size={15} aria-hidden="true" />
                   Download e-TDS file
-                </a>
+                </button>
               </div>
             }
           >
