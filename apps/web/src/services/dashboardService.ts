@@ -97,7 +97,8 @@ export interface TvAgingBucket {
 
 export interface TvSummary {
   generatedAt: string;
-  sales: {
+  /** Sales, finance and top products are omitted for viewers without accounts.view. */
+  sales?: {
     today: number;
     todayLabel: string;
     todayTrend: number | null;
@@ -128,7 +129,7 @@ export interface TvSummary {
     split: { label: string; pct: number }[];
     reorderItems: TvReorderItem[];
   };
-  finance: {
+  finance?: {
     receivable: number;
     receivableLabel: string;
     overdue: number;
@@ -138,10 +139,18 @@ export interface TvSummary {
     aging: TvAgingBucket[];
   };
   downtime: { line: string; reason: string; minutes: number }[];
-  topProducts: { name: string; value: string; pct: number }[];
-  trends: { sales: TvTrend; efficiency: TvTrend; orders: TvTrend };
+  topProducts?: { name: string; value: string; pct: number }[];
+  trends: { sales?: TvTrend; efficiency: TvTrend; orders: TvTrend };
   alerts: TvAlert[];
 }
+
+/** A TV summary that includes the accounts-gated blocks (sales, finance, top products). */
+export type TvSummaryFull = TvSummary &
+  Required<Pick<TvSummary, "sales" | "finance" | "topProducts">> & {
+    trends: TvSummary["trends"] & { sales: TvTrend };
+  };
+export const hasMoney = (tv: TvSummary): tv is TvSummaryFull =>
+  Boolean(tv.sales && tv.finance && tv.topProducts && tv.trends.sales);
 
 const dashboardService = {
   getSummary: async () => {

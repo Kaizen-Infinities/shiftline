@@ -1,7 +1,7 @@
 import React from "react";
 import { u, pctColor, type TvTheme } from "../tvTheme";
 import { Panel, KpiCard, TvEmpty } from "../components/TvPrimitives";
-import type { AccountsSummary, TvSummary } from "../../../../services/dashboardService";
+import type { AccountsSummary, TvSummaryFull } from "../../../../services/dashboardService";
 import { inrCompact } from "../tvFormat";
 
 /* ══════════════════════════════════════════════════════════════════
@@ -10,7 +10,7 @@ import { inrCompact } from "../tvFormat";
 
 const SceneInventoryFinance: React.FC<{
   theme: TvTheme;
-  tv: TvSummary;
+  tv: TvSummaryFull;
   accounts: AccountsSummary | null;
 }> = ({ theme, tv, accounts }) => {
   const { T, A } = theme;

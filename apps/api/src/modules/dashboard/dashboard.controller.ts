@@ -3,7 +3,7 @@ import { prisma } from "../../config/prisma";
 import { VoucherType } from "@prisma/client";
 import { bankCashLedgerWhere, isCashLedger } from "../accounts/bank-cash-ledgers";
 import { getISTDayStartUtc } from "../../utils/dateUtils";
-import { getTvSummary } from "./dashboard.tv.service";
+import { getTvSummary, redactTvSummary } from "./dashboard.tv.service";
 import { logger } from "../../lib/logger";
 
 const dashboardController = {
@@ -648,10 +648,13 @@ const dashboardController = {
       return res.status(500).json({ success: false, message: "Failed to load accounts summary" });
     }
   },
-  getTvSummary: async (_req: Request, res: Response) => {
+  getTvSummary: async (req: Request, res: Response) => {
     try {
       const data = await getTvSummary();
-      return res.json({ success: true, data });
+      const canSeeMoney = Boolean(
+        req.user?.permissions?.some((k: string) => k === "accounts.view" || k === "vouchers.view")
+      );
+      return res.json({ success: true, data: redactTvSummary(data, canSeeMoney) });
     } catch (error) {
       logger.error({ err: error }, "TV summary error:");
       return res.status(500).json({ success: false, message: "Failed to load TV dashboard data" });

@@ -19,23 +19,29 @@ const SceneOverview: React.FC<{
   const achievement = tv.production.achievement;
   const achColor = pctColor(achievement, A);
 
+  const sales = tv.sales;
+  const finance = tv.finance;
   const kpis = [
-    {
-      label: "Sales Today",
-      value: tv.sales.todayLabel,
-      sub: `MTD ${tv.sales.mtdLabel}`,
-      trend: trendText(tv.sales.todayTrend),
-      trendColor: trendColor(tv.sales.todayTrend, A),
-      color: A.amber,
-    },
-    {
-      label: "Sales MTD",
-      value: tv.sales.mtdLabel,
-      sub: `Last month ${tv.sales.lastMonthLabel}`,
-      trend: trendText(tv.sales.mtdTrend),
-      trendColor: trendColor(tv.sales.mtdTrend, A),
-      color: A.blue,
-    },
+    ...(sales
+      ? [
+          {
+            label: "Sales Today",
+            value: sales.todayLabel,
+            sub: `MTD ${sales.mtdLabel}`,
+            trend: trendText(sales.todayTrend),
+            trendColor: trendColor(sales.todayTrend, A),
+            color: A.amber,
+          },
+          {
+            label: "Sales MTD",
+            value: sales.mtdLabel,
+            sub: `Last month ${sales.lastMonthLabel}`,
+            trend: trendText(sales.mtdTrend),
+            trendColor: trendColor(sales.mtdTrend, A),
+            color: A.blue,
+          },
+        ]
+      : []),
     {
       label: "Orders",
       value: String(tv.orders.total),
@@ -63,14 +69,18 @@ const SceneOverview: React.FC<{
       trendColor: A.blue,
       color: pctColor(tv.inventory.healthyPct, A),
     },
-    {
-      label: "Receivables",
-      value: tv.finance.receivableLabel,
-      sub: tv.finance.overdue > 0 ? `${tv.finance.overdueLabel} overdue` : "nothing overdue",
-      trend: "",
-      trendColor: A.blue,
-      color: tv.finance.overdue > 0 ? A.red : A.green,
-    },
+    ...(finance
+      ? [
+          {
+            label: "Receivables",
+            value: finance.receivableLabel,
+            sub: finance.overdue > 0 ? `${finance.overdueLabel} overdue` : "nothing overdue",
+            trend: "",
+            trendColor: A.blue,
+            color: finance.overdue > 0 ? A.red : A.green,
+          },
+        ]
+      : []),
     {
       label: "Payables",
       value: accounts ? inrCompact(accounts.totalPayable) : "—",
@@ -327,14 +337,16 @@ const SceneOverview: React.FC<{
 
       {/* TREND STRIP */}
       <div style={{ flex: `0 0 ${u(138)}`, display: "flex", gap: u(14) }}>
-        <TrendCard
-          theme={theme}
-          label="Sales"
-          trend={trendText(tv.trends.sales.trend)}
-          trendColor={trendColor(tv.trends.sales.trend, A)}
-          points={tv.trends.sales.series}
-          color={A.blue}
-        />
+        {tv.trends.sales && (
+          <TrendCard
+            theme={theme}
+            label="Sales"
+            trend={trendText(tv.trends.sales.trend)}
+            trendColor={trendColor(tv.trends.sales.trend, A)}
+            points={tv.trends.sales.series}
+            color={A.blue}
+          />
+        )}
         <TrendCard
           theme={theme}
           label="Efficiency"

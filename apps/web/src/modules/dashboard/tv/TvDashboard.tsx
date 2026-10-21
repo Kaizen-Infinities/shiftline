@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../../providers/ThemeProvider";
 
 import "./tv.css";
-import { getTvTheme, u, type TvMode } from "./tvTheme";
+import { getTvTheme, u, type TvMode, type TvTheme } from "./tvTheme";
 import { useTvSummary, useTvClock } from "./useTvSummary";
+import { hasMoney } from "../../../services/dashboardService";
 import SceneOverview from "./scenes/SceneOverview";
 import SceneProduction from "./scenes/SceneProduction";
 import SceneSales from "./scenes/SceneSales";
@@ -33,6 +34,22 @@ const SCENE_LABELS = [
 
 const ROTATE_SECONDS = 13;
 const THEME_KEY = "tv-dashboard-theme";
+
+const RestrictedScene: React.FC<{ theme: TvTheme; label: string }> = ({ theme, label }) => (
+  <div
+    style={{
+      flex: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 28,
+      fontWeight: 700,
+      color: theme.T.textDim,
+    }}
+  >
+    {label} is shown to people with accounts access
+  </div>
+);
 
 const TvDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -172,10 +189,10 @@ const TvDashboard: React.FC = () => {
   /* ── Ticker ───────────────────────────────────────────────────── */
   const ticker = tv
     ? [
-        `Sales ${tv.sales.todayLabel}`,
+        tv.sales ? `Sales ${tv.sales.todayLabel}` : null,
         `Production ${tv.production.achievement}%`,
         `Orders ${tv.orders.total}${tv.orders.delayed ? ` (${tv.orders.delayed} delayed)` : ""}`,
-        `Receivable ${tv.finance.receivableLabel}`,
+        tv.finance ? `Receivable ${tv.finance.receivableLabel}` : null,
         accounts ? `Payable ${inrCompact(accounts.totalPayable)}` : null,
         accounts
           ? `Cash + bank ${inrCompact(
@@ -416,8 +433,18 @@ const TvDashboard: React.FC = () => {
             <div className="tv-scene" style={{ padding: scenePad, gap: u(16) }}>
               {scene === 0 && <SceneOverview theme={theme} tv={tv} accounts={accounts} />}
               {scene === 1 && <SceneProduction theme={theme} tv={tv} />}
-              {scene === 2 && <SceneSales theme={theme} tv={tv} />}
-              {scene === 3 && <SceneInventoryFinance theme={theme} tv={tv} accounts={accounts} />}
+              {scene === 2 &&
+                (hasMoney(tv) ? (
+                  <SceneSales theme={theme} tv={tv} />
+                ) : (
+                  <RestrictedScene theme={theme} label="Sales and orders" />
+                ))}
+              {scene === 3 &&
+                (hasMoney(tv) ? (
+                  <SceneInventoryFinance theme={theme} tv={tv} accounts={accounts} />
+                ) : (
+                  <RestrictedScene theme={theme} label="Inventory and finance" />
+                ))}
               {scene === 4 && <SceneFieldSales theme={theme} />}
             </div>
           )}

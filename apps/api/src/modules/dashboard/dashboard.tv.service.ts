@@ -657,4 +657,19 @@ export async function getTvSummary() {
   };
 }
 
+/**
+ * The TV wall is open to insights.view holders (a supervisor's screen), but sales and receivable
+ * figures are accounts data: without accounts.view they are omitted (H32).
+ */
+export function redactTvSummary(data: TvSummary, canSeeMoney: boolean): Partial<TvSummary> {
+  if (canSeeMoney) return data;
+  const { sales: _sales, finance: _finance, topProducts: _top, trends, alerts, ...rest } = data;
+  const { sales: _salesTrend, ...otherTrends } = trends;
+  return {
+    ...rest,
+    trends: otherTrends as TvSummary["trends"],
+    alerts: alerts.filter((a) => !/receivable/i.test(a.text)),
+  };
+}
+
 export type TvSummary = Awaited<ReturnType<typeof getTvSummary>>;

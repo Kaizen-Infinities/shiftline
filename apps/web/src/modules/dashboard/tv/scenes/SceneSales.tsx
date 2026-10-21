@@ -1,13 +1,13 @@
 import React from "react";
 import { u, trendText, trendColor, type TvTheme } from "../tvTheme";
 import { Panel, KpiCard, BarChart, TvEmpty } from "../components/TvPrimitives";
-import type { TvSummary } from "../../../../services/dashboardService";
+import type { TvSummaryFull } from "../../../../services/dashboardService";
 
 /* ══════════════════════════════════════════════════════════════════
    SCENE 2 — SALES & ORDERS
    ══════════════════════════════════════════════════════════════════ */
 
-const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummary }> = ({ theme, tv }) => {
+const SceneSales: React.FC<{ theme: TvTheme; tv: TvSummaryFull }> = ({ theme, tv }) => {
   const { T, A } = theme;
 
   const kpis = [

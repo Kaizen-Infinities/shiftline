@@ -62,6 +62,21 @@ describe("dashboard", () => {
     }
   });
 
+  it("H32: the TV wall omits sales and finance without accounts.view", async () => {
+    const client = await api();
+    const prod = await authed("demo.production");
+    const lean = await client.get("/api/dashboard/tv-summary").set(prod.auth);
+    expect(lean.status).toBe(200);
+    for (const k of ["sales", "finance", "topProducts"])
+      expect(lean.body.data).not.toHaveProperty(k);
+    expect(lean.body.data.trends).not.toHaveProperty("sales");
+    expect(lean.body.data).toHaveProperty("production");
+
+    const full = await client.get("/api/dashboard/tv-summary").set(OWNER.auth);
+    expect(full.body.data).toHaveProperty("finance");
+    expect(full.body.data).toHaveProperty("sales");
+  });
+
   it("refuses the anonymous and a user with no dashboard permission, with clean errors", async () => {
     const client = await api();
     for (const path of ["summary", "accounts-summary", "tv-summary"]) {
