@@ -12,6 +12,7 @@ import {
 } from "../../../features/raw-materials/rawMaterialSlice";
 import { fetchStores } from "../../../features/stores/storeSlice";
 import { rawMaterialService } from "../../../services/rawMaterialService";
+import { gstService, type GstSlab, type HsnCode } from "../../../services/gstService";
 import UOMSelect from "../../../components/form/SelectInput/UOMSelect";
 import { useSocketSync } from "../../../hooks/useSocketSync";
 import { z } from "zod";
@@ -30,6 +31,8 @@ const initialFormState = {
   baseUom: "",
   reorderLevel: "",
   rate: "",
+  hsnCodeId: "",
+  gstRate: "",
   batchNo: "",
   onHandQty: "",
   reservedQty: "",
@@ -117,6 +120,8 @@ const RawMaterialForm: React.FC = () => {
   const [categoryOptions, setCategoryOptions] = useState<
     { label: string; value: string | number }[]
   >([]);
+  const [hsnCodes, setHsnCodes] = useState<HsnCode[]>([]);
+  const [gstSlabs, setGstSlabs] = useState<GstSlab[]>([]);
 
   useFormShortcuts({});
 
@@ -142,6 +147,18 @@ const RawMaterialForm: React.FC = () => {
   useEffect(() => {
     fetchCategoriesData();
   }, [fetchCategoriesData]);
+
+  // H08: tax defaults for purchase lines come from the HSN code or the GST rate set here.
+  useEffect(() => {
+    gstService
+      .listHsn({ type: "HSN", limit: 500 })
+      .then(setHsnCodes)
+      .catch(() => {});
+    gstService
+      .listRates()
+      .then(setGstSlabs)
+      .catch(() => {});
+  }, []);
 
   // Keep category dropdown fresh when categories change in another tab
   useSocketSync("category", undefined, fetchCategoriesData);
@@ -173,6 +190,8 @@ const RawMaterialForm: React.FC = () => {
           : data.unitPrice !== null && data.unitPrice !== undefined
             ? String(data.unitPrice)
             : "",
+      hsnCodeId: data.hsnCodeId ?? data.hsnCode?.id ?? "",
+      gstRate: data.gstRate !== null && data.gstRate !== undefined ? String(Number(data.gstRate)) : "",
       batchNo: data.batchNo || "",
       onHandQty:
         data.onHandQty !== null && data.onHandQty !== undefined ? String(data.onHandQty) : "",
@@ -288,6 +307,8 @@ const RawMaterialForm: React.FC = () => {
         minimumStock: convertedMinStock,
         reorderLevel: convertedReorderLevel,
         rate: formData.rate ? Number(formData.rate) : null,
+        hsnCodeId: formData.hsnCodeId || null,
+        gstRate: formData.gstRate ? Number(formData.gstRate) : null,
         // Opening stock is set on create only. Edits never send stock: the API refuses it, and
         // stock moves only through stock transactions and adjustments.
         ...(isEditMode
@@ -335,6 +356,16 @@ const RawMaterialForm: React.FC = () => {
       ]}
     />
   );
+
+  const hsnOptions = hsnCodes.map((h) => ({
+    value: h.id,
+    label: `${h.code} · ${h.description} (${Number(h.gstRate)}%)`,
+  }));
+  const gstOptions = gstSlabs.map((g) => ({
+    value: String(Number(g.rate)),
+    label: `${Number(g.rate)}%`,
+  }));
+  const hasTaxDefault = Boolean(formData.hsnCodeId || formData.gstRate);
 
   if (isLoadingData) {
     return (
@@ -476,6 +507,29 @@ const RawMaterialForm: React.FC = () => {
               error={errors.rate}
               onChange={handleChange}
             />
+            <SelectInput
+              label="HSN Code"
+              name="hsnCodeId"
+              value={formData.hsnCodeId}
+              options={hsnOptions}
+              defaultOptionLabel="-- Select HSN --"
+              onChange={handleChange}
+              searchable
+              error={errors.hsnCodeId}
+            />
+            <SelectInput
+              label="GST Rate (overrides HSN)"
+              name="gstRate"
+              value={formData.gstRate}
+              options={gstOptions}
+              defaultOptionLabel="-- Use HSN rate --"
+              onChange={handleChange}
+            />
+            {!hasTaxDefault && (
+              <p className="text-xs text-amber-700 md:col-span-3">
+                No HSN code or GST rate is set. Purchase lines for this material will default to 0% tax.
+              </p>
+            )}
             <SelectInput
               label="Status"
               name="status"
