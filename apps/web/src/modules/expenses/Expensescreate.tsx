@@ -10,6 +10,7 @@ import FileUpload from "../../components/form/FileUpload/FileUpload";
 import TextArea from "../../components/form/TextArea/TextArea";
 import apiClient from "../../api/apiClient";
 import { useExpenses } from "../../hooks/useExpenses";
+import { gstService, type GstSlab } from "../../services/gstService";
 
 interface ExpenseFormData {
   expenseNumber: string;
@@ -23,6 +24,10 @@ interface ExpenseFormData {
   status: string;
   notes: string;
   receiptInvoice: string;
+  vendorGstin: string;
+  gstRate: string;
+  reverseCharge: boolean;
+  itcEligible: boolean;
 }
 
 interface TdsPreview {
@@ -58,12 +63,17 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
     status: "Draft",
     notes: "",
     receiptInvoice: "",
+    vendorGstin: "",
+    gstRate: "",
+    reverseCharge: false,
+    itcEligible: true,
   };
 
   const [formData, setFormData] = useState<ExpenseFormData>(defaultFormData);
-  const [suppliers, setSuppliers] = useState<Array<{ label: string; value: string; id: number }>>(
-    []
-  );
+  const [suppliers, setSuppliers] = useState<
+    Array<{ label: string; value: string; id: number; gstin?: string | null }>
+  >([]);
+  const [gstSlabs, setGstSlabs] = useState<GstSlab[]>([]);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -93,6 +103,7 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
             label: `${sup.supplierCode ? sup.supplierCode + " - " : ""}${sup.legalName || "Supplier"}`,
             value: sup.legalName || sup.supplierCode,
             id: sup.id,
+            gstin: sup.gstin ?? null,
           }));
           setSuppliers(formatted);
         }
@@ -101,6 +112,14 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
       }
     };
     fetchSuppliers();
+  }, []);
+
+  // GST slabs for the GST block (GST-1: the bill is split by vendor and branch state).
+  useEffect(() => {
+    gstService
+      .listRates()
+      .then(setGstSlabs)
+      .catch(() => {});
   }, []);
 
   // P2-12: TDS sections (deduction ones only; TCS sections belong on the sales side).
@@ -147,6 +166,13 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
         status: initialData.status || "Draft",
         notes: initialData.notes || "",
         receiptInvoice: initialData.receiptInvoice || "",
+        vendorGstin: initialData.vendorGstin || "",
+        gstRate:
+          initialData.gstRate !== null && initialData.gstRate !== undefined
+            ? String(Number(initialData.gstRate))
+            : "",
+        reverseCharge: Boolean(initialData.reverseCharge),
+        itcEligible: initialData.itcEligible ?? true,
       });
       if (initialData.tdsSection) {
         setTdsSection(initialData.tdsSection);
@@ -200,11 +226,32 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // The vendor's GSTIN comes from the supplier record when one is picked.
+    const pickedSupplierGstin =
+      name === "supplier" ? suppliers.find((s) => s.value === value)?.gstin : undefined;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(pickedSupplierGstin ? { vendorGstin: pickedSupplierGstin } : {}),
+    }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
+
+  // GST shown for the bill: forward charge carves it out of the amount, reverse charge bills none.
+  const billAmount = Number(formData.amount) || 0;
+  const gstPercent = Number(formData.gstRate) || 0;
+  const taxableValue = formData.reverseCharge
+    ? billAmount
+    : gstPercent > 0
+      ? Math.round((billAmount / (1 + gstPercent / 100)) * 100) / 100
+      : billAmount;
+  const gstValue = Math.round(((taxableValue * gstPercent) / 100) * 100) / 100;
+  const gstRateOptions = gstSlabs.map((g) => ({
+    label: `${Number(g.rate)}%`,
+    value: String(Number(g.rate)),
+  }));
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -265,6 +312,10 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
       const supplierId = matchedSupplier ? matchedSupplier.id : null;
 
       const payload = {
+        vendorGstin: formData.vendorGstin.trim().toUpperCase() || null,
+        gstRate: Number(formData.gstRate) || 0,
+        reverseCharge: formData.reverseCharge,
+        itcEligible: formData.itcEligible,
         expenseNumber: formData.expenseNumber.trim(),
         expenseCategory: formData.expenseCategory.trim(),
         date: formData.date,
@@ -445,6 +496,79 @@ const ExpensesCreate: React.FC<ExpensesCreateProps> = ({
                 onChange={handleFileChange}
               />
             </div>
+          </div>
+
+          {/* GST on the bill (GST-1): without it input credit was lost on every expense */}
+          <div className="sl-tile p-5 sm:p-6">
+            <h2 className="sl-h2 m-0 mb-4">GST</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+              <TextInput
+                label="Vendor GSTIN"
+                name="vendorGstin"
+                value={formData.vendorGstin}
+                placeholder="Filled from the supplier"
+                disabled={saving}
+                onChange={handleChange}
+                error={errors.vendorGstin}
+              />
+              <SelectInput
+                label="GST Rate"
+                name="gstRate"
+                value={formData.gstRate}
+                options={gstRateOptions}
+                defaultOptionLabel="No GST"
+                disabled={saving}
+                onChange={handleChange}
+              />
+              <div className="flex flex-col gap-2 pb-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-ink cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="reverseCharge"
+                    checked={formData.reverseCharge}
+                    disabled={saving}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, reverseCharge: e.target.checked }))
+                    }
+                    className="w-4 h-4 accent-[color:var(--color-primary)]"
+                  />
+                  Reverse charge (vendor bills without GST)
+                </label>
+                <label className="flex items-center gap-2 text-sm font-medium text-ink cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="itcEligible"
+                    checked={formData.itcEligible}
+                    disabled={saving || gstPercent === 0}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, itcEligible: e.target.checked }))
+                    }
+                    className="w-4 h-4 accent-[color:var(--color-primary)]"
+                  />
+                  Claim input tax credit
+                </label>
+              </div>
+            </div>
+            {gstPercent > 0 || formData.reverseCharge ? (
+              <p className="sl-muted text-sm mt-3 mb-0">
+                Taxable value{" "}
+                <span className="font-semibold text-ink">
+                  {taxableValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+                {formData.reverseCharge ? (
+                  <> · GST payable under reverse charge, not part of this bill</>
+                ) : (
+                  <>
+                    {" "}
+                    · GST{" "}
+                    <span className="font-semibold text-ink">
+                      {gstValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </span>
+                    {formData.itcEligible ? " (input credit claimed)" : " (not claimed)"}
+                  </>
+                )}
+              </p>
+            ) : null}
           </div>
 
           {/* TDS (P2-05/P2-12) */}
