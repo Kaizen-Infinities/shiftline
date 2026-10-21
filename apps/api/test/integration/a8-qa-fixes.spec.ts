@@ -79,3 +79,42 @@ describe("markup in names (R2H-B12)", () => {
     expect(res.status).toBe(201);
   });
 });
+
+describe("request bodies (R2H-B19, R2H-B21)", () => {
+  it("refuses a 2 MB JSON body on an ordinary route with 413", async () => {
+    const { auth } = await authed("demo.owner");
+    const res = await (
+      await api()
+    )
+      .post("/api/departments")
+      .set(auth)
+      .send({ name: `Big ${uniq()}`, description: "x".repeat(2 * 1024 * 1024) });
+    expect(res.status).toBe(413);
+  });
+
+  it("still accepts a 2 MB JSON body on the mobile sync route", async () => {
+    const { auth } = await authed("demo.owner");
+    const res = await (
+      await api()
+    )
+      .post("/api/mobile/sync/push")
+      .set(auth)
+      .send({ padding: "x".repeat(2 * 1024 * 1024) });
+    expect(res.status).not.toBe(413);
+  });
+
+  it("refuses a form-encoded post with 415 and creates nothing", async () => {
+    const { auth } = await authed("demo.owner");
+    const name = `Form Dept ${uniq()}`;
+    const res = await (
+      await api()
+    )
+      .post("/api/departments")
+      .set(auth)
+      .type("form")
+      .send(`name=${encodeURIComponent(name)}`);
+    expect(res.status).toBe(415);
+    const list = await (await api()).get("/api/departments").query({ search: name }).set(auth);
+    expect(list.body.data.some((d: { name: string }) => d.name === name)).toBe(false);
+  });
+});

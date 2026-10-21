@@ -14,6 +14,7 @@ import { requestContextMiddleware } from "./lib/request-context";
 import healthRoutes from "./routes/health.routes";
 
 import { errorMiddleware } from "./middleware/error.middleware";
+import { ApiError } from "./utils/ApiError";
 import { env, isProduction, isTest } from "./config/env";
 
 const app: Application = express();
@@ -151,21 +152,26 @@ app.use(
 /** Request Parsers*/
 app.use(cookieParser());
 
-app.use(
+const jsonBody = (limit: string) =>
   express.json({
-    limit: "10mb",
+    limit,
     verify: (req: any, _res, buf) => {
       req.rawBody = buf;
     },
-  })
-);
+  });
 
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: "10mb",
-  })
-);
+// JSON is capped at 1 MB (R2H-B19). The field-app sync batch and supplier QR images are the two
+// JSON payloads that can legitimately be larger, so they keep 10 MB.
+app.use(["/api/mobile", "/api/suppliers"], jsonBody("10mb"));
+app.use(jsonBody("1mb"));
+
+// Form posts are not accepted (R2H-B21). The JSON routes would otherwise read an empty body.
+app.use("/api", (req, _res, next) => {
+  if (req.is(["application/x-www-form-urlencoded"])) {
+    return next(new ApiError(415, "Send the request body as JSON."));
+  }
+  next();
+});
 
 /** Application Routes*/
 app.get("/", (req, res) => {
