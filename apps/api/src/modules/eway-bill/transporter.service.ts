@@ -15,7 +15,9 @@ const transporterId = z
       v === "" ||
       isValidGstin(v) ||
       /^88[0-9]{2}[A-Z]{3}[0-9]{4}[A-Z0-9]{1}[Z]{1}[A-Z0-9]{1}$/.test(v) ||
-      /^[0-9]{2}[A-Z0-9]{13}$/.test(v),
+      // Loose TRANSIN rule, but never for something shaped like a GSTIN: that must pass the
+      // checksum and state-code check above.
+      (/^[0-9]{2}[A-Z0-9]{13}$/.test(v) && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]/.test(v)),
     "Transporter id must be a GSTIN or a 15-character TRANSIN"
   );
 export const transporterSchema = z.object({

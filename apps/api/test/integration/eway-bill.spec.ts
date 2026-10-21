@@ -75,6 +75,14 @@ describe("e-way bills", () => {
       .set(owner.auth)
       .send({ code: `TR${sfx}`, name: "Fast Freight", transporterId: "NOTANID" });
     expect(bad.status).toBe(400);
+    // GSTIN-shaped ids need a valid checksum and a real state code (CMP-B03)
+    for (const transporterId of ["27AAPFU0939F1ZX", "99AAPFU0939F1Z5"]) {
+      const res = await client
+        .post("/api/transporters")
+        .set(owner.auth)
+        .send({ code: `TX${sfx}`, name: "Bad Id", transporterId });
+      expect(res.status, transporterId).toBe(400);
+    }
     const created = await client
       .post("/api/transporters")
       .set(owner.auth)
