@@ -361,7 +361,7 @@ const CustomerFormPage: React.FC = () => {
         subtitle={
           isEditMode
             ? "Changes apply to new documents; posted invoices keep their copy."
-            : "A new party you sell to. Only the name, mobile and billing address are required."
+            : "A new party you sell to. Only the name, mobile, email and billing address are required."
         }
         back="/customers"
         backLabel="Back to List"
