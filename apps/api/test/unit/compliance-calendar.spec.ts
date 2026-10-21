@@ -20,9 +20,28 @@ describe("compliance due dates", () => {
 
   it("covers the quarter that closed before a quarterly filing", () => {
     const rule = DUE_RULES.TDS_26Q;
-    // Due 31 July 2026 is the quarter April–June, which is Q2 of the calendar year.
-    expect(periodCovered("QUARTERLY", new Date(Date.UTC(2026, 6, 31)), rule)).toBe("2026-Q2");
-    expect(periodCovered("QUARTERLY", new Date(Date.UTC(2027, 0, 31)), rule)).toBe("2026-Q4");
+    // Due 31 July 2026 is April–June, Q1 of FY 2026-27 (the TDS screens use the same keys).
+    expect(periodCovered("QUARTERLY", new Date(Date.UTC(2026, 6, 31)), rule)).toBe("2026-Q1");
+    expect(periodCovered("QUARTERLY", new Date(Date.UTC(2026, 9, 31)), rule)).toBe("2026-Q2");
+    expect(periodCovered("QUARTERLY", new Date(Date.UTC(2027, 0, 31)), rule)).toBe("2026-Q3");
+    // January–March is due 31 May, not 30 April (CMP-B04).
+    expect(periodCovered("QUARTERLY", new Date(Date.UTC(2027, 4, 31)), rule)).toBe("2026-Q4");
+  });
+
+  it("dates TDS quarterly returns and MSME Form 1 on their statutory days", () => {
+    for (const key of ["TDS_26Q", "TDS_27Q", "TDS_24Q"]) {
+      expect(DUE_RULES[key].dues?.map((d) => [d.month, d.day])).toEqual([
+        [6, 31],
+        [9, 31],
+        [0, 31],
+        [4, 31],
+      ]);
+    }
+    // 31 October and 30 April
+    expect(DUE_RULES.MSME_1.dues?.map((d) => [d.month, d.day])).toEqual([
+      [9, 31],
+      [3, 30],
+    ]);
   });
 
   it("covers the financial year that ended before an annual filing", () => {
@@ -33,7 +52,14 @@ describe("compliance due dates", () => {
   });
 
   it("covers the half-year for a half-yearly filing", () => {
-    expect(periodCovered("HALF_YEARLY", new Date(Date.UTC(2026, 4, 25)), DUE_RULES.ITC04)).toBe(
+    // ITC-04 due 25 October covers April–September (H1 of the FY); due 25 April covers H2.
+    expect(periodCovered("HALF_YEARLY", new Date(Date.UTC(2026, 9, 25)), DUE_RULES.ITC04)).toBe(
+      "2026-H1"
+    );
+    expect(periodCovered("HALF_YEARLY", new Date(Date.UTC(2027, 3, 25)), DUE_RULES.ITC04)).toBe(
+      "2026-H2"
+    );
+    expect(periodCovered("HALF_YEARLY", new Date(Date.UTC(2026, 9, 31)), DUE_RULES.MSME_1)).toBe(
       "2026-H1"
     );
   });

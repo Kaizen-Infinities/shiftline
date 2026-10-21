@@ -22,7 +22,21 @@ interface DueRule {
   day: number;
   /** Months after the end of the period; 1 means "the month after the one it covers". */
   monthsAfter: number;
+  /**
+   * Filings whose date is not the same day every cycle (the TDS quarterly returns fall on 31 May,
+   * not 30 April, for the January-March quarter): each due month (0-based), the day, and the
+   * month (0-based) in which the period it covers closes. Overrides `day` and `monthsAfter`.
+   */
+  dues?: { month: number; day: number; coveredEndMonth: number }[];
 }
+
+/** TDS returns: Q1 by 31 Jul, Q2 by 31 Oct, Q3 by 31 Jan, Q4 by 31 May. */
+const TDS_QUARTERLY_DUES: NonNullable<DueRule["dues"]> = [
+  { month: 6, day: 31, coveredEndMonth: 5 },
+  { month: 9, day: 31, coveredEndMonth: 8 },
+  { month: 0, day: 31, coveredEndMonth: 11 },
+  { month: 4, day: 31, coveredEndMonth: 2 },
+];
 
 /**
  * The statutory dates. Kept beside the registry rather than in it because these are deadlines,
@@ -36,11 +50,18 @@ export const DUE_RULES: Record<string, DueRule> = {
   GSTR9: { day: 31, monthsAfter: 9 },
   ITC04: { day: 25, monthsAfter: 1 },
   // MSME Form 1 is due a month after each half-year: 31 October and 30 April.
-  MSME_1: { day: 30, monthsAfter: 1 },
+  MSME_1: {
+    day: 30,
+    monthsAfter: 1,
+    dues: [
+      { month: 9, day: 31, coveredEndMonth: 8 },
+      { month: 3, day: 30, coveredEndMonth: 2 },
+    ],
+  },
   TDS_CHALLAN: { day: 7, monthsAfter: 1 },
-  TDS_26Q: { day: 31, monthsAfter: 1 },
-  TDS_27Q: { day: 31, monthsAfter: 1 },
-  TDS_24Q: { day: 31, monthsAfter: 1 },
+  TDS_26Q: { day: 31, monthsAfter: 1, dues: TDS_QUARTERLY_DUES },
+  TDS_27Q: { day: 31, monthsAfter: 1, dues: TDS_QUARTERLY_DUES },
+  TDS_24Q: { day: 31, monthsAfter: 1, dues: TDS_QUARTERLY_DUES },
   PF_ECR: { day: 15, monthsAfter: 1 },
   ESI_MONTHLY: { day: 15, monthsAfter: 1 },
   PT_RETURN: { day: 21, monthsAfter: 1 },
@@ -79,19 +100,32 @@ const clampDay = (year: number, monthIndex: number, day: number) => {
 
 /** The period key a filing of this cadence covers, `monthsAfter` before the given month. */
 export const periodCovered = (cadence: FilingCadence, due: Date, rule: DueRule): string => {
-  const anchor = new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth() - rule.monthsAfter, 1));
+  const entry = rule.dues?.find((d) => d.month === due.getUTCMonth());
+  const anchor = entry
+    ? new Date(
+        Date.UTC(
+          entry.coveredEndMonth <= due.getUTCMonth()
+            ? due.getUTCFullYear()
+            : due.getUTCFullYear() - 1,
+          entry.coveredEndMonth,
+          1
+        )
+      )
+    : new Date(Date.UTC(due.getUTCFullYear(), due.getUTCMonth() - rule.monthsAfter, 1));
   const y = anchor.getUTCFullYear();
   const m = anchor.getUTCMonth();
+  // Quarters and halves follow the financial year (April start), as the TDS and MSME screens do.
+  const fyStart = m >= 3 ? y : y - 1;
+  const fyMonth = (m - 3 + 12) % 12;
   switch (cadence) {
     case "MONTHLY":
       return `${y}-${String(m + 1).padStart(2, "0")}`;
     case "QUARTERLY":
-      return `${y}-Q${Math.floor(m / 3) + 1}`;
+      return `${fyStart}-Q${Math.floor(fyMonth / 3) + 1}`;
     case "HALF_YEARLY":
-      return `${y}-H${m < 6 ? 1 : 2}`;
+      return `${fyStart}-H${fyMonth < 6 ? 1 : 2}`;
     case "ANNUAL": {
       // The annual return covers the financial year that ended before the due date.
-      const fyStart = m >= 3 ? y : y - 1;
       return `${fyStart}-${String((fyStart + 1) % 100).padStart(2, "0")}`;
     }
   }
@@ -99,6 +133,7 @@ export const periodCovered = (cadence: FilingCadence, due: Date, rule: DueRule):
 
 /** Whether a filing of this cadence is due in the given month at all. */
 const dueThisMonth = (cadence: FilingCadence, monthIndex: number, rule: DueRule): boolean => {
+  if (rule.dues) return rule.dues.some((d) => d.month === monthIndex);
   const covered = (monthIndex - rule.monthsAfter + 12) % 12;
   switch (cadence) {
     case "MONTHLY":
@@ -132,7 +167,8 @@ class ComplianceService {
         const rule = DUE_RULES[def.key];
         if (!rule) continue;
         if (!dueThisMonth(def.cadence, cursor.getUTCMonth(), rule)) continue;
-        const dueDate = clampDay(cursor.getUTCFullYear(), cursor.getUTCMonth(), rule.day);
+        const day = rule.dues?.find((d) => d.month === cursor.getUTCMonth())?.day ?? rule.day;
+        const dueDate = clampDay(cursor.getUTCFullYear(), cursor.getUTCMonth(), day);
         if (dueDate < from || dueDate >= to) continue;
         due.push({
           filingType: def.key,
