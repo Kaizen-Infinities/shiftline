@@ -20,6 +20,7 @@ import EditButton from "../../../components/ui/EditButton/EditButton";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import ViewButton from "../../../components/ui/viewbutton/ViewButton";
 import WastageViewModal from "../components/WastageViewModal";
+import { wastageUomLabel } from "../wastageUom";
 import DataTable from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { productionWastageService } from "../../../services/productionWastageService";
@@ -174,14 +175,7 @@ const WastageList: React.FC = () => {
       { header: "Shift", accessor: (item: any) => item.shift?.shiftName || item.shiftId || "" },
       {
         header: "Quantity",
-        accessor: (item: any) =>
-          `${item.quantity || 0} ${
-            item.uom && item.uom.toUpperCase() === "PCS"
-              ? "kg"
-              : String(item.uom || "kg")
-                  .split(",")[0]
-                  .toLowerCase()
-          }`,
+        accessor: (item: any) => `${item.quantity || 0} ${wastageUomLabel(item)}`.trim(),
       },
       { header: "Reason", accessor: (item: any) => item.reason || "" },
       { header: "Status", accessor: (item: any) => item.status || "" },
@@ -194,13 +188,6 @@ const WastageList: React.FC = () => {
 
   const totalPages = Math.ceil((total || 0) / ITEMS_PER_PAGE) || 1;
   const displayWastages = wastages || [];
-
-  const uomLabel = (item: any) =>
-    item.uom && item.uom.toUpperCase() === "PCS"
-      ? "kg"
-      : String(item.uom || "kg")
-          .split(",")[0]
-          .toLowerCase();
 
   const recordButton = can("production-wastages.create") ? (
     <ActionPill icon={<Plus size={18} />} onClick={() => navigate("/production-wastages/create")}>
@@ -285,7 +272,7 @@ const WastageList: React.FC = () => {
             align: "right",
             render: (item: any) => (
               <span className="font-bold text-ink tabular-nums">
-                {formatQty(item.quantity, uomLabel(item))}
+                {formatQty(item.quantity, wastageUomLabel(item))}
               </span>
             ),
           },
