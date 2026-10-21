@@ -70,13 +70,34 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
       fields: [
         { label: "PO Date", value: safeDate(purchaseOrder.poDate) },
         { label: "Expected Delivery", value: safeDate(purchaseOrder.expectedDeliveryDate) },
-        { label: "Supplier", value: purchaseOrder.supplier?.supplierName || "N/A" },
+        {
+          label: "Supplier",
+          value:
+            purchaseOrder.supplier?.displayName ||
+            purchaseOrder.supplier?.legalName ||
+            purchaseOrder.supplier?.supplierName ||
+            "N/A",
+        },
         { label: "Supplier Code", value: purchaseOrder.supplier?.supplierCode || "N/A" },
       ],
     },
     {
       title: "Addresses",
       fields: [
+        {
+          // E2E-B09: the supplier's address, so the PO can be sent to them. Bill-To stays our company.
+          label: "Supplier Address",
+          value: purchaseOrder.supplier?.billingAddressLine1 ? (
+            <>
+              {purchaseOrder.supplier.billingAddressLine1} <br />
+              {purchaseOrder.supplier.billingCity || "-"},{" "}
+              {purchaseOrder.supplier.billingState || "-"} <br />
+              {purchaseOrder.supplier.billingPincode || "-"}
+            </>
+          ) : (
+            "-"
+          ),
+        },
         {
           label: "Billing Address",
           value: (
@@ -295,7 +316,12 @@ const PurchaseOrderViewModal: React.FC<PurchaseOrderViewModalProps> = ({
       modalTitle="Purchase Order Details"
       avatarText="PO"
       headerTitle={purchaseOrder.poNumber}
-      headerSubtitle={purchaseOrder.supplier?.supplierName || "No Supplier"}
+      headerSubtitle={
+        purchaseOrder.supplier?.displayName ||
+        purchaseOrder.supplier?.legalName ||
+        purchaseOrder.supplier?.supplierName ||
+        "No Supplier"
+      }
       statusNode={<StatusBadge status={purchaseOrder.status} />}
       sections={sections}
       customContent={customContent}

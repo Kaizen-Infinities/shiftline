@@ -23,6 +23,12 @@ export interface Supplier {
     id: string;
     supplierCode: string;
     supplierName: string;
+    legalName?: string;
+    displayName?: string | null;
+    billingAddressLine1?: string | null;
+    billingCity?: string | null;
+    billingState?: string | null;
+    billingPincode?: string | null;
     contactPerson?: string;
     mobile?: string;
     email?: string;
