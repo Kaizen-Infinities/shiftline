@@ -29,3 +29,7 @@ export const getISTDateString = (d: Date = new Date()) => {
  */
 export const getISTDayStartUtc = (d: Date = new Date()): Date =>
   new Date(`${getISTDateString(d)}T00:00:00+05:30`);
+
+/** Last millisecond of the IST calendar day `d` falls on: the inclusive upper bound for `lte` filters. */
+export const getISTDayEndUtc = (d: Date = new Date()): Date =>
+  new Date(getISTDayStartUtc(d).getTime() + 24 * 60 * 60 * 1000 - 1);

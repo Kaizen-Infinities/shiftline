@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { prisma } from "../../config/prisma";
 import { VoucherType } from "@prisma/client";
 import { bankCashLedgerWhere, isCashLedger } from "../accounts/bank-cash-ledgers";
-import { getISTDayStartUtc } from "../../utils/dateUtils";
+import { getISTDayEndUtc, getISTDayStartUtc } from "../../utils/dateUtils";
 import { getTvSummary } from "./dashboard.tv.service";
 import { logger } from "../../lib/logger";
 
@@ -255,7 +255,9 @@ const dashboardController = {
         // year — current financial/calendar year from Jan 1
         periodStart = new Date(now.getFullYear(), 0, 1);
       }
-      const periodEnd = now;
+      // End of the IST day, not `now`: invoices are dated at UTC midnight (05:30 IST), so a
+      // reading taken before 05:30 IST would drop today's invoices (SET-B02).
+      const periodEnd = getISTDayEndUtc(now);
 
       // Fetch all data in ONE transaction — shares 1 pool connection instead of 20+
       const {
