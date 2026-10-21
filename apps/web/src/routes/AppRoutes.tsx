@@ -829,11 +829,14 @@ const AppRoutes = () => {
             {/* ================================================================= */}
 
             {/* ---------- Accounts Voucher Add Pages + Bank Statement ---------- */}
-            <Route element={<ProtectedRoute permissionAny={["vouchers.view", "accounts.view"]} />}>
+            {/* Posting a voucher needs vouchers.create (POST /api/vouchers); a viewer is turned away. */}
+            <Route element={<ProtectedRoute permission="vouchers.create" />}>
               <Route path="/accounts/payment-voucher/add" element={<PaymentVoucherAddPage />} />
               <Route path="/accounts/receipt-voucher/add" element={<ReceiptVoucherAddPage />} />
               <Route path="/accounts/journal-entry/add" element={<JournalEntryAddPage />} />
               <Route path="/accounts/contra-entry/add" element={<ContraVoucherAddPage />} />
+            </Route>
+            <Route element={<ProtectedRoute permissionAny={["vouchers.view", "accounts.view"]} />}>
               <Route path="/accounts/bank-accounts/:id" element={<BankStatementPage />} />
             </Route>
 
