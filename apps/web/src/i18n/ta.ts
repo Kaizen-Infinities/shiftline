@@ -119,6 +119,7 @@ export const ta: Messages = {
   "login.emailInvalid": "சரியான மின்னஞ்சல் முகவரியை உள்ளிடுங்கள்",
   "login.passwordRequired": "கடவுச்சொல் தேவை",
   "login.passwordShort": "கடவுச்சொல்லில் குறைந்தது 4 எழுத்துகள் இருக்க வேண்டும்",
+  "login.forgotPassword": "கடவுச்சொல்லை மறந்துவிட்டீர்களா?",
   "login.welcomeBack": "மீண்டும் வருக, {name}",
   "login.failed": "மின்னஞ்சல் அல்லது கடவுச்சொல் தவறு",
   "login.unexpected": "எதிர்பாராத பிழை ஏற்பட்டது",

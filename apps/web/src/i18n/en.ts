@@ -120,6 +120,7 @@ export const en = {
   "login.emailInvalid": "Please enter a valid email address",
   "login.passwordRequired": "Password is required",
   "login.passwordShort": "Password must be at least 4 characters",
+  "login.forgotPassword": "Forgot password?",
   "login.welcomeBack": "Welcome back, {name}",
   "login.failed": "Invalid email or password",
   "login.unexpected": "An unexpected error occurred",

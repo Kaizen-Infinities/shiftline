@@ -1,5 +1,5 @@
 import { useState, useEffect, useId } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { MAKER } from "../../../components/brand/BrandMark";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { toast } from "react-toastify";
@@ -245,6 +245,11 @@ const LoginPage = () => {
                 {validationErrors.password}
               </p>
             )}
+            <div className="mt-1.5 flex justify-end">
+              <Link to="/reset" className="text-sm font-semibold text-accent hover:underline">
+                {t("login.forgotPassword")}
+              </Link>
+            </div>
           </div>
 
           <div className="pt-2">
