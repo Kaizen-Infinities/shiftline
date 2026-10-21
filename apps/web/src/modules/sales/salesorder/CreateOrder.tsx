@@ -756,26 +756,31 @@ const SalesOrderForm: React.FC = () => {
           const itemValue = watchedItems?.[index];
           const orderQty = itemValue?.orderQuantity ?? "";
           return (
-            <input
-              type="text"
-              inputMode="numeric"
-              value={orderQty}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9]/g, "");
-                const qty = raw || "";
-                setValue(`items.${index}.orderQuantity`, qty);
-                const numQty = Math.max(1, Number(qty) || 1);
-                const comps = itemValue?.components || [];
-                const updated = comps.map((c: any) => ({
-                  ...c,
-                  quantity: String(c.perUnit * numQty),
-                }));
-                setValue(`items.${index}.components`, updated);
-              }}
-              placeholder="0"
-              aria-label={`Quantity, line ${index + 1}`}
-              className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0"
-            />
+            <>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={orderQty}
+                onChange={(e) => {
+                  // Keep a typed minus sign so the line can be flagged; it is rejected on submit.
+                  const raw = e.target.value.replace(/[^0-9-]/g, "").replace(/(?!^)-/g, "");
+                  const qty = raw || "";
+                  setValue(`items.${index}.orderQuantity`, qty);
+                  const numQty = Math.max(1, Number(qty) || 1);
+                  const comps = itemValue?.components || [];
+                  const updated = comps.map((c: any) => ({
+                    ...c,
+                    quantity: String(c.perUnit * numQty),
+                  }));
+                  setValue(`items.${index}.components`, updated);
+                }}
+                placeholder="0"
+                aria-label={`Quantity, line ${index + 1}`}
+                aria-invalid={orderQty.includes("-") || undefined}
+                className="w-full bg-transparent text-[13px] text-ink text-center outline-none border-none p-0"
+              />
+              {orderQty.includes("-") && <Err message="Quantity must be positive" />}
+            </>
           );
         },
       },
@@ -804,6 +809,11 @@ const SalesOrderForm: React.FC = () => {
 
   // ─── Submit ──────────────────────────────────────────────────────
   const onSubmit = async (data: SalesOrderFormValues, action: "draft" | "quotation" | "order") => {
+    const negativeLine = data.items.findIndex((item) => (item.orderQuantity ?? "").includes("-"));
+    if (negativeLine >= 0) {
+      toast.error(`Quantity must be positive on line ${negativeLine + 1}`);
+      return;
+    }
     setIsSubmitting(true);
     try {
       const expandedItems: {
