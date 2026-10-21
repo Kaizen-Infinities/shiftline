@@ -35,6 +35,7 @@ import {
 const ACCOUNT_LOCK_THRESHOLD = 5;
 const ACCOUNT_LOCK_DURATION_MINUTES = 30;
 const RATE_LIMIT_THRESHOLD = 10;
+const SITE_RATE_LIMIT_THRESHOLD = 100;
 const RATE_LIMIT_WINDOW_MINUTES = 15;
 
 export class AuthService {
@@ -138,14 +139,15 @@ export class AuthService {
       }
     }
 
-    // Rate limiting check
+    // Rate limiting: per account from one address (a typo-ing user), plus a larger ceiling per
+    // address so one factory network is not locked out by a few people.
     if (ipAddress) {
-      const recentFailedAttempts = await authRepository.getRecentFailedAttempts(
-        ipAddress,
-        RATE_LIMIT_WINDOW_MINUTES
-      );
+      const [forAccount, forSite] = await Promise.all([
+        authRepository.getRecentFailedAttempts(ipAddress, RATE_LIMIT_WINDOW_MINUTES, payload.email),
+        authRepository.getRecentFailedAttempts(ipAddress, RATE_LIMIT_WINDOW_MINUTES),
+      ]);
 
-      if (recentFailedAttempts >= RATE_LIMIT_THRESHOLD) {
+      if (forAccount >= RATE_LIMIT_THRESHOLD || forSite >= SITE_RATE_LIMIT_THRESHOLD) {
         await authRepository.recordLoginAttempt({
           username: payload.email,
           ipAddress,
@@ -154,7 +156,12 @@ export class AuthService {
           userAgent,
         });
 
-        throw new ApiError(429, "Too many login attempts. Please try again later.");
+        throw new ApiError(
+          429,
+          "Too many sign-in attempts. Please wait a few minutes and try again.",
+          "RATE_LIMITED",
+          { retryAfterSeconds: RATE_LIMIT_WINDOW_MINUTES * 60 }
+        );
       }
     }
 

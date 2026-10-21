@@ -419,13 +419,20 @@ export class AuthRepository {
     });
   }
 
-  async getRecentFailedAttempts(ipAddress: string, minutes: number = 15): Promise<number> {
+  async getRecentFailedAttempts(
+    ipAddress: string,
+    minutes: number = 15,
+    username?: string
+  ): Promise<number> {
     const since = new Date(Date.now() - minutes * 60 * 1000);
 
     const result = await prisma.loginAttempt.count({
       where: {
         ipAddress,
         success: false,
+        // Blocked attempts are not failures: counting them would extend the window forever.
+        failureReason: { notIn: ["rate_limit_exceeded", "account_locked"] },
+        ...(username ? { username: { equals: username, mode: "insensitive" as const } } : {}),
         attemptedAt: {
           gte: since,
         },

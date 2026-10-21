@@ -111,10 +111,15 @@ const authLimiter = rateLimit({
   skip: () => isTest,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: {
-    success: false,
-    message: "Too many login attempts. Please try again later.",
-    errors: [],
+  handler: (_req, res, _next, options) => {
+    const retryAfter = Math.ceil(options.windowMs / 1000);
+    res.setHeader("Retry-After", String(retryAfter));
+    res.status(429).json({
+      success: false,
+      message: "Too many login attempts. Please wait a few minutes and try again.",
+      errors: [],
+      code: "RATE_LIMITED",
+    });
   },
 });
 // Request id first so every later log line and error response carries it.

@@ -90,6 +90,8 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
       logger.error({ err, method: req.method, url: redactUrl(req.originalUrl) }, "API error");
       captureError(err, { method: req.method, url: redactUrl(req.originalUrl) });
     }
+    const retryAfter = err.details?.retryAfterSeconds;
+    if (typeof retryAfter === "number") res.setHeader("Retry-After", String(retryAfter));
     return send(res, err.statusCode, err.message, [], undefined, {
       code: err.code,
       details: err.details,

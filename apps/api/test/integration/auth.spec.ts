@@ -72,6 +72,19 @@ describe("authentication", () => {
     }
     expect(statuses.slice(0, 10).every((s) => s === 401)).toBe(true);
     expect(statuses.slice(10)).toEqual([429, 429]);
+    // H45: the block is per account, carries Retry-After, and another account on the same IP still signs in.
+    const blocked = await (
+      await api()
+    )
+      .post("/api/auth/login")
+      .send({ email: ADMIN.email, password: "wrong-password-!!" });
+    expect(blocked.headers["retry-after"]).toBe("900");
+    const other = await (
+      await api()
+    )
+      .post("/api/auth/login")
+      .send({ email: "demo.owner", password: "Test@12345678" });
+    expect(other.status).toBe(200);
     const recorded = await prisma.loginAttempt.count({
       where: { success: false, adminId: { not: null } },
     });
