@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import {
   Building2,
   Eraser,
+  Loader2,
   MapPin,
   Percent,
   Plus,
@@ -33,6 +34,7 @@ import AddressForm from "../../../components/form/AddressFrom/AddressFrom";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import { useSocket } from "../../../providers/SocketProvider";
 import { usePermission } from "../../../hooks/usePermission";
+import { fetchSupplierCodeWithRetry } from "../supplierCode";
 import { tdsService, type TdsSectionRow } from "../../../services/tdsService";
 import { supplierGstFields } from "../supplierGst";
 
@@ -127,6 +129,10 @@ const SupplierForm: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  // New suppliers get their code from the server; "failed" leaves the field open for a typed code.
+  const [codeState, setCodeState] = useState<"loading" | "ready" | "failed">(
+    isEdit ? "ready" : "loading"
+  );
   const [phones, setPhones] = useState<PhoneEntry[]>([]);
   const [initialSupplier, setInitialSupplier] = useState<any>(null);
   // P2-17: sections for the TDS default picker; skipped for a role without tds.view.
@@ -262,17 +268,22 @@ const SupplierForm: React.FC = () => {
           }
         }
       } else {
-        try {
-          const nextCode = await supplierService.fetchNextCode();
-          if (nextCode) {
-            setFormData((prev) => ({
-              ...prev,
-              supplierCode: nextCode,
-              createdByOn: user?.username || "",
-            }));
-          }
-        } catch (err) {
-          console.error("Failed to fetch next code:", err);
+        setCodeState("loading");
+        const nextCode = await fetchSupplierCodeWithRetry(() => supplierService.fetchNextCode());
+        if (nextCode) {
+          setFormData((prev) => ({
+            ...prev,
+            supplierCode: nextCode,
+            createdByOn: user?.username || "",
+          }));
+          setCodeState("ready");
+        } else {
+          setFormData((prev) => ({ ...prev, createdByOn: user?.username || "" }));
+          setCodeState("failed");
+          setErrors((prev) => ({
+            ...prev,
+            supplierCode: "Could not generate a code. Type one to continue.",
+          }));
         }
       }
     };
@@ -362,9 +373,13 @@ const SupplierForm: React.FC = () => {
       ]);
       setPhones([]);
       setErrors({});
-      supplierService.fetchNextCode().then((nextCode) => {
+      setCodeState("loading");
+      fetchSupplierCodeWithRetry(() => supplierService.fetchNextCode()).then((nextCode) => {
         if (nextCode) {
           setFormData((prev) => ({ ...prev, supplierCode: nextCode }));
+          setCodeState("ready");
+        } else {
+          setCodeState("failed");
         }
       });
     }
@@ -473,6 +488,10 @@ const SupplierForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+    if (!isEdit && codeState === "loading") {
+      toast.info("The supplier code is still being generated. Try again in a moment.");
+      return;
+    }
     setIsSubmitting(true);
 
     const primaryMobile = phones && phones.length > 0 ? phones[0].number : "";
@@ -616,11 +635,12 @@ const SupplierForm: React.FC = () => {
               label="Supplier Code"
               name="supplierCode"
               value={formData.supplierCode}
-              placeholder="SUP-001"
+              placeholder={codeState === "loading" ? "Generating code" : "SUP001"}
               required
               error={errors.supplierCode}
               onChange={handleChange}
-              disabled
+              disabled={isEdit || codeState === "loading"}
+              icon={codeState === "loading" ? <Loader2 size={16} className="animate-spin" /> : undefined}
             />
             <TextInput
               label="Legal Name"
