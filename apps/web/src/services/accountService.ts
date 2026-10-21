@@ -207,6 +207,8 @@ export const accountService = {
     id: number,
     params?: { startDate?: string; endDate?: string; search?: string }
   ): Promise<LedgerStatementResult> => {
+    // No ledger picked yet (0, NaN): there is nothing to fetch, and asking would only 404.
+    if (!Number.isInteger(id) || id <= 0) throw new Error("No ledger selected");
     const response = await apiClient.get(`/accounts/ledgers/${id}/statement`, { params });
     return response.data?.data || response.data;
   },
