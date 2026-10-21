@@ -11,6 +11,7 @@ import { emitToTenant } from "../../lib/realtime";
 import { logger } from "../../lib/logger";
 import { byCode } from "../../lib/prisma";
 import { requireTenantId } from "../../lib/tenant-context";
+import { getISTDateString, getISTDayStartUtc } from "../../utils/dateUtils";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -303,24 +304,35 @@ class HourlyProductionService {
       }
     }
 
-    // 5. Future Time Entry (Commented out to allow logging and testing future dates)
-    /*
+    // 5. Future Date / Future Time Entry. Shop days are IST, so "today" is the IST calendar day.
     const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const istToday = getISTDateString(now);
+    const [ty, tm, td] = istToday.split("-").map(Number);
+    const todayCalendar = new Date(Date.UTC(ty, tm - 1, td));
 
-    if (prodDate > today) {
+    if (prodDate > todayCalendar) {
       throw new ApiError(400, "Future Time Entry: Cannot enter production for a future date");
     }
 
-    if (prodDate.getTime() === today.getTime()) {
-      const [startHour, startMin] = shift.startTime.split(":").map(Number);
-      const slotStartTime = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), startHour + (data.hourIndex - 1), startMin, 0, 0));
+    if (prodDate.getTime() === todayCalendar.getTime() && Number(data.hourIndex) > 0) {
+      const shiftForSlot = await prisma.shift.findUnique({
+        where: byCode("shiftCode", data.shiftId),
+      });
+      if (shiftForSlot?.startTime) {
+        // Slot N starts N-1 hours after the shift start; shift times are IST wall-clock.
+        const [startHour, startMin] = shiftForSlot.startTime.split(":").map(Number);
+        const istMidnight = getISTDayStartUtc(now).getTime();
+        const minutesIntoDay = startHour * 60 + startMin + (Number(data.hourIndex) - 1) * 60;
+        const slotStartTime = new Date(istMidnight + minutesIntoDay * 60_000);
 
-      if (slotStartTime > now) {
-        throw new ApiError(400, "Future Time Entry: Cannot log hourly production for a future time slot");
+        if (slotStartTime > now) {
+          throw new ApiError(
+            400,
+            "Future Time Entry: Cannot log hourly production for a future time slot"
+          );
+        }
       }
     }
-    */
 
     // 6. Negative Quantity (handled by Zod but let's be double sure)
     if (

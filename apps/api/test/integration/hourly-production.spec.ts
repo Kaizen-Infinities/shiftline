@@ -4,6 +4,7 @@ import { api, authed } from "../helpers/app";
 import { getPrisma } from "../helpers/db";
 import { asDemoTenant, createProduct } from "../factories";
 import { runAsTenant, withoutTenant } from "../../src/lib/tenant-context";
+import { getISTDateString } from "../../src/utils/dateUtils";
 
 /**
  * Hourly production (characterisation, Phase 2-T #4 — docs/archive/handoff/2026-09-13-commission-
@@ -18,13 +19,23 @@ import { runAsTenant, withoutTenant } from "../../src/lib/tenant-context";
  * used. Machine and Shift existence themselves are never checked in validation; only the eventual
  * insert's foreign keys would catch a bogus one.
  *
- * `2031-02-10` is a Monday, so it doubles as its own `weekStartDate`/`dayOfWeek` for the weekly
- * program fixture below.
+ * `2020-02-10` is a Monday, so it doubles as its own `weekStartDate`/`dayOfWeek` for the weekly
+ * program fixture below. It must be a past date: entries for future dates or future hour slots are
+ * refused (H33).
  */
 const sfx = Date.now().toString(36).slice(-5);
-const PRODUCTION_DATE = "2031-02-10";
-const WEEK_START = new Date(Date.UTC(2031, 1, 10));
-const WEEK_END = new Date(Date.UTC(2031, 1, 16));
+const PRODUCTION_DATE = "2020-02-10";
+const WEEK_START = new Date(Date.UTC(2020, 1, 10));
+const WEEK_END = new Date(Date.UTC(2020, 1, 16));
+
+/** Monday of the week holding a calendar date (YYYY-MM-DD), its Sunday, and dayOfWeek (Mon=1). */
+const scheduleFor = (ymd: string) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d));
+  const dayOfWeek = day.getUTCDay() || 7;
+  const monday = new Date(day.getTime() - (dayOfWeek - 1) * 86_400_000);
+  return { monday, sunday: new Date(monday.getTime() + 6 * 86_400_000), dayOfWeek };
+};
 
 let OWNER: { auth: Record<string, string> };
 
@@ -150,6 +161,119 @@ describe("hourly production", () => {
       .set(OWNER.auth);
     expect(byId.status).toBe(200);
     expect(byId.body.data.machineId).toBe(machineId);
+  });
+
+  it("refuses an entry dated after today (IST)", async () => {
+    // 48 hours ahead is always at least one IST calendar day in the future.
+    const future = getISTDateString(new Date(Date.now() + 48 * 3_600_000));
+    const prisma = await getPrisma();
+    const { monday, sunday, dayOfWeek } = scheduleFor(future);
+    await asDemoTenant(() =>
+      prisma.weeklyMachineProgram.create({
+        data: {
+          weeklyProgramId: `WP-FUT-${sfx}`,
+          weekStartDate: monday,
+          weekEndDate: sunday,
+          dayOfWeek,
+          machineId,
+          shiftId,
+          productionOrderId,
+          plannedQty,
+        },
+      })
+    );
+
+    const res = await (await api()).post("/api/hourly-productions").set(OWNER.auth).send({
+      productionOrderId,
+      productionDate: future,
+      shiftId,
+      machineId,
+      hourIndex: 1,
+      qtyProduced: 10,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/Cannot enter production for a future date/);
+  });
+
+  it("refuses an hour slot that has not started yet today (IST)", async () => {
+    // Slot 1 starts at 23:59 IST: refused at any time of day except the last minute of the IST day.
+    const today = getISTDateString();
+    const prisma = await getPrisma();
+    const lateShift = `SHL-${sfx}`;
+    const { monday, sunday, dayOfWeek } = scheduleFor(today);
+    await asDemoTenant(async () => {
+      await prisma.shift.create({
+        data: {
+          shiftCode: lateShift,
+          shiftName: `Late Shift ${sfx}`,
+          startTime: "23:59",
+          endTime: "23:59",
+        },
+      });
+      await prisma.weeklyMachineProgram.create({
+        data: {
+          weeklyProgramId: `WP-LATE-${sfx}`,
+          weekStartDate: monday,
+          weekEndDate: sunday,
+          dayOfWeek,
+          machineId,
+          shiftId: lateShift,
+          productionOrderId,
+          plannedQty,
+        },
+      });
+    });
+
+    const res = await (await api()).post("/api/hourly-productions").set(OWNER.auth).send({
+      productionOrderId,
+      productionDate: today,
+      shiftId: lateShift,
+      machineId,
+      hourIndex: 1,
+      qtyProduced: 10,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/Cannot log hourly production for a future time slot/);
+  });
+
+  it("accepts an entry for today once its hour slot has started (IST)", async () => {
+    // A shift starting at midnight IST has always started, so slot 1 is open at any time of day.
+    const today = getISTDateString();
+    const prisma = await getPrisma();
+    const earlyShift = `SHE-${sfx}`;
+    const { monday, sunday, dayOfWeek } = scheduleFor(today);
+    await asDemoTenant(async () => {
+      await prisma.shift.create({
+        data: {
+          shiftCode: earlyShift,
+          shiftName: `Early Shift ${sfx}`,
+          startTime: "00:00",
+          endTime: "23:59",
+        },
+      });
+      await prisma.weeklyMachineProgram.create({
+        data: {
+          weeklyProgramId: `WP-EARLY-${sfx}`,
+          weekStartDate: monday,
+          weekEndDate: sunday,
+          dayOfWeek,
+          machineId,
+          shiftId: earlyShift,
+          productionOrderId,
+          plannedQty,
+        },
+      });
+    });
+
+    const res = await (await api()).post("/api/hourly-productions").set(OWNER.auth).send({
+      productionOrderId,
+      productionDate: today,
+      shiftId: earlyShift,
+      machineId,
+      hourIndex: 1,
+      qtyProduced: 5,
+    });
+    expect(res.status, JSON.stringify(res.body).slice(0, 300)).toBe(201);
   });
 
   it("refuses a second entry for the same machine, date, shift and hour", async () => {
