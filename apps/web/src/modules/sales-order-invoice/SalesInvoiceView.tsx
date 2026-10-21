@@ -440,7 +440,8 @@ const SalesInvoiceView: React.FC = () => {
       if (!element) return;
 
       const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL("image/png");
+      // JPEG keeps the page snapshot at a few hundred KB instead of several MB as PNG.
+      const imgData = canvas.toDataURL("image/jpeg", 0.9);
 
       const pdf = new jsPDF("p", "mm", "a4");
       const margin = 10;
@@ -457,13 +458,13 @@ const SalesInvoiceView: React.FC = () => {
       let heightLeft = renderHeight;
       let position = margin;
 
-      pdf.addImage(imgData, "PNG", margin, position, imgWidth, renderHeight);
+      pdf.addImage(imgData, "JPEG", margin, position, imgWidth, renderHeight);
       heightLeft -= availableHeight;
 
       while (heightLeft > 0) {
         position -= availableHeight;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+        pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
         heightLeft -= availableHeight;
       }
 
