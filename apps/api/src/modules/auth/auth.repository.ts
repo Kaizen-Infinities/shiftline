@@ -133,17 +133,27 @@ export class AuthRepository {
     }) as Promise<PrismaUser>;
   }
 
-  async incrementFailedAttempts(userId: string): Promise<PrismaUser> {
+  async incrementFailedAttempts(
+    userId: string,
+    lockThreshold = 5,
+    lockMinutes = 30
+  ): Promise<PrismaUser> {
     const user = await this.findUserById(userId);
     if (!user) throw new Error("User not found");
 
     const newFailedAttempts = user.failedAttempts + 1;
-    const shouldLock = newFailedAttempts >= 5; // Lock after 5 failed attempts
+    const shouldLock = newFailedAttempts >= lockThreshold;
 
     return prisma.user.update({
       where: { userId },
       data: {
         failedAttempts: newFailedAttempts,
+        ...(shouldLock
+          ? {
+              status: UserStatus.LOCKED,
+              lockedUntil: new Date(Date.now() + lockMinutes * 60 * 1000),
+            }
+          : {}),
       },
     }) as Promise<PrismaUser>;
   }

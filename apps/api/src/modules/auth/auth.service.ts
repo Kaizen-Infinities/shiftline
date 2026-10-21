@@ -170,8 +170,25 @@ export class AuthService {
     }
 
     if (user && user.status === UserStatus.LOCKED) {
-      await authRepository.unlockUser(user.userId);
-      user.status = UserStatus.ACTIVE;
+      const lockedUntil: Date | null = user.lockedUntil ?? null;
+      if (lockedUntil && lockedUntil.getTime() <= Date.now()) {
+        // The lock window has passed: unlock and let this attempt proceed.
+        await authRepository.unlockUser(user.userId);
+        user.status = UserStatus.ACTIVE;
+      } else {
+        await authRepository.recordLoginAttempt({
+          username: payload.email,
+          ipAddress: ipAddress ?? "unknown",
+          success: false,
+          failureReason: "account_locked",
+          userAgent,
+        });
+        throw new ApiError(
+          423,
+          "This account is temporarily locked after too many failed sign-in attempts. Try again later or ask your administrator to reset it.",
+          "ACCOUNT_LOCKED"
+        );
+      }
     }
 
     if (!user || user.status !== UserStatus.ACTIVE) {
@@ -191,7 +208,11 @@ export class AuthService {
 
     if (!passwordMatches) {
       if (!isAdminLogin) {
-        await authRepository.incrementFailedAttempts(user.userId);
+        await authRepository.incrementFailedAttempts(
+          user.userId,
+          ACCOUNT_LOCK_THRESHOLD,
+          ACCOUNT_LOCK_DURATION_MINUTES
+        );
       }
 
       // SEC-01: every failed attempt is recorded, admin logins included, so the

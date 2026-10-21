@@ -85,3 +85,45 @@ describe("password reset request", () => {
     expect(sent.text).toMatch(/\/reset\?token=[0-9a-f]{64}/);
   });
 });
+
+describe("account lockout (H44)", () => {
+  it("locks after the threshold, refuses even the right password, and unlocks after the window", async () => {
+    const prisma = await getPrisma();
+    const username = "demo.owner";
+    const reset = () =>
+      withoutTenant(() =>
+        prisma.user.update({
+          where: { username },
+          data: { status: "active", failedAttempts: 0, lockedUntil: null },
+        })
+      );
+    await reset();
+    const client = await api();
+    try {
+      for (let i = 0; i < 5; i++) {
+        const bad = await client
+          .post("/api/auth/login")
+          .send({ email: username, password: "wrong-pass-1" });
+        expect(bad.status).toBe(401);
+      }
+      const locked = await client
+        .post("/api/auth/login")
+        .send({ email: username, password: "Test@12345678" });
+      expect(locked.status).toBe(423);
+      expect(locked.body.code ?? locked.body.errorCode).toBe("ACCOUNT_LOCKED");
+
+      await withoutTenant(() =>
+        prisma.user.update({
+          where: { username },
+          data: { lockedUntil: new Date(Date.now() - 1000) },
+        })
+      );
+      const ok = await client
+        .post("/api/auth/login")
+        .send({ email: username, password: "Test@12345678" });
+      expect(ok.status).toBe(200);
+    } finally {
+      await reset();
+    }
+  });
+});
