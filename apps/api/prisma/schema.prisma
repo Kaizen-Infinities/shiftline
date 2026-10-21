@@ -443,6 +443,7 @@ model Department {
 
   company Company @relation("CompanyDepartment", fields: [companyId], references: [id], onDelete: Restrict)
 
+  @@unique([companyId, name])
   @@index([companyId])
   @@map("departments")
 }

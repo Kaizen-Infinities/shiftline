@@ -68,7 +68,7 @@ class CustomerService {
     });
 
     if (existingCustomer) {
-      throw new Error("Customer code already exists for this company");
+      throw new ApiError(409, "Customer code already exists for this company");
     }
     await this.assertTypeAndGrade(data);
 

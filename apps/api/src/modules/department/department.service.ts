@@ -23,9 +23,17 @@ export const createDepartmentService =
       );
     }
 
-    return prisma.department.create({
-      data: payload,
-    });
+    try {
+      return await prisma.department.create({
+        data: payload,
+      });
+    } catch (err) {
+      // A racing identical create passed the check above; the unique index (companyId, name) refuses it.
+      if ((err as { code?: string })?.code === "P2002") {
+        throw new ApiError(409, "Department already exists");
+      }
+      throw err;
+    }
   };
 
 export const getAllDepartmentsService =
@@ -133,10 +141,17 @@ export const updateDepartmentService =
       );
     }
 
-    return prisma.department.update({
-      where: { id },
-      data: payload,
-    });
+    try {
+      return await prisma.department.update({
+        where: { id },
+        data: payload,
+      });
+    } catch (err) {
+      if ((err as { code?: string })?.code === "P2002") {
+        throw new ApiError(409, "Department already exists");
+      }
+      throw err;
+    }
   };
 
 export const getDepartmentByIdService =
