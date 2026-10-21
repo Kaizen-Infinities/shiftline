@@ -70,6 +70,25 @@ describe("production wastage", () => {
     });
   });
 
+  it("creates logs as drafts only, so approval always runs its postings (H35)", async () => {
+    // The UI used to send status APPROVED, which skipped the approve() valuation and target-stock
+    // postings and left no approver stamp.
+    const rejected = await (
+      await api()
+    )
+      .post("/api/production-wastages")
+      .set(OWNER.auth)
+      .send(body({ status: "APPROVED" }));
+    expect(rejected.status).toBe(400);
+    expect(rejected.body.message).toMatch(/created as DRAFT/);
+
+    const made = await (await api()).post("/api/production-wastages").set(OWNER.auth).send(body());
+    expect(made.status).toBe(201);
+    expect(made.body.data.status).toBe("DRAFT");
+    expect(made.body.data.approvedBy).toBeNull();
+    expect(made.body.data.approvedAt).toBeNull();
+  });
+
   it("creates, lists, reads, edits, approves and deletes a log", async () => {
     const client = await api();
     const made = await create();

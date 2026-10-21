@@ -212,7 +212,6 @@ const WastageForm: React.FC = () => {
       correctiveAction: formData.correctiveAction || null,
       remarks: formData.remarks || null,
       categoryId: formData.categoryId ? Number(formData.categoryId) : null,
-      status: "APPROVED",
     };
 
     setLoading(true);
@@ -222,7 +221,7 @@ const WastageForm: React.FC = () => {
         toast.success("Production wastage log updated successfully");
       } else {
         await dispatch(createProductionWastage(payload)).unwrap();
-        toast.success("Production wastage log logged successfully");
+        toast.success("Wastage log saved as draft. Approve it from the wastage list.");
       }
       navigate("/production-wastages");
     } catch (err: any) {

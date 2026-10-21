@@ -72,6 +72,12 @@ class ProductionWastageService {
   }
 
   async create(data: CreateProductionWastageInput, userId: string) {
+    // A log is always born DRAFT. Approval runs the valuation and target-stock postings in
+    // approve(); a row created as APPROVED would skip them.
+    if (data.status && data.status !== "DRAFT") {
+      throw new ApiError(400, "A wastage log is created as DRAFT and approved separately");
+    }
+
     const [yyyy, mm, dd] = data.wastageDate.split("-").map(Number);
     const wDate = new Date(Date.UTC(yyyy, mm - 1, dd));
 
@@ -172,7 +178,7 @@ class ProductionWastageService {
         remarks: data.remarks ?? null,
         isRecyclable: data.isRecyclable ?? false,
         sentForRework: data.sentForRework ?? false,
-        status: data.status ?? "DRAFT",
+        status: "DRAFT",
         createdBy: userId,
         categoryId: data.categoryId ?? null,
       },
