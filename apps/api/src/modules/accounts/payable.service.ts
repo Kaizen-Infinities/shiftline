@@ -160,6 +160,10 @@ class PayableService {
           OR: [{ debitLedgerId: { in: ledgerIds } }, { creditLedgerId: { in: ledgerIds } }],
           voucher: {
             date: voucherDateFilter,
+            // A cancelled voucher and the reversal that nets it cancel each other out; counting
+            // either (a reversal reads as a payment) misstated billed and paid after an edit.
+            status: "POSTED",
+            reversalOfId: null,
           },
         },
         include: {
@@ -253,7 +257,17 @@ class PayableService {
       const credit = totalBilled + (openingBalance > 0 ? openingBalance : 0);
       const debit = totalPaid + totalReturned + (openingBalance < 0 ? Math.abs(openingBalance) : 0);
       const balanceAsOnDate = netLiability;
-      const isOverdue = balanceAsOnDate > 0;
+      // Overdue means a bill whose due date has passed and is still unpaid, not any balance.
+      const overdueBills = grnInvoices.reduce((sum: number, g: any) => {
+        if (!g.billDueDate || new Date(g.billDueDate).getTime() >= cutoffDate.getTime()) return sum;
+        const b = Number(g.netAmount || g.subtotal || g.grandTotal || g.totalAmount || 0);
+        const pList = extractPaymentsArray(g.payments);
+        const pSum = pList.reduce((acc: number, p: any) => acc + (Number(p.amount) || 0), 0);
+        return sum + Math.max(0, b - Math.max(pSum, Number(g.paidAmount || 0)));
+      }, 0);
+      // Never more than what is actually owed after payments and returns.
+      const overdueAmount = Math.max(0, Math.min(overdueBills, balanceAsOnDate));
+      const isOverdue = overdueAmount > 0;
 
       const earliestUnpaidDueDate = grnInvoices
         .filter((g: any) => {
@@ -292,7 +306,7 @@ class PayableService {
         credit,
         netBalance,
         balanceAsOnDate,
-        overdueAmount: isOverdue ? balanceAsOnDate : 0,
+        overdueAmount,
         dueDays,
         isOverdue,
       };
