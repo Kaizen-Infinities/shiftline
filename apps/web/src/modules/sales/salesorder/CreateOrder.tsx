@@ -861,16 +861,20 @@ const SalesOrderForm: React.FC = () => {
       if (targetId) {
         await salesOrderService.update(targetId, payload);
         toast.success("Sales Order updated successfully!");
+        navigate(-1);
       } else {
-        await salesOrderService.create(payload);
+        const created = await salesOrderService.create(payload);
         toast.success(
           payload.status === "DRAFT"
             ? "Sales Order Draft created successfully!"
             : "Sales Order created successfully!"
         );
+        if (created?.id) {
+          navigate(`/sales-order/details/${created.id}`);
+        } else {
+          navigate(-1);
+        }
       }
-
-      navigate(-1);
     } catch (error: any) {
       const backendMsg =
         error?.response?.data?.message ||
