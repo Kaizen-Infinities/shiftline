@@ -70,7 +70,7 @@ const supplierFormSchema = z.object({
         .string()
         .refine(
           (val) => !val || /^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(val),
-          "Invalid GSTIN format (e.g. 33ABCDE1234F1Z5)"
+          "Invalid GSTIN format (e.g. 33AABCU9603R1ZU)"
         )
         .nullable()
     )
@@ -692,7 +692,7 @@ const SupplierForm: React.FC = () => {
               label="GSTIN"
               name="gstin"
               value={formData.gstin}
-              placeholder="33ABCDE1234F1Z5"
+              placeholder="15-character GSTIN"
               error={errors.gstin}
               onChange={handleChange}
             />
