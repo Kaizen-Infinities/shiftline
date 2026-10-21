@@ -340,6 +340,8 @@ export function useGlobalShortcuts({
 
       // ── ESC  smart back ────────────────────────────────────────────────
       if (key === "Escape") {
+        // An open picker (combobox or listbox trigger) closes itself on Escape; do not leave the form.
+        if (target.getAttribute?.("aria-expanded") === "true") return;
         const openDialog = document.querySelector<HTMLElement>(
           "[role='dialog']:not([aria-hidden='true']), [data-radix-popper-content-wrapper]"
         );
