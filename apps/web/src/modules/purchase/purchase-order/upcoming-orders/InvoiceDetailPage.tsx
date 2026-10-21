@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useFormShortcuts } from "../../../../hooks/useFormShortcuts";
+import { todayIstDate } from "../../../../utils/dateUtils";
 import { PackageCheck, Plus, Trash2 } from "lucide-react";
 import { ActionPill, Chip, PageHeader } from "../../../../components/ui/v2";
 import { FormFooter, KeyHint, formatINR } from "../../../sales/shared/tradeUi";
@@ -116,7 +117,7 @@ const InvoiceDetailPage: React.FC = () => {
     amount: "",
     paymentMethod: "Bank Transfer",
     referenceNumber: "",
-    paymentDate: new Date().toISOString().split("T")[0],
+    paymentDate: todayIstDate(),
     // Instrument type (P2-06): a cheque payment schedules for its own clearing and gets its
     // own register row; cash/bank transfer post immediately as before.
     instrumentType: "BANK" as "CASH" | "BANK" | "CHEQUE",
@@ -142,7 +143,7 @@ const InvoiceDetailPage: React.FC = () => {
     poId: "",
     grnNumber: "",
     invoiceNo: "",
-    grnDate: new Date().toISOString().split("T")[0],
+    grnDate: todayIstDate(),
     supplierId: "",
     storeId: "",
     billingAddressLine1: "",
@@ -989,7 +990,7 @@ const InvoiceDetailPage: React.FC = () => {
       amount: "",
       paymentMethod: "Bank Transfer",
       referenceNumber: "",
-      paymentDate: new Date().toISOString().split("T")[0],
+      paymentDate: todayIstDate(),
       instrumentType: "BANK",
       chequeNo: "",
       chequeDate: "",

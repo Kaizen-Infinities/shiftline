@@ -28,3 +28,14 @@ export const formatDateTime = (dateStr: string | Date | null | undefined): strin
 
   return `${datePart}, ${timePart}`;
 };
+/**
+ * Today's calendar date in India (IST) as YYYY-MM-DD, for default business dates. The UTC date
+ * is still yesterday until 05:30 IST, which put default dates a day early (INV-B09).
+ */
+export const todayIstDate = (now: Date = new Date()): string =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);

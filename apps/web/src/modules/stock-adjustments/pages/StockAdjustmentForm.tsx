@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
+import { todayIstDate } from "../../../utils/dateUtils";
 import { FaPlus, FaMinus } from "react-icons/fa";
 import { Search } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -130,7 +131,7 @@ const StockAdjustmentForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<any>({
     adjustmentNumber: "",
-    adjustmentDate: new Date().toISOString().split("T")[0],
+    adjustmentDate: todayIstDate(),
     adjustmentType: "STOCK_INCREASE",
     reason: "",
     status: "APPROVED",

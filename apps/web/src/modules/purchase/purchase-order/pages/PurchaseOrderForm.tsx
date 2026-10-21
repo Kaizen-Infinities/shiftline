@@ -44,11 +44,12 @@ import AddressForm from "../../../../components/form/AddressFrom/AddressFrom";
 import { useAppDispatch, useAppSelector } from "../../../../hooks/reduxHooks";
 import { fetchStores } from "../../../../features/stores/storeSlice";
 import { useSocketSync } from "../../../../hooks/useSocketSync";
+import { todayIstDate } from "../../../../utils/dateUtils";
 
 const initialFormData: PurchaseOrderFormData = {
   poNumber: "",
-  poDate: new Date().toISOString().split("T")[0],
-  expectedDeliveryDate: new Date().toISOString().split("T")[0],
+  poDate: todayIstDate(),
+  expectedDeliveryDate: todayIstDate(),
   supplierId: "",
   storeId: "",
   status: "DRAFT",
@@ -518,7 +519,7 @@ const PurchaseOrderForm: React.FC = () => {
       setFormData((prev) => {
         const selectedSupObj = suppliers.find((s) => String(s.id) === String(prev.supplierId));
         const supplierPrices = selectedSupObj?.materialPrices || [];
-        const dateToCheck = value || new Date().toISOString().split("T")[0];
+        const dateToCheck = value || todayIstDate();
 
         const updatedItems = prev.items.map((item) => {
           const rawMaterial = rawMaterials.find(
@@ -721,7 +722,7 @@ const PurchaseOrderForm: React.FC = () => {
     setFormData((prev) => {
       const selectedSupObj = suppliers.find((s) => String(s.id) === String(prev.supplierId));
       const supplierPrices = selectedSupObj?.materialPrices || [];
-      const dateToCheck = prev.poDate || new Date().toISOString().split("T")[0];
+      const dateToCheck = prev.poDate || todayIstDate();
       const activePriceObj = supplierPrices.find((p: any) => {
         const validFromDate = p.validFrom ? p.validFrom.split("T")[0] : "";
         const validToDate = p.validTo ? p.validTo.split("T")[0] : "";
