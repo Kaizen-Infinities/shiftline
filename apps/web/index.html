@@ -6,19 +6,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shiftline Beta</title>
-    <script>
-      // Restore saved theme before React loads to avoid flash.
-      (function () {
-        try {
-          var t = localStorage.getItem('shiftline-theme-v2');
-          var theme = t === 'dark' ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', theme);
-          if (theme === 'dark') document.documentElement.classList.add('dark');
-        } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'light');
-        }
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
