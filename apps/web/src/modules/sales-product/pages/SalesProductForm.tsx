@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { hasGreyedComponents } from "../componentPicker";
 import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import { Boxes, Eraser, Package, Plus, Save } from "lucide-react";
 import { ActionPill, PageHeader, Tile } from "../../../components/ui/v2";
@@ -210,6 +211,8 @@ const SalesProductForm: React.FC = () => {
 
   const noEligibleComponents =
     products.length > 0 && !products.some((p: any) => p.productType === "SALES_PRODUCTION");
+  // H40: production items are listed but greyed out; say why at the picker, not only in a label.
+  const showGreyedNote = hasGreyedComponents(products);
 
   if (isLoadingData) {
     return (
@@ -272,6 +275,12 @@ const SalesProductForm: React.FC = () => {
                 Open products
               </Link>{" "}
               and change the type of the item you sell.
+            </p>
+          )}
+          {showGreyedNote && !noEligibleComponents && (
+            <p className="m-0 mb-3 text-sm text-ink-subtle">
+              Greyed-out items are Production products. A kit can only use items whose Product Type
+              is Sales Production, so change that type on the product to add it here.
             </p>
           )}
           {fields.length > 0 ? (
