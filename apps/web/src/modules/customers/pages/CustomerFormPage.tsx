@@ -21,6 +21,7 @@ import IndiaPhoneInput, {
   validatePhoneNumber,
   SinglePhoneField,
 } from "../../../components/ui/PhoneInput/PhoneInput";
+import { toPhoneEntries } from "../../../components/ui/PhoneInput/phoneEntries";
 import DeleteButton from "../../../components/ui/DeleteButton/DeleteButton";
 import { useCustomerTypes } from "../../../hooks/useCustomerTypes";
 import { useCustomerGrades } from "../../../hooks/useCustomerGrades";
@@ -102,7 +103,7 @@ const customerFormSchema = z.object({
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
-const initialFormData: CustomerFormValues = {
+export const initialFormData: CustomerFormValues = {
   customerId: "",
   isActive: "true",
   firmName: "",
@@ -119,19 +120,13 @@ const initialFormData: CustomerFormValues = {
   openingBalanceType: "DEBIT",
   transports: [],
   addresses: [
-    { address: { addressLine1: "", addressLine2: "", city: "", state: "Tamil Nadu", pincode: "" } },
+    { address: { addressLine1: "", addressLine2: "", city: "", state: "", pincode: "" } },
   ],
 };
 
-const mapCustomerToFormData = (customer: any): CustomerFormValues => {
-  let initialPhones = [];
-  if (Array.isArray(customer.mobile) && customer.mobile.length > 0) {
-    initialPhones = customer.mobile;
-  } else if (customer.phones && Array.isArray(customer.phones) && customer.phones.length > 0) {
-    initialPhones = customer.phones;
-  } else if (typeof customer.mobile === "string" && customer.mobile) {
-    initialPhones = [{ label: "Primary Mobile Number", number: customer.mobile }];
-  }
+export const mapCustomerToFormData = (customer: any): CustomerFormValues => {
+  const mobileEntries = toPhoneEntries(customer.mobile);
+  const initialPhones = mobileEntries.length > 0 ? mobileEntries : toPhoneEntries(customer.phones);
 
   const addrs =
     customer.addresses && customer.addresses.length > 0
@@ -652,7 +647,7 @@ const CustomerFormPage: React.FC = () => {
                       addressLine1: "",
                       addressLine2: "",
                       city: "",
-                      state: "Tamil Nadu",
+                      state: "",
                       pincode: "",
                     },
                   })

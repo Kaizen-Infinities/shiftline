@@ -1,6 +1,7 @@
 import { getServerErrorMessage, getServerFieldErrors } from "../../../utils/serverErrors";
 import React, { useState, useEffect, useCallback } from "react";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
+import { toPhoneEntries } from "../../../components/ui/PhoneInput/phoneEntries";
 import { useSelector } from "react-redux";
 import {
   Building2,
@@ -233,15 +234,8 @@ const SupplierForm: React.FC = () => {
       ]);
     }
 
-    if (Array.isArray(supplier.mobile) && supplier.mobile.length > 0) {
-      setPhones(supplier.mobile);
-    } else if (supplier.phones && Array.isArray(supplier.phones) && supplier.phones.length > 0) {
-      setPhones(supplier.phones);
-    } else if (typeof supplier.mobile === "string" && supplier.mobile) {
-      setPhones([{ label: "Mobile", number: supplier.mobile }]);
-    } else {
-      setPhones([]);
-    }
+    const mobileEntries = toPhoneEntries(supplier.mobile);
+    setPhones(mobileEntries.length > 0 ? mobileEntries : toPhoneEntries(supplier.phones));
   };
 
   useEffect(() => {
