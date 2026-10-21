@@ -3,6 +3,7 @@ import { Building2, MapPin, Phone, Plus, Truck, Wallet } from "lucide-react";
 import { ActionPill, Chip, PageHeader, Tile } from "../../../components/ui/v2";
 import { FormFooter, KeyHint } from "../../sales/shared/tradeUi";
 import { useFormShortcuts } from "../../../hooks/useFormShortcuts";
+import { useUnsavedChangesGuard } from "../../../hooks/useUnsavedChangesGuard";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import { applyServerErrors } from "../../../utils/serverErrors";
@@ -226,11 +227,12 @@ const CustomerFormPage: React.FC = () => {
     setValue,
     reset,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: initialFormData,
   });
+  useUnsavedChangesGuard(isDirty && !isSubmitting);
 
   const { fields, append, remove } = useFieldArray({
     control,
