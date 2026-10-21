@@ -128,6 +128,33 @@ describe("tenant-bound roles and sessions", () => {
     expect(created).toBe(0);
   });
 
+  it("creates users without an email and answers 409 for a duplicate email (H46)", async () => {
+    const { auth } = await authed("demo.owner");
+    const base = { fullName: "No Email User", password: "Str0ngPassw0rd", roleId: roleA };
+    const client = await api();
+    const one = await client
+      .post("/api/users")
+      .set(auth)
+      .send({ ...base, username: "noemail-1" });
+    expect(one.status).toBe(201);
+    const two = await client
+      .post("/api/users")
+      .set(auth)
+      .send({ ...base, username: "noemail-2" });
+    expect(two.status).toBe(201);
+    const withEmail = { ...base, email: "dup.h46@test.shiftline.local" };
+    const first = await client
+      .post("/api/users")
+      .set(auth)
+      .send({ ...withEmail, username: "dup-h46-a" });
+    expect(first.status).toBe(201);
+    const dup = await client
+      .post("/api/users")
+      .set(auth)
+      .send({ ...withEmail, username: "dup-h46-b" });
+    expect(dup.status).toBe(409);
+  });
+
   it("A cannot register a user with B's role", async () => {
     const { auth } = await authed("demo.owner");
     const res = await (await api()).post("/api/auth/register").set(auth).send({

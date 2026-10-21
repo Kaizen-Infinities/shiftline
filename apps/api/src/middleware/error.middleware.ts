@@ -147,6 +147,10 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
         }
         return send(res, 409, "This record is referenced by other records and cannot be changed.");
       }
+      case "P2000":
+        return send(res, 400, "A value is too long for its field.");
+      case "P2020":
+        return send(res, 400, "A number is outside the allowed range.");
       case "P2025":
         return send(res, 404, "Record not found.");
       default:

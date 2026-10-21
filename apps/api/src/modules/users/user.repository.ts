@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma";
+import { ApiError } from "../../utils/ApiError";
 import { UserStatus } from "../../types/auth.types";
 
 export class UserRepository {
@@ -59,14 +60,14 @@ export class UserRepository {
     mustChangePw: boolean;
     createdBy: string;
   }) {
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        email: data.email,
-      },
-    });
-
-    if (existingUser) {
-      throw new Error("EMAIL_ALREADY_EXISTS");
+    if (data.email) {
+      const existingUser = await prisma.user.findFirst({
+        where: { email: { equals: data.email, mode: "insensitive" } },
+        select: { userId: true },
+      });
+      if (existingUser) {
+        throw new ApiError(409, "A user with this email already exists.");
+      }
     }
 
     return prisma.user.create({
