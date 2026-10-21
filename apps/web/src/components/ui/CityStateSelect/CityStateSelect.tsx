@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { GetState, GetCity } from "react-country-state-city";
+import React from "react";
+import { GST_STATES } from "@shiftline/shared";
 import SelectInput from "../../form/SelectInput/SelectInput";
 import TextInput from "../../form/TextInput/TextInput";
 import { FieldError } from "../../form/fieldStyles";
-
-const INDIA_COUNTRY_ID = 101;
 
 export interface StateCityOption {
   id: number;
@@ -34,6 +32,14 @@ interface CityStateSelectProps {
   renderOnly?: "city" | "state-country";
 }
 
+// States and union territories come from the bundled GST state list, so the form never
+// depends on a third-party host. Cities are free text: no city dataset is bundled.
+const STATE_OPTIONS = GST_STATES.map((s) => ({
+  id: Number(s.code),
+  name: s.name,
+  state_code: s.code,
+}));
+
 const CityStateSelect: React.FC<CityStateSelectProps> = ({
   countryLabel = "Country",
   stateLabel = "State",
@@ -52,65 +58,20 @@ const CityStateSelect: React.FC<CityStateSelectProps> = ({
   horizontal = false,
   renderOnly,
 }) => {
-  const [states, setStates] = useState<StateCityOption[]>([]);
-  const [cities, setCities] = useState<StateCityOption[]>([]);
-
-  // On mount, load India states
-  useEffect(() => {
-    GetState(INDIA_COUNTRY_ID)
-      .then((result: StateCityOption[]) => {
-        setStates(result);
-      })
-      .catch((err) => {
-        console.error("Failed to load states:", err);
-        setStates([]);
-      });
-  }, []);
-
-  // When stateValue changes (or states load), load cities for selected state
-  useEffect(() => {
-    if (!stateValue || states.length === 0) {
-      setCities([]);
-      return;
-    }
-
-    const matchedState = states.find((s) => s.name.toLowerCase() === stateValue.toLowerCase());
-
-    if (matchedState) {
-      GetCity(INDIA_COUNTRY_ID, matchedState.id)
-        .then((result: StateCityOption[]) => {
-          setCities(result);
-        })
-        .catch((err) => {
-          console.error("Failed to load cities:", err);
-          setCities([]);
-        });
-    } else {
-      setCities([]);
-    }
-  }, [stateValue, states]);
-
   const stateOptions = [
     { value: "", label: `-- Select ${stateLabel} --` },
-    ...states.map((s) => ({ value: s.name, label: s.name })),
-  ];
-
-  const cityOptions = [
-    { value: "", label: `-- Select ${cityLabel} --` },
-    ...cities.map((c) => ({ value: c.name, label: c.name })),
+    ...STATE_OPTIONS.map((s) => ({ value: s.name, label: s.name })),
   ];
 
   const handleStateSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedName = e.target.value;
-    const matched = states.find((s) => s.name === selectedName);
+    const matched = STATE_OPTIONS.find((s) => s.name === selectedName);
     onStateChange(matched || { id: 0, name: "" });
     onCityChange({ id: 0, name: "" });
   };
 
-  const handleCitySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedName = e.target.value;
-    const matched = cities.find((c) => c.name === selectedName);
-    onCityChange(matched || { id: 0, name: "" });
+  const handleCityInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onCityChange({ id: 0, name: e.target.value });
   };
 
   const showCity = !renderOnly || renderOnly === "city";
@@ -163,15 +124,13 @@ const CityStateSelect: React.FC<CityStateSelectProps> = ({
     <>
       {showCity && (
         <div className="w-full">
-          <SelectInput
+          <TextInput
             label={cityLabel}
             name="city"
             value={cityValue}
-            options={cityOptions}
-            onChange={handleCitySelect}
-            disabled={!stateValue}
+            placeholder="Type city name"
+            onChange={handleCityInput}
             required={required}
-            searchable={true}
             horizontal={horizontal}
             error={cityError}
           />
