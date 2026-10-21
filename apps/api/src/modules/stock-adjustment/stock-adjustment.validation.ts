@@ -24,6 +24,10 @@ const stockAdjustmentItemSchema = z.object({
   adjustedQty: z.number().nonnegative("Adjusted quantity cannot be negative"),
   difference: z.number(),
   remarks: z.string().max(255).optional().nullable(),
+}).refine(data => data.difference !== 0, {
+  // R2P-B15: an adjustment that changes nothing must not be created or approved.
+  message: "Adjusted quantity must differ from the current quantity",
+  path: ["adjustedQty"],
 }).refine(data => {
   if (data.itemType === 'RAW_MATERIAL') return !!data.rawMaterialId;
   if (data.itemType === 'FINISHED_GOODS') return !!data.productItemId;
