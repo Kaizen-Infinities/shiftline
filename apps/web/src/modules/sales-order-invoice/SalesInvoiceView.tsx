@@ -144,6 +144,7 @@ const SalesInvoiceView: React.FC = () => {
 
   // P2-12: receipts recorded on this invoice, and the "Record receipt" dialog.
   const [receipts, setReceipts] = useState<any[]>([]);
+  const [receiptsLoading, setReceiptsLoading] = useState(true);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [recordingReceipt, setRecordingReceipt] = useState(false);
   const [receiptForm, setReceiptForm] = useState({
@@ -210,11 +211,14 @@ const SalesInvoiceView: React.FC = () => {
 
   // P2-12: the receipts recorded on this invoice (cheque status joined in by the server).
   const loadReceipts = useCallback(async (invoiceId: string) => {
+    setReceiptsLoading(true);
     try {
       const list = await salesInvoiceService.fetchReceipts(invoiceId);
       setReceipts(Array.isArray(list) ? list : []);
     } catch {
       setReceipts([]);
+    } finally {
+      setReceiptsLoading(false);
     }
   }, []);
 
@@ -701,7 +705,11 @@ const SalesInvoiceView: React.FC = () => {
                 subtitle={`Received ₹${formatMoney(alreadyReceived)} · Outstanding ₹${formatMoney(outstanding)}`}
                 className="mb-4"
               >
-                {receipts.length === 0 ? (
+                {receiptsLoading && receipts.length === 0 ? (
+                  <p className="m-0 px-4 pb-4 text-sm text-ink-subtle sm:px-5" aria-busy="true">
+                    Loading receipts…
+                  </p>
+                ) : receipts.length === 0 ? (
                   <p className="m-0 px-4 pb-4 text-sm text-ink-subtle sm:px-5">
                     No receipts recorded yet.
                   </p>
