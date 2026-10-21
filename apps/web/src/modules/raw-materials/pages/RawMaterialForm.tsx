@@ -91,7 +91,7 @@ const rawMaterialSchema = z
         message: "Opening Stock must be greater than or equal to 0",
       }),
 
-    narration: z.string().trim().max(500, "Narration cannot exceed 500 characters").optional(),
+    narration: z.string().trim().max(255, "Narration cannot exceed 255 characters").optional(),
 
     status: z.enum(["Active", "Inactive"], {
       error: "Status is required",
@@ -542,13 +542,17 @@ const RawMaterialForm: React.FC = () => {
               error={errors.status}
               onChange={handleChange}
             />
-            <TextInput
-              label="Narration"
-              name="narration"
-              value={formData.narration}
-              error={errors.narration}
-              onChange={handleChange}
-            />
+            <div>
+              <TextInput
+                label="Narration"
+                name="narration"
+                value={formData.narration}
+                error={errors.narration}
+                onChange={handleChange}
+              />
+              {/* R2P-B12: the API accepts 255 characters; say so before the save is refused. */}
+              <p className="sl-muted m-0 mt-1 text-right text-xs">{formData.narration.length}/255</p>
+            </div>
           </div>
         </Tile>
 
