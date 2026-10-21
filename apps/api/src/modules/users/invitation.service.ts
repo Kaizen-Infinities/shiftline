@@ -116,6 +116,15 @@ class InvitationService {
     });
   }
 
+  /** Active roles an inviter may pick; needs only users.create, not roles.view (H43). */
+  async assignableRoles() {
+    return prisma.role.findMany({
+      where: { status: "active" },
+      select: { id: true, code: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
   async resend(id: string) {
     const inv = await prisma.invitation.findUnique({ where: { id } });
     if (!inv) throw new ApiError(404, "Invitation not found");

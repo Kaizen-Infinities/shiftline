@@ -52,6 +52,10 @@ export const invitationController = {
     );
   },
 
+  assignableRoles: async (_req: Request, res: Response) => {
+    res.json(new ApiResponse("Assignable roles", await invitationService.assignableRoles()));
+  },
+
   resend: async (req: Request, res: Response) => {
     const result = await invitationService.resend(String(req.params.id));
     res.json(

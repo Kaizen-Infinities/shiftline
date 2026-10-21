@@ -31,6 +31,11 @@ router.post(
 
 router.use(authMiddleware);
 router.get("/", requirePermission("users.view"), asyncHandler(invitationController.list));
+router.get(
+  "/roles",
+  requirePermission("users.create"),
+  asyncHandler(invitationController.assignableRoles)
+);
 router.post(
   "/",
   requirePermission("users.create"),

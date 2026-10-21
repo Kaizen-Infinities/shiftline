@@ -17,6 +17,7 @@ import StatusBadge from "../../../components/ui/StatusBadge/Badge";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import ExportCSVButton from "../../../components/ui/ExportCSVButton/ExportCSVButton";
 import { userService } from "../../../services/userService";
+import InviteUserModal from "../components/InviteUserModal";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -30,6 +31,7 @@ const UserList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
 
   const [formData, setFormData] = useState({
@@ -185,7 +187,13 @@ const UserList: React.FC = () => {
               )}
             </>
           }
-          primaryAction={undefined}
+          primaryAction={
+            canCreate ? (
+              <ActionPill icon={<Plus size={17} />} onClick={() => setShowInviteModal(true)}>
+                Invite user
+              </ActionPill>
+            ) : undefined
+          }
         />
         <SearchField
           value={searchTerm}
@@ -216,6 +224,10 @@ const UserList: React.FC = () => {
           />
         </div>
       </div>
+
+      {canCreate && (
+        <InviteUserModal show={showInviteModal} onHide={() => setShowInviteModal(false)} />
+      )}
 
       {/* Edit Modal */}
       <CommonModal
