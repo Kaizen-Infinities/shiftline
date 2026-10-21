@@ -140,8 +140,8 @@ const OnboardingWizard: React.FC = () => {
         </p>
       </div>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 md:grid-cols-[260px_1fr] md:gap-8">
-        <nav aria-label="Setup steps">
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-6 px-4 py-8 sm:px-6 md:grid-cols-[260px_minmax(0,1fr)] md:gap-8">
+        <nav aria-label="Setup steps" className="min-w-0">
           <div className="sl-section-label mb-2">Shiftline setup</div>
           <ol className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible">
             {state.steps.map((s, idx) => {
