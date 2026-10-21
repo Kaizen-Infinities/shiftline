@@ -1273,8 +1273,8 @@ const SalesInvoiceForm: React.FC = () => {
               placeholder="0"
             />
             {row.itemId && row.qty > (stockMap.get(row.itemId) || 0) && (
-              <div className="text-[color:var(--color-danger)] text-[10px] font-medium whitespace-nowrap">
-                Avail: {Math.round((stockMap.get(row.itemId) || 0) * 100) / 100}
+              <div className="text-[color:var(--color-danger)] text-xs font-medium whitespace-nowrap">
+                Only {Math.round((stockMap.get(row.itemId) || 0) * 100) / 100} in stock
               </div>
             )}
           </div>
@@ -1993,7 +1993,10 @@ const SalesInvoiceForm: React.FC = () => {
           start={
             isStockNotEnough ? (
               <span className="font-medium text-[color:var(--color-danger)]">
-                Some lines ask for more than the finished-goods stock.
+                Some lines ask for more than the finished-goods stock.{" "}
+                <Link to="/finished-stock/create" className="underline">
+                  Add stock
+                </Link>
               </span>
             ) : (
               <KeyHint keys={["F2"]}>confirms the invoice</KeyHint>

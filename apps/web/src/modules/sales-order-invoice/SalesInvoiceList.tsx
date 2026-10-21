@@ -36,6 +36,14 @@ const getMobileFromCustomer = (cust: any) => {
   return "";
 };
 
+/** Badge status for an invoice row: the server sets PAID once fully settled and CANCELLED on cancel. */
+const invoiceListStatus = (status: unknown): "CANCELLED" | "PAID" | "INVOICED" => {
+  const s = String(status || "").toUpperCase();
+  if (s === "CANCELLED") return "CANCELLED";
+  if (s === "PAID") return "PAID";
+  return "INVOICED";
+};
+
 const calculateSalesPendingAmount = (item: any) => {
   const status = (item.status || "").toUpperCase();
   if (status === "PAID" || status === "CLOSED") return 0;
@@ -341,13 +349,7 @@ const SalesInvoiceList: React.FC = () => {
     },
     {
       header: "Status",
-      render: (item) => (
-        <StatusBadge
-          status={
-            String(item.status || "").toUpperCase() === "CANCELLED" ? "CANCELLED" : "INVOICED"
-          }
-        />
-      ),
+      render: (item) => <StatusBadge status={invoiceListStatus(item.status)} />,
     },
     {
       header: "Actions",
