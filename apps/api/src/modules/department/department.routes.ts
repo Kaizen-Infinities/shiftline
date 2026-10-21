@@ -15,6 +15,7 @@ import { validateMiddleware } from "../../middleware/validate.middleware";
 import {
   createDepartmentSchema,
   departmentIdSchema,
+  updateDepartmentSchema,
 } from "./department.validation";
 
 const router = Router();
@@ -51,7 +52,7 @@ router.patch(
   authMiddleware,
   requirePermission("departments.edit"),
   validateMiddleware(
-    departmentIdSchema
+    updateDepartmentSchema
   ),
   updateDepartment
 );

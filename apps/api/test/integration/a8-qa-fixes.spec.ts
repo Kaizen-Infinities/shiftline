@@ -118,3 +118,55 @@ describe("request bodies (R2H-B19, R2H-B21)", () => {
     expect(list.body.data.some((d: { name: string }) => d.name === name)).toBe(false);
   });
 });
+
+describe("department and role edits (R2H-B22, R2H-B23)", () => {
+  it("refuses an empty department name on PATCH with a field-level 400, not 409", async () => {
+    const { auth } = await authed("demo.owner");
+    const created = await (
+      await api()
+    )
+      .post("/api/departments")
+      .set(auth)
+      .send({ name: `Patch Dept ${uniq()}` });
+    expect(created.status).toBe(201);
+    const res = await (
+      await api()
+    )
+      .patch(`/api/departments/${created.body.data.id}`)
+      .set(auth)
+      .send({ name: "" });
+    expect(res.status).toBe(400);
+    expect(res.body.errors?.some((e: { path: string }) => e.path === "body.name")).toBe(true);
+  });
+
+  it("lets a description-only PATCH through even when other departments exist", async () => {
+    const { auth } = await authed("demo.owner");
+    const created = await (
+      await api()
+    )
+      .post("/api/departments")
+      .set(auth)
+      .send({ name: `Desc Dept ${uniq()}` });
+    expect(created.status).toBe(201);
+    const res = await (
+      await api()
+    )
+      .patch(`/api/departments/${created.body.data.id}`)
+      .set(auth)
+      .send({ description: "only the description changed" });
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe(created.body.data.name);
+  });
+
+  it("refuses a 1000-character role name", async () => {
+    const { auth } = await authed("demo.owner");
+    const res = await (
+      await api()
+    )
+      .post("/api/roles")
+      .set(auth)
+      .send({ code: `R2H${uniq()}`.slice(0, 20), name: "R".repeat(1000) });
+    expect(res.status).toBe(400);
+    expect(res.body.errors?.some((e: { path: string }) => e.path === "body.name")).toBe(true);
+  });
+});

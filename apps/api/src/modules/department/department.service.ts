@@ -116,29 +116,24 @@ export const updateDepartmentService =
     }
   ) => {
 
-    await getDepartmentByIdService(id);
+    const current = await getDepartmentByIdService(id);
 
+    // Only a rename can clash with another department's name.
+    if (payload.name !== undefined && payload.name !== current.name) {
+      const existingDepartment =
+        await prisma.department.findFirst({
+          where: {
+            id: { not: id },
+            name: payload.name,
+          },
+        });
 
-
-    const existingDepartment =
-      await prisma.department.findFirst({
-        where: {
-          AND: [
-            {
-              id: {
-                not: id,
-              },
-            },
-            payload.name ? { name: payload.name } : {}
-          ],
-        },
-      });
-
-    if (existingDepartment) {
-      throw new ApiError(
-        409,
-        "Department already exists"
-      );
+      if (existingDepartment) {
+        throw new ApiError(
+          409,
+          "Department already exists"
+        );
+      }
     }
 
     try {

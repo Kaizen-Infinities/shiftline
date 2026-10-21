@@ -24,7 +24,7 @@ export const updateDepartmentSchema = z.object({
         .string()
         .min(2, "Department name is required")
         .max(100)
-    ),
+    ).optional(),
     description: z
       .string()
       .max(500)

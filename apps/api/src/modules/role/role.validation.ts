@@ -4,7 +4,7 @@ import { plainText } from "../../utils/plainText";
 export const createRoleSchema = z.object({
   body: z.object({
     code: z.string().min(2),
-    name: plainText(z.string().min(2)),
+    name: plainText(z.string().min(2).max(100)),
     description: z.string().optional(),
   }),
 });
@@ -12,7 +12,7 @@ export const createRoleSchema = z.object({
 export const updateRoleSchema = z.object({
   body: z.object({
     code: z.string().min(2).optional(),
-    name: plainText(z.string().min(2)).optional(),
+    name: plainText(z.string().min(2).max(100)).optional(),
     description: z.string().optional(),
     status: z.enum(["active", "inactive"]).optional(),
     /** Days this role may post back from today; null = no limit, 0 = today only (P1-09). */
