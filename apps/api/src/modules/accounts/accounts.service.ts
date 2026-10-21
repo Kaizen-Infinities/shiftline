@@ -1542,6 +1542,13 @@ class AccountsService {
     /** Count the year-end closing entries too (the balance sheet does; the statement does not). */
     includeClosing?: boolean;
   }) {
+    if (
+      options.startDate &&
+      options.endDate &&
+      new Date(options.startDate).getTime() > new Date(options.endDate).getTime()
+    ) {
+      throw new ApiError(400, "The end date cannot be before the start date");
+    }
     await this.ensureSystemLedgersExist();
 
     const dateFilter: Prisma.VoucherWhereInput = {};

@@ -35,4 +35,19 @@ describe("accounts", () => {
     expect([200, 201]).toContain(res.status);
     expect(res.body.data.companyId).not.toBe("00000000-0000-0000-0000-000000000000");
   });
+
+  it("rejects a profit and loss range that ends before it starts (CMP-B08)", async () => {
+    const { auth } = await authed("demo.accounts");
+    const client = await api();
+    const bad = await client
+      .get("/api/accounts/profit-loss")
+      .query({ startDate: "2026-09-30", endDate: "2026-04-01" })
+      .set(auth);
+    expect(bad.status).toBe(400);
+    const ok = await client
+      .get("/api/accounts/profit-loss")
+      .query({ startDate: "2026-04-01", endDate: "2026-09-30" })
+      .set(auth);
+    expect(ok.status).toBe(200);
+  });
 });

@@ -335,6 +335,12 @@ export class AccountsController {
         res.status(400).json({ success: false, message: "startDate and endDate are required" });
         return;
       }
+      if (new Date(String(startDate)).getTime() > new Date(String(endDate)).getTime()) {
+        res
+          .status(400)
+          .json({ success: false, message: "The end date cannot be before the start date" });
+        return;
+      }
       const gb = (groupBy === "quarter" ? "quarter" : "month") as "month" | "quarter";
       const data = await accountsService.getProfitAndLossByPeriod({
         startDate: startDate as string,
