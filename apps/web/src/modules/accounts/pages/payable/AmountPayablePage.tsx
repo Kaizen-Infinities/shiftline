@@ -346,7 +346,7 @@ export const AmountPayablePage: React.FC = () => {
       />
       <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatTile
-          label="Total payable"
+          label="Outstanding payable"
           value={
             Math.abs(netBal) < 0.005 ? (
               "₹0"
@@ -368,7 +368,7 @@ export const AmountPayablePage: React.FC = () => {
           deltaTone="warning"
         />
         <StatTile
-          label="Total credit"
+          label="Total invoiced"
           value={
             <span title={fmtINR(totals.totalCredit)}>{fmtINRCompact(totals.totalCredit)}</span>
           }

@@ -328,7 +328,7 @@ const BankAccountsPage: React.FC = () => {
                     minimumFractionDigits: 2,
                   })}
                   <span className="text-[11.5px] ml-1">
-                    {acc.currentBalance >= 0 ? "(Cr)" : "(Dr)"}
+                    {acc.currentBalance < 0 ? "overdrawn" : ""}
                   </span>
                 </p>
               </div>
