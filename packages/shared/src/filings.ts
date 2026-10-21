@@ -7,7 +7,7 @@ export type FilingCadence = "MONTHLY" | "QUARTERLY" | "HALF_YEARLY" | "ANNUAL";
 export interface FilingDef {
   key: string;
   name: string;
-  authority: "GST" | "INCOME_TAX" | "EPFO" | "ESIC" | "STATE" | "MCA";
+  authority: "GST" | "INCOME_TAX" | "EPFO" | "ESIC" | "STATE" | "MCA" | "INTERNAL";
   cadence: FilingCadence;
   /** Whether the filing is per GSTIN / business place rather than per company. */
   perBusinessPlace: boolean;
@@ -85,7 +85,7 @@ export const FILINGS: readonly FilingDef[] = [
   {
     key: "PAYROLL_RUN",
     name: "Payroll run",
-    authority: "MCA",
+    authority: "INTERNAL",
     cadence: "MONTHLY",
     perBusinessPlace: false,
   },

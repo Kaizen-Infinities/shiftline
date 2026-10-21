@@ -57,6 +57,7 @@ const AUTHORITY_LABEL: Record<string, string> = {
   ESIC: "ESIC",
   STATE: "State",
   MCA: "MCA",
+  INTERNAL: "Internal",
 };
 const authorityLabel = (a: string) =>
   AUTHORITY_LABEL[a] ??
