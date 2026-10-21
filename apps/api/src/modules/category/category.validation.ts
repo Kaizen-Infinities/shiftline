@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { plainText } from "../../utils/plainText";
 
 export const CategoryTypeEnum = z.enum(["PRODUCT", "RAW_MATERIAL", "WASTAGE"]);
 
@@ -9,10 +10,12 @@ export const createCategorySchema = z.object({
       .min(1, "Category code is required")
       .max(20, "Code cannot exceed 20 characters"),
 
-    name: z
-      .string()
-      .min(1, "Category name is required")
-      .max(100, "Name cannot exceed 100 characters"),
+    name: plainText(
+      z
+        .string()
+        .min(1, "Category name is required")
+        .max(100, "Name cannot exceed 100 characters")
+    ),
 
     description: z.string().max(255).optional().nullable(),
 

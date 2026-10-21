@@ -40,3 +40,42 @@ describe("duplicate masters under concurrent create (R2H-B10)", () => {
     expect(second.status).toBe(409);
   });
 });
+
+describe("markup in names (R2H-B12)", () => {
+  it("refuses angle brackets in a department name with a field-level message", async () => {
+    const { auth } = await authed("demo.owner");
+    const res = await (
+      await api()
+    )
+      .post("/api/departments")
+      .set(auth)
+      .send({ name: `<img src=x onerror=alert(1)> ${uniq()}` });
+    expect(res.status).toBe(400);
+    const err = res.body.errors?.find((e: { path: string }) => e.path === "body.name");
+    expect(err?.message).toMatch(/Angle brackets/);
+  });
+
+  it("refuses a script tag in a customer firm name", async () => {
+    const { auth } = await authed("demo.owner");
+    const code = `R2HX${uniq()}`.slice(0, 20);
+    const res = await (
+      await api()
+    )
+      .post("/api/customers")
+      .set(auth)
+      .send({ customerCode: code, firmName: "<script>alert(1)</script>", displayName: code });
+    expect(res.status).toBe(400);
+    expect(res.body.errors?.some((e: { path: string }) => e.path === "body.firmName")).toBe(true);
+  });
+
+  it("still accepts ordinary punctuation in a department name", async () => {
+    const { auth } = await authed("demo.owner");
+    const res = await (
+      await api()
+    )
+      .post("/api/departments")
+      .set(auth)
+      .send({ name: `M/s Sharma & Sons's Dept ${uniq()}` });
+    expect(res.status).toBe(201);
+  });
+});

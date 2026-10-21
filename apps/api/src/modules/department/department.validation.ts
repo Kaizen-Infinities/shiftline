@@ -1,11 +1,14 @@
 import { z } from "zod";
+import { plainText } from "../../utils/plainText";
 
 export const createDepartmentSchema = z.object({
   body: z.object({
-    name: z
-      .string()
-      .min(2, "Department name is required")
-      .max(100),
+    name: plainText(
+      z
+        .string()
+        .min(2, "Department name is required")
+        .max(100)
+    ),
     description: z
       .string()
       .max(500)
@@ -16,10 +19,12 @@ export const createDepartmentSchema = z.object({
 
 export const updateDepartmentSchema = z.object({
   body: z.object({
-    name: z
-      .string()
-      .min(2, "Department name is required")
-      .max(100),
+    name: plainText(
+      z
+        .string()
+        .min(2, "Department name is required")
+        .max(100)
+    ),
     description: z
       .string()
       .max(500)

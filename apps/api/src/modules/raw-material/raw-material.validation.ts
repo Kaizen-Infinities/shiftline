@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { plainText } from "../../utils/plainText";
 
 /**
  * Create Raw Material Validation
@@ -10,10 +11,12 @@ export const createRawMaterialSchema = z.object({
       .min(1, "Raw Material ID is required")
       .max(20, "Raw Material ID cannot exceed 20 characters"),
 
-    materialName: z
-      .string()
-      .min(1, "Material Name is required")
-      .max(100, "Material Name cannot exceed 100 characters"),
+    materialName: plainText(
+      z
+        .string()
+        .min(1, "Material Name is required")
+        .max(100, "Material Name cannot exceed 100 characters")
+    ),
 
     categoryId: z.number().int().nonnegative().optional().nullable(),
     hsnCodeId: z.string().uuid().optional().nullable(),
@@ -21,10 +24,9 @@ export const createRawMaterialSchema = z.object({
 
     minimumStock: z.number().nonnegative().optional().nullable(),
 
-    baseUom: z
-      .string()
-      .min(1, "Base UOM is required")
-      .max(100, "Base UOM cannot exceed 100 characters"),
+    baseUom: plainText(
+      z.string().min(1, "Base UOM is required").max(100, "Base UOM cannot exceed 100 characters")
+    ),
 
     reorderLevel: z.number().nonnegative().optional().nullable(),
 

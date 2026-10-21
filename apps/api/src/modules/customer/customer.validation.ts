@@ -1,5 +1,6 @@
 import { CUSTOMER_LIST_MAX_LIMIT, GST_STATE_BY_CODE, isValidGstin } from "@shiftline/shared";
 import { z } from "zod";
+import { plainText } from "../../utils/plainText";
 
 /** Customer list page size: digits only, at most CUSTOMER_LIST_MAX_LIMIT rows per page. */
 export const customerListLimitSchema = z.object({
@@ -19,9 +20,9 @@ export const createCustomerSchema = z.object({
 
   customerCode: z.string().min(1, "Customer Code is required"),
 
-  firmName: z.string().min(1, "Firm Name is required"),
+  firmName: plainText(z.string().min(1, "Firm Name is required")),
 
-  displayName: z.string().optional(),
+  displayName: plainText(z.string()).optional(),
 
   customerTypeId: z.number().nullable().optional(),
   customerGradeId: z.number().nullable().optional(),
