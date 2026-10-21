@@ -105,6 +105,36 @@ describe("sales invoice receipts", () => {
     expect(invRes.body.data.status).not.toBe("PAID");
   });
 
+  it("rejects the same reference and amount posted twice on one invoice (ACC-B01)", async () => {
+    const client = await api();
+    const { invoice } = await makeInvoice(OWNER, 10000);
+    const body = {
+      amount: 3000,
+      paymentDate: `${FY}-09-03`,
+      instrumentType: "BANK",
+      referenceNumber: `UTR${sfx}`,
+    };
+    const url = `/api/sales-invoices/${invoice.id}/receipts`;
+    expect((await client.post(url).set(OWNER.auth).send(body)).status).toBe(201);
+    const dup = await client
+      .post(url)
+      .set(OWNER.auth)
+      .send({ ...body });
+    expect(dup.status).toBe(409);
+    expect(dup.body.code ?? dup.body.error?.code).toBe("DUPLICATE_RECEIPT");
+    // a different amount on the same reference is a separate receipt
+    expect(
+      (
+        await client
+          .post(url)
+          .set(OWNER.auth)
+          .send({ ...body, amount: 1000 })
+      ).status
+    ).toBe(201);
+    const list = await client.get(url).set(OWNER.auth);
+    expect(list.body.data).toHaveLength(2);
+  });
+
   it("a cheque receipt creates the cheque register row", async () => {
     const client = await api();
     const prisma = await getPrisma();

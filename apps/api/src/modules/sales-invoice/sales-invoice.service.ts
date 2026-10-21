@@ -1390,6 +1390,25 @@ class SalesInvoiceService {
           }
         }
 
+        // The same reference and amount on the same invoice is the same receipt sent twice
+        // (a double click, a retry after a slow response), not a second payment.
+        const reference = data.referenceNumber?.trim().toLowerCase();
+        if (
+          reference &&
+          existingPayments.some(
+            (p: any) =>
+              String(p.referenceNumber ?? "")
+                .trim()
+                .toLowerCase() === reference && Math.abs((Number(p.amount) || 0) - amount) < 0.005
+          )
+        ) {
+          throw new ApiError(
+            409,
+            `A receipt of ${amount} with reference ${data.referenceNumber?.trim()} is already recorded on invoice ${invoice.invoiceNo}`,
+            "DUPLICATE_RECEIPT"
+          );
+        }
+
         const methodLabel =
           data.instrumentType === "CHEQUE"
             ? "Cheque"
