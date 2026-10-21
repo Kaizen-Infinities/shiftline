@@ -21,6 +21,7 @@ import { usePageSocketSync } from "../../../hooks/usePageSocketSync";
 import dashboardService, { type AccountsSummary } from "../../../services/dashboardService";
 import { useListCache } from "../../../hooks/useListCache";
 import { usePermission } from "../../../hooks/usePermission";
+import { dashboardAccess } from "../dashboardAccess";
 import SalesPurchaseTrendChart from "../components/SalesPurchaseTrendChart";
 import { SalesPersonLiveMap } from "../components/SalesPersonLiveMap";
 import { InventoryStockIntelligence } from "../components/InventoryStockIntelligence";
@@ -70,7 +71,7 @@ const safe = (d: any) => (Array.isArray(d) ? d : []);
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { can, isSuperAdmin } = usePermission();
+  const { can, canAny, isSuperAdmin } = usePermission();
 
   const [dashPeriod, setDashPeriod] = useState<DashPeriod>(() => {
     try {
@@ -95,6 +96,15 @@ const DashboardPage: React.FC = () => {
   const showTopProducts = isSuperAdmin || can("dash-top-products.view");
   const showRecentSales = isSuperAdmin || can("dash-recent-sales.view");
 
+  // Each feed is fetched only when the role can read it: a zero-permission user used to make
+  // 15-30 requests that all answered 403 (SET-B07).
+  const access = dashboardAccess(canAny);
+  const canSummary = access.summary;
+  const canAccountsSummary = access.accounts;
+  const canFieldPositions = access.fieldPositions;
+  const canPayrollWorkforce = access.payroll;
+  const canShiftWorkforce = access.shifts;
+
   /* ── Dashboard summary — cache-first; sockets refresh it in the background ── */
   const dashboardFetcher = useCallback(async (_signal: AbortSignal) => {
     const data = await dashboardService.getSummary();
@@ -105,6 +115,7 @@ const DashboardPage: React.FC = () => {
     cacheKey: "dashboard:summary",
     socketModule: "salesOrder",
     fetcher: dashboardFetcher,
+    enabled: canSummary,
   });
   const dashData = dashboardCache.data[0] || {};
   const summaryLoading = dashboardCache.loading;
@@ -152,6 +163,7 @@ const DashboardPage: React.FC = () => {
     cacheKey: `accounts:dashboard-summary:${dashPeriod}`,
     socketModule: "voucher",
     fetcher: accountsSummaryFetcher,
+    enabled: canAccountsSummary,
   });
   const accountsSummary = accountsSummaryCache.data[0] || null;
   const accountsLoading = accountsSummaryCache.loading && !accountsSummary;
@@ -258,6 +270,21 @@ const DashboardPage: React.FC = () => {
   // The summary feeds every list below; when it failed with nothing cached, the
   // tiles say so instead of claiming there is nothing to show.
   const summaryFailed = !dashboardCache.data[0] && !!dashboardCache.error;
+
+  if (!canSummary && !canAccountsSummary) {
+    return (
+      <div className="flex w-full flex-col gap-8 pb-10">
+        <QuickActions />
+        <section role="status" className="sl-tile px-5 py-6">
+          <h2 className="text-base font-semibold text-ink">No dashboard access yet</h2>
+          <p className="sl-muted mt-1 text-sm">
+            Your role does not include any dashboard widgets yet. Ask an administrator to grant one
+            under Roles, or open the screens you can use from the menu.
+          </p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full flex-col gap-8 pb-10">
@@ -818,6 +845,7 @@ const DashboardPage: React.FC = () => {
           employeesCount={employeesCount}
           dailyPlans={dailyPlans}
           weeklyPrograms={weeklyPrograms}
+          access={{ payroll: canPayrollWorkforce, shifts: canShiftWorkforce }}
         />
       </div>
 
@@ -833,9 +861,11 @@ const DashboardPage: React.FC = () => {
             customers={allCustomers}
             loading={summaryLoading}
           />
-          <div className="h-[420px]">
-            <SalesPersonLiveMap />
-          </div>
+          {canFieldPositions && (
+            <div className="h-[420px]">
+              <SalesPersonLiveMap />
+            </div>
+          )}
         </div>
       </section>
 

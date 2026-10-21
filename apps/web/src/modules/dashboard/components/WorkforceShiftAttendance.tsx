@@ -7,17 +7,29 @@ import { payrollService } from "../../../services/payrollService";
 import { usePageSocketSync } from "../../../hooks/usePageSocketSync";
 import { DashTile, TileHeader } from "./DashboardPrimitives";
 
+/** Which of this tile's feeds the signed-in role may read; a feed it may not read is not requested. */
+export interface WorkforceAccess {
+  /** Payroll employees and monthly attendance (any payroll view key). */
+  payroll: boolean;
+  /** Shift list (shifts.view). */
+  shifts: boolean;
+}
+
 interface WorkforceShiftAttendanceProps {
   employeesCount?: number;
   dailyPlans?: any[];
   weeklyPrograms?: any[];
   className?: string;
+  access: WorkforceAccess;
 }
 
 export const WorkforceShiftAttendance: React.FC<WorkforceShiftAttendanceProps> = ({
   employeesCount: initialEmpCount = 0,
   className = "",
+  access,
 }) => {
+  const canPayroll = access.payroll;
+  const canShifts = access.shifts;
   const navigate = useNavigate();
 
   const [liveEmployees, setLiveEmployees] = useState<any[]>([]);
@@ -46,11 +58,13 @@ export const WorkforceShiftAttendance: React.FC<WorkforceShiftAttendanceProps> =
     try {
       setIsLoading(true);
       const [empRes, shiftRes, attRes] = await Promise.allSettled([
-        payrollService.listEmployees
-          ? payrollService.listEmployees()
-          : employeeService.fetchAll({ limit: 100 }),
-        shiftService.fetchAll ? shiftService.fetchAll() : Promise.resolve([]),
-        payrollService.getAttendance
+        canPayroll
+          ? payrollService.listEmployees
+            ? payrollService.listEmployees()
+            : employeeService.fetchAll({ limit: 100 })
+          : Promise.resolve(null),
+        canShifts && shiftService.fetchAll ? shiftService.fetchAll() : Promise.resolve([]),
+        canPayroll && payrollService.getAttendance
           ? payrollService.getAttendance(currentPeriod)
           : Promise.resolve([]),
       ]);
@@ -77,7 +91,7 @@ export const WorkforceShiftAttendance: React.FC<WorkforceShiftAttendanceProps> =
       setIsLoading(false);
       fetchingRef.current = false;
     }
-  }, [currentPeriod]);
+  }, [currentPeriod, canPayroll, canShifts]);
 
   useEffect(() => {
     fetchLiveWorkforceData();
