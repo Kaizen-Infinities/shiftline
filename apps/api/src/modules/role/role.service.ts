@@ -1,8 +1,14 @@
 import { prisma } from "../../config/prisma";
 
+/** Roles created here are custom roles: never system roles, whatever the schema default says (SET-B03). */
 export const createRole = async (data: { code: string; name: string; description?: string }) => {
   return prisma.role.create({
-    data,
+    data: {
+      code: data.code,
+      name: data.name,
+      description: data.description,
+      isSystem: false,
+    },
   });
 };
 
