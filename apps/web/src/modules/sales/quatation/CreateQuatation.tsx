@@ -1210,7 +1210,7 @@ const QuotationForm: React.FC = () => {
           return (
             <div className="text-right">
               <span className="text-[color:var(--color-success)] text-[13px] font-bold">
-                ₹{rowCalc.totalWithGst.toFixed(2)}
+                {formatINR(rowCalc.totalWithGst)}
               </span>
             </div>
           );
