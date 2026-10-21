@@ -656,6 +656,18 @@ const InvoiceDetailPage: React.FC = () => {
     [suppliers, form.supplierId]
   );
 
+  // E2E-B10: the server sets the bill due date to GRN date + supplier credit days when none is
+  // sent. Show that date now, so the user sees it before saving; typing a date overrides it.
+  const creditDaysOfSupplier = Math.max(0, Number(selectedSupplier?.creditDays ?? 0));
+  useEffect(() => {
+    if (isEditMode || !form.grnDate || !selectedSupplier) return;
+    const due = new Date(`${form.grnDate}T00:00:00Z`);
+    due.setUTCDate(due.getUTCDate() + creditDaysOfSupplier);
+    const dueText = due.toISOString().split("T")[0];
+    setForm((p) => (p.billDueDate ? p : { ...p, billDueDate: dueText }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, form.grnDate, selectedSupplier?.id, creditDaysOfSupplier]);
+
   // ── Default the TDS section from the supplier master (P2-11) ──────────────────
   // Only while the person has not picked a section themselves — picking one by hand always wins.
   useEffect(() => {
@@ -1498,13 +1510,21 @@ const InvoiceDetailPage: React.FC = () => {
                   onChange={(e) => setForm((p) => ({ ...p, receiveDate: e.target.value }))}
                   disabled={isEditMode}
                 />
-                <DatePickerCalendar
-                  label={t("grn.billDueDate")}
-                  name="billDueDate"
-                  value={form.billDueDate}
-                  onChange={(e) => setForm((p) => ({ ...p, billDueDate: e.target.value }))}
-                  disabled={isEditMode}
-                />
+                <div>
+                  <DatePickerCalendar
+                    label={t("grn.billDueDate")}
+                    name="billDueDate"
+                    value={form.billDueDate}
+                    onChange={(e) => setForm((p) => ({ ...p, billDueDate: e.target.value }))}
+                    disabled={isEditMode}
+                  />
+                  {!isEditMode && selectedSupplier && (
+                    <p className="sl-muted m-0 mt-1 text-xs">
+                      Defaults to the GRN date + {creditDaysOfSupplier} credit days. Change it to
+                      override.
+                    </p>
+                  )}
+                </div>
                 <TextInput
                   label={t("grn.challanNo")}
                   name="challanNo"
