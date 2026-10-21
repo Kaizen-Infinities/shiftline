@@ -46,6 +46,7 @@ import { rawMaterialService } from "../../../services/rawMaterialService";
 import { MaterialIssueModal } from "../../production-orders/components/MaterialIssueModal";
 import { usePermission } from "../../../hooks/usePermission";
 import DailyPlanViewModal from "../components/DailyPlanViewModal";
+import { isStartBlocked } from "./startPlan";
 
 // ---------- helpers ----------
 const formatLocalDateString = (d: Date) => {
@@ -338,6 +339,10 @@ const DailyProductionPlanningPage: React.FC = () => {
     }
 
     if (nextStatus === "IN_PROGRESS" && (plan.status === "PLANNED" || plan.status === "DRAFT")) {
+      if (isStartBlocked(plan, plan.productionOrder)) {
+        toast.error("This production order has no raw materials. Add them to the order first.");
+        return;
+      }
       // Always show material issue modal when starting a daily plan so users can issue/re-issue raw materials
       setMaterialIssuePlan(plan);
       setShowMaterialIssueModal(true);
@@ -878,6 +883,7 @@ const DailyProductionPlanningPage: React.FC = () => {
           plan.status !== "DRAFT";
         if (plan.status === "IN_PROGRESS") canAdvance = canAdvance && producedQty >= plannedQty;
         const canLog = plan.status === "IN_PROGRESS";
+        const startBlocked = isStartBlocked(plan, plan.productionOrder);
         let targetNextStatus = STATUS_FLOW[plan.status]?.next;
         let dynamicActionTitle = NEXT_ACTION_LABELS[plan.status] || `Move to ${nextStatus}`;
         let dynamicActionIcon = NEXT_ACTION_ICONS[plan.status] || ArrowRight;
@@ -1035,8 +1041,11 @@ const DailyProductionPlanningPage: React.FC = () => {
             {canAdvance && can("daily-machine-planning.edit") && (
               <IconButton
                 variant={dynamicActionVariant}
-                title={dynamicActionTitle}
+                title={
+                  startBlocked ? "No raw materials on this production order" : dynamicActionTitle
+                }
                 icon={dynamicActionIcon}
+                disabled={startBlocked}
                 onClick={() =>
                   handleStatusAdvance(
                     plan,

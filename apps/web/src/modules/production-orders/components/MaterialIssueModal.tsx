@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import convert from "convert-units";
 import { convertUomQty, parseBaseUom } from "../../../utils/uomConversion";
+import { getServerErrorMessage } from "../../../utils/serverErrors";
 import { productionOrderService } from "../../../services/productionOrderService";
 import { storeService } from "../../../services/storeService";
 import { rawMaterialService } from "../../../services/rawMaterialService";
@@ -390,6 +391,12 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
   };
 
   const doSubmit = async () => {
+    // Nothing to issue: the server would reject an empty list (H37).
+    if (issueItems.length === 0) {
+      toast.error("This production order has no raw materials to issue.");
+      return;
+    }
+
     let hasError = false;
     const updated = [...issueItems];
     for (let i = 0; i < updated.length; i++) {
@@ -462,7 +469,7 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
       onHide();
     } catch (err: any) {
       console.error("Failed to issue materials", err);
-      toast.error(err.response?.data?.message || "Failed to issue materials");
+      toast.error(getServerErrorMessage(err, "Failed to issue materials"));
     } finally {
       setIssuing(false);
     }
@@ -614,6 +621,7 @@ export const MaterialIssueModal: React.FC<MaterialIssueModalProps> = ({
           <ActionPill
             icon={<PackageMinus size={17} />}
             onClick={doSubmit}
+            disabled={issueItems.length === 0}
             loading={issuing}
             loadingText="Issuing..."
           >
