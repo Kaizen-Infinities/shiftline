@@ -152,7 +152,9 @@ class ReceivableService {
       prisma.journalItem.findMany({
         where: {
           OR: [{ debitLedgerId: { in: ledgerIds } }, { creditLedgerId: { in: ledgerIds } }],
-          voucher: { date: voucherDateFilter },
+          // A cancelled voucher and its reversal net to nothing; counting either misstates
+          // billed and paid after an edit (see payable.service).
+          voucher: { date: voucherDateFilter, status: "POSTED", reversalOfId: null },
         },
         include: { voucher: true },
       }),
