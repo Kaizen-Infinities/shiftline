@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { getISTDateParts, getISTDayStartUtc } from "../../utils/dateUtils";
+import { stockDelta } from "./stock-direction";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,35 +96,15 @@ class InventoryService {
       // qty is always stored as absolute; txnType tells direction
       const rmNetMap = new Map<string, number>();
       for (const t of todayRmTxns) {
-        const typ = t.txnType.toUpperCase();
-        const q = Number(t.qty) || 0;
-        // IN types add stock, OUT types subtract stock
-        const isIn =
-          typ.includes("IN") ||
-          typ.includes("RECEIPT") ||
-          typ.includes("OPENING") ||
-          typ.includes("RETURN");
-        const isOut =
-          typ.includes("OUT") ||
-          typ.includes("ISSUE") ||
-          typ.includes("CONSUMPTION") ||
-          typ.includes("DISPATCH");
-        const delta = isIn ? q : isOut ? -q : 0;
+        // IN types add stock, OUT types subtract stock (H12: see stock-direction.ts)
+        const delta = stockDelta(t.txnType, Number(t.qty) || 0);
         rmNetMap.set(t.rawMaterialId, (rmNetMap.get(t.rawMaterialId) || 0) + delta);
       }
 
       // ── Compute today's net stock change for Finished Goods ──────────────────
       const fgNetMap = new Map<string, number>();
       for (const t of todayFgTxns) {
-        const typ = t.txnType.toUpperCase();
-        const q = Number(t.qty) || 0;
-        const isIn =
-          typ.includes("IN") ||
-          typ.includes("RECEIPT") ||
-          typ.includes("OPENING") ||
-          typ.includes("RETURN");
-        const isOut = typ.includes("OUT") || typ.includes("ISSUE") || typ.includes("DISPATCH");
-        const delta = isIn ? q : isOut ? -q : 0;
+        const delta = stockDelta(t.txnType, Number(t.qty) || 0);
         const key = `${t.productItemId}_${t.storeId}`;
         fgNetMap.set(key, (fgNetMap.get(key) || 0) + delta);
       }

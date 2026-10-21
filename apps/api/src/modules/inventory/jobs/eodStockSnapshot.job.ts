@@ -1,6 +1,7 @@
 import { prisma } from "../../../config/prisma";
 import { getISTDateParts } from "../../../utils/dateUtils";
 import { emitToTenant } from "../../../lib/realtime";
+import { stockDelta } from "../stock-direction";
 
 /**
  * Helper to safely upsert EOD stock snapshots without triggering Postgres ON CONFLICT 42P10 errors
@@ -106,34 +107,14 @@ export const runEodStockSnapshot = async (targetDateStr?: string) => {
   // ── Compute net stock change today for Raw Materials ─────────────────────
   const rmNetMap = new Map<string, number>();
   for (const t of todayRmTxns) {
-    const typ = t.txnType.toUpperCase();
-    const q = Number(t.qty) || 0;
-    const isIn =
-      typ.includes("IN") ||
-      typ.includes("RECEIPT") ||
-      typ.includes("OPENING") ||
-      typ.includes("RETURN");
-    const isOut =
-      typ.includes("OUT") ||
-      typ.includes("ISSUE") ||
-      typ.includes("CONSUMPTION") ||
-      typ.includes("DISPATCH");
-    const delta = isIn ? q : isOut ? -q : 0;
+    const delta = stockDelta(t.txnType, Number(t.qty) || 0);
     rmNetMap.set(t.rawMaterialId, (rmNetMap.get(t.rawMaterialId) || 0) + delta);
   }
 
   // ── Compute net stock change today for Finished Goods ────────────────────
   const fgNetMap = new Map<string, number>();
   for (const t of todayFgTxns) {
-    const typ = t.txnType.toUpperCase();
-    const q = Number(t.qty) || 0;
-    const isIn =
-      typ.includes("IN") ||
-      typ.includes("RECEIPT") ||
-      typ.includes("OPENING") ||
-      typ.includes("RETURN");
-    const isOut = typ.includes("OUT") || typ.includes("ISSUE") || typ.includes("DISPATCH");
-    const delta = isIn ? q : isOut ? -q : 0;
+    const delta = stockDelta(t.txnType, Number(t.qty) || 0);
     const key = `${t.productItemId}_${t.storeId}`;
     fgNetMap.set(key, (fgNetMap.get(key) || 0) + delta);
   }

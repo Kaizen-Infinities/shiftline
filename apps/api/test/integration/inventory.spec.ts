@@ -71,6 +71,36 @@ describe("inventory — EOD stock view and manual snapshot trigger", () => {
     expect(row.recordedAt).toBeNull();
   });
 
+  it("today, raw material: a supplier return is an outflow, a sales return an inflow (H12: day-end start qty was wrong)", async () => {
+    OWNER = await authed("demo.owner");
+    const rm = await createRawMaterial(); // onHandQty defaults to 500
+    const prisma = await getPrisma();
+    await asDemoTenant(async () => {
+      await prisma.rawMaterialTransaction.create({
+        data: {
+          storeId: "ST-RM",
+          rawMaterialId: rm.rawMaterialId,
+          txnType: "PURCHASE_RETURN_OUT",
+          qty: 10,
+        },
+      });
+      await prisma.rawMaterialTransaction.create({
+        data: { storeId: "ST-RM", rawMaterialId: rm.rawMaterialId, txnType: "RETURN", qty: 4 },
+      });
+    });
+
+    const res = await (
+      await api()
+    )
+      .get("/api/inventory/eod-stock")
+      .query({ date: todayIstStr(), search: rm.rawMaterialId })
+      .set(OWNER.auth);
+    expect(res.status, JSON.stringify(res.body).slice(0, 300)).toBe(200);
+    const row = res.body.data.find((r: any) => r.itemCode === rm.rawMaterialId);
+    // Net change today is +4 - 10 = -6, so the opening balance is 500 + 6 = 506 (not 486).
+    expect(Number(row.startQty)).toBe(506);
+  });
+
   it("counts a transaction from the first 5.5 hours of the IST day as today's, not dropped (regression: IST-midnight bug)", async () => {
     // getEodStock used to mark "today's start" as UTC midnight of the IST calendar day's own
     // date (`Date.UTC(year, month, day)` from getISTDateParts) rather than the real UTC instant
