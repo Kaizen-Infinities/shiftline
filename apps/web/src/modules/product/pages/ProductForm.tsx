@@ -25,6 +25,14 @@ import {
   Tile,
 } from "../../../components/ui/v2";
 import FormFooter from "../../stock/lib/FormFooter";
+import {
+  BOM_QTY_HEADER,
+  bomPayloadRows,
+  bomPercentTotalError,
+  bomRowError,
+  bomRowUom,
+  isPercentRecipe,
+} from "./productBom";
 import DataTable, { type DataTableColumn } from "../../../components/ui/table/DataTable";
 import DatePickerCalendar from "../../../components/ui/DatePickerCalendar/DatePickerCalendar";
 import { employeeService } from "../../../services/employeeService";
@@ -90,6 +98,8 @@ const ProductForm: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
 
   const [rawMaterials, setRawMaterials] = useState<RawMaterialRow[]>([]);
+  // Quantity per piece is the default recipe; percentages only when the owner opts in.
+  const [bomByPercent, setBomByPercent] = useState(false);
   const [hsnCodes, setHsnCodes] = useState<HsnCode[]>([]);
   const [gstSlabs, setGstSlabs] = useState<GstSlab[]>([]);
   const [allRawMaterials, setAllRawMaterials] = useState<any[]>([]);
@@ -251,14 +261,13 @@ const ProductForm: React.FC = () => {
     });
 
     if (productData.billOfMaterials) {
-      setRawMaterials(
-        productData.billOfMaterials.map((bom: any) => ({
-          rawMaterialId: bom.rawMaterialId,
-          percentage: bom.percentage != null ? String(Number(bom.percentage)) : "",
-          requiredQuantity:
-            bom.requiredQuantity != null ? String(Number(bom.requiredQuantity)) : "",
-        }))
-      );
+      const bomRows = productData.billOfMaterials.map((bom: any) => ({
+        rawMaterialId: bom.rawMaterialId,
+        percentage: bom.percentage != null ? String(Number(bom.percentage)) : "",
+        requiredQuantity: bom.requiredQuantity != null ? String(Number(bom.requiredQuantity)) : "",
+      }));
+      setRawMaterials(bomRows);
+      setBomByPercent(isPercentRecipe(bomRows));
     } else {
       setRawMaterials([]);
     }
@@ -360,19 +369,14 @@ const ProductForm: React.FC = () => {
       newErrors.minimumQty = "Minimum Stock Qty must be 0 or greater.";
     }
 
-    // Validate grade rates only when grades are configured
+    // Grade rates are optional: a product without a rate for a customer's grade sells at its
+    // base rate (sales-order pricing falls back to product.rate). Only entered values are checked.
     if (customerGrades.length > 0) {
-      const filledGradeRates = Object.entries(gradeRates).filter(
-        ([, v]) => v.toString().trim() !== ""
-      );
-      if (filledGradeRates.length === 0) {
-        newErrors.gradeRates = "At least one grade rate is required.";
-      } else {
-        for (const [gradeName, val] of filledGradeRates) {
-          const n = Number(val);
-          if (isNaN(n) || n <= 0) {
-            newErrors[`gradeRate_${gradeName}`] = "Must be > 0";
-          }
+      for (const [gradeName, val] of Object.entries(gradeRates)) {
+        if (val.toString().trim() === "") continue;
+        const n = Number(val);
+        if (isNaN(n) || n <= 0) {
+          newErrors[`gradeRate_${gradeName}`] = "Must be > 0";
         }
       }
     }
@@ -381,11 +385,9 @@ const ProductForm: React.FC = () => {
       newErrors.rawMaterials = "At least one raw material is required for BOM composition.";
       toast.error("At least one raw material is required for BOM composition.");
     } else {
-      const totalPercent = rawMaterials.reduce((acc, rm) => acc + Number(rm.percentage || 0), 0);
-      // Recipes entered as quantity per piece carry no percentages; only a percentage recipe
-      // has to add up to 100.
-      if (totalPercent > 0 && Math.abs(totalPercent - 100) > 0.01) {
-        newErrors.rawMaterials = "Total percentage must be exactly 100%";
+      const totalError = bomByPercent ? bomPercentTotalError(rawMaterials) : undefined;
+      if (totalError) {
+        newErrors.rawMaterials = totalError;
         toast.error("Total Raw Material percentage must be exactly 100%");
       }
 
@@ -398,8 +400,14 @@ const ProductForm: React.FC = () => {
 
       rawMaterials.forEach((rm, index) => {
         if (!rm.rawMaterialId) newErrors[`rawMaterials.${index}.rawMaterialId`] = "Required";
-        if (Number(rm.percentage || 0) <= 0 && Number(rm.requiredQuantity || 0) <= 0)
-          newErrors[`rawMaterials.${index}.percentage`] = "Enter % or qty";
+        const rowError = bomRowError(rm, bomByPercent);
+        if (rowError) {
+          newErrors[
+            bomByPercent
+              ? `rawMaterials.${index}.percentage`
+              : `rawMaterials.${index}.requiredQuantity`
+          ] = rowError;
+        }
       });
     }
 
@@ -587,12 +595,7 @@ const ProductForm: React.FC = () => {
       if (formData.openingStockStoreId)
         payload.append("openingStockStoreId", formData.openingStockStoreId);
 
-      const combinedBOM = rawMaterials.map((rm) => ({
-        rawMaterialId: rm.rawMaterialId,
-        percentage: rm.percentage,
-        requiredQuantity: Number(rm.requiredQuantity) || 0,
-      }));
-      payload.append("rawMaterials", JSON.stringify(combinedBOM));
+      payload.append("rawMaterials", JSON.stringify(bomPayloadRows(rawMaterials, bomByPercent)));
 
       if (initialCapacities.length > 0) {
         const capacityHistory = initialCapacities
@@ -1039,10 +1042,19 @@ const ProductForm: React.FC = () => {
               </span>
             </>
           }
-          subtitle="The recipe: share of each raw material in one piece"
+          subtitle="Quantity of each raw material used to make one piece"
           actions={
             <>
-              {bomTotal > 0 && (
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-muted">
+                <input
+                  type="checkbox"
+                  name="bomByPercent"
+                  checked={bomByPercent}
+                  onChange={(e) => setBomByPercent(e.target.checked)}
+                />
+                Recipe by percentage
+              </label>
+              {bomByPercent && bomTotal > 0 && (
                 <Chip
                   size="sm"
                   tone={Math.abs(bomTotal - 100) < 0.001 ? "success" : "warning"}
@@ -1082,7 +1094,7 @@ const ProductForm: React.FC = () => {
                   ),
                 },
                 {
-                  header: "Qty per piece (kg)",
+                  header: BOM_QTY_HEADER,
                   width: "180px",
                   render: (_, idx) => (
                     <TextInput
@@ -1094,30 +1106,42 @@ const ProductForm: React.FC = () => {
                       inputMode="decimal"
                       value={rawMaterials[idx]?.requiredQuantity ?? ""}
                       placeholder="0.000"
+                      trailingIcon={
+                        <span className="text-xs">
+                          {bomRowUom(rawMaterials[idx]?.rawMaterialId ?? "", allRawMaterials)}
+                        </span>
+                      }
                       onChange={(e) =>
                         handleRawMaterialChange(idx, "requiredQuantity", e.target.value)
                       }
+                      error={errors[`rawMaterials.${idx}.requiredQuantity`]}
                     />
                   ),
                 },
-                {
-                  header: "Percentage (%)",
-                  width: "200px",
-                  render: (_, idx) => (
-                    <TextInput
-                      label=""
-                      bottom
-                      name={`percent-${idx}`}
-                      type="number"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={rawMaterials[idx]?.percentage ?? ""}
-                      placeholder="0.00"
-                      onChange={(e) => handleRawMaterialChange(idx, "percentage", e.target.value)}
-                      error={errors[`rawMaterials.${idx}.percentage`]}
-                    />
-                  ),
-                },
+                ...(bomByPercent
+                  ? [
+                      {
+                        header: "Percentage (%)",
+                        width: "200px",
+                        render: (_: unknown, idx: number) => (
+                          <TextInput
+                            label=""
+                            bottom
+                            name={`percent-${idx}`}
+                            type="number"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={rawMaterials[idx]?.percentage ?? ""}
+                            placeholder="0.00"
+                            onChange={(e) =>
+                              handleRawMaterialChange(idx, "percentage", e.target.value)
+                            }
+                            error={errors[`rawMaterials.${idx}.percentage`]}
+                          />
+                        ),
+                      },
+                    ]
+                  : []),
                 {
                   header: "",
                   width: "56px",
